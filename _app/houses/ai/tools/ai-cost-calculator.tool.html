@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Module Progress tracking -->
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Deployment Cost Calculator - House of the Machine</title>
+    <style>
+        /* ─── Design tokens ─────────────────────────────────────────── */
+        :root {
+            --primary:   #a855f7;
+            --secondary: #7c3aed;
+            --glow:      rgba(168, 85, 247, 0.35);
+            --glow-sm:   rgba(168, 85, 247, 0.15);
+            --bg:        #0a0e1a;
+            --bg-card:   rgba(13, 14, 30, 0.92);
+            --bg-panel:  rgba(168, 85, 247, 0.06);
+            --border:    rgba(168, 85, 247, 0.22);
+            --text:      #e2e8f0;
+            --muted:     #8892a4;
+            --success:   #22c55e;
+            --warning:   #f59e0b;
+            --danger:    #ef4444;
+            --info:      #38bdf8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.65;
+        }
+
+        /* ─── Ambient background pulse ───────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: -10%;
+            width: 60%;
+            height: 60%;
+            background: radial-gradient(ellipse, rgba(168,85,247,0.07) 0%, transparent 70%);
+            pointer-events: none;
+            animation: ambientPulse 8s ease-in-out infinite alternate;
+        }
+        @keyframes ambientPulse {
+            from { opacity: 0.5; transform: scale(1); }
+            to   { opacity: 1;   transform: scale(1.1); }
+        }
+
+        /* ─── Sticky header ──────────────────────────────────────────── */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: rgba(10, 14, 26, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 56px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .back-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: background 0.2s, border-color 0.2s;
+            text-decoration: none;
+        }
+        .back-btn:hover { background: var(--glow-sm); border-color: var(--primary); }
+        .breadcrumb {
+            font-size: 0.78rem;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .breadcrumb span { color: var(--primary); font-weight: 600; }
+        .header-badge {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--primary);
+            background: var(--bg-panel);
+            letter-spacing: 0.05em;
+        }
+
+        /* ─── Main layout ────────────────────────────────────────────── */
+        .page-wrap {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+        .page-hero {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        .page-hero h1 {
+            font-size: clamp(1.6rem, 4vw, 2.4rem);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+        .page-hero h1 span { color: var(--primary); }
+        .page-hero p {
+            color: var(--muted);
+            font-size: 1rem;
+            max-width: 660px;
+            margin: 0 auto;
+        }
+
+        /* ─── Preset scenario buttons ────────────────────────────────── */
+        .preset-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 36px;
+        }
+        .preset-btn {
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.02em;
+        }
+        .preset-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--glow-sm);
+        }
+        .preset-btn.active {
+            border-color: var(--primary);
+            color: var(--bg);
+            background: var(--primary);
+        }
+
+        /* ─── Two-column grid: inputs | outputs ──────────────────────── */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .calc-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Card panel ─────────────────────────────────────────────── */
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+        }
+        .panel-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ─── Section label inside inputs panel ─────────────────────── */
+        .section-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin: 20px 0 12px;
+        }
+        .section-label:first-of-type { margin-top: 0; }
+
+        /* ─── Select / dropdown ──────────────────────────────────────── */
+        .field { margin-bottom: 14px; }
+        .field label {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 0.83rem;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .field label .hint {
+            font-size: 0.72rem;
+            color: var(--muted);
+            font-weight: 400;
+        }
+        select, .styled-select {
+            width: 100%;
+            padding: 9px 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.85rem;
+            appearance: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        select:focus { outline: none; border-color: var(--primary); }
+        select option { background: #1a1030; }
+
+        /* ─── Slider ─────────────────────────────────────────────────── */
+        .slider-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(168,85,247,0.2);
+            outline: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--glow);
+            transition: transform 0.15s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .slider-val {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--primary);
+            min-width: 60px;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        /* ─── Token cost info strip ──────────────────────────────────── */
+        .token-costs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+            margin-bottom: 4px;
+        }
+        .token-chip {
+            padding: 6px 10px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+        .token-chip strong { color: var(--text); display: block; font-size: 0.8rem; }
+
+        /* ─── Output dashboard ───────────────────────────────────────── */
+        .output-col { display: flex; flex-direction: column; gap: 20px; }
+
+        /* ─── Metric cards row ───────────────────────────────────────── */
+        .metric-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 700px) { .metric-row { grid-template-columns: 1fr 1fr; } }
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            transition: border-color 0.2s;
+        }
+        .metric-card:hover { border-color: rgba(168,85,247,0.5); }
+        .metric-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        .metric-value {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.1;
+        }
+        .metric-value.highlight { color: var(--primary); }
+        .metric-value.success   { color: var(--success); }
+        .metric-value.warning   { color: var(--warning); }
+        .metric-sub {
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ─── Cost breakdown bar chart ───────────────────────────────── */
+        .breakdown-list { display: flex; flex-direction: column; gap: 10px; }
+        .breakdown-item { display: flex; flex-direction: column; gap: 4px; }
+        .breakdown-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.83rem;
+        }
+        .breakdown-header .label { color: var(--text); }
+        .breakdown-header .amount { color: var(--primary); font-weight: 700; }
+        .bar-track {
+            height: 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+        }
+        .bar-llm     { background: var(--primary); }
+        .bar-infra   { background: var(--info); }
+        .bar-human   { background: var(--warning); }
+
+        /* ─── Comparison panel ───────────────────────────────────────── */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .compare-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .compare-card.agent  { border-color: rgba(168,85,247,0.4); background: rgba(168,85,247,0.05); }
+        .compare-card.human  { border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.05); }
+        .compare-card .c-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        .compare-card .c-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .compare-card.agent .c-value { color: var(--primary); }
+        .compare-card.human .c-value { color: var(--info); }
+        .compare-card .c-sub { font-size: 0.73rem; color: var(--muted); }
+
+        .roi-strip {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .roi-chip {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-panel);
+        }
+        .roi-chip .rv { font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
+        .roi-chip .rl { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        /* ─── SVG charts ─────────────────────────────────────────────── */
+        .chart-wrap { position: relative; }
+        .chart-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+        svg.pie-chart, svg.line-chart, svg.bar-chart {
+            width: 100%;
+            display: block;
+        }
+        .chart-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 16px;
+            align-items: center;
+        }
+        @media (max-width: 600px) { .chart-row { grid-template-columns: 1fr; } }
+        .pie-legend { display: flex; flex-direction: column; gap: 8px; }
+        .pie-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+        .pie-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .pie-legend-name { color: var(--text); }
+        .pie-legend-val  { color: var(--primary); font-weight: 700; margin-left: auto; }
+
+        /* ─── Model comparison bar chart ─────────────────────────────── */
+        .model-bars { display: flex; flex-direction: column; gap: 8px; }
+        .model-bar-row { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; }
+        .model-bar-label { width: 120px; color: var(--muted); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .model-bar-track {
+            flex: 1;
+            height: 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .model-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+            display: flex;
+            align-items: center;
+            padding-left: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.85);
+            white-space: nowrap;
+        }
+        .model-bar-amount { width: 70px; text-align: right; color: var(--text); font-weight: 600; flex-shrink: 0; }
+
+        /* ─── Completion banner ──────────────────────────────────────── */
+        .complete-banner {
+            display: none;
+            margin-top: 32px;
+            padding: 18px 24px;
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.35);
+            border-radius: 12px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--success);
+        }
+        .complete-banner strong { display: block; font-size: 1rem; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+
+<!-- ─── Header ──────────────────────────────────────────────────────── -->
+<header class="site-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn" title="Back to AI House">&#8592;</a>
+        <nav class="breadcrumb">
+            AI House &rsaquo; Tools &rsaquo; <span>Cost Calculator</span>
+        </nav>
+    </div>
+    <div class="header-badge">TOOL</div>
+</header>
+
+<!-- ─── Page body ───────────────────────────────────────────────────── -->
+<main class="page-wrap">
+
+    <div class="page-hero">
+        <h1>Agent Deployment <span>Cost Calculator</span></h1>
+        <p>Estimate the real monthly cost of running an AI agent in production — LLM tokens, infrastructure, and human oversight combined.</p>
+    </div>
+
+    <!-- Preset scenario quick-load buttons -->
+    <div class="preset-bar" id="presetBar">
+        <button class="preset-btn" data-preset="email">Email Triage Bot</button>
+        <button class="preset-btn" data-preset="soc">SOC Alert Agent</button>
+        <button class="preset-btn" data-preset="support">Customer Support</button>
+        <button class="preset-btn" data-preset="research">Enterprise Research</button>
+    </div>
+
+    <!-- Main calculator grid -->
+    <div class="calc-grid">
+
+        <!-- ── Left: Input panel ──────────────────────────────────── -->
+        <div class="panel" id="inputPanel">
+            <div class="panel-title">Configuration Parameters</div>
+
+            <!-- 1. LLM Selection -->
+            <div class="section-label">LLM Selection</div>
+            <div class="field">
+                <label>Model <span class="hint" id="modelPriceHint"></span></label>
+                <select id="modelSelect">
+                    <option value="gpt4o">GPT-4o</option>
+                    <option value="gpt4omini" selected>GPT-4o mini</option>
+                    <option value="claudeSonnet">Claude Sonnet</option>
+                    <option value="claudeHaiku">Claude Haiku</option>
+                    <option value="geminiPro">Gemini Pro</option>
+                    <option value="geminiFlash">Gemini Flash</option>
+                    <option value="llama">Self-hosted LLaMA</option>
+                </select>
+                <div class="token-costs">
+                    <div class="token-chip"><strong id="inputCostDisplay">$0.15</strong>per 1M input tokens</div>
+                    <div class="token-chip"><strong id="outputCostDisplay">$0.60</strong>per 1M output tokens</div>
+                </div>
+            </div>
+
+            <!-- 2. Usage Pattern -->
+            <div class="section-label">Usage Pattern</div>
+
+            <div class="field">
+                <label>Requests per day <span class="hint" id="reqDayVal">500</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="reqPerDay" min="10" max="10000" step="10" value="500">
+                    <span class="slider-val" id="reqDayLabel">500 / day</span>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Avg input tokens / request <span class="hint" id="inputTokVal">500</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="inputTokens" min="100" max="4000" step="50" value="500">
+                    <span class="slider-val" id="inputTokLabel">500 tok</span>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Avg output tokens / request <span class="hint" id="outputTokVal">200</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="outputTokens" min="50" max="2000" step="50" value="200">
+                    <span class="slider-val" id="outputTokLabel">200 tok</span>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Tool calls / request <span class="hint" id="toolCallVal">2</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="toolCalls" min="0" max="10" step="1" value="2">
+                    <span class="slider-val" id="toolCallLabel">2 calls</span>
+                </div>
+            </div>
+
+            <!-- 3. Infrastructure -->
+            <div class="section-label">Infrastructure</div>
+
+            <div class="field">
+                <label>Vector Database</label>
+                <select id="vectorDb">
+                    <option value="0">None — $0/mo</option>
+                    <option value="25">Weaviate Cloud — $25/mo</option>
+                    <option value="70">Pinecone — $70/mo</option>
+                    <option value="0">Self-hosted — $0 API + compute</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label>Hosting</label>
+                <select id="hosting">
+                    <option value="20">Serverless — ~$20/mo</option>
+                    <option value="50" selected>VPS — ~$50/mo</option>
+                    <option value="200">Kubernetes — ~$200/mo</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label>Monitoring / Logging</label>
+                <select id="monitoring">
+                    <option value="0">Basic — $0/mo</option>
+                    <option value="10">Custom stack — $10/mo</option>
+                    <option value="25">DataDog — $25/mo</option>
+                </select>
+            </div>
+
+            <!-- 4. Human Oversight -->
+            <div class="section-label">Human Oversight</div>
+
+            <div class="field">
+                <label>Human review rate <span class="hint" id="reviewRateVal">10%</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="reviewRate" min="0" max="100" step="5" value="10">
+                    <span class="slider-val" id="reviewRateLabel">10%</span>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Analyst hourly rate <span class="hint" id="analystRateVal">$50</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="analystRate" min="25" max="150" step="5" value="50">
+                    <span class="slider-val" id="analystRateLabel">$50/hr</span>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Review time per response <span class="hint" id="reviewTimeVal">3 min</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="reviewTime" min="1" max="10" step="1" value="3">
+                    <span class="slider-val" id="reviewTimeLabel">3 min</span>
+                </div>
+            </div>
+
+            <!-- Human task baseline (for ROI comparison) -->
+            <div class="section-label">Human Baseline (for ROI)</div>
+
+            <div class="field">
+                <label>Human time per task (no agent) <span class="hint" id="humanTaskTimeVal">8 min</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="humanTaskTime" min="1" max="60" step="1" value="8">
+                    <span class="slider-val" id="humanTaskTimeLabel">8 min</span>
+                </div>
+            </div>
+
+            <!-- Volume growth for projection -->
+            <div class="section-label">12-Month Projection</div>
+            <div class="field">
+                <label>Monthly volume growth rate <span class="hint" id="growthRateVal">5%</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="growthRate" min="0" max="30" step="1" value="5">
+                    <span class="slider-val" id="growthRateLabel">5% / mo</span>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Success rate (for cost-per-outcome) <span class="hint" id="successRateVal">90%</span></label>
+                <div class="slider-wrap">
+                    <input type="range" id="successRate" min="50" max="100" step="5" value="90">
+                    <span class="slider-val" id="successRateLabel">90%</span>
+                </div>
+            </div>
+
+        </div><!-- /inputPanel -->
+
+        <!-- ── Right: Output dashboard ────────────────────────────── -->
+        <div class="output-col">
+
+            <!-- Summary metric cards -->
+            <div class="metric-row">
+                <div class="metric-card">
+                    <div class="metric-label">Total / Month</div>
+                    <div class="metric-value highlight" id="mTotalMonth">$0</div>
+                    <div class="metric-sub" id="mTotalSub">all costs combined</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Cost / Request</div>
+                    <div class="metric-value" id="mCostPerReq">$0.00</div>
+                    <div class="metric-sub">per single request</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Cost / Outcome</div>
+                    <div class="metric-value warning" id="mCostPerOutcome">$0.00</div>
+                    <div class="metric-sub" id="mOutcomeSub">at 90% success rate</div>
+                </div>
+            </div>
+
+            <!-- Cost breakdown bar chart -->
+            <div class="panel">
+                <div class="panel-title">Monthly Cost Breakdown</div>
+                <div class="breakdown-list">
+                    <div class="breakdown-item">
+                        <div class="breakdown-header">
+                            <span class="label">LLM API Cost</span>
+                            <span class="amount" id="bdLlm">$0</span>
+                        </div>
+                        <div class="bar-track"><div class="bar-fill bar-llm" id="barLlm" style="width:0%"></div></div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div class="breakdown-header">
+                            <span class="label">Infrastructure</span>
+                            <span class="amount" id="bdInfra">$0</span>
+                        </div>
+                        <div class="bar-track"><div class="bar-fill bar-infra" id="barInfra" style="width:0%"></div></div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div class="breakdown-header">
+                            <span class="label">Human Oversight</span>
+                            <span class="amount" id="bdHuman">$0</span>
+                        </div>
+                        <div class="bar-track"><div class="bar-fill bar-human" id="barHuman" style="width:0%"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROI Comparison -->
+            <div class="panel">
+                <div class="panel-title">Agent vs. Fully Human Cost</div>
+                <div class="compare-grid">
+                    <div class="compare-card agent">
+                        <div class="c-label">Agent Cost / Month</div>
+                        <div class="c-value" id="cmpAgent">$0</div>
+                        <div class="c-sub">LLM + infra + oversight</div>
+                    </div>
+                    <div class="compare-card human">
+                        <div class="c-label">Human Cost / Month</div>
+                        <div class="c-value" id="cmpHuman">$0</div>
+                        <div class="c-sub">analyst time, same volume</div>
+                    </div>
+                </div>
+                <div class="roi-strip">
+                    <div class="roi-chip">
+                        <div class="rv" id="roiSavings" style="color:var(--success)">$0</div>
+                        <div class="rl">Monthly Savings</div>
+                    </div>
+                    <div class="roi-chip">
+                        <div class="rv" id="roiPercent" style="color:var(--primary)">0%</div>
+                        <div class="rl">ROI</div>
+                    </div>
+                    <div class="roi-chip">
+                        <div class="rv" id="roiBreakeven" style="color:var(--warning)">-</div>
+                        <div class="rl">Break-even</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pie chart: cost distribution -->
+            <div class="panel">
+                <div class="panel-title">Cost Distribution</div>
+                <div class="chart-row">
+                    <div class="chart-wrap">
+                        <svg id="pieChart" class="pie-chart" viewBox="0 0 200 200"></svg>
+                    </div>
+                    <div class="pie-legend" id="pieLegend"></div>
+                </div>
+            </div>
+
+            <!-- 12-month projection line chart -->
+            <div class="panel">
+                <div class="panel-title">12-Month Cost Projection</div>
+                <svg id="lineChart" class="line-chart" viewBox="0 0 600 200" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+
+            <!-- Model comparison bar chart -->
+            <div class="panel">
+                <div class="panel-title">Model Comparison — Same Workload</div>
+                <div class="model-bars" id="modelBars"></div>
+            </div>
+
+        </div><!-- /output-col -->
+    </div><!-- /calc-grid -->
+
+    <!-- Completion banner (shown after first calculation with non-zero output) -->
+    <div class="complete-banner" id="completeBanner">
+        <strong>Tool Explored</strong>
+        You have used the Agent Deployment Cost Calculator. Progress recorded.
+    </div>
+
+</main>
+
+<script>
+/* ================================================================
+   Agent Deployment Cost Calculator — Logic
+   All calculations run in real-time via the recalculate() function
+   triggered by any input change event.
+================================================================ */
+
+/* ── Model pricing table (input $ / 1M tokens, output $ / 1M tokens) */
+const MODELS = {
+    gpt4o:        { label: 'GPT-4o',          input:  2.50, output: 10.00, color: '#10b981' },
+    gpt4omini:    { label: 'GPT-4o mini',      input:  0.15, output:  0.60, color: '#a855f7' },
+    claudeSonnet: { label: 'Claude Sonnet',    input:  3.00, output: 15.00, color: '#f97316' },
+    claudeHaiku:  { label: 'Claude Haiku',     input:  0.25, output:  1.25, color: '#e879f9' },
+    geminiPro:    { label: 'Gemini Pro',       input:  3.50, output: 10.50, color: '#3b82f6' },
+    geminiFlash:  { label: 'Gemini Flash',     input:  0.15, output:  0.60, color: '#06b6d4' },
+    llama:        { label: 'Self-hosted LLaMA',input:  0.00, output:  0.00, color: '#8892a4' },
+};
+
+/* ── Preset scenarios ──────────────────────────────────────────── */
+const PRESETS = {
+    email: {
+        model: 'gpt4omini', reqPerDay: 500,  inputTokens: 400, outputTokens: 150,
+        toolCalls: 1, vectorDb: '0',  hosting: '20', monitoring: '0',
+        reviewRate: 5,  analystRate: 40, reviewTime: 2, humanTaskTime: 5,
+        growthRate: 5,  successRate: 92,
+    },
+    soc: {
+        model: 'claudeSonnet', reqPerDay: 200, inputTokens: 1200, outputTokens: 600,
+        toolCalls: 4, vectorDb: '70', hosting: '50', monitoring: '10',
+        reviewRate: 20, analystRate: 80, reviewTime: 5, humanTaskTime: 20,
+        growthRate: 3,  successRate: 85,
+    },
+    support: {
+        model: 'gpt4o', reqPerDay: 2000, inputTokens: 800, outputTokens: 400,
+        toolCalls: 2, vectorDb: '25', hosting: '200', monitoring: '25',
+        reviewRate: 10, analystRate: 35, reviewTime: 3, humanTaskTime: 7,
+        growthRate: 10, successRate: 88,
+    },
+    research: {
+        model: 'gpt4o', reqPerDay: 50, inputTokens: 3500, outputTokens: 1800,
+        toolCalls: 8, vectorDb: '70', hosting: '50', monitoring: '10',
+        reviewRate: 50, analystRate: 100, reviewTime: 8, humanTaskTime: 45,
+        growthRate: 2,  successRate: 80,
+    },
+};
+
+/* ── Helper: format currency ─────────────────────────────────── */
+function fmt(n, decimals = 0) {
+    if (n >= 10000) return '$' + Math.round(n).toLocaleString();
+    if (n >= 100)   return '$' + n.toFixed(decimals > 0 ? decimals : 0);
+    if (n >= 1)     return '$' + n.toFixed(2);
+    return '$' + n.toFixed(4);
+}
+
+/* ── Read all input values into a flat config object ─────────── */
+function readConfig() {
+    return {
+        model:         document.getElementById('modelSelect').value,
+        reqPerDay:     +document.getElementById('reqPerDay').value,
+        inputTokens:   +document.getElementById('inputTokens').value,
+        outputTokens:  +document.getElementById('outputTokens').value,
+        toolCalls:     +document.getElementById('toolCalls').value,
+        vectorDb:      +document.getElementById('vectorDb').value,
+        hosting:       +document.getElementById('hosting').value,
+        monitoring:    +document.getElementById('monitoring').value,
+        reviewRate:    +document.getElementById('reviewRate').value / 100,
+        analystRate:   +document.getElementById('analystRate').value,
+        reviewTime:    +document.getElementById('reviewTime').value,
+        humanTaskTime: +document.getElementById('humanTaskTime').value,
+        growthRate:    +document.getElementById('growthRate').value / 100,
+        successRate:   +document.getElementById('successRate').value / 100,
+    };
+}
+
+/* ── Core cost calculation ────────────────────────────────────── */
+function calculate(cfg) {
+    const m = MODELS[cfg.model];
+    const daysPerMonth = 30;
+    const reqPerMonth  = cfg.reqPerDay * daysPerMonth;
+
+    /* Each tool call adds extra tokens; estimate 200 input + 100 output per call */
+    const effectiveInputTokens  = cfg.inputTokens  + (cfg.toolCalls * 200);
+    const effectiveOutputTokens = cfg.outputTokens + (cfg.toolCalls * 100);
+
+    /* LLM cost: (tokens / 1,000,000) * price */
+    const llmInputCost  = (effectiveInputTokens  / 1_000_000) * m.input  * reqPerMonth;
+    const llmOutputCost = (effectiveOutputTokens / 1_000_000) * m.output * reqPerMonth;
+    const llmCost       = llmInputCost + llmOutputCost;
+
+    /* Infrastructure flat monthly cost */
+    const infraCost = cfg.vectorDb + cfg.hosting + cfg.monitoring;
+
+    /* Human oversight: (reviewed_requests * review_time_hours * hourly_rate) */
+    const reviewedReqs  = reqPerMonth * cfg.reviewRate;
+    const reviewTimeHrs = cfg.reviewTime / 60;
+    const humanCost     = reviewedReqs * reviewTimeHrs * cfg.analystRate;
+
+    const totalCost   = llmCost + infraCost + humanCost;
+    const costPerReq  = reqPerMonth > 0 ? totalCost / reqPerMonth : 0;
+    const costPerOutcome = cfg.successRate > 0 ? costPerReq / cfg.successRate : 0;
+
+    /* Fully human baseline: all requests handled manually */
+    const humanBaselineHrs = (cfg.reqPerDay * cfg.humanTaskTime / 60) * daysPerMonth;
+    const humanBaselineCost = humanBaselineHrs * cfg.analystRate;
+
+    const savings  = humanBaselineCost - totalCost;
+    const roi      = humanBaselineCost > 0 ? (savings / humanBaselineCost) * 100 : 0;
+
+    /* Break-even: if agent is more expensive, "N/A"; else months to recover setup cost
+       Simplified: assume $0 setup for this calculator (show "Immediate" if savings > 0) */
+    const breakevenLabel = savings > 0 ? 'Immediate' : 'N/A';
+
+    /* 12-month projection with compound volume growth */
+    const projection = [];
+    for (let mo = 1; mo <= 12; mo++) {
+        const growthMultiplier = Math.pow(1 + cfg.growthRate, mo - 1);
+        const moReqPerDay   = cfg.reqPerDay * growthMultiplier;
+        const moReqPerMonth = moReqPerDay * daysPerMonth;
+        const moLlm         = (effectiveInputTokens / 1_000_000) * m.input  * moReqPerMonth
+                            + (effectiveOutputTokens / 1_000_000) * m.output * moReqPerMonth;
+        const moHuman       = moReqPerMonth * cfg.reviewRate * reviewTimeHrs * cfg.analystRate;
+        projection.push(moLlm + infraCost + moHuman);
+    }
+
+    return {
+        llmCost, infraCost, humanCost, totalCost,
+        costPerReq, costPerOutcome,
+        humanBaselineCost, savings, roi,
+        breakevenLabel, projection, reqPerMonth,
+    };
+}
+
+/* ── Pie chart renderer (pure SVG) ───────────────────────────── */
+function drawPie(llm, infra, human) {
+    const svg   = document.getElementById('pieChart');
+    const legend = document.getElementById('pieLegend');
+    const total  = llm + infra + human;
+    svg.innerHTML = '';
+    legend.innerHTML = '';
+
+    const slices = [
+        { label: 'LLM API',        value: llm,   color: '#a855f7' },
+        { label: 'Infrastructure', value: infra, color: '#38bdf8' },
+        { label: 'Human Oversight',value: human, color: '#f59e0b' },
+    ];
+
+    const cx = 100, cy = 100, r = 80;
+    let startAngle = -Math.PI / 2;
+
+    slices.forEach(sl => {
+        const pct = total > 0 ? sl.value / total : 0;
+        const angle = pct * 2 * Math.PI;
+        if (pct === 0) return;
+
+        if (pct >= 1) {
+            /* Full circle */
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', cx);
+            circle.setAttribute('cy', cy);
+            circle.setAttribute('r', r);
+            circle.setAttribute('fill', sl.color);
+            svg.appendChild(circle);
+        } else {
+            const x1 = cx + r * Math.cos(startAngle);
+            const y1 = cy + r * Math.sin(startAngle);
+            const endAngle = startAngle + angle;
+            const x2 = cx + r * Math.cos(endAngle);
+            const y2 = cy + r * Math.sin(endAngle);
+            const largeArc = angle > Math.PI ? 1 : 0;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`);
+            path.setAttribute('fill', sl.color);
+            path.setAttribute('stroke', '#0a0e1a');
+            path.setAttribute('stroke-width', '2');
+            svg.appendChild(path);
+            startAngle = endAngle;
+        }
+
+        /* Legend entry */
+        const item = document.createElement('div');
+        item.className = 'pie-legend-item';
+        item.innerHTML = `
+            <div class="pie-legend-dot" style="background:${sl.color}"></div>
+            <span class="pie-legend-name">${sl.label}</span>
+            <span class="pie-legend-val">${total > 0 ? Math.round(pct * 100) : 0}%</span>`;
+        legend.appendChild(item);
+    });
+}
+
+/* ── Line chart renderer (SVG sparkline) ─────────────────────── */
+function drawLine(data) {
+    const svg = document.getElementById('lineChart');
+    svg.innerHTML = '';
+    const W = 600, H = 200, pad = { t: 20, r: 20, b: 40, l: 60 };
+    const inner = { w: W - pad.l - pad.r, h: H - pad.t - pad.b };
+    const max   = Math.max(...data, 1);
+
+    /* Grid lines + Y labels */
+    for (let i = 0; i <= 4; i++) {
+        const y = pad.t + inner.h - (i / 4) * inner.h;
+        const val = (max * i / 4);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', pad.l); line.setAttribute('x2', pad.l + inner.w);
+        line.setAttribute('y1', y);     line.setAttribute('y2', y);
+        line.setAttribute('stroke', 'rgba(255,255,255,0.06)');
+        line.setAttribute('stroke-width', '1');
+        svg.appendChild(line);
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', pad.l - 6); label.setAttribute('y', y + 4);
+        label.setAttribute('text-anchor', 'end');
+        label.setAttribute('fill', '#8892a4'); label.setAttribute('font-size', '10');
+        label.textContent = val >= 1000 ? '$' + Math.round(val / 1000) + 'k' : fmt(val);
+        svg.appendChild(label);
+    }
+
+    /* X axis month labels */
+    data.forEach((_, i) => {
+        const x = pad.l + (i / (data.length - 1)) * inner.w;
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', x); label.setAttribute('y', H - pad.b + 16);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('fill', '#8892a4'); label.setAttribute('font-size', '10');
+        label.textContent = 'M' + (i + 1);
+        svg.appendChild(label);
+    });
+
+    /* Area fill */
+    const points = data.map((v, i) => {
+        const x = pad.l + (i / (data.length - 1)) * inner.w;
+        const y = pad.t + inner.h - (v / max) * inner.h;
+        return [x, y];
+    });
+    const areaPath = ['M', pad.l, pad.t + inner.h,
+        ...points.flatMap(([x, y]) => ['L', x, y]),
+        'L', pad.l + inner.w, pad.t + inner.h, 'Z'].join(' ');
+
+    const area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    area.setAttribute('d', areaPath);
+    area.setAttribute('fill', 'rgba(168,85,247,0.12)');
+    svg.appendChild(area);
+
+    /* Line */
+    const linePath = points.map(([x, y], i) => (i === 0 ? 'M' : 'L') + x + ' ' + y).join(' ');
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('d', linePath);
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', '#a855f7');
+    line.setAttribute('stroke-width', '2.5');
+    line.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(line);
+
+    /* Data point dots */
+    points.forEach(([x, y]) => {
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.setAttribute('r', '3.5');
+        dot.setAttribute('fill', '#a855f7');
+        svg.appendChild(dot);
+    });
+}
+
+/* ── Model comparison bar chart ──────────────────────────────── */
+function drawModelBars(cfg) {
+    const container = document.getElementById('modelBars');
+    container.innerHTML = '';
+
+    const daysPerMonth = 30;
+    const reqPerMonth  = cfg.reqPerDay * daysPerMonth;
+    const effIn  = cfg.inputTokens  + cfg.toolCalls * 200;
+    const effOut = cfg.outputTokens + cfg.toolCalls * 100;
+
+    const costs = Object.entries(MODELS).map(([key, m]) => ({
+        label: m.label,
+        color: m.color,
+        cost:  ((effIn / 1_000_000) * m.input + (effOut / 1_000_000) * m.output) * reqPerMonth,
+    }));
+
+    const maxCost = Math.max(...costs.map(c => c.cost), 1);
+
+    costs.forEach(c => {
+        const pct = (c.cost / maxCost) * 100;
+        const row = document.createElement('div');
+        row.className = 'model-bar-row';
+        row.innerHTML = `
+            <div class="model-bar-label" title="${c.label}">${c.label}</div>
+            <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:${pct}%;background:${c.color}">
+                    ${pct > 15 ? fmt(c.cost) : ''}
+                </div>
+            </div>
+            <div class="model-bar-amount">${fmt(c.cost)}</div>`;
+        container.appendChild(row);
+    });
+}
+
+/* ── Update all output elements from a result object ─────────── */
+let completionFired = false;
+
+function updateOutputs(r) {
+    /* Summary metrics */
+    document.getElementById('mTotalMonth').textContent    = fmt(r.totalCost);
+    document.getElementById('mCostPerReq').textContent    = fmt(r.costPerReq, 4);
+    document.getElementById('mCostPerOutcome').textContent = fmt(r.costPerOutcome, 4);
+    document.getElementById('mOutcomeSub').textContent    =
+        'at ' + Math.round(+document.getElementById('successRate').value) + '% success rate';
+
+    /* Breakdown bars */
+    const breakdownTotal = Math.max(r.totalCost, 1);
+    document.getElementById('bdLlm').textContent   = fmt(r.llmCost);
+    document.getElementById('bdInfra').textContent = fmt(r.infraCost);
+    document.getElementById('bdHuman').textContent = fmt(r.humanCost);
+    document.getElementById('barLlm').style.width   = (r.llmCost   / breakdownTotal * 100).toFixed(1) + '%';
+    document.getElementById('barInfra').style.width = (r.infraCost / breakdownTotal * 100).toFixed(1) + '%';
+    document.getElementById('barHuman').style.width = (r.humanCost / breakdownTotal * 100).toFixed(1) + '%';
+
+    /* Comparison */
+    document.getElementById('cmpAgent').textContent  = fmt(r.totalCost);
+    document.getElementById('cmpHuman').textContent  = fmt(r.humanBaselineCost);
+
+    const savingsEl  = document.getElementById('roiSavings');
+    const roiPctEl   = document.getElementById('roiPercent');
+    savingsEl.textContent = fmt(Math.abs(r.savings));
+    savingsEl.style.color = r.savings >= 0 ? 'var(--success)' : 'var(--danger)';
+    roiPctEl.textContent  = Math.round(r.roi) + '%';
+    roiPctEl.style.color  = r.roi >= 0 ? 'var(--primary)' : 'var(--danger)';
+    document.getElementById('roiBreakeven').textContent = r.breakevenLabel;
+
+    /* Charts */
+    drawPie(r.llmCost, r.infraCost, r.humanCost);
+    drawLine(r.projection);
+    drawModelBars(readConfig());
+
+    /* Fire completion once the user has explored a non-trivial config */
+    if (!completionFired && r.totalCost > 0) {
+        completionFired = true;
+        document.getElementById('completeBanner').style.display = 'block';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai', 'ai-cost-calculator', { returnUrl: '../index.html' });
+        }
+    }
+}
+
+/* ── Update label displays tied to sliders ────────────────────── */
+function syncLabels() {
+    const pairs = [
+        ['reqPerDay',    'reqDayLabel',       v => v.toLocaleString() + ' / day'],
+        ['inputTokens',  'inputTokLabel',     v => v.toLocaleString() + ' tok'],
+        ['outputTokens', 'outputTokLabel',    v => v.toLocaleString() + ' tok'],
+        ['toolCalls',    'toolCallLabel',     v => v + ' call' + (v !== 1 ? 's' : '')],
+        ['reviewRate',   'reviewRateLabel',   v => v + '%'],
+        ['analystRate',  'analystRateLabel',  v => '$' + v + '/hr'],
+        ['reviewTime',   'reviewTimeLabel',   v => v + ' min'],
+        ['humanTaskTime','humanTaskTimeLabel',v => v + ' min'],
+        ['growthRate',   'growthRateLabel',   v => v + '% / mo'],
+        ['successRate',  'successRateLabel',  v => v + '%'],
+    ];
+    pairs.forEach(([id, labelId, format]) => {
+        const el = document.getElementById(id);
+        const lbl = document.getElementById(labelId);
+        if (el && lbl) lbl.textContent = format(+el.value);
+    });
+}
+
+/* ── Update the token cost chips when model changes ──────────── */
+function syncModelDisplay() {
+    const key = document.getElementById('modelSelect').value;
+    const m   = MODELS[key];
+    document.getElementById('inputCostDisplay').textContent  =
+        m.input === 0 ? '$0 (compute)' : '$' + m.input.toFixed(2);
+    document.getElementById('outputCostDisplay').textContent =
+        m.output === 0 ? '$0 (compute)' : '$' + m.output.toFixed(2);
+}
+
+/* ── Main recalculate — called on every input event ──────────── */
+function recalculate() {
+    syncLabels();
+    syncModelDisplay();
+    const cfg    = readConfig();
+    const result = calculate(cfg);
+    updateOutputs(result);
+}
+
+/* ── Apply a preset configuration ────────────────────────────── */
+function applyPreset(key) {
+    const p = PRESETS[key];
+    if (!p) return;
+
+    document.getElementById('modelSelect').value   = p.model;
+    document.getElementById('reqPerDay').value      = p.reqPerDay;
+    document.getElementById('inputTokens').value    = p.inputTokens;
+    document.getElementById('outputTokens').value   = p.outputTokens;
+    document.getElementById('toolCalls').value      = p.toolCalls;
+    document.getElementById('vectorDb').value       = p.vectorDb;
+    document.getElementById('hosting').value        = p.hosting;
+    document.getElementById('monitoring').value     = p.monitoring;
+    document.getElementById('reviewRate').value     = p.reviewRate;
+    document.getElementById('analystRate').value    = p.analystRate;
+    document.getElementById('reviewTime').value     = p.reviewTime;
+    document.getElementById('humanTaskTime').value  = p.humanTaskTime;
+    document.getElementById('growthRate').value     = p.growthRate;
+    document.getElementById('successRate').value    = p.successRate;
+
+    /* Highlight active preset button */
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.preset === key);
+    });
+
+    recalculate();
+}
+
+/* ── Wire up all event listeners ─────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    /* All sliders and selects trigger recalculate */
+    document.querySelectorAll('input[type="range"], select').forEach(el => {
+        el.addEventListener('input', () => {
+            /* Clear active preset highlight when user manually adjusts */
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            recalculate();
+        });
+    });
+
+    /* Preset buttons */
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+    });
+
+    /* Initial render */
+    recalculate();
+});
+</script>
+</body>
+</html>
