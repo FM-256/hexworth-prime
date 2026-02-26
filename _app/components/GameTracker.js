@@ -56,6 +56,7 @@ const GameTracker = (function () {
         buildbreaker: { title: "Build Breaker",         house: 'code',   icon: '💻' },
         clouddestroyer: { title: "Cloud Destroyer",     house: 'cloud',  icon: '☁️' },
         cloudhop:     { title: "Cloud Hop",             house: 'cloud',  icon: '☁️' },
+        'cloudhop-vertical': { title: "Cloud Hop: Vertical", house: 'cloud',  icon: '🌤️' },
         threatrunner: { title: "Threat Runner",         house: 'shield', icon: '🛡️' },
         packetrun:    { title: "Packet Run",            house: 'web',    icon: '🕸️' },
         pipesnake:    { title: "Pipe Snake",            house: 'script', icon: '☠️' },

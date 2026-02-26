@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Module Progress tracking -->
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tokenizer &amp; Token Counter — House of the Machine</title>
+    <style>
+        /* ─── Design tokens ───────────────────────────────────────────── */
+        :root {
+            --primary:   #a855f7;
+            --secondary: #7c3aed;
+            --glow:      rgba(168, 85, 247, 0.35);
+            --glow-sm:   rgba(168, 85, 247, 0.15);
+            --bg:        #0a0e1a;
+            --bg-card:   rgba(13, 14, 30, 0.92);
+            --bg-panel:  rgba(168, 85, 247, 0.06);
+            --border:    rgba(168, 85, 247, 0.22);
+            --text:      #e2e8f0;
+            --muted:     #8892a4;
+            --success:   #22c55e;
+            --warning:   #f59e0b;
+            --danger:    #ef4444;
+            --info:      #38bdf8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.65;
+        }
+
+        /* ─── Ambient background pulse ────────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: -10%;
+            width: 60%;
+            height: 60%;
+            background: radial-gradient(ellipse, rgba(168,85,247,0.07) 0%, transparent 70%);
+            pointer-events: none;
+            animation: ambientPulse 8s ease-in-out infinite alternate;
+        }
+        @keyframes ambientPulse {
+            from { opacity: 0.5; transform: scale(1); }
+            to   { opacity: 1;   transform: scale(1.1); }
+        }
+
+        /* ─── Sticky header ───────────────────────────────────────────── */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: rgba(10, 14, 26, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 56px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .back-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: background 0.2s, border-color 0.2s;
+            text-decoration: none;
+        }
+        .back-btn:hover { background: var(--glow-sm); border-color: var(--primary); }
+        .breadcrumb {
+            font-size: 0.78rem;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .breadcrumb a {
+            color: var(--muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .breadcrumb a:hover { color: var(--primary); }
+        .breadcrumb span { color: var(--primary); font-weight: 600; }
+        .header-badge {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--primary);
+            background: var(--bg-panel);
+            letter-spacing: 0.05em;
+        }
+
+        /* ─── Page layout ─────────────────────────────────────────────── */
+        .page-wrap {
+            max-width: 1340px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+        .page-hero {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        .page-hero h1 {
+            font-size: clamp(1.6rem, 4vw, 2.4rem);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+        .page-hero h1 span { color: var(--primary); }
+        .page-hero p {
+            color: var(--muted);
+            font-size: 1rem;
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        /* ─── Panel card ──────────────────────────────────────────────── */
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+        }
+        .panel-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel-title .icon {
+            font-size: 1rem;
+        }
+
+        /* ─── Main grid ───────────────────────────────────────────────── */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Textarea ────────────────────────────────────────────────── */
+        .input-area {
+            width: 100%;
+            min-height: 200px;
+            background: rgba(10, 14, 26, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            font-size: 0.92rem;
+            line-height: 1.7;
+            resize: vertical;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .input-area:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--glow-sm);
+        }
+        .input-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 8px 18px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.02em;
+        }
+        .btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--glow-sm);
+        }
+        .btn.primary {
+            border-color: var(--primary);
+            color: var(--bg);
+            background: var(--primary);
+        }
+        .btn.primary:hover {
+            background: var(--secondary);
+            border-color: var(--secondary);
+        }
+        .btn.danger {
+            border-color: rgba(239,68,68,0.4);
+            color: var(--danger);
+        }
+        .btn.danger:hover {
+            background: rgba(239,68,68,0.1);
+            border-color: var(--danger);
+        }
+
+        /* ─── Stats bar ───────────────────────────────────────────────── */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 700px) {
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            text-align: center;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--glow-sm);
+        }
+        .stat-value {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            color: var(--primary);
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 5px;
+        }
+        .stat-sub {
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ─── Token visualization output ──────────────────────────────── */
+        .token-display {
+            background: rgba(10, 14, 26, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            min-height: 140px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 2;
+            word-break: break-word;
+            overflow-y: auto;
+            max-height: 320px;
+        }
+        /* Token chip visual — each token gets a background color swatch */
+        .token-chip {
+            display: inline-block;
+            padding: 1px 4px;
+            border-radius: 4px;
+            margin: 1px;
+            font-size: 0.85rem;
+            cursor: default;
+            transition: transform 0.1s, filter 0.1s;
+            border-bottom: 2px solid transparent;
+            position: relative;
+        }
+        .token-chip:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.2);
+            z-index: 10;
+        }
+        /* Tooltip on hover showing token index */
+        .token-chip:hover::after {
+            content: attr(data-index);
+            position: absolute;
+            top: -22px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10,14,26,0.95);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.65rem;
+            color: var(--muted);
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        /* ─── Display mode tabs ────────────────────────────────────────── */
+        .tab-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.03em;
+        }
+        .tab-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .tab-btn.active {
+            border-color: var(--primary);
+            color: var(--bg);
+            background: var(--primary);
+        }
+
+        /* ─── Model comparison table ──────────────────────────────────── */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+        .model-card {
+            background: rgba(10, 14, 26, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .model-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--glow-sm);
+        }
+        .model-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .model-family {
+            font-size: 0.68rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 12px;
+        }
+        .model-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .model-stat-key {
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+        .model-stat-val {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-variant-numeric: tabular-nums;
+        }
+        .model-stat-val.cost {
+            color: var(--warning);
+        }
+        .model-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 8px 0;
+        }
+        .model-badge {
+            display: inline-block;
+            font-size: 0.62rem;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+        .model-badge.bpe    { background: rgba(56,189,248,0.15); color: var(--info); }
+        .model-badge.spm    { background: rgba(34,197,94,0.15);  color: var(--success); }
+        .model-badge.tiktoken { background: rgba(168,85,247,0.15); color: var(--primary); }
+
+        /* ─── Token breakdown table ───────────────────────────────────── */
+        .breakdown-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        .breakdown-table th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .breakdown-table td {
+            padding: 7px 12px;
+            border-bottom: 1px solid rgba(168,85,247,0.08);
+            vertical-align: middle;
+        }
+        .breakdown-table tr:hover td {
+            background: var(--glow-sm);
+        }
+        .freq-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: var(--primary);
+            opacity: 0.7;
+            min-width: 4px;
+            transition: width 0.4s ease;
+        }
+        .token-pill {
+            display: inline-block;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 1px 7px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: var(--primary);
+        }
+
+        /* ─── Experiments panel ───────────────────────────────────────── */
+        .experiments-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 14px;
+        }
+        .experiment-card {
+            background: rgba(10, 14, 26, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .experiment-card:hover {
+            border-color: rgba(168,85,247,0.5);
+            transform: translateY(-2px);
+        }
+        .experiment-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .experiment-desc {
+            font-size: 0.78rem;
+            color: var(--muted);
+            line-height: 1.55;
+            margin-bottom: 14px;
+        }
+        .experiment-insight {
+            font-size: 0.76rem;
+            color: var(--info);
+            background: rgba(56,189,248,0.07);
+            border-left: 3px solid var(--info);
+            border-radius: 0 6px 6px 0;
+            padding: 8px 12px;
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+        .experiment-num-badge {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--secondary);
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-align: center;
+            line-height: 22px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        /* ─── Cost estimator ──────────────────────────────────────────── */
+        .cost-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }
+        .cost-card {
+            background: rgba(10, 14, 26, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            transition: border-color 0.2s;
+        }
+        .cost-card:hover { border-color: var(--primary); }
+        .cost-model-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 3px;
+        }
+        .cost-model-sub {
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(168,85,247,0.08);
+        }
+        .cost-row:last-child { border-bottom: none; }
+        .cost-row-label { font-size: 0.72rem; color: var(--muted); }
+        .cost-row-value { font-size: 0.8rem; font-weight: 600; color: var(--warning); font-variant-numeric: tabular-nums; }
+        .cost-row-value.small { color: var(--success); }
+        .cost-row-value.large { color: var(--danger); }
+        .cost-total {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cost-total-label { font-size: 0.75rem; font-weight: 700; color: var(--text); }
+        .cost-total-value { font-size: 1rem; font-weight: 700; color: var(--warning); }
+
+        /* ─── Note callout ────────────────────────────────────────────── */
+        .edu-note {
+            background: rgba(168,85,247,0.07);
+            border: 1px solid rgba(168,85,247,0.2);
+            border-left: 4px solid var(--primary);
+            border-radius: 0 10px 10px 0;
+            padding: 12px 16px;
+            font-size: 0.8rem;
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .edu-note strong { color: var(--primary); }
+
+        /* ─── Empty state ─────────────────────────────────────────────── */
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+        .empty-state svg {
+            display: block;
+            margin: 0 auto 12px;
+            opacity: 0.3;
+        }
+
+        /* ─── Legend row ──────────────────────────────────────────────── */
+        .legend-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+        .legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* ─── Responsive tweaks ───────────────────────────────────────── */
+        @media (max-width: 600px) {
+            .site-header { padding: 0 16px; }
+            .page-wrap { padding: 24px 14px 60px; }
+        }
+
+        /* ─── Scrollbar theming ───────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(168,85,247,0.6); }
+    </style>
+</head>
+<body>
+
+<!-- ─── Sticky Header ─────────────────────────────────────────────── -->
+<header class="site-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn" title="Back to House of the Machine">&#8592;</a>
+        <nav class="breadcrumb">
+            <a href="../../index.html">Prime</a>
+            <span>&#8250;</span>
+            <a href="../index.html">House of the Machine</a>
+            <span>&#8250;</span>
+            <a href="#">Tools</a>
+            <span>&#8250;</span>
+            <span>Token Counter</span>
+        </nav>
+    </div>
+    <div class="header-badge">TOOL</div>
+</header>
+
+<!-- ─── Page Body ─────────────────────────────────────────────────── -->
+<main class="page-wrap">
+
+    <!-- Hero -->
+    <div class="page-hero">
+        <h1>AI <span>Tokenizer</span> &amp; Token Counter</h1>
+        <p>See exactly how large language models break text into tokens — the fundamental unit of LLM computation and billing.</p>
+    </div>
+
+    <!-- Educational note -->
+    <div class="edu-note">
+        <strong>Educational Approximation:</strong> This tool uses a simplified BPE-inspired tokenizer for learning purposes.
+        Results are close to GPT-4/Claude tokenization but not byte-exact. Real tokenizers use learned merge rules over a
+        vocabulary of 50k–128k tokens. Costs shown use current published pricing and are estimates.
+    </div>
+
+    <!-- ─── Stats Bar ─────────────────────────────────────────────── -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-value" id="stat-tokens">0</div>
+            <div class="stat-label">Tokens</div>
+            <div class="stat-sub" id="stat-tokens-sub">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-chars">0</div>
+            <div class="stat-label">Characters</div>
+            <div class="stat-sub" id="stat-chars-sub">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-words">0</div>
+            <div class="stat-label">Words</div>
+            <div class="stat-sub" id="stat-words-sub">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-ratio">0.0</div>
+            <div class="stat-label">Chars / Token</div>
+            <div class="stat-sub" id="stat-ratio-sub">Efficiency ratio</div>
+        </div>
+    </div>
+
+    <!-- ─── Main Two-Column Grid: Input | Visualization ──────────── -->
+    <div class="main-grid">
+
+        <!-- Left: Input Panel -->
+        <div class="panel">
+            <div class="panel-title"><span class="icon">&#9998;</span> Text Input</div>
+            <textarea
+                id="text-input"
+                class="input-area"
+                placeholder="Type or paste any text to tokenize it..."
+                spellcheck="false"
+            ></textarea>
+            <div class="input-controls">
+                <button class="btn primary" onclick="App.loadSample()">Load Sample</button>
+                <button class="btn" onclick="App.clearInput()">Clear</button>
+                <button class="btn" onclick="App.copyTokens()">Copy Token List</button>
+            </div>
+        </div>
+
+        <!-- Right: Visualization Panel -->
+        <div class="panel">
+            <div class="panel-title"><span class="icon">&#10003;</span> Token Visualization</div>
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="App.setMode('color')" id="tab-color">Color Blocks</button>
+                <button class="tab-btn" onclick="App.setMode('border')" id="tab-border">Boundaries</button>
+                <button class="tab-btn" onclick="App.setMode('ids')" id="tab-ids">Token IDs</button>
+            </div>
+            <div class="token-display" id="token-display">
+                <div class="empty-state">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M8 8h5M8 16h3"/>
+                    </svg>
+                    Enter text on the left to see token visualization
+                </div>
+            </div>
+            <div class="legend-row" id="legend-row" style="display:none;">
+                <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed88;border:1px solid #7c3aed;"></div> Token boundary</div>
+                <div class="legend-item"><div class="legend-swatch" style="background:rgba(168,85,247,0.2);border:1px solid #a855f7;"></div> Word token</div>
+                <div class="legend-item"><div class="legend-swatch" style="background:rgba(56,189,248,0.15);border:1px solid #38bdf8;"></div> Punctuation / space</div>
+                <div class="legend-item"><div class="legend-swatch" style="background:rgba(34,197,94,0.12);border:1px solid #22c55e;"></div> Subword / suffix</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Model Comparison ─────────────────────────────────────── -->
+    <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-title"><span class="icon">&#9878;</span> Model Token Comparison</div>
+        <div class="model-grid" id="model-grid">
+            <!-- populated by JS -->
+        </div>
+    </div>
+
+    <!-- ─── Token Breakdown Table + Cost Estimator ───────────────── -->
+    <div class="main-grid" style="margin-bottom:20px;">
+
+        <!-- Token Breakdown -->
+        <div class="panel">
+            <div class="panel-title"><span class="icon">&#9783;</span> Token Frequency Breakdown</div>
+            <div id="breakdown-container">
+                <div class="empty-state">No tokens yet — enter some text</div>
+            </div>
+        </div>
+
+        <!-- Cost Estimator -->
+        <div class="panel">
+            <div class="panel-title"><span class="icon">&#36;</span> Cost Estimator</div>
+            <p style="font-size:0.78rem;color:var(--muted);margin-bottom:14px;">
+                If this text were sent as a prompt (input tokens), and the model generated a response of equal length (output tokens):
+            </p>
+            <div class="cost-grid" id="cost-grid">
+                <!-- populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Experiments Panel ────────────────────────────────────── -->
+    <div class="panel">
+        <div class="panel-title"><span class="icon">&#9883;</span> Tokenization Experiments</div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-bottom:18px;">
+            Load these curated examples to explore how different types of text tokenize and why it matters for LLM costs and behavior.
+        </p>
+        <div class="experiments-grid" id="experiments-grid">
+            <!-- populated by JS -->
+        </div>
+    </div>
+
+</main>
+
+<script>
+/* ================================================================
+   AI Tokenizer Tool — Hexworth Prime
+   Educational BPE-inspired tokenizer (not production-accurate).
+   All logic is self-contained in this file.
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   TOKEN COLORS — 16 pastel shades cycling through tokens.
+   Each color has a background and a matching border/bottom-border.
+   ---------------------------------------------------------------- */
+const TOKEN_COLORS = [
+    { bg: 'rgba(168,85,247,0.18)',  border: '#a855f7' },
+    { bg: 'rgba(56,189,248,0.15)',  border: '#38bdf8' },
+    { bg: 'rgba(34,197,94,0.13)',   border: '#22c55e' },
+    { bg: 'rgba(245,158,11,0.15)',  border: '#f59e0b' },
+    { bg: 'rgba(239,68,68,0.13)',   border: '#ef4444' },
+    { bg: 'rgba(99,102,241,0.18)',  border: '#6366f1' },
+    { bg: 'rgba(236,72,153,0.14)',  border: '#ec4899' },
+    { bg: 'rgba(20,184,166,0.14)',  border: '#14b8a6' },
+    { bg: 'rgba(234,179,8,0.14)',   border: '#eab308' },
+    { bg: 'rgba(249,115,22,0.14)',  border: '#f97316' },
+    { bg: 'rgba(16,185,129,0.14)',  border: '#10b981' },
+    { bg: 'rgba(124,58,237,0.18)',  border: '#7c3aed' },
+    { bg: 'rgba(59,130,246,0.15)',  border: '#3b82f6' },
+    { bg: 'rgba(217,70,239,0.14)',  border: '#d946ef' },
+    { bg: 'rgba(251,191,36,0.14)',  border: '#fbbf24' },
+    { bg: 'rgba(52,211,153,0.13)',  border: '#34d399' },
+];
+
+/* ----------------------------------------------------------------
+   MODEL DEFINITIONS — token counts and pricing for comparison.
+   Prices per 1M tokens (USD), as of early 2026.
+   ---------------------------------------------------------------- */
+const MODELS = [
+    {
+        id: 'gpt4o',
+        name: 'GPT-4o',
+        family: 'OpenAI',
+        algorithm: 'tiktoken',
+        badge: 'tiktoken',
+        charsPerToken: 3.9,
+        inputPer1M: 2.50,
+        outputPer1M: 10.00,
+        contextK: 128,
+        note: 'cl100k_base vocabulary (100k tokens)'
+    },
+    {
+        id: 'gpt35',
+        name: 'GPT-3.5 Turbo',
+        family: 'OpenAI',
+        algorithm: 'tiktoken',
+        badge: 'tiktoken',
+        charsPerToken: 3.8,
+        inputPer1M: 0.50,
+        outputPer1M: 1.50,
+        contextK: 16,
+        note: 'Same BPE base as GPT-4, lower cost'
+    },
+    {
+        id: 'claude',
+        name: 'Claude 3.5 Sonnet',
+        family: 'Anthropic',
+        algorithm: 'bpe',
+        badge: 'bpe',
+        charsPerToken: 4.0,
+        inputPer1M: 3.00,
+        outputPer1M: 15.00,
+        contextK: 200,
+        note: 'Custom BPE, ~200K context window'
+    },
+    {
+        id: 'llama3',
+        name: 'Llama 3',
+        family: 'Meta',
+        algorithm: 'tiktoken',
+        badge: 'tiktoken',
+        charsPerToken: 3.7,
+        inputPer1M: 0.20,
+        outputPer1M: 0.20,
+        contextK: 128,
+        note: 'Uses tiktoken (cl100k), open-source'
+    },
+    {
+        id: 'gemini',
+        name: 'Gemini 1.5 Pro',
+        family: 'Google',
+        algorithm: 'spm',
+        badge: 'spm',
+        charsPerToken: 4.2,
+        inputPer1M: 1.25,
+        outputPer1M: 5.00,
+        contextK: 1000,
+        note: 'SentencePiece, 1M context window'
+    },
+    {
+        id: 'mistral',
+        name: 'Mistral Large',
+        family: 'Mistral AI',
+        algorithm: 'spm',
+        badge: 'spm',
+        charsPerToken: 3.9,
+        inputPer1M: 2.00,
+        outputPer1M: 6.00,
+        contextK: 32,
+        note: 'SentencePiece vocabulary, EU-hosted'
+    },
+];
+
+/* ----------------------------------------------------------------
+   EXPERIMENTS — curated text samples illustrating tokenization
+   behavior differences across types of content.
+   ---------------------------------------------------------------- */
+const EXPERIMENTS = [
+    {
+        num: 1,
+        title: 'Prose vs. Code',
+        desc: 'English prose tokenizes efficiently (~4 chars/token). Code uses unfamiliar token patterns — underscores, camelCase, symbols — fragmenting into many small tokens.',
+        insight: 'Code is roughly 1.5-2x more token-dense than prose. A 1,000-token Python script may cost as much as a 1,800-word essay.',
+        text: `The attacker exploited a misconfigured S3 bucket, exposing sensitive customer records. The incident response team was immediately notified and began containment procedures.
+
+def respond_to_incident(event_data):
+    if event_data.get("severity") == "critical":
+        alert_soc_team(event_id=event_data["id"])
+        isolate_affected_host(hostname=event_data["host"])
+        return {"status": "contained", "timestamp": datetime.utcnow()}`
+    },
+    {
+        num: 2,
+        title: 'Non-English Text',
+        desc: 'BPE vocabularies are trained mostly on English. Non-Latin scripts like Arabic, Chinese, or Japanese tokenize much less efficiently — sometimes one character per token.',
+        insight: 'Sending a message in Chinese can cost 3-5x more tokens than the equivalent English text. Always factor language into cost estimates.',
+        text: `English: The firewall blocked the intrusion attempt at 3:47 AM.
+Spanish: El cortafuegos bloqueó el intento de intrusión a las 3:47 AM.
+Japanese: ファイアウォールは午前3時47分に侵入試みをブロックしました。
+Arabic: قام جدار الحماية بحظر محاولة الاختراق الساعة 3:47 صباحاً.
+Chinese: 防火墙在凌晨3点47分阻止了入侵企图。`
+    },
+    {
+        num: 3,
+        title: 'Numbers and Dates',
+        desc: 'Integers and dates tokenize unpredictably. Short numbers may be a single token; large numbers, IP addresses, and dates often fragment into multiple tokens.',
+        insight: 'The number 2024 might be 1 token; the IP 192.168.100.254 could be 7+ tokens. Avoid passing large numeric datasets as raw text — use structured formats.',
+        text: `User IDs: 42, 100, 9999, 100000, 8675309
+IP Addresses: 10.0.0.1, 192.168.1.254, 203.0.113.42
+Dates: 2024-01-15, 15/01/2024, January 15th 2024
+CVEs: CVE-2024-1234, CVE-2021-44228 (Log4Shell)
+Hashes: a3f5c9e1b2d84, 0xDEADBEEF, SHA-256: abc123...`
+    },
+    {
+        num: 4,
+        title: 'Special Characters & Symbols',
+        desc: 'Markdown, JSON, XML, and regex patterns contain many special characters. These rarely appear in common vocabulary and each may cost an entire token.',
+        insight: 'A JSON object with many quoted keys and brackets can be 2-3x more token-expensive than the equivalent plain-text description. Schema definitions are costly.',
+        text: `{"event_type": "auth_failure", "severity": "HIGH", "host": "db-prod-01", "details": {"attempts": 47, "source_ip": "185.220.101.45", "protocol": "SSH"}}
+
+<!-- XML config -->
+<firewall-rule id="deny-ssh-extern" enabled="true">
+  <source>!internal</source>
+  <port>22</port>
+  <action>DROP</action>
+</firewall-rule>
+
+Regex: ^([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$`
+    },
+];
+
+/* ----------------------------------------------------------------
+   DEFAULT SAMPLE TEXT loaded on page open.
+   ---------------------------------------------------------------- */
+const DEFAULT_SAMPLE = `Large language models process text through tokenization — the act of splitting input into discrete units called tokens. Rather than individual characters or words, modern LLMs use Byte Pair Encoding (BPE) to merge frequently occurring character pairs into sub-word tokens.
+
+For example, the word "tokenization" might become ["token", "ization"] — two tokens, not twelve characters. Common English words like "the", "and", "is" are often single tokens. Rare or technical terms fragment into multiple pieces.
+
+Why does it matter? Because every token costs money and consumes context window space. GPT-4o charges $2.50 per million input tokens. A 100-page report (~75,000 words, ~100,000 tokens) would cost roughly $0.25 to read — before the model writes a single word back.`;
+
+/* ================================================================
+   TOKENIZER ENGINE
+   Simplified BPE-inspired approach:
+   1. Split on whitespace preserving spaces as separate tokens
+   2. Split punctuation off word endings/beginnings
+   3. Apply common English suffix merges (BPE-like)
+   4. Assign simulated token IDs
+   ================================================================ */
+const Tokenizer = (() => {
+
+    // Common English suffixes that BPE almost always keeps attached
+    // (i.e. "tokenization" -> ["token", "ization"] not ["token","iz","ation"])
+    const SUFFIX_MERGES = [
+        'ization', 'isation', 'ations', 'ation', 'ating', 'ated',
+        'iness', 'ness', 'ment', 'ments', 'tion', 'tions', 'sion',
+        'ing', 'ings', 'tion', 'ive', 'ives', 'ous', 'ious',
+        'ful', 'less', 'ably', 'ibly', 'able', 'ible',
+        'ize', 'ise', 'ers', 'er', 'est', 'ly', 'ed', 'es', "'s", "'t",
+    ];
+
+    // Characters that always form their own token
+    const PUNCT_SOLO = new Set([
+        '.',',','!','?',';',':','"',"'",'(',')','[',']','{','}',
+        '<','>','/','\\','|','@','#','$','%','^','&','*','-','_',
+        '+','=','~','`','–','—','"','"',''',''','…'
+    ]);
+
+    /**
+     * splitWord: apply BPE-like suffix segmentation to a single word.
+     * Returns an array of sub-tokens for that word.
+     */
+    function splitWord(word) {
+        if (word.length <= 3) return [word];
+
+        const lower = word.toLowerCase();
+        for (const suffix of SUFFIX_MERGES) {
+            // Only split if stem is at least 3 chars
+            if (lower.endsWith(suffix) && word.length - suffix.length >= 3) {
+                const stem = word.slice(0, word.length - suffix.length);
+                // Recursively split the stem in case it has its own suffixes
+                return [...splitWord(stem), suffix];
+            }
+        }
+        // No suffix match — treat as single token (up to length ~6)
+        // Long words without recognized suffixes get chunked at ~5 chars
+        if (word.length > 8) {
+            const mid = Math.floor(word.length / 2);
+            return [word.slice(0, mid), word.slice(mid)];
+        }
+        return [word];
+    }
+
+    /**
+     * tokenize: main entry point.
+     * Returns array of {text, type, id} token objects.
+     * Types: 'word' | 'subword' | 'punct' | 'space' | 'newline' | 'number' | 'symbol'
+     */
+    function tokenize(text) {
+        if (!text || text.trim() === '') return [];
+
+        const tokens = [];
+        let idCounter = 1000; // Simulated vocab offset (GPT uses real IDs)
+
+        // Split input into raw segments: words, spaces, newlines, punctuation runs
+        // Regex: capture runs of letters/digits, OR individual special chars, OR whitespace runs
+        const segments = text.match(/[a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF]+|\d+|[\n]+|[ \t]+|[^\w\s]/gu) || [];
+
+        for (const seg of segments) {
+            // ── Newlines ──────────────────────────────────────────────
+            if (/^\n+$/.test(seg)) {
+                tokens.push({ text: seg.replace(/\n/g, '↵'), type: 'newline', id: idCounter++ });
+                continue;
+            }
+            // ── Spaces/tabs ───────────────────────────────────────────
+            if (/^[ \t]+$/.test(seg)) {
+                // BPE encodes leading space into the following word token;
+                // for visualization we show spaces as their own token
+                tokens.push({ text: '·'.repeat(seg.length), type: 'space', id: idCounter++ });
+                continue;
+            }
+            // ── Numbers ───────────────────────────────────────────────
+            if (/^\d+$/.test(seg)) {
+                // Multi-digit numbers fragment: each 1-2 digits = ~1 token
+                if (seg.length <= 4) {
+                    tokens.push({ text: seg, type: 'number', id: idCounter++ });
+                } else {
+                    // Long numbers chunk in pairs
+                    for (let i = 0; i < seg.length; i += 2) {
+                        tokens.push({ text: seg.slice(i, i + 2), type: 'number', id: idCounter++ });
+                    }
+                }
+                continue;
+            }
+            // ── Non-Latin Unicode (CJK, Arabic, Cyrillic) ─────────────
+            if (/[\u3000-\u9FFF\uAC00-\uD7AF\u0600-\u06FF\u0400-\u04FF]/.test(seg)) {
+                // Non-BPE-trained chars often tokenize 1 char per token
+                for (const ch of seg) {
+                    tokens.push({ text: ch, type: 'symbol', id: idCounter++ });
+                }
+                continue;
+            }
+            // ── Punctuation / symbols ─────────────────────────────────
+            if (seg.length === 1 && !/[a-zA-Z\u00C0-\u024F]/.test(seg)) {
+                tokens.push({ text: seg, type: 'punct', id: idCounter++ });
+                continue;
+            }
+            // ── Words (Latin script) ──────────────────────────────────
+            const parts = splitWord(seg);
+            for (let pi = 0; pi < parts.length; pi++) {
+                tokens.push({
+                    text: parts[pi],
+                    type: pi === 0 ? 'word' : 'subword',
+                    id: idCounter++
+                });
+            }
+        }
+
+        return tokens;
+    }
+
+    return { tokenize };
+})();
+
+/* ================================================================
+   MODEL ESTIMATOR
+   Given a token count produced by the base tokenizer, scale it
+   per-model using the chars/token ratio relative to a 4.0 baseline.
+   ================================================================ */
+function estimateModelTokens(baseTokenCount, baseCharCount, model) {
+    // Scale: if model uses fewer chars/token → more tokens for same text
+    const scaled = Math.round(baseCharCount / model.charsPerToken);
+    return scaled;
+}
+
+/* ================================================================
+   MAIN APP CONTROLLER
+   ================================================================ */
+const App = (() => {
+    let currentTokens = [];
+    let displayMode = 'color'; // 'color' | 'border' | 'ids'
+    let debounceTimer = null;
+
+    /* ── DOM refs ─────────────────────────────────────────────── */
+    const inputEl    = document.getElementById('text-input');
+    const displayEl  = document.getElementById('token-display');
+    const legendEl   = document.getElementById('legend-row');
+
+    /* ── Initialize ───────────────────────────────────────────── */
+    function init() {
+        inputEl.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(runAnalysis, 80); // 80ms debounce
+        });
+        buildStaticPanels();
+        loadSample();
+    }
+
+    /* ── Build model grid + experiment cards (static HTML) ────── */
+    function buildStaticPanels() {
+        buildModelGrid();
+        buildExperimentsGrid();
+    }
+
+    /* ── Run full analysis on current input ─────────────────────── */
+    function runAnalysis() {
+        const text = inputEl.value;
+        currentTokens = Tokenizer.tokenize(text);
+        const charCount = text.length;
+        const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+        const tokenCount = currentTokens.length;
+        const ratio = tokenCount > 0 ? (charCount / tokenCount).toFixed(1) : '—';
+
+        updateStats(tokenCount, charCount, wordCount, ratio);
+        updateVisualization(currentTokens);
+        updateModelGrid(tokenCount, charCount);
+        updateBreakdown(currentTokens);
+        updateCostGrid(tokenCount, charCount);
+    }
+
+    /* ── Stats bar ────────────────────────────────────────────── */
+    function updateStats(tokens, chars, words, ratio) {
+        setStatCard('stat-tokens', tokens.toLocaleString(),
+            tokens === 0 ? '—' : `~${Math.round(tokens * 0.75).toLocaleString()} words equiv.`);
+        setStatCard('stat-chars', chars.toLocaleString(),
+            chars === 0 ? '—' : `${words} unique words`);
+        setStatCard('stat-words', words.toLocaleString(),
+            words === 0 ? '—' : `${(chars / Math.max(words,1)).toFixed(1)} chars/word avg`);
+        setStatCard('stat-ratio', ratio,
+            ratio === '—' ? 'Efficiency ratio' : ratio < 3 ? 'Low efficiency' : ratio > 5 ? 'High efficiency' : 'Typical English');
+    }
+    function setStatCard(id, value, sub) {
+        document.getElementById(id).textContent = value;
+        document.getElementById(id + '-sub').textContent = sub;
+    }
+
+    /* ── Token visualization ──────────────────────────────────── */
+    function updateVisualization(tokens) {
+        if (tokens.length === 0) {
+            displayEl.innerHTML = `<div class="empty-state">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M8 8h5M8 16h3"/>
+                </svg>
+                Enter text on the left to see token visualization
+            </div>`;
+            legendEl.style.display = 'none';
+            return;
+        }
+
+        legendEl.style.display = 'flex';
+
+        // Build fragment for performance (avoid many separate DOM touches)
+        const frag = document.createDocumentFragment();
+
+        tokens.forEach((tok, idx) => {
+            if (displayMode === 'color') {
+                renderColorChip(frag, tok, idx);
+            } else if (displayMode === 'border') {
+                renderBorderChip(frag, tok, idx);
+            } else {
+                renderIdChip(frag, tok, idx);
+            }
+        });
+
+        displayEl.textContent = ''; // Clear
+        displayEl.appendChild(frag);
+    }
+
+    function renderColorChip(frag, tok, idx) {
+        const color = TOKEN_COLORS[idx % TOKEN_COLORS.length];
+        const chip = document.createElement('span');
+        chip.className = 'token-chip';
+        chip.dataset.index = `#${idx + 1}`;
+        chip.style.background = color.bg;
+        chip.style.borderBottomColor = color.border;
+        chip.style.borderBottom = `2px solid ${color.border}`;
+        chip.textContent = tok.text;
+        frag.appendChild(chip);
+    }
+
+    function renderBorderChip(frag, tok, idx) {
+        // Type-based color coding for the boundary mode
+        const typeColors = {
+            word:    { bg: 'rgba(168,85,247,0.15)',  border: '#a855f7' },
+            subword: { bg: 'rgba(34,197,94,0.12)',   border: '#22c55e' },
+            punct:   { bg: 'rgba(56,189,248,0.13)',  border: '#38bdf8' },
+            space:   { bg: 'rgba(124,58,237,0.08)',  border: '#7c3aed44' },
+            newline: { bg: 'rgba(245,158,11,0.1)',   border: '#f59e0b55' },
+            number:  { bg: 'rgba(249,115,22,0.13)',  border: '#f97316' },
+            symbol:  { bg: 'rgba(239,68,68,0.13)',   border: '#ef4444' },
+        };
+        const c = typeColors[tok.type] || typeColors.word;
+        const chip = document.createElement('span');
+        chip.className = 'token-chip';
+        chip.dataset.index = tok.type;
+        chip.style.background = c.bg;
+        chip.style.borderBottom = `2px solid ${c.border}`;
+        chip.textContent = tok.text;
+        frag.appendChild(chip);
+    }
+
+    function renderIdChip(frag, tok, idx) {
+        const chip = document.createElement('span');
+        chip.className = 'token-chip';
+        chip.dataset.index = `#${idx + 1}`;
+        chip.style.background = 'rgba(168,85,247,0.10)';
+        chip.style.border = '1px solid rgba(168,85,247,0.25)';
+        chip.style.borderBottom = '2px solid #a855f7';
+        chip.style.fontSize = '0.72rem';
+        // Show token text above a subscript ID
+        chip.innerHTML = `<span style="font-size:0.85rem">${escapeHtml(tok.text)}</span><sub style="font-size:0.6rem;color:var(--muted);margin-left:2px">${tok.id}</sub>`;
+        frag.appendChild(chip);
+    }
+
+    /* ── Model comparison grid ────────────────────────────────── */
+    function buildModelGrid() {
+        const grid = document.getElementById('model-grid');
+        grid.innerHTML = MODELS.map(m => `
+            <div class="model-card" id="model-card-${m.id}">
+                <div class="model-name">${m.name}</div>
+                <div class="model-family">
+                    ${m.family}
+                    &nbsp;<span class="model-badge ${m.badge}">${m.badge.toUpperCase()}</span>
+                </div>
+                <div class="model-stat-row">
+                    <span class="model-stat-key">Est. tokens</span>
+                    <span class="model-stat-val" id="mstat-tokens-${m.id}">—</span>
+                </div>
+                <div class="model-stat-row">
+                    <span class="model-stat-key">Chars / token</span>
+                    <span class="model-stat-val">${m.charsPerToken}</span>
+                </div>
+                <hr class="model-divider">
+                <div class="model-stat-row">
+                    <span class="model-stat-key">Input $/1M</span>
+                    <span class="model-stat-val cost">$${m.inputPer1M.toFixed(2)}</span>
+                </div>
+                <div class="model-stat-row">
+                    <span class="model-stat-key">Output $/1M</span>
+                    <span class="model-stat-val cost">$${m.outputPer1M.toFixed(2)}</span>
+                </div>
+                <div class="model-stat-row">
+                    <span class="model-stat-key">Context window</span>
+                    <span class="model-stat-val">${m.contextK}K</span>
+                </div>
+                <hr class="model-divider">
+                <div style="font-size:0.68rem;color:var(--muted);line-height:1.45;">${m.note}</div>
+            </div>
+        `).join('');
+    }
+
+    function updateModelGrid(baseTokens, charCount) {
+        MODELS.forEach(m => {
+            const est = charCount > 0 ? estimateModelTokens(baseTokens, charCount, m) : 0;
+            const el = document.getElementById(`mstat-tokens-${m.id}`);
+            if (el) el.textContent = est > 0 ? est.toLocaleString() : '—';
+        });
+    }
+
+    /* ── Token frequency breakdown ────────────────────────────── */
+    function updateBreakdown(tokens) {
+        const container = document.getElementById('breakdown-container');
+
+        if (tokens.length === 0) {
+            container.innerHTML = '<div class="empty-state">No tokens yet — enter some text</div>';
+            return;
+        }
+
+        // Count frequency of each unique token text
+        const freqMap = {};
+        for (const tok of tokens) {
+            // Normalize spaces/newlines for display grouping
+            const key = tok.text;
+            freqMap[key] = (freqMap[key] || 0) + 1;
+        }
+
+        // Sort by frequency descending, take top 15
+        const sorted = Object.entries(freqMap)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 15);
+
+        const maxFreq = sorted[0]?.[1] || 1;
+
+        container.innerHTML = `
+            <table class="breakdown-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Token</th>
+                        <th>Count</th>
+                        <th>%</th>
+                        <th>Frequency</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sorted.map(([tok, count], i) => {
+                        const pct = ((count / tokens.length) * 100).toFixed(1);
+                        const barW = Math.max(4, Math.round((count / maxFreq) * 100));
+                        return `<tr>
+                            <td style="color:var(--muted);font-size:0.72rem;">${i + 1}</td>
+                            <td><span class="token-pill">${escapeHtml(tok)}</span></td>
+                            <td style="color:var(--primary);font-weight:700;">${count}</td>
+                            <td style="color:var(--muted);">${pct}%</td>
+                            <td style="min-width:80px;">
+                                <div class="freq-bar" style="width:${barW}%"></div>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    /* ── Cost estimator ────────────────────────────────────────── */
+    function updateCostGrid(baseTokens, charCount) {
+        const grid = document.getElementById('cost-grid');
+
+        if (baseTokens === 0) {
+            grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">Enter text to see cost estimates</div>';
+            return;
+        }
+
+        // Show 4 models in the cost panel for space
+        const costModels = MODELS.filter(m => ['gpt4o','gpt35','claude','gemini'].includes(m.id));
+
+        grid.innerHTML = costModels.map(m => {
+            const tokens = estimateModelTokens(baseTokens, charCount, m);
+            const inputCost  = (tokens / 1_000_000) * m.inputPer1M;
+            const outputCost = (tokens / 1_000_000) * m.outputPer1M; // equal-length output assumption
+            const totalCost  = inputCost + outputCost;
+
+            // Scale classification for color coding
+            const cls = totalCost < 0.0001 ? 'small' : totalCost > 0.01 ? 'large' : '';
+
+            // 1K-call projection
+            const kCalls = totalCost * 1000;
+
+            return `
+                <div class="cost-card">
+                    <div class="cost-model-name">${m.name}</div>
+                    <div class="cost-model-sub">${m.family} · ${m.charsPerToken} chars/token</div>
+                    <div class="cost-row">
+                        <span class="cost-row-label">Est. tokens</span>
+                        <span class="cost-row-value ${cls}">${tokens.toLocaleString()}</span>
+                    </div>
+                    <div class="cost-row">
+                        <span class="cost-row-label">Input cost</span>
+                        <span class="cost-row-value ${cls}">${formatCost(inputCost)}</span>
+                    </div>
+                    <div class="cost-row">
+                        <span class="cost-row-label">Output cost (equal length)</span>
+                        <span class="cost-row-value ${cls}">${formatCost(outputCost)}</span>
+                    </div>
+                    <div class="cost-total">
+                        <span class="cost-total-label">This call</span>
+                        <span class="cost-total-value">${formatCost(totalCost)}</span>
+                    </div>
+                    <div class="cost-row" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">
+                        <span class="cost-row-label">1,000 identical calls</span>
+                        <span class="cost-row-value">${formatCost(kCalls)}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /* ── Format a dollar cost intelligently ─────────────────────── */
+    function formatCost(usd) {
+        if (usd === 0) return '$0.00';
+        if (usd < 0.000001) return `< $0.000001`;
+        if (usd < 0.001) return `$${usd.toFixed(6)}`;
+        if (usd < 0.01)  return `$${usd.toFixed(4)}`;
+        if (usd < 1)     return `$${usd.toFixed(3)}`;
+        return `$${usd.toFixed(2)}`;
+    }
+
+    /* ── Experiments grid (static HTML, buttons call loadExperiment) */
+    function buildExperimentsGrid() {
+        const grid = document.getElementById('experiments-grid');
+        grid.innerHTML = EXPERIMENTS.map(exp => `
+            <div class="experiment-card">
+                <div class="experiment-title">
+                    <span class="experiment-num-badge">${exp.num}</span>${exp.title}
+                </div>
+                <div class="experiment-desc">${exp.desc}</div>
+                <div class="experiment-insight">${exp.insight}</div>
+                <button class="btn primary" onclick="App.loadExperiment(${exp.num - 1})">Load Example</button>
+            </div>
+        `).join('');
+    }
+
+    /* ── Set display mode ─────────────────────────────────────── */
+    function setMode(mode) {
+        displayMode = mode;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + mode).classList.add('active');
+        updateVisualization(currentTokens);
+    }
+
+    /* ── Load sample / experiment text ────────────────────────── */
+    function loadSample() {
+        inputEl.value = DEFAULT_SAMPLE;
+        runAnalysis();
+    }
+
+    function loadExperiment(idx) {
+        inputEl.value = EXPERIMENTS[idx].text;
+        inputEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        runAnalysis();
+    }
+
+    function clearInput() {
+        inputEl.value = '';
+        runAnalysis();
+    }
+
+    /* ── Copy token list to clipboard ─────────────────────────── */
+    function copyTokens() {
+        if (currentTokens.length === 0) {
+            alert('No tokens to copy. Enter some text first.');
+            return;
+        }
+        const list = currentTokens.map((t, i) => `${i + 1}\t${t.id}\t${t.type}\t"${t.text}"`).join('\n');
+        navigator.clipboard.writeText(list).then(() => {
+            const btn = event.target;
+            const orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            btn.classList.add('primary');
+            setTimeout(() => { btn.textContent = orig; btn.classList.remove('primary'); }, 1800);
+        }).catch(() => {
+            // Fallback for non-secure contexts
+            const ta = document.createElement('textarea');
+            ta.value = list;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        });
+    }
+
+    /* ── Utility: safely escape HTML for innerHTML use ─────────── */
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /* Public API */
+    return { init, setMode, loadSample, loadExperiment, clearInput, copyTokens };
+})();
+
+/* ── Bootstrap on DOM ready ────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+</html>

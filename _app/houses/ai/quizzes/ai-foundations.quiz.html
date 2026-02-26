@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Access Control — wrapped in try/catch so the quiz still loads in dev/preview -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>
+        try { AccessGuard.require('sorted'); } catch (e) { /* dev mode */ }
+    </script>
+
+    <!-- Progress integration -->
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Foundations Quiz — House of the Machine</title>
+
+    <style>
+        /* ─── Design tokens (matching House of the Machine palette) ─────── */
+        :root {
+            --primary:   #a855f7;
+            --secondary: #7c3aed;
+            --glow:      rgba(168, 85, 247, 0.35);
+            --glow-sm:   rgba(168, 85, 247, 0.15);
+            --bg:        #0a0e1a;
+            --bg-card:   rgba(13, 14, 30, 0.92);
+            --bg-panel:  rgba(168, 85, 247, 0.06);
+            --border:    rgba(168, 85, 247, 0.22);
+            --text:      #e2e8f0;
+            --muted:     #8892a4;
+            --success:   #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.12);
+            --danger:    #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.10);
+            --warning:   #f59e0b;
+        }
+
+        /* ─── Reset & base ──────────────────────────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.65;
+        }
+
+        /* Ambient background glow — purely decorative */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%; left: -10%;
+            width: 60%; height: 60%;
+            background: radial-gradient(ellipse, rgba(168, 85, 247, 0.07) 0%, transparent 70%);
+            pointer-events: none;
+            animation: ambientPulse 8s ease-in-out infinite alternate;
+            z-index: 0;
+        }
+        @keyframes ambientPulse {
+            from { opacity: 0.5; transform: scale(1); }
+            to   { opacity: 1;   transform: scale(1.12); }
+        }
+
+        /* ─── Sticky header ─────────────────────────────────────────────── */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: rgba(10, 14, 26, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 56px;
+        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+
+        /* Back arrow button */
+        .back-btn {
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--primary);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            transition: background 0.2s, border-color 0.2s;
+            text-decoration: none;
+        }
+        .back-btn:hover { background: var(--glow-sm); border-color: var(--primary); }
+
+        /* Breadcrumb trail */
+        .breadcrumb {
+            font-size: 0.78rem;
+            color: var(--muted);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .breadcrumb a { color: var(--primary); text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .breadcrumb-sep { color: var(--muted); }
+
+        .house-badge {
+            font-size: 0.68rem;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            padding: 3px 11px;
+            background: var(--glow-sm);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+        }
+
+        /* ─── Quiz progress bar (thin strip under header) ───────────────── */
+        .quiz-progress-strip {
+            height: 3px;
+            background: rgba(255, 255, 255, 0.06);
+            position: relative;
+        }
+        .quiz-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            width: 0%;
+            transition: width 0.45s ease;
+            box-shadow: 0 0 8px var(--glow);
+        }
+
+        /* ─── Page layout ───────────────────────────────────────────────── */
+        .main {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ─── Screen: Start ─────────────────────────────────────────────── */
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        .start-hero {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .start-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 18px;
+            animation: floatIcon 4s ease-in-out infinite;
+        }
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0); }
+            50%       { transform: translateY(-8px); }
+        }
+        .start-title {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 30%, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        .start-sub {
+            font-size: 1rem;
+            color: var(--muted);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Info card on start screen */
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px 32px;
+            margin-bottom: 28px;
+        }
+        .info-card-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+        .info-rows { display: flex; flex-direction: column; gap: 10px; }
+        .info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+        .info-row-icon { color: var(--primary); flex-shrink: 0; font-size: 0.85rem; margin-top: 2px; }
+
+        /* Topic coverage tags */
+        .topic-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .topic-tag {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+        }
+
+        /* Anti-cheat notice */
+        .anticheat-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(245, 158, 11, 0.06);
+            border: 1px solid rgba(245, 158, 11, 0.22);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #fcd34d;
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+        .anticheat-notice-icon { flex-shrink: 0; font-size: 0.9rem; margin-top: 1px; }
+
+        /* ─── Screen: Question ──────────────────────────────────────────── */
+        .question-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .q-counter {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--primary);
+        }
+        .q-topic-tag {
+            font-size: 0.68rem;
+            padding: 2px 9px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--muted);
+        }
+
+        .question-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px 30px;
+            margin-bottom: 16px;
+            animation: slideUp 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        /* Purple left accent bar */
+        .question-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
+            background: linear-gradient(180deg, var(--primary), var(--secondary));
+            border-radius: 4px 0 0 4px;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .q-text {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #fff;
+            line-height: 1.6;
+        }
+
+        /* Answer options list */
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        .option-btn {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            user-select: none;
+            text-align: left;
+            width: 100%;
+            font-family: inherit;
+            color: var(--text);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .option-btn:hover { border-color: var(--primary); background: var(--glow-sm); }
+        .option-btn.selected {
+            border-color: var(--primary);
+            background: rgba(168, 85, 247, 0.14);
+            color: #fff;
+        }
+        /* Disabled after submission — no pointer changes */
+        .option-btn.locked { cursor: default; pointer-events: none; }
+
+        /* Radio dot inside each option */
+        .option-radio {
+            width: 17px;
+            height: 17px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            flex-shrink: 0;
+            margin-top: 1px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .option-btn.selected .option-radio {
+            border-color: var(--primary);
+            background: var(--primary);
+        }
+
+        /* Letter label (A, B, C, D) */
+        .option-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--muted);
+            min-width: 18px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+        .option-btn.selected .option-label { color: var(--primary); }
+
+        /* Submit / Next buttons row */
+        .action-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* ─── Buttons ───────────────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .btn:disabled { opacity: 0.38; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover:not(:disabled) { background: var(--glow-sm); border-color: var(--primary); }
+
+        .btn-success {
+            background: linear-gradient(135deg, #16a34a, var(--success));
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
+        }
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 22px rgba(34, 197, 94, 0.45);
+        }
+
+        .btn-large {
+            padding: 13px 36px;
+            font-size: 1rem;
+        }
+
+        /* ─── Screen: Results ───────────────────────────────────────────── */
+        .results-hero {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        .score-ring {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 22px;
+            box-shadow: 0 0 40px var(--glow);
+            animation: ringPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes ringPop {
+            from { transform: scale(0.6); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        .score-pct {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1;
+        }
+        .score-pct-label {
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 4px;
+        }
+        .results-message {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .results-submessage {
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        /* Stats row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 32px;
+        }
+        .stat-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 16px;
+            text-align: center;
+        }
+        .stat-num {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+        .stat-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        /* Topic breakdown section */
+        .breakdown-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px 28px;
+            margin-bottom: 28px;
+        }
+        .breakdown-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 18px;
+        }
+        .breakdown-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .breakdown-row:last-child { margin-bottom: 0; }
+        .breakdown-name {
+            font-size: 0.85rem;
+            color: var(--text);
+            min-width: 200px;
+        }
+        .breakdown-bar-wrap {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .breakdown-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.8s ease 0.2s;
+        }
+        .breakdown-score {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--muted);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Full question review accordion */
+        .review-section {
+            margin-bottom: 32px;
+        }
+        .review-section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+        .review-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            border-left: 3px solid var(--border);
+            animation: fadeIn 0.3s ease both;
+        }
+        .review-item.correct  { border-left-color: var(--success); }
+        .review-item.incorrect { border-left-color: var(--danger); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .review-item-header {
+            padding: 14px 18px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .review-status-icon {
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .review-q-text {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #fff;
+            flex: 1;
+            line-height: 1.5;
+        }
+
+        /* Revealed answer block (always visible after submission) */
+        .review-answer-block {
+            padding: 0 18px 14px 44px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .review-answer-row {
+            font-size: 0.82rem;
+            display: flex;
+            gap: 6px;
+        }
+        .review-answer-row .rar-label { color: var(--muted); flex-shrink: 0; }
+        .review-answer-row .rar-val   { color: var(--text); }
+        .review-answer-row .rar-val.is-correct  { color: var(--success); }
+        .review-answer-row .rar-val.is-incorrect { color: var(--danger); }
+
+        /* Explanation text */
+        .review-explanation {
+            padding: 10px 18px 14px 44px;
+            font-size: 0.82rem;
+            color: var(--muted);
+            line-height: 1.6;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .review-explanation strong { color: var(--primary); }
+
+        /* Results action row */
+        .results-actions {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* ─── Responsive ────────────────────────────────────────────────── */
+        @media (max-width: 600px) {
+            .site-header { padding: 0 16px; }
+            .breadcrumb  { display: none; }
+            .main        { padding: 28px 14px 60px; }
+            .question-card  { padding: 20px 18px; }
+            .stats-row   { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+            .stat-num    { font-size: 1.6rem; }
+            .breakdown-name { min-width: 120px; font-size: 0.78rem; }
+            .breakdown-row  { gap: 8px; }
+            .info-card   { padding: 20px 18px; }
+            .breakdown-section { padding: 18px; }
+        }
+        @media (max-width: 420px) {
+            .stats-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ─── Sticky header ────────────────────────────────────────────────────── -->
+<header class="site-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn" title="Back to House of the Machine">&#8592;</a>
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="../index.html">House of the Machine</a>
+            <span class="breadcrumb-sep" aria-hidden="true">/</span>
+            <a href="../index.html">AI Foundations</a>
+            <span class="breadcrumb-sep" aria-hidden="true">/</span>
+            <span aria-current="page">Quiz</span>
+        </nav>
+    </div>
+    <span class="house-badge">Foundations</span>
+</header>
+
+<!-- Quiz progress strip (fills as questions advance) -->
+<div class="quiz-progress-strip" role="progressbar" aria-label="Quiz progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="progressStrip">
+    <div class="quiz-progress-fill" id="progressFill"></div>
+</div>
+
+<!-- ─── Main ─────────────────────────────────────────────────────────────── -->
+<main class="main">
+
+    <!-- ══════════════════════════════════════════════════════════
+         SCREEN 1: START
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="screenStart" class="screen active" aria-label="Quiz introduction">
+
+        <div class="start-hero">
+            <span class="start-icon" aria-hidden="true">&#x1F9E0;</span>
+            <h1 class="start-title">AI Foundations Quiz</h1>
+            <p class="start-sub">Test your understanding of the first three modules: What Are AI Agents, The Automation Rubric, and Agent Components.</p>
+        </div>
+
+        <div class="info-card">
+            <div class="info-card-title">Quiz Details</div>
+            <div class="info-rows">
+                <div class="info-row">
+                    <span class="info-row-icon">&#9654;</span>
+                    <span><strong>15 questions</strong> drawn randomly from a pool of 25 — different every attempt</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-row-icon">&#9654;</span>
+                    <span>Answer options are <strong>shuffled</strong> on each load</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-row-icon">&#9654;</span>
+                    <span><strong>No time limit</strong> — read each question carefully</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-row-icon">&#9654;</span>
+                    <span>Correct answers and explanations revealed <strong>only after</strong> completing the quiz</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-row-icon">&#9654;</span>
+                    <span>Topics covered:</span>
+                </div>
+            </div>
+            <div class="topic-tags" style="margin-top: 12px; padding-left: 28px;">
+                <span class="topic-tag">AI Agent Definition</span>
+                <span class="topic-tag">Agent Types</span>
+                <span class="topic-tag">Automation Spectrum</span>
+                <span class="topic-tag">The Rubric Criteria</span>
+                <span class="topic-tag">Automate vs Human</span>
+                <span class="topic-tag">Brain / LLM</span>
+                <span class="topic-tag">Memory Types</span>
+                <span class="topic-tag">Tools Layer</span>
+                <span class="topic-tag">Agent Loop</span>
+                <span class="topic-tag">Real-World Agents</span>
+            </div>
+        </div>
+
+        <div class="anticheat-notice" role="note">
+            <span class="anticheat-notice-icon">&#x26A0;</span>
+            <span><strong>Deferred feedback:</strong> Correct answers are hidden during the quiz. All explanations appear together on the results screen so each question gets genuine consideration.</span>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn btn-primary btn-large" onclick="startQuiz()">Begin Quiz</button>
+        </div>
+
+    </section>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         SCREEN 2: QUESTION
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="screenQuestion" class="screen" aria-label="Quiz question">
+
+        <div class="question-meta">
+            <span class="q-counter" id="qCounter">Question 1 of 15</span>
+            <span class="q-topic-tag" id="qTopicTag"></span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <p class="q-text" id="questionText"></p>
+        </div>
+
+        <div class="options-list" id="optionsList" role="list"></div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="btnNext" onclick="advanceQuestion()" disabled>Next</button>
+        </div>
+
+    </section>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         SCREEN 3: RESULTS
+    ══════════════════════════════════════════════════════════════ -->
+    <section id="screenResults" class="screen" aria-label="Quiz results">
+
+        <div class="results-hero">
+            <div class="score-ring" id="scoreRing" aria-hidden="true">
+                <span class="score-pct" id="scorePct">0%</span>
+                <span class="score-pct-label">Score</span>
+            </div>
+            <p class="results-message" id="resultsMessage"></p>
+            <p class="results-submessage" id="resultsSubmessage"></p>
+        </div>
+
+        <!-- Three quick stats: correct / incorrect / percentage -->
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-num" id="statCorrect">0</div>
+                <div class="stat-label">Correct</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="statIncorrect">0</div>
+                <div class="stat-label">Incorrect</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="statTotal">0</div>
+                <div class="stat-label">Questions</div>
+            </div>
+        </div>
+
+        <!-- Topic breakdown bars -->
+        <div class="breakdown-section">
+            <div class="breakdown-title">Score by Topic</div>
+            <div id="breakdownRows"></div>
+        </div>
+
+        <!-- Full per-question review with answers + explanations -->
+        <div class="review-section">
+            <div class="review-section-title">Question Review</div>
+            <div id="reviewList"></div>
+        </div>
+
+        <div class="results-actions">
+            <button class="btn btn-primary btn-large" onclick="retakeQuiz()">Retry Quiz</button>
+            <a href="../index.html" class="btn btn-ghost btn-large">Back to House</a>
+        </div>
+
+    </section>
+
+</main>
+
+
+<script>
+/* =========================================================================
+   QUESTION BANK — 25 questions covering 3 modules
+   Each question has:
+     id          — unique stable identifier
+     topic       — display label for breakdown section
+     topicKey    — internal key for aggregation
+     question    — question text
+     options     — array of answer strings (will be shuffled per attempt)
+     answerIndex — index into the ORIGINAL options array (0-based)
+     explanation — teaching explanation shown after quiz completes
+   ========================================================================= */
+const QUESTION_BANK = [
+
+    // ── MODULE 1: What Are AI Agents ──────────────────────────────────────
+
+    {
+        id: 'waa-01',
+        topic: 'What Are AI Agents',
+        topicKey: 'agents',
+        question: 'Which of the following is the most accurate definition of an AI agent?',
+        options: [
+            'A chatbot that answers user questions through a web interface',
+            'A software system that perceives its environment, reasons about goals, and takes actions to achieve them autonomously',
+            'A machine learning model trained on labelled data to make predictions',
+            'A robotic process automation script that executes pre-defined steps'
+        ],
+        answerIndex: 1,
+        explanation: '<strong>An AI agent</strong> is defined by three behaviours in combination: it <em>perceives</em> (observes state from its environment), <em>reasons</em> (uses an LLM or planning algorithm to decide what to do), and <em>acts</em> (calls tools, modifies state, or escalates). A chatbot that only answers questions is reactive; an RPA script has no reasoning capability; a prediction model produces outputs but does not act on them.'
+    },
+    {
+        id: 'waa-02',
+        topic: 'What Are AI Agents',
+        topicKey: 'agents',
+        question: 'A <strong>reactive agent</strong> differs from a <strong>deliberative agent</strong> primarily because it:',
+        options: [
+            'Uses a larger language model for reasoning',
+            'Responds directly to current percepts without maintaining an internal model of the world',
+            'Requires internet access to retrieve external knowledge',
+            'Can only execute one tool at a time'
+        ],
+        answerIndex: 1,
+        explanation: 'Reactive agents map inputs to outputs in real time using condition-action rules — there is no persistent world model or planning step. Deliberative agents maintain an internal model, reason about future states, and plan sequences of actions before acting. Model size, internet access, and tool parallelism are independent architectural choices unrelated to this distinction.'
+    },
+    {
+        id: 'waa-03',
+        topic: 'What Are AI Agents',
+        topicKey: 'agents',
+        question: 'A <strong>hybrid agent</strong> architecture combines which two design patterns?',
+        options: [
+            'Supervised learning and reinforcement learning',
+            'Reactive responses for low-latency tasks and deliberative planning for complex goal-directed tasks',
+            'Cloud execution and on-device inference',
+            'Text-based reasoning and image-based reasoning'
+        ],
+        answerIndex: 1,
+        explanation: 'Hybrid agents layer a reactive tier (fast, stimulus-response) on top of a deliberative tier (slower, goal-directed planning). This gives them the speed of reactive systems for routine percepts while retaining the strategic capability of deliberative systems for complex multi-step problems. The other options describe orthogonal design choices not related to the reactive/deliberative distinction.'
+    },
+    {
+        id: 'waa-04',
+        topic: 'What Are AI Agents',
+        topicKey: 'agents',
+        question: 'What fundamentally separates an AI <strong>agent</strong> from a conventional AI <strong>chatbot</strong>?',
+        options: [
+            'Agents use more parameters in their underlying model',
+            'Chatbots require cloud hosting while agents run locally',
+            'Agents can take actions in external systems and pursue multi-step goals, not just generate text',
+            'Agents respond faster because they use smaller context windows'
+        ],
+        answerIndex: 2,
+        explanation: 'The critical distinction is <em>agency</em> — the ability to act on the world. A chatbot generates tokens in response to a prompt and stops. An agent perceives state, decides on a plan, calls external tools (APIs, databases, browsers, code interpreters), and iterates until a goal is met. Model size, hosting location, and context window size are implementation details, not definitional criteria.'
+    },
+    {
+        id: 'waa-05',
+        topic: 'What Are AI Agents',
+        topicKey: 'agents',
+        question: 'Which of these is the best real-world example of an AI agent (as opposed to a simpler automation or chatbot)?',
+        options: [
+            'A spell checker that highlights misspelled words',
+            'A customer service bot that answers FAQs from a static knowledge base',
+            'A system that monitors a security dashboard, identifies anomalies, queries a threat-intel API, and files an incident ticket — all without human prompting',
+            'A recommendation engine that surfaces products based on purchase history'
+        ],
+        answerIndex: 2,
+        explanation: 'The security monitoring example exhibits all three agent behaviours: perceiving (reading the dashboard), reasoning (identifying anomalies and deciding to query threat intel), and acting (filing the ticket). The spell checker is a deterministic function; the FAQ bot is a lookup system; the recommendation engine generates outputs but does not take actions in external systems.'
+    },
+
+    // ── MODULE 2: The Automation Rubric ──────────────────────────────────
+
+    {
+        id: 'aut-01',
+        topic: 'Automation Rubric',
+        topicKey: 'rubric',
+        question: 'According to the Automation Rubric, what is the correct sequence before applying the four scoring criteria to a task?',
+        options: [
+            'Build a prototype, test it, then decide whether to invest further',
+            'Document the task as it exists today, optimize it to remove unnecessary steps, then evaluate it with the rubric',
+            'Score the task first, then document it if the score is high enough to justify the effort',
+            'Assign the task to a vendor tool and see whether adoption is successful'
+        ],
+        answerIndex: 1,
+        explanation: 'The rubric follows a strict <strong>Document → Optimize → Evaluate</strong> sequence. Automating without documenting produces blind spots; automating without optimizing amplifies existing inefficiencies at speed. Only after the process is clean and well-understood should you score it for automation potential. Skipping Step 2 (Optimize) is explicitly called out as the most common mistake.'
+    },
+    {
+        id: 'aut-02',
+        topic: 'Automation Rubric',
+        topicKey: 'rubric',
+        question: 'The Automation Rubric scores tasks across four dimensions. Which set of four is correct?',
+        options: [
+            'Cost, Speed, Accuracy, Scalability',
+            'Frequency, Rule-Clarity, Error Tolerance, and Strategic Value',
+            'Data Volume, Latency, Complexity, and Compliance Risk',
+            'ROI, Headcount Reduction, Integration Cost, and Maintenance Burden'
+        ],
+        answerIndex: 1,
+        explanation: 'The four rubric criteria are: <strong>Frequency</strong> (how often does the task occur?), <strong>Rule-Clarity</strong> (can the task be expressed as unambiguous rules?), <strong>Error Tolerance</strong> (what is the cost of a mistake?), and <strong>Strategic Value</strong> (does a human expert add unique judgement?). The other options mix in valid engineering metrics but do not match the rubric framework.'
+    },
+    {
+        id: 'aut-03',
+        topic: 'Automation Rubric',
+        topicKey: 'rubric',
+        question: 'A task scores 18 out of 20 on the Automation Rubric. What is the appropriate recommendation?',
+        options: [
+            'Human ownership — the score suggests high strategic value that requires expert judgement',
+            'Agent-assist — a human should remain in the loop for final approval',
+            'Full automation — the high score indicates the task is well-suited for autonomous execution',
+            'Defer the decision — the task needs more documentation before a recommendation can be made'
+        ],
+        answerIndex: 2,
+        explanation: 'The rubric produces three recommendation zones: scores of 16-20 indicate <strong>full automation</strong> is appropriate (high frequency, clear rules, low error cost, low strategic value of human judgement); 10-15 suggest an agent-assist model; below 10 indicates human ownership is required. A score of 18 falls squarely in the automate zone.'
+    },
+    {
+        id: 'aut-04',
+        topic: 'Automation Rubric',
+        topicKey: 'rubric',
+        question: 'Which type of task would score <em>lowest</em> on the Rule-Clarity dimension of the rubric?',
+        options: [
+            'Renaming downloaded files according to a date-based naming convention',
+            'Routing inbound emails to the correct department folder based on subject keywords',
+            'Deciding whether a novel legal contract clause poses an unacceptable business risk',
+            'Generating a weekly sales summary from structured database records'
+        ],
+        answerIndex: 2,
+        explanation: 'Rule-Clarity measures how precisely you can specify the task as deterministic rules. Evaluating novel legal risk requires expert judgement, implicit context, and weighing competing considerations — it cannot be fully expressed as rules. File renaming, email routing, and report generation are all tasks with clear, articulable rules, even if they involve some variability.'
+    },
+    {
+        id: 'aut-05',
+        topic: 'Automation Rubric',
+        topicKey: 'rubric',
+        question: 'The Error Tolerance dimension scores high (favouring automation) when:',
+        options: [
+            'Mistakes are easily reversible and have low downstream cost',
+            'The task involves sensitive personal data that must be handled carefully',
+            'A human expert would catch errors before they reach the customer',
+            'The automated system can escalate to a human when it detects uncertainty'
+        ],
+        answerIndex: 0,
+        explanation: 'Error Tolerance is specifically about the <em>cost of a mistake made by the automation</em>. When errors are cheap to detect and reverse (e.g. a mis-formatted report, a misrouted non-urgent email), automation is low risk. When errors are irreversible, dangerous, or legally consequential (e.g. a medical dosage recommendation, a financial transaction), the score drops and human oversight is required. The other options describe mitigations, not the dimension itself.'
+    },
+
+    // ── MODULE 3: Agent Components ────────────────────────────────────────
+
+    {
+        id: 'cmp-01',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'The three-component model of an AI agent consists of:',
+        options: [
+            'Input, Processing, and Output',
+            'Brain (LLM), Memory, and Tools',
+            'Perception, Reasoning, and Execution',
+            'Training Data, Model Weights, and Inference Engine'
+        ],
+        answerIndex: 1,
+        explanation: 'Every AI agent is composed of three pillars: the <strong>Brain</strong> (the LLM that reasons and plans), <strong>Memory</strong> (storage that persists context across steps and sessions), and <strong>Tools</strong> (external integrations the agent can invoke to act on the world). "Input/Processing/Output" and "Perception/Reasoning/Execution" describe generic system or cognitive models, not the specific agent architecture taught in the module.'
+    },
+    {
+        id: 'cmp-02',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'In the agent components model, what is the primary role of the <strong>Brain (LLM)</strong>?',
+        options: [
+            'To store long-term facts and retrieve them when needed',
+            'To execute API calls and browser automation scripts',
+            'To reason about the current state, plan what to do next, and decide which tools to call',
+            'To enforce safety guardrails and block harmful outputs'
+        ],
+        answerIndex: 2,
+        explanation: 'The Brain is the reasoning and planning engine. It interprets the current state (from memory + current percepts), generates a plan, and decides which tools to invoke and in what order. Long-term storage is the Memory component. Executing API calls is the Tools layer. Safety guardrails are a separate architectural concern layered on top of the Brain.'
+    },
+    {
+        id: 'cmp-03',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'Which of the following is an example of <strong>episodic memory</strong> in an AI agent?',
+        options: [
+            'A system prompt that describes the agent\'s role and permanent rules',
+            'A vector database indexed on domain knowledge documents',
+            'A log of previous conversation turns stored in the context window for the current session',
+            'A cache of API responses stored to reduce redundant network calls'
+        ],
+        answerIndex: 2,
+        explanation: '<strong>Episodic memory</strong> stores sequences of past events — specifically the conversation history or action log for the current session. A system prompt is static/semantic memory. A vector knowledge base is semantic long-term memory. An API response cache is an infrastructure optimisation, not an episodic record.'
+    },
+    {
+        id: 'cmp-04',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'What distinguishes <strong>semantic memory</strong> from <strong>episodic memory</strong> in an agent?',
+        options: [
+            'Semantic memory is faster to query; episodic memory has higher accuracy',
+            'Semantic memory stores general facts and knowledge; episodic memory stores the sequence of specific past events and interactions',
+            'Semantic memory is stored on-device; episodic memory requires cloud storage',
+            'Semantic memory is set at training time and cannot change; episodic memory is always deleted after each session'
+        ],
+        answerIndex: 1,
+        explanation: 'Semantic memory holds <em>what the agent knows</em> — facts, concepts, domain knowledge, and long-term learned associations. Episodic memory holds <em>what the agent experienced</em> — the ordered history of events, tool calls, and conversation turns. Query speed, storage location, and update mechanics are implementation details that vary by architecture.'
+    },
+    {
+        id: 'cmp-05',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'In the agent loop, the correct order of the four core phases is:',
+        options: [
+            'Think → Observe → Act → Store',
+            'Observe → Think → Act → Store',
+            'Act → Observe → Store → Think',
+            'Store → Think → Observe → Act'
+        ],
+        answerIndex: 1,
+        explanation: 'The canonical agent loop is: <strong>Observe</strong> (gather current state from environment + memory), <strong>Think</strong> (the LLM reasons and plans), <strong>Act</strong> (invoke a tool or produce output), <strong>Store</strong> (write relevant results back to memory). The loop then repeats from Observe. This ordering is critical — acting before thinking or storing before acting produces unreliable behaviour.'
+    },
+    {
+        id: 'cmp-06',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'Which statement best describes the <strong>Tools</strong> layer of an agent?',
+        options: [
+            'The prompting templates and few-shot examples given to the LLM',
+            'The inference infrastructure (GPUs, serving endpoints) that runs the model',
+            'The set of external integrations the agent can invoke to read or write information beyond its context window',
+            'The safety filters that prevent the agent from producing harmful outputs'
+        ],
+        answerIndex: 2,
+        explanation: 'Tools are how an agent reaches beyond its context window to interact with the real world — calling APIs, querying databases, executing code, browsing the web, reading files, or sending notifications. Without tools, an agent can only reason about what is in its current context. Prompting templates belong to the Brain configuration; serving infrastructure is platform-level; safety filters are a guardrails layer.'
+    },
+    {
+        id: 'cmp-07',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'A company deploys an agent that researches a topic by querying search APIs, stores interim findings in a scratch-pad, and writes a final report. Which component is primarily responsible for deciding <em>when to search versus when to write</em>?',
+        options: [
+            'The Tools layer, which dispatches API calls based on input triggers',
+            'The Memory layer, which tracks which information has already been gathered',
+            'The Brain (LLM), which plans the overall research strategy and decides the next action at each step',
+            'The Storage layer, which signals when the scratch-pad is full'
+        ],
+        answerIndex: 2,
+        explanation: 'Strategic decision-making — including deciding whether to gather more information or synthesise what has been collected — is the responsibility of the <strong>Brain</strong>. The Tools layer executes the decisions; the Memory layer stores context; neither has the agency to initiate or switch strategies on its own. The Brain is the only component that plans and chooses.'
+    },
+    {
+        id: 'cmp-08',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'Why does context window size matter for an agent\'s effective memory?',
+        options: [
+            'Larger context windows increase the cost of each tool call',
+            'The agent can only reason about information currently in its context window, so facts outside it must be retrieved from external memory systems',
+            'Context window size determines how many tools an agent can call per minute',
+            'Smaller context windows make the agent more likely to hallucinate'
+        ],
+        answerIndex: 1,
+        explanation: 'An LLM can only reason about what is currently in its context window. Any information outside that window — long conversation histories, large knowledge bases, previous session results — is invisible to the model unless explicitly retrieved and inserted. This is why the Memory component exists: to persist information and surface relevant portions into context when needed.'
+    },
+
+    // ── CROSS-CUTTING: Applying all three modules ─────────────────────────
+
+    {
+        id: 'xc-01',
+        topic: 'Applied Concepts',
+        topicKey: 'applied',
+        question: 'A security operations team wants to automate Tier-1 alert triage. An analyst reviews 200 alerts per day using documented SOC playbooks. Most alerts are resolved by checking three databases and closing if no match is found. What rubric recommendation applies?',
+        options: [
+            'Human ownership — security decisions carry too much risk for automation',
+            'Agent-assist — an agent should flag alerts but humans must approve every closure',
+            'Full automation — the task scores high on frequency, rule-clarity, and low strategic-value criteria',
+            'Defer — the process needs to be documented before a recommendation is possible'
+        ],
+        answerIndex: 2,
+        explanation: 'This task scores highly across all four rubric dimensions: Frequency (200/day is very high), Rule-Clarity (documented playbooks = clear rules), Error Tolerance (closing a false alert is reversible — missed critical alerts can be caught at Tier-2), Strategic Value (routine database checks add little unique human judgement). Full automation with appropriate escalation paths is the correct recommendation.'
+    },
+    {
+        id: 'xc-02',
+        topic: 'Applied Concepts',
+        topicKey: 'applied',
+        question: 'Which agent design would be most appropriate for a task that requires reviewing customer contracts for non-standard clauses, a task that is performed infrequently and requires legal expertise?',
+        options: [
+            'A fully autonomous agent that reviews and flags contracts without human review',
+            'An agent-assist model where the agent pre-processes and highlights clauses but a human lawyer makes all final determinations',
+            'No automation — this task cannot benefit from AI in any form',
+            'A reactive agent that applies pre-defined keyword rules to flag specific phrases'
+        ],
+        answerIndex: 1,
+        explanation: 'Legal contract review scores low on the automation rubric (infrequent, low rule-clarity for novel clauses, high error cost, high strategic value of expert judgement). However, an <strong>agent-assist model</strong> is appropriate: the agent handles the routine extraction and pre-screening work, surfacing relevant clauses for expert review. Fully autonomous review would be high-risk; pure keyword matching has no reasoning capability; claiming no AI benefit ignores the genuine value of pre-processing.'
+    },
+    {
+        id: 'xc-03',
+        topic: 'Applied Concepts',
+        topicKey: 'applied',
+        question: 'An agent is asked: "Book a flight to Paris next week, confirm my calendar is clear, and email my manager the itinerary." During execution it discovers a calendar conflict. What should a well-designed agent do?',
+        options: [
+            'Ignore the conflict and complete the booking as instructed',
+            'Abort the entire task and wait for a new instruction',
+            'Stop only the flight booking step and proceed with the email',
+            'Pause, store the conflict as context, and escalate to the user with relevant details before proceeding'
+        ],
+        answerIndex: 3,
+        explanation: 'A well-designed agent uses the Observe-Think-Act loop to handle unexpected state. When it detects a blocker (the conflict), it should: (1) store the finding in memory, (2) reason that proceeding without user knowledge could cause harm, and (3) escalate with the specific details needed for a decision. Ignoring the conflict or aborting entirely both represent failures. Selectively skipping steps without informing the user breaks transparency.'
+    },
+    {
+        id: 'xc-04',
+        topic: 'Applied Concepts',
+        topicKey: 'applied',
+        question: 'A colleague argues: "We should automate our invoicing process — it would save time." According to the Automation Rubric pre-work, what is the correct first response?',
+        options: [
+            'Immediately evaluate the invoicing process against the four rubric criteria',
+            'Request a budget estimate from a vendor for the automation tooling',
+            'Ask them to document every step of the current process before any evaluation begins',
+            'Pilot the automation with one customer and measure time savings'
+        ],
+        answerIndex: 2,
+        explanation: 'The rubric mandates Document → Optimize → Evaluate. The very first action is always documentation — mapping every step of the process as it actually works today. Without this, the rubric cannot be applied accurately, you cannot identify optimisation opportunities, and you risk automating a process that has unnecessary or redundant steps baked in. Piloting, vendor evaluation, and criteria scoring all come after documentation.'
+    },
+    {
+        id: 'xc-05',
+        topic: 'Applied Concepts',
+        topicKey: 'applied',
+        question: 'An AI agent built to answer support tickets can only remember the last 5 messages before context is cut off. This is a limitation of which component?',
+        options: [
+            'The Tools layer — the agent needs better API integrations',
+            'The Brain — the LLM should be retrained on support data',
+            'The Memory layer — specifically the lack of external memory to supplement the context window',
+            'The agent loop — the Observe phase is not running frequently enough'
+        ],
+        answerIndex: 2,
+        explanation: 'The symptom — forgetting information beyond a fixed window — is a <strong>Memory</strong> limitation. The solution is not to retrain the model or improve APIs but to implement an external memory system (e.g. a conversation store that summarises and injects relevant history into each new context window). Context window limits are a constraint of the Brain, but the architectural response is to extend the Memory layer.'
+    },
+
+    // ── Additional Agent Components question (Q24) ──────────────────────
+
+    {
+        id: 'cmp-09',
+        topic: 'Agent Components',
+        topicKey: 'components',
+        question: 'Retrieval-Augmented Generation (RAG) is best described as a technique that extends which agent component?',
+        options: [
+            'The Brain — it increases the parameter count of the underlying LLM',
+            'The Tools layer — it replaces web-search tools with an internal database',
+            'The Memory layer — it retrieves relevant documents at inference time and injects them into the context window',
+            'The agent loop — it adds a separate retrieval phase between Act and Store'
+        ],
+        answerIndex: 2,
+        explanation: '<strong>RAG</strong> is a Memory architecture pattern. Instead of fine-tuning the model (which would modify the Brain) or replacing tools, RAG adds a retrieval step: when a question is received, a semantic search is run against an external vector store and the most relevant document chunks are inserted into the context window before the LLM generates a response. This is a Memory extension, not a Brain or Tools change.'
+    },
+
+    // ── Additional Applied Concepts question (Q25) ───────────────────────
+
+    {
+        id: 'xc-06',
+        topic: 'Applied Concepts',
+        topicKey: 'applied',
+        question: 'An agent is processing a customer refund request. After checking the order history, the agent determines the refund is eligible but notices the customer\'s account is flagged for suspected fraud. What principle should guide the agent\'s next action?',
+        options: [
+            'Complete the refund automatically — the eligibility check passed',
+            'Deny the refund automatically — the fraud flag overrides eligibility',
+            'Pause and escalate to a human operator with both the eligibility result and the fraud flag as context',
+            'Ignore the fraud flag — it is outside the scope of the current task'
+        ],
+        answerIndex: 2,
+        explanation: 'When an agent encounters a decision that has conflicting signals and significant consequences, the correct behaviour is to <strong>escalate with full context</strong> rather than resolve the ambiguity autonomously. This reflects the human-in-the-loop principle: the agent surfaces the relevant facts (eligible + fraud flagged) and defers the judgement call to a human. Auto-approving risks fraud loss; auto-denying risks an incorrect block; ignoring data is never appropriate.'
+    }
+
+]; /* end QUESTION_BANK */
+
+
+/* =========================================================================
+   QUIZ STATE — all mutable state lives here
+   ========================================================================= */
+const STATE = {
+    pool:        [],   // 15-question random draw from QUESTION_BANK
+    current:     0,    // index into pool
+    answers:     [],   // { questionId, selectedIndex (in shuffled options), correctIndex (in shuffled options), isCorrect }
+    shuffledOpts:[], // per-question shuffled option arrays: [{ text, originalIndex }]
+    started:     false,
+    finished:    false
+};
+
+
+/* =========================================================================
+   UTILITY — Fisher-Yates shuffle (mutates array, returns it)
+   ========================================================================= */
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+
+/* =========================================================================
+   SCREEN NAVIGATION
+   ========================================================================= */
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+
+/* =========================================================================
+   START QUIZ — draw 15 questions, shuffle options, reset state
+   ========================================================================= */
+function startQuiz() {
+    // Deep-copy the bank so we can safely shuffle without mutating originals
+    const bankCopy = QUESTION_BANK.map(q => ({ ...q, options: [...q.options] }));
+
+    // Draw 15 randomly
+    shuffle(bankCopy);
+    STATE.pool = bankCopy.slice(0, 15);
+
+    // For each question, build a shuffled options list while tracking
+    // where the correct answer landed after shuffling
+    STATE.shuffledOpts = STATE.pool.map(q => {
+        const opts = q.options.map((text, originalIndex) => ({ text, originalIndex }));
+        shuffle(opts);
+        return opts;
+    });
+
+    // Reset session state
+    STATE.current = 0;
+    STATE.answers = [];
+    STATE.started = true;
+    STATE.finished = false;
+
+    showScreen('screenQuestion');
+    renderQuestion();
+}
+
+
+/* =========================================================================
+   RENDER QUESTION — draw the current question into the DOM
+   ========================================================================= */
+function renderQuestion() {
+    const q    = STATE.pool[STATE.current];
+    const opts = STATE.shuffledOpts[STATE.current];
+    const total = STATE.pool.length;
+
+    // Header meta
+    document.getElementById('qCounter').textContent  = `Question ${STATE.current + 1} of ${total}`;
+    document.getElementById('qTopicTag').textContent  = q.topic;
+
+    // Question text (using innerHTML is safe here — content is authored, not user input)
+    document.getElementById('questionText').innerHTML = q.question;
+
+    // Progress bar
+    const pct = ((STATE.current) / total) * 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressStrip').setAttribute('aria-valuenow', Math.round(pct));
+
+    // Build options list
+    const list = document.getElementById('optionsList');
+    list.innerHTML = '';
+
+    opts.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.setAttribute('role', 'radio');
+        btn.setAttribute('aria-checked', 'false');
+        btn.dataset.index = i; // index in the SHUFFLED options array
+
+        const label = String.fromCharCode(65 + i); // A, B, C, D
+
+        // Build inner HTML safely from authored content
+        btn.innerHTML =
+            `<span class="option-radio" aria-hidden="true"></span>` +
+            `<span class="option-label">${label}</span>` +
+            `<span class="option-text">${opt.text}</span>`;
+
+        btn.addEventListener('click', () => selectOption(i));
+        list.appendChild(btn);
+    });
+
+    // Reset Next button — disabled until an option is selected
+    const btnNext = document.getElementById('btnNext');
+    btnNext.disabled = true;
+
+    // Animate card in
+    const card = document.getElementById('questionCard');
+    card.style.animation = 'none';
+    // Trigger reflow to restart the animation
+    void card.offsetWidth;
+    card.style.animation = '';
+}
+
+
+/* =========================================================================
+   SELECT OPTION — highlight selection and enable Next
+   ========================================================================= */
+function selectOption(selectedIdx) {
+    const buttons = document.querySelectorAll('.option-btn');
+
+    // Deselect all
+    buttons.forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-checked', 'false');
+    });
+
+    // Select clicked
+    buttons[selectedIdx].classList.add('selected');
+    buttons[selectedIdx].setAttribute('aria-checked', 'true');
+
+    // Track selection on the question card
+    document.getElementById('questionCard').dataset.selectedIdx = selectedIdx;
+
+    // Enable Next button
+    document.getElementById('btnNext').disabled = false;
+}
+
+
+/* =========================================================================
+   ADVANCE QUESTION — record answer, move to next question or show results
+   ========================================================================= */
+function advanceQuestion() {
+    const q    = STATE.pool[STATE.current];
+    const opts = STATE.shuffledOpts[STATE.current];
+
+    // Read which option was selected
+    const selectedIdx = parseInt(document.getElementById('questionCard').dataset.selectedIdx, 10);
+
+    if (isNaN(selectedIdx)) return; // safety: should not happen if button is enabled
+
+    // The correct answer is the one whose originalIndex matches q.answerIndex
+    const correctIdx = opts.findIndex(o => o.originalIndex === q.answerIndex);
+    const isCorrect = selectedIdx === correctIdx;
+
+    // Store the result
+    STATE.answers.push({
+        questionId:    q.id,
+        selectedIdx,           // in shuffled order
+        correctIdx,            // in shuffled order
+        selectedText:  opts[selectedIdx].text,
+        correctText:   opts[correctIdx].text,
+        isCorrect
+    });
+
+    STATE.current++;
+
+    if (STATE.current < STATE.pool.length) {
+        renderQuestion();
+    } else {
+        // All questions answered — update final progress bar and show results
+        document.getElementById('progressFill').style.width = '100%';
+        STATE.finished = true;
+        renderResults();
+    }
+}
+
+
+/* =========================================================================
+   RENDER RESULTS — score, breakdown, full review
+   ========================================================================= */
+function renderResults() {
+    const total   = STATE.pool.length;
+    const correct = STATE.answers.filter(a => a.isCorrect).length;
+    const pct     = Math.round((correct / total) * 100);
+
+    // Score ring
+    document.getElementById('scorePct').textContent = pct + '%';
+
+    // Message based on percentage band
+    let msg, submsg;
+    if (pct >= 90) {
+        msg     = 'Outstanding — you\'ve mastered the foundations.';
+        submsg  = `${correct} of ${total} correct. Excellent grasp of all three modules.`;
+    } else if (pct >= 75) {
+        msg     = 'Strong work — you understand the core concepts.';
+        submsg  = `${correct} of ${total} correct. Review the explanations for any gaps.`;
+    } else if (pct >= 60) {
+        msg     = 'Good start — a few areas need reinforcement.';
+        submsg  = `${correct} of ${total} correct. Re-read the modules and retry.`;
+    } else {
+        msg     = 'Keep at it — revisit the modules before retrying.';
+        submsg  = `${correct} of ${total} correct. The explanations below will help.`;
+    }
+    document.getElementById('resultsMessage').textContent  = msg;
+    document.getElementById('resultsSubmessage').textContent = submsg;
+
+    // Stats row
+    document.getElementById('statCorrect').textContent   = correct;
+    document.getElementById('statIncorrect').textContent = total - correct;
+    document.getElementById('statTotal').textContent     = total;
+
+    // ── Topic breakdown bars ──────────────────────────────────────────────
+
+    // Aggregate by topicKey
+    const topicMeta = {
+        agents:     { name: 'What Are AI Agents',   color: '#a855f7' },
+        rubric:     { name: 'The Automation Rubric', color: '#7c3aed' },
+        components: { name: 'Agent Components',      color: '#6d28d9' },
+        applied:    { name: 'Applied Concepts',      color: '#8b5cf6' }
+    };
+
+    // Build per-topic tallies
+    const tallies = {};
+    STATE.answers.forEach(a => {
+        const q = STATE.pool.find(q => q.id === a.questionId);
+        const key = q.topicKey;
+        if (!tallies[key]) tallies[key] = { correct: 0, total: 0 };
+        tallies[key].total++;
+        if (a.isCorrect) tallies[key].correct++;
+    });
+
+    const breakdownEl = document.getElementById('breakdownRows');
+    breakdownEl.innerHTML = '';
+
+    Object.entries(tallies).forEach(([key, tally]) => {
+        const meta    = topicMeta[key] || { name: key, color: '#a855f7' };
+        const barPct  = tally.total > 0 ? Math.round((tally.correct / tally.total) * 100) : 0;
+        // Pick bar colour: green if 80%+, amber if 50-79%, red below 50%
+        const barColor = barPct >= 80 ? '#22c55e' : barPct >= 50 ? '#f59e0b' : '#ef4444';
+
+        const row = document.createElement('div');
+        row.className = 'breakdown-row';
+        row.innerHTML =
+            `<span class="breakdown-name">${meta.name}</span>` +
+            `<div class="breakdown-bar-wrap">` +
+                `<div class="breakdown-bar-fill" style="width:0%;background:${barColor}" data-target="${barPct}"></div>` +
+            `</div>` +
+            `<span class="breakdown-score">${tally.correct}/${tally.total}</span>`;
+        breakdownEl.appendChild(row);
+    });
+
+    // Animate bars after a short delay (CSS transition handles the smoothness)
+    setTimeout(() => {
+        document.querySelectorAll('.breakdown-bar-fill').forEach(bar => {
+            bar.style.width = bar.dataset.target + '%';
+        });
+    }, 150);
+
+    // ── Full question review ──────────────────────────────────────────────
+
+    const reviewEl = document.getElementById('reviewList');
+    reviewEl.innerHTML = '';
+
+    STATE.pool.forEach((q, i) => {
+        const answer = STATE.answers[i];
+        const itemClass = answer.isCorrect ? 'correct' : 'incorrect';
+        const statusIcon = answer.isCorrect ? '&#x2714;' : '&#x2718;';
+        const statusColor = answer.isCorrect ? 'var(--success)' : 'var(--danger)';
+
+        const item = document.createElement('div');
+        item.className = `review-item ${itemClass}`;
+        item.style.animationDelay = (i * 40) + 'ms';
+
+        let answerBlockHTML = `
+            <div class="review-answer-block">
+                <div class="review-answer-row">
+                    <span class="rar-label">Your answer:</span>
+                    <span class="rar-val ${answer.isCorrect ? 'is-correct' : 'is-incorrect'}">${answer.selectedText}</span>
+                </div>`;
+
+        if (!answer.isCorrect) {
+            answerBlockHTML += `
+                <div class="review-answer-row">
+                    <span class="rar-label">Correct answer:</span>
+                    <span class="rar-val is-correct">${answer.correctText}</span>
+                </div>`;
+        }
+        answerBlockHTML += `</div>`;
+
+        item.innerHTML =
+            `<div class="review-item-header">` +
+                `<span class="review-status-icon" style="color:${statusColor}" aria-hidden="true">${statusIcon}</span>` +
+                `<span class="review-q-num" style="font-size:0.72rem;font-weight:700;color:var(--muted);min-width:26px;flex-shrink:0;">Q${i + 1}</span>` +
+                `<span class="review-q-text">${q.question}</span>` +
+            `</div>` +
+            answerBlockHTML +
+            `<div class="review-explanation">${q.explanation}</div>`;
+
+        reviewEl.appendChild(item);
+    });
+
+    // ── Fire ModuleProgress completion hook ───────────────────────────────
+    // Wrapped in try/catch — if the global does not exist in dev mode, quiz still works
+    try {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai-foundations-quiz', {
+                score:      correct,
+                total:      total,
+                percentage: pct
+            });
+        }
+    } catch (err) {
+        /* ModuleProgress not available — dev or preview mode */
+    }
+
+    showScreen('screenResults');
+}
+
+
+/* =========================================================================
+   RETRY — reset to start screen
+   ========================================================================= */
+function retakeQuiz() {
+    // Reset progress bar
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('progressStrip').setAttribute('aria-valuenow', 0);
+
+    // Clear question card state
+    const card = document.getElementById('questionCard');
+    if (card) delete card.dataset.selectedIdx;
+
+    showScreen('screenStart');
+}
+</script>
+
+</body>
+</html>
