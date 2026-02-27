@@ -229,14 +229,28 @@ const HouseRenderer = (function() {
 
             /* Hero */
             .hero-section {
-                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 40px;
                 padding: 60px 20px;
                 margin-bottom: 50px;
                 position: relative;
             }
 
+            .hero-left {
+                flex-shrink: 0;
+            }
+
+            .hero-right {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                max-width: 550px;
+            }
+
             .hero-mascot {
-                margin-bottom: 20px;
+                margin-bottom: 0;
                 filter: drop-shadow(0 0 40px var(--house-glow));
             }
 
@@ -262,6 +276,7 @@ const HouseRenderer = (function() {
                 letter-spacing: 0.15em;
                 text-transform: uppercase;
                 margin-top: 10px;
+                text-align: center;
             }
 
             .hero-mascot-species {
@@ -269,6 +284,7 @@ const HouseRenderer = (function() {
                 color: #666;
                 letter-spacing: 0.2em;
                 text-transform: uppercase;
+                text-align: center;
             }
 
             .hero-mascot-quote {
@@ -276,22 +292,22 @@ const HouseRenderer = (function() {
                 color: #555;
                 font-style: italic;
                 max-width: 500px;
-                margin: 15px auto 0;
+                margin: 15px 0 0;
                 line-height: 1.6;
             }
 
             .hero-icon {
                 font-size: 5rem;
-                margin-bottom: 25px;
+                margin-bottom: 15px;
                 filter: drop-shadow(0 0 30px var(--house-glow));
             }
 
             .hero-icon img {
-                width: 64px;
-                height: 64px;
+                width: 96px;
+                height: 96px;
                 border-radius: 50%;
-                border: 2px solid var(--house-primary);
-                box-shadow: 0 0 20px var(--house-glow);
+                border: 3px solid var(--house-primary);
+                box-shadow: 0 0 25px var(--house-glow);
                 object-fit: cover;
             }
 
@@ -317,7 +333,6 @@ const HouseRenderer = (function() {
                 font-size: 1rem;
                 color: #888;
                 max-width: 600px;
-                margin: 0 auto;
                 line-height: 1.8;
             }
 
@@ -993,6 +1008,19 @@ const HouseRenderer = (function() {
                     gap: 15px;
                 }
                 .house-content { padding: 20px; }
+                .hero-section {
+                    flex-direction: column;
+                    text-align: center;
+                }
+                .hero-right {
+                    align-items: center;
+                }
+                .hero-mascot-quote {
+                    margin: 15px auto 0;
+                }
+                .hero-description {
+                    margin: 0 auto;
+                }
                 .hero-mascot img { width: 150px; height: 200px; }
                 .hero-title { font-size: 1.8rem; }
                 .stats-bar { flex-wrap: wrap; gap: 20px; }
@@ -1051,15 +1079,19 @@ const HouseRenderer = (function() {
         // Hero
         main.innerHTML = `
             <section class="hero-section" role="region" aria-label="${config.fullTitle} overview">
-                ${config.mascot ? `<div class="hero-mascot mascot-fx mascot-fx-${mascotId} holo-card holo-subtle">
-                    <img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.parentElement.style.display='none'">
-                    ${lore ? `<div class="hero-mascot-name">${lore.name}</div><div class="hero-mascot-species">${lore.species}</div>` : ''}
-                </div>` : ''}
-                <div class="hero-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle} emblem" onerror="this.outerHTML='${config.icon}'">` : config.icon}</div>
-                <h1 class="hero-title">House of the <span>${config.title}</span></h1>
-                <p class="hero-domain">${config.domain}</p>
-                <p class="hero-description">${config.description}</p>
-                ${lore ? `<p class="hero-mascot-quote">"${lore.quote}"</p>` : ''}
+                <div class="hero-left">
+                    ${config.mascot ? `<div class="hero-mascot mascot-fx mascot-fx-${mascotId} holo-card holo-subtle">
+                        <img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.parentElement.style.display='none'">
+                        ${lore ? `<div class="hero-mascot-name">${lore.name}</div><div class="hero-mascot-species">${lore.species}</div>` : ''}
+                    </div>` : ''}
+                </div>
+                <div class="hero-right">
+                    <div class="hero-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle} emblem" onerror="this.outerHTML='${config.icon}'">` : config.icon}</div>
+                    <h1 class="hero-title">House of the <span>${config.title}</span></h1>
+                    <p class="hero-domain">${config.domain}</p>
+                    <p class="hero-description">${config.description}</p>
+                    ${lore ? `<p class="hero-mascot-quote">"${lore.quote}"</p>` : ''}
+                </div>
             </section>
 
             <div class="stats-bar">
