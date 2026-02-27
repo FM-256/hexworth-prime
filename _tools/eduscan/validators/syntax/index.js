@@ -22,6 +22,7 @@ const NavigationValidator = require('./navigation');
 const EmojiValidator = require('./emoji');
 const PaletteValidator = require('./palette');
 const ContentBlobValidator = require('./content-blob');
+const SemanticValidator = require('./semantic');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -95,6 +96,11 @@ class SyntaxValidator {
             verbose: this.verbose,
             profile: this.profile
         });
+        this.semanticValidator = new SemanticValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
     }
 
     /**
@@ -124,6 +130,7 @@ class SyntaxValidator {
                 emojiErrors: 0,
                 paletteErrors: 0,
                 blobErrors: 0,
+                semanticErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -234,6 +241,7 @@ class SyntaxValidator {
             const navIssues = this.navigationValidator.validate(fileWithContent);
             const emojiIssues = this.emojiValidator.validate(fileWithContent);
             const blobIssues = this.contentBlobValidator.validate(fileWithContent);
+            const semanticIssues = this.semanticValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -246,6 +254,7 @@ class SyntaxValidator {
             results.issues.push(...navIssues);
             results.issues.push(...emojiIssues);
             results.issues.push(...blobIssues);
+            results.issues.push(...semanticIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -258,6 +267,7 @@ class SyntaxValidator {
             results.summary.navigationErrors += navIssues.length;
             results.summary.emojiErrors += emojiIssues.length;
             results.summary.blobErrors += blobIssues.length;
+            results.summary.semanticErrors += semanticIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html

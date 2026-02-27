@@ -998,6 +998,7 @@ const HouseRenderer = (function() {
         // Header
         const header = document.createElement('header');
         header.className = 'house-header';
+        header.setAttribute('role', 'banner');
         header.innerHTML = `
             <div class="header-left">
                 <a href="../../dashboard.html" class="back-btn">
@@ -1033,7 +1034,7 @@ const HouseRenderer = (function() {
 
         // Hero
         main.innerHTML = `
-            <section class="hero-section">
+            <section class="hero-section" role="region" aria-label="${config.fullTitle} overview">
                 ${config.mascot ? `<div class="hero-mascot mascot-fx mascot-fx-${mascotId} holo-card holo-subtle">
                     <img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.parentElement.style.display='none'">
                     ${lore ? `<div class="hero-mascot-name">${lore.name}</div><div class="hero-mascot-species">${lore.species}</div>` : ''}
@@ -1079,9 +1080,10 @@ const HouseRenderer = (function() {
         const topSearch = document.createElement('div');
         topSearch.className = 'hr-top-search';
         topSearch.innerHTML = `
-            <span class="hr-top-search-icon">&#128269;</span>
+            <span class="hr-top-search-icon" aria-hidden="true">&#128269;</span>
             <input type="text" class="hr-top-search-input" id="hrTopSearchInput"
                    placeholder="${searchPlaceholder}"
+                   aria-label="Search ${config.fullTitle} modules"
                    autocomplete="off">
             <span class="hr-top-search-count" id="hrTopSearchCount"></span>
         `;
@@ -1096,22 +1098,32 @@ const HouseRenderer = (function() {
             { id: 'instructor', icon: '📋', label: 'Instructor' }
         ];
 
-        const tabBar = document.createElement('div');
+        const tabBar = document.createElement('nav');
         tabBar.className = 'hr-tab-bar';
+        tabBar.setAttribute('aria-label', config.fullTitle + ' navigation');
         tabBar.innerHTML = tabs.map(t =>
-            `<button class="hr-tab" data-tab="${t.id}">
-                <span class="hr-tab-icon">${t.icon}</span>
+            `<button class="hr-tab" data-tab="${t.id}" aria-label="${t.label}">
+                <span class="hr-tab-icon" aria-hidden="true">${t.icon}</span>
                 <span class="hr-tab-label">${t.label}</span>
             </button>`
         ).join('');
         main.appendChild(tabBar);
 
         // Tab panels
+        const panelLabels = {
+            paths: 'Learning paths',
+            content: 'House content',
+            explore: 'Explore all content',
+            profile: 'Your profile',
+            instructor: 'Instructor dashboard'
+        };
         tabs.forEach(t => {
             const panel = document.createElement('div');
             panel.className = 'hr-panel';
             panel.id = 'hr-panel-' + t.id;
             panel.dataset.tab = t.id;
+            panel.setAttribute('role', 'region');
+            panel.setAttribute('aria-label', panelLabels[t.id] || t.label);
             main.appendChild(panel);
         });
 
@@ -1287,8 +1299,8 @@ const HouseRenderer = (function() {
                 ? `<img src="/assets/images/categories/${catId}.webp" alt="${p.name}" onerror="this.outerHTML='${p.icon}'">`
                 : p.icon;
             return `
-            <div class="path-card" data-path-id="${p.id}" data-path-href="${p.href || ''}">
-                <div class="path-icon">${iconHTML}</div>
+            <div class="path-card" role="listitem" data-path-id="${p.id}" data-path-href="${p.href || ''}" aria-label="${p.name} - ${p.cert}">
+                <div class="path-icon" aria-hidden="true">${iconHTML}</div>
                 <div class="path-info">
                     <div class="path-name">${p.name}</div>
                     <div class="path-cert">${p.cert}</div>
@@ -1304,9 +1316,9 @@ const HouseRenderer = (function() {
         `;}).join('');
 
         panel.innerHTML = `
-            <section class="paths-section">
+            <section class="paths-section" role="region" aria-label="Certification paths">
                 <h2 class="paths-title">Certification Paths</h2>
-                <div class="paths-grid">${pathCards}</div>
+                <div class="paths-grid" role="list">${pathCards}</div>
             </section>
         `;
 
@@ -1347,8 +1359,8 @@ const HouseRenderer = (function() {
                     : fallback;
                 const href = p.href || `../../path-view.html?house=${config.houseId}&path=${p.id}`;
                 return `
-                    <div class="hr-hub-card" data-href="${href}">
-                        <div class="hr-hub-icon">${iconHTML}</div>
+                    <div class="hr-hub-card" role="listitem" data-href="${href}" aria-label="${p.name} - ${p.cert}">
+                        <div class="hr-hub-icon" aria-hidden="true">${iconHTML}</div>
                         <div class="hr-hub-name">${p.name}</div>
                         <div class="hr-hub-cert">${p.cert}</div>
                     </div>`;
@@ -1357,7 +1369,7 @@ const HouseRenderer = (function() {
             hubHTML = `
                 <div class="hr-hub-section">
                     <h3 class="hr-hub-title">Course Hubs</h3>
-                    <div class="hr-hub-grid">${hubCards}</div>
+                    <div class="hr-hub-grid" role="list">${hubCards}</div>
                 </div>`;
         }
 
@@ -1366,10 +1378,11 @@ const HouseRenderer = (function() {
             <div class="hr-filter-bar">
                 <input type="text" class="hr-filter-input" id="hrFilterInput"
                        placeholder="Filter modules by title, description, or type..."
+                       aria-label="Filter modules by title, description, or type"
                        autocomplete="off">
                 <span class="hr-filter-count" id="hrFilterCount">${modules.length} modules</span>
             </div>
-            <div class="module-grid" id="hrModuleGrid"></div>
+            <div class="module-grid" id="hrModuleGrid" role="list"></div>
             <div class="hr-no-results" id="hrNoResults" style="display:none;">No modules match your filter.</div>
         `;
 
@@ -1384,6 +1397,7 @@ const HouseRenderer = (function() {
         modules.forEach((mod, idx) => {
             const card = document.createElement('div');
             card.className = 'module-card';
+            card.setAttribute('role', 'listitem');
             card.dataset.idx = idx;
             card.dataset.href = mod.href || '';
 
@@ -1507,25 +1521,25 @@ const HouseRenderer = (function() {
         panel.innerHTML = `
             <div class="hr-features-section">
                 <h3 class="hr-features-title">Special Features</h3>
-                <div class="hr-feature-grid">
-                    <a href="/arena/index.html" class="hr-feature-card feat-arena">
+                <div class="hr-feature-grid" role="list">
+                    <a href="/arena/index.html" class="hr-feature-card feat-arena" role="listitem">
                         <div class="hr-feature-icon"><img src="/assets/images/categories/ctf.webp" alt="CTF challenges" onerror="this.outerHTML='&#9878;'"></div>
                         <div class="hr-feature-name" style="color:#f87171;">The Arena</div>
                         <div class="hr-feature-desc">CTF challenges, capture-the-flag competitions, and ranked offensive security drills</div>
                     </a>
-                    <a href="/hive/index.html" class="hr-feature-card feat-hive">
+                    <a href="/hive/index.html" class="hr-feature-card feat-hive" role="listitem">
                         <div class="hr-feature-icon"><img src="/assets/images/categories/games.webp" alt="Arcade games" onerror="this.outerHTML='&#9888;'"></div>
                         <div class="hr-feature-name" style="color:#fbbf24;">The Hive</div>
                         <div class="hr-feature-desc">Arcade games, combat simulations, and gamified security training</div>
                     </a>
-                    <a href="/arctic/index.html" class="hr-feature-card feat-arctic">
+                    <a href="/arctic/index.html" class="hr-feature-card feat-arctic" role="listitem">
                         <div class="hr-feature-icon"><img src="/assets/images/categories/linux.webp" alt="Linux terminal" onerror="this.outerHTML='🐧'"></div>
                         <div class="hr-feature-name" style="color:#38bdf8;">The Arctic</div>
                         <div class="hr-feature-desc">Linux terminal training, command-line mastery, and server administration</div>
                     </a>
-                    <a href="https://colosseum-arena.web.app" target="_blank" rel="noopener" class="hr-feature-card feat-colosseum">
+                    <a href="https://colosseum-arena.web.app" target="_blank" rel="noopener" class="hr-feature-card feat-colosseum" role="listitem" aria-label="The Colosseum - opens in new tab">
                         <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="The Colosseum" onerror="this.outerHTML='🏛️'"></div>
-                        <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#555;font-weight:400;">↗</span></div>
+                        <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#555;font-weight:400;" aria-hidden="true">↗</span></div>
                         <div class="hr-feature-desc">Incident response card game — live multiplayer cybersecurity battle simulator</div>
                     </a>
                 </div>
