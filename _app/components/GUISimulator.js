@@ -181,7 +181,6 @@ const GUISimulator = (function() {
             }
         });
 
-        console.log(`GUISimulator: Theme changed to "${theme}"`);
     }
 
     /**

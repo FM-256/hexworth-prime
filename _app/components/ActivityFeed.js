@@ -90,7 +90,6 @@ const ActivityFeed = (function() {
      */
     function init() {
         loadFromStorage();
-        console.log('[ActivityFeed] Initialized with', events.length, 'events');
     }
 
     /**
@@ -154,7 +153,6 @@ const ActivityFeed = (function() {
         // Sync to Firestore if signed in
         syncToFirestore(event);
 
-        console.log('[ActivityFeed] Recorded:', type, data);
     }
 
     /**

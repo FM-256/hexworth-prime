@@ -206,7 +206,6 @@ class SoundToggle {
             }
         }
 
-        console.log('🔊 Sound enabled');
     }
 
     /**
@@ -222,7 +221,6 @@ class SoundToggle {
             }
         }
 
-        console.log('🔇 Sound disabled');
     }
 
     /**

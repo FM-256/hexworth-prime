@@ -178,7 +178,6 @@ const ContentDiscovery = (function() {
         }
 
         const hasGlobal = typeof ContentCatalog !== 'undefined';
-        console.log(`%c ContentDiscovery initialized ${hasGlobal ? '(Global Search Enabled)' : '(Local Only)'}`, 'color: ' + primaryColor);
     }
 
     // ========================================

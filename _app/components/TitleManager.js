@@ -541,8 +541,6 @@ const TitleManager = (function() {
                 }
                 titleDisplay.style.display = 'inline-block';
 
-                // Log title update
-                console.log(`%c👑 Title Updated: ${fullTitle}`, 'color: #ffd700; font-weight: bold;');
             }
 
             // Recalculate and cache

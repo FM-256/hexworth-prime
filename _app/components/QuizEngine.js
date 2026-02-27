@@ -361,7 +361,6 @@ class QuizEngine {
      * End the quiz and show results
      */
     endQuiz(timedOut = false) {
-        console.log('[QuizEngine] endQuiz called');
         try {
             if (this.state.timerInterval) {
                 clearInterval(this.state.timerInterval);
@@ -371,7 +370,6 @@ class QuizEngine {
             this.state.isComplete = true;
 
             const results = this.calculateResults(timedOut);
-            console.log('[QuizEngine] Results calculated:', results);
 
             // Trigger quiz-specific achievement if passed
             if (results.passed && this.config.achievement) {
@@ -408,7 +406,6 @@ class QuizEngine {
                 }
             }
 
-            console.log('[QuizEngine] About to render results');
             this.renderResults(results, timedOut);
         } catch (e) {
             console.error('[QuizEngine] Fatal error in endQuiz:', e);
@@ -578,33 +575,26 @@ class QuizEngine {
 
         // Next module button
         const nextBtn = this.container.querySelector('.quiz-next-module-btn');
-        console.log('[QuizEngine] Next button element:', nextBtn);
-        console.log('[QuizEngine] Next module data:', nextModule);
 
         if (nextBtn && nextModule) {
-            console.log('[QuizEngine] Attaching click handler for next module:', nextModule.href);
             nextBtn.addEventListener('click', () => {
-                console.log('[QuizEngine] Continue button clicked!');
                 // Calculate correct path - hrefs in LearningPaths are relative to house root
                 // If we're in a subfolder (quizzes/, applets/, etc.), need to go up first
                 const currentPath = window.location.pathname;
                 const houseMatch = currentPath.match(/\/houses\/\w+\//);
-                console.log('[QuizEngine] Current path:', currentPath, 'House match:', houseMatch);
                 if (houseMatch) {
                     // Navigate relative to house root
                     const houseBase = currentPath.substring(0, currentPath.indexOf(houseMatch[0]) + houseMatch[0].length);
                     const targetUrl = houseBase + nextModule.href;
-                    console.log('[QuizEngine] Navigating to:', targetUrl);
                     window.location.href = targetUrl;
                 } else {
                     // Fallback: go up one level and try
                     const targetUrl = '../' + nextModule.href;
-                    console.log('[QuizEngine] Fallback navigating to:', targetUrl);
                     window.location.href = targetUrl;
                 }
             });
-        } else {
-            console.log('[QuizEngine] WARNING: Could not attach next button handler - btn:', !!nextBtn, 'module:', !!nextModule);
+        } else if (nextBtn) {
+            console.warn('[QuizEngine] Could not attach next button handler — no next module data');
         }
 
         // Back to house button

@@ -48,7 +48,6 @@ class HouseProgressPanel {
      */
     init() {
         if (this.initialized || !this.houseId) {
-            console.log('HouseProgressPanel: No house detected or already initialized');
             return;
         }
 
@@ -64,8 +63,6 @@ class HouseProgressPanel {
         this.updateProgress();
         this.setupEventListeners();
         this.initialized = true;
-
-        console.log(`HouseProgressPanel: Initialized for ${this.houseId}`);
     }
 
     /**

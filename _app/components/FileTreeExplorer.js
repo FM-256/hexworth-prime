@@ -22,7 +22,6 @@ const FileTreeExplorer = {
         }
 
         this.render();
-        console.log('%c⚡ FileTreeExplorer initialized', 'color: #ff00ff;');
     },
 
     /**
