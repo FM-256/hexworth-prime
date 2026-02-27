@@ -378,6 +378,125 @@ console.log('');
     }
 }
 
+// AutoFixer: dry-run produces correct results for mock issues
+{
+    const AutoFixer = require(path.join(EDUSCAN_DIR, 'fixers/auto-fixer'));
+
+    // Create a temp fixture file for auto-fixer testing
+    const tmpDir = path.join(TESTS_DIR, '.tmp-autofixer');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+
+    const testContent = `const config = {
+    moduleId: 'shield-quiz-test-quiz',
+    houseId: 'shield',
+    trackProgress: false,
+    passingScore: 70
+};`;
+    const testFile = path.join(tmpDir, 'test-quiz.html');
+    fs.writeFileSync(testFile, testContent, 'utf8');
+
+    const fixer = new AutoFixer({
+        rootPath: tmpDir,
+        dryRun: true
+    });
+
+    const mockIssues = [
+        {
+            code: 'ID-001',
+            autoFixable: true,
+            file: 'test-quiz.html',
+            searchPattern: "moduleId: 'shield-quiz-test-quiz'",
+            replaceWith: "moduleId: 'test'",
+            message: 'moduleId has house prefix and -quiz suffix'
+        },
+        {
+            code: 'TRACK-001',
+            autoFixable: true,
+            file: 'test-quiz.html',
+            searchPattern: 'trackProgress: false',
+            replaceWith: 'trackProgress: true',
+            message: 'trackProgress disabled'
+        },
+        {
+            code: 'UNKNOWN-001',
+            autoFixable: true,
+            file: 'test-quiz.html',
+            searchPattern: 'passingScore: 70',
+            replaceWith: 'passingScore: 80',
+            message: 'Unknown code should be skipped'
+        }
+    ];
+
+    const result = fixer.fix(mockIssues);
+
+    // Verify: 2 should fix, 1 should be skipped (unknown code)
+    const fixOk = result.summary.fixed === 2;
+    const skipOk = result.summary.skipped === 1;
+    const errOk = result.summary.errors === 0;
+    const dryOk = result.summary.dryRun === true;
+
+    // Verify original file is unchanged (dry run)
+    const afterContent = fs.readFileSync(testFile, 'utf8');
+    const unchangedOk = afterContent === testContent;
+
+    if (fixOk && skipOk && errOk && dryOk && unchangedOk) {
+        console.log(`  \u2713 AutoFixer — dry-run: 2 fixes, 1 skip, 0 errors, file unchanged`);
+        passed++;
+    } else {
+        const parts = [];
+        if (!fixOk) parts.push(`fixed=${result.summary.fixed} (expected 2)`);
+        if (!skipOk) parts.push(`skipped=${result.summary.skipped} (expected 1)`);
+        if (!errOk) parts.push(`errors=${result.summary.errors} (expected 0)`);
+        if (!dryOk) parts.push('not dry-run');
+        if (!unchangedOk) parts.push('file was modified in dry-run!');
+        console.log(`  \u2717 AutoFixer — ${parts.join(', ')}`);
+        failed++;
+    }
+
+    // Cleanup temp files
+    try { fs.unlinkSync(testFile); fs.rmdirSync(tmpDir); } catch (_) {}
+}
+
+// AutoFixer: live mode actually modifies file
+{
+    const AutoFixer = require(path.join(EDUSCAN_DIR, 'fixers/auto-fixer'));
+
+    const tmpDir2 = path.join(TESTS_DIR, '.tmp-autofixer2');
+    if (!fs.existsSync(tmpDir2)) fs.mkdirSync(tmpDir2, { recursive: true });
+
+    const origContent = "const quiz = { trackProgress: false };";
+    const testFile2 = path.join(tmpDir2, 'live-test.html');
+    fs.writeFileSync(testFile2, origContent, 'utf8');
+
+    const liveFixer = new AutoFixer({
+        rootPath: tmpDir2,
+        dryRun: false
+    });
+
+    const liveResult = liveFixer.fix([{
+        code: 'TRACK-001',
+        autoFixable: true,
+        file: 'live-test.html',
+        searchPattern: 'trackProgress: false',
+        replaceWith: 'trackProgress: true',
+        message: 'trackProgress disabled'
+    }]);
+
+    const liveContent = fs.readFileSync(testFile2, 'utf8');
+    const liveOk = liveResult.summary.fixed === 1 && liveContent.includes('trackProgress: true');
+
+    if (liveOk) {
+        console.log(`  \u2713 AutoFixer — live mode: file correctly modified`);
+        passed++;
+    } else {
+        console.log(`  \u2717 AutoFixer — live mode: fixed=${liveResult.summary.fixed}, content=${liveContent.includes('trackProgress: true')}`);
+        failed++;
+    }
+
+    // Cleanup
+    try { fs.unlinkSync(testFile2); fs.rmdirSync(tmpDir2); } catch (_) {}
+}
+
 console.log('');
 console.log(`Results: ${passed}/${passed + failed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
