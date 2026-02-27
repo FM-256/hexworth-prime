@@ -21,6 +21,7 @@ const CSPValidator = require('./csp');
 const NavigationValidator = require('./navigation');
 const EmojiValidator = require('./emoji');
 const PaletteValidator = require('./palette');
+const ContentBlobValidator = require('./content-blob');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -90,6 +91,10 @@ class SyntaxValidator {
             verbose: this.verbose,
             rootPath: this.rootPath
         });
+        this.contentBlobValidator = new ContentBlobValidator({
+            verbose: this.verbose,
+            profile: this.profile
+        });
     }
 
     /**
@@ -118,6 +123,7 @@ class SyntaxValidator {
                 navigationErrors: 0,
                 emojiErrors: 0,
                 paletteErrors: 0,
+                blobErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -227,6 +233,7 @@ class SyntaxValidator {
             const dependencyIssues = this.dependencyCheckValidator.validate(fileWithContent);
             const navIssues = this.navigationValidator.validate(fileWithContent);
             const emojiIssues = this.emojiValidator.validate(fileWithContent);
+            const blobIssues = this.contentBlobValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -238,6 +245,7 @@ class SyntaxValidator {
             results.issues.push(...dependencyIssues);
             results.issues.push(...navIssues);
             results.issues.push(...emojiIssues);
+            results.issues.push(...blobIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -249,6 +257,7 @@ class SyntaxValidator {
             results.summary.dependencyErrors += dependencyIssues.length;
             results.summary.navigationErrors += navIssues.length;
             results.summary.emojiErrors += emojiIssues.length;
+            results.summary.blobErrors += blobIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html
