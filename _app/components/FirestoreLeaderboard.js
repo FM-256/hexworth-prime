@@ -18,7 +18,7 @@ const FirestoreLeaderboard = (function() {
 
     // Configuration
     const config = {
-        refreshInterval: 60000, // 1 minute
+        refreshInterval: 900000, // 15 minutes
         maxDisplay: 15,
         cacheKey: 'hexworth_leaderboard_cache',
         cacheTTL: 30000 // 30 seconds
