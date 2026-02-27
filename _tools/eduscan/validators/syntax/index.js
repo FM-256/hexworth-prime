@@ -20,6 +20,7 @@ const DependencyCheckValidator = require('./dependency-check');
 const CSPValidator = require('./csp');
 const NavigationValidator = require('./navigation');
 const EmojiValidator = require('./emoji');
+const PaletteValidator = require('./palette');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -85,6 +86,10 @@ class SyntaxValidator {
             rootPath: this.rootPath,
             profile: this.profile
         });
+        this.paletteValidator = new PaletteValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
+        });
     }
 
     /**
@@ -112,6 +117,7 @@ class SyntaxValidator {
                 dependencyErrors: 0,
                 navigationErrors: 0,
                 emojiErrors: 0,
+                paletteErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -182,6 +188,16 @@ class SyntaxValidator {
             results.summary.emojiErrors += emojiGlobalIssues.length;
             if (this.verbose) {
                 console.log(`[SYNTAX] Emoji (global): ${emojiGlobalIssues.length} issues`);
+            }
+        }
+
+        // Run Palette validation (global, checks house index pages)
+        const paletteResults = this.paletteValidator.validate();
+        if (paletteResults.issues.length > 0) {
+            results.issues.push(...paletteResults.issues);
+            results.summary.paletteErrors = paletteResults.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] Palette: ${paletteResults.issues.length} issues`);
             }
         }
 
