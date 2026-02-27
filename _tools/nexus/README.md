@@ -57,16 +57,34 @@ Each tool connects to the hub through a **spoke adapter** — a small module tha
 
 ---
 
-## Planned Command Reference
+## Command Reference
 
-| Command | Description | Phase |
-|---------|-------------|-------|
-| `nexus status` | Unified dashboard — counts from all connected spokes | 2 |
-| `nexus scan` | Trigger EduScan + collect findings into shared store | 2 |
-| `nexus triage` | Pipe new findings into Sprint Master as backlog items | 3 |
-| `nexus report` | Generate cross-tool summary (markdown or JSON) | 3 |
-| `nexus gate` | Deploy gate check — block on critical findings from any spoke | 4 |
-| `nexus sync` | Pull latest data from all spokes into findings store | 3 |
+| Command | Description | Status |
+|---------|-------------|--------|
+| `nexus status` | Unified dashboard — live counts from all connected spokes | **Implemented** (Phase 2) |
+| `nexus scan` | Run EduScan + sync findings into shared store | **Implemented** (Phase 2) |
+| `nexus sync [spoke]` | Pull latest data from all spokes (or one named) into findings store | **Implemented** (Phase 2) |
+| `nexus triage` | Pipe new findings into Sprint Master as backlog items | Planned (Phase 3) |
+| `nexus report` | Generate cross-tool summary (markdown or JSON) | Planned (Phase 3) |
+| `nexus gate` | Deploy gate check — block on critical findings from any spoke | Planned (Phase 4) |
+
+### Usage
+
+```bash
+# Unified status dashboard
+npm run nexus:status
+node _tools/nexus/nexus.js status
+
+# Run EduScan and sync results
+node _tools/nexus/nexus.js scan
+
+# Sync all spokes into findings store
+node _tools/nexus/nexus.js sync
+
+# Sync one specific spoke
+node _tools/nexus/nexus.js sync eduscan
+node _tools/nexus/nexus.js sync sprint
+```
 
 ---
 
@@ -143,9 +161,23 @@ Every tool speaks the same language through the hub:
 
 ## Current Status
 
-**Phase 1 — Documentation** (current)
+**Phase 2 — CLI Hub, Adapters, and Status Command** (current)
 
-This is the documentation foundation. No code has been written yet.
+- [x] Phase 1 — Documentation (README, design doc, architecture, AD-011)
+- [x] Phase 2 — CLI entry point (`nexus.js`), hub core (`hub.js`), EduScan adapter, Sprint Master adapter, `status`/`scan`/`sync` commands
+- [ ] Phase 3 — Triage routing (findings → Sprint Master), report generation, stale finding removal
+- [ ] Phase 4 — Deploy gate, CI integration
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `nexus.js` | CLI entry point — command dispatch |
+| `hub.js` | Core module — config, findings store, spoke registry, formatters |
+| `adapters/eduscan.js` | EduScan spoke adapter (read-only) |
+| `adapters/sprint-master.js` | Sprint Master spoke adapter (read-only, Phase 3: read-write) |
+| `nexus.config.json` | Auto-generated spoke configuration |
+| `findings.json` | Dedup-merged findings store (created on first sync) |
 
 See also:
 - `_tools/NEXUS_DESIGN.md` — Design document (problem, solution, architecture)
