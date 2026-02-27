@@ -98,6 +98,14 @@ const HouseRenderer = (function() {
             s.src = '/components/HoloFoil.js';
             document.body.appendChild(s);
         }
+        // Load skip navigation CSS
+        if (!document.getElementById('skip-nav-css')) {
+            const link = document.createElement('link');
+            link.id = 'skip-nav-css';
+            link.rel = 'stylesheet';
+            link.href = '/css/skip-nav.css';
+            document.head.appendChild(link);
+        }
         injectCSS();
         renderPage();
         initTabs();
@@ -1007,9 +1015,17 @@ const HouseRenderer = (function() {
         `;
         document.body.appendChild(header);
 
+        // Skip navigation link (accessibility)
+        const skipLink = document.createElement('a');
+        skipLink.href = '#main-content';
+        skipLink.className = 'skip-nav';
+        skipLink.textContent = 'Skip to main content';
+        document.body.insertBefore(skipLink, document.body.firstChild);
+
         // Main
         const main = document.createElement('main');
         main.className = 'house-content';
+        main.id = 'main-content';
 
         // Mascot lore (if MascotLore is loaded)
         const mascotId = config.houseId ? config.houseId.replace(/_/g, '-') : null;
