@@ -186,7 +186,7 @@ const FirestoreLeaderboard = (function() {
             <div class="fsl-container">
                 <div class="fsl-header">
                     <h3 class="fsl-title">
-                        ${currentMode === 'global' ? '🏆 Global Rankings' : `🏠 ${capitalize(currentMode)} House`}
+                        ${currentMode === 'global' ? '<img src="/assets/images/icons/trophy-gold.webp" class="fsl-trophy" alt="trophy"> Global Rankings' : `🏠 ${capitalize(currentMode)} House`}
                     </h3>
                     <div class="fsl-tabs">
                         <button class="fsl-tab ${currentMode === 'global' ? 'active' : ''}" data-mode="global">
@@ -260,7 +260,12 @@ const FirestoreLeaderboard = (function() {
     function renderEntry(entry, rank, currentUser) {
         const isCurrentUser = currentUser && entry.id === currentUser.uid;
         const tier = tierBadges[entry.tier] || tierBadges.free;
-        const rankDisplay = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`;
+        const medalImgs = [
+            '<img src="/assets/images/icons/medal-gold.webp" class="fsl-medal" alt="1st">',
+            '<img src="/assets/images/icons/medal-silver.webp" class="fsl-medal" alt="2nd">',
+            '<img src="/assets/images/icons/medal-bronze.webp" class="fsl-medal" alt="3rd">'
+        ];
+        const rankDisplay = rank <= 3 ? medalImgs[rank - 1] : `#${rank}`;
         const houseColor = houseColors[entry.house] || '#888';
 
         return `
@@ -335,7 +340,7 @@ const FirestoreLeaderboard = (function() {
         container.innerHTML = `
             <div class="fsl-container fsl-loading">
                 <div class="fsl-header">
-                    <h3 class="fsl-title">🏆 Loading Rankings...</h3>
+                    <h3 class="fsl-title"><img src="/assets/images/icons/trophy-gold.webp" class="fsl-trophy" alt="trophy"> Loading Rankings...</h3>
                 </div>
                 <div class="fsl-list">
                     ${Array(5).fill(0).map(() => `
@@ -363,7 +368,7 @@ const FirestoreLeaderboard = (function() {
         container.innerHTML = `
             <div class="fsl-container fsl-error">
                 <div class="fsl-header">
-                    <h3 class="fsl-title">🏆 Leaderboard</h3>
+                    <h3 class="fsl-title"><img src="/assets/images/icons/trophy-gold.webp" class="fsl-trophy" alt="trophy"> Leaderboard</h3>
                 </div>
                 <div class="fsl-error-content">
                     <span class="fsl-error-icon">⚠️</span>
@@ -511,6 +516,21 @@ const FirestoreLeaderboard = (function() {
                 font-size: 1.1rem;
                 text-align: center;
                 color: #888;
+            }
+
+            .fsl-medal {
+                width: 28px;
+                height: 28px;
+                object-fit: contain;
+                vertical-align: middle;
+            }
+
+            .fsl-trophy {
+                width: 22px;
+                height: 22px;
+                object-fit: contain;
+                vertical-align: middle;
+                margin-right: 4px;
             }
 
             .fsl-avatar {

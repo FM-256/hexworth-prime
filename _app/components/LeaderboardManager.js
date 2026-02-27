@@ -605,7 +605,7 @@ class LeaderboardManager {
         const html = `
             <div class="leaderboard-container">
                 <div class="leaderboard-header">
-                    <h3 class="leaderboard-title">🏆 House Leaderboard</h3>
+                    <h3 class="leaderboard-title"><img src="/assets/images/icons/trophy-gold.webp" style="width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:4px" alt="trophy"> House Leaderboard</h3>
                     <div class="leaderboard-stats">
                         <span class="real-count">${data.realCount} real</span>
                         <span class="total-count">${data.totalPlayers} total</span>
@@ -656,7 +656,12 @@ class LeaderboardManager {
      */
     renderPlayerRow(player, index) {
         const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
-        const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+        const medalImgs = {
+            0: '<img src="/assets/images/icons/medal-gold.webp" class="lb-medal" alt="1st">',
+            1: '<img src="/assets/images/icons/medal-silver.webp" class="lb-medal" alt="2nd">',
+            2: '<img src="/assets/images/icons/medal-bronze.webp" class="lb-medal" alt="3rd">'
+        };
+        const rankIcon = medalImgs[index] || '';
         const specialClass = player.isCurrentUser ? 'current-user' : player.isNemesis ? 'nemesis' : player.isReal ? 'real-player' : '';
 
         const avatar = player.avatar?.startsWith('http')
@@ -780,6 +785,13 @@ class LeaderboardManager {
                 font-size: 1.1rem;
                 text-align: center;
                 color: #888;
+            }
+
+            .lb-medal {
+                width: 28px;
+                height: 28px;
+                object-fit: contain;
+                vertical-align: middle;
             }
 
             .player-avatar-container {
