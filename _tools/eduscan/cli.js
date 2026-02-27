@@ -28,6 +28,9 @@
  *   --functional           Run functional validation (headless browser)
  *   --smoke-only           Only run smoke tests (with --functional)
  *   --runtime-only         Only run runtime checks (with --functional)
+ *   --fix                  Auto-fix safe issues (dry-run by default)
+ *   --fix --apply          Auto-fix and write changes to disk
+ *   --dry-run              Explicit dry-run (default with --fix)
  *   --no-color             Disable colored output
  *   -h, --help             Show help
  *   --version              Show version
@@ -38,6 +41,7 @@ const fs = require('fs');
 const EduScan = require('./index');
 const DriftTracker = require('./utils/drift');
 const RemediationPlanner = require('./utils/remediation');
+const AutoFixer = require('./fixers/auto-fixer');
 
 // Parse command line arguments
 function parseArgs(args) {
@@ -70,6 +74,8 @@ function parseArgs(args) {
         runtimeOnly: false,         // Only run runtime checks (with --functional)
         impactOnly: false,          // Run impact analysis (dependency map + contracts)
         impactFile: null,           // Analyze impact of specific file
+        fix: false,                 // Run auto-fixer on scan results
+        dryRun: true,               // Dry-run mode for --fix (default: true)
         help: false,
         version: false
     };
@@ -211,6 +217,19 @@ function parseArgs(args) {
                 options.functional = true;
                 break;
 
+            case '--fix':
+                options.fix = true;
+                break;
+
+            case '--dry-run':
+                options.dryRun = true;
+                break;
+
+            case '--apply':
+                options.fix = true;
+                options.dryRun = false;
+                break;
+
             case '--impact':
             case '--impact-only':
                 options.impactOnly = true;
@@ -272,6 +291,9 @@ Options:
   --functional           Run functional validation (headless browser, Puppeteer)
   --smoke-only           Only run smoke tests (with --functional)
   --runtime-only         Only run runtime checks (with --functional)
+  --fix                  Auto-fix safe issues (dry-run by default, shows what would change)
+  --fix --apply          Auto-fix safe issues and write changes to disk
+  --dry-run              Explicit dry-run mode (default with --fix)
   --impact               Run impact analysis (dependency map + contract validation)
   --impact-file <path>   Analyze impact of a specific file change
   --no-color             Disable colored output
@@ -304,6 +326,8 @@ Examples:
   eduscan --functional               # Full functional scan (runtime + smoke)
   eduscan --functional --smoke-only  # Quick smoke tests only (~15s)
   eduscan --functional --runtime-only  # Runtime checks only (all pages)
+  eduscan --fix                       # Dry-run: show what auto-fixer would change
+  eduscan --fix --apply              # Apply auto-fixes to disk
   eduscan -p ./src -o ./audit        # Custom paths
   eduscan --json | jq '.[]'          # Pipe issues to jq
 
@@ -415,6 +439,12 @@ function main() {
             outputDir: options.outputDir,
             verbose: options.verbose
         }) : null;
+
+        if (options.fix) {
+            // Auto-fixer mode
+            runFix(options, colorFn);
+            return;
+        }
 
         if (options.impactOnly) {
             // Impact analysis (dependency map + contract validation)
@@ -809,7 +839,88 @@ function runWatch(options, colorFn) {
 }
 
 /**
- * Run functional validation (headless browser)
+ * Run auto-fixer on scan results
+ * @param {Object} options - CLI options
+ * @param {Function} colorFn - Color function
+ */
+function runFix(options, colorFn) {
+    const c = colorFn;
+
+    console.log('');
+    console.log(c('╔═══════════════════════════════════════════════════════════════╗', 'cyan'));
+    console.log(c('║', 'cyan') + c('              EDUSCAN AUTO-FIXER                               ', 'bright', 'cyan') + c('║', 'cyan'));
+    console.log(c('╚═══════════════════════════════════════════════════════════════╝', 'cyan'));
+    console.log('');
+
+    // Step 1: Run a full scan to collect all issues (parser + syntax + validation)
+    if (!options.quiet) {
+        console.log(c('  [1/3] Running full scan to find fixable issues...', 'dim'));
+    }
+
+    // Run scan with quiet output to suppress the normal report
+    const scanOptions = { ...options, quiet: true, jsonOutput: false };
+    const scanner = new EduScan(scanOptions);
+    const scanResults = scanner.scan();
+    const allIssues = scanResults.validation ? scanResults.validation.issues : [];
+
+    // Count autoFixable issues
+    const fixableCount = allIssues.filter(i => i.autoFixable).length;
+
+    if (!options.quiet) {
+        console.log(c(`        Found ${allIssues.length} total issues, ${fixableCount} auto-fixable`, 'dim'));
+        console.log('');
+    }
+
+    if (fixableCount === 0) {
+        console.log(c('  No auto-fixable issues found.', 'green'));
+        console.log('');
+        return;
+    }
+
+    // Step 2: Run auto-fixer
+    if (!options.quiet) {
+        console.log(c(`  [2/3] Applying fixes (${options.dryRun ? 'DRY RUN' : 'LIVE'})...`, 'dim'));
+        console.log('');
+    }
+
+    const fixer = new AutoFixer({
+        rootPath: options.path,
+        dryRun: options.dryRun,
+        verbose: options.verbose
+    });
+
+    const fixResults = fixer.fix(allIssues);
+
+    // Step 3: Display results
+    if (!options.quiet) {
+        console.log(c('  [3/3] Results:', 'dim'));
+        console.log('');
+        console.log(fixer.formatResults(fixResults, c));
+        console.log('');
+    }
+
+    // JSON output mode
+    if (options.jsonOutput) {
+        console.log(JSON.stringify(fixResults, null, 2));
+    }
+
+    // Summary line
+    if (!options.quiet) {
+        console.log(c('═'.repeat(60), 'dim'));
+        const statusColor = fixResults.summary.errors > 0 ? 'red' :
+                           fixResults.summary.fixed > 0 ? 'green' : 'yellow';
+        console.log(c(`  ${fixResults.summary.dryRun ? 'Would fix' : 'Fixed'}: ${fixResults.summary.fixed}  Skipped: ${fixResults.summary.skipped}  Errors: ${fixResults.summary.errors}`, statusColor));
+
+        if (options.dryRun && fixResults.summary.fixed > 0) {
+            console.log('');
+            console.log(c('  To apply fixes: eduscan --fix --apply', 'yellow', 'bright'));
+        }
+        console.log('');
+    }
+}
+
+/**
+ * Run impact analysis (dependency map + contract validation)
  * @param {Object} options - CLI options
  * @param {Function} colorFn - Color function
  */
