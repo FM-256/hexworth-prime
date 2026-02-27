@@ -1924,6 +1924,12 @@ const ContentCatalog = (function() {
         { house: 'dark-arts', id: 'dark-slowloris-dos-lab', title: 'Slowloris & App-Layer DoS Lab', description: 'Application-layer DoS deep dive: Slowloris, Slow POST, R-U-Dead-Yet, detection and mitigation, defense configuration', icon: '🐌', status: 'available', components: ['applet'], href: 'games/dark-slowloris-dos-lab.applet.html', category: 'dos' },
         { house: 'dark-arts', id: 'dark-container-security-lab', title: 'Container Security Lab', description: 'Docker and Kubernetes security: Dockerfile audit, image scanning, container escape, RBAC analysis, pod hardening', icon: '📦', status: 'available', components: ['applet'], href: 'games/dark-container-security-lab.applet.html', category: 'container' },
 
+        // Shield House — Web Security Lab (DA-19)
+        { house: 'shield', id: 'shield-web-security-headers-lab', title: 'Web Security Headers Lab', description: 'HTTP security header hardening: CSP builder, CORS config, cookie security, and full response audit', icon: '🛡️', status: 'available', components: ['applet'], href: 'games/shield-web-security-headers-lab.applet.html', category: 'web-security' },
+
+        // Cloud House — API Foundations Lab (API-1)
+        { house: 'cloud', id: 'cloud-api-foundations-lab', title: 'API Foundations Lab', description: 'REST API fundamentals: HTTP methods, status codes, request anatomy, REST vs GraphQL/gRPC, and interactive API explorer', icon: '🔗', status: 'available', components: ['applet'], href: 'games/cloud-api-foundations-lab.applet.html', category: 'api' },
+
     ];
 
     // Search index cache

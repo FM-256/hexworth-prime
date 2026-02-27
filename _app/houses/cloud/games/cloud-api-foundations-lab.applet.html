@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Foundations Lab - Cloud House - Hexworth Prime</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0a0a12;color:#e2d9f3;font-family:'Courier New',monospace;min-height:100vh;padding:20px 16px 40px;}
+a.back-link{color:#a78bfa;text-decoration:none;font-size:13px;cursor:pointer;display:inline-block;margin-bottom:18px;}
+a.back-link:hover{color:#c4b5fd;}
+h1{font-size:20px;color:#a78bfa;letter-spacing:2px;margin-bottom:4px;}
+.subtitle{font-size:11px;color:#6d5e8a;margin-bottom:20px;letter-spacing:1px;}
+/* progress bar */
+.progress-bar-wrap{background:#1a1226;border:1px solid #2e1f4a;border-radius:4px;height:6px;margin-bottom:20px;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:4px;transition:width .4s;}
+/* tabs */
+.tabs{display:flex;gap:4px;margin-bottom:18px;flex-wrap:wrap;}
+.tab{padding:7px 13px;border:1px solid #2e1f4a;background:#0f0a1a;color:#6d5e8a;font-family:inherit;font-size:11px;cursor:pointer;border-radius:4px;letter-spacing:1px;transition:.2s;}
+.tab.active{border-color:#7c3aed;background:#1a1226;color:#a78bfa;}
+.tab.done{border-color:#4a2a7a;color:#8b5cf6;}
+.tab:hover:not(.active){border-color:#4a2a7a;color:#a78bfa;}
+/* module panels */
+.module{display:none;animation:fadeIn .3s;}
+.module.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.module-title{font-size:15px;color:#a78bfa;margin-bottom:6px;letter-spacing:1px;}
+.module-desc{font-size:11px;color:#6d5e8a;margin-bottom:16px;line-height:1.6;}
+/* score badge */
+.score-badge{display:inline-block;background:#1a1226;border:1px solid #4a2a7a;padding:4px 12px;border-radius:20px;font-size:11px;color:#c4b5fd;margin-bottom:14px;}
+/* cards/scenarios */
+.scenario-grid{display:grid;gap:10px;margin-bottom:16px;}
+.scenario-card{background:#0f0a1a;border:1px solid #2e1f4a;border-radius:6px;padding:12px 14px;}
+.scenario-label{font-size:10px;color:#6d5e8a;margin-bottom:4px;letter-spacing:1px;}
+.scenario-text{font-size:12px;color:#c4b5fd;margin-bottom:8px;line-height:1.5;}
+.scenario-text code{background:#1a1226;padding:1px 5px;border-radius:3px;color:#e2d9f3;font-size:11px;}
+select.method-select{background:#1a1226;border:1px solid #4a2a7a;color:#e2d9f3;font-family:inherit;font-size:11px;padding:5px 8px;border-radius:4px;cursor:pointer;width:100%;}
+select.method-select:focus{outline:none;border-color:#7c3aed;}
+/* MC questions */
+.mc-block{background:#0f0a1a;border:1px solid #2e1f4a;border-radius:6px;padding:14px;margin-bottom:10px;}
+.mc-q{font-size:12px;color:#e2d9f3;margin-bottom:10px;line-height:1.5;}
+.mc-options{display:flex;flex-direction:column;gap:6px;}
+.mc-opt{background:#1a1226;border:1px solid #2e1f4a;padding:7px 10px;border-radius:4px;font-size:11px;color:#c4b5fd;cursor:pointer;transition:.2s;text-align:left;}
+.mc-opt:hover:not(.locked){border-color:#7c3aed;background:#170f24;}
+.mc-opt.correct{border-color:#22c55e;background:#052012;color:#86efac;}
+.mc-opt.wrong{border-color:#ef4444;background:#200a0a;color:#fca5a5;}
+.mc-opt.locked{cursor:default;}
+.mc-feedback{font-size:10px;margin-top:6px;padding:6px 8px;border-radius:3px;line-height:1.4;}
+.mc-feedback.ok{background:#052012;border:1px solid #166534;color:#86efac;}
+.mc-feedback.bad{background:#200a0a;border:1px solid #7f1d1d;color:#fca5a5;}
+/* buttons */
+.btn{background:#7c3aed;color:#fff;border:none;padding:8px 18px;border-radius:4px;font-family:inherit;font-size:12px;cursor:pointer;transition:.2s;letter-spacing:1px;}
+.btn:hover{background:#6d28d9;}
+.btn:disabled{background:#2e1f4a;color:#4a2a7a;cursor:default;}
+.btn-outline{background:transparent;border:1px solid #7c3aed;color:#a78bfa;}
+.btn-outline:hover{background:#1a1226;}
+/* status code options */
+.status-opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.status-btn{background:#1a1226;border:1px solid #2e1f4a;color:#c4b5fd;font-family:inherit;font-size:11px;padding:4px 9px;border-radius:4px;cursor:pointer;transition:.2s;}
+.status-btn:hover:not(.locked){border-color:#7c3aed;}
+.status-btn.correct{border-color:#22c55e;background:#052012;color:#86efac;}
+.status-btn.wrong{border-color:#ef4444;background:#200a0a;color:#fca5a5;}
+/* request anatomy */
+.request-display{background:#080610;border:1px solid #2e1f4a;border-radius:6px;padding:14px;margin-bottom:14px;font-size:11px;line-height:1.8;}
+.req-method{color:#f59e0b;}.req-url{color:#60a5fa;}.req-header-key{color:#a78bfa;}.req-header-val{color:#86efac;}.req-body-key{color:#f59e0b;}.req-body-val{color:#c4b5fd;}
+/* compare table */
+.compare-table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:16px;}
+.compare-table th{background:#1a1226;color:#a78bfa;padding:6px 8px;text-align:left;border:1px solid #2e1f4a;letter-spacing:1px;}
+.compare-table td{padding:6px 8px;border:1px solid #1a1226;color:#c4b5fd;vertical-align:top;}
+.compare-table tr:nth-child(even) td{background:#0d091a;}
+.compare-table code{font-size:10px;color:#e2d9f3;}
+/* classify */
+.snippet-card{background:#080610;border:1px solid #2e1f4a;border-radius:6px;padding:10px 12px;margin-bottom:8px;}
+.snippet-pre{font-size:10px;color:#e2d9f3;white-space:pre;overflow-x:auto;margin-bottom:8px;line-height:1.5;}
+.classify-opts{display:flex;gap:6px;flex-wrap:wrap;}
+.cls-btn{background:#1a1226;border:1px solid #2e1f4a;color:#c4b5fd;font-family:inherit;font-size:10px;padding:3px 8px;border-radius:3px;cursor:pointer;transition:.2s;}
+.cls-btn:hover:not(.locked){border-color:#7c3aed;}
+.cls-btn.correct{border-color:#22c55e;background:#052012;color:#86efac;}
+.cls-btn.wrong{border-color:#ef4444;background:#200a0a;color:#fca5a5;}
+/* === API EXPLORER === */
+.explorer-wrap{display:grid;grid-template-columns:200px 1fr;gap:12px;}
+.explorer-sidebar{background:#0f0a1a;border:1px solid #2e1f4a;border-radius:6px;padding:10px;}
+.sidebar-title{font-size:9px;color:#6d5e8a;letter-spacing:2px;margin-bottom:8px;}
+.endpoint-item{padding:6px 8px;border-radius:4px;font-size:10px;color:#c4b5fd;cursor:pointer;margin-bottom:3px;border:1px solid transparent;transition:.15s;}
+.endpoint-item:hover{background:#1a1226;border-color:#2e1f4a;}
+.endpoint-item .ep-method{font-weight:bold;margin-right:6px;font-size:9px;}
+.ep-GET{color:#22c55e;}.ep-POST{color:#f59e0b;}.ep-PUT{color:#60a5fa;}.ep-PATCH{color:#a78bfa;}.ep-DELETE{color:#ef4444;}
+.explorer-main{display:flex;flex-direction:column;gap:8px;}
+.req-bar{display:flex;gap:6px;align-items:center;}
+select#ex-method{background:#1a1226;border:1px solid #4a2a7a;color:#e2d9f3;font-family:inherit;font-size:12px;padding:7px 8px;border-radius:4px;cursor:pointer;width:100px;}
+input#ex-url{flex:1;background:#1a1226;border:1px solid #4a2a7a;color:#e2d9f3;font-family:inherit;font-size:11px;padding:7px 10px;border-radius:4px;}
+input#ex-url:focus{outline:none;border-color:#7c3aed;}
+.ex-tabs{display:flex;gap:2px;}
+.ex-tab{padding:4px 10px;font-size:10px;font-family:inherit;background:#0f0a1a;border:1px solid #2e1f4a;color:#6d5e8a;cursor:pointer;border-radius:3px;}
+.ex-tab.active{background:#1a1226;border-color:#7c3aed;color:#a78bfa;}
+.ex-panel{display:none;}.ex-panel.active{display:block;}
+.kv-row{display:flex;gap:4px;margin-bottom:4px;}
+.kv-row input{flex:1;background:#0a0a12;border:1px solid #2e1f4a;color:#e2d9f3;font-family:inherit;font-size:10px;padding:4px 6px;border-radius:3px;}
+.kv-row input:focus{outline:none;border-color:#7c3aed;}
+textarea#ex-body{width:100%;height:80px;background:#0a0a12;border:1px solid #2e1f4a;color:#e2d9f3;font-family:inherit;font-size:10px;padding:6px;border-radius:4px;resize:vertical;}
+textarea#ex-body:focus{outline:none;border-color:#7c3aed;}
+.response-pane{background:#040308;border:1px solid #2e1f4a;border-radius:6px;padding:12px;min-height:120px;}
+.resp-status{font-size:12px;font-weight:bold;margin-bottom:6px;}
+.resp-status.s2xx{color:#22c55e;}.resp-status.s4xx{color:#ef4444;}.resp-status.s5xx{color:#f59e0b;}
+.resp-body{font-size:10px;color:#c4b5fd;white-space:pre;line-height:1.6;overflow-x:auto;}
+.resp-time{font-size:9px;color:#4a2a7a;margin-top:6px;}
+/* challenges */
+.challenge-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+.challenge-item{background:#0f0a1a;border:1px solid #2e1f4a;border-left:3px solid #4a2a7a;border-radius:0 4px 4px 0;padding:8px 10px;font-size:11px;cursor:pointer;transition:.2s;}
+.challenge-item:hover{border-left-color:#7c3aed;background:#100c1c;}
+.challenge-item.active{border-left-color:#a78bfa;background:#130f1e;}
+.challenge-item.solved{border-left-color:#22c55e;background:#051209;}
+.ch-title{color:#e2d9f3;font-size:11px;margin-bottom:2px;}
+.ch-hint{font-size:9px;color:#6d5e8a;}
+.ch-badge{float:right;font-size:9px;color:#22c55e;}
+/* results */
+.results-panel{background:#0f0a1a;border:1px solid #4a2a7a;border-radius:8px;padding:24px;text-align:center;max-width:480px;margin:0 auto;}
+.rank-title{font-size:24px;color:#a78bfa;letter-spacing:2px;margin:12px 0 4px;}
+.rank-sub{font-size:11px;color:#6d5e8a;margin-bottom:20px;}
+.score-big{font-size:40px;color:#c4b5fd;font-weight:bold;}
+.score-max{font-size:16px;color:#4a2a7a;}
+.breakdown{text-align:left;margin:16px 0;font-size:11px;color:#8b5cf6;}
+.breakdown-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1226;}
+/* util */
+.gap-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.hint{font-size:10px;color:#4a2a7a;font-style:italic;margin-top:4px;}
+</style>
+</head>
+<body>
+<a class="back-link" onclick="window.history.back()">← Back</a>
+<h1>API FOUNDATIONS LAB</h1>
+<div class="subtitle">CLOUD HOUSE // REQUEST ENGINEERING // INTERACTIVE</div>
+<div class="score-badge">Score: <span id="score-display">0</span> / <span id="max-display">300</span></div>
+<div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+<div class="tabs">
+  <button class="tab active" onclick="switchModule(0)">M1: HTTP Methods</button>
+  <button class="tab" onclick="switchModule(1)">M2: Status Codes</button>
+  <button class="tab" onclick="switchModule(2)">M3: Request Anatomy</button>
+  <button class="tab" onclick="switchModule(3)">M4: REST vs Others</button>
+  <button class="tab" onclick="switchModule(4)">M5: API Explorer</button>
+</div>
+
+<!-- MODULE 1: HTTP Methods -->
+<div class="module active" id="mod-0">
+  <div class="module-title">M1 — HTTP Methods</div>
+  <div class="module-desc">Match each API scenario to the correct HTTP method. Then answer the multiple-choice questions.</div>
+  <div class="scenario-grid" id="m1-scenarios"></div>
+  <div id="m1-mc"></div>
+  <div class="gap-row"><button class="btn" onclick="checkM1()">Submit Answers</button><span id="m1-result" class="hint"></span></div>
+</div>
+
+<!-- MODULE 2: Status Codes -->
+<div class="module" id="mod-1">
+  <div class="module-title">M2 — Status Codes</div>
+  <div class="module-desc">Select the correct HTTP status code for each scenario.</div>
+  <div id="m2-scenarios"></div>
+  <div id="m2-mc"></div>
+  <div class="gap-row"><button class="btn" onclick="checkM2()">Submit Answers</button><span id="m2-result" class="hint"></span></div>
+</div>
+
+<!-- MODULE 3: Request Anatomy -->
+<div class="module" id="mod-2">
+  <div class="module-title">M3 — Request Anatomy</div>
+  <div class="module-desc">Study this HTTP request, then answer the questions about its components.</div>
+  <div class="request-display">
+<span class="req-method">POST</span> <span class="req-url">https://api.taskapp.io/v2/tasks</span><br>
+<span class="req-header-key">Authorization:</span> <span class="req-header-val">Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyXzQ0MiJ9</span><br>
+<span class="req-header-key">Content-Type:</span> <span class="req-header-val">application/json</span><br>
+<span class="req-header-key">Accept:</span> <span class="req-header-val">application/json</span><br>
+<span class="req-header-key">X-Request-ID:</span> <span class="req-header-val">8fa2-c991-4401</span><br>
+<br>
+{<br>
+  <span class="req-body-key">"title"</span>: <span class="req-body-val">"Deploy monitoring stack"</span>,<br>
+  <span class="req-body-key">"priority"</span>: <span class="req-body-val">"high"</span>,<br>
+  <span class="req-body-key">"assigned_to"</span>: <span class="req-body-val">"user_99"</span>,<br>
+  <span class="req-body-key">"due_date"</span>: <span class="req-body-val">"2026-03-15"</span><br>
+}
+  </div>
+  <div id="m3-mc"></div>
+  <div class="gap-row"><button class="btn" onclick="checkM3()">Submit Answers</button><span id="m3-result" class="hint"></span></div>
+</div>
+
+<!-- MODULE 4: REST vs Others -->
+<div class="module" id="mod-3">
+  <div class="module-title">M4 — REST vs Other APIs</div>
+  <div class="module-desc">Understand REST, GraphQL, gRPC, and SOAP — then classify the request snippets.</div>
+  <table class="compare-table">
+    <thead><tr><th>Type</th><th>Style</th><th>Transport</th><th>Best For</th></tr></thead>
+    <tbody>
+      <tr><td><b style="color:#a78bfa">REST</b></td><td>Resources + HTTP verbs</td><td>HTTP/1.1</td><td>Web APIs, CRUD services</td></tr>
+      <tr><td><b style="color:#60a5fa">GraphQL</b></td><td>Query language, single endpoint</td><td>HTTP/1.1</td><td>Flexible data fetching, mobile apps</td></tr>
+      <tr><td><b style="color:#22c55e">gRPC</b></td><td>Protobuf contracts, streams</td><td>HTTP/2</td><td>Microservices, low-latency, internal</td></tr>
+      <tr><td><b style="color:#f59e0b">SOAP</b></td><td>XML envelopes, strict contracts</td><td>HTTP/SMTP/JMS</td><td>Enterprise, legacy, financial</td></tr>
+    </tbody>
+  </table>
+  <div id="m4-snippets"></div>
+  <div id="m4-mc"></div>
+  <div class="gap-row"><button class="btn" onclick="checkM4()">Submit Answers</button><span id="m4-result" class="hint"></span></div>
+</div>
+
+<!-- MODULE 5: API Explorer -->
+<div class="module" id="mod-4">
+  <div class="module-title">M5 — API Explorer</div>
+  <div class="module-desc">A simulated Postman-style client. Complete the 5 challenges by constructing correct HTTP requests.</div>
+  <div class="challenge-list" id="ex-challenges"></div>
+  <div class="explorer-wrap">
+    <div class="explorer-sidebar">
+      <div class="sidebar-title">TASKAPI v1</div>
+      <div class="sidebar-title" style="margin-top:8px">AUTH</div>
+      <div class="endpoint-item"><span class="ep-method ep-POST">POST</span>/auth/login</div>
+      <div class="endpoint-item"><span class="ep-method ep-POST">POST</span>/auth/logout</div>
+      <div class="sidebar-title" style="margin-top:8px">TASKS</div>
+      <div class="endpoint-item"><span class="ep-method ep-GET">GET</span>/tasks</div>
+      <div class="endpoint-item"><span class="ep-method ep-POST">POST</span>/tasks</div>
+      <div class="endpoint-item"><span class="ep-method ep-GET">GET</span>/tasks/:id</div>
+      <div class="endpoint-item"><span class="ep-method ep-PUT">PUT</span>/tasks/:id</div>
+      <div class="endpoint-item"><span class="ep-method ep-PATCH">PATCH</span>/tasks/:id</div>
+      <div class="endpoint-item"><span class="ep-method ep-DELETE">DELETE</span>/tasks/:id</div>
+      <div class="sidebar-title" style="margin-top:8px">USERS</div>
+      <div class="endpoint-item"><span class="ep-method ep-GET">GET</span>/users/me</div>
+      <div class="endpoint-item"><span class="ep-method ep-PATCH">PATCH</span>/users/me</div>
+    </div>
+    <div class="explorer-main">
+      <div class="req-bar">
+        <select id="ex-method">
+          <option>GET</option><option>POST</option><option>PUT</option>
+          <option>PATCH</option><option>DELETE</option><option>HEAD</option>
+        </select>
+        <input type="text" id="ex-url" placeholder="/tasks" value="/tasks">
+        <button class="btn" onclick="sendRequest()">Send</button>
+      </div>
+      <div class="ex-tabs">
+        <button class="ex-tab active" onclick="switchExTab('headers')">Headers</button>
+        <button class="ex-tab" onclick="switchExTab('body')">Body</button>
+      </div>
+      <div class="ex-panel active" id="ex-panel-headers">
+        <div id="header-rows">
+          <div class="kv-row"><input placeholder="Key" class="hk"><input placeholder="Value" class="hv"></div>
+          <div class="kv-row"><input placeholder="Key" class="hk"><input placeholder="Value" class="hv"></div>
+          <div class="kv-row"><input placeholder="Key" class="hk"><input placeholder="Value" class="hv"></div>
+        </div>
+        <button class="btn-outline btn" style="font-size:9px;padding:3px 8px;margin-top:4px" onclick="addHeaderRow()">+ Row</button>
+      </div>
+      <div class="ex-panel" id="ex-panel-body">
+        <textarea id="ex-body" placeholder='{"key": "value"}'></textarea>
+      </div>
+      <div class="response-pane" id="response-pane">
+        <div style="font-size:11px;color:#4a2a7a">Hit "Send" to fire a request...</div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:12px" id="m5-result"></div>
+</div>
+
+<!-- RESULTS -->
+<div class="module" id="mod-results">
+  <div class="results-panel">
+    <div style="font-size:11px;color:#6d5e8a;letter-spacing:2px">ASSESSMENT COMPLETE</div>
+    <div class="rank-title" id="res-rank"></div>
+    <div class="rank-sub" id="res-ranksub"></div>
+    <div class="score-big" id="res-score"></div>
+    <div class="score-max" id="res-max"></div>
+    <div class="breakdown" id="res-breakdown"></div>
+    <button class="btn" onclick="awardXP()">Claim Reward</button>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const S = {
+  score: 0,
+  maxScore: 300,
+  m1Done: false, m2Done: false, m3Done: false, m4Done: false, m5Done: false,
+  m5Solved: new Set(),
+  m5Score: 0,
+  breakdown: { m1:0, m2:0, m3:0, m4:0, m5:0 }
+};
+
+// ─── MODULE 1 DATA ────────────────────────────────────────────────────────────
+const M1_SCENARIOS = [
+  { text: 'Retrieve a list of all users from <code>/api/users</code>', answer: 'GET' },
+  { text: 'Create a new blog post at <code>/api/posts</code>', answer: 'POST' },
+  { text: 'Replace the entire profile for user 42 at <code>/api/users/42</code>', answer: 'PUT' },
+  { text: 'Update only the email field for user 42 at <code>/api/users/42</code>', answer: 'PATCH' },
+  { text: 'Remove the task with id 7 from <code>/api/tasks/7</code>', answer: 'DELETE' },
+  { text: 'Check if <code>/api/status</code> is reachable without downloading the body', answer: 'HEAD' },
+];
+const M1_METHODS = ['GET','POST','PUT','PATCH','DELETE','HEAD'];
+const M1_MC = [
+  { q:'Which HTTP methods are considered "idempotent" (same result regardless of how many times called)?',
+    opts:['GET and POST','GET, PUT, DELETE, and HEAD','POST and PATCH','Only GET'],
+    a:1, exp:'GET, PUT, DELETE, HEAD are idempotent — repeating them yields the same server state. POST is not.' },
+  { q:'Which HTTP method is considered "safe" (does not modify server state)?',
+    opts:['POST','PATCH','GET','PUT'],
+    a:2, exp:'GET (and HEAD) are safe — they only retrieve data and make no modifications.' },
+  { q:'You want to update a resource but only send the fields that changed. Which method is most semantically correct?',
+    opts:['PUT','POST','PATCH','DELETE'],
+    a:2, exp:'PATCH is designed for partial updates. PUT replaces the entire resource.' },
+];
+
+// ─── MODULE 2 DATA ────────────────────────────────────────────────────────────
+const M2_SCENARIOS = [
+  { text: 'A new user account was successfully created.', opts:['200','201','204','400'], answer:'201' },
+  { text: 'The requested resource <code>/api/tasks/999</code> does not exist.', opts:['400','401','403','404'], answer:'404' },
+  { text: 'The client sent a request without a valid auth token.', opts:['401','403','404','500'], answer:'401' },
+  { text: 'The user is authenticated but lacks permission to delete this record.', opts:['401','403','404','405'], answer:'403' },
+  { text: 'The API has received too many requests from this client.', opts:['400','409','429','503'], answer:'429' },
+  { text: 'An unexpected internal error occurred on the server.', opts:['400','404','500','503'], answer:'500' },
+  { text: 'The resource was moved permanently to a new URL.', opts:['301','302','304','307'], answer:'301' },
+  { text: 'The request succeeded and there is no content to return.', opts:['200','201','204','206'], answer:'204' },
+  { text: 'The client sent malformed JSON in the request body.', opts:['400','401','404','422'], answer:'400' },
+  { text: 'The server is temporarily unavailable (maintenance).', opts:['500','501','502','503'], answer:'503' },
+];
+const M2_MC = [
+  { q:'Which status code family indicates a client-side error?',
+    opts:['1xx','2xx','3xx','4xx'],
+    a:3, exp:'4xx codes indicate the client made a bad request — 400 Bad Request, 401 Unauthorized, 404 Not Found, etc.' },
+  { q:'A response of 304 Not Modified is part of which caching mechanism?',
+    opts:['ETags and conditional GET requests','JWT refresh flows','Rate limiting headers','OAuth token introspection'],
+    a:0, exp:'304 is returned when the client sends an If-None-Match or If-Modified-Since header and the resource has not changed.' },
+  { q:'Which code would you use for successful PATCH requests that return the updated object?',
+    opts:['201 Created','202 Accepted','200 OK','204 No Content'],
+    a:2, exp:'200 OK is correct when the response includes the updated resource body. 204 is used when no body is returned.' },
+];
+
+// ─── MODULE 3 DATA ────────────────────────────────────────────────────────────
+const M3_MC = [
+  { q:'What type of authentication token is in the Authorization header of this request?',
+    opts:['API Key','Basic Auth','Bearer (JWT)','OAuth 1.0 signature'],
+    a:2, exp:'Bearer tokens (prefixed with "Bearer ") are typically JWTs used in OAuth 2.0 flows.' },
+  { q:'What does the Content-Type header tell the server?',
+    opts:['The format the client wants to receive','The format of the request body being sent','The API version to use','The encoding of the URL'],
+    a:1, exp:'Content-Type describes the media type of the request body. The Accept header tells the server what format the client wants back.' },
+  { q:'The X-Request-ID header in this request is an example of what?',
+    opts:['A required HTTP/1.1 header','A custom header for request tracing','An OAuth scope header','A CORS preflight header'],
+    a:1, exp:'X-Request-ID is a custom (non-standard) header commonly used for distributed tracing and request correlation.' },
+];
+
+// ─── MODULE 4 DATA ────────────────────────────────────────────────────────────
+const M4_SNIPPETS = [
+  { label:'Snippet A', pre:`POST /graphql HTTP/1.1\nContent-Type: application/json\n\n{"query":"{ user(id:42){ name email tasks{title} } }"}`, answer:'GraphQL' },
+  { label:'Snippet B', pre:`GET /api/v1/users/42/tasks HTTP/1.1\nAccept: application/json\nAuthorization: Bearer eyJ...`, answer:'REST' },
+  { label:'Snippet C', pre:`POST /UserService HTTP/1.1\nContent-Type: text/xml\n\n<?xml version="1.0"?>\n<soap:Envelope xmlns:soap="...">\n  <soap:Body><GetUser><id>42</id></GetUser></soap:Body>\n</soap:Envelope>`, answer:'SOAP' },
+  { label:'Snippet D', pre:`// gRPC proto call (binary over HTTP/2)\nrpc GetUser(UserRequest) returns (UserResponse);\n// Equivalent to: { id: 42 }`, answer:'gRPC' },
+  { label:'Snippet E', pre:`POST /graphql HTTP/1.1\n\n{"mutation":"mutation { createTask(title:\"Deploy\",priority:\"high\") { id createdAt } }"}`, answer:'GraphQL' },
+  { label:'Snippet F', pre:`DELETE /api/tasks/7 HTTP/1.1\nAuthorization: Bearer eyJ...\nAccept: application/json`, answer:'REST' },
+];
+const M4_TYPES = ['REST','GraphQL','gRPC','SOAP'];
+const M4_MC = [
+  { q:'Which API style would be BEST for a mobile app that needs to fetch user data and their recent posts in a single round-trip, requesting only specific fields?',
+    opts:['REST','GraphQL','gRPC','SOAP'],
+    a:1, exp:'GraphQL allows the client to specify exactly which fields to return, reducing over-fetching and enabling single round-trip queries.' },
+  { q:'A team is building high-throughput microservices that communicate internally with strict contracts and need bi-directional streaming. Best choice?',
+    opts:['REST','GraphQL','gRPC','SOAP'],
+    a:2, exp:'gRPC uses Protocol Buffers over HTTP/2, offering strong contracts, streaming, and much lower latency than REST or GraphQL.' },
+  { q:'A legacy banking system requires integration with strict XML schema validation, ACID guarantees, and WS-Security. Which API style fits?',
+    opts:['REST','GraphQL','gRPC','SOAP'],
+    a:3, exp:'SOAP is the correct choice for enterprise/legacy integration requiring XML schemas, WS-Security, and strict contracts.' },
+];
+
+// ─── MODULE 5 DATA ────────────────────────────────────────────────────────────
+const M5_CHALLENGES = [
+  { id:0, title:'Get all tasks', hint:'Retrieve the full task list. No auth needed.', check: r => r.method==='GET' && r.url==='/tasks' },
+  { id:1, title:'Create a new task', hint:'POST to /tasks with JSON body containing "title"."', check: r => {
+    const b = parseBody(r.body);
+    return r.method==='POST' && r.url==='/tasks' && b && b.title;
+  }},
+  { id:2, title:'Update task 3 (partial)', hint:'Partially update task 3. Send only the "priority" field.', check: r => {
+    const b = parseBody(r.body);
+    return r.method==='PATCH' && r.url==='/tasks/3' && b && b.priority;
+  }},
+  { id:3, title:'Delete task 5', hint:'Delete task with id 5.', check: r => r.method==='DELETE' && r.url==='/tasks/5' },
+  { id:4, title:'Get your user profile (authenticated)', hint:'GET /users/me with a Bearer token in Authorization header.', check: r => {
+    const auth = r.headers['authorization'] || r.headers['Authorization'] || '';
+    return r.method==='GET' && r.url==='/users/me' && auth.toLowerCase().startsWith('bearer ');
+  }},
+];
+
+// Mock API response engine
+const MOCK_RESPONSES = {
+  'GET /tasks': { status:200, body:{ tasks:[{id:1,title:'Fix bug',priority:'high'},{id:2,title:'Write docs',priority:'low'},{id:3,title:'Deploy',priority:'high'}], total:3 }},
+  'GET /tasks/1': { status:200, body:{ id:1, title:'Fix bug', priority:'high', assigned_to:'user_1', due_date:'2026-03-01' }},
+  'GET /tasks/2': { status:200, body:{ id:2, title:'Write docs', priority:'low' }},
+  'GET /tasks/3': { status:200, body:{ id:3, title:'Deploy', priority:'high' }},
+  'GET /tasks/5': { status:404, body:{ error:'Not Found', message:'Task with id 5 does not exist' }},
+  'POST /tasks': { status:201, body:{ id:4, title:'New task', priority:'medium', created_at:'2026-02-27T10:00:00Z' }},
+  'PUT /tasks/3': { status:200, body:{ id:3, title:'Deploy', priority:'critical', updated_at:'2026-02-27T10:00:00Z' }},
+  'PATCH /tasks/3': { status:200, body:{ id:3, title:'Deploy', priority:'critical', updated_at:'2026-02-27T10:00:00Z' }},
+  'DELETE /tasks/5': { status:204, body:null },
+  'GET /users/me': { status:200, body:{ id:'user_99', name:'Alex Morgan', email:'alex@taskapp.io', role:'admin', plan:'pro' }},
+  'PATCH /users/me': { status:200, body:{ id:'user_99', email:'updated@taskapp.io', updated_at:'2026-02-27T10:00:00Z' }},
+  'POST /auth/login': { status:200, body:{ token:'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyXzk5In0.sig', expires_in:3600 }},
+  'POST /auth/logout': { status:204, body:null },
+};
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  buildM1(); buildM2(); buildM3(); buildM4(); buildM5();
+  updateDisplay();
+}
+
+// ─── MODULE 1 BUILD ───────────────────────────────────────────────────────────
+function buildM1() {
+  const grid = document.getElementById('m1-scenarios');
+  grid.innerHTML = M1_SCENARIOS.map((s,i) => `
+    <div class="scenario-card">
+      <div class="scenario-label">SCENARIO ${i+1}</div>
+      <div class="scenario-text">${s.text}</div>
+      <select class="method-select" id="m1-sel-${i}">
+        <option value="">-- Select Method --</option>
+        ${M1_METHODS.map(m=>`<option value="${m}">${m}</option>`).join('')}
+      </select>
+    </div>`).join('');
+  const mc = document.getElementById('m1-mc');
+  mc.innerHTML = buildMCHTML(M1_MC, 'm1mc');
+}
+
+function checkM1() {
+  if (S.m1Done) return;
+  let pts = 0;
+  M1_SCENARIOS.forEach((s,i) => {
+    const sel = document.getElementById(`m1-sel-${i}`);
+    if (sel.value === s.answer) { pts += 10; sel.style.borderColor='#22c55e'; }
+    else { sel.style.borderColor='#ef4444'; sel.insertAdjacentHTML('afterend',`<div class="hint" style="color:#fca5a5">Correct: ${s.answer}</div>`); }
+    sel.disabled = true;
+  });
+  pts += scoreMC(M1_MC, 'm1mc', 15);
+  S.score += pts; S.m1Done = true; S.breakdown.m1 = pts;
+  document.getElementById('m1-result').textContent = `+${pts} pts`;
+  markTabDone(0); updateDisplay();
+}
+
+// ─── MODULE 2 BUILD ───────────────────────────────────────────────────────────
+function buildM2() {
+  const wrap = document.getElementById('m2-scenarios');
+  wrap.innerHTML = M2_SCENARIOS.map((s,i) => `
+    <div class="scenario-card" id="m2-card-${i}">
+      <div class="scenario-label">SCENARIO ${i+1}</div>
+      <div class="scenario-text">${s.text}</div>
+      <div class="status-opts">
+        ${s.opts.map(o=>`<button class="status-btn" id="m2-${i}-${o}" onclick="pickStatus(${i},'${o}')">${o}</button>`).join('')}
+      </div>
+      <div id="m2-fb-${i}"></div>
+    </div>`).join('');
+  document.getElementById('m2-mc').innerHTML = buildMCHTML(M2_MC, 'm2mc');
+}
+const m2Answers = {};
+function pickStatus(si, code) {
+  const card = document.getElementById(`m2-card-${si}`);
+  if (card.dataset.locked) return;
+  m2Answers[si] = code;
+  card.querySelectorAll('.status-btn').forEach(b => { b.classList.remove('correct','wrong'); });
+  document.getElementById(`m2-${si}-${code}`).classList.add('active');
+}
+function checkM2() {
+  if (S.m2Done) return;
+  let pts = 0;
+  M2_SCENARIOS.forEach((s,i) => {
+    const card = document.getElementById(`m2-card-${i}`);
+    const chosen = m2Answers[i];
+    const btn = chosen ? document.getElementById(`m2-${i}-${chosen}`) : null;
+    const correct = document.getElementById(`m2-${i}-${s.answer}`);
+    if (chosen === s.answer) { pts += 10; if(btn) btn.classList.add('correct'); }
+    else { if(btn) btn.classList.add('wrong'); if(correct) correct.classList.add('correct'); }
+    card.dataset.locked = '1';
+    card.querySelectorAll('.status-btn').forEach(b=>b.classList.add('locked'));
+  });
+  pts += scoreMC(M2_MC, 'm2mc', 15);
+  S.score += pts; S.m2Done = true; S.breakdown.m2 = pts;
+  document.getElementById('m2-result').textContent = `+${pts} pts`;
+  markTabDone(1); updateDisplay();
+}
+
+// ─── MODULE 3 BUILD ───────────────────────────────────────────────────────────
+function buildM3() {
+  document.getElementById('m3-mc').innerHTML = buildMCHTML(M3_MC, 'm3mc');
+}
+function checkM3() {
+  if (S.m3Done) return;
+  const pts = scoreMC(M3_MC, 'm3mc', 15);
+  S.score += pts; S.m3Done = true; S.breakdown.m3 = pts;
+  document.getElementById('m3-result').textContent = `+${pts} pts`;
+  markTabDone(2); updateDisplay();
+}
+
+// ─── MODULE 4 BUILD ───────────────────────────────────────────────────────────
+function buildM4() {
+  const wrap = document.getElementById('m4-snippets');
+  wrap.innerHTML = M4_SNIPPETS.map((s,i) => `
+    <div class="snippet-card" id="m4-snip-${i}">
+      <div class="scenario-label">${s.label}</div>
+      <pre class="snippet-pre">${escHtml(s.pre)}</pre>
+      <div class="classify-opts">
+        ${M4_TYPES.map(t=>`<button class="cls-btn" id="m4-${i}-${t}" onclick="pickType(${i},'${t}')">${t}</button>`).join('')}
+      </div>
+      <div id="m4-fb-${i}"></div>
+    </div>`).join('');
+  document.getElementById('m4-mc').innerHTML = buildMCHTML(M4_MC, 'm4mc');
+}
+const m4Answers = {};
+function pickType(si, type) {
+  const card = document.getElementById(`m4-snip-${si}`);
+  if (card.dataset.locked) return;
+  m4Answers[si] = type;
+  card.querySelectorAll('.cls-btn').forEach(b=>b.classList.remove('correct','wrong'));
+  document.getElementById(`m4-${si}-${type}`).style.borderColor='#7c3aed';
+}
+function checkM4() {
+  if (S.m4Done) return;
+  let pts = 0;
+  M4_SNIPPETS.forEach((s,i) => {
+    const chosen = m4Answers[i];
+    const correct = document.getElementById(`m4-${i}-${s.answer}`);
+    const wrongBtn = chosen ? document.getElementById(`m4-${i}-${chosen}`) : null;
+    const card = document.getElementById(`m4-snip-${i}`);
+    if (chosen === s.answer) { pts += 10; if(correct) correct.classList.add('correct'); }
+    else { if(wrongBtn) wrongBtn.classList.add('wrong'); if(correct) correct.classList.add('correct'); }
+    card.dataset.locked = '1';
+    card.querySelectorAll('.cls-btn').forEach(b=>b.classList.add('locked'));
+  });
+  pts += scoreMC(M4_MC, 'm4mc', 15);
+  S.score += pts; S.m4Done = true; S.breakdown.m4 = pts;
+  document.getElementById('m4-result').textContent = `+${pts} pts`;
+  markTabDone(3); updateDisplay();
+}
+
+// ─── MODULE 5 BUILD + ENGINE ──────────────────────────────────────────────────
+function buildM5() {
+  const wrap = document.getElementById('ex-challenges');
+  wrap.innerHTML = M5_CHALLENGES.map(c => `
+    <div class="challenge-item" id="ch-item-${c.id}" onclick="loadChallenge(${c.id})">
+      <span class="ch-badge" id="ch-badge-${c.id}"></span>
+      <div class="ch-title">Challenge ${c.id+1}: ${c.title}</div>
+      <div class="ch-hint">${c.hint}</div>
+    </div>`).join('');
+}
+function loadChallenge(id) {
+  document.querySelectorAll('.challenge-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById(`ch-item-${id}`).classList.add('active');
+}
+function addHeaderRow() {
+  const container = document.getElementById('header-rows');
+  const row = document.createElement('div');
+  row.className = 'kv-row';
+  row.innerHTML = '<input placeholder="Key" class="hk"><input placeholder="Value" class="hv">';
+  container.appendChild(row);
+}
+function switchExTab(tab) {
+  document.querySelectorAll('.ex-tab').forEach((t,i)=>{
+    t.classList.toggle('active', ['headers','body'][i]===tab);
+  });
+  document.getElementById('ex-panel-headers').classList.toggle('active', tab==='headers');
+  document.getElementById('ex-panel-body').classList.toggle('active', tab==='body');
+}
+function getHeaders() {
+  const result = {};
+  document.querySelectorAll('#header-rows .kv-row').forEach(row => {
+    const k = row.querySelector('.hk').value.trim();
+    const v = row.querySelector('.hv').value.trim();
+    if (k) result[k] = v;
+  });
+  return result;
+}
+function parseBody(str) {
+  if (!str || !str.trim()) return null;
+  try { return JSON.parse(str); } catch(e) { return null; }
+}
+function sendRequest() {
+  const method = document.getElementById('ex-method').value;
+  const url = document.getElementById('ex-url').value.trim() || '/';
+  const headers = getHeaders();
+  const bodyStr = document.getElementById('ex-body').value.trim();
+  const body = parseBody(bodyStr);
+  const reqObj = { method, url, headers, body: bodyStr };
+
+  // Simulate latency
+  const pane = document.getElementById('response-pane');
+  pane.innerHTML = '<div style="font-size:11px;color:#4a2a7a;animation:fadeIn .3s">Sending request...</div>';
+
+  setTimeout(() => {
+    const key = `${method} ${url}`;
+    let resp = MOCK_RESPONSES[key];
+
+    // Body validation for POST /tasks
+    if (method === 'POST' && url === '/tasks') {
+      if (!body || !body.title) {
+        resp = { status:400, body:{ error:'Bad Request', message:'Field "title" is required in request body' }};
+      }
+    }
+    // Require auth for /users/me
+    if (url === '/users/me' && method === 'GET') {
+      const auth = headers['Authorization'] || headers['authorization'] || '';
+      if (!auth.toLowerCase().startsWith('bearer ')) {
+        resp = { status:401, body:{ error:'Unauthorized', message:'Bearer token required. Add Authorization: Bearer <token>' }};
+      }
+    }
+    if (!resp) {
+      resp = { status:404, body:{ error:'Not Found', message:`No route matches ${method} ${url}` }};
+    }
+
+    renderResponse(resp);
+    checkChallenges(reqObj);
+  }, 320);
+}
+function renderResponse(resp) {
+  const pane = document.getElementById('response-pane');
+  const { status, body } = resp;
+  const cls = status < 300 ? 's2xx' : status < 500 ? 's4xx' : 's5xx';
+  const labels = {200:'OK',201:'Created',204:'No Content',301:'Moved Permanently',400:'Bad Request',
+    401:'Unauthorized',403:'Forbidden',404:'Not Found',422:'Unprocessable Entity',429:'Too Many Requests',
+    500:'Internal Server Error',503:'Service Unavailable'};
+  const label = labels[status] || '';
+  const bodyStr = body === null ? '(no content)' : JSON.stringify(body, null, 2);
+  pane.innerHTML = `
+    <div class="resp-status ${cls}">HTTP/1.1 ${status} ${label}</div>
+    <div style="font-size:9px;color:#4a2a7a;margin-bottom:6px">
+      Content-Type: application/json &nbsp;|&nbsp; X-Request-ID: ${randId()}
+    </div>
+    <pre class="resp-body">${escHtml(bodyStr)}</pre>
+    <div class="resp-time">Response time: ${60+Math.floor(Math.random()*180)}ms</div>`;
+}
+function checkChallenges(req) {
+  M5_CHALLENGES.forEach(c => {
+    if (S.m5Solved.has(c.id)) return;
+    if (c.check(req)) {
+      S.m5Solved.add(c.id);
+      S.score += 20; S.m5Score += 20; S.breakdown.m5 += 20;
+      const item = document.getElementById(`ch-item-${c.id}`);
+      item.classList.add('solved'); item.classList.remove('active');
+      document.getElementById(`ch-badge-${c.id}`).textContent = '+ 20 pts';
+      showToast(`Challenge ${c.id+1} solved! +20 pts`);
+      updateDisplay();
+      if (S.m5Solved.size === M5_CHALLENGES.length && !S.m5Done) {
+        S.m5Done = true; markTabDone(4);
+        document.getElementById('m5-result').innerHTML = '<div class="hint" style="color:#86efac">All 5 challenges solved!</div>';
+      }
+    }
+  });
+}
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;right:24px;background:#1a1226;border:1px solid #7c3aed;color:#a78bfa;padding:10px 16px;border-radius:6px;font-size:11px;z-index:999;animation:fadeIn .3s';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ─── MC HELPERS ───────────────────────────────────────────────────────────────
+function buildMCHTML(questions, prefix) {
+  return '<div style="margin-top:10px">' + questions.map((q,i) => `
+    <div class="mc-block" id="${prefix}-${i}">
+      <div class="mc-q">Q${i+1}: ${q.q}</div>
+      <div class="mc-options">
+        ${q.opts.map((o,j)=>`<button class="mc-opt" id="${prefix}-${i}-${j}" onclick="pickMC('${prefix}',${i},${j})">${o}</button>`).join('')}
+      </div>
+      <div id="${prefix}-fb-${i}"></div>
+    </div>`).join('') + '</div>';
+}
+const mcState = {};
+function pickMC(prefix, qi, oi) {
+  const key = `${prefix}-${qi}`;
+  if (mcState[key] && mcState[key].locked) return;
+  if (!mcState[key]) mcState[key] = {};
+  mcState[key].selected = oi;
+  document.querySelectorAll(`#${prefix}-${qi} .mc-opt`).forEach((b,j)=>{
+    b.style.borderColor = j===oi ? '#7c3aed' : '';
+    b.style.background = j===oi ? '#170f24' : '';
+  });
+}
+function scoreMC(questions, prefix, pts) {
+  let total = 0;
+  questions.forEach((q,i) => {
+    const key = `${prefix}-${i}`;
+    const chosen = mcState[key] ? mcState[key].selected : undefined;
+    const correct = document.getElementById(`${prefix}-${i}-${q.a}`);
+    const wrongBtn = (chosen !== undefined) ? document.getElementById(`${prefix}-${i}-${chosen}`) : null;
+    if (chosen === q.a) { total += pts; if(correct) correct.classList.add('correct'); }
+    else { if(wrongBtn) wrongBtn.classList.add('wrong'); if(correct) correct.classList.add('correct'); }
+    document.querySelectorAll(`#${prefix}-${i} .mc-opt`).forEach(b=>b.classList.add('locked'));
+    const fb = document.getElementById(`${prefix}-fb-${i}`);
+    fb.className = `mc-feedback ${chosen===q.a?'ok':'bad'}`;
+    fb.textContent = q.exp;
+    if(mcState[key]) mcState[key].locked = true;
+  });
+  return total;
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function switchModule(idx) {
+  document.querySelectorAll('.module').forEach((m,i)=>m.classList.toggle('active',i===idx));
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+  if (idx===5) showResults();
+}
+function markTabDone(idx) {
+  const tabs = document.querySelectorAll('.tab');
+  if (tabs[idx]) tabs[idx].classList.add('done');
+  const allDone = S.m1Done && S.m2Done && S.m3Done && S.m4Done && S.m5Done;
+  if (allDone) setTimeout(showResults, 600);
+}
+function updateDisplay() {
+  document.getElementById('score-display').textContent = S.score;
+  const pct = S.score / S.maxScore;
+  document.getElementById('prog-bar').style.width = Math.min(100, Math.round(pct*100)) + '%';
+}
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function randId() {
+  return Math.random().toString(36).substr(2,4)+'-'+Math.random().toString(36).substr(2,4);
+}
+
+// ─── RESULTS ─────────────────────────────────────────────────────────────────
+function showResults() {
+  document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
+  document.getElementById('mod-results').classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  const pct = S.score / S.maxScore;
+  let rank, sub;
+  if (pct < 0.5) { rank='404 Not Found'; sub='Keep learning — the endpoint is out there.'; }
+  else if (pct < 0.75) { rank='API Consumer'; sub='You can use APIs. Time to build them.'; }
+  else if (pct < 0.90) { rank='API Developer'; sub='Solid fundamentals. Design instincts are sharpening.'; }
+  else { rank='API Architect'; sub='Deep understanding of HTTP and API design patterns.'; }
+  document.getElementById('res-rank').textContent = rank;
+  document.getElementById('res-ranksub').textContent = sub;
+  document.getElementById('res-score').textContent = S.score;
+  document.getElementById('res-max').textContent = '/ ' + S.maxScore;
+  document.getElementById('res-breakdown').innerHTML = `
+    <div class="breakdown-row"><span>M1: HTTP Methods</span><span>${S.breakdown.m1} pts</span></div>
+    <div class="breakdown-row"><span>M2: Status Codes</span><span>${S.breakdown.m2} pts</span></div>
+    <div class="breakdown-row"><span>M3: Request Anatomy</span><span>${S.breakdown.m3} pts</span></div>
+    <div class="breakdown-row"><span>M4: REST vs Others</span><span>${S.breakdown.m4} pts</span></div>
+    <div class="breakdown-row"><span>M5: API Explorer</span><span>${S.breakdown.m5} pts</span></div>`;
+}
+
+// ─── XP / COMPLETION ─────────────────────────────────────────────────────────
+function awardXP() {
+  const totalScore = S.score;
+  const maxScore = S.maxScore;
+  const pct = totalScore / maxScore;
+  let rankTitle;
+  if (pct < 0.5) rankTitle='404 Not Found';
+  else if (pct < 0.75) rankTitle='API Consumer';
+  else if (pct < 0.90) rankTitle='API Developer';
+  else rankTitle='API Architect';
+
+  if (!localStorage.getItem('game_apifoundations_xp_awarded')) {
+    const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+    localStorage.setItem('hexworth_xp', (currentXP + 75).toString());
+    localStorage.setItem('game_apifoundations_xp_awarded', 'true');
+    if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+      const uid = localStorage.getItem('hexworth_uid');
+      if (uid) FirestoreManager.addXP(uid, 75, 'API Foundations Lab Complete');
+    }
+  }
+  if (typeof AchievementManager !== 'undefined') AchievementManager.unlock('game_apifoundations');
+  if (typeof GameTracker !== 'undefined') GameTracker.record('apifoundations', { score: totalScore, maxScore, rank: rankTitle });
+
+  showToast('+75 XP awarded! Lab complete.');
+  document.querySelector('.results-panel .btn').disabled = true;
+  document.querySelector('.results-panel .btn').textContent = 'XP Claimed';
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
