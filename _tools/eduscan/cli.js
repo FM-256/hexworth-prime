@@ -68,6 +68,8 @@ function parseArgs(args) {
         functional: false,          // Run functional validation (headless browser)
         smokeOnly: false,           // Only run smoke tests (with --functional)
         runtimeOnly: false,         // Only run runtime checks (with --functional)
+        impactOnly: false,          // Run impact analysis (dependency map + contracts)
+        impactFile: null,           // Analyze impact of specific file
         help: false,
         version: false
     };
@@ -209,6 +211,17 @@ function parseArgs(args) {
                 options.functional = true;
                 break;
 
+            case '--impact':
+            case '--impact-only':
+                options.impactOnly = true;
+                break;
+
+            case '--impact-file':
+                options.impactOnly = true;
+                options.impactFile = nextArg;
+                i++;
+                break;
+
             case '-h':
             case '--help':
                 options.help = true;
@@ -259,6 +272,8 @@ Options:
   --functional           Run functional validation (headless browser, Puppeteer)
   --smoke-only           Only run smoke tests (with --functional)
   --runtime-only         Only run runtime checks (with --functional)
+  --impact               Run impact analysis (dependency map + contract validation)
+  --impact-file <path>   Analyze impact of a specific file change
   --no-color             Disable colored output
   -h, --help             Show this help message
   --version              Show version
@@ -400,6 +415,12 @@ function main() {
             outputDir: options.outputDir,
             verbose: options.verbose
         }) : null;
+
+        if (options.impactOnly) {
+            // Impact analysis (dependency map + contract validation)
+            runImpact(options, colorFn);
+            return;
+        }
 
         if (options.functional) {
             // Functional validation (async - headless browser)
@@ -791,6 +812,123 @@ function runWatch(options, colorFn) {
  * Run functional validation (headless browser)
  * @param {Object} options - CLI options
  * @param {Function} colorFn - Color function
+ */
+function runImpact(options, colorFn) {
+    const c = colorFn;
+    const ImpactAnalyzer = require('./validators/impact');
+    const analyzer = new ImpactAnalyzer({
+        rootPath: options.path,
+        verbose: options.verbose
+    });
+
+    if (options.impactFile) {
+        // Analyze impact of a specific file
+        const impact = analyzer.analyzeFile(options.impactFile);
+        if (!options.quiet) {
+            console.log('');
+            console.log(c('  Impact Analysis', 'cyan', 'bright'));
+            console.log(c(`  File: ${options.impactFile}`, 'dim'));
+            console.log('');
+
+            if (impact.isComponent) {
+                const sevColor = impact.severity === 'critical' ? 'red' :
+                                impact.severity === 'high' ? 'yellow' : 'green';
+                console.log(c(`  Component: ${impact.componentName}`, 'bright'));
+                console.log(c(`  Severity:  ${impact.severity.toUpperCase()}`, sevColor, 'bright'));
+                console.log(c(`  Affected:  ${impact.affectedCount} files`, 'bright'));
+                console.log('');
+                if (impact.affectedFiles.length > 0) {
+                    console.log('  Downstream files:');
+                    for (const f of impact.affectedFiles.slice(0, 30)) {
+                        console.log(c(`    ${f}`, 'dim'));
+                    }
+                    if (impact.affectedFiles.length > 30) {
+                        console.log(c(`    ... and ${impact.affectedFiles.length - 30} more`, 'dim'));
+                    }
+                }
+            } else {
+                console.log(c(`  Uses ${impact.usedComponentCount} components:`, 'bright'));
+                for (const comp of impact.usedComponents) {
+                    console.log(c(`    ${comp}`, 'dim'));
+                }
+            }
+            console.log('');
+        }
+
+        if (options.jsonOutput) {
+            console.log(JSON.stringify(impact, null, 2));
+        }
+        return;
+    }
+
+    // Full impact analysis
+    const results = analyzer.analyze();
+
+    if (options.jsonOutput) {
+        console.log(JSON.stringify(results, null, 2));
+        return;
+    }
+
+    if (!options.quiet) {
+        console.log('');
+        console.log(c('  EduScan Impact Analyzer', 'cyan', 'bright'));
+        console.log(c('  ─────────────────────', 'dim'));
+        console.log('');
+
+        // Summary
+        console.log(c(`  Components: ${results.summary.totalComponents} total`, 'bright'));
+        console.log(c(`    Used:     ${results.summary.usedComponents}`, 'green'));
+        console.log(c(`    Unused:   ${results.summary.unusedComponents}`, 'yellow'));
+        console.log(c(`  Most depended: ${results.summary.mostDepended} (${results.summary.mostDependedCount} files)`, 'bright'));
+        console.log('');
+
+        // Contract results
+        console.log(c(`  Contracts: ${results.summary.contractsChecked} components, ${results.summary.methodsChecked} methods`, 'bright'));
+        if (results.summary.contractsFailed === 0) {
+            console.log(c(`  Status:    All contracts pass`, 'green', 'bright'));
+        } else {
+            console.log(c(`  Status:    ${results.summary.contractsFailed} FAILURES`, 'red', 'bright'));
+            console.log('');
+            for (const issue of results.issues) {
+                const sevColor = issue.severity === 'critical' ? 'red' :
+                                issue.severity === 'high' ? 'yellow' : 'dim';
+                console.log(c(`    [${issue.code}] ${issue.severity.toUpperCase()}: ${issue.message}`, sevColor));
+            }
+        }
+
+        // Top components
+        console.log('');
+        console.log(c('  Top 10 Most-Depended Components:', 'bright'));
+        const top = analyzer.getTopComponents(10);
+        for (const comp of top) {
+            const bar = '█'.repeat(Math.min(Math.ceil(comp.dependencyCount / 100), 20));
+            console.log(c(`    ${comp.name.padEnd(22)} ${String(comp.dependencyCount).padStart(5)} files  ${bar}`, 'dim'));
+        }
+
+        // Unused components
+        const unused = analyzer.getUnusedComponents();
+        if (unused.length > 0) {
+            console.log('');
+            console.log(c(`  Unused Components (${unused.length}):`, 'yellow'));
+            for (const u of unused) {
+                console.log(c(`    ${u.name} (${u.path})`, 'dim'));
+            }
+        }
+
+        console.log('');
+        console.log(c(`  Duration: ${results.summary.duration}ms`, 'dim'));
+        console.log('');
+    }
+
+    // Determine exit code
+    const exitCode = determineExitCode(results.issues, options);
+    if (exitCode !== 0) {
+        process.exit(exitCode);
+    }
+}
+
+/**
+ * Run functional validation
  */
 async function runFunctional(options, colorFn) {
     const c = colorFn;
