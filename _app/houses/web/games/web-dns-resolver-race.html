@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/PresentationA11y.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS Resolver Race - Hexworth Prime</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-deep:    #0a0a1a;
+            --bg-panel:   #0d1829;
+            --bg-node:    #0f1f38;
+            --blue:       #3b82f6;
+            --blue-light: #60a5fa;
+            --cyan:       #06b6d4;
+            --cyan-light: #22d3ee;
+            --green:      #10b981;
+            --yellow:     #f59e0b;
+            --red:        #ef4444;
+            --text:       #e2e8f0;
+            --text-dim:   #64748b;
+            --border:     rgba(59, 130, 246, 0.25);
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: var(--bg-deep);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── CRT scanline overlay ─────────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.10) 0px,
+                rgba(0,0,0,0.10) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* ── Back link ───────────────────────────────────────────── */
+        .back-link {
+            position: absolute;
+            top: 14px;
+            left: 16px;
+            color: var(--blue);
+            text-decoration: none;
+            font-size: 13px;
+            z-index: 200;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--blue-light); }
+
+        /* ── Header HUD ──────────────────────────────────────────── */
+        #hud {
+            background: linear-gradient(180deg, #0b0e1f 0%, #080d1a 100%);
+            border-bottom: 2px solid var(--blue);
+            padding: 10px 20px 10px 160px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 20px rgba(59,130,246,0.18);
+        }
+
+        #hud-title {
+            font-size: 15px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hud-stats {
+            display: flex;
+            gap: 28px;
+            align-items: center;
+        }
+
+        .hud-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+        }
+
+        .hud-stat-label {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hud-stat-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--cyan);
+            text-shadow: 0 0 10px rgba(6,182,212,0.4);
+        }
+
+        #timer-val { color: var(--green); text-shadow: 0 0 10px rgba(16,185,129,0.4); }
+        #timer-val.warn { color: var(--yellow); text-shadow: 0 0 10px rgba(245,158,11,0.4); }
+
+        .hud-mute-btn {
+            background: rgba(59,130,246,0.12);
+            border: 1px solid var(--border);
+            color: var(--blue-light);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 4px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .hud-mute-btn:hover { background: rgba(59,130,246,0.25); }
+        .hud-mute-btn.muted { color: var(--text-dim); border-color: var(--text-dim); }
+
+        /* ── Main layout ─────────────────────────────────────────── */
+        #main {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        /* ── Canvas area ─────────────────────────────────────────── */
+        #canvas-wrap {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-deep);
+        }
+
+        #gameCanvas {
+            display: block;
+            border: 2px solid var(--border);
+            box-shadow: 0 0 30px rgba(59,130,246,0.10), inset 0 0 60px rgba(0,0,0,0.4);
+        }
+
+        /* ── Right panel ─────────────────────────────────────────── */
+        #info-panel {
+            width: 270px;
+            background: var(--bg-panel);
+            border-left: 2px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .panel-section {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-section-title {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        #domain-display {
+            font-size: 14px;
+            color: var(--cyan);
+            word-break: break-all;
+            text-shadow: 0 0 8px rgba(6,182,212,0.4);
+        }
+
+        #record-type {
+            margin-top: 4px;
+            font-size: 11px;
+            color: var(--blue-light);
+        }
+
+        #step-indicator {
+            font-size: 11px;
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        #step-indicator .step-done { color: var(--green); }
+        #step-indicator .step-active { color: var(--cyan); }
+        #step-indicator .step-todo { color: var(--text-dim); }
+
+        #edu-note {
+            flex: 1;
+            padding: 14px 16px;
+            font-size: 11px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            overflow-y: auto;
+        }
+
+        #edu-note strong {
+            color: var(--blue-light);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        #ttl-bar-wrap {
+            padding: 14px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .ttl-label {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        #ttl-val { color: var(--yellow); }
+
+        .ttl-bar-bg {
+            height: 4px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        #ttl-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), var(--yellow));
+            border-radius: 2px;
+            transition: width 0.4s;
+        }
+
+        /* ── Overlay screens ─────────────────────────────────────── */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(10,10,26,0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(2px);
+        }
+
+        .overlay.hidden { display: none; }
+
+        .overlay-box {
+            background: var(--bg-panel);
+            border: 2px solid var(--blue);
+            box-shadow: 0 0 40px rgba(59,130,246,0.3), 0 0 80px rgba(59,130,246,0.10);
+            padding: 36px 40px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .overlay-box h2 {
+            font-size: 22px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .overlay-box p {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+
+        .overlay-box p em {
+            color: var(--cyan);
+            font-style: normal;
+        }
+
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--blue), #2563eb);
+            color: #fff;
+            border: none;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 10px 28px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+            box-shadow: 0 0 16px rgba(59,130,246,0.35);
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 24px rgba(59,130,246,0.55);
+        }
+        .btn:active { transform: translateY(0); }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            box-shadow: none;
+            margin-left: 10px;
+        }
+        .btn-secondary:hover {
+            border-color: var(--blue);
+            color: var(--blue-light);
+            box-shadow: none;
+        }
+
+        /* level intro specifics */
+        .level-badge {
+            display: inline-block;
+            font-size: 10px;
+            color: var(--cyan);
+            border: 1px solid var(--cyan);
+            padding: 2px 10px;
+            letter-spacing: 2px;
+            margin-bottom: 14px;
+        }
+
+        /* score breakdown */
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-dim);
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .score-row span:last-child { color: var(--cyan); }
+        .score-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text);
+            margin-top: 6px;
+        }
+        .score-total span:last-child { color: var(--yellow); }
+
+        /* final screen */
+        .final-stars {
+            font-size: 28px;
+            letter-spacing: 8px;
+            color: var(--yellow);
+            margin: 10px 0 18px;
+            text-shadow: 0 0 20px rgba(245,158,11,0.5);
+        }
+
+        /* knowledge box */
+        .knowledge-box {
+            background: rgba(6,182,212,0.07);
+            border: 1px solid rgba(6,182,212,0.25);
+            padding: 10px 14px;
+            font-size: 11px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            text-align: left;
+            margin: 12px 0;
+        }
+        .knowledge-box strong { color: var(--cyan); }
+
+        /* Freeze flash overlay on canvas */
+        #freeze-flash {
+            position: absolute;
+            inset: 0;
+            background: rgba(239,68,68,0.18);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            border-radius: 2px;
+        }
+        #freeze-flash.active { opacity: 1; }
+
+        /* ── Tooltip ─────────────────────────────────────────────── */
+        #tooltip {
+            position: fixed;
+            background: var(--bg-panel);
+            border: 1px solid var(--blue);
+            color: var(--text);
+            font-size: 11px;
+            padding: 6px 10px;
+            pointer-events: none;
+            z-index: 500;
+            max-width: 220px;
+            line-height: 1.6;
+            display: none;
+            box-shadow: 0 0 12px rgba(59,130,246,0.3);
+        }
+    </style>
+</head>
+<body>
+
+<a class="back-link" href="../index.html">&lt; Back to Web House</a>
+
+<!-- ── HUD ─────────────────────────────────────────────────────────── -->
+<div id="hud">
+    <span id="hud-title">DNS Resolver Race</span>
+    <div class="hud-stats">
+        <div class="hud-stat">
+            <span class="hud-stat-label">Level</span>
+            <span class="hud-stat-value" id="level-val">1</span>
+        </div>
+        <div class="hud-stat">
+            <span class="hud-stat-label">Score</span>
+            <span class="hud-stat-value" id="score-val">0</span>
+        </div>
+        <div class="hud-stat">
+            <span class="hud-stat-label">Errors</span>
+            <span class="hud-stat-value" id="errors-val" style="color:var(--red)">0</span>
+        </div>
+        <div class="hud-stat">
+            <span class="hud-stat-label">Time</span>
+            <span class="hud-stat-value" id="timer-val">0:00</span>
+        </div>
+        <button class="hud-mute-btn" id="mute-btn" onclick="toggleMute()">SFX ON</button>
+    </div>
+</div>
+
+<!-- ── Main area ─────────────────────────────────────────────────────── -->
+<div id="main">
+
+    <!-- Canvas -->
+    <div id="canvas-wrap">
+        <canvas id="gameCanvas" width="780" height="540"></canvas>
+        <div id="freeze-flash"></div>
+
+        <!-- Overlays inside canvas-wrap -->
+
+        <!-- Start screen -->
+        <div class="overlay" id="overlay-start">
+            <div class="overlay-box">
+                <h2>DNS Resolver Race</h2>
+                <p>
+                    Guide a DNS query packet through the resolution chain.<br>
+                    Click the <em>correct server</em> at each hop to advance.<br>
+                    Wrong hops = <em>-50 pts + 2s freeze</em>.<br>
+                    Faster = higher score. Ten levels total.
+                </p>
+                <p style="font-size:11px; color:var(--text-dim);">
+                    Hover over servers to learn what they do.<br>
+                    Topics: record types, caching, TTL, DNSSEC, DNS poisoning.
+                </p>
+                <button class="btn" onclick="startGame()">BEGIN RACE</button>
+            </div>
+        </div>
+
+        <!-- Level intro -->
+        <div class="overlay hidden" id="overlay-level">
+            <div class="overlay-box">
+                <div class="level-badge" id="intro-badge">LEVEL 1 OF 10</div>
+                <h2 id="intro-title">Simple A Lookup</h2>
+                <p id="intro-desc"></p>
+                <div class="knowledge-box" id="intro-knowledge"></div>
+                <button class="btn" onclick="beginLevel()">START LEVEL</button>
+            </div>
+        </div>
+
+        <!-- Level complete -->
+        <div class="overlay hidden" id="overlay-complete">
+            <div class="overlay-box">
+                <div class="level-badge" id="complete-badge">LEVEL 1 COMPLETE</div>
+                <h2>Resolution Complete</h2>
+                <div id="score-breakdown"></div>
+                <div class="knowledge-box" id="complete-knowledge"></div>
+                <button class="btn" onclick="nextLevel()">NEXT LEVEL</button>
+            </div>
+        </div>
+
+        <!-- Game over / final -->
+        <div class="overlay hidden" id="overlay-final">
+            <div class="overlay-box">
+                <h2 id="final-title">Race Complete</h2>
+                <div class="final-stars" id="final-stars">* * *</div>
+                <p id="final-desc"></p>
+                <div id="final-breakdown"></div>
+                <button class="btn" onclick="restartGame()">PLAY AGAIN</button>
+                <button class="btn btn-secondary" onclick="goBack()">EXIT</button>
+            </div>
+        </div>
+
+    </div><!-- /canvas-wrap -->
+
+    <!-- Right info panel -->
+    <div id="info-panel">
+        <div class="panel-section">
+            <div class="panel-section-title">Resolving</div>
+            <div id="domain-display">--</div>
+            <div id="record-type">Record: --</div>
+        </div>
+
+        <div class="panel-section">
+            <div class="panel-section-title">Resolution Steps</div>
+            <div id="step-indicator"></div>
+        </div>
+
+        <div id="edu-note">
+            <strong>How DNS Works</strong>
+            When you type a domain name, your computer needs to find the IP address.<br>
+            This process is called DNS resolution. Click START to begin.
+        </div>
+
+        <div id="ttl-bar-wrap">
+            <div class="ttl-label">
+                <span>TTL Cache</span>
+                <span id="ttl-val">300s</span>
+            </div>
+            <div class="ttl-bar-bg">
+                <div id="ttl-bar" style="width:100%"></div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /main -->
+
+<div id="tooltip"></div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════════
+   AUDIO ENGINE (Web Audio API)
+   Generates all sounds procedurally — no external files needed
+   ═══════════════════════════════════════════════════════════════════════ */
+let audioCtx = null;
+let muted = false;
+
+function getAudioCtx() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioCtx;
+}
+
+function playTone(freq, duration, type, gainVal, fadeOut) {
+    if (muted) return;
+    try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(gainVal || 0.18, ctx.currentTime);
+        if (fadeOut) {
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        }
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+    } catch (e) { /* AudioContext not available */ }
+}
+
+function sfxCorrect() {
+    playTone(523, 0.08, 'sine', 0.15, true);
+    setTimeout(() => playTone(659, 0.10, 'sine', 0.15, true), 80);
+    setTimeout(() => playTone(784, 0.14, 'sine', 0.15, true), 170);
+}
+
+function sfxWrong() {
+    playTone(200, 0.12, 'sawtooth', 0.12, true);
+    setTimeout(() => playTone(150, 0.20, 'sawtooth', 0.10, true), 120);
+}
+
+function sfxCache() {
+    playTone(880, 0.06, 'sine', 0.12, true);
+    setTimeout(() => playTone(1100, 0.06, 'sine', 0.12, true), 70);
+}
+
+function sfxLevelComplete() {
+    [523, 659, 784, 1046].forEach((f, i) => {
+        setTimeout(() => playTone(f, 0.18, 'sine', 0.14, true), i * 110);
+    });
+}
+
+function sfxPoison() {
+    // Unsettling alarm sweep
+    try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.3);
+        osc.frequency.linearRampToValueAtTime(300, ctx.currentTime + 0.6);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.6);
+    } catch(e) {}
+}
+
+function toggleMute() {
+    muted = !muted;
+    const btn = document.getElementById('mute-btn');
+    btn.textContent = muted ? 'SFX OFF' : 'SFX ON';
+    btn.classList.toggle('muted', muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LEVEL DEFINITIONS
+   Each level specifies: domain, record type, which path nodes to visit,
+   whether caches are warm, special mechanics
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const LEVELS = [
+    {
+        id: 1,
+        title: 'Simple A Lookup',
+        domain: 'www.example.com',
+        recordType: 'A',
+        ttl: 300,
+        briefing: 'A basic DNS query for an IPv4 address. You\'ll walk through the <em>full recursive resolution</em> — from client all the way to the Authoritative nameserver and back.',
+        knowledge: '<strong>A Record:</strong> Maps a hostname to an IPv4 address (e.g. 93.184.216.34). Every website needs one. TTL (Time to Live) tells resolvers how long to cache it.',
+        path: ['client', 'resolver', 'root', 'tld_com', 'auth_example', 'resolver', 'client'],
+        cacheHits: {},
+        special: null,
+        postKnowledge: '<strong>Full Resolution:</strong> client asked resolver → resolver asked root → root sent to .com TLD → TLD sent to example.com nameserver → answer returned. Total hops: 6.'
+    },
+    {
+        id: 2,
+        title: 'Org Domain Lookup',
+        domain: 'portal.university.org',
+        recordType: 'A',
+        ttl: 600,
+        briefing: 'A query for a <em>.org</em> domain. The root server will refer you to the <em>.org TLD</em> nameserver instead of .com.',
+        knowledge: '<strong>TLD Nameservers:</strong> ICANN delegates each top-level domain (.com, .org, .net, .edu, .gov) to specific TLD servers. The correct TLD server depends on the domain suffix.',
+        path: ['client', 'resolver', 'root', 'tld_org', 'auth_university', 'resolver', 'client'],
+        cacheHits: {},
+        special: null,
+        postKnowledge: '<strong>TLD Selection:</strong> "university.org" ends in .org, so after the root, you query the .org TLD — not .com. Getting the TLD wrong means a dead end.'
+    },
+    {
+        id: 3,
+        title: 'Gov Domain — Full Chain',
+        domain: 'login.agency.gov',
+        recordType: 'A',
+        ttl: 900,
+        briefing: 'A <em>.gov</em> domain query. Government domains use .gov TLD servers. Same chain, different TLD stop.',
+        knowledge: '<strong>.gov TLD:</strong> Managed by CISA (U.S. Cybersecurity & Infrastructure Security Agency). Only U.S. government entities can register .gov domains.',
+        path: ['client', 'resolver', 'root', 'tld_gov', 'auth_agency', 'resolver', 'client'],
+        cacheHits: {},
+        special: null,
+        postKnowledge: '<strong>Government DNS:</strong> .gov TLD is highly restricted and managed by CISA. DNSSEC is mandatory for all .gov domains since 2012.'
+    },
+    {
+        id: 4,
+        title: 'CNAME Chain',
+        domain: 'cdn.shop.com',
+        recordType: 'CNAME',
+        ttl: 120,
+        briefing: 'This domain uses a <em>CNAME record</em> — an alias pointing to another name. The resolver must follow the chain: cdn.shop.com → d9f3.cloudfront.net → actual IP.',
+        knowledge: '<strong>CNAME:</strong> Canonical Name record. Instead of returning an IP, it returns another hostname. The resolver must then look up THAT hostname too. CNAMEs cannot be used at zone apex.',
+        path: ['client', 'resolver', 'root', 'tld_com', 'auth_shop', 'resolver', 'root', 'tld_com', 'auth_cdn', 'resolver', 'client'],
+        cacheHits: {},
+        special: 'cname',
+        postKnowledge: '<strong>CNAME Chains:</strong> cdn.shop.com was an alias for d9f3.cloudfront.net, which itself needed a full A lookup. CDNs use CNAMEs to redirect traffic dynamically.'
+    },
+    {
+        id: 5,
+        title: 'MX Record — Mail Server',
+        domain: 'corporate.net',
+        recordType: 'MX',
+        ttl: 3600,
+        briefing: 'Look up the <em>mail server</em> (MX record) for corporate.net. MX records have priority values — lower number = higher priority.',
+        knowledge: '<strong>MX Record:</strong> Mail eXchange record. Points to the mail server for a domain. E.g. "10 mail.corporate.net". When you send email, your mail server queries MX records.',
+        path: ['client', 'resolver', 'root', 'tld_net', 'auth_corporate', 'resolver', 'client'],
+        cacheHits: {},
+        special: 'mx',
+        postKnowledge: '<strong>MX Lookup:</strong> The MX record returned "10 mail.corporate.net". Lower priority number = preferred server. Your email client uses this to route outgoing mail.'
+    },
+    {
+        id: 6,
+        title: 'Cache Hit — Resolver Cache',
+        domain: 'www.example.com',
+        recordType: 'A',
+        ttl: 280,
+        briefing: 'You queried example.com earlier! The <em>recursive resolver has it cached</em>. If TTL hasn\'t expired, skip the full chain and return the cached answer directly.',
+        knowledge: '<strong>Resolver Cache:</strong> Recursive resolvers store answers to reduce latency and load on authoritative servers. Check the cache first — if valid (TTL > 0), return it immediately.',
+        path: ['client', 'resolver', 'client'],
+        cacheHits: { resolver: true },
+        special: 'cache_resolver',
+        postKnowledge: '<strong>Cache Benefits:</strong> The resolver served the answer in ~1ms from cache vs ~50-200ms for a full recursive lookup. This is why DNS is fast for popular sites.'
+    },
+    {
+        id: 7,
+        title: 'Browser Cache Hit',
+        domain: 'api.example.com',
+        recordType: 'A',
+        ttl: 60,
+        briefing: 'The <em>browser\'s own DNS cache</em> has the answer from a recent lookup. The query never even leaves the client. This is the fastest possible resolution.',
+        knowledge: '<strong>Browser DNS Cache:</strong> Browsers maintain their own short-lived DNS cache (usually ignoring TTL for ~60s). Check: chrome://net-internals/#dns in Chrome.',
+        path: ['client'],
+        cacheHits: { browser: true },
+        special: 'cache_browser',
+        postKnowledge: '<strong>Local Cache:</strong> The OS and browser maintain DNS caches. "ipconfig /flushdns" (Windows) or "sudo dscacheutil -flushcache" (macOS) clears them.'
+    },
+    {
+        id: 8,
+        title: 'AAAA Record — IPv6',
+        domain: 'ipv6.google.com',
+        recordType: 'AAAA',
+        ttl: 300,
+        briefing: 'An IPv6 address lookup using an <em>AAAA record</em>. Same resolution chain, but the answer is a 128-bit IPv6 address instead of 32-bit IPv4.',
+        knowledge: '<strong>AAAA Record:</strong> Returns an IPv6 address (e.g. 2001:4860:4860::8888). Named "quad-A" — four times the bits of an A record (32-bit IPv4 vs 128-bit IPv6).',
+        path: ['client', 'resolver', 'root', 'tld_com', 'auth_google', 'resolver', 'client'],
+        cacheHits: {},
+        special: 'aaaa',
+        postKnowledge: '<strong>Dual Stack:</strong> Modern DNS returns both A and AAAA records. Clients use "Happy Eyeballs" (RFC 8305) to race IPv4 and IPv6, using whichever connects first.'
+    },
+    {
+        id: 9,
+        title: 'DNS Poisoning Attack',
+        domain: 'bank.secure.com',
+        recordType: 'A',
+        ttl: 300,
+        briefing: '<strong style="color:var(--red)">WARNING: DNS Poisoning Detected.</strong> One of the resolvers is returning a <em>spoofed IP address</em>. Identify the poisoned resolver — it lacks DNSSEC validation. Reject it.',
+        knowledge: '<strong>DNSSEC:</strong> DNS Security Extensions add cryptographic signatures to DNS records. A DNSSEC-validating resolver can detect forged answers. Look for the DNSSEC badge.',
+        path: ['client', 'resolver_safe', 'root', 'tld_com', 'auth_bank', 'resolver_safe', 'client'],
+        cacheHits: {},
+        special: 'poison',
+        postKnowledge: '<strong>DNS Poisoning:</strong> Attackers inject forged DNS responses to redirect traffic. DNSSEC, DNS-over-HTTPS (DoH), and DNS-over-TLS (DoT) are the main defenses.'
+    },
+    {
+        id: 10,
+        title: 'TTL Expired — Full Re-resolve',
+        domain: 'www.example.com',
+        recordType: 'A',
+        ttl: 5,
+        briefing: 'We saw example.com in Level 6, but the TTL has <em>expired</em>. The cached entry is stale — the resolver must go through the full chain again to get a fresh answer.',
+        knowledge: '<strong>TTL Expiry:</strong> When TTL reaches 0, the cached record is discarded. Short TTLs (60s) allow rapid DNS changes (failover, load balancing). Long TTLs (86400s) reduce DNS load.',
+        path: ['client', 'resolver', 'root', 'tld_com', 'auth_example', 'resolver', 'client'],
+        cacheHits: { resolver: false },
+        special: 'ttl_expired',
+        postKnowledge: '<strong>TTL Strategy:</strong> Lower TTL before planned maintenance (so stale records expire quickly). Raise TTL during stable periods to reduce DNS query volume.'
+    }
+];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NODE DEFINITIONS
+   Each node has: id, label, sublabel, x, y, type, tooltip
+   Types: client, resolver, root, tld, auth, resolver_poison
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const NODE_W = 110;
+const NODE_H = 50;
+
+// Base positions in a 780x540 canvas
+const NODES_BASE = {
+    client:         { x: 335, y: 470, label: 'CLIENT',         sub: 'Your Browser',      type: 'client',   tip: 'Your computer\'s browser or OS makes the DNS query. It checks its local cache first.' },
+    resolver:       { x: 335, y: 345, label: 'RECURSIVE',      sub: 'Resolver',           type: 'resolver', tip: 'ISP or public resolver (e.g. 8.8.8.8). It does the full resolution work on your behalf and caches results.' },
+    resolver_safe:  { x: 220, y: 345, label: 'RESOLVER',       sub: 'DNSSEC Valid',       type: 'resolver', tip: 'DNSSEC-validating resolver. Verifies cryptographic signatures on all responses.' },
+    resolver_poison:{ x: 455, y: 345, label: 'RESOLVER',       sub: 'POISONED!',          type: 'danger',   tip: 'WARNING: This resolver is returning a spoofed IP. It does not validate DNSSEC signatures.' },
+    root:           { x: 335, y: 215, label: 'ROOT NS',        sub: 'a.root-servers.net', type: 'root',     tip: '13 root server clusters worldwide. They don\'t know IPs — they refer to TLD nameservers.' },
+    tld_com:        { x: 145, y: 100, label: '.COM TLD',       sub: 'Verisign NS',        type: 'tld',      tip: 'Verisign operates the .com TLD. Returns the nameserver for specific .com domains.' },
+    tld_org:        { x: 245, y: 100, label: '.ORG TLD',       sub: 'PIR NS',             type: 'tld',      tip: 'Public Interest Registry (PIR) operates .org. Returns nameservers for .org domains.' },
+    tld_net:        { x: 345, y: 100, label: '.NET TLD',       sub: 'Verisign NS',        type: 'tld',      tip: 'Verisign also operates .net. Responds with the authoritative nameserver for .net domains.' },
+    tld_gov:        { x: 445, y: 100, label: '.GOV TLD',       sub: 'CISA NS',            type: 'tld',      tip: 'CISA manages .gov TLD. Only U.S. government entities qualify. DNSSEC is mandatory.' },
+    tld_edu:        { x: 545, y: 100, label: '.EDU TLD',       sub: 'EDUCAUSE NS',        type: 'tld',      tip: 'EDUCAUSE manages .edu. Restricted to accredited post-secondary institutions.' },
+    auth_example:   { x: 80,  y: 215, label: 'AUTH NS',        sub: 'example.com',        type: 'auth',     tip: 'Authoritative nameserver for example.com. Has the definitive A/AAAA/MX/CNAME records.' },
+    auth_university:{ x: 175, y: 215, label: 'AUTH NS',        sub: 'university.org',     type: 'auth',     tip: 'Authoritative nameserver for university.org. Returns the actual IP for portal.university.org.' },
+    auth_corporate: { x: 440, y: 215, label: 'AUTH NS',        sub: 'corporate.net',      type: 'auth',     tip: 'Authoritative nameserver for corporate.net. Stores the MX record with mail server info.' },
+    auth_agency:    { x: 540, y: 215, label: 'AUTH NS',        sub: 'agency.gov',         type: 'auth',     tip: 'Authoritative nameserver for agency.gov. All .gov zones must be DNSSEC-signed.' },
+    auth_shop:      { x: 270, y: 215, label: 'AUTH NS',        sub: 'shop.com',           type: 'auth',     tip: 'Authoritative for shop.com. Returns a CNAME pointing to a CDN hostname.' },
+    auth_cdn:       { x: 390, y: 215, label: 'AUTH NS',        sub: 'cloudfront.net',     type: 'auth',     tip: 'Authoritative for cloudfront.net. Returns the actual IP for the CDN edge node.' },
+    auth_google:    { x: 630, y: 215, label: 'AUTH NS',        sub: 'google.com',         type: 'auth',     tip: 'Authoritative nameserver for google.com. Returns AAAA record (IPv6) for ipv6.google.com.' },
+    auth_bank:      { x: 335, y: 215, label: 'AUTH NS',        sub: 'secure.com',         type: 'auth',     tip: 'Authoritative for secure.com. Returns DNSSEC-signed A record for bank.secure.com.' }
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GAME STATE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const state = {
+    screen: 'start',       // start | intro | playing | complete | final
+    level: 0,              // current level index (0-9)
+    totalScore: 0,
+    levelScore: 0,
+    levelErrors: 0,
+    totalErrors: 0,
+    startTime: 0,
+    levelTime: 0,
+    timerInterval: null,
+    stepIndex: 0,          // which hop we're on in level.path
+    frozen: false,
+    freezeTimeout: null,
+    packetPos: { x: 0, y: 0 },    // current animated packet position
+    packetTarget: { x: 0, y: 0 }, // where packet is heading
+    packetAnimating: false,
+    packetAnim: 0,         // 0-1 progress
+    trail: [],             // [{x,y,alpha}]
+    nodes: {},             // id -> node data (subset for current level)
+    pathHighlight: [],     // node ids on correct path so far
+    glowNodes: {},         // id -> glow color override
+    animFrame: null,
+    levelBonuses: [],      // strings for breakdown
+    cacheHitUsed: false,
+    poisonDetected: false,
+    gameCompleted: false
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CANVAS SETUP
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Pixel-ratio scaling for crisp rendering
+(function scaleCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = 780 * dpr;
+    canvas.height = 540 * dpr;
+    canvas.style.width = '780px';
+    canvas.style.height = '540px';
+    ctx.scale(dpr, dpr);
+})();
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LEVEL INITIALIZATION
+   Decides which nodes to render for the current level
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function getNodesForLevel(level) {
+    // Collect unique node IDs from the level's path, plus supporting nodes
+    const ids = new Set(level.path);
+
+    // Always include all TLD nodes for visual completeness (dims inactive ones)
+    ['tld_com','tld_org','tld_net','tld_gov'].forEach(id => ids.add(id));
+
+    // For poison level, add both resolvers explicitly
+    if (level.special === 'poison') {
+        ids.add('resolver_safe');
+        ids.add('resolver_poison');
+        ids.delete('resolver'); // replace generic resolver
+    }
+
+    const nodes = {};
+    ids.forEach(id => {
+        if (NODES_BASE[id]) {
+            nodes[id] = Object.assign({}, NODES_BASE[id], { id });
+        }
+    });
+    return nodes;
+}
+
+function getStepLabel(nodeId) {
+    const map = {
+        client:          'Client (Browser)',
+        resolver:        'Recursive Resolver',
+        resolver_safe:   'DNSSEC Resolver',
+        resolver_poison: 'Poisoned Resolver',
+        root:            'Root Nameserver',
+        tld_com:         '.COM TLD NS',
+        tld_org:         '.ORG TLD NS',
+        tld_net:         '.NET TLD NS',
+        tld_gov:         '.GOV TLD NS',
+        tld_edu:         '.EDU TLD NS',
+        auth_example:    'Auth NS (example.com)',
+        auth_university: 'Auth NS (university.org)',
+        auth_corporate:  'Auth NS (corporate.net)',
+        auth_agency:     'Auth NS (agency.gov)',
+        auth_shop:       'Auth NS (shop.com)',
+        auth_cdn:        'Auth NS (cloudfront.net)',
+        auth_google:     'Auth NS (google.com)',
+        auth_bank:       'Auth NS (secure.com)'
+    };
+    return map[nodeId] || nodeId;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DRAWING HELPERS
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const COLOR = {
+    client:   { fill: '#0d2040', border: '#3b82f6', glow: 'rgba(59,130,246,0.5)' },
+    resolver: { fill: '#0d2832', border: '#06b6d4', glow: 'rgba(6,182,212,0.5)' },
+    root:     { fill: '#1a1a0d', border: '#f59e0b', glow: 'rgba(245,158,11,0.5)' },
+    tld:      { fill: '#1a0d26', border: '#a855f7', glow: 'rgba(168,85,247,0.5)' },
+    auth:     { fill: '#0d1a14', border: '#10b981', glow: 'rgba(16,185,129,0.5)' },
+    danger:   { fill: '#2a0d0d', border: '#ef4444', glow: 'rgba(239,68,68,0.6)' },
+    cached:   { fill: '#1a1a0d', border: '#f59e0b', glow: 'rgba(245,158,11,0.7)' },
+    correct:  { fill: '#0d2a14', border: '#10b981', glow: 'rgba(16,185,129,0.8)' }
+};
+
+function drawRoundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+}
+
+function drawNode(node, glowOverride, dimmed) {
+    const scheme = glowOverride ? COLOR[glowOverride] : COLOR[node.type] || COLOR.client;
+    const alpha = dimmed ? 0.3 : 1.0;
+    const x = node.x - NODE_W / 2;
+    const y = node.y - NODE_H / 2;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Glow shadow
+    ctx.shadowColor = scheme.glow;
+    ctx.shadowBlur = dimmed ? 4 : 18;
+
+    // Background fill
+    drawRoundRect(x, y, NODE_W, NODE_H, 6);
+    ctx.fillStyle = scheme.fill;
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = scheme.border;
+    ctx.lineWidth = dimmed ? 1 : 2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Label text
+    ctx.fillStyle = dimmed ? '#4a5568' : '#ffffff';
+    ctx.font = 'bold 10px Courier New';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(node.label, node.x, node.y - 7);
+
+    // Sublabel
+    ctx.font = '9px Courier New';
+    ctx.fillStyle = dimmed ? '#2d3748' : scheme.border;
+    ctx.fillText(node.sub, node.x, node.y + 8);
+
+    // DNSSEC badge for resolver_safe
+    if (node.id === 'resolver_safe' && !dimmed) {
+        ctx.font = 'bold 7px Courier New';
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('DNSSEC', node.x, node.y + 20);
+    }
+
+    // WARNING badge for poison
+    if (node.id === 'resolver_poison' && !dimmed) {
+        ctx.font = 'bold 7px Courier New';
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('NO DNSSEC', node.x, node.y + 20);
+    }
+
+    // Cache badge
+    if (glowOverride === 'cached') {
+        ctx.font = 'bold 7px Courier New';
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText('CACHED', node.x, node.y + 20);
+    }
+
+    ctx.restore();
+}
+
+function drawConnections(nodes, pathDone) {
+    // Draw all possible connections as dim dotted lines
+    const connections = getConnectionsForNodes(nodes);
+    connections.forEach(([a, b]) => {
+        const na = nodes[a];
+        const nb = nodes[b];
+        if (!na || !nb) return;
+
+        const isDone = isConnectionOnDonePath(a, b, pathDone);
+
+        ctx.save();
+        ctx.setLineDash([4, 6]);
+        ctx.lineWidth = isDone ? 2 : 1;
+        ctx.strokeStyle = isDone ? 'rgba(6,182,212,0.6)' : 'rgba(59,130,246,0.15)';
+        ctx.shadowColor = isDone ? 'rgba(6,182,212,0.4)' : 'transparent';
+        ctx.shadowBlur = isDone ? 6 : 0;
+        ctx.beginPath();
+        ctx.moveTo(na.x, na.y);
+        ctx.lineTo(nb.x, nb.y);
+        ctx.stroke();
+        ctx.restore();
+    });
+}
+
+function getConnectionsForNodes(nodes) {
+    // Define which node types connect to which
+    const conns = [];
+    const ids = Object.keys(nodes);
+
+    // client - resolver(s)
+    ['resolver', 'resolver_safe', 'resolver_poison'].forEach(r => {
+        if (nodes.client && nodes[r]) conns.push(['client', r]);
+    });
+
+    // resolver(s) - root
+    ['resolver', 'resolver_safe'].forEach(r => {
+        if (nodes[r] && nodes.root) conns.push([r, 'root']);
+    });
+
+    // root - tld nodes
+    ['tld_com','tld_org','tld_net','tld_gov','tld_edu'].forEach(t => {
+        if (nodes.root && nodes[t]) conns.push(['root', t]);
+    });
+
+    // tld - auth nodes
+    const tldAuth = {
+        tld_com: ['auth_example','auth_shop','auth_cdn','auth_google','auth_bank'],
+        tld_org: ['auth_university'],
+        tld_net: ['auth_corporate'],
+        tld_gov: ['auth_agency']
+    };
+    Object.entries(tldAuth).forEach(([tld, auths]) => {
+        auths.forEach(auth => {
+            if (nodes[tld] && nodes[auth]) conns.push([tld, auth]);
+        });
+    });
+
+    // auth - resolver (return path)
+    const authNodes = ids.filter(id => id.startsWith('auth_'));
+    authNodes.forEach(a => {
+        ['resolver','resolver_safe'].forEach(r => {
+            if (nodes[a] && nodes[r]) conns.push([a, r]);
+        });
+    });
+
+    return conns;
+}
+
+function isConnectionOnDonePath(a, b, pathDone) {
+    for (let i = 0; i < pathDone.length - 1; i++) {
+        if ((pathDone[i] === a && pathDone[i+1] === b) ||
+            (pathDone[i] === b && pathDone[i+1] === a)) return true;
+    }
+    return false;
+}
+
+function drawPacket(x, y) {
+    const t = Date.now() / 800;
+    const pulse = 0.7 + 0.3 * Math.sin(t);
+
+    ctx.save();
+
+    // Outer glow
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, 18);
+    grad.addColorStop(0, `rgba(6,182,212,${0.4 * pulse})`);
+    grad.addColorStop(1, 'rgba(6,182,212,0)');
+    ctx.beginPath();
+    ctx.arc(x, y, 18, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Inner orb
+    const innerGrad = ctx.createRadialGradient(x - 2, y - 2, 0, x, y, 7);
+    innerGrad.addColorStop(0, '#ffffff');
+    innerGrad.addColorStop(0.4, '#22d3ee');
+    innerGrad.addColorStop(1, '#0e7490');
+    ctx.beginPath();
+    ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.fillStyle = innerGrad;
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur = 20 * pulse;
+    ctx.fill();
+
+    // Draw trail
+    state.trail.forEach(pt => {
+        ctx.globalAlpha = pt.alpha * 0.5;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#06b6d4';
+        ctx.fill();
+    });
+
+    ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MAIN RENDER LOOP
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function render() {
+    ctx.clearRect(0, 0, 780, 540);
+
+    // Background gradient
+    const bg = ctx.createLinearGradient(0, 0, 0, 540);
+    bg.addColorStop(0, '#0a0a1a');
+    bg.addColorStop(1, '#080816');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 780, 540);
+
+    // Grid dots (subtle)
+    ctx.fillStyle = 'rgba(59,130,246,0.04)';
+    for (let gx = 30; gx < 780; gx += 30) {
+        for (let gy = 30; gy < 540; gy += 30) {
+            ctx.beginPath();
+            ctx.arc(gx, gy, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    if (state.screen === 'start') {
+        drawIdleScreen();
+        state.animFrame = requestAnimationFrame(render);
+        return;
+    }
+
+    const level = LEVELS[state.level];
+    const nodes = state.nodes;
+
+    // Draw connections
+    drawConnections(nodes, state.pathHighlight);
+
+    // Determine glow overrides
+    const glowMap = Object.assign({}, state.glowNodes);
+
+    // Draw nodes
+    Object.values(nodes).forEach(node => {
+        const isOnPath = level.path.includes(node.id);
+        const isActive = state.pathHighlight[state.pathHighlight.length - 1] === node.id;
+        const isDimmed = !isOnPath && node.type === 'tld';
+
+        let glow = glowMap[node.id] || null;
+        if (isActive && !glow) glow = 'correct';
+
+        drawNode(node, glow, isDimmed && !isActive);
+    });
+
+    // Animate packet
+    if (state.packetAnimating) {
+        state.packetAnim = Math.min(state.packetAnim + 0.045, 1);
+        const t = easeInOut(state.packetAnim);
+        state.packetPos.x = lerp(state.packetPos.x, state.packetTarget.x, 0.08) + 0;
+        // Use direct interpolation from origin stored at animation start
+        const px = lerp(state.animOrigin.x, state.packetTarget.x, t);
+        const py = lerp(state.animOrigin.y, state.packetTarget.y, t);
+
+        // Update trail
+        state.trail.unshift({ x: px, y: py, alpha: 1.0 });
+        state.trail = state.trail.slice(0, 12);
+        state.trail.forEach((pt, i) => { pt.alpha = 1 - i / 12; });
+
+        drawPacket(px, py);
+        state.packetPos = { x: px, y: py };
+
+        if (state.packetAnim >= 1) {
+            state.packetAnimating = false;
+            state.packetPos = { x: state.packetTarget.x, y: state.packetTarget.y };
+            onPacketArrived();
+        }
+    } else if (state.screen === 'playing') {
+        drawPacket(state.packetPos.x, state.packetPos.y);
+    }
+
+    state.animFrame = requestAnimationFrame(render);
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function drawIdleScreen() {
+    // Draw a ghost of the full network
+    Object.values(NODES_BASE).forEach(n => {
+        if (!['tld_edu', 'resolver_safe', 'resolver_poison', 'auth_example',
+              'auth_google', 'tld_com', 'tld_org', 'tld_net', 'tld_gov',
+              'root', 'resolver', 'client'].includes(n.id)) return;
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        drawNode(Object.assign({}, n, { id: n.id || 'client' }), null, false);
+        ctx.restore();
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PACKET ANIMATION
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function animatePacketTo(targetNodeId, onDone) {
+    const node = state.nodes[targetNodeId];
+    if (!node) { if (onDone) onDone(); return; }
+    state.animOrigin = { x: state.packetPos.x, y: state.packetPos.y };
+    state.packetTarget = { x: node.x, y: node.y };
+    state.packetAnim = 0;
+    state.packetAnimating = true;
+    state._onPacketDone = onDone || null;
+}
+
+function onPacketArrived() {
+    if (state._onPacketDone) {
+        const cb = state._onPacketDone;
+        state._onPacketDone = null;
+        cb();
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GAME FLOW
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function startGame() {
+    state.level = 0;
+    state.totalScore = 0;
+    state.totalErrors = 0;
+    state.gameCompleted = false;
+    showLevelIntro();
+}
+
+function restartGame() {
+    hideAllOverlays();
+    startGame();
+}
+
+function goBack() {
+    window.location.href = '../index.html';
+}
+
+function showLevelIntro() {
+    const level = LEVELS[state.level];
+
+    document.getElementById('intro-badge').textContent = `LEVEL ${level.id} OF 10`;
+    document.getElementById('intro-title').textContent = level.title;
+    document.getElementById('intro-desc').innerHTML =
+        `Resolve: <em>${level.domain}</em><br>Record type: <em>${level.recordType}</em><br><br>${level.briefing}`;
+    document.getElementById('intro-knowledge').innerHTML = level.knowledge;
+
+    state.screen = 'intro';
+    document.getElementById('overlay-level').classList.remove('hidden');
+}
+
+function beginLevel() {
+    const level = LEVELS[state.level];
+    document.getElementById('overlay-level').classList.add('hidden');
+
+    // Initialize level state
+    state.stepIndex = 0;
+    state.levelScore = 0;
+    state.levelErrors = 0;
+    state.levelBonuses = [];
+    state.pathHighlight = [];
+    state.glowNodes = {};
+    state.trail = [];
+    state.frozen = false;
+    state.cacheHitUsed = false;
+    state.poisonDetected = false;
+    state.nodes = getNodesForLevel(level);
+
+    // Place packet at start node
+    const startNode = state.nodes[level.path[0]];
+    state.packetPos = { x: startNode.x, y: startNode.y };
+    state.packetTarget = { x: startNode.x, y: startNode.y };
+    state.packetAnimating = false;
+    state.pathHighlight = [level.path[0]];
+
+    // Timer
+    state.startTime = Date.now();
+    if (state.timerInterval) clearInterval(state.timerInterval);
+    state.timerInterval = setInterval(updateTimer, 500);
+
+    state.screen = 'playing';
+    updateHUD();
+    updateSidePanel();
+
+    // Handle instant-complete levels (browser cache hit)
+    if (level.special === 'cache_browser') {
+        sfxCache();
+        setEduNote('Browser cache hit! The answer is already in your browser\'s local DNS cache. No network query needed.');
+        setTimeout(() => {
+            sfxLevelComplete();
+            completeLevel();
+        }, 1800);
+        return;
+    }
+
+    // Highlight cache on resolver for resolver cache hit level
+    if (level.special === 'cache_resolver') {
+        state.glowNodes.resolver = 'cached';
+        setEduNote('The recursive resolver has this record cached. Click the resolver to retrieve it directly — no need to query root or TLD servers.');
+    } else {
+        setEduNote('Click the next correct server to route the DNS query packet.');
+    }
+}
+
+function updateTimer() {
+    if (state.screen !== 'playing') return;
+    state.levelTime = Math.floor((Date.now() - state.startTime) / 1000);
+    const min = Math.floor(state.levelTime / 60);
+    const sec = state.levelTime % 60;
+    const el = document.getElementById('timer-val');
+    el.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
+    el.classList.toggle('warn', state.levelTime > 30);
+}
+
+function updateHUD() {
+    document.getElementById('level-val').textContent = state.level + 1;
+    document.getElementById('score-val').textContent = state.totalScore + state.levelScore;
+    document.getElementById('errors-val').textContent = state.totalErrors + state.levelErrors;
+}
+
+function updateSidePanel() {
+    const level = LEVELS[state.level];
+    document.getElementById('domain-display').textContent = level.domain;
+    document.getElementById('record-type').textContent = `Record: ${level.recordType}`;
+
+    // TTL bar
+    const ttlPct = Math.min(100, (level.ttl / 3600) * 100);
+    document.getElementById('ttl-val').textContent = `${level.ttl}s`;
+    document.getElementById('ttl-bar').style.width = ttlPct + '%';
+
+    renderStepIndicator();
+}
+
+function renderStepIndicator() {
+    const level = LEVELS[state.level];
+    const container = document.getElementById('step-indicator');
+    const lines = [];
+
+    level.path.forEach((nodeId, i) => {
+        const label = getStepLabel(nodeId);
+        let cls, prefix;
+        if (i < state.stepIndex) {
+            cls = 'step-done'; prefix = '[OK]';
+        } else if (i === state.stepIndex) {
+            cls = 'step-active'; prefix = '[>>]';
+        } else {
+            cls = 'step-todo'; prefix = '[ ]';
+        }
+        lines.push(`<span class="${cls}">${prefix} ${label}</span>`);
+    });
+
+    container.innerHTML = lines.join('<br>');
+}
+
+function setEduNote(html) {
+    document.getElementById('edu-note').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CLICK HANDLING — Core gameplay logic
+   ═══════════════════════════════════════════════════════════════════════ */
+
+canvas.addEventListener('click', function(e) {
+    if (state.screen !== 'playing' || state.frozen || state.packetAnimating) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const clicked = getNodeAtPoint(mx, my);
+    if (!clicked) return;
+
+    handleNodeClick(clicked);
+});
+
+function getNodeAtPoint(mx, my) {
+    const nodes = state.nodes;
+    for (const id in nodes) {
+        const n = nodes[id];
+        const hw = NODE_W / 2 + 6;
+        const hh = NODE_H / 2 + 6;
+        if (mx >= n.x - hw && mx <= n.x + hw && my >= n.y - hh && my <= n.y + hh) {
+            return id;
+        }
+    }
+    return null;
+}
+
+function handleNodeClick(nodeId) {
+    const level = LEVELS[state.level];
+    const expectedNodeId = level.path[state.stepIndex + 1]; // next expected hop
+
+    // Special: poison level — clicking poison resolver is wrong
+    if (level.special === 'poison' && nodeId === 'resolver_poison') {
+        wrongClick(nodeId, 'That resolver is poisoned and lacks DNSSEC validation. Reject it.');
+        sfxPoison();
+        return;
+    }
+
+    // Correct click
+    if (nodeId === expectedNodeId) {
+        correctClick(nodeId);
+    } else {
+        wrongClick(nodeId, getWrongClickHint(nodeId, expectedNodeId));
+    }
+}
+
+function getWrongClickHint(clicked, expected) {
+    const hints = {
+        root: 'The root server is only queried after the recursive resolver.',
+        resolver: 'The resolver handles queries from the client, not directly from TLD servers.',
+        resolver_safe: 'Route through the DNSSEC-validating resolver.',
+        client: 'The client is where the query started — go forward, not back.',
+        tld_com: 'Wrong TLD — the domain uses a different suffix.',
+        tld_org: 'Wrong TLD — the domain does not end in .org.',
+        tld_net: 'Wrong TLD — the domain does not end in .net.',
+        tld_gov: 'Wrong TLD — the domain does not end in .gov.',
+    };
+    const nodeLabel = getStepLabel(clicked);
+    const expectedLabel = getStepLabel(expected);
+    return hints[clicked] || `Expected: ${expectedLabel}. You clicked: ${nodeLabel}.`;
+}
+
+function correctClick(nodeId) {
+    const level = LEVELS[state.level];
+    state.stepIndex++;
+    state.pathHighlight.push(nodeId);
+    state.levelScore += 100;
+
+    // Cache hit bonus
+    if (level.cacheHits && level.cacheHits[nodeId] && !state.cacheHitUsed) {
+        state.levelScore += 200;
+        state.levelBonuses.push({ label: 'Cache Hit Bonus', pts: 200 });
+        state.cacheHitUsed = true;
+        sfxCache();
+        setEduNote('<strong>Cache Hit!</strong> The resolver had this record cached. +200 bonus points.');
+    } else {
+        sfxCorrect();
+    }
+
+    // Update glow to green for reached node
+    state.glowNodes[nodeId] = 'correct';
+
+    // Update edu note with context
+    updateHopNote(nodeId, level);
+
+    // Animate packet to new node
+    animatePacketTo(nodeId, () => {
+        renderStepIndicator();
+        updateHUD();
+
+        // Check if this was the last step
+        if (state.stepIndex >= level.path.length - 1) {
+            setTimeout(() => {
+                sfxLevelComplete();
+                completeLevel();
+            }, 400);
+        }
+    });
+}
+
+function updateHopNote(nodeId, level) {
+    const notes = {
+        resolver: 'Recursive resolver received the query. It checks its cache first, then begins the resolution chain.',
+        resolver_safe: 'DNSSEC-validating resolver. It will verify cryptographic signatures on every response.',
+        root: 'Root nameserver consulted. It doesn\'t know the IP — it returns the address of the correct TLD nameserver.',
+        tld_com: '.COM TLD server returns the address of the domain\'s authoritative nameserver.',
+        tld_org: '.ORG TLD server returns the authoritative nameserver address for this .org domain.',
+        tld_net: '.NET TLD server directs the resolver to the authoritative nameserver for this .net domain.',
+        tld_gov: '.GOV TLD server (CISA-managed) returns the authoritative nameserver. DNSSEC required.',
+        auth_example: 'Authoritative NS for example.com returns the A record (IPv4 address).',
+        auth_university: 'Authoritative NS for university.org returns the A record for the portal host.',
+        auth_corporate: 'Authoritative NS for corporate.net returns the MX record with mail server hostname and priority.',
+        auth_agency: 'Authoritative NS for agency.gov returns the DNSSEC-signed A record.',
+        auth_shop: 'Authoritative NS for shop.com returns a CNAME pointing to the CDN hostname.',
+        auth_cdn: 'Authoritative NS for cloudfront.net returns the actual A record for the CDN edge.',
+        auth_google: 'Authoritative NS for google.com returns the AAAA record (IPv6 address).',
+        auth_bank: 'Authoritative NS for secure.com returns the DNSSEC-validated A record.',
+        client: 'Answer returned to client. Browser caches the record for the TTL duration.'
+    };
+    if (notes[nodeId]) {
+        setEduNote(notes[nodeId]);
+    }
+}
+
+function wrongClick(nodeId, hint) {
+    state.levelErrors++;
+    state.totalErrors++;
+    state.levelScore -= 50;
+    state.glowNodes[nodeId] = 'danger';
+
+    sfxWrong();
+    flashFreeze();
+    setEduNote(`<strong style="color:var(--red)">Wrong hop!</strong> -50 pts, 2s freeze.<br>${hint}`);
+    updateHUD();
+
+    // Brief red glow, then clear after freeze
+    setTimeout(() => {
+        delete state.glowNodes[nodeId];
+    }, 2000);
+}
+
+function flashFreeze() {
+    const flash = document.getElementById('freeze-flash');
+    flash.classList.add('active');
+    state.frozen = true;
+    if (state.freezeTimeout) clearTimeout(state.freezeTimeout);
+    state.freezeTimeout = setTimeout(() => {
+        flash.classList.remove('active');
+        state.frozen = false;
+    }, 2000);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LEVEL COMPLETE / FINAL SCREEN
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function completeLevel() {
+    const level = LEVELS[state.level];
+    state.levelTime = Math.floor((Date.now() - state.startTime) / 1000);
+    clearInterval(state.timerInterval);
+
+    // Time bonus
+    const timeBonus = Math.max(0, (60 - state.levelTime) * 10);
+    if (timeBonus > 0) {
+        state.levelBonuses.push({ label: `Time Bonus (${state.levelTime}s)`, pts: timeBonus });
+        state.levelScore += timeBonus;
+    }
+
+    // Poison detection bonus
+    if (level.special === 'poison') {
+        state.levelScore += 500;
+        state.levelBonuses.push({ label: 'Poisoning Detected!', pts: 500 });
+    }
+
+    state.levelScore = Math.max(0, state.levelScore);
+    state.totalScore += state.levelScore;
+
+    // Show complete overlay
+    document.getElementById('complete-badge').textContent = `LEVEL ${level.id} COMPLETE`;
+    document.getElementById('complete-knowledge').innerHTML = level.postKnowledge;
+
+    // Score breakdown
+    const baseHops = (level.path.length - 1) * 100;
+    const errorPen = state.levelErrors * -50;
+    let breakdownHTML = `
+        <div class="score-row"><span>Correct hops (${level.path.length - 1} x 100)</span><span>+${baseHops}</span></div>
+        <div class="score-row"><span>Errors (${state.levelErrors} x -50)</span><span style="color:var(--red)">${errorPen}</span></div>
+    `;
+    state.levelBonuses.forEach(b => {
+        breakdownHTML += `<div class="score-row"><span>${b.label}</span><span>+${b.pts}</span></div>`;
+    });
+    breakdownHTML += `<div class="score-total"><span>Level Score</span><span>${state.levelScore}</span></div>`;
+    breakdownHTML += `<div class="score-total" style="margin-top:4px"><span>Total Score</span><span>${state.totalScore}</span></div>`;
+
+    document.getElementById('score-breakdown').innerHTML = breakdownHTML;
+
+    state.screen = 'complete';
+    document.getElementById('overlay-complete').classList.remove('hidden');
+}
+
+function nextLevel() {
+    document.getElementById('overlay-complete').classList.add('hidden');
+    state.level++;
+
+    if (state.level >= LEVELS.length) {
+        showFinalScreen();
+    } else {
+        showLevelIntro();
+    }
+}
+
+function showFinalScreen() {
+    state.gameCompleted = true;
+    clearInterval(state.timerInterval);
+
+    // Star rating
+    const maxScore = 10 * (9 * 100 + 600 + 200 + 500); // generous upper bound
+    const pct = state.totalScore / 8000;
+    let stars = '* ';
+    if (pct >= 0.5) stars = '* * ';
+    if (pct >= 0.75) stars = '* * *';
+
+    document.getElementById('final-stars').textContent = stars;
+    document.getElementById('final-title').textContent = 'Race Complete';
+    document.getElementById('final-desc').innerHTML =
+        `You resolved all 10 domains successfully.<br>` +
+        `Total Errors: <em>${state.totalErrors}</em><br>` +
+        `Final Score: <em>${state.totalScore}</em>`;
+
+    document.getElementById('final-breakdown').innerHTML = `
+        <div class="knowledge-box">
+            <strong>What You Practiced</strong>
+            A record lookups, CNAME chains, MX records, AAAA (IPv6),
+            resolver caching, TTL expiry, browser cache hits,
+            and DNS poisoning detection via DNSSEC.
+        </div>
+    `;
+
+    state.screen = 'final';
+    document.getElementById('overlay-final').classList.remove('hidden');
+
+    // Completion tracking
+    if (window.AchievementManager) {
+        AchievementManager.unlock('game_dns');
+    }
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('web', 'web-dns-resolver-race', { returnUrl: '../index.html' });
+    }
+}
+
+function hideAllOverlays() {
+    ['overlay-start','overlay-level','overlay-complete','overlay-final'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TOOLTIP ON HOVER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const tooltip = document.getElementById('tooltip');
+let lastHoverId = null;
+
+canvas.addEventListener('mousemove', function(e) {
+    if (state.screen !== 'playing') { tooltip.style.display = 'none'; return; }
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hovered = getNodeAtPoint(mx, my);
+
+    if (hovered && hovered !== lastHoverId) {
+        const node = state.nodes[hovered];
+        if (node) {
+            tooltip.textContent = node.tip;
+            tooltip.style.display = 'block';
+        }
+        lastHoverId = hovered;
+    } else if (!hovered) {
+        tooltip.style.display = 'none';
+        lastHoverId = null;
+    }
+
+    // Position tooltip near cursor
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+});
+
+canvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+    lastHoverId = null;
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KEYBOARD SHORTCUT: Enter to advance through overlays
+   ═══════════════════════════════════════════════════════════════════════ */
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+        if (state.screen === 'intro') { beginLevel(); e.preventDefault(); }
+        if (state.screen === 'complete') { nextLevel(); e.preventDefault(); }
+    }
+    if (e.key === 'm' || e.key === 'M') { toggleMute(); }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════════════ */
+
+state.screen = 'start';
+render();
+</script>
+</body>
+</html>
