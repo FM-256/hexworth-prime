@@ -168,30 +168,33 @@ function countQuestions(content) {
 }
 
 /**
- * Compute the correct moduleId by stripping house prefix and -quiz suffix
+ * Compute the correct moduleId — only flag WRONG house prefix (cross-house)
+ * A correct house prefix (matching pathHouse) and -quiz suffix are both valid.
  * @param {string} moduleId - Current moduleId
  * @param {string} pathHouse - House detected from file path
- * @returns {string} Corrected moduleId
+ * @returns {{ corrected: string, hasCrossHousePrefix: boolean }}
  */
 function computeCorrectModuleId(moduleId, pathHouse) {
-    if (!moduleId) return null;
+    if (!moduleId) return { corrected: null, hasCrossHousePrefix: false };
 
-    let corrected = moduleId;
-
-    // Strip house prefix if present (check all houses, not just path house)
+    // Check if moduleId starts with a house prefix
+    let detectedPrefix = null;
     for (const house of VALID_HOUSES) {
-        if (corrected.startsWith(house + '-')) {
-            corrected = corrected.substring(house.length + 1);
+        if (moduleId.startsWith(house + '-')) {
+            detectedPrefix = house;
             break;
         }
     }
 
-    // Strip -quiz suffix if present
-    if (corrected.endsWith('-quiz')) {
-        corrected = corrected.slice(0, -5);
+    // Only flag if the prefix is a DIFFERENT house than the file's path house
+    if (detectedPrefix && pathHouse && detectedPrefix !== pathHouse) {
+        // Cross-house prefix — strip the wrong prefix, add correct one
+        const withoutPrefix = moduleId.substring(detectedPrefix.length + 1);
+        return { corrected: pathHouse + '-' + withoutPrefix, hasCrossHousePrefix: true };
     }
 
-    return corrected;
+    // Same-house prefix or no prefix or no pathHouse — moduleId is fine
+    return { corrected: moduleId, hasCrossHousePrefix: false };
 }
 
 /**
@@ -210,13 +213,12 @@ function validateConfig(result, filePath, ignoreDirectives) {
     const config = result.config;
     const pathHouse = extractHouseFromPath(filePath);
 
-    // Compute what the moduleId SHOULD be
-    const suggestedModuleId = computeCorrectModuleId(config.moduleId, pathHouse);
-    const hasModuleIdIssues = config.moduleId && suggestedModuleId !== config.moduleId;
+    // Compute what the moduleId SHOULD be — only flags cross-house prefix mismatches
+    const { corrected: suggestedModuleId, hasCrossHousePrefix } = computeCorrectModuleId(config.moduleId, pathHouse);
 
-    // ID-001: Combined moduleId issue (house prefix or -quiz suffix)
+    // ID-001: Cross-house moduleId prefix (genuinely broken — wrong house)
     // Only critical for QuizEngine — ModuleProgress handles its own IDs
-    if (hasModuleIdIssues && config.engine === 'QuizEngine') {
+    if (hasCrossHousePrefix && config.engine === 'QuizEngine') {
         const ignoreCheck = shouldIgnore('ID-001', ignoreDirectives);
 
         if (ignoreCheck.ignored) {
@@ -225,21 +227,12 @@ function validateConfig(result, filePath, ignoreDirectives) {
                 reason: ignoreCheck.reason
             });
         } else {
-            const problems = [];
-            const housePrefixPattern = new RegExp('^(' + VALID_HOUSES.join('|').replace(/-/g, '\\-') + ')-');
-            if (config.moduleId.match(housePrefixPattern)) {
-                problems.push('has house prefix');
-            }
-            if (config.moduleId.endsWith('-quiz')) {
-                problems.push('ends with -quiz suffix');
-            }
-
             result.issues.push({
                 code: 'ID-001',
                 severity: 'critical',
                 category: 'sync',
                 type: 'moduleId_malformed',
-                message: `moduleId '${config.moduleId}' ${problems.join(' and ')} — will break sync`,
+                message: `moduleId '${config.moduleId}' has wrong house prefix (expected '${pathHouse}') — will break sync`,
                 current: config.moduleId,
                 suggested: suggestedModuleId,
                 fix: `Change moduleId to '${suggestedModuleId}'`,

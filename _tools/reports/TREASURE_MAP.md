@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-21 12:09:47 PM
+                    Scanned: 2026-02-27 9:45:15 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,27 +10,27 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1717 |
-| Directories | 501 |
-| Content Files | 1717 |
-| Scan Duration | 910ms |
+| Files Scanned | 1890 |
+| Directories | 531 |
+| Content Files | 1890 |
+| Scan Duration | 393ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 757 |
-| html | 554 |
-| lab | 266 |
-| quiz | 130 |
-| applet | 10 |
+| presentation | 764 |
+| html | 546 |
+| lab | 313 |
+| quiz | 232 |
+| applet | 35 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1551 |
-| Available | 1546 |
+| Total Modules | 1653 |
+| Available | 1641 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 2 |
-| Warning | 1 |
-| Info | 16 |
-| **Total** | **19** |
+| Warning | 140 |
+| Info | 51 |
+| **Total** | **7673** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1163 |
-| Not Ready | 0 |
-| Unknown | 554 |
+| Ready | 1343 |
+| Not Ready | 1 |
+| Unknown | 546 |
 
 
 ## FILE HIERARCHY
@@ -137,6 +137,7 @@
 ├── 📁 components
 │   └── 📁 styles [styles]
 ├── 📁 config
+├── 📁 css
 ├── 📁 dark-arts
 │   ├── 📄 ctf-leaderboard.applet.html
 │   ├── 📄 gate-1.html
@@ -154,6 +155,55 @@
 │       ├── 🔬 csrf-attack-lab.html
 │       ├── 📄 cyber-kill-chain.html
 │       ├── 🔬 dos-ddos-lab.html
+│       ├── 📁 ehe
+│       │   ├── 📍 index.html
+│       │   ├── 📁 labs [labs]
+│       │   │   ├── 🔬 ehe-lab-cloud-security.lab.html
+│       │   │   ├── 🔬 ehe-lab-dos-attack.lab.html
+│       │   │   ├── 🔬 ehe-lab-enumeration.lab.html
+│       │   │   ├── 🔬 ehe-lab-footprinting.lab.html
+│       │   │   ├── 🔬 ehe-lab-iot-security.lab.html
+│       │   │   ├── 🔬 ehe-lab-mobile-security.lab.html
+│       │   │   ├── 🔬 ehe-lab-network-scanning.lab.html
+│       │   │   ├── 🔬 ehe-lab-password-audit.lab.html
+│       │   │   ├── 🔬 ehe-lab-password-cracking.lab.html
+│       │   │   ├── 🔬 ehe-lab-pentest-report.lab.html
+│       │   │   ├── 🔬 ehe-lab-session-hijacking.lab.html
+│       │   │   ├── 🔬 ehe-lab-sniffing.lab.html
+│       │   │   ├── 🔬 ehe-lab-social-engineering.lab.html
+│       │   │   ├── 🔬 ehe-lab-sql-injection.lab.html
+│       │   │   ├── 🔬 ehe-lab-trojan-analysis.lab.html
+│       │   │   ├── 🔬 ehe-lab-virus-creation.lab.html
+│       │   │   ├── 🔬 ehe-lab-vuln-assessment.lab.html
+│       │   │   ├── 🔬 ehe-lab-web-server-attack.lab.html
+│       │   │   ├── 🔬 ehe-lab-wireless-attack.lab.html
+│       │   │   └── 🔬 ehe-lab-xss-attack.lab.html
+│       │   ├── 📁 modules [modules]
+│       │   │   ├── 📄 ehe-00-introduction.module.html
+│       │   │   ├── 📄 ehe-01-infosec-fundamentals.module.html
+│       │   │   ├── 📄 ehe-02-ethical-hacking-fundamentals.module.html
+│       │   │   ├── 📄 ehe-03-threats-vulnerability.module.html
+│       │   │   ├── 📄 ehe-04-password-cracking.module.html
+│       │   │   ├── 📄 ehe-05-social-engineering.module.html
+│       │   │   ├── 📄 ehe-06-network-attacks.module.html
+│       │   │   ├── 📄 ehe-07-web-app-attacks.module.html
+│       │   │   ├── 📄 ehe-08-wireless-attacks.module.html
+│       │   │   ├── 📄 ehe-09-mobile-attacks.module.html
+│       │   │   ├── 📄 ehe-10-iot-ot-attacks.module.html
+│       │   │   ├── 📄 ehe-11-cloud-threats.module.html
+│       │   │   └── 📄 ehe-12-pentest-fundamentals.module.html
+│       │   └── 📁 quizzes [quizzes]
+│       │       ├── 📄 ehe-final-exam.html
+│       │       ├── ❓ ehe-week01-quiz.html
+│       │       ├── ❓ ehe-week02-quiz.html
+│       │       ├── ❓ ehe-week03-quiz.html
+│       │       ├── ❓ ehe-week04-quiz.html
+│       │       ├── ❓ ehe-week05-quiz.html
+│       │       ├── ❓ ehe-week06-quiz.html
+│       │       ├── ❓ ehe-week07-quiz.html
+│       │       ├── ❓ ehe-week08-quiz.html
+│       │       ├── ❓ ehe-week09-quiz.html
+│       │       └── ❓ ehe-week10-quiz.html
 │       ├── 🔬 enumeration-lab.html
 │       ├── 🔬 footprinting-lab.html
 │       ├── 📁 gates
@@ -237,6 +287,39 @@
 │       │   ├── 📄 john-training.html
 │       │   ├── 📄 metasploit-training.html
 │       │   └── 📄 nmap-training.html
+│       ├── 📁 wifi-arsenal
+│       │   ├── 📍 index.html
+│       │   ├── 📁 labs [labs]
+│       │   │   ├── 🔬 wifi-lab-00.html
+│       │   │   ├── 🔬 wifi-lab-01.html
+│       │   │   ├── 🔬 wifi-lab-02.html
+│       │   │   ├── 🔬 wifi-lab-03.html
+│       │   │   ├── 🔬 wifi-lab-04.html
+│       │   │   ├── 🔬 wifi-lab-05.html
+│       │   │   ├── 🔬 wifi-lab-06.html
+│       │   │   ├── 🔬 wifi-lab-07.html
+│       │   │   ├── 🔬 wifi-lab-08.html
+│       │   │   ├── 🔬 wifi-lab-09.html
+│       │   │   ├── 🔬 wifi-lab-10.html
+│       │   │   └── 🔬 wifi-lab-11.html
+│       │   ├── 📁 modules [modules]
+│       │   │   ├── 📄 wifi-mod-cracking.html
+│       │   │   ├── 📄 wifi-mod-defense.html
+│       │   │   ├── 📄 wifi-mod-eviltwin.html
+│       │   │   ├── 📄 wifi-mod-handshake.html
+│       │   │   ├── 📄 wifi-mod-recon.html
+│       │   │   ├── 📄 wifi-mod-rita.html
+│       │   │   ├── 📄 wifi-mod-setup.html
+│       │   │   ├── 📄 wifi-mod-snitch.html
+│       │   │   ├── 📄 wifi-mod-wep.html
+│       │   │   └── 📄 wifi-mod-wps.html
+│       │   ├── 📁 quizzes [quizzes]
+│       │   │   ├── ❓ wifi-arsenal-quiz.html
+│       │   │   ├── ❓ wifi-quiz-rita.html
+│       │   │   └── ❓ wifi-quiz-snitch.html
+│       │   └── 📁 tools
+│       │       └── 📄 wifi-tool-reference.html
+│       ├── 📄 wifi-arsenal.html
 │       ├── 🔬 wireless-attacks-lab.html
 │       └── 🔬 xss-attacks-lab.html
 ├── 📄 dashboard.html
@@ -258,6 +341,50 @@
 │   ├── 📁 maps
 │   └── 📁 puzzles
 ├── 📁 houses
+│   ├── 🏠 ai [house:ai]
+│   │   ├── 📁 games
+│   │   │   ├── 📄 ai-agent-builder.applet.html
+│   │   │   ├── 📄 ai-guardrail-challenge.applet.html
+│   │   │   ├── 📄 ai-red-team-challenge.applet.html
+│   │   │   ├── 📄 ai-text-adventure-singularity.html
+│   │   │   └── 📄 ai-triage-trainer.applet.html
+│   │   ├── 📍 index.html
+│   │   ├── 📁 labs [labs]
+│   │   │   ├── 🔬 ai-agent-workflow.lab.html
+│   │   │   ├── 🔬 ai-ethics-debate.lab.html
+│   │   │   ├── 🔬 ai-fine-tuning.lab.html
+│   │   │   ├── 🔬 ai-prompt-injection.lab.html
+│   │   │   ├── 🔬 ai-rag-pipeline.lab.html
+│   │   │   ├── 🔬 ai-soc-triage.lab.html
+│   │   │   └── 🔬 ai-vector-database.lab.html
+│   │   ├── 📁 modules [modules]
+│   │   │   ├── 📄 ai-agent-components.applet.html
+│   │   │   ├── 📄 ai-automation-rubric.applet.html
+│   │   │   ├── 📄 ai-guardrails.applet.html
+│   │   │   ├── 📄 ai-nocode-platforms.applet.html
+│   │   │   ├── 📄 ai-prompt-engineering.applet.html
+│   │   │   ├── 📄 ai-soc-automation.applet.html
+│   │   │   └── 📄 ai-what-are-agents.applet.html
+│   │   ├── 📁 presentations [presentations]
+│   │   │   ├── 📊 ai-agent-patterns.presentation.html
+│   │   │   ├── 📊 ai-deployment.presentation.html
+│   │   │   ├── 📊 ai-foundations.presentation.html
+│   │   │   ├── 📊 ai-model-architecture.presentation.html
+│   │   │   ├── 📊 ai-prompt-engineering.presentation.html
+│   │   │   └── 📊 ai-safety-guardrails.presentation.html
+│   │   ├── 📁 quizzes [quizzes]
+│   │   │   ├── ❓ ai-builder.quiz.html
+│   │   │   ├── ❓ ai-foundations.quiz.html
+│   │   │   └── ❓ ai-security.quiz.html
+│   │   ├── 📁 reference
+│   │   │   └── 📁 microsoft-learn
+│   │   └── 📁 tools
+│   │       ├── 📄 ai-benchmark-explorer.tool.html
+│   │       ├── 📄 ai-cost-calculator.tool.html
+│   │       ├── 📄 ai-flashcards.tool.html
+│   │       ├── 📄 ai-llm-comparison.tool.html
+│   │       ├── 📄 ai-prompt-tester.tool.html
+│   │       └── 📄 ai-tokenizer.tool.html
 │   ├── 📁 aplus-core1
 │   │   └── 📍 index.html
 │   ├── 📁 aplus-core2
@@ -286,12 +413,14 @@
 │   │   │       └── 📄 cloud-cse-comprehensive-review.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 cloud-ad-attack-path.applet.html
+│   │   │   ├── 🔬 cloud-api-foundations-lab.applet.html
 │   │   │   ├── 📄 cloud-architect.html
 │   │   │   ├── 📄 cloud-aws-sts.html
 │   │   │   ├── 📄 cloud-destroyer.applet.html
 │   │   │   ├── 📄 cloud-dont-check-the-bill.html
 │   │   │   ├── 📄 cloud-dont-lose-your-domain.html
 │   │   │   ├── 📄 cloud-flap.html
+│   │   │   ├── 📄 cloud-hop-vertical.applet.html
 │   │   │   ├── 📄 cloud-hop.applet.html
 │   │   │   ├── 📄 cloud-iam-debugger.html
 │   │   │   └── 📄 cloud-text-adventure-whoami.html
@@ -554,6 +683,12 @@
 │   │   │   ├── 🔬 code-kubernetes.lab.html
 │   │   │   ├── 🔬 code-terraform.lab.html
 │   │   │   └── 🔬 code-unit-testing.lab.html
+│   │   ├── 📁 modules [modules]
+│   │   │   └── 📁 python-engineering [modules]
+│   │   │       ├── 📄 code-pye-chapter01.module.html
+│   │   │       ├── 📄 code-pye-chapter02.module.html
+│   │   │       ├── 📄 code-pye-chapter03.module.html
+│   │   │       └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 code-agile-sdlc.presentation.html
 │   │   │   ├── 📊 code-automation.presentation.html
@@ -590,6 +725,17 @@
 │   ├── 📁 cysa-plus
 │   │   └── 📍 index.html
 │   ├── 📁 dark-arts
+│   │   ├── 📁 feh
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 games
+│   │   │   ├── 🔬 dark-container-security-lab.applet.html
+│   │   │   ├── 🔬 dark-ids-evasion-lab.applet.html
+│   │   │   ├── 🔬 dark-m365-attack-lab.applet.html
+│   │   │   ├── 🔬 dark-malware-specimen-lab.applet.html
+│   │   │   ├── 🔬 dark-network-forensics-lab.applet.html
+│   │   │   ├── 🔬 dark-osint-recon-lab.applet.html
+│   │   │   ├── 🔬 dark-phishing-campaign-lab.applet.html
+│   │   │   └── 🔬 dark-slowloris-dos-lab.applet.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 dark-arts-feh-01.lab.html
@@ -629,10 +775,13 @@
 │   │   ├── 📁 reviews
 │   │   │   ├── 📄 dark-arts-feh-comprehensive-review.html
 │   │   │   └── 📍 index.html
-│   │   └── 📁 tools
-│   │       └── 📁 ctf-leaderboard
-│   │           ├── 📄 dark-arts-sample.tool.html
-│   │           └── 📍 index.html
+│   │   ├── 📁 tools
+│   │   │   └── 📁 ctf-leaderboard
+│   │   │       ├── 📄 dark-arts-sample.tool.html
+│   │   │       └── 📍 index.html
+│   │   └── 📁 vault
+│   │       └── 📁 ehe
+│   │           └── 🔬 da-ad-attack-lab.lab.html
 │   ├── 📁 devops-fundamentals
 │   │   └── 📍 index.html
 │   ├── 🏠 eye [house:eye]
@@ -811,11 +960,15 @@
 │   │   │       └── 📄 eye-cysa-comprehensive-review.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 eye-alert-triage.html
+│   │   │   ├── 📄 eye-detection-engineering.applet.html
 │   │   │   ├── 📄 eye-dont-feed-the-troll.html
 │   │   │   ├── 📄 eye-grep-noir.html
+│   │   │   ├── 🔬 eye-log-analysis-lab.applet.html
 │   │   │   ├── 📄 eye-log-centipede.applet.html
 │   │   │   ├── 📄 eye-memory-forensics.applet.html
+│   │   │   ├── 📄 eye-security-onion-soc.applet.html
 │   │   │   ├── 📄 eye-text-adventure-wireshark.html
+│   │   │   ├── 🔬 eye-threat-hunting-lab.applet.html
 │   │   │   └── 📄 eye-threat-modeler.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
@@ -1095,16 +1248,27 @@
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
 │   │   │   │   ├── 🔬 forge-md100-m01-install.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m01-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m02-auth.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m02-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m03-config.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m03-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m04-networking.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m04-sim.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m05-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m05-storage.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m06-data-access.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m06-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m07-apps.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m07-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m08-security.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m08-sim.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m09-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m09-support.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m10-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m10-troubleshoot.lab.html
-│   │   │   │   └── 🔬 forge-md100-m11-hardware.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m11-hardware.lab.html
+│   │   │   │   └── 🔬 forge-md100-m11-sim.lab.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 forge-md100-m01-install-windows.presentation.html
 │   │   │   │   ├── 📊 forge-md100-m02-auth-authorization.presentation.html
@@ -1134,6 +1298,42 @@
 │   │   │       ├── 📄 forge-md100-final-review.html
 │   │   │       ├── 📄 forge-md100-midterm-review.html
 │   │   │       └── 📍 index.html
+│   │   ├── 📁 md-101
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 forge-md101-m01-modern-management.lab.html
+│   │   │   │   ├── 🔬 forge-md101-m02-device-enrollment.lab.html
+│   │   │   │   ├── 🔬 forge-md101-m03-configuring-profiles.lab.html
+│   │   │   │   ├── 🔬 forge-md101-m04-application-management.lab.html
+│   │   │   │   ├── 🔬 forge-md101-m05-auth-compliance.lab.html
+│   │   │   │   ├── 🔬 forge-md101-m06-managing-security.lab.html
+│   │   │   │   ├── 🔬 forge-md101-m07-deployment-part1.lab.html
+│   │   │   │   ├── 🔬 forge-md101-m08-deployment-part2.lab.html
+│   │   │   │   └── 🔬 forge-md101-m09-managing-updates.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 forge-md101-m01-modern-management.presentation.html
+│   │   │   │   ├── 📊 forge-md101-m02-device-enrollment.presentation.html
+│   │   │   │   ├── 📊 forge-md101-m03-configuring-profiles.presentation.html
+│   │   │   │   ├── 📊 forge-md101-m04-application-management.presentation.html
+│   │   │   │   ├── 📊 forge-md101-m05-auth-compliance.presentation.html
+│   │   │   │   ├── 📊 forge-md101-m06-managing-security.presentation.html
+│   │   │   │   ├── 📊 forge-md101-m07-deployment-part1.presentation.html
+│   │   │   │   ├── 📊 forge-md101-m08-deployment-part2.presentation.html
+│   │   │   │   └── 📊 forge-md101-m09-managing-updates.presentation.html
+│   │   │   ├── 📁 quizzes [quizzes]
+│   │   │   │   ├── ❓ forge-md101-m01-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md101-m02-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md101-m03-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md101-m04-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md101-m05-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md101-m06-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md101-m07-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md101-m08-quiz.quiz.html
+│   │   │   │   └── ❓ forge-md101-m09-quiz.quiz.html
+│   │   │   └── 📁 reviews
+│   │   │       ├── 📄 forge-md101-comprehensive-review.html
+│   │   │       ├── 📄 forge-md101-final-review.html
+│   │   │       └── 📄 forge-md101-midterm-review.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 forge-admin-tools.presentation.html
 │   │   │   ├── 📊 forge-control-panel.presentation.html
@@ -2025,7 +2225,8 @@
 │   │   │   ├── 📄 shield-text-adventure-hydra.html
 │   │   │   ├── 📄 shield-threat-runner.applet.html
 │   │   │   ├── 📄 shield-threat-swarm.applet.html
-│   │   │   └── 📄 shield-tor-darkweb.html
+│   │   │   ├── 📄 shield-tor-darkweb.html
+│   │   │   └── 🔬 shield-web-security-headers-lab.applet.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 📁 linux [labs]
@@ -2136,6 +2337,7 @@
 │       │   ├── 📄 web-networking-exam-flashcards.exam.html
 │       │   └── 📄 web-networking-midterm.exam.html
 │       ├── 📁 games
+│       │   ├── 📄 web-dns-resolver-race.applet.html
 │       │   ├── 📄 web-dont-drop-the-packet.html
 │       │   ├── 📄 web-network-architect.applet.html
 │       │   ├── 📄 web-nmap.html
@@ -2143,6 +2345,7 @@
 │       │   ├── 📄 web-packet-invaders.applet.html
 │       │   ├── 📄 web-packet-run.applet.html
 │       │   ├── 📄 web-packet-sniffer.applet.html
+│       │   ├── 📄 web-subnet-siege.applet.html
 │       │   └── 📄 web-wireless-warzone.applet.html
 │       ├── 📁 handouts
 │       ├── 📍 index.html
@@ -2283,6 +2486,47 @@
 ## CONTENT INVENTORY
 ══════════════════════════════════════════════════════════════════════
 
+### AI
+──────────────────────────────────────────────────
+
+| ID/Name | Type | Sync | Issues |
+|---------|------|------|--------|
+| ai-agent-builder.applet | presentation | ✓ | 0 |
+| ai-guardrail-challenge.applet | presentation | ✓ | 0 |
+| ai-red-team-challenge.applet | presentation | ✓ | 0 |
+| ai-text-adventure-singularity | presentation | ✓ | 0 |
+| ai-triage-trainer.applet | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| ai-agent-workflow.lab | presentation | ✓ | 0 |
+| ai-ethics-debate.lab | presentation | ✓ | 0 |
+| ai-fine-tuning.lab | presentation | ✓ | 0 |
+| ai-prompt-injection.lab | lab | ✓ | 0 |
+| ai-rag-pipeline.lab | presentation | ✓ | 0 |
+| ai-soc-triage.lab | presentation | ✓ | 0 |
+| ai-vector-database.lab | presentation | ✓ | 0 |
+| ai-agent-components.applet | presentation | ✓ | 0 |
+| ai-automation-rubric.applet | presentation | ✓ | 0 |
+| ai-guardrails.applet | presentation | ✓ | 0 |
+| ai-nocode-platforms.applet | presentation | ✓ | 0 |
+| ai-prompt-engineering.applet | presentation | ✓ | 0 |
+| ai-soc-automation.applet | presentation | ✓ | 0 |
+| ai-what-are-agents.applet | presentation | ✓ | 0 |
+| ai-agent-patterns.presentation | presentation | ✓ | 0 |
+| ai-deployment.presentation | presentation | ✓ | 0 |
+| ai-foundations.presentation | presentation | ✓ | 0 |
+| ai-model-architecture.presentation | presentation | ✓ | 0 |
+| ai-prompt-engineering.presentation | presentation | ✓ | 0 |
+| ai-safety-guardrails.presentation | presentation | ✓ | 0 |
+| builder | quiz | ✓ | 0 |
+| foundations | quiz | ✓ | 0 |
+| security | quiz | ✓ | 0 |
+| ai-benchmark-explorer.tool | presentation | ✓ | 0 |
+| ai-cost-calculator.tool | presentation | ✓ | 0 |
+| ai-flashcards.tool | applet | ✓ | 1 |
+| ai-llm-comparison.tool | presentation | ✓ | 0 |
+| ai-prompt-tester.tool | presentation | ✓ | 0 |
+| ai-tokenizer.tool | applet | ✓ | 1 |
+
 ### CLOUD (Cloud Computing)
 ──────────────────────────────────────────────────
 
@@ -2294,8 +2538,10 @@
 | index | applet | ✓ | 1 |
 | cloud-cse-comprehensive-review | presentation | ✓ | 0 |
 | cloud-ad-attack-path.applet | presentation | ✓ | 0 |
+| cloud-api-foundations-lab.applet | applet | ✓ | 1 |
 | cloud-architect | presentation | ✓ | 0 |
-| cloud-destroyer.applet | presentation | ✓ | 0 |
+| cloud-destroyer.applet | applet | ✓ | 1 |
+| cloud-hop-vertical.applet | presentation | ✓ | 0 |
 | cloud-hop.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | cloud-architecture.lab | lab | ✓ | 0 |
@@ -2395,28 +2641,29 @@
 | cloud-cse-module07.presentation | presentation | ✓ | 0 |
 | cloud-cse-module08.presentation | presentation | ✓ | 0 |
 | aws-fundamentals | quiz | ✓ | 0 |
-| ch01-cloud-fundamentals-quiz | quiz | ✓ | 0 |
-| ch05-iam-security-quiz | quiz | ✓ | 0 |
-| ch08-storage-quiz | quiz | ✓ | 0 |
-| ch09-database-quiz | quiz | ✓ | 0 |
-| ch10-networking-quiz | quiz | ✓ | 0 |
-| ch12-aws-final-quiz | quiz | ✓ | 0 |
+| ch01-cloud-fundamentals | quiz | ✓ | 0 |
+| ch05-iam-security | quiz | ✓ | 0 |
+| ch08-storage | quiz | ✓ | 0 |
+| ch09-database | quiz | ✓ | 0 |
+| ch10-networking | quiz | ✓ | 0 |
+| ch12-aws-practitioner-final | quiz | ✓ | 0 |
 | cse-01-fundamentals | quiz | ✓ | 0 |
 | cse-02-iam | quiz | ✓ | 0 |
 | cse-03-encryption | quiz | ✓ | 0 |
 | cse-04-network | quiz | ✓ | 0 |
 | cse-05-appsec | quiz | ✓ | 0 |
-| cse-06-quiz | quiz | ✓ | 0 |
-| cse-07-quiz | quiz | ✓ | 0 |
-| cse-08-quiz | quiz | ✓ | 0 |
-| cse-module01-quiz | quiz | ✓ | 0 |
-| cse-module02-quiz | quiz | ✓ | 0 |
-| cse-module03-quiz | quiz | ✓ | 0 |
-| cse-module04-quiz | quiz | ✓ | 0 |
-| cse-module05-quiz | quiz | ✓ | 0 |
-| cse-module06-quiz | quiz | ✓ | 0 |
-| cse-module07-quiz | quiz | ✓ | 0 |
-| cse-module08-quiz | quiz | ✓ | 0 |
+| cse-06 | quiz | ✓ | 0 |
+| cse-07 | quiz | ✓ | 0 |
+| cse-08 | quiz | ✓ | 0 |
+| cse-module01 | quiz | ✓ | 0 |
+| cse-module02 | quiz | ✓ | 0 |
+| cse-module03 | quiz | ✓ | 0 |
+| cse-module04 | quiz | ✓ | 0 |
+| cse-module05 | quiz | ✓ | 1 |
+| cse-module06 | quiz | ✓ | 0 |
+| cse-module07 | quiz | ✓ | 0 |
+| cse-module08 | quiz | ✓ | 1 |
+| cloud-quiz | quiz | ✓ | 0 |
 | cloud-aws-service.tool | presentation | ✓ | 0 |
 | cloud-ch01-cloud-models.tool | presentation | ✓ | 0 |
 | cloud-ch02-aws-account.tool | presentation | ✓ | 0 |
@@ -2440,7 +2687,7 @@
 |---------|------|------|--------|
 | code-docker-playground.applet | presentation | ✓ | 0 |
 | code-kubernetes-cluster-sim.applet | presentation | ✓ | 0 |
-| code-build-breaker.applet | presentation | ✓ | 0 |
+| code-build-breaker.applet | applet | ✓ | 1 |
 | code-git-blame | presentation | ✓ | 0 |
 | code-kill-nine.applet | presentation | ✓ | 0 |
 | code-kubernetes-rescue.applet | presentation | ✓ | 0 |
@@ -2450,6 +2697,7 @@
 | code-kubernetes.lab | presentation | ✓ | 0 |
 | code-terraform.lab | presentation | ✓ | 0 |
 | code-unit-testing.lab | presentation | ✓ | 0 |
+| code-pye-chapter01.module | applet | ✓ | 1 |
 | code-agile-sdlc.presentation | presentation | ✓ | 0 |
 | code-automation.presentation | presentation | ✓ | 0 |
 | code-cicd-fundamentals.presentation | presentation | ✓ | 0 |
@@ -2458,13 +2706,13 @@
 | code-git-basics.presentation | presentation | ✓ | 0 |
 | code-kubernetes-fundamentals.presentation | presentation | ✓ | 0 |
 | code-terraform-fundamentals.presentation | presentation | ✓ | 0 |
-| agile-quiz | quiz | ✓ | 0 |
-| cicd-quiz | quiz | ✓ | 0 |
-| cloudformation-quiz | quiz | ✓ | 0 |
-| docker-quiz | quiz | ✓ | 0 |
-| kubernetes-quiz | quiz | ✓ | 0 |
-| terraform-quiz | quiz | ✓ | 0 |
-| unit-testing-quiz | quiz | ✓ | 0 |
+| agile | quiz | ✓ | 0 |
+| cicd | quiz | ✓ | 0 |
+| cloudformation | quiz | ✓ | 0 |
+| docker | quiz | ✓ | 0 |
+| kubernetes | quiz | ✓ | 0 |
+| terraform | quiz | ✓ | 0 |
+| unit-testing | quiz | ✓ | 0 |
 | code-devops-comprehensive-review | presentation | ✓ | 0 |
 | code-ansible-playbook.tool | presentation | ✓ | 0 |
 | code-automation.tool | presentation | ✓ | 0 |
@@ -2564,41 +2812,44 @@
 | eye-cysa-ch14-recovery.presentation | presentation | ✓ | 0 |
 | eye-cysa-ch15-risk.presentation | presentation | ✓ | 0 |
 | eye-cysa-ch16-compliance.presentation | presentation | ✓ | 0 |
-| eye-cysa-ch01-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch02-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch03-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch04-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch05-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch06-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch07-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch08-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch09-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch10-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch11-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch12-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch13-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch14-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch15-quiz.quiz | presentation | ✓ | 0 |
-| eye-cysa-ch16-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch01-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch02-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch03-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch04-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch05-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch06-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch07-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch08-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch09-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch10-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch11-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch12-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch13-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch14-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch15-quiz | quiz | ✓ | 0 |
+| eye-cysa-ch16-quiz | quiz | ✓ | 0 |
 | eye-cysa-comprehensive-review | presentation | ✓ | 0 |
 | eye-alert-triage | presentation | ✓ | 0 |
+| eye-detection-engineering.applet | applet | ✓ | 1 |
+| eye-log-analysis-lab.applet | applet | ✓ | 1 |
 | eye-log-centipede.applet | presentation | ✓ | 0 |
 | eye-memory-forensics.applet | presentation | ✓ | 0 |
+| eye-security-onion-soc.applet | applet | ✓ | 1 |
+| eye-threat-hunting-lab.applet | applet | ✓ | 1 |
 | eye-threat-modeler | presentation | ✓ | 0 |
 | eye-hunting.lab | presentation | ✓ | 0 |
 | eye-siem.lab | presentation | ✓ | 0 |
-| index | presentation | ✓ | 0 |
 | eye-log-basics.presentation | presentation | ✓ | 0 |
 | eye-log-correlation.presentation | presentation | ✓ | 0 |
 | eye-network-traffic-analysis.presentation | presentation | ✓ | 0 |
 | eye-siem-fundamentals.presentation | presentation | ✓ | 0 |
 | eye-soc-operations.presentation | presentation | ✓ | 0 |
 | eye-threat-hunting.presentation | presentation | ✓ | 0 |
-| log-correlation-quiz | quiz | ✓ | 0 |
-| hunting-quiz | quiz | ✓ | 0 |
+| log-correlation | quiz | ✓ | 0 |
+| threat-hunting | quiz | ✓ | 0 |
 | siem-fundamentals | quiz | ✓ | 0 |
 | soc-operations | quiz | ✓ | 0 |
-| network-traffic-quiz | quiz | ✓ | 0 |
+| network-traffic | quiz | ✓ | 0 |
 | eye-correlation.tool | presentation | ✓ | 0 |
 | eye-hunt.tool | presentation | ✓ | 0 |
 | eye-packet.tool | presentation | ✓ | 0 |
@@ -2701,13 +2952,22 @@
 | forge-users-groups.presentation | presentation | ✓ | 0 |
 | forge-windows-editions.presentation | presentation | ✓ | 0 |
 | forge-windows-settings.presentation | presentation | ✓ | 0 |
-| aplus-core2-quiz | quiz | ✓ | 0 |
-| forge-ch20.quiz | presentation | ✓ | 0 |
-| forge-ch21.quiz | presentation | ✓ | 0 |
-| forge-ch22.quiz | presentation | ✓ | 0 |
-| forge-ch23.quiz | presentation | ✓ | 0 |
-| forge-ch24.quiz | presentation | ✓ | 0 |
-| forge-core2-midterm.quiz | presentation | ✓ | 0 |
+| aplus-core2-ch19-22-applet | quiz | ✓ | 0 |
+| aplus-core2-applet | quiz | ✓ | 0 |
+| core2-ch13 | quiz | ✓ | 0 |
+| core2-ch14 | quiz | ✓ | 0 |
+| core2-ch15 | quiz | ✓ | 0 |
+| core2-ch16 | quiz | ✓ | 0 |
+| core2-ch17 | quiz | ✓ | 0 |
+| core2-ch18 | quiz | ✓ | 0 |
+| core2-ch19 | quiz | ✓ | 0 |
+| core2-ch20 | quiz | ✓ | 0 |
+| core2-ch21 | quiz | ✓ | 1 |
+| core2-ch22 | quiz | ✓ | 0 |
+| core2-ch23 | quiz | ✓ | 0 |
+| core2-ch24 | quiz | ✓ | 0 |
+| core2-midterm | quiz | ✓ | 0 |
+| core2-quiz-ch19-22 | quiz | ✓ | 0 |
 | forge-windows-shortcuts.applet | presentation | ✓ | 0 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
 | forge-command-translator.applet | presentation | ✓ | 0 |
@@ -2721,7 +2981,7 @@
 | forge-peripheral-devices.applet | presentation | ✓ | 0 |
 | forge-bit-dash.applet | presentation | ✓ | 0 |
 | forge-chip-match.applet | presentation | ✓ | 0 |
-| forge-rack-stack.applet | presentation | ✓ | 0 |
+| forge-rack-stack.applet | applet | ✓ | 1 |
 | forge-raid-calculator.applet | presentation | ✓ | 0 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-control-panel.lab | lab | ✓ | 0 |
@@ -2729,17 +2989,29 @@
 | forge-system-tools.lab | lab | ✓ | 0 |
 | forge-windows-editions.lab | lab | ✓ | 0 |
 | forge-windows-settings.lab | lab | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | forge-md100-m01-install.lab | lab | ✓ | 0 |
+| forge-md100-m01-sim.lab | lab | ✓ | 0 |
 | forge-md100-m02-auth.lab | lab | ✓ | 0 |
+| forge-md100-m02-sim.lab | lab | ✓ | 0 |
 | forge-md100-m03-config.lab | lab | ✓ | 0 |
+| forge-md100-m03-sim.lab | lab | ✓ | 0 |
 | forge-md100-m04-networking.lab | lab | ✓ | 0 |
+| forge-md100-m04-sim.lab | lab | ✓ | 0 |
+| forge-md100-m05-sim.lab | lab | ✓ | 0 |
 | forge-md100-m05-storage.lab | lab | ✓ | 0 |
 | forge-md100-m06-data-access.lab | lab | ✓ | 0 |
+| forge-md100-m06-sim.lab | lab | ✓ | 0 |
 | forge-md100-m07-apps.lab | lab | ✓ | 0 |
+| forge-md100-m07-sim.lab | lab | ✓ | 0 |
 | forge-md100-m08-security.lab | lab | ✓ | 0 |
+| forge-md100-m08-sim.lab | lab | ✓ | 0 |
+| forge-md100-m09-sim.lab | lab | ✓ | 0 |
 | forge-md100-m09-support.lab | lab | ✓ | 0 |
+| forge-md100-m10-sim.lab | lab | ✓ | 0 |
 | forge-md100-m10-troubleshoot.lab | lab | ✓ | 0 |
 | forge-md100-m11-hardware.lab | lab | ✓ | 0 |
+| forge-md100-m11-sim.lab | lab | ✓ | 0 |
 | forge-md100-m01-install-windows.presentation | presentation | ✓ | 0 |
 | forge-md100-m02-auth-authorization.presentation | presentation | ✓ | 0 |
 | forge-md100-m03-post-install-config.presentation | presentation | ✓ | 0 |
@@ -2751,27 +3023,59 @@
 | forge-md100-m09-support-environment.presentation | presentation | ✓ | 0 |
 | forge-md100-m10-troubleshoot-os-apps.presentation | presentation | ✓ | 0 |
 | forge-md100-m11-troubleshoot-hardware.presentation | presentation | ✓ | 0 |
-| forge-md100-m01-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m02-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m03-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m04-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m05-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m06-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m07-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m08-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m09-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m10-quiz.quiz | presentation | ✓ | 0 |
-| forge-md100-m11-quiz.quiz | presentation | ✓ | 0 |
+| md100-m01 | quiz | ✓ | 1 |
+| md100-m02 | quiz | ✓ | 0 |
+| md100-m03 | quiz | ✓ | 0 |
+| md100-m04 | quiz | ✓ | 1 |
+| md100-m05 | quiz | ✓ | 0 |
+| md100-m06 | quiz | ✓ | 0 |
+| md100-m07 | quiz | ✓ | 0 |
+| md100-m08 | quiz | ✓ | 0 |
+| md100-m09 | quiz | ✓ | 0 |
+| md100-m10 | quiz | ✓ | 0 |
+| md100-m11 | quiz | ✓ | 0 |
 | forge-md100-comprehensive-review | presentation | ✓ | 0 |
 | forge-md100-final-review | presentation | ✓ | 0 |
 | forge-md100-midterm-review | presentation | ✓ | 0 |
+| forge-md101-m01-modern-management.lab | lab | ✓ | 0 |
+| forge-md101-m02-device-enrollment.lab | lab | ✓ | 0 |
+| forge-md101-m03-configuring-profiles.lab | lab | ✓ | 0 |
+| forge-md101-m04-application-management.lab | lab | ✓ | 0 |
+| forge-md101-m05-auth-compliance.lab | lab | ✓ | 0 |
+| forge-md101-m06-managing-security.lab | lab | ✓ | 0 |
+| forge-md101-m07-deployment-part1.lab | lab | ✓ | 0 |
+| forge-md101-m08-deployment-part2.lab | lab | ✓ | 0 |
+| forge-md101-m09-managing-updates.lab | lab | ✓ | 0 |
+| forge-md101-m01-modern-management.presentation | presentation | ✓ | 0 |
+| forge-md101-m02-device-enrollment.presentation | presentation | ✓ | 0 |
+| forge-md101-m03-configuring-profiles.presentation | presentation | ✓ | 0 |
+| forge-md101-m04-application-management.presentation | presentation | ✓ | 0 |
+| forge-md101-m05-auth-compliance.presentation | presentation | ✓ | 0 |
+| forge-md101-m06-managing-security.presentation | presentation | ✓ | 0 |
+| forge-md101-m07-deployment-part1.presentation | presentation | ✓ | 0 |
+| forge-md101-m08-deployment-part2.presentation | presentation | ✓ | 0 |
+| forge-md101-m09-managing-updates.presentation | presentation | ✓ | 0 |
+| md101-m01 | quiz | ✓ | 0 |
+| md101-m02 | quiz | ✓ | 0 |
+| md101-m03 | quiz | ✓ | 0 |
+| md101-m04 | quiz | ✓ | 0 |
+| md101-m05 | quiz | ✓ | 0 |
+| md101-m06 | quiz | ✓ | 0 |
+| md101-m07 | quiz | ✓ | 0 |
+| md101-m08 | quiz | ✓ | 0 |
+| md101-m09 | quiz | ✓ | 0 |
+| forge-md101-comprehensive-review | presentation | ✓ | 0 |
+| forge-md101-final-review | presentation | ✓ | 0 |
+| forge-md101-midterm-review | presentation | ✓ | 0 |
 | forge-admin-tools.presentation | presentation | ✓ | 0 |
 | forge-control-panel.presentation | presentation | ✓ | 0 |
 | forge-macos-linux-basics.presentation | presentation | ✓ | 0 |
 | forge-system-tools.presentation | presentation | ✓ | 0 |
 | forge-windows-editions.presentation | presentation | ✓ | 0 |
 | forge-windows-settings.presentation | presentation | ✓ | 0 |
-| aplus-core2-quiz | quiz | ✓ | 0 |
+| aplus-core2-ch19-22 | quiz | ✓ | 0 |
+| aplus-core2 | quiz | ✓ | 0 |
+| hardware-essentials | quiz | ✓ | 0 |
 | windows-admin | quiz | ✓ | 0 |
 | forge-backup-or-bust | presentation | ✓ | 0 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
@@ -2787,9 +3091,9 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| key-cipher-bubbles.applet | presentation | ✓ | 0 |
+| key-cipher-bubbles.applet | applet | ✓ | 1 |
 | key-cipher-cracker.presentation | presentation | ✓ | 0 |
-| key-crypto-pong.applet | presentation | ✓ | 0 |
+| key-crypto-pong.applet | applet | ✓ | 1 |
 | key-dont-leak-the-key | presentation | ✓ | 0 |
 | key-aes.lab | presentation | ✓ | 0 |
 | key-attack.lab | presentation | ✓ | 0 |
@@ -2816,14 +3120,14 @@
 | key-message-authentication.presentation | presentation | ✓ | 0 |
 | key-post-quantum.presentation | presentation | ✓ | 0 |
 | key-tls-ssl.presentation | presentation | ✓ | 0 |
-| certificates-quiz | quiz | ✓ | 0 |
-| cryptanalysis-quiz | quiz | ✓ | 0 |
-| ecc-quiz | quiz | ✓ | 0 |
-| hsm-quiz | quiz | ✓ | 0 |
-| kdf-quiz | quiz | ✓ | 0 |
-| mac-quiz | quiz | ✓ | 0 |
-| pqc-quiz | quiz | ✓ | 0 |
-| symmetric-quiz | quiz | ✓ | 0 |
+| cert | quiz | ✓ | 0 |
+| cryptanalysis | quiz | ✓ | 0 |
+| ecc | quiz | ✓ | 0 |
+| hsm | quiz | ✓ | 0 |
+| kdf | quiz | ✓ | 1 |
+| mac | quiz | ✓ | 0 |
+| pqc | quiz | ✓ | 0 |
+| symmetric | quiz | ✓ | 0 |
 | key-hash-cracker | presentation | ✓ | 0 |
 | key-aes.tool | presentation | ✓ | 0 |
 | key-cert.tool | presentation | ✓ | 0 |
@@ -2895,129 +3199,129 @@
 | script-pwsh-scripting.applet | presentation | ✓ | 0 |
 | script-reporting-automation.applet | presentation | ✓ | 0 |
 | script-clh-001-intro.applet | presentation | ✓ | 0 |
-| clh-001-quiz | quiz | ✓ | 0 |
+| clh-001 | quiz | ✓ | 0 |
 | script-clh-002-intro.applet | presentation | ✓ | 0 |
-| clh-002-quiz | quiz | ✓ | 0 |
+| clh-002 | quiz | ✓ | 0 |
 | script-clh-003-intro.applet | presentation | ✓ | 0 |
-| clh-003-quiz | quiz | ✓ | 0 |
+| clh-003 | quiz | ✓ | 0 |
 | script-clh-004-intro.applet | presentation | ✓ | 0 |
-| clh-004-quiz | quiz | ✓ | 0 |
+| clh-004 | quiz | ✓ | 0 |
 | script-clh-005-intro.applet | presentation | ✓ | 0 |
-| clh-005-quiz | quiz | ✓ | 0 |
+| clh-005 | quiz | ✓ | 0 |
 | script-clh-006-intro.applet | presentation | ✓ | 0 |
-| clh-006-quiz | quiz | ✓ | 0 |
+| clh-006 | quiz | ✓ | 0 |
 | script-clh-007-intro.applet | presentation | ✓ | 0 |
-| clh-007-quiz | quiz | ✓ | 0 |
+| clh-007 | quiz | ✓ | 0 |
 | script-clh-008-intro.applet | presentation | ✓ | 0 |
-| clh-008-quiz | quiz | ✓ | 0 |
+| clh-008 | quiz | ✓ | 0 |
 | script-clh-009-intro.applet | presentation | ✓ | 0 |
-| clh-009-quiz | quiz | ✓ | 0 |
+| clh-009 | quiz | ✓ | 0 |
 | script-clh-010-intro.applet | presentation | ✓ | 0 |
-| clh-010-quiz | quiz | ✓ | 0 |
+| clh-010 | quiz | ✓ | 0 |
 | script-clh-011-intro.applet | presentation | ✓ | 0 |
-| clh-011-quiz | quiz | ✓ | 0 |
+| clh-011 | quiz | ✓ | 0 |
 | script-clh-012-intro.applet | presentation | ✓ | 0 |
-| clh-012-quiz | quiz | ✓ | 0 |
+| clh-012 | quiz | ✓ | 0 |
 | script-clh-013-intro.applet | presentation | ✓ | 0 |
-| clh-013-quiz | quiz | ✓ | 0 |
+| clh-013 | quiz | ✓ | 0 |
 | script-clh-014-intro.applet | presentation | ✓ | 0 |
-| clh-014-quiz | quiz | ✓ | 0 |
+| clh-014 | quiz | ✓ | 0 |
 | script-clh-015-intro.applet | presentation | ✓ | 0 |
-| clh-015-quiz | quiz | ✓ | 0 |
-| clh-016-quiz | quiz | ✓ | 0 |
-| clh-017-quiz | quiz | ✓ | 0 |
-| clh-018-quiz | quiz | ✓ | 0 |
-| clh-019-quiz | quiz | ✓ | 0 |
-| clh-020-quiz | quiz | ✓ | 0 |
-| clh-021-quiz | quiz | ✓ | 0 |
+| clh-015 | quiz | ✓ | 0 |
+| clh-016 | quiz | ✓ | 0 |
+| clh-017 | quiz | ✓ | 0 |
+| clh-018 | quiz | ✓ | 0 |
+| clh-019 | quiz | ✓ | 0 |
+| clh-020 | quiz | ✓ | 0 |
+| clh-021 | quiz | ✓ | 0 |
 | script-clh-022-intro.applet | presentation | ✓ | 0 |
-| clh-022-quiz | quiz | ✓ | 0 |
-| clh-023-quiz | quiz | ✓ | 0 |
-| clh-024-quiz | quiz | ✓ | 0 |
-| clh-025-quiz | quiz | ✓ | 0 |
-| clh-026-quiz | quiz | ✓ | 0 |
-| clh-027-quiz | quiz | ✓ | 0 |
-| clh-028-quiz | quiz | ✓ | 0 |
-| clh-029-quiz | quiz | ✓ | 0 |
-| clh-030-quiz | quiz | ✓ | 0 |
+| clh-022 | quiz | ✓ | 0 |
+| clh-023 | quiz | ✓ | 0 |
+| clh-024 | quiz | ✓ | 0 |
+| clh-025 | quiz | ✓ | 0 |
+| clh-026 | quiz | ✓ | 0 |
+| clh-027 | quiz | ✓ | 0 |
+| clh-028 | quiz | ✓ | 0 |
+| clh-029 | quiz | ✓ | 0 |
+| clh-030 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-002-quiz | quiz | ✓ | 0 |
+| clh-002 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-003-quiz | quiz | ✓ | 0 |
+| clh-003 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-004-quiz | quiz | ✓ | 0 |
+| clh-004 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-005-quiz | quiz | ✓ | 0 |
+| clh-005 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-006-quiz | quiz | ✓ | 0 |
+| clh-006 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-007-quiz | quiz | ✓ | 0 |
+| clh-007 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-008-quiz | quiz | ✓ | 0 |
+| clh-008 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-009-quiz | quiz | ✓ | 0 |
+| clh-009 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-010-quiz | quiz | ✓ | 0 |
+| clh-010 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-011-quiz | quiz | ✓ | 0 |
+| clh-011 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-012-quiz | quiz | ✓ | 0 |
+| clh-012 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-013-quiz | quiz | ✓ | 0 |
+| clh-013 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-014-quiz | quiz | ✓ | 0 |
+| clh-014 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-015-quiz | quiz | ✓ | 0 |
+| clh-015 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-016-quiz | quiz | ✓ | 0 |
+| clh-016 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-017-quiz | quiz | ✓ | 0 |
+| clh-017 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-018-quiz | quiz | ✓ | 0 |
+| clh-018 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-019-quiz | quiz | ✓ | 0 |
+| clh-019 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-020-quiz | quiz | ✓ | 0 |
+| clh-020 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-021-quiz | quiz | ✓ | 0 |
+| clh-021 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-022-quiz | quiz | ✓ | 0 |
+| clh-022 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-023-quiz | quiz | ✓ | 0 |
+| clh-023 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-024-quiz | quiz | ✓ | 0 |
+| clh-024 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-025-quiz | quiz | ✓ | 0 |
+| clh-025 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-026-quiz | quiz | ✓ | 0 |
+| clh-026 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-027-quiz | quiz | ✓ | 0 |
+| clh-027 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-028-quiz | quiz | ✓ | 0 |
+| clh-028 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-029-quiz | quiz | ✓ | 0 |
+| clh-029 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
-| clh-030-quiz | quiz | ✓ | 0 |
+| clh-030 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | script-dont-kill-the-server | presentation | ✓ | 0 |
-| script-pipe-snake.applet | presentation | ✓ | 0 |
+| script-pipe-snake.applet | applet | ✓ | 1 |
 | script-shell-sprint.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | script-bash-arrays.lab | lab | ✓ | 0 |
@@ -3109,18 +3413,18 @@
 | script-la-ch10-compression.presentation | presentation | ✓ | 0 |
 | script-la-ch11-encryption.presentation | presentation | ✓ | 0 |
 | script-la-ch12-compile.presentation | presentation | ✓ | 0 |
-| script-la-ch01-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch02-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch03-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch04-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch05-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch06-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch07-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch08-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch09-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch10-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch11-quiz.quiz | presentation | ✓ | 0 |
-| script-la-ch12-quiz.quiz | presentation | ✓ | 0 |
+| la-ch01-quiz | quiz | ✓ | 0 |
+| la-ch02-quiz | quiz | ✓ | 0 |
+| la-ch03-quiz | quiz | ✓ | 0 |
+| la-ch04-quiz | quiz | ✓ | 1 |
+| la-ch05-quiz | quiz | ✓ | 0 |
+| la-ch06-quiz | quiz | ✓ | 0 |
+| la-ch07-quiz | quiz | ✓ | 0 |
+| la-ch08-quiz | quiz | ✓ | 0 |
+| la-ch09-quiz | quiz | ✓ | 0 |
+| la-ch10-quiz | quiz | ✓ | 0 |
+| la-ch11-quiz | quiz | ✓ | 0 |
+| la-ch12-quiz | quiz | ✓ | 0 |
 | script-la-comprehensive-review | presentation | ✓ | 0 |
 | script-quick.reference | presentation | ✓ | 0 |
 | script-directory.tool | presentation | ✓ | 0 |
@@ -3185,9 +3489,12 @@
 | script-automation.presentation | presentation | ✓ | 0 |
 | script-macos-linux-basics.presentation | presentation | ✓ | 0 |
 | script-scripting-basics.presentation | presentation | ✓ | 0 |
-| script-linux-bash.quiz | presentation | ✓ | 0 |
+| linux-bash | quiz | ✓ | 1 |
 | linux-basics | quiz | ✓ | 0 |
-| clh-001-quiz | quiz | ✓ | 0 |
+| powershell | quiz | ✓ | 0 |
+| python | quiz | ✓ | 0 |
+| quizzes | quiz | ✓ | 0 |
+| sysadmin | quiz | ✓ | 0 |
 | script-linux-cli-review | presentation | ✓ | 0 |
 | script-permission-puzzle | presentation | ✓ | 0 |
 | script-automation.tool | presentation | ✓ | 0 |
@@ -3243,20 +3550,21 @@
 | shield-cf-mm06-encryption.presentation | presentation | ✓ | 0 |
 | shield-cf-mm07-breach-litigation.presentation | presentation | ✓ | 0 |
 | shield-cf-mm08-cyber-war.presentation | presentation | ✓ | 0 |
-| shield-cf-mm01-quiz.quiz | presentation | ✓ | 0 |
-| shield-cf-mm02-quiz.quiz | presentation | ✓ | 0 |
-| shield-cf-mm03-quiz.quiz | presentation | ✓ | 0 |
-| shield-cf-mm04-quiz.quiz | presentation | ✓ | 0 |
-| shield-cf-mm05-quiz.quiz | presentation | ✓ | 0 |
-| shield-cf-mm06-quiz.quiz | presentation | ✓ | 0 |
-| shield-cf-mm07-quiz.quiz | presentation | ✓ | 0 |
-| shield-cf-mm08-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-mm01 | quiz | ✓ | 0 |
+| shield-cf-mm02 | quiz | ✓ | 0 |
+| shield-cf-mm03 | quiz | ✓ | 0 |
+| shield-cf-mm04 | quiz | ✓ | 0 |
+| shield-cf-mm05 | quiz | ✓ | 0 |
+| shield-cf-mm06 | quiz | ✓ | 0 |
+| shield-cf-mm07 | quiz | ✓ | 0 |
+| shield-cf-mm08 | quiz | ✓ | 0 |
 | shield-cf-comprehensive-review | presentation | ✓ | 0 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
-| shield-dr-malware.applet | presentation | ✓ | 0 |
+| shield-dr-malware.applet | applet | ✓ | 1 |
 | shield-malware-zoo.lab | lab | ✓ | 0 |
 | shield-threat-runner.applet | presentation | ✓ | 0 |
-| shield-threat-swarm.applet | presentation | ✓ | 0 |
+| shield-threat-swarm.applet | applet | ✓ | 1 |
+| shield-web-security-headers-lab.applet | applet | ✓ | 1 |
 | shield-linux-audit-drill.lab | lab | ✓ | 0 |
 | shield-linux-audit.lab | lab | ✓ | 0 |
 | shield-linux-file-integrity.lab | lab | ✓ | 0 |
@@ -3287,16 +3595,16 @@
 | shield-security-fundamentals.presentation | presentation | ✓ | 0 |
 | shield-security.presentation | presentation | ✓ | 0 |
 | shield-social-engineering.presentation | presentation | ✓ | 0 |
-| shield-access-quiz | quiz | ✓ | 0 |
+| shield-access-control | quiz | ✓ | 0 |
 | cia-triad | quiz | ✓ | 0 |
-| shield-compliance-quiz | quiz | ✓ | 0 |
-| shield-crypto-quiz | quiz | ✓ | 0 |
+| shield-compliance | quiz | ✓ | 0 |
+| shield-cryptography | quiz | ✓ | 0 |
 | cse-06-monitoring | quiz | ✓ | 0 |
 | cse-07-risk | quiz | ✓ | 0 |
 | cse-08-compliance | quiz | ✓ | 0 |
-| shield-network-quiz | quiz | ✓ | 0 |
-| shield-fundamentals-quiz | quiz | ✓ | 0 |
-| shield-threats-quiz | quiz | ✓ | 0 |
+| shield-network-security | quiz | ✓ | 0 |
+| shield-security-fundamentals | quiz | ✓ | 0 |
+| shield-threats | quiz | ✓ | 0 |
 | shield-aaa-flow.tool | presentation | ✓ | 0 |
 | shield-bia.tool | presentation | ✓ | 0 |
 | shield-crisc-risk.tool | presentation | ✓ | 0 |
@@ -3320,6 +3628,51 @@
 | cloud-hacking-lab | lab | ✓ | 0 |
 | csrf-attack-lab | lab | ✓ | 0 |
 | dos-ddos-lab | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| ehe-lab-cloud-security.lab | lab | ✓ | 0 |
+| ehe-lab-dos-attack.lab | presentation | ✓ | 0 |
+| ehe-lab-enumeration.lab | lab | ✓ | 0 |
+| ehe-lab-footprinting.lab | lab | ✓ | 0 |
+| ehe-lab-iot-security.lab | lab | ✓ | 0 |
+| ehe-lab-mobile-security.lab | presentation | ✓ | 0 |
+| ehe-lab-network-scanning.lab | lab | ✓ | 0 |
+| ehe-lab-password-audit.lab | lab | ✓ | 0 |
+| ehe-lab-password-cracking.lab | lab | ✓ | 0 |
+| ehe-lab-pentest-report.lab | presentation | ✓ | 0 |
+| ehe-lab-session-hijacking.lab | presentation | ✓ | 0 |
+| ehe-lab-sniffing.lab | lab | ✓ | 0 |
+| ehe-lab-social-engineering.lab | lab | ✓ | 0 |
+| ehe-lab-sql-injection.lab | presentation | ✓ | 0 |
+| ehe-lab-trojan-analysis.lab | presentation | ✓ | 0 |
+| ehe-lab-virus-creation.lab | presentation | ✓ | 0 |
+| ehe-lab-vuln-assessment.lab | presentation | ✓ | 0 |
+| ehe-lab-web-server-attack.lab | lab | ✓ | 0 |
+| ehe-lab-wireless-attack.lab | lab | ✓ | 0 |
+| ehe-lab-xss-attack.lab | presentation | ✓ | 0 |
+| ehe-00-introduction.module | presentation | ✓ | 0 |
+| ehe-01-infosec-fundamentals.module | presentation | ✓ | 0 |
+| ehe-02-ethical-hacking-fundamentals.module | presentation | ✓ | 0 |
+| ehe-03-threats-vulnerability.module | presentation | ✓ | 0 |
+| ehe-04-password-cracking.module | presentation | ✓ | 0 |
+| ehe-05-social-engineering.module | presentation | ✓ | 0 |
+| ehe-06-network-attacks.module | presentation | ✓ | 0 |
+| ehe-07-web-app-attacks.module | presentation | ✓ | 0 |
+| ehe-08-wireless-attacks.module | presentation | ✓ | 0 |
+| ehe-09-mobile-attacks.module | presentation | ✓ | 0 |
+| ehe-10-iot-ot-attacks.module | presentation | ✓ | 0 |
+| ehe-11-cloud-threats.module | presentation | ✓ | 0 |
+| ehe-12-pentest-fundamentals.module | presentation | ✓ | 0 |
+| ehe-final-exam | quiz | ✓ | 0 |
+| ehe-week01-quiz | quiz | ✓ | 0 |
+| ehe-week02-quiz | quiz | ✓ | 0 |
+| ehe-week03-quiz | quiz | ✓ | 0 |
+| ehe-week04-quiz | quiz | ✓ | 0 |
+| ehe-week05-quiz | quiz | ✓ | 0 |
+| ehe-week06-quiz | quiz | ✓ | 0 |
+| ehe-week07-quiz | quiz | ✓ | 0 |
+| ehe-week08-quiz | quiz | ✓ | 0 |
+| ehe-week09-quiz | quiz | ✓ | 0 |
+| ehe-week10-quiz | quiz | ✓ | 0 |
 | enumeration-lab | presentation | ✓ | 0 |
 | footprinting-lab | lab | ✓ | 0 |
 | gate-10 | presentation | ✓ | 0 |
@@ -3371,10 +3724,44 @@
 | john-training | presentation | ✓ | 0 |
 | metasploit-training | presentation | ✓ | 0 |
 | nmap-training | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| wifi-lab-00 | lab | ✓ | 0 |
+| wifi-lab-01 | lab | ✓ | 0 |
+| wifi-lab-02 | lab | ✓ | 0 |
+| wifi-lab-03 | lab | ✓ | 0 |
+| wifi-lab-04 | lab | ✓ | 0 |
+| wifi-lab-05 | lab | ✓ | 0 |
+| wifi-lab-06 | lab | ✓ | 0 |
+| wifi-lab-07 | lab | ✓ | 0 |
+| wifi-lab-08 | lab | ✓ | 0 |
+| wifi-lab-09 | lab | ✓ | 0 |
+| wifi-lab-10 | lab | ✓ | 0 |
+| wifi-lab-11 | lab | ✓ | 0 |
+| wifi-mod-cracking | presentation | ✓ | 0 |
+| wifi-mod-defense | presentation | ✓ | 0 |
+| wifi-mod-eviltwin | presentation | ✓ | 0 |
+| wifi-mod-handshake | presentation | ✓ | 0 |
+| wifi-mod-recon | presentation | ✓ | 0 |
+| wifi-mod-rita | presentation | ✓ | 0 |
+| wifi-mod-setup | presentation | ✓ | 0 |
+| wifi-mod-snitch | presentation | ✓ | 0 |
+| wifi-mod-wep | presentation | ✓ | 0 |
+| wifi-mod-wps | presentation | ✓ | 0 |
+| wifi-arsenal-quiz | presentation | ✓ | 0 |
+| wifi-quiz-rita | presentation | ✓ | 0 |
+| wifi-quiz-snitch | presentation | ✓ | 0 |
+| wifi-tool-reference | presentation | ✓ | 0 |
 | wireless-attacks-lab | presentation | ✓ | 0 |
 | xss-attacks-lab | presentation | ✓ | 0 |
 | dashboard | applet | ✓ | 0 |
 | faq | applet | ✓ | 1 |
+| index | presentation | ✓ | 1 |
+| dark-ids-evasion-lab.applet | lab | ✓ | 1 |
+| dark-m365-attack-lab.applet | applet | ✓ | 1 |
+| dark-malware-specimen-lab.applet | applet | ✓ | 1 |
+| dark-network-forensics-lab.applet | applet | ✓ | 1 |
+| dark-osint-recon-lab.applet | lab | ✓ | 1 |
+| dark-slowloris-dos-lab.applet | applet | ✓ | 1 |
 | dark-arts-feh-01.lab | presentation | ✓ | 0 |
 | dark-arts-feh-02.lab | lab | ✓ | 0 |
 | dark-arts-feh-03.lab | lab | ✓ | 0 |
@@ -3395,19 +3782,20 @@
 | dark-arts-feh-08.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-09.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-10.presentation | presentation | ✓ | 0 |
-| dark-arts-feh-01.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-02.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-03.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-04.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-05.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-06.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-07.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-08.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-09.quiz | presentation | ✓ | 0 |
-| dark-arts-feh-10.quiz | presentation | ✓ | 0 |
+| feh-01 | quiz | ✓ | 0 |
+| feh-02 | quiz | ✓ | 0 |
+| feh-03 | quiz | ✓ | 0 |
+| feh-04 | quiz | ✓ | 0 |
+| feh-05 | quiz | ✓ | 1 |
+| feh-06 | quiz | ✓ | 0 |
+| feh-07 | quiz | ✓ | 0 |
+| feh-08 | quiz | ✓ | 0 |
+| feh-09 | quiz | ✓ | 0 |
+| feh-10 | quiz | ✓ | 0 |
 | dark-arts-feh-comprehensive-review | presentation | ✓ | 0 |
 | dark-arts-sample.tool | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
+| da-ad-attack-lab.lab | lab | ✓ | 0 |
 | product-info | applet | ✓ | 1 |
 | current | applet | ✓ | 1 |
 
@@ -3420,10 +3808,12 @@
 | web-server-comparison.applet | presentation | ✓ | 0 |
 | networking-interactive-guide | quiz | ✓ | 0 |
 | web-networking-midterm.exam | presentation | ✓ | 0 |
+| web-dns-resolver-race.applet | presentation | ✓ | 0 |
 | web-network-architect.applet | presentation | ✓ | 0 |
-| web-packet-invaders.applet | presentation | ✓ | 0 |
+| web-packet-invaders.applet | applet | ✓ | 1 |
 | web-packet-run.applet | presentation | ✓ | 0 |
 | web-packet-sniffer.applet | presentation | ✓ | 0 |
+| web-subnet-siege.applet | presentation | ✓ | 0 |
 | web-wireless-warzone.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | web-dns-troubleshooting.lab | lab | ✓ | 0 |
@@ -3463,10 +3853,10 @@
 | web-wireless.presentation | presentation | ✓ | 0 |
 | web-networking-ch7-10 | quiz | ✓ | 0 |
 | web-networking-ch7-20.quiz | presentation | ✓ | 0 |
-| web-ports-quiz | quiz | ✓ | 0 |
-| osi-quiz | quiz | ✓ | 0 |
+| networking-fundamentals-ports | quiz | ✓ | 0 |
+| osi | quiz | ✓ | 0 |
 | subnetting | quiz | ✓ | 0 |
-| web-week3-quiz | quiz | ✓ | 0 |
+| week3 | quiz | ✓ | 0 |
 | web-dns-resolver-race | presentation | ✓ | 0 |
 | web-subnet-siege | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
@@ -3514,13 +3904,569 @@
   File: `components/HouseRenderer.js`
   Fix: Use absolute path from site root (e.g., /houses/shield/index.html) instead of relative path
 
-### WARNING (1)
+### WARNING (140)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
   Fix: Add entry to content-registry.js
 
-### INFO (16)
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-00.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/labs/wifi-lab-11.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-defense.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-handshake.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-recon.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-setup.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-snitch.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-wep.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-wps.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/quizzes/wifi-arsenal-quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-rita.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-snitch.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/games/ai-agent-builder.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/games/ai-guardrail-challenge.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/games/ai-red-team-challenge.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/games/ai-text-adventure-singularity.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/games/ai-triage-trainer.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/labs/ai-agent-workflow.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/labs/ai-ethics-debate.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/labs/ai-fine-tuning.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/labs/ai-prompt-injection.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/labs/ai-rag-pipeline.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/labs/ai-soc-triage.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/labs/ai-vector-database.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/modules/ai-agent-components.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/modules/ai-automation-rubric.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/modules/ai-guardrails.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/modules/ai-nocode-platforms.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/modules/ai-prompt-engineering.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/modules/ai-soc-automation.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/modules/ai-what-are-agents.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/presentations/ai-agent-patterns.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/presentations/ai-deployment.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/presentations/ai-foundations.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/presentations/ai-model-architecture.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/presentations/ai-prompt-engineering.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/presentations/ai-safety-guardrails.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/quizzes/ai-builder.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/quizzes/ai-foundations.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/quizzes/ai-security.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/tools/ai-benchmark-explorer.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/tools/ai-cost-calculator.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/tools/ai-flashcards.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/tools/ai-llm-comparison.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/tools/ai-prompt-tester.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/tools/ai-tokenizer.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-engineering/code-pye-chapter01.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/feh/index.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/dark-arts/games/dark-ids-evasion-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/games/dark-ids-evasion-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/games/dark-m365-attack-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/games/dark-malware-specimen-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/games/dark-network-forensics-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/dark-arts/games/dark-osint-recon-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/games/dark-osint-recon-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/games/dark-slowloris-dos-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/games/eye-detection-engineering.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/games/eye-log-analysis-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/games/eye-security-onion-soc.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/games/eye-threat-hunting-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m01-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m02-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m03-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m04-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m05-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m06-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m07-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m08-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m09-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m10-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-m11-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m01-modern-management.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m02-device-enrollment.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m03-configuring-profiles.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m04-application-management.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m05-auth-compliance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m06-managing-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m07-deployment-part1.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m08-deployment-part2.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/labs/forge-md101-m09-managing-updates.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m01-modern-management.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m02-device-enrollment.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m05-auth-compliance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m06-managing-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m01-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m02-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m03-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m04-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m05-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m06-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m07-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m08-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/quizzes/forge-md101-m09-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/reviews/forge-md101-comprehensive-review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/reviews/forge-md101-final-review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-101/reviews/forge-md101-midterm-review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/games/web-dns-resolver-race.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/games/web-subnet-siege.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[CAT-004]** Module 'clh-001' (status: coming-soon) href 'courses/clh/modules/clh-001/script-lab.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'script-clh-001' (status: coming-soon) href 'courses/clh/modules/clh-001/script-lab.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'key-hashing' (status: coming-soon) href 'applets/hashing-lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pod-crossing' (status: coming-soon) href 'games/pod-crossing.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pye-ch04' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter04.module.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pye-ch05' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter05.module.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pye-ch06' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter06.module.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pye-ch07' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter07.module.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pye-ch08' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter08.module.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pye-ch09' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter09.module.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pye-ch10' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter10.module.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[EMOJI-003]** Emoji "🔥" in UI container — replace with image or CSS icon
+  File: `dashboard.html`
+  Fix: Replace with appropriate <img src="/assets/images/categories/..."> or emblem image
+
+**[EMOJI-003]** Emoji "🏆" in UI container — replace with image or CSS icon
+  File: `dashboard.html`
+  Fix: Replace with appropriate <img src="/assets/images/categories/..."> or emblem image
+
+**[EMOJI-003]** Emoji "📊" in UI container — replace with image or CSS icon
+  File: `houses/forge/applets/forge-settings.tool.html`
+  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
+
+**[EMOJI-003]** Emoji "🎯" in UI container — replace with image or CSS icon
+  File: `houses/forge/applets/forge-settings.tool.html`
+  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
+
+**[EMOJI-003]** Emoji "🏆" in UI container — replace with image or CSS icon
+  File: `houses/forge/applets/forge-settings.tool.html`
+  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
+
+**[EMOJI-003]** Emoji "📊" in UI container — replace with image or CSS icon
+  File: `houses/forge/tools/forge-settings.tool.html`
+  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
+
+**[EMOJI-003]** Emoji "🎯" in UI container — replace with image or CSS icon
+  File: `houses/forge/tools/forge-settings.tool.html`
+  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
+
+**[EMOJI-003]** Emoji "🏆" in UI container — replace with image or CSS icon
+  File: `houses/forge/tools/forge-settings.tool.html`
+  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
+
+### INFO (51)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -3531,7 +4477,23 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/ehe/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/wifi-arsenal/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `faq.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/tools/ai-flashcards.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/tools/ai-tokenizer.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -3539,11 +4501,131 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-destroyer.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/quizzes/cloud-cse-module05.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/quizzes/cloud-cse-module08.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/code-build-breaker.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/modules/python-engineering/code-pye-chapter01.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/games/dark-m365-attack-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/games/dark-malware-specimen-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/games/dark-network-forensics-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/games/dark-slowloris-dos-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/quizzes/dark-arts-feh-05.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-detection-engineering.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-log-analysis-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-security-onion-soc.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-threat-hunting-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-rack-stack.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/md-100/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/md-100/quizzes/forge-md100-m01-quiz.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/md-100/quizzes/forge-md100-m04-quiz.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/key-cipher-bubbles.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/key-crypto-pong.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/quizzes/key-kdf.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/applets/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/script-pipe-snake.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/linux/quizzes/script-la-ch04-quiz.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/quizzes/script-linux-bash.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/cyber-framework/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-dr-malware.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-threat-swarm.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-packet-invaders.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -3578,15 +4660,136 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/presentations/python/script-python-chapter7.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
 
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (1)
+### Unregistered Content (118)
 
 | Path | Type | House |
 |------|------|-------|
 | career-quiz.html | applet | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-00.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-01.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-02.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-03.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-04.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-05.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-06.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-07.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-08.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-09.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-10.html | lab | - |
+| dark-arts/vault/wifi-arsenal/labs/wifi-lab-11.html | lab | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-defense.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-handshake.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-recon.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-setup.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-snitch.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-wep.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/modules/wifi-mod-wps.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/quizzes/wifi-arsenal-quiz.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-rita.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-snitch.html | presentation | - |
+| dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html | presentation | - |
+| houses/ai/games/ai-agent-builder.applet.html | presentation | ai |
+| houses/ai/games/ai-guardrail-challenge.applet.html | presentation | ai |
+| houses/ai/games/ai-red-team-challenge.applet.html | presentation | ai |
+| houses/ai/games/ai-text-adventure-singularity.html | presentation | ai |
+| houses/ai/games/ai-triage-trainer.applet.html | presentation | ai |
+| houses/ai/labs/ai-agent-workflow.lab.html | presentation | ai |
+| houses/ai/labs/ai-ethics-debate.lab.html | presentation | ai |
+| houses/ai/labs/ai-fine-tuning.lab.html | presentation | ai |
+| houses/ai/labs/ai-prompt-injection.lab.html | lab | ai |
+| houses/ai/labs/ai-rag-pipeline.lab.html | presentation | ai |
+| houses/ai/labs/ai-soc-triage.lab.html | presentation | ai |
+| houses/ai/labs/ai-vector-database.lab.html | presentation | ai |
+| houses/ai/modules/ai-agent-components.applet.html | presentation | ai |
+| houses/ai/modules/ai-automation-rubric.applet.html | presentation | ai |
+| houses/ai/modules/ai-guardrails.applet.html | presentation | ai |
+| houses/ai/modules/ai-nocode-platforms.applet.html | presentation | ai |
+| houses/ai/modules/ai-prompt-engineering.applet.html | presentation | ai |
+| houses/ai/modules/ai-soc-automation.applet.html | presentation | ai |
+| houses/ai/modules/ai-what-are-agents.applet.html | presentation | ai |
+| houses/ai/presentations/ai-agent-patterns.presentation.html | presentation | ai |
+| houses/ai/presentations/ai-deployment.presentation.html | presentation | ai |
+| houses/ai/presentations/ai-foundations.presentation.html | presentation | ai |
+| houses/ai/presentations/ai-model-architecture.presentation.html | presentation | ai |
+| houses/ai/presentations/ai-prompt-engineering.presentation.html | presentation | ai |
+| houses/ai/presentations/ai-safety-guardrails.presentation.html | presentation | ai |
+| houses/ai/quizzes/ai-builder.quiz.html | quiz | ai |
+| houses/ai/quizzes/ai-foundations.quiz.html | quiz | ai |
+| houses/ai/quizzes/ai-security.quiz.html | quiz | ai |
+| houses/ai/tools/ai-benchmark-explorer.tool.html | presentation | ai |
+| houses/ai/tools/ai-cost-calculator.tool.html | presentation | ai |
+| houses/ai/tools/ai-flashcards.tool.html | applet | ai |
+| houses/ai/tools/ai-llm-comparison.tool.html | presentation | ai |
+| houses/ai/tools/ai-prompt-tester.tool.html | presentation | ai |
+| houses/ai/tools/ai-tokenizer.tool.html | applet | ai |
+| houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
+| houses/code/modules/python-engineering/code-pye-chapter01.module.html | applet | code |
+| houses/dark-arts/games/dark-ids-evasion-lab.applet.html | lab | - |
+| houses/dark-arts/games/dark-m365-attack-lab.applet.html | applet | - |
+| houses/dark-arts/games/dark-malware-specimen-lab.applet.html | applet | - |
+| houses/dark-arts/games/dark-network-forensics-lab.applet.html | applet | - |
+| houses/dark-arts/games/dark-osint-recon-lab.applet.html | lab | - |
+| houses/dark-arts/games/dark-slowloris-dos-lab.applet.html | applet | - |
+| houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html | lab | - |
+| houses/eye/games/eye-detection-engineering.applet.html | applet | eye |
+| houses/eye/games/eye-log-analysis-lab.applet.html | applet | eye |
+| houses/eye/games/eye-security-onion-soc.applet.html | applet | eye |
+| houses/eye/games/eye-threat-hunting-lab.applet.html | applet | eye |
+| houses/forge/md-100/labs/forge-md100-m01-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m02-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m03-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m04-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m05-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m06-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m07-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m08-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m09-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m10-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-m11-sim.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m01-modern-management.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m02-device-enrollment.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m03-configuring-profiles.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m04-application-management.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m05-auth-compliance.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m06-managing-security.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m07-deployment-part1.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m08-deployment-part2.lab.html | lab | forge |
+| houses/forge/md-101/labs/forge-md101-m09-managing-updates.lab.html | lab | forge |
+| houses/forge/md-101/presentations/forge-md101-m01-modern-management.presentation.html | presentation | forge |
+| houses/forge/md-101/presentations/forge-md101-m02-device-enrollment.presentation.html | presentation | forge |
+| houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html | presentation | forge |
+| houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html | presentation | forge |
+| houses/forge/md-101/presentations/forge-md101-m05-auth-compliance.presentation.html | presentation | forge |
+| houses/forge/md-101/presentations/forge-md101-m06-managing-security.presentation.html | presentation | forge |
+| houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html | presentation | forge |
+| houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html | presentation | forge |
+| houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html | presentation | forge |
+| houses/forge/md-101/quizzes/forge-md101-m01-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/quizzes/forge-md101-m02-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/quizzes/forge-md101-m03-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/quizzes/forge-md101-m04-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/quizzes/forge-md101-m05-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/quizzes/forge-md101-m06-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/quizzes/forge-md101-m07-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/quizzes/forge-md101-m08-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/quizzes/forge-md101-m09-quiz.quiz.html | quiz | forge |
+| houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
+| houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
+| houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
+| houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
+| houses/web/games/web-dns-resolver-race.applet.html | presentation | web |
+| houses/web/games/web-subnet-siege.applet.html | presentation | web |
 
 ### Orphaned Registry Entries (0)
 

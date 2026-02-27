@@ -386,9 +386,10 @@ console.log('');
     const tmpDir = path.join(TESTS_DIR, '.tmp-autofixer');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
+    // Cross-house scenario: file lives in houses/eye/ but moduleId has shield- prefix
     const testContent = `const config = {
     moduleId: 'shield-quiz-test-quiz',
-    houseId: 'shield',
+    houseId: 'eye',
     trackProgress: false,
     passingScore: 70
 };`;
@@ -406,8 +407,8 @@ console.log('');
             autoFixable: true,
             file: 'test-quiz.html',
             searchPattern: "moduleId: 'shield-quiz-test-quiz'",
-            replaceWith: "moduleId: 'test'",
-            message: 'moduleId has house prefix and -quiz suffix'
+            replaceWith: "moduleId: 'eye-quiz-test-quiz'",
+            message: 'moduleId has wrong house prefix (cross-house mismatch)'
         },
         {
             code: 'TRACK-001',
