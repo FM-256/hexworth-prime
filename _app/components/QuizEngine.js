@@ -193,12 +193,18 @@ class QuizEngine {
             const secs = this.state.timeRemaining % 60;
             timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
 
-            // Warning colors
+            // Warning colors — switch to assertive announcements at low time
             if (this.state.timeRemaining <= 30) {
                 timerEl.classList.add('warning');
+                if (this.state.timeRemaining === 30) {
+                    timerEl.setAttribute('aria-live', 'polite');
+                }
             }
             if (this.state.timeRemaining <= 10) {
                 timerEl.classList.add('critical');
+                if (this.state.timeRemaining === 10) {
+                    timerEl.setAttribute('aria-live', 'assertive');
+                }
             }
         }
     }
@@ -224,29 +230,29 @@ class QuizEngine {
         const totalQuestions = this.config.questions.length;
 
         this.container.innerHTML = `
-            <div class="quiz-engine theme-${this.config.theme}">
+            <div class="quiz-engine theme-${this.config.theme}" role="form" aria-label="${this.config.title}">
                 <div class="quiz-header">
                     <h2 class="quiz-title">${this.config.title}</h2>
                     <div class="quiz-meta">
-                        <span class="quiz-progress-text">Question ${questionNum} of ${totalQuestions}</span>
-                        ${this.config.timeLimit ? `<span class="quiz-timer">${this.formatTime(this.state.timeRemaining)}</span>` : ''}
+                        <span class="quiz-progress-text" aria-live="polite" aria-atomic="true">Question ${questionNum} of ${totalQuestions}</span>
+                        ${this.config.timeLimit ? `<span class="quiz-timer" role="timer" aria-live="off" aria-label="Time remaining">${this.formatTime(this.state.timeRemaining)}</span>` : ''}
                     </div>
-                    <div class="quiz-progress-bar">
+                    <div class="quiz-progress-bar" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Quiz progress: ${questionNum} of ${totalQuestions}">
                         <div class="quiz-progress-fill" style="width: ${progress}%"></div>
                     </div>
                 </div>
 
                 <div class="quiz-body">
-                    <div class="quiz-question">
+                    <div class="quiz-question" id="quiz-q-${questionNum}">
                         <p class="question-text">${q.question}</p>
                         ${q.code ? `<pre class="question-code"><code>${this.escapeHtml(q.code)}</code></pre>` : ''}
-                        ${q.image ? `<img src="${q.image}" alt="Question image" class="question-image">` : ''}
+                        ${q.image ? `<img src="${q.image}" alt="Question ${questionNum} illustration" class="question-image">` : ''}
                     </div>
 
-                    <div class="quiz-options">
+                    <div class="quiz-options" role="group" aria-labelledby="quiz-q-${questionNum}">
                         ${q.options.map((opt, idx) => `
-                            <button class="quiz-option" data-index="${idx}">
-                                <span class="option-letter">${String.fromCharCode(65 + idx)}</span>
+                            <button class="quiz-option" data-index="${idx}" aria-label="Option ${String.fromCharCode(65 + idx)}: ${this.stripHtml(opt)}">
+                                <span class="option-letter" aria-hidden="true">${String.fromCharCode(65 + idx)}</span>
                                 <span class="option-text">${opt}</span>
                             </button>
                         `).join('')}
@@ -254,7 +260,7 @@ class QuizEngine {
                 </div>
 
                 <div class="quiz-footer">
-                    <div class="quiz-score-preview">
+                    <div class="quiz-score-preview" aria-live="polite">
                         Answered: ${this.state.currentQuestion}/${this.config.questions.length}${this.config.poolSize ? ` (from ${this.originalQuestions.length} question bank)` : ''}
                     </div>
                 </div>
@@ -489,14 +495,14 @@ class QuizEngine {
         const nextModule = progressResult ? progressResult.nextModule : this.getNextModuleFallback();
 
         this.container.innerHTML = `
-            <div class="quiz-engine theme-${this.config.theme}">
-                <div class="quiz-results ${gradeClass}">
+            <div class="quiz-engine theme-${this.config.theme}" role="region" aria-label="Quiz results">
+                <div class="quiz-results ${gradeClass}" aria-live="polite">
                     <div class="results-header">
-                        <span class="results-emoji">${gradeEmoji}</span>
+                        <span class="results-emoji" aria-hidden="true">${gradeEmoji}</span>
                         <h2 class="results-title">${results.passed ? 'Challenge Complete!' : 'Keep Training!'}</h2>
                     </div>
 
-                    <div class="results-score">
+                    <div class="results-score" aria-label="Score: ${results.percentage}%, ${results.score} out of ${results.total} correct">
                         <div class="score-circle ${gradeClass}">
                             <span class="score-percentage">${results.percentage}%</span>
                             <span class="score-fraction">${results.score}/${results.total}</span>
@@ -505,7 +511,7 @@ class QuizEngine {
 
                     <p class="results-message">${gradeMessage}</p>
 
-                    ${timedOut ? '<p class="results-timeout">⏱️ Time ran out!</p>' : ''}
+                    ${timedOut ? '<p class="results-timeout" role="alert">Time ran out!</p>' : ''}
 
                     <div class="results-stats">
                         <div class="stat">
@@ -523,16 +529,16 @@ class QuizEngine {
                     </div>
 
                     ${results.passed && xpEarned > 0 ? `
-                        <div class="results-xp">
-                            <span class="xp-icon">✨</span>
-                            <span class="xp-earned">+${xpEarned} XP</span>
-                            ${progressResult && progressResult.levelUp ? `<span class="level-up">🎉 Level Up! Now Level ${progressResult.newLevel}</span>` : ''}
+                        <div class="results-xp" role="status">
+                            <span class="xp-icon" aria-hidden="true">&#10024;</span>
+                            <span class="xp-earned">+${xpEarned} XP earned</span>
+                            ${progressResult && progressResult.levelUp ? `<span class="level-up" role="alert">Level Up! Now Level ${progressResult.newLevel}</span>` : ''}
                         </div>
                     ` : ''}
 
                     ${results.passed && this.config.achievement ? `
-                        <div class="results-achievement">
-                            🏆 Achievement Unlocked: <strong>${this.config.achievement}</strong>
+                        <div class="results-achievement" role="status">
+                            Achievement Unlocked: <strong>${this.config.achievement}</strong>
                         </div>
                     ` : ''}
 
@@ -726,25 +732,32 @@ class QuizEngine {
         const reviewHtml = this.config.questions.map((q, idx) => {
             const answer = results.answers[idx];
             const statusClass = answer ? (answer.isCorrect ? 'correct' : 'incorrect') : 'unanswered';
+            const statusLabel = answer ? (answer.isCorrect ? 'Correct' : 'Incorrect') : 'Unanswered';
 
             return `
-                <div class="review-item ${statusClass}">
+                <div class="review-item ${statusClass}" role="group" aria-label="Question ${idx + 1}: ${statusLabel}">
                     <div class="review-header">
                         <span class="review-num">Q${idx + 1}</span>
-                        <span class="review-status">${answer ? (answer.isCorrect ? '✓' : '✗') : '—'}</span>
+                        <span class="review-status" aria-label="${statusLabel}">${answer ? (answer.isCorrect ? '✓' : '✗') : '—'}</span>
                     </div>
                     <p class="review-question">${q.question}</p>
-                    <div class="review-options">
-                        ${q.options.map((opt, optIdx) => `
-                            <div class="review-option ${optIdx === q.correct ? 'correct-answer' : ''} ${answer && optIdx === answer.selected && !answer.isCorrect ? 'wrong-selected' : ''}">
-                                <span class="option-letter">${String.fromCharCode(65 + optIdx)}</span>
+                    <div class="review-options" role="list">
+                        ${q.options.map((opt, optIdx) => {
+                            const isCorrectAnswer = optIdx === q.correct;
+                            const isWrongSelected = answer && optIdx === answer.selected && !answer.isCorrect;
+                            let label = `Option ${String.fromCharCode(65 + optIdx)}: ${this.stripHtml(opt)}`;
+                            if (isCorrectAnswer) label += ' — correct answer';
+                            if (isWrongSelected) label += ' — your answer';
+                            return `
+                            <div class="review-option ${isCorrectAnswer ? 'correct-answer' : ''} ${isWrongSelected ? 'wrong-selected' : ''}" role="listitem" aria-label="${label}">
+                                <span class="option-letter" aria-hidden="true">${String.fromCharCode(65 + optIdx)}</span>
                                 ${opt}
-                                ${optIdx === q.correct ? ' ✓' : ''}
-                                ${answer && optIdx === answer.selected && !answer.isCorrect ? ' (your answer)' : ''}
-                            </div>
-                        `).join('')}
+                                ${isCorrectAnswer ? ' <span aria-hidden="true">✓</span>' : ''}
+                                ${isWrongSelected ? ' (your answer)' : ''}
+                            </div>`;
+                        }).join('')}
                     </div>
-                    ${q.explanation ? `<p class="review-explanation">💡 ${q.explanation}</p>` : ''}
+                    ${q.explanation ? `<p class="review-explanation">${q.explanation}</p>` : ''}
                 </div>
             `;
         }).join('');
@@ -812,6 +825,15 @@ class QuizEngine {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Strip HTML tags for plain-text aria-label values
+     */
+    stripHtml(html) {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.textContent || div.innerText || '';
     }
 
     /**
