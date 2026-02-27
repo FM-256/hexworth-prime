@@ -83,6 +83,14 @@ const HouseRenderer = (function() {
             const mascotId = config.houseId.replace(/_/g, '-');
             config.mascot = `/assets/images/mascots/${mascotId}-hero.webp`;
         }
+        // Load mascot signature effects CSS
+        if (!document.getElementById('mascot-fx-css')) {
+            const link = document.createElement('link');
+            link.id = 'mascot-fx-css';
+            link.rel = 'stylesheet';
+            link.href = '/css/mascot-effects.css';
+            document.head.appendChild(link);
+        }
         injectCSS();
         renderPage();
         initTabs();
@@ -215,7 +223,6 @@ const HouseRenderer = (function() {
             .hero-mascot {
                 margin-bottom: 20px;
                 filter: drop-shadow(0 0 40px var(--house-glow));
-                animation: mascotFloat 4s ease-in-out infinite;
             }
 
             .hero-mascot img {
@@ -256,11 +263,6 @@ const HouseRenderer = (function() {
                 max-width: 500px;
                 margin: 15px auto 0;
                 line-height: 1.6;
-            }
-
-            @keyframes mascotFloat {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(-8px); }
             }
 
             .hero-icon {
@@ -1009,7 +1011,7 @@ const HouseRenderer = (function() {
         // Hero
         main.innerHTML = `
             <section class="hero-section">
-                ${config.mascot ? `<div class="hero-mascot">
+                ${config.mascot ? `<div class="hero-mascot mascot-fx mascot-fx-${mascotId}">
                     <img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.parentElement.style.display='none'">
                     ${lore ? `<div class="hero-mascot-name">${lore.name}</div><div class="hero-mascot-species">${lore.species}</div>` : ''}
                 </div>` : ''}
