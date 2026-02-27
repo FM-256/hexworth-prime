@@ -233,6 +233,31 @@ const HouseRenderer = (function() {
                 box-shadow: 0 0 70px var(--house-glow), 0 0 120px rgba(0,0,0,0.5);
             }
 
+            .hero-mascot-name {
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: var(--house-primary);
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                margin-top: 10px;
+            }
+
+            .hero-mascot-species {
+                font-size: 0.7rem;
+                color: #666;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+            }
+
+            .hero-mascot-quote {
+                font-size: 0.85rem;
+                color: #555;
+                font-style: italic;
+                max-width: 500px;
+                margin: 15px auto 0;
+                line-height: 1.6;
+            }
+
             @keyframes mascotFloat {
                 0%, 100% { transform: translateY(0); }
                 50% { transform: translateY(-8px); }
@@ -977,14 +1002,22 @@ const HouseRenderer = (function() {
         const main = document.createElement('main');
         main.className = 'house-content';
 
+        // Mascot lore (if MascotLore is loaded)
+        const mascotId = config.houseId ? config.houseId.replace(/_/g, '-') : null;
+        const lore = (typeof MascotLore !== 'undefined' && mascotId) ? MascotLore.get(mascotId) : null;
+
         // Hero
         main.innerHTML = `
             <section class="hero-section">
-                ${config.mascot ? `<div class="hero-mascot"><img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.style.display='none'"></div>` : ''}
+                ${config.mascot ? `<div class="hero-mascot">
+                    <img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.parentElement.style.display='none'">
+                    ${lore ? `<div class="hero-mascot-name">${lore.name}</div><div class="hero-mascot-species">${lore.species}</div>` : ''}
+                </div>` : ''}
                 <div class="hero-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle} emblem" onerror="this.outerHTML='${config.icon}'">` : config.icon}</div>
                 <h1 class="hero-title">House of the <span>${config.title}</span></h1>
                 <p class="hero-domain">${config.domain}</p>
                 <p class="hero-description">${config.description}</p>
+                ${lore ? `<p class="hero-mascot-quote">"${lore.quote}"</p>` : ''}
             </section>
 
             <div class="stats-bar">
