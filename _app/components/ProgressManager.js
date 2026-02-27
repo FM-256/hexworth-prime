@@ -229,7 +229,7 @@ class ProgressManager {
         key: { name: 'House of the Key', icon: '🔑', color: '#f472b6', domain: 'Cryptography & Secrets' },
         eye: { name: 'House of the Eye', icon: '👁️', color: '#c084fc', domain: 'Monitoring & Analysis' },
         'dark-arts': { name: 'House of the Dark Arts', icon: '🌑', color: '#6b21a8', domain: 'Offensive Security & Research' },
-        'matrix': { name: 'House of the Matrix', icon: '💊', color: '#00ff41', domain: 'Augmentation & Transcendence' },
+        'matrix': { name: 'House of the Matrix', icon: '💊', color: '#00ff41', domain: 'Mechanics & Operations' },
         'divergent': { name: 'The Factionless', icon: '⚡', color: '#ff00ff', domain: 'All Domains' }
     };
 

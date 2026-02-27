@@ -46,7 +46,7 @@
         { id: 'eye', name: 'Eye', icon: '👁️', color: '#c084fc', path: 'houses/eye/index.html' },
         { id: 'ai', name: 'Machine', icon: '🤖', color: '#a855f7', path: 'houses/ai/index.html' },
         { id: 'dark-arts', name: 'Dark Arts', icon: '💀', color: '#6b21a8', path: 'houses/dark-arts/index.html' },
-        { id: 'matrix', name: 'The Matrix', icon: '🟢', color: '#00ff41', path: 'terminal.html', themeSwitch: 'matrix' }
+        { id: 'matrix', name: 'The Matrix', icon: '💊', color: '#00ff41', path: 'houses/matrix/index.html' }
     ];
 
     const EMBLEM_PATH = 'assets/images/emblems/';
