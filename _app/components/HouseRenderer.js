@@ -91,6 +91,13 @@ const HouseRenderer = (function() {
             link.href = '/css/mascot-effects.css';
             document.head.appendChild(link);
         }
+        // Load holographic foil component (auto-inits .holo-card elements)
+        if (!document.getElementById('holo-foil-script')) {
+            const s = document.createElement('script');
+            s.id = 'holo-foil-script';
+            s.src = '/components/HoloFoil.js';
+            document.body.appendChild(s);
+        }
         injectCSS();
         renderPage();
         initTabs();
@@ -1011,7 +1018,7 @@ const HouseRenderer = (function() {
         // Hero
         main.innerHTML = `
             <section class="hero-section">
-                ${config.mascot ? `<div class="hero-mascot mascot-fx mascot-fx-${mascotId}">
+                ${config.mascot ? `<div class="hero-mascot mascot-fx mascot-fx-${mascotId} holo-card holo-subtle">
                     <img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.parentElement.style.display='none'">
                     ${lore ? `<div class="hero-mascot-name">${lore.name}</div><div class="hero-mascot-species">${lore.species}</div>` : ''}
                 </div>` : ''}
