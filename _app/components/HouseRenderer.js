@@ -969,6 +969,22 @@ const HouseRenderer = (function() {
                 letter-spacing: 0.2em;
             }
 
+            /* Focus-visible styles for keyboard navigation */
+            .path-card:focus-visible,
+            .hr-hub-card:focus-visible,
+            .module-card:focus-visible {
+                outline: 2px solid var(--house-primary, #60a5fa);
+                outline-offset: 2px;
+                border-color: var(--house-primary, #60a5fa);
+                box-shadow: 0 0 0 4px var(--house-glow, rgba(96, 165, 250, 0.25));
+            }
+
+            .hr-feature-card:focus-visible {
+                outline: 2px solid var(--house-primary, #60a5fa);
+                outline-offset: 2px;
+                box-shadow: 0 0 0 4px var(--house-glow, rgba(96, 165, 250, 0.25));
+            }
+
             /* Responsive */
             @media (max-width: 768px) {
                 .house-header {
@@ -1299,7 +1315,7 @@ const HouseRenderer = (function() {
                 ? `<img src="/assets/images/categories/${catId}.webp" alt="${p.name}" onerror="this.outerHTML='${p.icon}'">`
                 : p.icon;
             return `
-            <div class="path-card" role="listitem" data-path-id="${p.id}" data-path-href="${p.href || ''}" aria-label="${p.name} - ${p.cert}">
+            <div class="path-card" role="listitem" tabindex="0" data-path-id="${p.id}" data-path-href="${p.href || ''}" aria-label="${p.name} - ${p.cert}">
                 <div class="path-icon" aria-hidden="true">${iconHTML}</div>
                 <div class="path-info">
                     <div class="path-name">${p.name}</div>
@@ -1322,15 +1338,22 @@ const HouseRenderer = (function() {
             </section>
         `;
 
-        // Bind clicks
+        // Bind clicks and keyboard navigation
         panel.querySelectorAll('.path-card').forEach(card => {
-            card.addEventListener('click', () => {
+            const navigatePath = () => {
                 const href = card.dataset.pathHref;
                 const pathId = card.dataset.pathId;
                 if (href) {
                     window.location.href = href;
                 } else {
                     window.location.href = `../../path-view.html?house=${config.houseId}&path=${pathId}`;
+                }
+            };
+            card.addEventListener('click', navigatePath);
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigatePath();
                 }
             });
         });
@@ -1359,7 +1382,7 @@ const HouseRenderer = (function() {
                     : fallback;
                 const href = p.href || `../../path-view.html?house=${config.houseId}&path=${p.id}`;
                 return `
-                    <div class="hr-hub-card" role="listitem" data-href="${href}" aria-label="${p.name} - ${p.cert}">
+                    <div class="hr-hub-card" role="listitem" tabindex="0" data-href="${href}" aria-label="${p.name} - ${p.cert}">
                         <div class="hr-hub-icon" aria-hidden="true">${iconHTML}</div>
                         <div class="hr-hub-name">${p.name}</div>
                         <div class="hr-hub-cert">${p.cert}</div>
@@ -1386,10 +1409,17 @@ const HouseRenderer = (function() {
             <div class="hr-no-results" id="hrNoResults" style="display:none;">No modules match your filter.</div>
         `;
 
-        // Bind hub card clicks
+        // Bind hub card clicks and keyboard navigation
         panel.querySelectorAll('.hr-hub-card').forEach(card => {
-            card.addEventListener('click', () => {
+            const navigateHub = () => {
                 window.location.href = card.dataset.href;
+            };
+            card.addEventListener('click', navigateHub);
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigateHub();
+                }
             });
         });
 
@@ -1398,6 +1428,7 @@ const HouseRenderer = (function() {
             const card = document.createElement('div');
             card.className = 'module-card';
             card.setAttribute('role', 'listitem');
+            card.setAttribute('tabindex', '0');
             card.dataset.idx = idx;
             card.dataset.href = mod.href || '';
 
@@ -1421,6 +1452,12 @@ const HouseRenderer = (function() {
             `;
 
             card.addEventListener('click', () => openModule(mod));
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openModule(mod);
+                }
+            });
             grid.appendChild(card);
         });
 
