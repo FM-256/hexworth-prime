@@ -113,8 +113,87 @@ module.exports = function createSprintAdapter({ name, dataPath, projectRoot }) {
         };
     }
 
-    function acceptFinding() {
-        return { accepted: false, reason: 'Phase 3' };
+    // Source → series mapping for triage
+    const SOURCE_SERIES = {
+        eduscan: 'ES',
+    };
+
+    function nextId(data, seriesPrefix) {
+        const prefix = seriesPrefix.toUpperCase();
+        let max = 0;
+        data.sprints.forEach(s => {
+            if (s.series === prefix) {
+                const num = parseInt(s.id.replace(/^[A-Z]+-/, '')) || 0;
+                if (num > max) max = num;
+            }
+        });
+        return `${prefix}-${max + 1}`;
+    }
+
+    function saveData(data) {
+        data.meta.lastUpdated = new Date().toISOString();
+        fs.writeFileSync(dataPath, JSON.stringify(data, null, 2) + '\n');
+    }
+
+    function acceptFinding(findingGroup, options) {
+        const dryRun = options && options.dryRun;
+        const data = readData();
+        if (!data || !data.sprints) {
+            return { accepted: false, reason: 'sprints.json not available' };
+        }
+
+        const nexusKey = `${findingGroup.source}::${findingGroup.code}`;
+
+        // Dedup: check if this code is already tracked
+        const existing = data.sprints.find(s => s.nexusKey === nexusKey);
+        if (existing && existing.status !== 'done') {
+            return { accepted: false, reason: 'already tracked', reference: existing.id };
+        }
+
+        const series = SOURCE_SERIES[findingGroup.source] || 'QC';
+        const id = nextId(data, series);
+
+        if (dryRun) {
+            return { accepted: true, reference: id };
+        }
+
+        // Build title: "CODE: message (N files)" truncated to 80 chars
+        let title = `${findingGroup.code}: ${findingGroup.message}`;
+        if (findingGroup.count > 1) {
+            title += ` (${findingGroup.count} files)`;
+        }
+        if (title.length > 80) {
+            title = title.slice(0, 79) + '\u2026';
+        }
+
+        // Build notes with top affected files
+        let notes = 'Auto-triaged by Nexus.';
+        if (findingGroup.files && findingGroup.files.length > 0) {
+            notes += ' Top files:\n- ' + findingGroup.files.join('\n- ');
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+
+        const item = {
+            id,
+            title,
+            series,
+            status: 'backlog',
+            priority: findingGroup.severity === 'critical' ? 'critical' : findingGroup.severity,
+            houses: [],
+            depends: [],
+            commits: [],
+            notes,
+            nexusKey,
+            created: today,
+            updated: today,
+            completed: null,
+        };
+
+        data.sprints.push(item);
+        saveData(data);
+
+        return { accepted: true, reference: id };
     }
 
     return {

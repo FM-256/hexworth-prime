@@ -64,8 +64,9 @@ Each tool connects to the hub through a **spoke adapter** — a small module tha
 | `nexus status` | Unified dashboard — live counts from all connected spokes | **Implemented** (Phase 2) |
 | `nexus scan` | Run EduScan + sync findings into shared store | **Implemented** (Phase 2) |
 | `nexus sync [spoke]` | Pull latest data from all spokes (or one named) into findings store | **Implemented** (Phase 2) |
-| `nexus triage` | Pipe new findings into Sprint Master as backlog items | Planned (Phase 3) |
-| `nexus report` | Generate cross-tool summary (markdown or JSON) | Planned (Phase 3) |
+| `nexus sync --prune` | Sync and remove stale findings no longer in source data | **Implemented** (Phase 3) |
+| `nexus triage` | Auto-create Sprint Master backlog items from high-severity findings | **Implemented** (Phase 3) |
+| `nexus report` | Cross-tool summary (markdown or JSON to stdout) | **Implemented** (Phase 3) |
 | `nexus gate` | Deploy gate check — block on critical findings from any spoke | Planned (Phase 4) |
 
 ### Usage
@@ -84,7 +85,35 @@ node _tools/nexus/nexus.js sync
 # Sync one specific spoke
 node _tools/nexus/nexus.js sync eduscan
 node _tools/nexus/nexus.js sync sprint
+
+# Sync and prune stale findings
+node _tools/nexus/nexus.js sync --prune
+
+# Triage: preview what Sprint Master items would be created (dry run)
+node _tools/nexus/nexus.js triage
+
+# Triage: actually create the items
+node _tools/nexus/nexus.js triage --apply
+
+# Triage only critical findings
+node _tools/nexus/nexus.js triage --severity critical --apply
+
+# Cross-tool report (markdown)
+node _tools/nexus/nexus.js report
+
+# Cross-tool report (JSON, pipe-friendly)
+node _tools/nexus/nexus.js report --json
 ```
+
+### Triage
+
+Triage groups findings by issue code (not by file) and creates one Sprint Master backlog item per code. For example, 47 files with `SEM-001` become a single sprint item: `"SEM-001: Heading hierarchy skip (47 files)"`.
+
+- **Default: dry-run.** Shows what would be created without writing anything.
+- **`--apply`** writes items to `sprints.json`.
+- **`--severity`** filters which severities to triage (default: `critical,high`).
+- Sprint items get a `nexusKey` field (e.g., `"eduscan::SEM-001"`) for dedup — re-running triage skips already-tracked codes.
+- Items use the `ES` series prefix for EduScan-sourced findings.
 
 ---
 
@@ -161,21 +190,21 @@ Every tool speaks the same language through the hub:
 
 ## Current Status
 
-**Phase 2 — CLI Hub, Adapters, and Status Command** (current)
+**Phase 3 — Triage, Report, and Stale Pruning** (current)
 
 - [x] Phase 1 — Documentation (README, design doc, architecture, AD-011)
 - [x] Phase 2 — CLI entry point (`nexus.js`), hub core (`hub.js`), EduScan adapter, Sprint Master adapter, `status`/`scan`/`sync` commands
-- [ ] Phase 3 — Triage routing (findings → Sprint Master), report generation, stale finding removal
+- [x] Phase 3 — Triage routing (findings → Sprint Master), report generation, stale finding pruning
 - [ ] Phase 4 — Deploy gate, CI integration
 
 ### Files
 
 | File | Purpose |
 |------|---------|
-| `nexus.js` | CLI entry point — command dispatch |
-| `hub.js` | Core module — config, findings store, spoke registry, formatters |
+| `nexus.js` | CLI entry point — command dispatch, flag parsing |
+| `hub.js` | Core module — config, findings store, spoke registry, triage, formatters |
 | `adapters/eduscan.js` | EduScan spoke adapter (read-only) |
-| `adapters/sprint-master.js` | Sprint Master spoke adapter (read-only, Phase 3: read-write) |
+| `adapters/sprint-master.js` | Sprint Master spoke adapter (read-write: accepts triaged findings) |
 | `nexus.config.json` | Auto-generated spoke configuration |
 | `findings.json` | Dedup-merged findings store (created on first sync) |
 

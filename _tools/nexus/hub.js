@@ -122,9 +122,10 @@ function dedupKey(finding) {
     return `${finding.source}::${finding.code}::${finding.file || ''}`;
 }
 
-function syncFromSpoke(adapter, store) {
+function syncFromSpoke(adapter, store, options) {
     const incoming = adapter.getFindings();
     const now = new Date().toISOString();
+    const prune = options && options.prune;
 
     // Build lookup of existing findings by dedup key
     const existing = new Map();
@@ -156,7 +157,68 @@ function syncFromSpoke(adapter, store) {
         }
     }
 
-    return { added, refreshed, total: incoming.length };
+    // Prune stale findings from this source that weren't in incoming data
+    let pruned = 0;
+    if (prune) {
+        store.findings = store.findings.filter(f => {
+            if (f.source !== adapter.name) return true;
+            if (seen.has(dedupKey(f))) return true;
+            pruned++;
+            return false;
+        });
+    }
+
+    return { added, refreshed, pruned, total: incoming.length };
+}
+
+// --- Triage ---
+
+function triageToSpoke(findings, adapter, options) {
+    const dryRun = options && options.dryRun !== false;
+
+    // Group findings by code
+    const groups = new Map();
+    for (const f of findings) {
+        if (!groups.has(f.code)) {
+            groups.set(f.code, {
+                code: f.code,
+                source: f.source,
+                severity: f.severity,
+                message: f.message,
+                count: 0,
+                files: [],
+            });
+        }
+        const g = groups.get(f.code);
+        g.count++;
+        if (f.file && g.files.length < 10) {
+            g.files.push(f.file);
+        }
+    }
+
+    const created = [];
+    const skipped = [];
+
+    for (const group of groups.values()) {
+        if (dryRun) {
+            // In dry-run, check if already tracked without writing
+            const result = adapter.acceptFinding(group, { dryRun: true });
+            if (result.accepted) {
+                created.push({ code: group.code, severity: group.severity, count: group.count, reference: result.reference });
+            } else {
+                skipped.push({ code: group.code, severity: group.severity, count: group.count, reason: result.reason, reference: result.reference });
+            }
+        } else {
+            const result = adapter.acceptFinding(group, { dryRun: false });
+            if (result.accepted) {
+                created.push({ code: group.code, severity: group.severity, count: group.count, reference: result.reference });
+            } else {
+                skipped.push({ code: group.code, severity: group.severity, count: group.count, reason: result.reason, reference: result.reference });
+            }
+        }
+    }
+
+    return { created, skipped, total: groups.size };
 }
 
 function computeStats(findings) {
@@ -231,6 +293,7 @@ module.exports = {
     loadFindings,
     saveFindings,
     syncFromSpoke,
+    triageToSpoke,
     dedupKey,
     computeStats,
 

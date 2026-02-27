@@ -146,14 +146,16 @@ function cmdScan() {
     console.log('');
 }
 
-function cmdSync(args) {
-    const targetSpoke = args[0] || null;
+function cmdSync(args, flags) {
+    const prune = flags.prune || false;
+    // First non-flag arg is spoke name
+    const targetSpoke = args.find(a => !a.startsWith('-')) || null;
     const config = hub.loadConfig();
     const spokes = hub.loadSpokes(config);
     const store = hub.loadFindings();
 
     console.log('');
-    console.log(`${C.bold}NEXUS SYNC${C.reset}`);
+    console.log(`${C.bold}NEXUS SYNC${C.reset}${prune ? `  ${C.yellow}(pruning stale)${C.reset}` : ''}`);
     console.log(`${C.dim}${'─'.repeat(68)}${C.reset}`);
     console.log('');
 
@@ -168,8 +170,13 @@ function cmdSync(args) {
         }
 
         try {
-            const result = hub.syncFromSpoke(adapter, store);
-            console.log(`  ${C.green}${name}${C.reset}  ${C.bold}+${result.added}${C.reset} new  ${C.dim}~${result.refreshed} refreshed${C.reset}  ${C.dim}=${result.total} total${C.reset}`);
+            const result = hub.syncFromSpoke(adapter, store, { prune });
+            let line = `  ${C.green}${name}${C.reset}  ${C.bold}+${result.added}${C.reset} new  ${C.dim}~${result.refreshed} refreshed${C.reset}`;
+            if (prune && result.pruned > 0) {
+                line += `  ${C.red}-${result.pruned} pruned${C.reset}`;
+            }
+            line += `  ${C.dim}=${result.total} total${C.reset}`;
+            console.log(line);
             anySync = true;
         } catch (err) {
             console.log(`  ${C.red}${name}${C.reset}  ${C.dim}error: ${err.message}${C.reset}`);
@@ -185,6 +192,150 @@ function cmdSync(args) {
     console.log('');
 }
 
+function cmdTriage(args, flags) {
+    const apply = flags.apply || false;
+    const severityFilter = flags.severity
+        ? flags.severity.split(',').map(s => s.trim().toLowerCase())
+        : ['critical', 'high'];
+
+    const config = hub.loadConfig();
+    const spokes = hub.loadSpokes(config);
+    const store = hub.loadFindings();
+
+    if (!store.findings.length) {
+        console.error(`\n  ${C.red}No findings — run ${C.cyan}nexus sync${C.red} first.${C.reset}\n`);
+        process.exit(1);
+    }
+
+    if (!spokes.sprint) {
+        console.error(`\n  ${C.red}Sprint Master adapter not available.${C.reset}\n`);
+        process.exit(1);
+    }
+
+    // Filter findings by severity
+    const filtered = store.findings.filter(f => severityFilter.includes(f.severity));
+
+    if (!filtered.length) {
+        console.log(`\n  ${C.dim}No findings matching severity: ${severityFilter.join(', ')}${C.reset}\n`);
+        return;
+    }
+
+    const modeLabel = apply ? '' : ' (dry run)';
+    console.log('');
+    console.log(`${C.bold}NEXUS TRIAGE${C.reset}${C.dim}${modeLabel}${C.reset}`);
+    console.log(`${C.dim}${'─'.repeat(68)}${C.reset}`);
+
+    const result = hub.triageToSpoke(filtered, spokes.sprint, { dryRun: !apply });
+
+    // Print results table
+    for (const item of result.created) {
+        const sevCol = severityColor(item.severity);
+        const codeCol = padRight(item.code, 12);
+        const sevLabel = padRight(item.severity, 10);
+        console.log(`  ${C.bold}${codeCol}${C.reset}${sevCol}${sevLabel}${C.reset}${C.dim}${item.count} file${item.count !== 1 ? 's' : ''}${C.reset}  ${C.green}\u2192 ${item.reference} (new)${C.reset}`);
+    }
+    for (const item of result.skipped) {
+        const sevCol = severityColor(item.severity);
+        const codeCol = padRight(item.code, 12);
+        const sevLabel = padRight(item.severity, 10);
+        console.log(`  ${C.dim}${codeCol}${sevLabel}${item.count} file${item.count !== 1 ? 's' : ''}  \u2192 (already tracked as ${item.reference})${C.reset}`);
+    }
+
+    console.log(`${C.dim}${'─'.repeat(68)}${C.reset}`);
+    const parts = [];
+    if (result.created.length) parts.push(`${C.green}+${result.created.length} new item${result.created.length !== 1 ? 's' : ''}${C.reset}`);
+    if (result.skipped.length) parts.push(`${C.dim}=${result.skipped.length} already tracked${C.reset}`);
+    parts.push(`${C.dim}${result.total} code${result.total !== 1 ? 's' : ''} triaged${C.reset}`);
+    console.log(`  ${parts.join('  ')}`);
+
+    if (!apply && result.created.length > 0) {
+        console.log(`\n  ${C.dim}To apply: ${C.cyan}nexus triage --apply${C.reset}`);
+    }
+    console.log('');
+}
+
+function cmdReport(args, flags) {
+    const jsonOutput = flags.json || false;
+    const config = hub.loadConfig();
+    const spokes = hub.loadSpokes(config);
+    const store = hub.loadFindings();
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    if (jsonOutput) {
+        const report = {
+            date: dateStr,
+            spokes: {},
+            findingsStore: {
+                total: store.findings.length,
+                lastSync: store.lastSync,
+                bySeverity: store.stats.bySeverity || {},
+                bySource: store.stats.bySource || {},
+            },
+        };
+
+        for (const [name, adapter] of Object.entries(spokes)) {
+            const status = hub.getSpokeStatus(adapter);
+            report.spokes[name] = status;
+        }
+
+        console.log(JSON.stringify(report, null, 2));
+        return;
+    }
+
+    // Markdown output
+    console.log(`# Nexus Report \u2014 ${dateStr}`);
+    console.log('');
+
+    for (const [name, adapter] of Object.entries(spokes)) {
+        const status = hub.getSpokeStatus(adapter);
+
+        if (name === 'eduscan') {
+            console.log('## EduScan');
+            if (!status.available) {
+                console.log('- (no data)');
+            } else {
+                const sev = status.bySeverity || {};
+                console.log(`- ${status.issueCount || 0} findings: ${sev.critical || 0} critical, ${sev.high || 0} high, ${sev.medium || 0} medium, ${sev.low || 0} low`);
+                console.log(`- Last scan: ${timeAgo(status.scannedAt)}`);
+
+                // Top codes from findings store
+                const eduFindings = store.findings.filter(f => f.source === 'eduscan');
+                if (eduFindings.length > 0) {
+                    const codeCounts = {};
+                    for (const f of eduFindings) {
+                        codeCounts[f.code] = (codeCounts[f.code] || 0) + 1;
+                    }
+                    const topCodes = Object.entries(codeCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5)
+                        .map(([code, count]) => `${code} (${count})`)
+                        .join(', ');
+                    console.log(`- Top codes: ${topCodes}`);
+                }
+            }
+            console.log('');
+
+        } else if (name === 'sprint') {
+            console.log('## Sprint Master');
+            if (!status.available) {
+                console.log('- (no data)');
+            } else {
+                const c = status.counts || {};
+                console.log(`- ${status.totalItems} items: ${c.open || 0} open, ${c['in-progress'] || 0} in-progress, ${c.blocked || 0} blocked, ${c.done || 0} done`);
+                console.log(`- Last updated: ${timeAgo(status.lastUpdated)}`);
+            }
+            console.log('');
+        }
+    }
+
+    console.log('## Combined Findings Store');
+    console.log(`- ${store.findings.length} synced findings from ${Object.keys(store.stats.bySource || {}).length} spoke${Object.keys(store.stats.bySource || {}).length !== 1 ? 's' : ''}`);
+    console.log(`- Last sync: ${timeAgo(store.lastSync)}`);
+    console.log('');
+}
+
 // --- Help ---
 
 function showHelp() {
@@ -196,14 +347,28 @@ ${C.bold}COMMANDS${C.reset}
   ${C.cyan}status${C.reset}                  Unified dashboard — live data from all spokes
   ${C.cyan}scan${C.reset}                    Run EduScan + sync findings into store
   ${C.cyan}sync${C.reset} [spoke]            Sync all spokes (or one named spoke)
+  ${C.cyan}triage${C.reset}                  Auto-create Sprint Master items from findings
+  ${C.cyan}report${C.reset}                  Cross-tool summary (markdown to stdout)
   ${C.cyan}help${C.reset}                    Show this help message
+
+${C.bold}FLAGS${C.reset}
+
+  ${C.dim}--apply${C.reset}                  Actually write (triage defaults to dry-run)
+  ${C.dim}--prune${C.reset}                  Remove stale findings during sync
+  ${C.dim}--severity${C.reset} critical,high Severity filter for triage (default: critical,high)
+  ${C.dim}--json${C.reset}                   Output report as JSON instead of markdown
 
 ${C.bold}EXAMPLES${C.reset}
 
   nexus status              Show combined status from all tools
   nexus scan                Run EduScan and sync results
   nexus sync                Sync all spokes into findings store
-  nexus sync eduscan        Sync only EduScan findings
+  nexus sync --prune        Sync and remove stale findings
+  nexus triage              Dry-run: show what items would be created
+  nexus triage --apply      Create Sprint Master backlog items
+  nexus triage --severity critical  Only triage critical findings
+  nexus report              Markdown summary to stdout
+  nexus report --json       JSON summary to stdout
 
 ${C.bold}DATA${C.reset}
 
@@ -218,10 +383,32 @@ const argv = process.argv.slice(2);
 const command = argv[0];
 const cmdArgs = argv.slice(1);
 
+// Parse flags from args
+function parseFlags(args) {
+    const flags = {};
+    const positional = [];
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--apply') {
+            flags.apply = true;
+        } else if (args[i] === '--prune') {
+            flags.prune = true;
+        } else if (args[i] === '--json') {
+            flags.json = true;
+        } else if (args[i] === '--severity' && args[i + 1]) {
+            flags.severity = args[++i];
+        } else if (!args[i].startsWith('--')) {
+            positional.push(args[i]);
+        }
+    }
+    return { flags, positional };
+}
+
 if (!command || command === 'help' || command === '--help' || command === '-h') {
     showHelp();
     process.exit(0);
 }
+
+const { flags, positional } = parseFlags(cmdArgs);
 
 switch (command) {
     case 'status':
@@ -232,7 +419,13 @@ switch (command) {
         cmdScan();
         break;
     case 'sync':
-        cmdSync(cmdArgs);
+        cmdSync(positional, flags);
+        break;
+    case 'triage':
+        cmdTriage(positional, flags);
+        break;
+    case 'report':
+        cmdReport(positional, flags);
         break;
     default:
         console.error(`  ${C.red}Unknown command: ${command}${C.reset}`);
