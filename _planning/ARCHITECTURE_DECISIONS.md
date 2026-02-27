@@ -19,6 +19,7 @@
 | AD-008 | Student Join via Firestore Rules (No Cloud Functions) | Feb 5, 2026 | Field-level security, no server infrastructure |
 | AD-009 | Centralized User Profile (`users/{uid}`) | Feb 5, 2026 | Single identity source, Blackboard export, profile gate |
 | AD-010 | Two-Layer Progress Architecture | Feb 8, 2026 | Separate academic tracking (Layer 1) from gamification (Layer 2) |
+| AD-011 | Hub & Spoke Tool Integration (Nexus) | Feb 27, 2026 | Connect 6 dev tools via orchestrator, not merge |
 
 ---
 
@@ -593,6 +594,59 @@ See: `_planning/TWO_LAYER_PROGRESS_ARCHITECTURE.md`
 
 ### Date
 February 8, 2026
+
+---
+
+## AD-011: Hub & Spoke Tool Integration (Nexus)
+
+### The Problem
+Six developer tools detect, track, and report issues independently: EduScan (build-time scanning), Sprint Master (sprint tracking), Spellbook (feature tickets), ToDo CLI (quick tasks), HED/HealthPanel (runtime errors), and Audit Tool (content auditing). There is no automated path from detection to tracking. No unified view of all findings. Every cross-tool handoff is manual — a human reads one tool's output, then types into another tool.
+
+### The Decision
+Build Nexus — a Hub & Spoke CLI orchestrator that connects existing tools through spoke adapters and a shared findings format. Nexus sits in the center and routes data between tools. It does not replace, merge, or modify any tool.
+
+### Architecture
+```
+                    ┌─────────────┐
+          ┌────────│ NEXUS HUB   │────────┐
+          │        │ findings[]  │        │
+          │        │ pipes[]     │        │
+          │        └──────┬──────┘        │
+          │               │               │
+    ┌─────┴─────┐   ┌────┴────┐   ┌──────┴─────┐
+    │ EduScan   │   │ Sprint  │   │ Spellbook   │
+    │ adapter   │   │ Master  │   │ adapter     │
+    └───────────┘   │ adapter │   └─────────────┘
+    ┌───────────┐   └─────────┘   ┌─────────────┐
+    │ HED       │   ┌─────────┐   │ ToDo        │
+    │ adapter   │   │ Audit   │   │ adapter     │
+    └───────────┘   │ adapter │   └─────────────┘
+                    └─────────┘
+```
+
+Each spoke adapter implements: `getFindings()`, `getStatus()`, `acceptFinding()`.
+
+### Rationale
+- **Preserves independence.** Every tool works standalone. Remove Nexus and nothing breaks.
+- **Lower risk than a merge.** No rewriting of existing tools. Each adapter is ~50-100 lines.
+- **Incremental adoption.** Connect one spoke at a time. Phase 2 starts with just EduScan + Sprint Master.
+- **Small, testable surface.** Each adapter depends on exactly one tool's output format.
+- **Matches existing patterns.** CLI-native like EduScan and Sprint Master. JSON store like sprints.json.
+
+### Trade-offs
+- Adds a 7th tool to maintain (the hub core + 6 adapters)
+- Spoke adapters must stay in sync when tools change their output format
+- Shared findings format is a contract that all tools must honor (deliberately minimal: 7 required fields)
+- Pull-based model (no real-time events) — adequate for current scale, may need push for HED integration later
+
+### Full Design
+See:
+- `_tools/nexus/README.md` — Tool documentation and command reference
+- `_tools/NEXUS_DESIGN.md` — Design document (problem, solution, integration scenarios)
+- `_planning/NEXUS_HUB_ARCHITECTURE.md` — Architecture deep-dive (adapters, pipes, storage)
+
+### Date
+February 27, 2026
 
 ---
 
