@@ -17,8 +17,8 @@
 const path = require('path');
 const fs = require('fs');
 
-// Valid house prefixes
-const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+// Valid house prefixes (all 12 houses including AI and secret/special)
+const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'dark-arts', 'matrix', 'divergent'];
 
 // Content type suffixes (all recognized types in the codebase)
 const CONTENT_TYPES = ['presentation', 'quiz', 'lab', 'applet', 'module', 'tool', 'simulator', 'reference', 'exam'];
@@ -160,7 +160,7 @@ class NamingValidator {
      * @returns {string|null} House name or null
      */
     extractHouseFromPath(filePath) {
-        const match = filePath.match(/houses\/(\w+)\//);
+        const match = filePath.match(/houses\/([\w-]+)\//);
         if (match && VALID_HOUSES.includes(match[1])) {
             return match[1];
         }

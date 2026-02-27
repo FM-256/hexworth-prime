@@ -11,8 +11,8 @@
 
 const { PATTERNS, extractFirst, test } = require('../utils/patterns');
 
-// Valid house names for validation (all 11 houses including secret/special)
-const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'dark-arts', 'matrix', 'divergent'];
+// Valid house names for validation (all 12 houses including AI and secret/special)
+const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'dark-arts', 'matrix', 'divergent'];
 
 /**
  * Parse file content for quiz indicators
@@ -226,7 +226,8 @@ function validateConfig(result, filePath, ignoreDirectives) {
             });
         } else {
             const problems = [];
-            if (config.moduleId.match(/^(web|shield|forge|script|cloud|code|key|eye)-/)) {
+            const housePrefixPattern = new RegExp('^(' + VALID_HOUSES.join('|').replace(/-/g, '\\-') + ')-');
+            if (config.moduleId.match(housePrefixPattern)) {
                 problems.push('has house prefix');
             }
             if (config.moduleId.endsWith('-quiz')) {
@@ -364,7 +365,7 @@ function validateConfig(result, filePath, ignoreDirectives) {
  * Extract house from file path
  */
 function extractHouseFromPath(filePath) {
-    const match = filePath.match(/houses\/(\w+)\//);
+    const match = filePath.match(/houses\/([\w-]+)\//);
     return match ? match[1] : null;
 }
 

@@ -26,8 +26,8 @@ const TYPE_TO_DIR = {
     exam: 'exams'
 };
 
-// Valid houses
-const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+// Valid houses (all 12 houses including AI and secret/special)
+const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'dark-arts', 'matrix', 'divergent'];
 
 class ReorgMapper {
     constructor(options = {}) {
