@@ -595,6 +595,114 @@ class LearningPaths {
             ]
         },
 
+        'python-engineering': {
+            name: 'Python Engineering - Advanced Python',
+            description: 'Advanced Python for software engineers with cybersecurity use cases',
+            icon: '🐍',
+            color: '#4ade80',
+            modules: [
+                {
+                    id: 'code-pye-ch01',
+                    title: 'The Engineer\'s Toolkit',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours',
+                    href: 'modules/python-engineering/code-pye-chapter01.module.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'code-pye-ch02',
+                    title: 'Advanced Data Structures',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours 30 min',
+                    href: 'modules/python-engineering/code-pye-chapter02.module.html',
+                    prerequisites: ['code-pye-ch01']
+                },
+                {
+                    id: 'code-pye-ch03',
+                    title: 'Decorators & Context Managers',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours 30 min',
+                    href: 'modules/python-engineering/code-pye-chapter03.module.html',
+                    prerequisites: ['code-pye-ch02']
+                },
+                {
+                    id: 'code-pye-ch04',
+                    title: 'Error Handling & Logging',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours',
+                    href: 'modules/python-engineering/code-pye-chapter04.module.html',
+                    prerequisites: ['code-pye-ch03']
+                },
+                {
+                    id: 'code-pye-ch05',
+                    title: 'OOP Design Patterns',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours 30 min',
+                    href: 'modules/python-engineering/code-pye-chapter05.module.html',
+                    prerequisites: ['code-pye-ch04']
+                },
+                {
+                    id: 'code-pye-midterm',
+                    title: 'Midterm: Security Event Processor',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '2 hours',
+                    href: 'modules/python-engineering/code-pye-midterm.module.html',
+                    prerequisites: ['code-pye-ch05']
+                },
+                {
+                    id: 'code-pye-ch06',
+                    title: 'Type Hints & Testing',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours 30 min',
+                    href: 'modules/python-engineering/code-pye-chapter06.module.html',
+                    prerequisites: ['code-pye-midterm']
+                },
+                {
+                    id: 'code-pye-ch07',
+                    title: 'APIs & Web Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours 30 min',
+                    href: 'modules/python-engineering/code-pye-chapter07.module.html',
+                    prerequisites: ['code-pye-ch06']
+                },
+                {
+                    id: 'code-pye-ch08',
+                    title: 'Database Access',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours 30 min',
+                    href: 'modules/python-engineering/code-pye-chapter08.module.html',
+                    prerequisites: ['code-pye-ch07']
+                },
+                {
+                    id: 'code-pye-ch09',
+                    title: 'Async & Concurrency',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '2 hours 30 min',
+                    href: 'modules/python-engineering/code-pye-chapter09.module.html',
+                    prerequisites: ['code-pye-ch08']
+                },
+                {
+                    id: 'code-pye-ch10',
+                    title: 'DevOps Scripting & Capstone',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '3 hours',
+                    href: 'modules/python-engineering/code-pye-chapter10.module.html',
+                    prerequisites: ['code-pye-ch09']
+                }
+            ]
+        },
+
         key: {
             name: 'Key House - Cryptography',
             description: 'Unlock the secrets of cryptography',

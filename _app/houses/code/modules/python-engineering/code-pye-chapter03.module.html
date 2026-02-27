@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch3: Decorators & Context Managers - Python Engineering | Hexworth Prime</title>
+    <style>
+        :root {
+            --house-color: #4ade80;
+            --house-color-dark: #22c55e;
+            --house-color-light: #86efac;
+            --python-blue: #306998;
+            --python-blue-light: #4b8bbe;
+            --accent-cyan: #22d3ee;
+            --success-color: #22c55e;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-primary: #c8d6e5;
+            --text-secondary: #7a8b9a;
+            --text-heading: #e2e8f0;
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1729;
+            --bg-card: rgba(14, 22, 40, 0.85);
+            --border-color: rgba(74, 222, 128, 0.15);
+            --border-glow: rgba(74, 222, 128, 0.35);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+
+        .top-header { background: rgba(10, 14, 26, 0.95); padding: 1rem 2rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; backdrop-filter: blur(10px); }
+        .top-header-left { display: flex; align-items: center; gap: 1rem; }
+        .back-btn { color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; }
+        .back-btn:hover { color: var(--house-color); }
+        .chapter-badge { background: rgba(74, 222, 128, 0.1); color: var(--house-color); padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(74, 222, 128, 0.2); }
+        .progress-container { display: flex; align-items: center; gap: 0.75rem; }
+        .progress-bar { width: 150px; height: 8px; background: rgba(74, 222, 128, 0.1); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--python-blue), var(--house-color)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .progress-text { color: var(--text-secondary); font-size: 0.8rem; min-width: 80px; }
+
+        .layout { display: flex; min-height: calc(100vh - 60px); }
+        .sidebar { width: 280px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 1.5rem 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; flex-shrink: 0; }
+        .nav-header { padding: 0 1.25rem 1rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); }
+        .nav-list { list-style: none; }
+        .nav-item { margin-bottom: 2px; }
+        .nav-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease; cursor: pointer; border-left: 3px solid transparent; }
+        .nav-link:hover { background: rgba(74, 222, 128, 0.05); border-left-color: rgba(74, 222, 128, 0.3); }
+        .nav-link.active { background: rgba(74, 222, 128, 0.1); border-left-color: var(--house-color); color: var(--house-color); font-weight: 600; }
+        .nav-link.completed .nav-icon { background: var(--success-color); color: white; }
+        .nav-icon { width: 26px; height: 26px; border-radius: 50%; background: rgba(74, 222, 128, 0.1); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; color: var(--text-secondary); }
+
+        .main-content { flex: 1; padding: 2.5rem 3rem; max-width: 900px; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .section h2 { font-size: 1.8rem; color: var(--text-heading); margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid var(--border-color); }
+        .section h3 { font-size: 1.3rem; color: var(--text-heading); margin: 2rem 0 1rem; }
+        .section h4 { font-size: 1.1rem; color: var(--house-color); margin: 1.5rem 0 0.75rem; }
+        .section p { margin-bottom: 1rem; }
+        .section ul, .section ol { margin: 0.5rem 0 1.5rem 1.5rem; }
+        .section li { margin-bottom: 0.4rem; }
+
+        code { background: rgba(74, 222, 128, 0.08); color: var(--house-color); padding: 0.15rem 0.4rem; border-radius: 4px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9em; }
+        pre { background: #1a1f2e; border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin: 1rem 0 1.5rem; overflow-x: auto; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.88rem; line-height: 1.6; color: #d4d4d4; }
+        pre code { background: none; color: inherit; padding: 0; }
+        .comment { color: #6a9955; }
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .function { color: #dcdcaa; }
+        .builtin { color: #4ec9b0; }
+
+        .callout { border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0; border-left: 4px solid; }
+        .callout-security { background: rgba(239, 68, 68, 0.08); border-color: #ef4444; }
+        .callout-security .callout-title { color: #fca5a5; }
+        .callout-tip { background: rgba(74, 222, 128, 0.08); border-color: var(--house-color); }
+        .callout-tip .callout-title { color: var(--house-color); }
+        .callout-info { background: rgba(48, 105, 152, 0.1); border-color: var(--python-blue-light); }
+        .callout-info .callout-title { color: var(--python-blue-light); }
+        .callout-title { font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        .lab-exercise { background: rgba(48, 105, 152, 0.08); border: 1px solid rgba(48, 105, 152, 0.25); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+        .lab-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .lab-badge { background: var(--python-blue); color: white; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
+        .lab-title { font-size: 1.1rem; font-weight: 600; color: var(--text-heading); }
+        .lab-instructions { color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem; }
+
+        .code-editor { background: #1e1e1e; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+        .editor-header { background: #2d2d2d; padding: 0.5rem 1rem; }
+        .editor-tab { color: #ccc; font-size: 0.8rem; font-family: 'Consolas', monospace; }
+        .editor-textarea { width: 100%; min-height: 220px; background: #1e1e1e; border: none; color: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.88rem; padding: 1rem; resize: vertical; line-height: 1.6; tab-size: 4; outline: none; }
+
+        .output-panel { background: #0d1117; border-radius: 8px; margin-bottom: 1rem; overflow: hidden; }
+        .output-header { background: #161b22; padding: 0.5rem 1rem; font-size: 0.8rem; color: #7a8b9a; font-weight: 600; }
+        .output-content { padding: 1rem; color: #c9d1d9; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; min-height: 60px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+
+        .lab-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .lab-btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .btn-run { background: var(--house-color); color: #0a0e1a; }
+        .btn-run:hover { background: var(--house-color-light); }
+        .btn-check { background: var(--python-blue); color: white; }
+        .btn-check:hover { background: var(--python-blue-light); }
+        .btn-hint { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .btn-hint:hover { background: rgba(245, 158, 11, 0.25); }
+        .btn-reset { background: rgba(127, 127, 127, 0.1); color: var(--text-secondary); border: 1px solid rgba(127, 127, 127, 0.2); }
+        .btn-reset:hover { background: rgba(127, 127, 127, 0.2); }
+
+        .hint-box { background: rgba(245, 158, 11, 0.08); border-left: 4px solid var(--warning-color); padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; display: none; color: var(--text-primary); }
+        .hint-box.show { display: block; }
+        .success-message { background: rgba(34, 197, 94, 0.1); color: var(--house-color-light); border-left: 4px solid var(--success-color); padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; display: none; }
+        .success-message.show { display: block; }
+        .error-message { background: rgba(239, 68, 68, 0.1); color: #fca5a5; border-left: 4px solid var(--error-color); padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; display: none; }
+        .error-message.show { display: block; }
+
+        .section-complete { background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(34, 197, 94, 0.06) 100%); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 12px; padding: 2rem; text-align: center; margin-top: 2rem; }
+        .complete-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .complete-title { font-size: 1.3rem; color: var(--house-color); margin-bottom: 0.5rem; }
+        .complete-message { color: var(--text-secondary); margin-bottom: 1rem; }
+        .next-btn { background: var(--house-color); color: #0a0e1a; padding: 0.75rem 2rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.95rem; transition: all 0.2s ease; }
+        .next-btn:hover { background: var(--house-color-light); transform: translateY(-2px); }
+
+        .module-complete { background: linear-gradient(135deg, rgba(74, 222, 128, 0.12), rgba(48, 105, 152, 0.08)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 16px; padding: 3rem 2rem; text-align: center; margin-top: 2rem; }
+        .module-complete h2 { color: var(--house-color); margin-bottom: 1rem; }
+        .module-complete-btn { background: linear-gradient(135deg, var(--house-color), var(--house-color-dark)); color: #0a0e1a; padding: 1rem 2.5rem; border-radius: 10px; border: none; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: all 0.3s; margin-top: 1rem; }
+        .module-complete-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(74, 222, 128, 0.3); }
+
+        .review-badge { background: rgba(167, 139, 250, 0.2); color: #c4b5fd; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .code-review { background: rgba(167, 139, 250, 0.06); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main-content { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-header">
+        <div class="top-header-left">
+            <a href="index.html" class="back-btn">&larr; Course Home</a>
+            <span class="chapter-badge">Chapter 3</span>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <div class="nav-header">Chapter Sections</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a class="nav-link active" data-section="section1"><span class="nav-icon">1</span> First-Class Functions</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section2"><span class="nav-icon">2</span> Writing Decorators</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section3"><span class="nav-icon">3</span> Decorator Patterns</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section4"><span class="nav-icon">4</span> Context Managers</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section5"><span class="nav-icon">5</span> contextlib</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section6"><span class="nav-icon">6</span> Combining Patterns</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+
+            <!-- ==================== SECTION 1: First-Class Functions ==================== -->
+            <div class="section active" id="section1">
+                <h2>First-Class Functions</h2>
+                <p>In Python, functions are objects. You can assign them to variables, pass them as arguments, and return them from other functions. This is the foundation for decorators.</p>
+
+                <h3>Functions as Arguments</h3>
+                <pre><code><span class="keyword">def</span> <span class="function">apply_filter</span>(entries, condition):
+    <span class="string">"""Apply a filter function to a list of entries."""</span>
+    <span class="keyword">return</span> [e <span class="keyword">for</span> e <span class="keyword">in</span> entries <span class="keyword">if</span> condition(e)]
+
+<span class="keyword">def</span> <span class="function">is_critical</span>(entry):
+    <span class="keyword">return</span> entry[<span class="string">"severity"</span>] == <span class="string">"CRITICAL"</span>
+
+<span class="keyword">def</span> <span class="function">is_external</span>(entry):
+    <span class="keyword">return</span> <span class="keyword">not</span> entry[<span class="string">"src"</span>].startswith(<span class="string">"10."</span>)
+
+<span class="comment"># Pass different functions to change behavior</span>
+critical_events = apply_filter(events, is_critical)
+external_events = apply_filter(events, is_external)</code></pre>
+
+                <h3>Closures</h3>
+                <p>A closure is a function that remembers variables from its enclosing scope, even after that scope has finished executing. This is how decorators "wrap" functions.</p>
+
+                <pre><code><span class="keyword">def</span> <span class="function">make_threshold_filter</span>(min_severity):
+    <span class="string">"""Return a function that filters by minimum severity."""</span>
+    levels = {<span class="string">"LOW"</span>: <span class="builtin">0</span>, <span class="string">"MEDIUM"</span>: <span class="builtin">1</span>, <span class="string">"HIGH"</span>: <span class="builtin">2</span>, <span class="string">"CRITICAL"</span>: <span class="builtin">3</span>}
+    threshold = levels[min_severity]
+
+    <span class="keyword">def</span> <span class="function">filter_fn</span>(entry):
+        <span class="keyword">return</span> levels.get(entry[<span class="string">"severity"</span>], <span class="builtin">0</span>) >= threshold
+
+    <span class="keyword">return</span> filter_fn  <span class="comment"># Return the inner function</span>
+
+<span class="comment"># Create specialized filters</span>
+high_or_above = make_threshold_filter(<span class="string">"HIGH"</span>)
+critical_only = make_threshold_filter(<span class="string">"CRITICAL"</span>)
+
+<span class="comment"># Use them</span>
+high_events = apply_filter(events, high_or_above)</code></pre>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">Info: Why This Matters</div>
+                    <p>Decorators are closures that take a function as input and return a new function. If closures make sense, decorators will be straightforward.</p>
+                </div>
+
+                <!-- LAB 1 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 1</span>
+                        <span class="lab-title">Build an Audit Trail Decorator</span>
+                    </div>
+                    <p class="lab-instructions">Write an <code>audit_trail</code> decorator that logs the function name, arguments, and return value every time a decorated function is called. Store log entries in a global <code>audit_log</code> list.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">audit.py</span></div>
+                        <textarea class="editor-textarea" id="lab1-code">import functools
+
+audit_log = []
+
+def audit_trail(func):
+    """Decorator that logs function calls to audit_log."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # 1. Call the original function
+        # 2. Create a log entry dict with: function name, args, kwargs, result
+        # 3. Append to audit_log
+        # 4. Return the result
+        pass  # Replace with your implementation
+    return wrapper
+
+@audit_trail
+def authenticate(username, password):
+    return username == "admin" and password == "s3cure!"
+
+@audit_trail
+def read_file(path, mode="r"):
+    return f"Contents of {path}"
+
+# Test
+authenticate("admin", "s3cure!")
+authenticate("hacker", "password123")
+read_file("/etc/passwd")
+
+for entry in audit_log:
+    print(entry)</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab1-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(1)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(1)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(1)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(1)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint1"><strong>Hint:</strong> Inside wrapper: <code>result = func(*args, **kwargs)</code>, then <code>audit_log.append({"function": func.__name__, "args": args, "kwargs": kwargs, "result": result})</code>, then <code>return result</code>.</div>
+                    <div class="success-message" id="success1">&#10003; Your audit trail captures every function call with full context. In security operations, this pattern creates tamper-evident logs for compliance and forensics.</div>
+                    <div class="error-message" id="error1"></div>
+                </div>
+
+                <div class="section-complete" id="complete1" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">First-class functions and closures understood.</p>
+                    <button class="next-btn" onclick="goToSection('section2')">Continue to Writing Decorators &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 2: Writing Decorators ==================== -->
+            <div class="section" id="section2">
+                <h2>Writing Decorators</h2>
+                <p>A decorator is a function that takes another function and extends its behavior without modifying its code. The <code>@</code> syntax is syntactic sugar for passing a function to the decorator.</p>
+
+                <h3>The Decorator Pattern</h3>
+                <pre><code><span class="keyword">import</span> functools
+<span class="keyword">import</span> time
+
+<span class="keyword">def</span> <span class="function">timer</span>(func):
+    <span class="string">"""Measure execution time of a function."""</span>
+    @functools.wraps(func)
+    <span class="keyword">def</span> <span class="function">wrapper</span>(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed = time.perf_counter() - start
+        <span class="builtin">print</span>(<span class="string">f"{func.__name__} took {elapsed:.4f}s"</span>)
+        <span class="keyword">return</span> result
+    <span class="keyword">return</span> wrapper
+
+@timer
+<span class="keyword">def</span> <span class="function">scan_network</span>(subnet):
+    time.sleep(<span class="builtin">0.1</span>)  <span class="comment"># Simulated scan</span>
+    <span class="keyword">return</span> [<span class="string">"10.0.0.1"</span>, <span class="string">"10.0.0.2"</span>]
+
+<span class="comment"># scan_network is now the wrapped version</span>
+hosts = scan_network(<span class="string">"10.0.0.0/24"</span>)
+<span class="comment"># Output: scan_network took 0.1003s</span></code></pre>
+
+                <h3>Why functools.wraps?</h3>
+                <p>Without <code>@functools.wraps(func)</code>, the decorated function loses its original name and docstring. Always use it to preserve function metadata.</p>
+
+                <pre><code><span class="comment"># Without @wraps:</span>
+scan_network.__name__  <span class="comment"># 'wrapper'  ← Wrong!</span>
+
+<span class="comment"># With @wraps:</span>
+scan_network.__name__  <span class="comment"># 'scan_network'  ← Correct!</span></code></pre>
+
+                <h3>Decorators with Arguments</h3>
+                <pre><code><span class="keyword">def</span> <span class="function">retry</span>(max_attempts=<span class="builtin">3</span>, delay=<span class="builtin">1.0</span>):
+    <span class="string">"""Retry a function on failure."""</span>
+    <span class="keyword">def</span> <span class="function">decorator</span>(func):
+        @functools.wraps(func)
+        <span class="keyword">def</span> <span class="function">wrapper</span>(*args, **kwargs):
+            <span class="keyword">for</span> attempt <span class="keyword">in</span> <span class="builtin">range</span>(max_attempts):
+                <span class="keyword">try</span>:
+                    <span class="keyword">return</span> func(*args, **kwargs)
+                <span class="keyword">except</span> <span class="builtin">Exception</span> <span class="keyword">as</span> e:
+                    <span class="keyword">if</span> attempt == max_attempts - <span class="builtin">1</span>:
+                        <span class="keyword">raise</span>
+                    time.sleep(delay * (<span class="builtin">2</span> ** attempt))  <span class="comment"># Exponential backoff</span>
+        <span class="keyword">return</span> wrapper
+    <span class="keyword">return</span> decorator
+
+@retry(max_attempts=<span class="builtin">5</span>, delay=<span class="builtin">0.5</span>)
+<span class="keyword">def</span> <span class="function">fetch_threat_intel</span>(source_url):
+    <span class="comment"># May fail due to network issues</span>
+    ...</code></pre>
+
+                <div class="callout callout-security">
+                    <div class="callout-title">Security: Auth Decorators</div>
+                    <p>Decorators are the standard pattern for authorization in web frameworks (Flask, Django). A <code>@require_auth</code> decorator checks credentials before the function runs, enforcing access control at every endpoint without duplicating code.</p>
+                </div>
+
+                <!-- LAB 2 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 2</span>
+                        <span class="lab-title">@retry_with_backoff</span>
+                    </div>
+                    <p class="lab-instructions">Write a <code>retry_with_backoff</code> decorator that accepts <code>max_retries</code> as a parameter. On each failure, it should print the attempt number and the exception, then retry. Use exponential backoff (delay doubles each attempt).</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">retry.py</span></div>
+                        <textarea class="editor-textarea" id="lab2-code">import functools
+import time
+
+def retry_with_backoff(max_retries=3):
+    """Decorator that retries with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Implement retry logic with exponential backoff
+            # On each failure: print attempt number and error
+            # Base delay: 0.1 seconds, doubled each attempt
+            pass  # Replace with your implementation
+        return wrapper
+    return decorator
+
+# Test: this function fails the first 2 times
+call_count = 0
+
+@retry_with_backoff(max_retries=5)
+def unstable_api_call(endpoint):
+    global call_count
+    call_count += 1
+    if call_count < 3:
+        raise ConnectionError(f"Attempt {call_count}: Connection refused")
+    return {"status": "success", "data": endpoint}
+
+result = unstable_api_call("/api/threat-feed")
+print("Result:", result)</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab2-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(2)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(2)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(2)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(2)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint2"><strong>Hint:</strong> Use a for loop: <code>for attempt in range(max_retries)</code>. In the try block, return <code>func(*args, **kwargs)</code>. In the except block, if it's the last attempt, re-raise. Otherwise, sleep <code>0.1 * (2 ** attempt)</code>.</div>
+                    <div class="success-message" id="success2">&#10003; Retry with exponential backoff is essential for network operations. Your decorator handles transient failures gracefully without manual retry logic in every function.</div>
+                    <div class="error-message" id="error2"></div>
+                </div>
+
+                <div class="section-complete" id="complete2" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">You can write decorators with and without arguments.</p>
+                    <button class="next-btn" onclick="goToSection('section3')">Continue to Decorator Patterns &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 3: Decorator Patterns ==================== -->
+            <div class="section" id="section3">
+                <h2>Decorator Patterns</h2>
+                <p>Beyond basic wrapping, decorators can validate inputs, cache results, enforce rate limits, and compose behavior through stacking.</p>
+
+                <h3>Input Validation Decorator</h3>
+                <pre><code><span class="keyword">def</span> <span class="function">validate_ip</span>(func):
+    <span class="string">"""Ensure the first argument is a valid IP address."""</span>
+    @functools.wraps(func)
+    <span class="keyword">def</span> <span class="function">wrapper</span>(ip, *args, **kwargs):
+        parts = ip.split(<span class="string">"."</span>)
+        <span class="keyword">if</span> <span class="builtin">len</span>(parts) != <span class="builtin">4</span> <span class="keyword">or</span> <span class="keyword">not</span> <span class="builtin">all</span>(
+            p.isdigit() <span class="keyword">and</span> <span class="builtin">0</span> <= <span class="builtin">int</span>(p) <= <span class="builtin">255</span> <span class="keyword">for</span> p <span class="keyword">in</span> parts
+        ):
+            <span class="keyword">raise</span> <span class="builtin">ValueError</span>(<span class="string">f"Invalid IP address: {ip}"</span>)
+        <span class="keyword">return</span> func(ip, *args, **kwargs)
+    <span class="keyword">return</span> wrapper
+
+@validate_ip
+<span class="keyword">def</span> <span class="function">scan_host</span>(ip, ports):
+    <span class="keyword">return</span> {<span class="string">"host"</span>: ip, <span class="string">"ports"</span>: ports}
+
+scan_host(<span class="string">"10.0.0.1"</span>, [<span class="builtin">22</span>, <span class="builtin">80</span>])    <span class="comment"># Works</span>
+scan_host(<span class="string">"not-an-ip"</span>, [<span class="builtin">22</span>])      <span class="comment"># Raises ValueError</span></code></pre>
+
+                <h3>Stacking Decorators</h3>
+                <pre><code><span class="comment"># Decorators execute bottom-up (closest to function first)</span>
+@timer
+@validate_ip
+@audit_trail
+<span class="keyword">def</span> <span class="function">deep_scan</span>(ip, ports):
+    ...
+
+<span class="comment"># Equivalent to:</span>
+<span class="comment"># deep_scan = timer(validate_ip(audit_trail(deep_scan)))</span></code></pre>
+
+                <!-- LAB 3 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 3</span>
+                        <span class="lab-title">@require_auth Decorator</span>
+                    </div>
+                    <p class="lab-instructions">Write a <code>require_auth</code> decorator that accepts a required <code>role</code> parameter. It should check if a global <code>current_user</code> dict has the required role. If not, raise a <code>PermissionError</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">auth.py</span></div>
+                        <textarea class="editor-textarea" id="lab3-code">import functools
+
+current_user = {"name": "alice", "role": "analyst"}
+
+def require_auth(role):
+    """Decorator that checks user role before execution."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Check if current_user has the required role
+            # If not, raise PermissionError with a descriptive message
+            # If yes, call and return the original function
+            pass  # Replace with your implementation
+        return wrapper
+    return decorator
+
+@require_auth(role="analyst")
+def view_logs():
+    return "Viewing security logs..."
+
+@require_auth(role="admin")
+def delete_logs():
+    return "All logs deleted!"
+
+# Test
+print(view_logs())    # Should work (alice is analyst)
+try:
+    print(delete_logs())  # Should raise PermissionError
+except PermissionError as e:
+    print(f"Access denied: {e}")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab3-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(3)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(3)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(3)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(3)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint3"><strong>Hint:</strong> Inside wrapper: <code>if current_user.get("role") != role: raise PermissionError(f"Requires {role} role")</code>. Otherwise <code>return func(*args, **kwargs)</code>.</div>
+                    <div class="success-message" id="success3">&#10003; Role-based access control via decorators! This is exactly how Flask and Django implement endpoint authorization.</div>
+                    <div class="error-message" id="error3"></div>
+                </div>
+
+                <div class="section-complete" id="complete3" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Decorator patterns mastered.</p>
+                    <button class="next-btn" onclick="goToSection('section4')">Continue to Context Managers &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 4: Context Managers ==================== -->
+            <div class="section" id="section4">
+                <h2>Context Managers</h2>
+                <p>Context managers ensure resources are properly acquired and released, even when exceptions occur. The <code>with</code> statement is your guarantee of cleanup.</p>
+
+                <h3>Writing a Context Manager Class</h3>
+                <pre><code><span class="keyword">class</span> <span class="function">SecureConnection</span>:
+    <span class="string">"""Encrypted connection that always closes properly."""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, host, port):
+        self.host = host
+        self.port = port
+        self.socket = <span class="builtin">None</span>
+
+    <span class="keyword">def</span> <span class="function">__enter__</span>(self):
+        <span class="builtin">print</span>(<span class="string">f"Connecting to {self.host}:{self.port}..."</span>)
+        self.socket = <span class="string">"connected"</span>  <span class="comment"># Simulated</span>
+        <span class="keyword">return</span> self  <span class="comment"># This is what 'as' binds to</span>
+
+    <span class="keyword">def</span> <span class="function">__exit__</span>(self, exc_type, exc_val, exc_tb):
+        <span class="builtin">print</span>(<span class="string">"Closing connection..."</span>)
+        self.socket = <span class="builtin">None</span>
+        <span class="keyword">if</span> exc_type:
+            <span class="builtin">print</span>(<span class="string">f"Error occurred: {exc_val}"</span>)
+        <span class="keyword">return</span> <span class="builtin">False</span>  <span class="comment"># Don't suppress exceptions</span>
+
+    <span class="keyword">def</span> <span class="function">send</span>(self, data):
+        <span class="builtin">print</span>(<span class="string">f"Sending: {data}"</span>)
+
+<span class="comment"># Usage: connection is ALWAYS closed, even on error</span>
+<span class="keyword">with</span> SecureConnection(<span class="string">"10.0.0.1"</span>, <span class="builtin">443</span>) <span class="keyword">as</span> conn:
+    conn.send(<span class="string">"GET /api/status"</span>)</code></pre>
+
+                <h3>The __exit__ Parameters</h3>
+                <ul>
+                    <li><code>exc_type</code> &mdash; The exception class (or <code>None</code> if no error)</li>
+                    <li><code>exc_val</code> &mdash; The exception instance</li>
+                    <li><code>exc_tb</code> &mdash; The traceback</li>
+                    <li>Return <code>True</code> to suppress the exception, <code>False</code> to re-raise it</li>
+                </ul>
+
+                <div class="callout callout-security">
+                    <div class="callout-title">Security: Resource Cleanup</div>
+                    <p>Context managers prevent resource leaks: unclosed files, database connections, or network sockets. In security tools, leaked connections can exhaust system resources or leave sensitive data in memory longer than necessary.</p>
+                </div>
+
+                <!-- LAB 4 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 4</span>
+                        <span class="lab-title">SecureFile Context Manager</span>
+                    </div>
+                    <p class="lab-instructions">Write a <code>SecureFile</code> context manager class that opens a file on enter and on exit: (1) closes the file, and (2) logs the access to a global <code>file_access_log</code> list with the filename, mode, and whether an error occurred.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">secure_file.py</span></div>
+                        <textarea class="editor-textarea" id="lab4-code">file_access_log = []
+
+class SecureFile:
+    """Context manager that logs all file access."""
+
+    def __init__(self, filename, mode="r"):
+        self.filename = filename
+        self.mode = mode
+        self.file = None
+
+    def __enter__(self):
+        # Open the file and return self
+        pass  # Replace
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # 1. Close the file
+        # 2. Log to file_access_log: {"file": filename, "mode": mode, "error": bool}
+        # 3. Return False (don't suppress exceptions)
+        pass  # Replace
+
+    def write(self, data):
+        self.file.write(data)
+
+    def read(self):
+        return self.file.read()
+
+# Test
+with SecureFile("/tmp/test.txt", "w") as f:
+    f.write("Sensitive data")
+
+print("Access log:", file_access_log)</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab4-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(4)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(4)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(4)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(4)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint4"><strong>Hint:</strong> In __enter__: <code>self.file = open(self.filename, self.mode)</code> and <code>return self</code>. In __exit__: <code>self.file.close()</code>, append a dict to file_access_log, <code>return False</code>.</div>
+                    <div class="success-message" id="success4">&#10003; Your SecureFile guarantees cleanup and creates an audit trail of all file operations. This is a real-world pattern for compliance logging.</div>
+                    <div class="error-message" id="error4"></div>
+                </div>
+
+                <div class="section-complete" id="complete4" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Context managers are now in your toolkit.</p>
+                    <button class="next-btn" onclick="goToSection('section5')">Continue to contextlib &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 5: contextlib ==================== -->
+            <div class="section" id="section5">
+                <h2>contextlib &mdash; Generator Context Managers</h2>
+                <p>The <code>contextlib</code> module provides shortcuts for creating context managers without writing a full class. The <code>@contextmanager</code> decorator turns a generator into a context manager.</p>
+
+                <h3>@contextmanager</h3>
+                <pre><code><span class="keyword">from</span> contextlib <span class="keyword">import</span> contextmanager
+
+@contextmanager
+<span class="keyword">def</span> <span class="function">timed_operation</span>(name):
+    <span class="string">"""Time a block of code."""</span>
+    <span class="keyword">import</span> time
+    start = time.perf_counter()
+    <span class="keyword">try</span>:
+        <span class="keyword">yield</span>  <span class="comment"># This is where the 'with' block runs</span>
+    <span class="keyword">finally</span>:
+        elapsed = time.perf_counter() - start
+        <span class="builtin">print</span>(<span class="string">f"{name}: {elapsed:.4f}s"</span>)
+
+<span class="keyword">with</span> timed_operation(<span class="string">"Network scan"</span>):
+    <span class="comment"># ... scan code runs here</span>
+    time.sleep(<span class="builtin">0.5</span>)
+<span class="comment"># Output: Network scan: 0.5003s</span></code></pre>
+
+                <h3>Yielding a Value</h3>
+                <pre><code>@contextmanager
+<span class="keyword">def</span> <span class="function">temp_config</span>(overrides):
+    <span class="string">"""Temporarily override config values, restore on exit."""</span>
+    original = config.copy()
+    config.update(overrides)
+    <span class="keyword">try</span>:
+        <span class="keyword">yield</span> config  <span class="comment"># Yielded value binds to 'as'</span>
+    <span class="keyword">finally</span>:
+        config.clear()
+        config.update(original)
+
+<span class="keyword">with</span> temp_config({<span class="string">"debug"</span>: <span class="builtin">True</span>}) <span class="keyword">as</span> cfg:
+    <span class="builtin">print</span>(cfg[<span class="string">"debug"</span>])  <span class="comment"># True</span>
+<span class="comment"># Config is automatically restored here</span></code></pre>
+
+                <!-- LAB 5 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 5</span>
+                        <span class="lab-title">Timed Scope Context Manager</span>
+                    </div>
+                    <p class="lab-instructions">Write a <code>timed_scope</code> context manager using <code>@contextmanager</code> that measures execution time and yields a dict where the elapsed time is stored after the block completes.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">timed.py</span></div>
+                        <textarea class="editor-textarea" id="lab5-code">from contextlib import contextmanager
+import time
+
+@contextmanager
+def timed_scope(label):
+    """Context manager that measures and stores elapsed time."""
+    result = {"label": label, "elapsed": 0}
+    # 1. Record start time
+    # 2. Yield the result dict
+    # 3. In finally: calculate elapsed, store in result["elapsed"]
+    # 4. Print the timing
+    pass  # Replace with your implementation
+
+# Test
+with timed_scope("Port Scan") as t:
+    time.sleep(0.1)  # Simulate work
+
+print(f"Stored time: {t['elapsed']:.3f}s")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab5-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(5)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(5)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(5)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(5)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint5"><strong>Hint:</strong> <code>start = time.perf_counter()</code>, then <code>try: yield result</code>, then <code>finally: result["elapsed"] = time.perf_counter() - start</code>.</div>
+                    <div class="success-message" id="success5">&#10003; Your timed_scope both reports and stores timing data. This pattern is used in profiling tools to track performance of security scanning operations.</div>
+                    <div class="error-message" id="error5"></div>
+                </div>
+
+                <div class="section-complete" id="complete5" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">contextlib shortcuts mastered.</p>
+                    <button class="next-btn" onclick="goToSection('section6')">Continue to Combining Patterns &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 6: Combining Patterns ==================== -->
+            <div class="section" id="section6">
+                <h2>Combining Patterns</h2>
+                <p>The real power comes from combining decorators and context managers. Stack decorators for cross-cutting concerns. Nest context managers for resource orchestration.</p>
+
+                <h3>Real-World Security Tool Example</h3>
+                <pre><code><span class="keyword">import</span> functools
+<span class="keyword">from</span> contextlib <span class="keyword">import</span> contextmanager
+
+<span class="comment"># Decorator: rate limit API calls</span>
+<span class="keyword">def</span> <span class="function">rate_limit</span>(calls_per_second=<span class="builtin">5</span>):
+    <span class="keyword">def</span> <span class="function">decorator</span>(func):
+        last_call = [<span class="builtin">0</span>]
+        @functools.wraps(func)
+        <span class="keyword">def</span> <span class="function">wrapper</span>(*args, **kwargs):
+            elapsed = time.time() - last_call[<span class="builtin">0</span>]
+            wait = <span class="builtin">1</span> / calls_per_second - elapsed
+            <span class="keyword">if</span> wait > <span class="builtin">0</span>:
+                time.sleep(wait)
+            last_call[<span class="builtin">0</span>] = time.time()
+            <span class="keyword">return</span> func(*args, **kwargs)
+        <span class="keyword">return</span> wrapper
+    <span class="keyword">return</span> decorator
+
+<span class="comment"># Context manager: transaction scope</span>
+@contextmanager
+<span class="keyword">def</span> <span class="function">scan_session</span>(target):
+    session = {<span class="string">"target"</span>: target, <span class="string">"results"</span>: [], <span class="string">"start"</span>: time.time()}
+    <span class="keyword">try</span>:
+        <span class="keyword">yield</span> session
+    <span class="keyword">finally</span>:
+        session[<span class="string">"duration"</span>] = time.time() - session[<span class="string">"start"</span>]
+        save_scan_report(session)
+
+<span class="comment"># Combined usage</span>
+@rate_limit(calls_per_second=<span class="builtin">2</span>)
+@retry(max_attempts=<span class="builtin">3</span>)
+@audit_trail
+<span class="keyword">def</span> <span class="function">check_port</span>(host, port):
+    ...
+
+<span class="keyword">with</span> scan_session(<span class="string">"10.0.0.0/24"</span>) <span class="keyword">as</span> session:
+    <span class="keyword">for</span> host <span class="keyword">in</span> hosts:
+        <span class="keyword">for</span> port <span class="keyword">in</span> common_ports:
+            result = check_port(host, port)
+            session[<span class="string">"results"</span>].append(result)</code></pre>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">Tip: Order Matters When Stacking</div>
+                    <p>Decorator order is significant: <code>@rate_limit @retry @audit_trail</code> means rate limiting wraps retry, which wraps audit. The outermost decorator runs first. Put rate limiting outside, audit inside.</p>
+                </div>
+
+                <!-- Code Review Exercise -->
+                <div class="code-review">
+                    <div class="lab-header">
+                        <span class="review-badge">CODE REVIEW</span>
+                        <span class="lab-title">Find the Issues</span>
+                    </div>
+                    <p class="lab-instructions">Review this code. It has 3 issues related to decorators and context managers.</p>
+
+                    <pre><code><span class="keyword">def</span> <span class="function">log_calls</span>(func):
+    <span class="keyword">def</span> <span class="function">wrapper</span>(*args):   <span class="comment"># Issue 1: missing **kwargs</span>
+        <span class="builtin">print</span>(<span class="string">f"Calling: {func.__name__}"</span>)
+        <span class="keyword">return</span> func(*args)
+    <span class="keyword">return</span> wrapper          <span class="comment"># Issue 2: missing @functools.wraps</span>
+
+<span class="keyword">class</span> <span class="function">DBConnection</span>:
+    <span class="keyword">def</span> <span class="function">__enter__</span>(self):
+        self.conn = connect_db()
+        <span class="keyword">return</span> self.conn
+
+    <span class="keyword">def</span> <span class="function">__exit__</span>(self, *args):
+        <span class="keyword">return</span> <span class="builtin">True</span>           <span class="comment"># Issue 3: suppresses ALL exceptions!</span></code></pre>
+
+                    <p style="margin-top:1rem;"><strong>Issues:</strong></p>
+                    <ol>
+                        <li>Missing <code>**kwargs</code> in wrapper &mdash; decorated functions with keyword arguments will break</li>
+                        <li>Missing <code>@functools.wraps(func)</code> &mdash; function name and docstring are lost</li>
+                        <li><code>__exit__</code> returns <code>True</code> &mdash; this silently swallows all exceptions, including real bugs. Should return <code>False</code> and close the connection.</li>
+                    </ol>
+                </div>
+
+                <!-- Module Completion -->
+                <div class="module-complete" id="moduleComplete" style="display: none;">
+                    <div class="complete-icon" style="font-size: 3rem;">&#127942;</div>
+                    <h2>Chapter 3 Complete!</h2>
+                    <p class="complete-message">You've mastered Python's power patterns: first-class functions, decorators, context managers, contextlib, and how to combine them for real-world security tooling.</p>
+                    <button class="module-complete-btn" onclick="completeModule()">Complete Chapter &amp; Continue &rarr;</button>
+                </div>
+
+                <div class="section-complete" id="complete6" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">All Sections Complete!</h3>
+                    <p class="complete-message">You've completed all 6 sections of Chapter 3.</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="progress.js"></script>
+
+    <script>
+        let currentSection = 'section1';
+        let completedSections = [];
+        const TOTAL_SECTIONS = 6;
+        const STORAGE_KEY = 'pye-ch03-sections';
+
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) completedSections = JSON.parse(saved);
+        } catch(e) {}
+
+        const defaultCode = {
+            1: `import functools\n\naudit_log = []\n\ndef audit_trail(func):\n    """Decorator that logs function calls to audit_log."""\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        # 1. Call the original function\n        # 2. Create a log entry dict with: function name, args, kwargs, result\n        # 3. Append to audit_log\n        # 4. Return the result\n        pass  # Replace with your implementation\n    return wrapper\n\n@audit_trail\ndef authenticate(username, password):\n    return username == "admin" and password == "s3cure!"\n\n@audit_trail\ndef read_file(path, mode="r"):\n    return f"Contents of {path}"\n\n# Test\nauthenticate("admin", "s3cure!")\nauthenticate("hacker", "password123")\nread_file("/etc/passwd")\n\nfor entry in audit_log:\n    print(entry)`,
+            2: `import functools\nimport time\n\ndef retry_with_backoff(max_retries=3):\n    """Decorator that retries with exponential backoff."""\n    def decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            # Implement retry logic with exponential backoff\n            # On each failure: print attempt number and error\n            # Base delay: 0.1 seconds, doubled each attempt\n            pass  # Replace with your implementation\n        return wrapper\n    return decorator\n\n# Test: this function fails the first 2 times\ncall_count = 0\n\n@retry_with_backoff(max_retries=5)\ndef unstable_api_call(endpoint):\n    global call_count\n    call_count += 1\n    if call_count < 3:\n        raise ConnectionError(f"Attempt {call_count}: Connection refused")\n    return {"status": "success", "data": endpoint}\n\nresult = unstable_api_call("/api/threat-feed")\nprint("Result:", result)`,
+            3: `import functools\n\ncurrent_user = {"name": "alice", "role": "analyst"}\n\ndef require_auth(role):\n    """Decorator that checks user role before execution."""\n    def decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            # Check if current_user has the required role\n            # If not, raise PermissionError with a descriptive message\n            # If yes, call and return the original function\n            pass  # Replace with your implementation\n        return wrapper\n    return decorator\n\n@require_auth(role="analyst")\ndef view_logs():\n    return "Viewing security logs..."\n\n@require_auth(role="admin")\ndef delete_logs():\n    return "All logs deleted!"\n\n# Test\nprint(view_logs())    # Should work (alice is analyst)\ntry:\n    print(delete_logs())  # Should raise PermissionError\nexcept PermissionError as e:\n    print(f"Access denied: {e}")`,
+            4: `file_access_log = []\n\nclass SecureFile:\n    """Context manager that logs all file access."""\n\n    def __init__(self, filename, mode="r"):\n        self.filename = filename\n        self.mode = mode\n        self.file = None\n\n    def __enter__(self):\n        # Open the file and return self\n        pass  # Replace\n\n    def __exit__(self, exc_type, exc_val, exc_tb):\n        # 1. Close the file\n        # 2. Log to file_access_log: {"file": filename, "mode": mode, "error": bool}\n        # 3. Return False (don't suppress exceptions)\n        pass  # Replace\n\n    def write(self, data):\n        self.file.write(data)\n\n    def read(self):\n        return self.file.read()\n\n# Test\nwith SecureFile("/tmp/test.txt", "w") as f:\n    f.write("Sensitive data")\n\nprint("Access log:", file_access_log)`,
+            5: `from contextlib import contextmanager\nimport time\n\n@contextmanager\ndef timed_scope(label):\n    """Context manager that measures and stores elapsed time."""\n    result = {"label": label, "elapsed": 0}\n    # 1. Record start time\n    # 2. Yield the result dict\n    # 3. In finally: calculate elapsed, store in result["elapsed"]\n    # 4. Print the timing\n    pass  # Replace with your implementation\n\n# Test\nwith timed_scope("Port Scan") as t:\n    time.sleep(0.1)  # Simulate work\n\nprint(f"Stored time: {t['elapsed']:.3f}s")`
+        };
+
+        function goToSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.section === sectionId) link.classList.add('active');
+            });
+            currentSection = sectionId;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => goToSection(link.dataset.section));
+        });
+
+        function updateProgress() {
+            const percent = Math.round((completedSections.length / TOTAL_SECTIONS) * 100);
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = percent + '% Complete';
+            if (completedSections.length >= TOTAL_SECTIONS) {
+                const mc = document.getElementById('moduleComplete');
+                if (mc) mc.style.display = 'block';
+            }
+        }
+
+        function markSectionComplete(sectionNum) {
+            const sectionId = 'section' + sectionNum;
+            if (!completedSections.includes(sectionId)) {
+                completedSections.push(sectionId);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+                const navLink = document.querySelector(`[data-section="${sectionId}"]`);
+                if (navLink) {
+                    navLink.classList.add('completed');
+                    navLink.querySelector('.nav-icon').textContent = '\u2713';
+                }
+                const completeDiv = document.getElementById('complete' + sectionNum);
+                if (completeDiv) completeDiv.style.display = 'block';
+                updateProgress();
+            }
+        }
+
+        function runLab(num) {
+            const output = document.getElementById('lab' + num + '-output');
+            const outputs = {
+                1: 'Running audit trail test...\n{"function": "authenticate", "args": ("admin", "s3cure!"), "result": true}\n{"function": "authenticate", "args": ("hacker", "password123"), "result": false}\n{"function": "read_file", "args": ("/etc/passwd",), "result": "Contents of /etc/passwd"}',
+                2: 'Attempt 1: ConnectionError - Connection refused\nRetrying in 0.1s...\nAttempt 2: ConnectionError - Connection refused\nRetrying in 0.2s...\nAttempt 3: Success!\nResult: {"status": "success", "data": "/api/threat-feed"}',
+                3: 'Viewing security logs...\nAccess denied: Requires admin role',
+                4: 'Writing to /tmp/test.txt...\nFile closed. Access logged.\nAccess log: [{"file": "/tmp/test.txt", "mode": "w", "error": false}]',
+                5: 'Port Scan: 0.1003s\nStored time: 0.100s'
+            };
+            output.textContent = outputs[num] || 'Running...';
+        }
+
+        function checkLab(num) {
+            const code = document.getElementById('lab' + num + '-code').value;
+            const successDiv = document.getElementById('success' + num);
+            const errorDiv = document.getElementById('error' + num);
+            let isCorrect = false;
+
+            if (num === 1) {
+                const hasResult = /result\s*=\s*func\(/.test(code);
+                const hasAppend = code.includes('audit_log.append(');
+                const hasReturn = /return\s+result/.test(code);
+                const hasFuncName = code.includes('func.__name__') || code.includes("__name__");
+                isCorrect = hasResult && hasAppend && hasReturn;
+                if (!isCorrect) errorDiv.textContent = 'Call func(*args, **kwargs), store the result, append a dict to audit_log, and return the result.';
+            } else if (num === 2) {
+                const hasLoop = /for\s+attempt\s+in\s+range/.test(code) || /for\s+\w+\s+in\s+range/.test(code);
+                const hasTry = code.includes('try:');
+                const hasExcept = code.includes('except');
+                const hasReturn = /return\s+func\(/.test(code);
+                const hasSleep = code.includes('sleep(') || code.includes('sleep (');
+                isCorrect = hasLoop && hasTry && hasExcept && hasReturn;
+                if (!isCorrect) errorDiv.textContent = 'Use a for loop with try/except. Return func() on success, sleep with backoff on failure, re-raise on last attempt.';
+            } else if (num === 3) {
+                const hasCheck = code.includes('current_user') && (code.includes('role') || code.includes('["role"]'));
+                const hasRaise = code.includes('PermissionError');
+                const hasReturn = /return\s+func\(/.test(code);
+                isCorrect = hasCheck && hasRaise && hasReturn;
+                if (!isCorrect) errorDiv.textContent = 'Check current_user["role"] against the required role. Raise PermissionError if mismatch. Return func() if authorized.';
+            } else if (num === 4) {
+                const hasOpen = code.includes('open(');
+                const hasClose = code.includes('.close()');
+                const hasAppend = code.includes('file_access_log.append(');
+                const hasReturnSelf = /return\s+self/.test(code);
+                isCorrect = hasOpen && hasClose && hasAppend && hasReturnSelf;
+                if (!isCorrect) errorDiv.textContent = 'In __enter__: open the file and return self. In __exit__: close the file, append to file_access_log, return False.';
+            } else if (num === 5) {
+                const hasYield = code.includes('yield result') || code.includes('yield  result');
+                const hasPerfCounter = code.includes('perf_counter()') || code.includes('time.time()');
+                const hasFinally = code.includes('finally:');
+                const hasElapsed = code.includes('result["elapsed"]');
+                isCorrect = hasYield && hasPerfCounter && hasFinally && hasElapsed;
+                if (!isCorrect) errorDiv.textContent = 'Record start time, yield result in a try block, calculate elapsed in finally block, store in result["elapsed"].';
+            }
+
+            if (isCorrect) {
+                successDiv.classList.add('show');
+                errorDiv.classList.remove('show');
+                markSectionComplete(num);
+            } else {
+                errorDiv.classList.add('show');
+                successDiv.classList.remove('show');
+            }
+        }
+
+        function toggleHint(num) { document.getElementById('hint' + num).classList.toggle('show'); }
+
+        function resetLab(num) {
+            document.getElementById('lab' + num + '-code').value = defaultCode[num];
+            document.getElementById('lab' + num + '-output').textContent = 'Click "Check" to validate...';
+            document.getElementById('success' + num).classList.remove('show');
+            document.getElementById('error' + num).classList.remove('show');
+            document.getElementById('hint' + num).classList.remove('show');
+        }
+
+        function completeModule() {
+            PYEProgress.markModuleComplete('ch03');
+            PYEProgress.markQuizPassed('ch03', 100);
+            window.location.href = 'index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            completedSections.forEach(sectionId => {
+                const navLink = document.querySelector(`[data-section="${sectionId}"]`);
+                if (navLink) {
+                    navLink.classList.add('completed');
+                    navLink.querySelector('.nav-icon').textContent = '\u2713';
+                }
+                const num = sectionId.replace('section', '');
+                const completeDiv = document.getElementById('complete' + num);
+                if (completeDiv) completeDiv.style.display = 'block';
+            });
+
+            const observer = new MutationObserver(() => {
+                const section6 = document.getElementById('section6');
+                if (section6 && section6.classList.contains('active') && completedSections.length >= 5) {
+                    markSectionComplete(6);
+                }
+            });
+            observer.observe(document.getElementById('section6'), { attributes: true });
+
+            updateProgress();
+        });
+    </script>
+</body>
+</html>
