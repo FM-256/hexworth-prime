@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirSnitch Wireless IDS Lab - WifiForge | Hexworth Prime</title>
+    <!-- Access control must fire before any content renders -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0508;
+            color: #c4b5d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Purple/blue ambient glow — IDS monitoring theme */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 25%, rgba(147, 51, 234, 0.12) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 75%, rgba(59, 130, 246, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, rgba(88, 28, 135, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .header {
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(147, 51, 234, 0.25);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .back-link {
+            color: #7c3aed;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .back-link:hover {
+            background: rgba(147, 51, 234, 0.12);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+
+        .header-badge {
+            background: rgba(147, 51, 234, 0.2);
+            color: #c084fc;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        .header h1 {
+            font-size: 1.15rem;
+            color: #a855f7;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        /* Score display in header */
+        .header-score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+        .score-value {
+            color: #a855f7;
+            font-weight: 700;
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Layout: Terminal + Sidebar ───────────────────────────── */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 370px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Left: Terminal Panel ─────────────────────────────────── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(147, 51, 234, 0.2);
+            overflow: hidden;
+        }
+
+        /* Ethical warning — always visible above terminal */
+        .ethical-warning-banner {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.18), rgba(153, 27, 27, 0.12));
+            border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .warning-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .warning-text {
+            font-size: 0.78rem;
+            color: #fca5a5;
+            line-height: 1.4;
+        }
+        .warning-text strong {
+            color: #ef4444;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Current objective prompt strip above terminal */
+        .task-prompt {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            flex-shrink: 0;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .task-number {
+            background: #9333ea;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .task-number.completed { background: #22c55e; }
+        .task-number.skipped   { background: #f59e0b; }
+
+        .task-meta {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        .task-meta span {
+            color: #9ca3af;
+        }
+
+        .task-question {
+            font-size: 0.97rem;
+            color: #e5e7eb;
+            line-height: 1.55;
+        }
+        .task-question code {
+            background: rgba(147, 51, 234, 0.2);
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #c084fc;
+            font-size: 0.9em;
+        }
+
+        .task-hint {
+            font-size: 0.82rem;
+            color: #6b7280;
+            margin-top: 6px;
+            font-style: italic;
+            display: none;
+        }
+        .task-hint.show {
+            display: block;
+            color: #f59e0b;
+        }
+        .task-hint::before {
+            content: 'Hint: ';
+            font-weight: 600;
+        }
+
+        /* Terminal fills remaining space */
+        .terminal-container {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Feedback bar below terminal */
+        .feedback-bar {
+            background: rgba(0, 0, 0, 0.45);
+            padding: 11px 24px;
+            border-top: 1px solid rgba(147, 51, 234, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .feedback-message {
+            font-size: 0.85rem;
+            color: #6b7280;
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .feedback-message.success { color: #22c55e; }
+        .feedback-message.error   { color: #ef4444; }
+
+        .bar-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .hint-btn, .skip-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hint-btn {
+            color: #6b7280;
+        }
+        .hint-btn:hover {
+            background: rgba(147, 51, 234, 0.1);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+        .skip-btn {
+            color: #6b7280;
+        }
+        .skip-btn:hover {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #f59e0b;
+        }
+        .hint-btn:disabled, .skip-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ── Right: Sidebar ───────────────────────────────────────── */
+        .sidebar {
+            background: rgba(8, 4, 14, 0.97);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #7c3aed;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        /* Mission brief callout */
+        .mission-brief {
+            background: rgba(147, 51, 234, 0.07);
+            border-left: 3px solid #9333ea;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+        }
+        .mission-brief p {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            line-height: 1.55;
+        }
+        .mission-brief strong {
+            color: #c084fc;
+        }
+
+        /* Legal warning in sidebar */
+        .sidebar-warning {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(153, 27, 27, 0.08));
+            border: 1px solid rgba(220, 38, 38, 0.35);
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+        .sidebar-warning-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ef4444;
+            margin-bottom: 5px;
+        }
+        .sidebar-warning-text {
+            font-size: 0.77rem;
+            color: #fca5a5;
+            line-height: 1.45;
+        }
+
+        /* Progress bar */
+        .progress-section {}
+        .progress-bar-track {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            height: 7px;
+            overflow: hidden;
+            margin: 10px 0 7px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 14px;
+        }
+        .progress-stats .pct { color: #a855f7; font-weight: 600; }
+
+        /* Objectives list */
+        .objectives-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 8px 10px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid #1f2937;
+            font-size: 0.77rem;
+            color: #6b7280;
+            transition: all 0.25s ease;
+            line-height: 1.4;
+        }
+        .obj-item.active {
+            border-left-color: #9333ea;
+            background: rgba(147, 51, 234, 0.1);
+            color: #e5e7eb;
+        }
+        .obj-item.completed {
+            border-left-color: #22c55e;
+            color: #4ade80;
+        }
+        .obj-item.skipped {
+            border-left-color: #f59e0b;
+            color: #f59e0b;
+            opacity: 0.65;
+        }
+
+        .obj-check {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #1f2937;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.58rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .obj-item.active    .obj-check { border-color: #9333ea; }
+        .obj-item.completed .obj-check { border-color: #22c55e; background: #22c55e; color: #000; }
+        .obj-item.skipped   .obj-check { border-color: #f59e0b; background: #f59e0b; color: #000; }
+
+        .obj-title {
+            font-weight: 600;
+            font-size: 0.78rem;
+        }
+        .obj-desc {
+            font-size: 0.73rem;
+            opacity: 0.75;
+            margin-top: 2px;
+        }
+
+        /* Defender insight box — reveals after each task completion */
+        .defender-box {
+            background: rgba(59, 130, 246, 0.07);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px;
+            padding: 10px 13px;
+            display: none;
+        }
+        .defender-box.show { display: block; }
+        .defender-box-title {
+            font-size: 0.67rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+        .defender-box-text {
+            font-size: 0.77rem;
+            color: #93c5fd;
+            line-height: 1.45;
+        }
+
+        /* Score breakdown widget */
+        .score-widget {
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6b7280;
+            padding: 3px 0;
+        }
+        .score-row .val { color: #c4b5d4; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .score-row.total {
+            border-top: 1px solid rgba(147, 51, 234, 0.2);
+            margin-top: 6px;
+            padding-top: 8px;
+            color: #a855f7;
+            font-weight: 700;
+        }
+        .score-row.total .val { color: #a855f7; font-size: 1.05rem; }
+
+        /* ── Completion Modal ──────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(145deg, #0d0814, #150b20);
+            border: 2px solid #9333ea;
+            border-radius: 18px;
+            padding: 44px 48px;
+            text-align: center;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 0 60px rgba(147, 51, 234, 0.3);
+            animation: modalIn 0.35s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92) translateY(16px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal.perfect { border-color: #22c55e; box-shadow: 0 0 60px rgba(34, 197, 94, 0.25); }
+
+        .modal-icon { font-size: 3.6rem; margin-bottom: 14px; }
+        .modal h2 { color: #a855f7; font-size: 1.65rem; margin-bottom: 8px; }
+        .modal.perfect h2 { color: #22c55e; }
+        .modal p { color: #6b7280; font-size: 0.9rem; margin-bottom: 22px; line-height: 1.5; }
+
+        .modal-stats {
+            display: flex;
+            justify-content: center;
+            gap: 36px;
+            margin-bottom: 28px;
+        }
+        .modal-stat { text-align: center; }
+        .modal-stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+        .modal-stat-value.good  { color: #22c55e; }
+        .modal-stat-value.warn  { color: #f59e0b; }
+        .modal-stat-value.pts   { color: #a855f7; }
+        .modal-stat-label { font-size: 0.82rem; color: #6b7280; margin-top: 4px; }
+
+        .modal-btns {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+        }
+        .modal-btn {
+            padding: 11px 26px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #9333ea, #a855f7);
+            color: #fff;
+        }
+        .modal-btn.primary:hover { opacity: 0.88; }
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.07);
+            color: #c4b5d4;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .modal-btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
+
+        /* ── Responsive: hide sidebar on narrow screens ─────────────── */
+        @media (max-width: 960px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; WiFi Arsenal</a>
+            <span class="header-badge">WifiForge Lab</span>
+            <h1>AirSnitch Wireless IDS</h1>
+        </div>
+        <div class="header-score">
+            Score: <span class="score-value" id="headerScore">100</span>
+        </div>
+    </header>
+
+    <!-- ── Main layout ─────────────────────────────────────────────── -->
+    <div class="main-container">
+
+        <!-- ── Left: Terminal Panel ──────────────────────────────── -->
+        <section class="terminal-panel">
+
+            <!-- Ethical warning banner (always visible) -->
+            <div class="ethical-warning-banner">
+                <span class="warning-icon">&#9888;</span>
+                <p class="warning-text">
+                    <strong>Authorized Lab Only.</strong>
+                    Deploying wireless monitoring equipment without network owner consent violates 18 U.S.C. 2511 (Wiretap Act) and the ECPA. This simulation is authorized for the Hexworth Prime training environment only.
+                </p>
+            </div>
+
+            <!-- Current objective prompt -->
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="task-number" id="taskNumber">1</div>
+                        <div class="task-question" id="taskQuestion">Loading...</div>
+                    </div>
+                    <span class="task-meta">Objective <span id="currentTaskNum">1</span> of <span id="totalTasks">8</span></span>
+                </div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+
+            <!-- LinuxTerminal mounts here -->
+            <div class="terminal-container" id="terminal"></div>
+
+            <!-- Feedback bar -->
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type a command to begin. Try <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">help</code> or <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">objectives</code></div>
+                <div class="bar-actions">
+                    <button class="hint-btn" id="hintBtn" onclick="showHint()">Hint (-5 pts)</button>
+                    <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Right: Sidebar ────────────────────────────────────── -->
+        <aside class="sidebar">
+
+            <!-- Mission Brief -->
+            <div>
+                <div class="sidebar-section-title">Mission Brief</div>
+                <div class="mission-brief">
+                    <p>
+                        You are a security analyst deploying <strong>AirSnitch</strong> on a
+                        Raspberry Pi to protect <strong>CorpNet headquarters</strong>.
+                        Configure the IDS, monitor the wireless environment passively, and
+                        identify active attacks — a deauthentication flood and an evil twin
+                        access point — then document and export a complete incident report.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Legal Warning -->
+            <div class="sidebar-warning">
+                <div class="sidebar-warning-label">Legal Notice</div>
+                <div class="sidebar-warning-text">
+                    Passive RF monitoring of networks you do not own or have explicit written
+                    authorization to monitor violates 18 U.S.C. 2511 (Wiretap Act) and the
+                    Electronic Communications Privacy Act (ECPA). Operate only on networks
+                    within your authorized scope of work.
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-section">
+                <div class="sidebar-section-title">Progress</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-stats">
+                    <span><span id="completedCount">0</span> / 8 objectives</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+            </div>
+
+            <!-- Objectives list -->
+            <div>
+                <div class="sidebar-section-title">Objectives</div>
+                <ul class="objectives-list" id="objList"></ul>
+            </div>
+
+            <!-- Score breakdown -->
+            <div class="score-widget">
+                <div class="sidebar-section-title" style="margin-bottom:8px;">Score</div>
+                <div class="score-row"><span>Base</span><span class="val">100 pts</span></div>
+                <div class="score-row"><span>Hints used</span><span class="val" id="scoreHintDeduct">-0 pts</span></div>
+                <div class="score-row total"><span>Total</span><span class="val" id="scoreFinal">100</span></div>
+            </div>
+
+            <!-- Defender insight (populates after each objective) -->
+            <div class="defender-box" id="defenderBox">
+                <div class="defender-box-title">Defender's Perspective</div>
+                <div class="defender-box-text" id="defenderText"></div>
+            </div>
+
+        </aside>
+    </div>
+
+    <!-- ── Completion Modal ──────────────────────────────────────────── -->
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="modal-icon" id="modalIcon">&#128736;</div>
+            <h2 id="modalTitle">Lab Complete!</h2>
+            <p id="modalMessage">AirSnitch IDS deployment and incident detection demonstrated.</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value good" id="modalCompleted">0</div>
+                    <div class="modal-stat-label">Completed</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value warn" id="modalSkipped">0</div>
+                    <div class="modal-stat-label">Skipped</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value pts" id="modalScore">100</div>
+                    <div class="modal-stat-label">Points</div>
+                </div>
+            </div>
+            <div class="modal-btns">
+                <button class="modal-btn primary" onclick="restartLab()">Restart Lab</button>
+                <a href="../index.html" class="modal-btn secondary">Back to WiFi Arsenal</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ═══════════════════════════════════════════════════════════════
+       WifiForge Lab 11 — AirSnitch Wireless IDS
+       WiFi Arsenal / Dark Arts Vault
+       Simulated environment: CorpNet Raspberry Pi IDS deployment
+       Scenario: detect deauth flood + evil twin, export report
+    ═══════════════════════════════════════════════════════════════ */
+
+    /* ── Network environment constants ───────────────────────────── */
+    const CORP_SSID      = 'CorpWiFi';
+    const CORP_BSSID     = 'AA:BB:CC:11:22:33';     // legitimate AP
+    const CORP_CHANNEL   = 6;
+    const ROGUE_BSSID    = 'DE:AD:BE:EF:CA:FE';     // evil twin AP (same SSID, different BSSID)
+    const ROGUE_CHANNEL  = 11;
+    const DEAUTH_MAC     = 'AA:BB:CC:DD:EE:FF';     // device flooding deauth frames
+    const INTERFACE      = 'wlan1';
+    const MON_INTERFACE  = 'wlan1mon';
+
+    /* ── Score state ─────────────────────────────────────────────── */
+    const score = { base: 100, hints: 0 };
+
+    /* ── Report text — written to /home/analyst/report.txt after task 8 ── */
+    const REPORT_CONTENT =
+`AirSnitch Wireless IDS Report
+==============================
+Generated : 2025-11-14 09:18:00
+Analyst   : analyst@corpnet.local
+Interface : ${MON_INTERFACE} (passive)
+
+NETWORK SUMMARY
+---------------
+Monitored SSID : ${CORP_SSID}
+Legitimate BSSID: ${CORP_BSSID} (CH ${CORP_CHANNEL})
+Session duration: 00:06:42
+Total frames    : 8,241
+Total alerts    : 2 (1 HIGH, 1 CRITICAL)
+
+ALERT 1 -- DEAUTHENTICATION FLOOD
+----------------------------------
+Time     : 2025-11-14 09:12:44
+Source   : ${DEAUTH_MAC}
+Target   : ${CORP_BSSID} (${CORP_SSID})
+Frames   : 347 deauth frames in 8 seconds
+Severity : HIGH
+Impact   : All associated clients were disconnected. Potential DoS.
+Action   : Escalate to network operations. Identify and locate ${DEAUTH_MAC}.
+
+ALERT 2 -- EVIL TWIN ACCESS POINT
+-----------------------------------
+Time     : 2025-11-14 09:13:02
+Rogue AP : ${ROGUE_BSSID} broadcasting ${CORP_SSID} on CH ${ROGUE_CHANNEL}
+Legit AP : ${CORP_BSSID} (CH ${CORP_CHANNEL})
+Severity : CRITICAL
+Impact   : Clients disconnected by deauth may associate to rogue AP.
+Action   : Initiate physical search for rogue AP. Notify security team.
+
+RECOMMENDATIONS
+---------------
+1. Deploy 802.11w Protected Management Frames on all APs.
+2. Enable client MAC allowlisting where operationally feasible.
+3. Configure AirSnitch alert notifications via syslog to SIEM.
+4. Schedule weekly WIDS report review.
+
+-- End of Report --`;
+
+    /* ── Full alert log content (populated after monitoring starts) ─ */
+    const FULL_ALERT_LOG =
+`# AirSnitch Alert Log -- /var/log/airsnitch/alerts.log
+# Session started: 2025-11-14 09:11:18
+# Interface: ${MON_INTERFACE} | Mode: passive
+
+[2025-11-14 09:12:44] [ALERT] DEAUTH_FLOOD detected
+  Source MAC : ${DEAUTH_MAC}
+  Target BSSID: ${CORP_BSSID} (${CORP_SSID})
+  Frame count: 347 deauth frames in 8 seconds
+  Channel    : ${CORP_CHANNEL}
+  Severity   : HIGH
+  Action     : Logged. No automatic mitigation in passive mode.
+
+[2025-11-14 09:13:02] [ALERT] ROGUE_AP detected (Evil Twin)
+  SSID       : ${CORP_SSID}
+  Rogue BSSID: ${ROGUE_BSSID}
+  Legit BSSID: ${CORP_BSSID}
+  Rogue CH   : ${ROGUE_CHANNEL}  (legitimate AP on CH ${CORP_CHANNEL})
+  Signal     : -52 dBm
+  Severity   : CRITICAL
+  Action     : Logged. Alert dispatched to syslog.
+
+[2025-11-14 09:13:15] [INFO] New device observed: 98:01:A7:CC:22:55 probing for ${CORP_SSID}
+[2025-11-14 09:13:45] [INFO] New device observed: 74:DA:38:1F:09:AA associated to ${CORP_BSSID}`;
+
+    /* ── Task definitions — 8 AirSnitch IDS phases ───────────────── */
+    const TASKS = [
+        {
+            id: 1,
+            title: 'Check Interface',
+            desc: 'Verify wireless adapter supports monitor mode',
+            question: 'Verify the wireless adapter is present with <code>iwconfig</code> or <code>iw dev</code>',
+            hint: 'iwconfig',
+            validate: c => /^(iwconfig|iw\s+dev)\b/.test(c),
+            response:
+`wlan1     IEEE 802.11  ESSID:off/any
+          Mode:Managed  Access Point: Not-Associated   Tx-Power=20 dBm
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:on
+
+lo        no wireless extensions.
+eth0      no wireless extensions.`,
+            successMessage: 'wlan1 detected in Managed mode. The Realtek RTL8812AU chipset supports monitor mode — a mandatory capability for passive IDS sensor operation.',
+            defender: 'Not all wireless adapters support monitor mode. IDS deployments should validate monitor-mode capability (Atheros AR9271, Realtek RTL8812AU are reliable choices) before purchasing hardware for production WIDS sensors.'
+        },
+        {
+            id: 2,
+            title: 'Enable Monitor Mode',
+            desc: 'Put the wireless adapter into monitor mode',
+            question: 'Enable monitor mode with <code>airmon-ng start wlan1</code>',
+            hint: 'airmon-ng start wlan1',
+            validate: c =>
+                (c.includes('airmon-ng') && c.includes('start') && c.includes('wlan1')) ||
+                (c.includes('ip link set wlan1 down') && c.includes('iw dev wlan1 set type monitor')),
+            response:
+`PHY     Interface         Driver          Chipset
+
+phy0    wlan1             rtl8812au       Realtek RTL8812AU
+
+        (mac80211 monitor mode vif enabled for [phy0]wlan1 on [phy0]wlan1mon)
+        (mac80211 station mode vif disabled for [phy0]wlan1)
+
+Monitor interface enabled: wlan1mon`,
+            successMessage: 'wlan1mon is now in monitor mode. The adapter will receive all 802.11 frames in range — management, control, and data — without associating to any network. The sensor is invisible to the monitored network.',
+            defender: 'Monitor mode is required for passive WIDS operation. Unlike managed mode, monitor mode generates no probe requests, no association frames, and no data traffic — making the sensor effectively invisible to attacker tools scanning for surveillance devices.'
+        },
+        {
+            id: 3,
+            title: 'Configure AirSnitch',
+            desc: 'Edit the AirSnitch configuration file',
+            question: 'Review the AirSnitch config with <code>cat /etc/airsnitch/airsnitch.conf</code> or open it in <code>nano</code> or <code>vi</code>',
+            hint: 'cat /etc/airsnitch/airsnitch.conf',
+            validate: c =>
+                (c.includes('cat') || c.includes('nano') || c.includes('vi')) &&
+                c.includes('/etc/airsnitch/airsnitch.conf'),
+            response:
+`# AirSnitch Configuration
+interface=wlan1
+mode=passive
+alert_deauth=true
+alert_rogue_ap=true
+alert_new_device=true
+channel_hop=true
+log_path=/var/log/airsnitch/
+
+<span style="color:#22c55e;">Config loaded. All detection rules enabled. Interface will be updated to wlan1mon at runtime.</span>`,
+            successMessage: 'Configuration confirmed: passive mode, deauth detection, rogue AP detection, new device alerts, and channel hopping all enabled. AirSnitch will use wlan1mon at runtime and write alerts to /var/log/airsnitch/.',
+            defender: 'IDS configuration follows the principle of least privilege — passive-only mode ensures the sensor never transmits. Centralised log paths should be pointed at a remote SIEM in production, and alert thresholds tuned to the environment to reduce false positives.'
+        },
+        {
+            id: 4,
+            title: 'Start Monitoring',
+            desc: 'Launch AirSnitch in passive monitoring mode',
+            question: 'Start AirSnitch with <code>airsnitch --start</code> or <code>sudo airsnitch --interface wlan1mon --passive</code>',
+            hint: 'airsnitch --start',
+            validate: c =>
+                c.includes('airsnitch') &&
+                (c.includes('--start') || (c.includes('--interface') && c.includes('--passive'))),
+            response:
+`<span style="color:#a855f7;">[ AirSnitch v1.4.2 -- Wireless Intrusion Detection System ]</span>
+<span style="color:#6b7280;">Loading configuration from /etc/airsnitch/airsnitch.conf... OK</span>
+<span style="color:#6b7280;">Interface     : wlan1mon (monitor mode confirmed)</span>
+<span style="color:#6b7280;">Detection mode: passive (no transmission)</span>
+<span style="color:#6b7280;">Alert rules   : DEAUTH, ROGUE_AP, NEW_DEVICE</span>
+<span style="color:#6b7280;">Channel hop   : enabled (2.4GHz + 5GHz)</span>
+<span style="color:#6b7280;">Log path      : /var/log/airsnitch/</span>
+
+<span style="color:#22c55e;">AirSnitch is running. Monitoring started.</span>
+
+<span style="color:#6b7280;">CH  1 ] Scanning... 0 alerts</span>
+<span style="color:#6b7280;">CH  6 ] Scanning... 0 alerts | AP: ${CORP_BSSID} (${CORP_SSID}) detected</span>
+<span style="color:#6b7280;">CH 11 ] Scanning... 0 alerts</span>
+<span style="color:#6b7280;">CH  6 ] Scanning... 0 alerts | 3 clients on ${CORP_SSID}</span>
+<span style="color:#6b7280;">CH  1 ] Scanning... 0 alerts</span>
+<span style="color:#6b7280;">CH  6 ] Scanning... 0 alerts | Network quiet.</span>`,
+            successMessage: 'AirSnitch is running in passive mode. Channel hopping is active across 2.4GHz and 5GHz bands. The legitimate CorpWiFi AP was detected on CH 6 with 3 associated clients. The IDS is now watching for anomalous management frames.',
+            defender: 'Passive WIDS operation is undetectable by network participants — the sensor never transmits. Channel hopping provides full-band coverage but reduces dwell time per channel. Production environments should use dedicated per-channel sensors for zero-gap coverage.'
+        },
+        {
+            id: 5,
+            title: 'Detect Deauth Attack',
+            desc: 'Identify a deauthentication flood in the alerts',
+            question: 'Check for active alerts with <code>airsnitch --alerts</code> or <code>cat /var/log/airsnitch/alerts.log</code>',
+            hint: 'airsnitch --alerts',
+            validate: c =>
+                (c.includes('airsnitch') && c.includes('--alerts')) ||
+                (c.includes('cat') && c.includes('/var/log/airsnitch/alerts.log')),
+            /* Shows the deauth alert. Rogue AP alert appears separately in task 6. */
+            response:
+`<span style="color:#f59e0b;">[ALERT] DEAUTH_FLOOD detected at 09:12:44</span>
+  Source MAC : <span style="color:#ef4444;">${DEAUTH_MAC}</span>
+  Target BSSID: ${CORP_BSSID} (${CORP_SSID})
+  Frame count: <span style="color:#ef4444;">347 deauth frames in 8 seconds</span>
+  Channel    : ${CORP_CHANNEL}
+  Severity   : <span style="color:#ef4444;">HIGH</span>
+
+<span style="color:#6b7280;">Watching for additional events...</span>`,
+            successMessage: `Deauthentication flood detected: ${DEAUTH_MAC} sent 347 deauth frames in 8 seconds targeting ${CORP_SSID}. All associated clients were disconnected. AirSnitch flagged it as HIGH severity.`,
+            defender: 'Deauthentication attacks exploit the lack of authentication on 802.11 management frames. 802.11w Protected Management Frames (PMF) cryptographically authenticate deauth frames and fully prevent this attack class — but require both AP and client support.'
+        },
+        {
+            id: 6,
+            title: 'Detect Rogue AP',
+            desc: 'Identify an evil twin access point',
+            question: 'Review updated alerts — a rogue AP has appeared. Run <code>airsnitch --alerts</code> again',
+            hint: 'airsnitch --alerts',
+            validate: c =>
+                (c.includes('airsnitch') && c.includes('--alerts')) ||
+                (c.includes('cat') && c.includes('/var/log/airsnitch/alerts.log')),
+            response:
+`<span style="color:#f59e0b;">[ALERT] DEAUTH_FLOOD detected at 09:12:44</span>
+  Source MAC : ${DEAUTH_MAC}  |  Severity: HIGH
+
+<span style="color:#ef4444;">[ALERT] ROGUE_AP detected (Evil Twin) at 09:13:02</span>
+  SSID       : <span style="color:#ef4444;">${CORP_SSID}</span>
+  Rogue BSSID: <span style="color:#ef4444;">${ROGUE_BSSID}</span>
+  Legit BSSID: ${CORP_BSSID}
+  Rogue CH   : <span style="color:#ef4444;">${ROGUE_CHANNEL}</span>  (legitimate AP on CH ${CORP_CHANNEL})
+  Signal     : -52 dBm
+  Severity   : <span style="color:#ef4444;">CRITICAL</span>
+
+<span style="color:#6b7280;">2 total alerts. No further events in session window.</span>`,
+            successMessage: `Evil twin AP detected: ${ROGUE_BSSID} is broadcasting "${CORP_SSID}" on CH ${ROGUE_CHANNEL} — a different BSSID and channel from the legitimate AP (${CORP_BSSID}, CH ${CORP_CHANNEL}). Clients deauthed in the prior flood are now at risk of connecting to the rogue.`,
+            defender: 'Evil twin attacks are most effective when combined with a deauthentication flood. WIDS systems detect this by comparing observed BSSIDs for each SSID against an authorised AP list. Any unlisted BSSID broadcasting a known SSID should trigger a CRITICAL alert and immediate SOC response.'
+        },
+        {
+            id: 7,
+            title: 'Review Alert Log',
+            desc: 'Examine the alert log for all detections',
+            question: 'Read the full alert log with <code>cat /var/log/airsnitch/alerts.log</code>',
+            hint: 'cat /var/log/airsnitch/alerts.log',
+            validate: c =>
+                c.includes('cat') && c.includes('/var/log/airsnitch/alerts.log'),
+            response:
+`<span style="color:#6b7280;"># AirSnitch Alert Log -- /var/log/airsnitch/alerts.log
+# Session started: 2025-11-14 09:11:18
+# Interface: ${MON_INTERFACE} | Mode: passive</span>
+
+<span style="color:#f59e0b;">[2025-11-14 09:12:44] [ALERT] DEAUTH_FLOOD detected
+  Source MAC : ${DEAUTH_MAC}
+  Target BSSID: ${CORP_BSSID} (${CORP_SSID})
+  Frame count: 347 deauth frames in 8 seconds
+  Channel    : ${CORP_CHANNEL}
+  Severity   : HIGH</span>
+
+<span style="color:#ef4444;">[2025-11-14 09:13:02] [ALERT] ROGUE_AP detected (Evil Twin)
+  SSID       : ${CORP_SSID}
+  Rogue BSSID: ${ROGUE_BSSID}
+  Legit BSSID: ${CORP_BSSID}
+  Rogue CH   : ${ROGUE_CHANNEL}  (legitimate AP on CH ${CORP_CHANNEL})
+  Signal     : -52 dBm
+  Severity   : CRITICAL</span>
+
+<span style="color:#6b7280;">[2025-11-14 09:13:15] [INFO] New device: 98:01:A7:CC:22:55 probing for ${CORP_SSID}
+[2025-11-14 09:13:45] [INFO] New device: 74:DA:38:1F:09:AA associated to ${CORP_BSSID}</span>`,
+            successMessage: 'Full alert timeline reviewed: 2 security alerts (1 HIGH deauth flood, 1 CRITICAL evil twin) plus 2 informational new-device events. The 18-second gap between the deauth flood and the rogue AP appearance confirms a coordinated two-phase attack.',
+            defender: 'Correlating alert timestamps reveals attacker intent. A deauth flood immediately preceding a rogue AP event is the fingerprint of an evil twin attack chain. SIEM correlation rules should link these two event types within a configurable time window and auto-escalate combined incidents to CRITICAL.'
+        },
+        {
+            id: 8,
+            title: 'Export Report',
+            desc: 'Generate and save the monitoring report',
+            question: 'Export the incident report with <code>airsnitch --export-report /home/analyst/report.txt</code>',
+            hint: 'airsnitch --export-report /home/analyst/report.txt',
+            validate: c =>
+                c.includes('airsnitch') &&
+                c.includes('--export-report') &&
+                c.includes('/home/analyst/report.txt'),
+            response:
+`<span style="color:#a855f7;">[ AirSnitch Report Generator ]</span>
+<span style="color:#6b7280;">Collecting session data...</span>
+<span style="color:#6b7280;">Processing 8,241 captured frames...</span>
+<span style="color:#6b7280;">Compiling 2 alert entries...</span>
+<span style="color:#6b7280;">Writing report to /home/analyst/report.txt...</span>
+
+<span style="color:#22c55e;">Report exported successfully.</span>
+<span style="color:#6b7280;">Path    : /home/analyst/report.txt</span>
+<span style="color:#6b7280;">Size    : 1.8 KB</span>
+<span style="color:#6b7280;">Alerts  : 2 (1 HIGH, 1 CRITICAL)</span>
+<span style="color:#6b7280;">Frames  : 8,241 total</span>
+<span style="color:#6b7280;">Duration: 00:06:42</span>
+
+<span style="color:#c084fc;">Review with: cat /home/analyst/report.txt</span>`,
+            successMessage: 'Incident report generated and saved to /home/analyst/report.txt. The report documents both detections with timestamps, severity ratings, affected assets, and remediation recommendations.',
+            defender: 'Structured IDS reports accelerate incident response. In production, AirSnitch reports should be automatically forwarded to a SIEM and ticketed in the incident management platform within SLA windows. JSON-format logs allow direct Splunk or Elastic ingest without manual parsing.'
+        }
+    ];
+
+    /* ── Lab state ───────────────────────────────────────────────── */
+    const state = {
+        currentTask:       0,
+        results:           {},   // task index -> 'correct' | 'skipped'
+        attempts:          {},   // task index -> attempt count
+        monitorEnabled:    false,
+        monitoringStarted: false,
+        deauthDetected:    false,
+        rogueDetected:     false,
+        reportExported:    false
+    };
+
+    /* ── Initialise LinuxTerminal and virtual filesystem ─────────── */
+    function init() {
+        LinuxTerminal.init('WIFIFORGE-11', '#terminal', {
+            user:      'analyst',
+            hostname:  'corpnet-ids',
+            startDir:  '/home/analyst',
+            height:    '100%',
+            onCommand: handleCommand,
+            objectives: TASKS.map(t => ({
+                id:   `obj${t.id}`,
+                desc: t.desc
+            }))
+        });
+
+        /* Simulated filesystem — all paths reachable via ls, cat, nano */
+        LinuxTerminal.addFilesystem({
+            '/home/analyst': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                children: ['report.txt', '.bashrc']
+            },
+            '/home/analyst/report.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                size: 0,
+                content: ''
+            },
+            '/etc/airsnitch': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                children: ['airsnitch.conf']
+            },
+            '/etc/airsnitch/airsnitch.conf': {
+                type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                size: 182,
+                content: '# AirSnitch Configuration\ninterface=wlan1\nmode=passive\nalert_deauth=true\nalert_rogue_ap=true\nalert_new_device=true\nchannel_hop=true\nlog_path=/var/log/airsnitch/\n'
+            },
+            '/var/log/airsnitch': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'analyst',
+                children: ['alerts.log', 'devices.log']
+            },
+            '/var/log/airsnitch/alerts.log': {
+                type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'analyst',
+                size: 0,
+                content: '# AirSnitch Alert Log -- session not yet started.\n'
+            },
+            '/var/log/airsnitch/devices.log': {
+                type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'analyst',
+                size: 0,
+                content: ''
+            },
+            '/proc/net/wireless': {
+                type: 'file', perms: '-r--r--r--', owner: 'root', group: 'root',
+                size: 228,
+                content: 'Inter-| sta-|   Quality        |   Discarded packets               | Missed | WE\n face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22\n wlan1: 0000   70.  -40.  -256        0      0      0      0      0        0\n'
+            }
+        });
+
+        buildObjList();
+        document.getElementById('totalTasks').textContent = TASKS.length;
+        showTask(0);
+
+        /* Welcome banner with lab scenario context */
+        LinuxTerminal.print(`<span style="color:#a855f7;">[ WifiForge Lab 11: AirSnitch Wireless IDS ]</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Environment  : CorpNet Raspberry Pi 4 IDS sensor</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Interface    : ${INTERFACE} (Realtek RTL8812AU, monitor-capable)</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Mission      : Deploy AirSnitch, monitor ${CORP_SSID}, detect and report wireless attacks</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Type <span style="color:#c084fc;">help</span> for commands or <span style="color:#c084fc;">objectives</span> to list all tasks.\n</span>`);
+    }
+
+    /* ── Build objectives list in sidebar ────────────────────────── */
+    function buildObjList() {
+        document.getElementById('objList').innerHTML = TASKS.map((t, i) => `
+            <li class="obj-item${i === 0 ? ' active' : ''}" data-task="${i}" id="obj-item-${i}">
+                <div class="obj-check" id="obj-check-${i}">${i + 1}</div>
+                <div>
+                    <div class="obj-title">${t.title}</div>
+                    <div class="obj-desc">${t.desc}</div>
+                </div>
+            </li>`).join('');
+    }
+
+    /* ── Display the current task in the prompt strip ────────────── */
+    function showTask(i) {
+        const t = TASKS[i];
+        state.currentTask = i;
+        state.attempts[i] = state.attempts[i] || 0;
+
+        document.getElementById('taskNumber').textContent      = i + 1;
+        document.getElementById('taskNumber').className        = 'task-number';
+        document.getElementById('currentTaskNum').textContent  = i + 1;
+        document.getElementById('taskQuestion').innerHTML      = t.question;
+        document.getElementById('taskHint').textContent        = t.hint;
+        document.getElementById('taskHint').classList.remove('show');
+        document.getElementById('feedbackMessage').textContent = 'Enter your command...';
+        document.getElementById('feedbackMessage').className   = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.getElementById('hintBtn').disabled = false;
+
+        /* Highlight active item in sidebar */
+        document.querySelectorAll('.obj-item').forEach((el, j) => {
+            el.classList.remove('active');
+            if (j === i && !state.results[j]) el.classList.add('active');
+        });
+
+        LinuxTerminal.print(`\n<span style="color:#9333ea;">--- Objective ${i + 1} of ${TASKS.length}: ${t.title} ---</span>`);
+    }
+
+    /* ── Handle all terminal input ───────────────────────────────── */
+    function handleCommand(cmdLine, output, cmd, args) {
+        const c = cmdLine.trim();
+        const t = TASKS[state.currentTask];
+
+        state.attempts[state.currentTask] = (state.attempts[state.currentTask] || 0) + 1;
+
+        /* ── Passthrough built-in commands — no scoring impact ─────── */
+        const passthroughs = ['clear', 'help', 'ls', 'cd', 'pwd', 'whoami', 'uname', 'man', 'which'];
+        if (passthroughs.includes(cmd)) return;
+
+        /* ── objectives — print all tasks and their status ──────────── */
+        if (cmd === 'objectives') {
+            LinuxTerminal.print(`<span style="color:#a855f7;">Objectives:</span>`);
+            TASKS.forEach((task, i) => {
+                const status =
+                    state.results[i] === 'correct'  ? '<span style="color:#22c55e;">[DONE]</span>' :
+                    state.results[i] === 'skipped'  ? '<span style="color:#f59e0b;">[SKIP]</span>' :
+                    i === state.currentTask          ? '<span style="color:#9333ea;">[CURR]</span>' :
+                                                      '<span style="color:#374151;">[ -- ]</span>';
+                LinuxTerminal.print(`  ${status} ${i + 1}. ${task.title} -- ${task.desc}`);
+            });
+            return;
+        }
+
+        /* ── ifconfig / ip addr — show interface context ────────────── */
+        if (cmd === 'ifconfig' || (cmd === 'ip' && args[0] === 'addr')) {
+            const monLine = state.monitorEnabled
+                ? `\n${MON_INTERFACE}: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500\n        unspec a4:c3:f0:88:21:55  txqueuelen 1000  (UNSPEC)\n`
+                : '';
+            LinuxTerminal.print(
+`eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.20.0.55  netmask 255.255.255.0  broadcast 10.20.0.255
+        ether b8:27:eb:44:11:77  txqueuelen 1000
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+
+${INTERFACE}: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        ether a4:c3:f0:88:21:55  txqueuelen 1000${monLine}`
+            );
+            return;
+        }
+
+        /* ── iwconfig when not the active task — show interface state ── */
+        if (cmd === 'iwconfig' && !t.validate(c)) {
+            if (state.monitorEnabled) {
+                LinuxTerminal.print(
+`${MON_INTERFACE}  IEEE 802.11  Mode:Monitor  Frequency:2.437 GHz  Tx-Power=30 dBm
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+
+lo        no wireless extensions.
+eth0      no wireless extensions.`
+                );
+            } else {
+                LinuxTerminal.print(
+`${INTERFACE}     IEEE 802.11  ESSID:off/any
+          Mode:Managed  Access Point: Not-Associated   Tx-Power=20 dBm
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:on
+
+lo        no wireless extensions.
+eth0      no wireless extensions.`
+                );
+            }
+            return;
+        }
+
+        /* ── iw dev — always shows current interface state ──────────── */
+        if (cmd === 'iw' && args[0] === 'dev' && !t.validate(c)) {
+            const iface = state.monitorEnabled ? MON_INTERFACE : INTERFACE;
+            const mode  = state.monitorEnabled ? 'monitor'     : 'managed';
+            LinuxTerminal.print(
+`phy#0
+        Interface ${iface}
+                ifindex 3
+                wdev 0x1
+                addr a4:c3:f0:88:21:55
+                type ${mode}
+                channel ${CORP_CHANNEL} (2437 MHz), width: 20 MHz`
+            );
+            return;
+        }
+
+        /* ── cat alerts.log before monitoring has started ─────────── */
+        if (c.includes('/var/log/airsnitch/alerts.log') && !state.monitoringStarted) {
+            LinuxTerminal.print('<span style="color:#f59e0b;">AirSnitch has not been started. Start monitoring first (objective 4), then check the alert log.</span>');
+            return;
+        }
+
+        /* ── airsnitch --alerts before monitoring started ─────────── */
+        if (c.includes('airsnitch') && c.includes('--alerts') && !state.monitoringStarted) {
+            LinuxTerminal.print('<span style="color:#ef4444;">AirSnitch is not running. Start it first with: airsnitch --start</span>');
+            return;
+        }
+
+        /* ── export-report gated: both attacks must be detected first ─ */
+        if (c.includes('airsnitch') && c.includes('--export-report') && (!state.deauthDetected || !state.rogueDetected)) {
+            LinuxTerminal.print('<span style="color:#f59e0b;">Complete objectives 5 and 6 first — both attacks must be detected before generating the report.</span>');
+            return;
+        }
+
+        /* ── cat report.txt after successful export ─────────────────── */
+        if ((c === 'cat /home/analyst/report.txt' || c === 'cat ~/report.txt' || c === 'cat report.txt') && state.reportExported) {
+            LinuxTerminal.print(`<span style="color:#6b7280;">${REPORT_CONTENT}</span>`);
+            return;
+        }
+
+        /* ── cat report.txt before export ───────────────────────────── */
+        if ((c === 'cat /home/analyst/report.txt' || c === 'cat ~/report.txt' || c === 'cat report.txt') && !state.reportExported) {
+            LinuxTerminal.print('<span style="color:#6b7280;">[empty -- report has not been generated yet. Complete objective 8 first.]</span>');
+            return;
+        }
+
+        /* ── Validate against the current task ───────────────────────── */
+        if (t.validate(c)) {
+            /* Print the realistic tool output for this phase */
+            LinuxTerminal.print(`<span style="color:#9ca3af;">${t.response}</span>`);
+
+            /* Track game-state transitions so contextual guards work downstream */
+            if (state.currentTask === 1) state.monitorEnabled    = true;
+            if (state.currentTask === 3) {
+                state.monitoringStarted = true;
+                /* Populate the alert log in the virtual filesystem once monitoring begins */
+                LinuxTerminal.addFilesystem({
+                    '/var/log/airsnitch/alerts.log': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'analyst',
+                        size: 1024,
+                        content: FULL_ALERT_LOG
+                    }
+                });
+            }
+            if (state.currentTask === 4) state.deauthDetected    = true;
+            if (state.currentTask === 5) state.rogueDetected      = true;
+            if (state.currentTask === 7) {
+                state.reportExported = true;
+                /* Write the completed report into the virtual filesystem */
+                LinuxTerminal.addFilesystem({
+                    '/home/analyst/report.txt': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                        size: 1843,
+                        content: REPORT_CONTENT
+                    }
+                });
+            }
+
+            /* Print success message and defender counter-perspective */
+            LinuxTerminal.print(`\n<span style="color:#a855f7;">${t.successMessage}</span>`);
+            LinuxTerminal.print(`<span style="color:#3b82f6;">[DEFENDER] ${t.defender}</span>`);
+
+            /* Notify LinuxTerminal HUD that this objective is complete */
+            LinuxTerminal.completeObjective(`obj${t.id}`);
+
+            /* Update feedback bar */
+            const fb = t.successMessage;
+            document.getElementById('feedbackMessage').textContent =
+                fb.length > 72 ? fb.substring(0, 72) + '...' : fb;
+            document.getElementById('feedbackMessage').className = 'feedback-message success';
+
+            state.results[state.currentTask] = 'correct';
+            markObjItem(state.currentTask, 'completed');
+            document.getElementById('taskNumber').classList.add('completed');
+            document.getElementById('skipBtn').disabled = true;
+            document.getElementById('hintBtn').disabled = true;
+
+            /* Reveal defender insight in sidebar */
+            document.getElementById('defenderBox').classList.add('show');
+            document.getElementById('defenderText').textContent = t.defender;
+
+            updateProgress();
+            setTimeout(() => advanceTask(), 2400);
+
+        } else if (c !== '') {
+            /* Wrong command — contextual guidance */
+            let errMsg = '<span class="lt-error">Command not recognised for this objective. Check syntax and try again.</span>';
+
+            if (state.currentTask === 0 && c.includes('wlan0')) {
+                errMsg = '<span style="color:#ef4444;">Wrong interface. The IDS adapter is wlan1, not wlan0. Run: iwconfig</span>';
+            } else if (state.currentTask === 1 && c.includes('airmon-ng') && !c.includes('wlan1')) {
+                errMsg = '<span style="color:#ef4444;">Specify the correct interface: airmon-ng start wlan1</span>';
+            } else if (state.currentTask === 2 && !c.includes('/etc/airsnitch')) {
+                errMsg = '<span style="color:#ef4444;">Target the AirSnitch config file: /etc/airsnitch/airsnitch.conf</span>';
+            } else if (state.currentTask === 3 && c.includes('airsnitch') && !c.includes('--start') && !c.includes('--passive')) {
+                errMsg = '<span style="color:#ef4444;">Use --start to launch AirSnitch, or --interface wlan1mon --passive for explicit mode.</span>';
+            } else if ((state.currentTask === 4 || state.currentTask === 5) && c.includes('airsnitch') && !c.includes('--alerts')) {
+                errMsg = '<span style="color:#ef4444;">Use airsnitch --alerts to display alert data, or cat /var/log/airsnitch/alerts.log</span>';
+            } else if (state.currentTask === 6 && !c.includes('alerts.log') && !c.includes('--alerts')) {
+                errMsg = '<span style="color:#ef4444;">Check the full alert log: cat /var/log/airsnitch/alerts.log</span>';
+            } else if (state.currentTask === 7 && c.includes('airsnitch') && !c.includes('--export-report')) {
+                errMsg = '<span style="color:#ef4444;">Use --export-report with a path: airsnitch --export-report /home/analyst/report.txt</span>';
+            }
+
+            LinuxTerminal.print(errMsg);
+
+            /* Auto-reveal hint after 3 failed attempts (no score penalty) */
+            if (state.attempts[state.currentTask] >= 3) {
+                document.getElementById('taskHint').classList.add('show');
+            }
+        }
+    }
+
+    /* ── Show hint on demand — costs 5 points ────────────────────── */
+    function showHint() {
+        if (document.getElementById('hintBtn').disabled) return;
+        score.hints += 5;
+        document.getElementById('taskHint').classList.add('show');
+        document.getElementById('hintBtn').disabled = true;
+        updateScoreDisplay();
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[HINT -5 pts] ${TASKS[state.currentTask].hint}</span>`);
+    }
+
+    /* ── Skip current task ───────────────────────────────────────── */
+    function skipTask() {
+        if (document.getElementById('skipBtn').disabled) return;
+        state.results[state.currentTask] = 'skipped';
+        markObjItem(state.currentTask, 'skipped');
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('hintBtn').disabled = true;
+        document.getElementById('feedbackMessage').innerHTML =
+            `<strong>Skipped.</strong> Answer: <code style="background:rgba(147,51,234,0.2);padding:1px 6px;border-radius:4px;color:#c084fc;">${TASKS[state.currentTask].hint}</code>`;
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[SKIPPED] Answer: ${TASKS[state.currentTask].hint}</span>`);
+
+        /* Advance game-state flags on skip so downstream guards remain coherent */
+        if (state.currentTask === 1) state.monitorEnabled    = true;
+        if (state.currentTask === 3) {
+            state.monitoringStarted = true;
+            LinuxTerminal.addFilesystem({
+                '/var/log/airsnitch/alerts.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'analyst',
+                    size: 1024,
+                    content: FULL_ALERT_LOG
+                }
+            });
+        }
+        if (state.currentTask === 4) state.deauthDetected = true;
+        if (state.currentTask === 5) state.rogueDetected   = true;
+
+        updateProgress();
+        setTimeout(() => advanceTask(), 900);
+    }
+
+    /* ── Advance to next task or trigger completion ───────────────── */
+    function advanceTask() {
+        if (state.currentTask >= TASKS.length - 1) {
+            showResults();
+            return;
+        }
+        showTask(state.currentTask + 1);
+    }
+
+    /* ── Update sidebar objective item styling ────────────────────── */
+    function markObjItem(i, status) {
+        const el = document.getElementById(`obj-item-${i}`);
+        const ch = document.getElementById(`obj-check-${i}`);
+        if (!el || !ch) return;
+        el.classList.remove('active', 'completed', 'skipped');
+        el.classList.add(status);
+        ch.innerHTML = status === 'completed' ? '&#10003;' : '&#8212;';
+    }
+
+    /* ── Update progress bar and score displays ───────────────────── */
+    function updateProgress() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const total     = Object.keys(state.results).length;
+        const pct       = Math.round((total / TASKS.length) * 100);
+
+        document.getElementById('progressFill').style.width   = pct + '%';
+        document.getElementById('completedCount').textContent  = completed;
+        document.getElementById('progressPct').textContent     = pct + '%';
+
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        const current = Math.max(0, score.base - score.hints);
+        document.getElementById('scoreFinal').textContent      = current;
+        document.getElementById('headerScore').textContent     = current;
+        document.getElementById('scoreHintDeduct').textContent = `-${score.hints} pts`;
+    }
+
+    /* ── Show completion modal and register ModuleProgress ──────────
+       Called after all 8 objectives are completed or skipped.        */
+    function showResults() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const skipped   = Object.values(state.results).filter(r => r === 'skipped').length;
+        const finalPts  = Math.max(0, score.base - score.hints);
+
+        document.getElementById('modalCompleted').textContent = completed;
+        document.getElementById('modalSkipped').textContent   = skipped;
+        document.getElementById('modalScore').textContent     = finalPts;
+
+        const modal = document.getElementById('modalContent');
+        modal.classList.remove('perfect');
+
+        if (completed === TASKS.length) {
+            modal.classList.add('perfect');
+            document.getElementById('modalIcon').innerHTML    = '&#10003;';
+            document.getElementById('modalTitle').textContent = 'Full Detection!';
+            document.getElementById('modalMessage').textContent =
+                'AirSnitch deployed, both attacks detected and logged, incident report exported. Perfect run.';
+        } else {
+            document.getElementById('modalIcon').innerHTML    = '&#128736;';
+            document.getElementById('modalTitle').textContent = 'Lab Complete';
+            document.getElementById('modalMessage').textContent =
+                `${completed}/8 objectives completed. Review skipped steps to master the full IDS workflow.`;
+        }
+
+        document.getElementById('resultsModal').classList.add('show');
+
+        /* Register lab completion with the platform progress system */
+        try {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'wifi-lab-11', {
+                    score:     finalPts,
+                    total:     score.base,
+                    returnUrl: '../index.html'
+                });
+            }
+        } catch (e) { /* non-fatal: platform may not be present in isolated testing */ }
+
+        /* AchievementManager hooks for wireless IDS milestones */
+        try {
+            if (typeof AchievementManager !== 'undefined') {
+                if (completed === TASKS.length && score.hints === 0) {
+                    AchievementManager.unlock('ids_sentinel');
+                }
+                if (completed >= 6) {
+                    AchievementManager.unlock('threat_spotter');
+                }
+                if (state.deauthDetected && state.rogueDetected) {
+                    AchievementManager.unlock('attack_chain_analyst');
+                }
+            }
+        } catch (e) { /* non-fatal */ }
+    }
+
+    /* ── Restart lab from scratch ─────────────────────────────────── */
+    function restartLab() {
+        document.getElementById('resultsModal').classList.remove('show');
+        document.getElementById('defenderBox').classList.remove('show');
+        score.hints              = 0;
+        state.currentTask        = 0;
+        state.results            = {};
+        state.attempts           = {};
+        state.monitorEnabled     = false;
+        state.monitoringStarted  = false;
+        state.deauthDetected     = false;
+        state.rogueDetected      = false;
+        state.reportExported     = false;
+        updateScoreDisplay();
+        LinuxTerminal.destroy();
+        init();
+    }
+
+    /* ── Boot ──────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <!-- Supporting components load after game logic is defined -->
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

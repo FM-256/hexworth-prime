@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Arsenal Module 09: RITA Network Threat Hunting - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '&#9656;'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '&#9656;'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Tool cards */
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .tool-name {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-role {
+            font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .val { color: #93c5fd; }
+        .code-block .out { color: #c084fc; }
+        .code-block .hi { color: #f87171; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        /* Pipeline diagram — text-art style, Courier-rendered */
+        .pipeline-diagram {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 24px 28px; margin: 20px 0;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #9a7aaa; line-height: 2.0;
+        }
+
+        .pipeline-diagram .pipe-label { color: #c4a0d8; font-weight: bold; }
+        .pipeline-diagram .pipe-arrow { color: #7a5a8a; }
+        .pipeline-diagram .pipe-note { color: #6a4a7a; font-style: italic; }
+        .pipeline-diagram .pipe-hi { color: #a855f7; }
+
+        /* Score meter — visual beacon/connection score bar */
+        .score-meter {
+            display: flex; align-items: center; gap: 14px; margin: 10px 0;
+        }
+
+        .score-label {
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            color: #9a7aaa; min-width: 180px;
+        }
+
+        .score-track {
+            flex: 1; height: 8px; background: rgba(40, 20, 60, 0.4);
+            border-radius: 4px; overflow: hidden;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .score-fill {
+            height: 100%; border-radius: 4px;
+            transition: width 1s ease;
+        }
+
+        .score-fill-low  { background: linear-gradient(90deg, #22c55e, #4ade80); }
+        .score-fill-mid  { background: linear-gradient(90deg, #eab308, #facc15); }
+        .score-fill-high { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+        .score-val {
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            color: #c4a0d8; min-width: 40px; text-align: right;
+        }
+
+        /* Data table for RITA output columns */
+        .data-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.85rem;
+        }
+
+        .data-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.76rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            font-family: 'Courier New', monospace;
+        }
+
+        .data-table td {
+            padding: 11px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+        }
+
+        .data-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .data-table .col-hi { color: #c4a0d8; }
+        .data-table .col-flag { color: #f87171; }
+        .data-table .col-ok { color: #4ade80; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-high   { background: rgba(220, 38, 38, 0.18); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.35); }
+        .badge-medium { background: rgba(234, 179, 8, 0.18); color: #fbbf24; border: 1px solid rgba(234, 179, 8, 0.35); }
+        .badge-low    { background: rgba(34, 197, 94, 0.18); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.35); }
+        .badge-info   { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+
+        /* Workflow step boxes */
+        .workflow-steps { margin: 24px 0; }
+
+        .workflow-step {
+            display: flex; gap: 20px; margin-bottom: 16px;
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .workflow-step:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .step-num {
+            font-size: 1.4rem; color: #9333ea; font-family: 'Courier New', monospace;
+            font-weight: bold; flex-shrink: 0; min-width: 36px; padding-top: 2px;
+            opacity: 0.7;
+        }
+
+        .step-content h4 {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 6px; font-weight: normal;
+        }
+
+        .step-content p { font-size: 0.86rem; color: #8a6a9a; line-height: 1.6; margin: 0; }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .takeaway-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin: 24px 0;
+        }
+
+        .takeaway-card {
+            background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; text-align: center;
+        }
+
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        /* Score comparison panel */
+        .score-panel {
+            background: rgba(10, 5, 15, 0.7);
+            border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 8px;
+            padding: 24px; margin: 20px 0;
+        }
+
+        .score-panel-title {
+            font-size: 0.78rem; color: #7a5a8a; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 18px;
+            padding-bottom: 10px; border-bottom: 1px solid rgba(100, 60, 130, 0.12);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">WiFi Arsenal &middot; Module 09</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128202;</div>
+        <h1 class="intro-title">RITA: Network Threat Hunting</h1>
+        <div class="intro-meta">WiFi Arsenal &bull; Module 09 &bull; Threat Analytics</div>
+        <p class="intro-subtitle">
+            Real Intelligence Threat Analytics (RITA) is an open-source framework for hunting command-and-control
+            infrastructure through behavioral analysis of network traffic. Where signature-based tools look for
+            known bad, RITA looks for known suspicious patterns: beaconing malware that phones home on a schedule,
+            DNS tunneling that abuses name resolution for data exfiltration, persistent long-lived connections
+            indicative of C2 channels, and scanning patterns that map internal networks. This module covers
+            RITA's architecture, its detection algorithms, and a complete analytical workflow from Zeek log
+            ingestion to actionable threat intelligence.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">RITA</div>
+            <div class="stat-pill">Zeek</div>
+            <div class="stat-pill">Beacon Detection</div>
+            <div class="stat-pill">DNS Analysis</div>
+            <div class="stat-pill">~35 min read</div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Section 1: What is RITA
+         ========================================================= -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128203;</span>
+            What is RITA
+        </h2>
+        <div class="section-body">
+            <p>
+                RITA — Real Intelligence Threat Analytics — is an open-source framework developed and maintained
+                by Active Countermeasures. It is designed to perform automated behavioral analysis of network
+                traffic logs, specifically targeting the patterns produced by command-and-control (C2) implants,
+                data exfiltration tools, and internal reconnaissance activity. RITA does not inspect packet
+                payloads. It operates entirely on connection metadata: source IP, destination IP, destination
+                port, protocol, bytes transferred, connection duration, and timestamps. This metadata-only
+                approach gives it a critical operational advantage: it works even when traffic is encrypted.
+            </p>
+            <p>
+                The central thesis behind RITA is that malware behavior has structural signatures independent
+                of payload content. A C2 implant that calls home every four minutes — whether over HTTP,
+                HTTPS, or a custom protocol — produces a timing pattern in connection logs that is statistically
+                distinguishable from normal user-driven traffic. DNS tunneling tools generate query patterns
+                that differ measurably from legitimate DNS usage. RITA quantifies these deviations and scores
+                hosts based on how closely their behavior matches known-malicious patterns.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#128203;</span>
+                <div class="callout-content">
+                    <div class="callout-title">RITA Does Not Replace Signatures</div>
+                    <div class="callout-text">
+                        RITA is a behavioral analytics tool, not a signature-based IDS. It does not know about
+                        specific malware families, CVEs, or indicators of compromise by hash or IP reputation
+                        (unless you feed it threat intel blacklists). Its value is in detecting novel or
+                        unknown C2 infrastructure that has not yet been catalogued — the gap that signatures
+                        cannot fill. Use it alongside, not instead of, signature-based detection.
+                    </div>
+                </div>
+            </div>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128270;</div>
+                    <div class="concept-card-title">Behavioral Baseline Approach</div>
+                    <div class="concept-card-body">
+                        RITA does not require a pre-trained model or a known-good baseline. It analyzes
+                        a dataset of Zeek logs and scores all internal hosts based on how anomalous their
+                        traffic patterns are. High-scoring hosts rise to the top for investigation. No
+                        training period, no learned normal — just statistical deviation from expected patterns.
+                    </div>
+                    <span class="concept-tag">Detection Philosophy</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">Multi-Dimensional Scoring</div>
+                    <div class="concept-card-body">
+                        Every internal host receives independent scores across four detection categories:
+                        beacon score, DNS score, long connection score, and strobe score. A host can be
+                        normal in three categories and highly suspicious in one, allowing analysts to
+                        triage based on which specific threat behavior is present.
+                    </div>
+                    <span class="concept-tag">Architecture</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128274;</div>
+                    <div class="concept-card-title">Encryption-Agnostic</div>
+                    <div class="concept-card-body">
+                        Because RITA operates on connection metadata rather than payload content, TLS
+                        encryption does not degrade its detection capability. A beaconing implant using
+                        HTTPS produces the same timing signature in conn.log as one using plain HTTP.
+                        Analysts who rely solely on packet inspection lose visibility when adversaries
+                        use encrypted channels — RITA does not.
+                    </div>
+                    <span class="concept-tag">Capability</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128172;</div>
+                    <div class="concept-card-title">Threat Intel Integration</div>
+                    <div class="concept-card-body">
+                        RITA can ingest external blacklists and threat intelligence feeds, matching
+                        connection destinations against known-bad IP and FQDN lists. This layers
+                        traditional IOC-based detection on top of behavioral analysis, allowing a
+                        single tool to surface both known-bad and behaviorally-suspicious hosts.
+                    </div>
+                    <span class="concept-tag">Integration</span>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">RITA in the Defensive Stack</h3>
+            <p>
+                RITA sits in the network security monitoring (NSM) layer of the defensive stack, downstream
+                of packet capture and upstream of SIEM alerting. It is not a real-time IDS — it is a batch
+                analysis tool that processes a window of traffic (typically 24 hours of Zeek logs) and produces
+                a ranked report of suspicious behavior. The intended workflow is daily or continuous rolling
+                analysis, with analysts reviewing the top-scoring hosts from each run as part of a regular
+                threat hunting rhythm. Active Countermeasures offers a commercial version (AC-Hunter) that
+                wraps RITA in a full web interface and continuous pipeline — RITA is the open-source core
+                underlying that product.
+            </p>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Authorization Requirement</div>
+                    <div class="callout-text">
+                        RITA analyzes actual network traffic logs. Capturing and analyzing network traffic
+                        without authorization violates computer fraud statutes in most jurisdictions and
+                        organizational policy in virtually all others. All analysis must be performed only
+                        on networks and systems for which you have explicit written authorization. Lab
+                        environments and authorized test networks are appropriate; production networks
+                        require explicit security team authorization and, typically, legal counsel review.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Section 2: Architecture & Data Pipeline
+         ========================================================= -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9881;</span>
+            Architecture &amp; Data Pipeline
+        </h2>
+        <div class="section-body">
+            <p>
+                RITA's architecture is intentionally simple: it is a Go binary that reads Zeek log files,
+                parses and normalizes the connection records, stores them in MongoDB, and then runs a series
+                of analytical algorithms against that stored data to produce scored output. Each component
+                in the pipeline performs a distinct function, and understanding how data flows through it
+                is essential for correctly configuring collection and interpreting results.
+            </p>
+
+            <!-- ASCII pipeline diagram -->
+            <div class="pipeline-diagram">
+<span class="pipe-label">NETWORK TRAFFIC</span>
+        |
+        | (live packets or stored PCAP)
+        v
+<span class="pipe-label">ZEEK (Network Security Monitor)</span>
+        |
+        | generates structured logs in /opt/zeek/logs/
+        |   conn.log    — connection records (src/dst/port/bytes/duration)
+        |   dns.log     — DNS query/response records
+        |   http.log    — HTTP requests and responses
+        |   ssl.log     — TLS session metadata
+        |   files.log   — file transfers
+        v
+<span class="pipe-hi">[ RITA IMPORT ]</span>
+        |
+        | $ rita import --rolling /opt/zeek/logs/current myDataset
+        | parses TSV/JSON logs, deduplicates, normalizes
+        v
+<span class="pipe-label">MONGODB</span>
+        |
+        | stores structured datasets — one DB per dataset name
+        | collections: conn, dns, uconn, udns, bl-conn, bl-ip ...
+        v
+<span class="pipe-hi">[ RITA ANALYSIS ALGORITHMS ]</span>
+        |
+        | beacon analysis     — timing regularity scoring
+        | DNS analysis        — FQDN length, subdomain entropy, answer ratio
+        | long connections    — duration outlier detection
+        | scanning detection  — port sweep / host sweep patterns
+        | blacklist matching  — IOC cross-reference
+        v
+<span class="pipe-label">SCORED OUTPUT</span>
+        |
+        | $ rita show-beacons myDataset
+        | $ rita html-report myDataset /var/www/html/report
+        | $ rita show-long-connections myDataset
+        v
+<span class="pipe-note">  [ Analyst Review / SIEM Integration / Incident Response ]</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">The Dataset Concept</h3>
+            <p>
+                RITA organizes all analysis around <em>datasets</em>. A dataset is a named collection of
+                imported Zeek logs stored in MongoDB. You can have multiple datasets representing different
+                time windows, different network segments, or different analysis runs. The dataset name is
+                specified at import time and reused for all subsequent analysis and reporting commands.
+                Rolling imports append new log data to an existing dataset without duplication, making it
+                practical to maintain a continuous 24- or 48-hour analysis window by running import on
+                a cron schedule.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128196; Key Zeek Logs RITA Uses</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">conn.log</strong> &mdash; primary source: all TCP/UDP/ICMP sessions, timestamps, bytes, duration</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">dns.log</strong> &mdash; DNS queries and answers, used for DNS analysis module</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">http.log</strong> &mdash; HTTP host headers, user agents, response codes</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">ssl.log</strong> &mdash; TLS SNI, certificate subjects, validation results</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">files.log</strong> &mdash; file transfer metadata correlated with other logs</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128190; MongoDB Collections Created</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">uconn</strong> &mdash; unique connections (src-dst-port tuples with aggregated stats)</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">udns</strong> &mdash; unique DNS query records with response aggregation</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">beacons</strong> &mdash; scored beacon candidates after analysis</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">bl-conn</strong> &mdash; blacklist-matched connections</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">bl-ip</strong> &mdash; blacklist-matched IPs with context</li>
+                        <li><span class="li-marker">&#9656;</span><strong style="color:#c4a0d8; font-family:monospace;">explodedDns</strong> &mdash; subdomain-decomposed DNS records</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128260;</span>
+                        <div>
+                            <div class="detail-header-title">Rolling vs. Static Import Modes</div>
+                            <div class="detail-header-subtitle">Understanding when to use each mode</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        RITA supports two import modes that serve different operational needs:
+                    </p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Static import</strong> processes a fixed set of log files and does not track which files have already been imported. Running static import twice on the same files will double-count all records, producing incorrect scores. Use static import for one-time analysis of historical captures.</li>
+                        <li><strong style="color:#c4a0d8;">Rolling import</strong> (<code style="color:#a855f7;">--rolling</code>) maintains a file cursor. RITA records which log files it has already processed and only imports new data on subsequent runs. This makes it appropriate for scheduled cron-based ingestion of live Zeek log directories. Rolling datasets support a configurable retention window (e.g., 24 hours) after which old records are purged.</li>
+                        <li>The rolling import flag combined with the <code style="color:#a855f7;">--numchunks</code> parameter allows you to control how many 24-hour log chunks are kept in the dataset at once, providing a sliding analysis window without unbounded MongoDB growth.</li>
+                        <li>For high-traffic environments, consider importing from compressed rotated logs rather than the live current directory to avoid partial reads on actively written files.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Section 3: Beacon Detection
+         ========================================================= -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128268;</span>
+            Beacon Detection
+        </h2>
+        <div class="section-body">
+            <p>
+                Beacon detection is RITA's most powerful and most distinctive capability. A beacon, in
+                threat intelligence terminology, is a C2 implant that makes periodic outbound connections
+                to its controller on a regular schedule — checking in for new instructions, confirming
+                continued presence, or exfiltrating collected data. This scheduling behavior is a structural
+                necessity for most C2 frameworks: the implant must contact the controller without waiting
+                for a human to interact with the victim machine. That necessity produces a statistical
+                signature that RITA is specifically designed to detect.
+            </p>
+            <p>
+                The core insight is that human-generated network traffic is highly irregular. A user's
+                browser makes connections when they click links, open tabs, or refresh pages — the intervals
+                between connections are highly variable, driven by unpredictable human behavior. A beaconing
+                implant, by contrast, connects at fixed intervals (or intervals with programmed jitter),
+                producing a distribution of inter-connection times that is far more regular than any
+                human-generated traffic pattern.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#128270;</span>
+                <div class="callout-content">
+                    <div class="callout-title">What RITA Measures for Beacon Scoring</div>
+                    <div class="callout-text">
+                        RITA aggregates all connections between a given source-destination pair and analyzes
+                        four statistical properties: (1) the <strong style="color:#c084fc;">consistency of inter-arrival times</strong>
+                        (how regular is the interval?), (2) the <strong style="color:#c084fc;">consistency of transferred byte counts</strong>
+                        (does each connection move roughly the same amount of data?), (3) the
+                        <strong style="color:#c084fc;">connection count</strong> over the analysis window (beacons make many connections),
+                        and (4) the <strong style="color:#c084fc;">overall duration spread</strong>. Each factor contributes a sub-score,
+                        and the four sub-scores are combined into a single beacon score between 0 and 1.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">The Beacon Score Algorithm</h3>
+            <p>
+                RITA computes a beacon score for every unique source-destination-port tuple that appears
+                more than a configurable minimum number of times (default: 24 connections, representing
+                an hourly beacon over 24 hours). The score is calculated using a skewness and modality
+                analysis of the inter-arrival time (IAT) distribution. A score of 1.0 is a perfect beacon
+                with zero jitter; a score of 0.0 indicates completely random, human-like timing.
+            </p>
+
+            <!-- Score visualization panel -->
+            <div class="score-panel">
+                <div class="score-panel-title">Beacon Score Examples — Score Distribution</div>
+
+                <div class="score-meter">
+                    <div class="score-label">192.168.1.47 &#8594; 185.220.101.12</div>
+                    <div class="score-track">
+                        <div class="score-fill score-fill-high" style="width:96%;"></div>
+                    </div>
+                    <div class="score-val">0.965</div>
+                </div>
+                <div class="score-meter">
+                    <div class="score-label">192.168.1.23 &#8594; 104.21.44.215</div>
+                    <div class="score-track">
+                        <div class="score-fill score-fill-high" style="width:82%;"></div>
+                    </div>
+                    <div class="score-val">0.821</div>
+                </div>
+                <div class="score-meter">
+                    <div class="score-label">192.168.1.91 &#8594; 198.51.100.7</div>
+                    <div class="score-track">
+                        <div class="score-fill score-fill-mid" style="width:55%;"></div>
+                    </div>
+                    <div class="score-val">0.552</div>
+                </div>
+                <div class="score-meter">
+                    <div class="score-label">192.168.1.15 &#8594; 142.250.80.46</div>
+                    <div class="score-track">
+                        <div class="score-fill score-fill-low" style="width:18%;"></div>
+                    </div>
+                    <div class="score-val">0.183</div>
+                </div>
+                <p style="font-size:0.78rem; color:#6a4a7a; margin-top:14px; font-family:monospace;">
+                    Scores above 0.7 warrant investigation. Scores above 0.9 are strongly indicative of automated beaconing behavior.
+                </p>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">Jitter and C2 Evasion</h3>
+            <p>
+                Modern C2 frameworks are aware that perfectly regular beaconing is a detection signal.
+                Many (Cobalt Strike, Sliver, Havoc, Brute Ratel) implement configurable jitter as a
+                percentage of the base sleep interval. A profile with a 60-second interval and 20% jitter
+                will produce intervals randomly drawn from the range [48, 72] seconds. RITA's algorithm
+                accounts for this: jitter causes IAT skewness, but the distribution remains narrow compared
+                to human traffic. Even with 50% jitter, beacons score significantly above normal traffic.
+            </p>
+
+            <div class="code-block"><span class="comment"># RITA beacon detection — show-beacons output</span>
+$ rita show-beacons <span class="val">myDataset</span>
+
+<span class="out">Score  |  Source          |  Destination        |  Connections  |  Bytes/Conn  |  Interval (avg)</span>
+<span class="out">-------|------------------|---------------------|---------------|--------------|----------------</span>
+<span class="hi">0.965</span>  |  192.168.1.47   |  185.220.101.12     |  1,440        |  847 B       |  60.1 s
+<span class="hi">0.943</span>  |  10.0.0.83      |  198.51.100.71      |  288          |  4.2 KB      |  300.3 s
+<span class="hi">0.821</span>  |  172.16.4.12    |  104.21.44.215      |  96           |  1.1 KB      |  900.8 s
+0.512  |  192.168.1.22   |  216.58.212.142     |  48           |  18.7 KB     |  1802.4 s
+0.183  |  192.168.1.15   |  142.250.80.46      |  32           |  142.0 KB    |  2714.1 s
+
+<span class="comment"># Formatted output — also available as CSV with --human-readable flag</span>
+$ rita show-beacons <span class="flag">--human-readable</span> <span class="val">myDataset</span>
+$ rita show-beacons <span class="flag">-H</span> <span class="val">myDataset</span> <span class="flag">|</span> head <span class="flag">-20</span></div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128064;</span>
+                        <div>
+                            <div class="detail-header-title">Strobe Detection — High-Frequency Beacons</div>
+                            <div class="detail-header-subtitle">When a beacon fires so fast it looks like a port scan</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        A strobe is a specific category of beacon characterized by an extremely high connection
+                        rate to a single destination — typically more than a threshold of connections per analysis
+                        window (RITA default: 1 million connections or any pair exceeding a configurable
+                        connection count cap). Strobes can result from:
+                    </p>
+                    <ul>
+                        <li>Misconfigured monitoring agents making excessive check-ins</li>
+                        <li>Malware with an extremely short sleep interval</li>
+                        <li>Network scanners continuously sweeping a single target</li>
+                        <li>Broken TCP keepalive implementations flooding a connection</li>
+                    </ul>
+                    <p>
+                        RITA separates strobe candidates from the main beacon analysis because including them
+                        would distort the statistical calculations for other hosts. A strobe detection with
+                        10 million connections between two hosts in 24 hours is almost certainly either malicious
+                        or a broken tool, and the analysis is straightforward without sophisticated scoring.
+                        Use <code style="color:#a855f7;">rita show-strobes myDataset</code> to list these separately.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Section 4: DNS Analysis
+         ========================================================= -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127758;</span>
+            DNS Analysis
+        </h2>
+        <div class="section-body">
+            <p>
+                DNS is the most abused legitimate protocol in adversary tradecraft. Its universal availability
+                (organizations almost never block outbound DNS entirely), its encrypted-friendly future (DoH,
+                DoT), and its query-response structure make it an attractive channel for both covert communication
+                and data exfiltration. RITA's DNS analysis module processes Zeek's dns.log to detect two
+                distinct threat categories: DNS tunneling (using DNS as a covert channel to carry arbitrary
+                data) and domain generation algorithm (DGA) usage (automated generation of random domains
+                for C2 infrastructure that evades static blacklists).
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128241;</div>
+                    <div class="concept-card-title">DNS Tunneling</div>
+                    <div class="concept-card-body">
+                        Tools like dnscat2 and iodine encode arbitrary data in DNS query subdomains and
+                        TXT/CNAME response records. An exfiltration query looks like:
+                        <code style="color:#a855f7; font-size:0.78rem;">aGVsbG8gd29ybGQ.evil.com</code> — the
+                        subdomain contains base64-encoded data. Tunneling generates abnormally long FQDNs,
+                        high unique-subdomain counts per domain, and unusual query types.
+                    </div>
+                    <span class="concept-tag">Exfiltration</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128256;</div>
+                    <div class="concept-card-title">DGA Domains</div>
+                    <div class="concept-card-body">
+                        Malware using domain generation algorithms queries hundreds of algorithmically-derived
+                        random-looking domains per day. Most return NXDOMAIN — no server is listening.
+                        One domain in the generated list resolves to the active C2. The pattern: high
+                        NXDOMAIN rate, high unique subdomain count, low lexical similarity between queried names.
+                    </div>
+                    <span class="concept-tag">C2 Infrastructure</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128202;</div>
+                    <div class="concept-card-title">Exploded DNS Analysis</div>
+                    <div class="concept-card-body">
+                        RITA decomposes every FQDN into its component parts and counts how many unique
+                        subdomains a single internal host queried under each parent domain. Legitimate
+                        CDNs and SaaS platforms generate subdomain diversity — but within known bounds.
+                        An internal host querying 50,000 unique subdomains of a single domain in 24 hours
+                        is almost certainly running a DGA or tunneling.
+                    </div>
+                    <span class="concept-tag">Detection</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128190;</div>
+                    <div class="concept-card-title">FQDN Length Analysis</div>
+                    <div class="concept-card-body">
+                        DNS tunneling encodes data in the subdomain portion of queries, producing
+                        abnormally long FQDNs. The maximum length of a DNS label is 63 characters;
+                        total FQDN length is capped at 253. Tunneling tools approach these limits.
+                        RITA flags FQDNs exceeding configurable length thresholds as suspicious.
+                    </div>
+                    <span class="concept-tag">Heuristic</span>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">DNS Answer Ratio and Resolver Patterns</h3>
+            <p>
+                Two additional DNS metrics RITA tracks are the answer count ratio and the external DNS
+                resolver pattern. The answer count ratio compares the number of answers returned per query
+                to baseline expectations. Legitimate domains typically return 1-4 A records. Tunneling
+                tools often use TXT records that can carry 255 bytes each, generating unusual query types
+                and abnormal answer structures. When an internal host queries a domain using TXT records
+                at high frequency, RITA surfaces this in the DNS analysis output.
+            </p>
+            <p>
+                The external resolver pattern identifies internal hosts that bypass the organization's
+                internal DNS resolver and query external resolvers directly (8.8.8.8, 1.1.1.1, or
+                custom infrastructure). This is a red flag in two scenarios: malware evading internal
+                DNS logging by using a non-standard resolver, and DNS tunneling clients that require
+                direct UDP/53 access to their C2 infrastructure rather than going through a recursive
+                resolver that would cache and short-circuit responses.
+            </p>
+
+            <div class="code-block"><span class="comment"># RITA DNS analysis commands</span>
+
+<span class="comment"># Show hosts with high unique subdomain counts per domain (DGA/tunneling indicator)</span>
+$ rita show-exploded-dns <span class="val">myDataset</span>
+
+<span class="out">Visited Unique Subd.  |  Times Visited  |  Subdomains Queried  |  FQDN</span>
+<span class="out">----------------------|-----------------|----------------------|--------------------------------</span>
+<span class="hi">192.168.1.22</span>          |  47,821         |  <span class="hi">46,389</span>              |  c2-tunnel.example.net
+10.0.0.14             |  1,204          |  <span class="hi">1,198</span>               |  u8a3k.randomdga.com
+192.168.1.91          |  342            |  88                  |  updates.legit-cdn.io
+
+<span class="comment"># Show long FQDNs (DNS tunneling often approaches 253-char limit)</span>
+$ rita show-long-connections <span class="flag">--dns</span> <span class="val">myDataset</span>
+
+<span class="comment"># Example tunneling query — note base64 payload in subdomain</span>
+<span class="out">Query: dGhpcyBpcyBhIHRlc3Qgb2YgZG5zY2F0Mg.evil.attacker.com</span>
+<span class="out">FQDN Length: 57 chars  |  Query Type: TXT  |  Source: 192.168.1.47</span>
+<span class="out">Answer: "ZGF0YT1oZWxsbyB3b3JsZA==" (TXT record containing encoded data)</span></div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128203;</span>
+                        <div>
+                            <div class="detail-header-title">Distinguishing DGA from CDN Diversity</div>
+                            <div class="detail-header-subtitle">Why not all high-subdomain-count domains are malicious</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Content delivery networks (Akamai, Fastly, Cloudflare, AWS CloudFront) and major
+                        SaaS platforms legitimately generate high subdomain diversity under their apex domains.
+                        A large organization using AWS might query hundreds of unique
+                        <code style="color:#a855f7;">[id].execute-api.us-east-1.amazonaws.com</code> subdomains
+                        per day — each representing a distinct API endpoint. This is indistinguishable from
+                        DGA traffic by raw subdomain count alone.
+                    </p>
+                    <p>
+                        The discriminating factors are:
+                    </p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">NXDOMAIN rate:</strong> DGA traffic generates massive NXDOMAIN rates because most generated domains do not exist. CDN and SaaS subdomains resolve successfully. A domain with 5,000 unique subdomains and 95% NXDOMAIN rate is a DGA candidate; one with 5,000 unique subdomains and 0% NXDOMAIN rate is a CDN.</li>
+                        <li><strong style="color:#c4a0d8;">Lexical structure:</strong> DGA-generated domains have low mutual similarity and high character entropy. CDN subdomains often follow structured patterns (UUIDs, account IDs, service names) even when they vary widely.</li>
+                        <li><strong style="color:#c4a0d8;">Known-good allowlisting:</strong> Maintaining an allowlist of known CDN apex domains (amazonaws.com, cloudfront.net, akamaiedge.net, fastly.net) suppresses false positives from legitimate cloud infrastructure. RITA supports a configurable allowlist for this purpose.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Section 5: Long Connections & Scanning
+         ========================================================= -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128268;</span>
+            Long Connections &amp; Scanning
+        </h2>
+        <div class="section-body">
+            <p>
+                Not all C2 communication is periodic beaconing. Some implants establish a persistent
+                long-lived TCP connection to their controller and maintain it open for the duration of
+                the engagement. From Zeek's perspective, this appears as a single connection record
+                with an unusually large duration value. RITA's long connection detection surfaces these
+                outliers by ranking all unique source-destination pairs by their maximum observed connection
+                duration and flagging those significantly above baseline.
+            </p>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Long Connection Context Matters</div>
+                    <div class="callout-text">
+                        Many legitimate services maintain long-lived connections: SSH sessions, database
+                        connections, persistent WebSocket connections, enterprise backup agents, VPN tunnels.
+                        A long connection alone is not evidence of malicious activity. The investigative
+                        question is whether the destination is expected to have a persistent connection
+                        with that specific internal host. An 18-hour TCP connection from a workstation
+                        to an unrecognized external IP on port 443 warrants scrutiny. The same duration
+                        to a known internal monitoring server does not.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># Show top long connections in the dataset</span>
+$ rita show-long-connections <span class="val">myDataset</span>
+
+<span class="out">Duration   |  Source          |  Destination        |  Port  |  Protocol  |  Bytes</span>
+<span class="out">-----------|------------------|---------------------|--------|------------|--------</span>
+<span class="hi">86,391 s</span>   |  192.168.1.47   |  185.220.101.12     |  443   |  TCP       |  1.2 MB
+<span class="hi">43,200 s</span>   |  10.0.0.82      |  198.51.100.44      |  4444  |  TCP       |  340 KB
+21,600 s   |  172.16.1.5     |  10.0.0.1           |  22    |  TCP       |  890 KB
+18,300 s   |  192.168.1.23   |  203.0.113.55       |  8080  |  TCP       |  2.3 MB
+
+<span class="comment"># Filter to external destinations only (exclude RFC1918 space)</span>
+$ rita show-long-connections <span class="flag">--no-dns</span> <span class="val">myDataset</span>
+
+<span class="comment"># 86,391 seconds = ~24 hours — persistent C2 channel, not a user session</span>
+<span class="comment"># Port 4444 is the Metasploit default listener port — high-value indicator</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">Port Scanning and Host Sweep Detection</h3>
+            <p>
+                RITA analyzes connection attempt patterns to identify scanning behavior originating
+                from within the network. Internal scanning is a significant threat indicator: it suggests
+                either a compromised internal host conducting reconnaissance before lateral movement, or
+                an authorized penetration tester (who should be identified and excluded from alerting).
+                RITA detects two distinct scanning patterns based on connection attempt data in conn.log.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128270; Port Scan Detection</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>One source host connects to one destination across many different ports in a short time window</li>
+                        <li><span class="li-marker">&#9656;</span>High ratio of rejected (RST) or timed-out connections to successful connections</li>
+                        <li><span class="li-marker">&#9656;</span>Characteristic of nmap SYN scan, connect scan, and service version scans</li>
+                        <li><span class="li-marker">&#9656;</span>RITA flags source-destination pairs with port diversity above threshold relative to connection count</li>
+                        <li><span class="li-marker">&#9656;</span>Low total bytes per connection (probes, not data transfers)</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#127760; Host Sweep Detection</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>One source host connects to many different destination IPs on one or a small number of ports</li>
+                        <li><span class="li-marker">&#9656;</span>Characteristic of ICMP ping sweeps, ARP scanning, or SMB/RDP sweeps</li>
+                        <li><span class="li-marker">&#9656;</span>Source host appearing in many unique source-destination pairs with the same destination port is the key signal</li>
+                        <li><span class="li-marker">&#9656;</span>Internal hosts conducting host sweeps are candidates for immediate investigation — this is lateral movement reconnaissance behavior</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128205;</span>
+                        <div>
+                            <div class="detail-header-title">Connection Score vs. Beacon Score</div>
+                            <div class="detail-header-subtitle">Understanding the difference between the two primary metrics</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        RITA produces two related but distinct scores that analysts sometimes conflate:
+                    </p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Beacon Score (0–1):</strong> Measures the temporal regularity of repeated connections between the same source-destination-port tuple. A high beacon score means the intervals between connections are unusually consistent — the defining characteristic of automated C2 callback behavior. A host can have a high beacon score with relatively few connections if those connections are extremely regular.</li>
+                        <li><strong style="color:#c4a0d8;">Connection Score:</strong> A composite indicator that considers the total connection count, byte counts, and duration relative to other pairs in the dataset. It is not a periodicity measure but a volume and pattern outlier measure. High-volume, low-byte connections to a single destination score highly because they are not consistent with normal browsing patterns.</li>
+                        <li>In practice, C2 beacons typically score highly on both metrics. Long connection C2 channels score highly on connection score (one long connection, low byte rate) but not on beacon score (only one connection, no interval pattern). These are complementary detection methods covering different C2 communication styles.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Section 6: Threat Scoring & Blacklists
+         ========================================================= -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128203;</span>
+            Threat Scoring &amp; Blacklists
+        </h2>
+        <div class="section-body">
+            <p>
+                RITA's behavioral scoring is powerful for detecting novel or unknown C2 infrastructure,
+                but behavioral anomalies alone cannot tell you that a detected host is definitively
+                malicious — only that its behavior is statistically unusual. Blacklist integration provides
+                the complementary capability: matching connection destinations against known-bad IP addresses
+                and fully-qualified domain names sourced from threat intelligence feeds. When a host scores
+                highly on beacon detection and its destination IP also appears in a threat intelligence
+                blacklist, the confidence level for a true positive escalates significantly.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">RITA Scoring Architecture</h3>
+            <p>
+                RITA produces several distinct scored outputs, each reflecting a different detection algorithm.
+                Understanding what each score represents prevents misinterpretation during triage:
+            </p>
+
+            <!-- Output table describing each RITA scored metric -->
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Command</th>
+                        <th>Range</th>
+                        <th>What High Means</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-hi">Beacon Score</td>
+                        <td>show-beacons</td>
+                        <td>0 – 1</td>
+                        <td>Highly regular inter-connection timing consistent with automated C2 callback</td>
+                    </tr>
+                    <tr>
+                        <td class="col-hi">DNS Score</td>
+                        <td>show-exploded-dns</td>
+                        <td>Unique subdomain count</td>
+                        <td>High unique subdomain queries under a single apex domain — DGA or tunneling candidate</td>
+                    </tr>
+                    <tr>
+                        <td class="col-hi">Long Conn Duration</td>
+                        <td>show-long-connections</td>
+                        <td>Seconds</td>
+                        <td>Persistent TCP connection significantly exceeding normal session durations</td>
+                    </tr>
+                    <tr>
+                        <td class="col-hi">Strobe Count</td>
+                        <td>show-strobes</td>
+                        <td>Connection count</td>
+                        <td>Extreme connection count to a single destination — misconfigured tool or high-frequency implant</td>
+                    </tr>
+                    <tr>
+                        <td class="col-flag">Blacklist Hits</td>
+                        <td>show-bl-hostnames / show-bl-ip</td>
+                        <td>Count of matched connections</td>
+                        <td>Internal host communicated with a known-bad IP or FQDN from threat intelligence feed</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">Integrating Threat Intelligence Feeds</h3>
+            <p>
+                RITA's blacklist module supports multiple input formats for threat intelligence. Feeds
+                can be configured in the RITA configuration file (<code style="color:#a855f7;">/etc/rita/config.yaml</code>)
+                under the blacklist section. Each feed can be an HTTP URL returning a plain-text list of
+                IPs or FQDNs, or a local file path. RITA fetches and updates configured feeds at the
+                start of each analysis run.
+            </p>
+
+            <div class="code-block"><span class="comment"># /etc/rita/config.yaml — blacklist feed configuration</span>
+<span class="kw">BlackListed</span>:
+  <span class="kw">Enabled</span>: <span class="val">true</span>
+  <span class="kw">IPsFile</span>: <span class="str">"/etc/rita/blacklisted/ips.txt"</span>
+  <span class="kw">HostnamesFile</span>: <span class="str">"/etc/rita/blacklisted/hostnames.txt"</span>
+  <span class="kw">URLs</span>:
+    - <span class="str">"https://feodotracker.abuse.ch/downloads/ipblocklist.txt"</span>
+    - <span class="str">"https://urlhaus.abuse.ch/downloads/hostnames/"</span>
+    - <span class="str">"https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"</span>
+
+<span class="comment"># Show connections to blacklisted IPs</span>
+$ rita show-bl-ip <span class="val">myDataset</span>
+
+<span class="out">Score  |  Source          |  Destination   |  Connections  |  Bytes  |  Feed</span>
+<span class="out">-------|------------------|----------------|---------------|---------|------------------</span>
+<span class="hi">HIGH</span>   |  192.168.1.47   |  185.220.101.12 |  1,440       |  1.2 MB |  feodotracker
+<span class="hi">HIGH</span>   |  10.0.0.83      |  198.51.100.71  |  288         |  1.1 MB |  urlhaus
+MED    |  172.16.2.88    |  203.0.113.9    |  12          |  88 KB  |  stevenblack
+
+<span class="comment"># Show connections to blacklisted hostnames</span>
+$ rita show-bl-hostnames <span class="val">myDataset</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:28px 0 14px; font-weight:400;">False Positive Management</h3>
+            <p>
+                Any behavioral analytics tool produces false positives. The primary sources of false
+                positives in RITA are: legitimate software update mechanisms (scheduled, regular connections
+                to update servers), monitoring and telemetry agents (OS telemetry, AV check-ins, enterprise
+                backup), and CDN infrastructure with high subdomain diversity. A mature RITA deployment
+                requires an allowlist of known-good source-destination pairs and domains to suppress
+                recurring false positives without sacrificing detection fidelity.
+            </p>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">allowlist.txt</div>
+                    <div class="tool-role">RITA Internal Allowlist</div>
+                    <div class="tool-desc">
+                        RITA's configuration supports an allowlist of FQDNs and IPs that will never
+                        be scored or reported. Add known-good update endpoints, monitoring agents,
+                        and CDN apex domains here after confirming they are legitimate. Rebuild
+                        allowlists from incident review artifacts, not assumptions.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Threat Intel Curation</div>
+                    <div class="tool-role">Feed Quality Management</div>
+                    <div class="tool-desc">
+                        Not all threat intelligence feeds are equal. Low-quality feeds with high
+                        false positive rates pollute your blacklist matching results. Prioritize
+                        feeds with verifiable methodologies (Feodo Tracker, MISP community feeds,
+                        vetted commercial TI). Review feed freshness — stale IPs get reassigned
+                        to legitimate services.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Analyst Triage</div>
+                    <div class="tool-role">Human-in-the-Loop Validation</div>
+                    <div class="tool-desc">
+                        Every high-scoring RITA alert requires analyst validation before escalation.
+                        Correlate beacon detections with endpoint telemetry (is there an unexpected
+                        process making these connections?), DNS detections with proxy logs, and
+                        long connection alerts with known service inventories. RITA surfaces candidates;
+                        analysts confirm or dismiss.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Baseline Drift Monitoring</div>
+                    <div class="tool-role">Score Trend Analysis</div>
+                    <div class="tool-desc">
+                        Track beacon scores for the same source-destination pair across multiple
+                        analysis runs. A host that consistently scores 0.85 is likely a legitimate
+                        scheduled process; a host that suddenly begins scoring 0.9+ after scoring
+                        0.1 for weeks has changed behavior and warrants immediate investigation.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Section 7: Practical Workflow
+         ========================================================= -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9881;</span>
+            Practical Workflow
+        </h2>
+        <div class="section-body">
+            <p>
+                A working RITA deployment requires Zeek capturing network traffic, MongoDB to store
+                analysis data, and RITA itself installed on a system with access to the Zeek log directory.
+                The following workflow covers a complete installation through a first threat hunting run,
+                using commands appropriate for a Debian/Ubuntu or RHEL-based analysis platform.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 14px; font-weight:400;">Step 1 — Installation</h3>
+
+            <div class="code-block"><span class="comment"># RITA requires MongoDB. Install MongoDB 4.4+ first:</span>
+$ curl <span class="flag">-fsSL</span> https://www.mongodb.org/static/pgp/server-6.0.asc | sudo gpg <span class="flag">-o</span> /usr/share/keyrings/mongodb-server-6.0.gpg <span class="flag">--dearmor</span>
+$ echo <span class="str">"deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"</span> | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+$ sudo apt update &amp;&amp; sudo apt install <span class="flag">-y</span> mongodb-org
+$ sudo systemctl enable <span class="flag">--now</span> mongod
+
+<span class="comment"># Install RITA using the automated installer from Active Countermeasures:</span>
+$ curl <span class="flag">-O</span> https://raw.githubusercontent.com/activecm/rita/master/install.sh
+$ chmod +x install.sh
+$ sudo ./install.sh
+
+<span class="comment"># Verify installation</span>
+$ rita <span class="flag">--version</span>
+<span class="out">RITA version v4.8.0</span>
+
+<span class="comment"># Configuration file is placed at /etc/rita/config.yaml</span>
+$ sudo nano /etc/rita/config.yaml</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 14px; font-weight:400;">Step 2 — Import Zeek Logs</h3>
+
+            <div class="code-block"><span class="comment"># Zeek generates logs in /opt/zeek/logs/ by default</span>
+<span class="comment"># Current live logs are in /opt/zeek/logs/current/</span>
+<span class="comment"># Rotated daily logs appear as /opt/zeek/logs/YYYY-MM-DD/</span>
+
+<span class="comment"># Import a specific day's logs into a named dataset (static mode):</span>
+$ rita import /opt/zeek/logs/2026-02-25 <span class="val">myDataset</span>
+
+<span class="comment"># Import live rolling logs (run this via cron every 30-60 minutes):</span>
+$ rita import <span class="flag">--rolling</span> /opt/zeek/logs/current <span class="val">myDataset</span>
+
+<span class="comment"># Import multiple directories at once (builds a multi-day window):</span>
+$ rita import /opt/zeek/logs/2026-02-24 /opt/zeek/logs/2026-02-25 <span class="val">myDataset-48h</span>
+
+<span class="comment"># List all datasets currently in MongoDB:</span>
+$ rita list
+
+<span class="out">Database Name          |  Imported         |  Analyzed  |  Rolling</span>
+<span class="out">-----------------------|-------------------|------------|--------</span>
+<span class="out">myDataset              |  2026-02-26 06:00 |  Yes       |  Yes</span>
+<span class="out">myDataset-48h          |  2026-02-25 18:00 |  Yes       |  No</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 14px; font-weight:400;">Step 3 — Run Analysis</h3>
+
+            <div class="code-block"><span class="comment"># Run the full analysis suite against an imported dataset:</span>
+$ rita analyze <span class="val">myDataset</span>
+
+<span class="out">[ 2026-02-26 07:12:14 ] Updating blacklist from configured feeds...</span>
+<span class="out">[ 2026-02-26 07:12:19 ] Running beacon analysis...</span>
+<span class="out">[ 2026-02-26 07:12:44 ] Running DNS analysis...</span>
+<span class="out">[ 2026-02-26 07:12:51 ] Running long connection analysis...</span>
+<span class="out">[ 2026-02-26 07:12:53 ] Running strobe analysis...</span>
+<span class="out">[ 2026-02-26 07:12:54 ] Running blacklist matching...</span>
+<span class="out">[ 2026-02-26 07:12:58 ] Analysis complete. 4,821 unique connections analyzed.</span>
+
+<span class="comment"># For automated pipelines, import and analyze in one command:</span>
+$ rita import <span class="flag">--rolling</span> /opt/zeek/logs/current <span class="val">myDataset</span> &amp;&amp; rita analyze <span class="val">myDataset</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 14px; font-weight:400;">Step 4 — Review Results</h3>
+
+            <div class="code-block"><span class="comment"># Generate an HTML report for browser-based review:</span>
+$ rita html-report <span class="val">myDataset</span> /var/www/html/rita-report
+
+<span class="out">HTML report generated at: /var/www/html/rita-report/</span>
+<span class="out">Open index.html in a browser to review findings.</span>
+
+<span class="comment"># CLI review — work through each detection category:</span>
+$ rita show-beacons <span class="val">myDataset</span>                    <span class="comment"># Beacon analysis</span>
+$ rita show-beacons <span class="flag">-H</span> <span class="val">myDataset</span> | head <span class="flag">-20</span>       <span class="comment"># Human-readable, top 20</span>
+$ rita show-long-connections <span class="val">myDataset</span>             <span class="comment"># Long connections</span>
+$ rita show-exploded-dns <span class="val">myDataset</span>                 <span class="comment"># DNS subdomain analysis</span>
+$ rita show-bl-ip <span class="val">myDataset</span>                        <span class="comment"># Blacklisted IP matches</span>
+$ rita show-bl-hostnames <span class="val">myDataset</span>                 <span class="comment"># Blacklisted hostname matches</span>
+$ rita show-strobes <span class="val">myDataset</span>                      <span class="comment"># High-frequency connections</span>
+
+<span class="comment"># Filter by specific source IP to investigate one host:</span>
+$ rita show-beacons <span class="val">myDataset</span> | grep <span class="str">"192.168.1.47"</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 14px; font-weight:400;">Step 5 — Investigate Alerts</h3>
+
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-num">01</div>
+                    <div class="step-content">
+                        <h4>Identify the communicating process</h4>
+                        <p>Once RITA surfaces a suspicious source IP and destination, pivot to endpoint telemetry on that host. Use EDR data, Sysmon logs, or netstat/ss output to identify which process established the flagged connection. The destination IP alone does not tell you whether the connection is legitimate — the process making it does.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-num">02</div>
+                    <div class="step-content">
+                        <h4>Examine the destination</h4>
+                        <p>WHOIS the destination IP. Check when the domain was registered (newly-registered domains are a common C2 infrastructure signal). Look up the IP on VirusTotal, Shodan, and Censys. Check if it appears in any threat intelligence feeds. Examine the certificate Common Name from Zeek's ssl.log for the flagged connections — self-signed certs or mismatched CNs are red flags.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-num">03</div>
+                    <div class="step-content">
+                        <h4>Correlate with other RITA findings</h4>
+                        <p>A host flagged in beacon analysis should be checked against long connection, DNS, and blacklist outputs for the same analysis window. C2-compromised hosts frequently appear across multiple detection categories simultaneously. A host that is beaconing, making DNS queries with high subdomain entropy, and has a connection to a blacklisted IP is a near-certain true positive.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-num">04</div>
+                    <div class="step-content">
+                        <h4>Check historical consistency</h4>
+                        <p>Compare the flagged host's behavior to prior RITA analysis runs. Was this connection pattern present yesterday? Last week? A host that begins beaconing abruptly after weeks of clean analysis is a higher-priority incident than one that has scored the same way for six months (which is likely a legitimate scheduled process not yet added to the allowlist).</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-num">05</div>
+                    <div class="step-content">
+                        <h4>Decide: escalate or allowlist</h4>
+                        <p>After investigation, either escalate the finding as a confirmed or suspected incident following your IR procedure, or add the source-destination pair and/or FQDN to RITA's allowlist to suppress the alert in future runs. Document your reasoning for every allowlist addition — allowlist entries that are never reviewed become permanent gaps in detection coverage.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Automating the Pipeline with Cron</div>
+                    <div class="callout-text">
+                        For continuous threat hunting, schedule a cron job to run rolling import and analysis
+                        every 30 minutes during business hours, or hourly for 24/7 coverage:
+                        <div class="code-block" style="margin-top:10px; font-size:0.8rem;">*/30 * * * * /usr/local/bin/rita import <span class="flag">--rolling</span> /opt/zeek/logs/current myDataset &amp;&amp; /usr/local/bin/rita analyze myDataset</div>
+                        Pair this with alerting from the HTML report or a custom script parsing RITA's
+                        CLI output to send Slack/email notifications when beacon scores exceed 0.8 or
+                        blacklist matches are detected.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Section 8: Key Takeaways
+         ========================================================= -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Key Takeaways
+        </h2>
+        <div class="section-body">
+            <div class="takeaway-grid">
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128202;</div>
+                    <div class="takeaway-title">Behavior Over Signatures</div>
+                    <div class="takeaway-desc">RITA detects C2 infrastructure that has never been seen before — no hash, no IP in any blacklist, no known malware family — because it scores behavior, not identity. This is the capability gap signatures cannot fill.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128268;</div>
+                    <div class="takeaway-title">Beacon Score Is Probabilistic</div>
+                    <div class="takeaway-desc">A score of 0.97 is not confirmation of malicious activity — it is a prioritization signal. Every high-scoring host requires analyst investigation before escalation. Context determines whether a beacon is a threat or a Windows Update service.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128274;</div>
+                    <div class="takeaway-title">Encryption Is Not Evasion</div>
+                    <div class="takeaway-desc">TLS/HTTPS does not hide from RITA. Connection timing, frequency, byte counts, and duration are all metadata captured by Zeek before encryption begins. Encrypted beacons look exactly like plaintext beacons in conn.log.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#127758;</div>
+                    <div class="takeaway-title">DNS Is the Underestimated Channel</div>
+                    <div class="takeaway-desc">Most organizations log DNS poorly or not at all. Zeek's dns.log combined with RITA's exploded DNS analysis provides visibility into one of the most commonly abused covert channels in modern intrusions — including ransomware pre-exfiltration stages.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128203;</div>
+                    <div class="takeaway-title">Blacklists Amplify Behavioral Scores</div>
+                    <div class="takeaway-desc">A behaviorally-suspicious host connecting to a known-bad IP is a near-certain true positive. A behaviorally-suspicious host connecting to a clean IP requires more investigation. Layer threat intel to prioritize your triage queue correctly.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#9881;</div>
+                    <div class="takeaway-title">Allowlists Need Governance</div>
+                    <div class="takeaway-desc">Every allowlist entry is a permanent exception to detection coverage. Maintain a documented review schedule for allowlist entries. Allowlists that grow without oversight become attacker-exploitable blind spots — a compromised host connecting to an allowlisted C2 will never surface.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    RITA's beacon detection relies on the statistical regularity of inter-arrival times between a source-destination pair. A sophisticated adversary running Cobalt Strike with a 50% jitter profile still produces detectable patterns in RITA's scoring, but at a lower score than a zero-jitter beacon. At what beacon score threshold would you establish your alerting cutoff in a production environment, and how would you determine that threshold empirically rather than arbitrarily? What are the competing risks of setting it too high versus too low?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    An internal host begins appearing in RITA's long connection output at 14 hours duration to an external IP on port 443. The destination IP resolves to a generic hosting provider ASN, has a 3-month-old domain, and has a TLS certificate with a self-signed root. The endpoint's EDR shows the connection is being made by a Python 3 process with no corresponding parent process visible in the process tree. Walk through your complete investigation and escalation decision process using only the tools and data sources available to a typical mid-size security team.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Your organization uses a large-scale SaaS productivity platform (Microsoft 365 or Google Workspace) that generates extremely high subdomain diversity under the apex domain — tens of thousands of unique FQDNs per day. RITA's DNS analysis consistently flags this traffic, creating daily false positives that analysts must dismiss. Design a governance process for managing RITA allowlist entries in this environment that prevents alert fatigue without creating permanent blind spots, and describe how you would test that your allowlist entries are not inadvertently suppressing detection of adversary traffic that mimics the allowlisted patterns.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    An adversary who is aware that their target organization uses RITA for threat hunting could attempt to evade detection by mimicking normal traffic patterns. Describe at least three concrete C2 communication strategies an adversary might employ specifically to reduce their RITA beacon score below 0.5, and for each strategy, describe what alternative detection method (outside of RITA) would still surface the behavior, and what additional telemetry sources an organization would need to collect to maintain coverage.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#128202;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered RITA's architecture and data pipeline from Zeek log ingestion through MongoDB
+                to scored analytical output; beacon detection and the statistical regularity analysis that
+                identifies C2 callback behavior even through encryption; DNS analysis for tunneling and DGA
+                detection via FQDN length, exploded DNS, and answer ratio heuristics; long connection
+                detection for persistent C2 channels; scanning pattern identification for internal
+                reconnaissance; blacklist integration for threat intelligence correlation; and the complete
+                practical workflow from installation through cron-automated daily hunting.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 09
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates top bar and mini header bar in sync
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — adds .visible class when section enters viewport
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections — toggles .open class on body and rotates chevron
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion — calls ModuleProgress with this module's identifiers
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'wifi-mod-rita', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+<!-- Progress, tracking, and flux components load after page logic -->
+<script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>
