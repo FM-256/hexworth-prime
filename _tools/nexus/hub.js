@@ -3,6 +3,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { execSync } = require('child_process');
 
 // --- Constants ---
 
@@ -64,15 +66,23 @@ function loadConfig() {
 
 // --- Spoke Registry ---
 
+function expandTilde(p) {
+    if (p.startsWith('~/') || p === '~') {
+        return path.join(os.homedir(), p.slice(1));
+    }
+    return p;
+}
+
 function loadSpokes(config) {
     const spokes = {};
     for (const [name, spoke] of Object.entries(config.spokes || {})) {
         if (!spoke.enabled) continue;
         try {
             const adapterPath = path.resolve(__dirname, spoke.adapter);
-            const dataPath = path.resolve(__dirname, spoke.dataPath);
+            const dataPath = expandTilde(spoke.dataPath);
+            const resolvedDataPath = path.isAbsolute(dataPath) ? dataPath : path.resolve(__dirname, dataPath);
             const factory = require(adapterPath);
-            spokes[name] = factory({ name, dataPath, projectRoot: PROJECT_ROOT });
+            spokes[name] = factory({ name, dataPath: resolvedDataPath, projectRoot: PROJECT_ROOT });
         } catch (err) {
             console.error(`  ${C.yellow}Warning: could not load spoke "${name}" — ${err.message}${C.reset}`);
         }
@@ -276,6 +286,123 @@ function timeAgo(isoString) {
     return `${days}d ago`;
 }
 
+// --- Gate ---
+
+function runGate(config, spokes, options) {
+    const strict = options && options.strict;
+    const gateConfig = config.gate || { failOn: ['critical'], sources: ['eduscan'] };
+    const failOn = strict ? ['critical', 'high'] : gateConfig.failOn;
+    const sources = gateConfig.sources || Object.keys(spokes);
+
+    const bySeverity = {};
+    const blocking = [];
+    const polled = [];
+    const skipped = [];
+    const errors = [];
+
+    for (const sourceName of sources) {
+        const adapter = spokes[sourceName];
+        if (!adapter) {
+            skipped.push(sourceName);
+            continue;
+        }
+
+        try {
+            const status = getSpokeStatus(adapter);
+            if (!status.available) {
+                skipped.push(sourceName);
+                continue;
+            }
+
+            polled.push(sourceName);
+            const findings = adapter.getFindings();
+
+            for (const f of findings) {
+                bySeverity[f.severity] = (bySeverity[f.severity] || 0) + 1;
+                if (failOn.includes(f.severity)) {
+                    blocking.push(f);
+                }
+            }
+        } catch (err) {
+            errors.push({ source: sourceName, error: err.message });
+        }
+    }
+
+    const passed = blocking.length === 0;
+
+    return {
+        passed,
+        blocking,
+        bySeverity,
+        polled,
+        skipped,
+        errors,
+        failOn,
+    };
+}
+
+// --- Pipes ---
+
+function pipeHedToGithub(adapter, pipeConfig, options) {
+    const dryRun = options && options.dryRun;
+    const threshold = (options && options.threshold) || (pipeConfig && pipeConfig.threshold) || 3;
+    const labels = (pipeConfig && pipeConfig.labels) || ['bug', 'hed-auto'];
+
+    const findings = adapter.getFindings();
+    if (!findings.length) {
+        return { created: [], skipped: [], noData: true };
+    }
+
+    // Filter by threshold (count >= threshold)
+    const eligible = findings.filter(f => (f.meta && f.meta.count || 1) >= threshold);
+
+    const created = [];
+    const skipped = [];
+
+    for (const finding of eligible) {
+        const signature = `[${finding.code}]`;
+        const title = `${signature} ${finding.message}`;
+
+        // Check for existing open issue with same signature
+        let alreadyExists = false;
+        try {
+            const searchResult = execSync(
+                `gh issue list --state open --search "${signature}" --json title --limit 20`,
+                { encoding: 'utf8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
+            );
+            const issues = JSON.parse(searchResult || '[]');
+            alreadyExists = issues.some(i => i.title && i.title.includes(signature));
+        } catch (err) {
+            // gh CLI not available or not authenticated — skip dedup check
+        }
+
+        if (alreadyExists) {
+            skipped.push({ code: finding.code, reason: 'existing issue' });
+            continue;
+        }
+
+        if (dryRun) {
+            created.push({ code: finding.code, title, wouldCreate: true });
+            continue;
+        }
+
+        // Create the issue
+        try {
+            const labelFlag = labels.map(l => `-l "${l}"`).join(' ');
+            const body = `Auto-created by Nexus pipe (hed-github).\n\n**Code:** ${finding.code}\n**Severity:** ${finding.severity}\n**Occurrences:** ${finding.meta && finding.meta.count || 'unknown'}\n**Message:** ${finding.message}`;
+            execSync(
+                `gh issue create --title "${title.replace(/"/g, '\\"')}" --body "${body.replace(/"/g, '\\"')}" ${labelFlag}`,
+                { encoding: 'utf8', timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }
+            );
+            created.push({ code: finding.code, title });
+        } catch (err) {
+            skipped.push({ code: finding.code, reason: `gh error: ${err.message}` });
+        }
+    }
+
+    return { created, skipped, noData: false, threshold };
+}
+
 // --- Exports ---
 
 module.exports = {
@@ -296,6 +423,10 @@ module.exports = {
     triageToSpoke,
     dedupKey,
     computeStats,
+
+    // Gate & Pipes
+    runGate,
+    pipeHedToGithub,
 
     // Formatters
     C,

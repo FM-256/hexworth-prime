@@ -75,6 +75,42 @@ function cmdStatus() {
             const label = padRight(`${C.bold}SPRINT MASTER${C.reset}`, 24);
             console.log(`  ${label}${parts}`);
             console.log(`  ${' '.repeat(17)}${C.dim}${status.totalItems} total items · last updated: ${timeAgo(status.lastUpdated)}${C.reset}`);
+
+        } else {
+            // Generic spoke display
+            const displayName = (status.name || name).toUpperCase();
+            const label = padRight(`${C.bold}${displayName}${C.reset}`, 24);
+
+            // Try to render severity breakdown if available
+            const sev = status.bySeverity;
+            if (sev && Object.keys(sev).length > 0) {
+                const sevParts = [];
+                for (const s of SEVERITY_ORDER) {
+                    if (sev[s]) sevParts.push(`${severityColor(s)}${sev[s]} ${s}${C.reset}`);
+                }
+                console.log(`  ${label}${sevParts.join('  ')}`);
+                combined.critical += sev.critical || 0;
+                combined.high += sev.high || 0;
+                combined.medium += sev.medium || 0;
+                combined.low += sev.low || 0;
+            } else if (status.counts && Object.keys(status.counts).length > 0) {
+                const countParts = Object.entries(status.counts).map(([k, v]) => `${C.dim}${v} ${k}${C.reset}`);
+                console.log(`  ${label}${countParts.join('  ')}`);
+            } else {
+                const total = status.totalItems || status.totalFindings || status.uniqueFindings || status.totalSpells || 0;
+                console.log(`  ${label}${C.dim}${total} item${total !== 1 ? 's' : ''}${C.reset}`);
+            }
+
+            // Summary sub-line
+            const detailParts = [];
+            if (status.totalItems != null) detailParts.push(`${status.totalItems} total`);
+            if (status.totalFindings != null) detailParts.push(`${status.totalFindings} findings`);
+            if (status.totalSpells != null) detailParts.push(`${status.totalSpells} spells`);
+            if (status.uniqueFindings != null) detailParts.push(`${status.uniqueFindings} unique`);
+            if (status.totalEntries != null) detailParts.push(`${status.totalEntries} entries`);
+            if (detailParts.length) {
+                console.log(`  ${' '.repeat(17)}${C.dim}${detailParts.join(' · ')}${C.reset}`);
+            }
         }
 
         console.log('');
@@ -327,6 +363,30 @@ function cmdReport(args, flags) {
                 console.log(`- Last updated: ${timeAgo(status.lastUpdated)}`);
             }
             console.log('');
+
+        } else {
+            // Generic spoke report
+            const displayName = status.name || name.charAt(0).toUpperCase() + name.slice(1);
+            console.log(`## ${displayName}`);
+            if (!status.available) {
+                console.log(`- (no data${status.reason ? ': ' + status.reason : ''})`);
+            } else {
+                const sev = status.bySeverity;
+                if (sev && Object.keys(sev).length > 0) {
+                    const sevParts = SEVERITY_ORDER
+                        .filter(s => sev[s])
+                        .map(s => `${sev[s]} ${s}`);
+                    console.log(`- Findings: ${sevParts.join(', ') || 'none'}`);
+                }
+                if (status.counts && Object.keys(status.counts).length > 0) {
+                    const countParts = Object.entries(status.counts).map(([k, v]) => `${v} ${k}`);
+                    console.log(`- Counts: ${countParts.join(', ')}`);
+                }
+                if (status.totalItems != null) console.log(`- Total items: ${status.totalItems}`);
+                if (status.totalFindings != null) console.log(`- Total findings: ${status.totalFindings}`);
+                if (status.totalSpells != null) console.log(`- Total spells: ${status.totalSpells}`);
+            }
+            console.log('');
         }
     }
 
@@ -334,6 +394,150 @@ function cmdReport(args, flags) {
     console.log(`- ${store.findings.length} synced findings from ${Object.keys(store.stats.bySource || {}).length} spoke${Object.keys(store.stats.bySource || {}).length !== 1 ? 's' : ''}`);
     console.log(`- Last sync: ${timeAgo(store.lastSync)}`);
     console.log('');
+}
+
+function cmdGate(args, flags) {
+    const strict = flags.strict || false;
+    const jsonOutput = flags.json || false;
+    const config = hub.loadConfig();
+    const spokes = hub.loadSpokes(config);
+
+    const result = hub.runGate(config, spokes, { strict });
+
+    if (jsonOutput) {
+        const output = {
+            passed: result.passed,
+            failOn: result.failOn,
+            bySeverity: result.bySeverity,
+            blockingCount: result.blocking.length,
+            polled: result.polled,
+            skipped: result.skipped,
+            errors: result.errors,
+        };
+        console.log(JSON.stringify(output, null, 2));
+        process.exit(result.passed ? 0 : 1);
+    }
+
+    console.log('');
+    console.log(`${C.bold}NEXUS GATE${C.reset}${strict ? `  ${C.yellow}(strict)${C.reset}` : ''}`);
+    console.log(`${C.dim}${'─'.repeat(68)}${C.reset}`);
+    console.log('');
+
+    // Show polled/skipped
+    if (result.polled.length) {
+        console.log(`  ${C.dim}Polled:  ${result.polled.join(', ')}${C.reset}`);
+    }
+    if (result.skipped.length) {
+        console.log(`  ${C.dim}Skipped: ${result.skipped.join(', ')} (no data)${C.reset}`);
+    }
+    if (result.errors.length) {
+        for (const e of result.errors) {
+            console.log(`  ${C.red}Error:   ${e.source} — ${e.error}${C.reset}`);
+        }
+    }
+    console.log('');
+
+    // Severity summary
+    const sevLine = SEVERITY_ORDER
+        .filter(s => result.bySeverity[s])
+        .map(s => `${severityColor(s)}${result.bySeverity[s]} ${s}${C.reset}`)
+        .join('  ');
+    if (sevLine) {
+        console.log(`  ${sevLine}`);
+        console.log('');
+    }
+
+    // Fail criteria
+    console.log(`  ${C.dim}Blocking on: ${result.failOn.join(', ')}${C.reset}`);
+    console.log('');
+
+    if (result.passed) {
+        console.log(`  ${C.green}${C.bold}GATE PASSED${C.reset}  ${C.dim}No blocking findings.${C.reset}`);
+    } else {
+        console.log(`  ${C.red}${C.bold}GATE FAILED${C.reset}  ${C.red}${result.blocking.length} blocking finding${result.blocking.length !== 1 ? 's' : ''}${C.reset}`);
+
+        // Show top 5 blocking findings
+        const top = result.blocking.slice(0, 5);
+        console.log('');
+        for (const f of top) {
+            console.log(`  ${severityColor(f.severity)}${padRight(f.severity, 10)}${C.reset}${C.bold}${f.code}${C.reset}  ${C.dim}${hub.truncate(f.message, 45)}${C.reset}`);
+        }
+        if (result.blocking.length > 5) {
+            console.log(`  ${C.dim}... and ${result.blocking.length - 5} more${C.reset}`);
+        }
+    }
+
+    console.log('');
+    process.exit(result.passed ? 0 : 1);
+}
+
+function cmdPipe(args, flags) {
+    const pipeName = args[0];
+    const dryRun = flags['dry-run'] || false;
+    const threshold = flags.threshold ? parseInt(flags.threshold, 10) : undefined;
+
+    if (!pipeName) {
+        console.error(`\n  ${C.red}Usage: nexus pipe <pipe-name>${C.reset}`);
+        console.error(`  ${C.dim}Available: hed-github${C.reset}\n`);
+        process.exit(1);
+    }
+
+    const config = hub.loadConfig();
+    const spokes = hub.loadSpokes(config);
+    const pipeConfig = (config.pipes && config.pipes[pipeName]) || {};
+
+    if (pipeName === 'hed-github') {
+        const adapter = spokes.hed;
+        if (!adapter) {
+            console.error(`\n  ${C.red}HED spoke not available.${C.reset}\n`);
+            process.exit(1);
+        }
+
+        console.log('');
+        console.log(`${C.bold}NEXUS PIPE${C.reset}  ${C.cyan}hed-github${C.reset}${dryRun ? `  ${C.yellow}(dry run)${C.reset}` : ''}`);
+        console.log(`${C.dim}${'─'.repeat(68)}${C.reset}`);
+        console.log('');
+
+        const options = { dryRun };
+        if (threshold != null) options.threshold = threshold;
+
+        const result = hub.pipeHedToGithub(adapter, pipeConfig, options);
+
+        if (result.noData) {
+            console.log(`  ${C.dim}No HED data available. Export from HED panel first.${C.reset}`);
+            console.log('');
+            return;
+        }
+
+        console.log(`  ${C.dim}Threshold: >= ${result.threshold || pipeConfig.threshold || 3} occurrences${C.reset}`);
+        console.log('');
+
+        for (const item of result.created) {
+            if (item.wouldCreate) {
+                console.log(`  ${C.cyan}[would create]${C.reset}  ${item.title}`);
+            } else {
+                console.log(`  ${C.green}[created]${C.reset}  ${item.title}`);
+            }
+        }
+        for (const item of result.skipped) {
+            console.log(`  ${C.dim}[skipped]  ${item.code} — ${item.reason}${C.reset}`);
+        }
+
+        if (!result.created.length && !result.skipped.length) {
+            console.log(`  ${C.dim}No findings met the threshold.${C.reset}`);
+        }
+
+        console.log('');
+        const parts = [];
+        if (result.created.length) parts.push(`${C.green}${result.created.length} created${C.reset}`);
+        if (result.skipped.length) parts.push(`${C.dim}${result.skipped.length} skipped${C.reset}`);
+        if (parts.length) console.log(`  ${parts.join('  ')}`);
+        console.log('');
+    } else {
+        console.error(`\n  ${C.red}Unknown pipe: ${pipeName}${C.reset}`);
+        console.error(`  ${C.dim}Available: hed-github${C.reset}\n`);
+        process.exit(1);
+    }
 }
 
 // --- Help ---
@@ -348,6 +552,8 @@ ${C.bold}COMMANDS${C.reset}
   ${C.cyan}scan${C.reset}                    Run EduScan + sync findings into store
   ${C.cyan}sync${C.reset} [spoke]            Sync all spokes (or one named spoke)
   ${C.cyan}triage${C.reset}                  Auto-create Sprint Master items from findings
+  ${C.cyan}gate${C.reset}                    Deploy gate — block on critical findings
+  ${C.cyan}pipe${C.reset} <name>             Run a named pipe (e.g. hed-github)
   ${C.cyan}report${C.reset}                  Cross-tool summary (markdown to stdout)
   ${C.cyan}help${C.reset}                    Show this help message
 
@@ -356,7 +562,10 @@ ${C.bold}FLAGS${C.reset}
   ${C.dim}--apply${C.reset}                  Actually write (triage defaults to dry-run)
   ${C.dim}--prune${C.reset}                  Remove stale findings during sync
   ${C.dim}--severity${C.reset} critical,high Severity filter for triage (default: critical,high)
-  ${C.dim}--json${C.reset}                   Output report as JSON instead of markdown
+  ${C.dim}--json${C.reset}                   Output as JSON (report, gate)
+  ${C.dim}--strict${C.reset}                 Gate: block on critical + high
+  ${C.dim}--dry-run${C.reset}                Pipe: show what would be created
+  ${C.dim}--threshold${C.reset} N            Pipe: minimum occurrence count (default: 3)
 
 ${C.bold}EXAMPLES${C.reset}
 
@@ -366,7 +575,11 @@ ${C.bold}EXAMPLES${C.reset}
   nexus sync --prune        Sync and remove stale findings
   nexus triage              Dry-run: show what items would be created
   nexus triage --apply      Create Sprint Master backlog items
-  nexus triage --severity critical  Only triage critical findings
+  nexus gate                Deploy gate (blocks on critical)
+  nexus gate --strict       Deploy gate (blocks on critical + high)
+  nexus gate --json         Gate result as JSON
+  nexus pipe hed-github     Create GitHub issues from HED errors
+  nexus pipe hed-github --dry-run   Preview without creating
   nexus report              Markdown summary to stdout
   nexus report --json       JSON summary to stdout
 
@@ -394,8 +607,14 @@ function parseFlags(args) {
             flags.prune = true;
         } else if (args[i] === '--json') {
             flags.json = true;
+        } else if (args[i] === '--strict') {
+            flags.strict = true;
+        } else if (args[i] === '--dry-run') {
+            flags['dry-run'] = true;
         } else if (args[i] === '--severity' && args[i + 1]) {
             flags.severity = args[++i];
+        } else if (args[i] === '--threshold' && args[i + 1]) {
+            flags.threshold = args[++i];
         } else if (!args[i].startsWith('--')) {
             positional.push(args[i]);
         }
@@ -426,6 +645,12 @@ switch (command) {
         break;
     case 'report':
         cmdReport(positional, flags);
+        break;
+    case 'gate':
+        cmdGate(positional, flags);
+        break;
+    case 'pipe':
+        cmdPipe(positional, flags);
         break;
     default:
         console.error(`  ${C.red}Unknown command: ${command}${C.reset}`);

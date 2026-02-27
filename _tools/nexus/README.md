@@ -67,13 +67,13 @@ Each tool connects to the hub through a **spoke adapter** — a small module tha
 | `nexus sync --prune` | Sync and remove stale findings no longer in source data | **Implemented** (Phase 3) |
 | `nexus triage` | Auto-create Sprint Master backlog items from high-severity findings | **Implemented** (Phase 3) |
 | `nexus report` | Cross-tool summary (markdown or JSON to stdout) | **Implemented** (Phase 3) |
-| `nexus gate` | Deploy gate check — block on critical findings from any spoke | Planned (Phase 4) |
+| `nexus gate` | Deploy gate — block on critical findings from configured spokes | **Implemented** (Phase 4) |
+| `nexus pipe hed-github` | Auto-create GitHub issues from HED runtime errors | **Implemented** (Phase 5) |
 
 ### Usage
 
 ```bash
 # Unified status dashboard
-npm run nexus:status
 node _tools/nexus/nexus.js status
 
 # Run EduScan and sync results
@@ -98,6 +98,24 @@ node _tools/nexus/nexus.js triage --apply
 # Triage only critical findings
 node _tools/nexus/nexus.js triage --severity critical --apply
 
+# Deploy gate (blocks on critical)
+node _tools/nexus/nexus.js gate
+
+# Deploy gate (blocks on critical + high)
+node _tools/nexus/nexus.js gate --strict
+
+# Gate result as JSON (for CI)
+node _tools/nexus/nexus.js gate --json
+
+# Create GitHub issues from HED errors
+node _tools/nexus/nexus.js pipe hed-github
+
+# Preview without creating issues
+node _tools/nexus/nexus.js pipe hed-github --dry-run
+
+# Custom occurrence threshold
+node _tools/nexus/nexus.js pipe hed-github --threshold 5
+
 # Cross-tool report (markdown)
 node _tools/nexus/nexus.js report
 
@@ -115,18 +133,40 @@ Triage groups findings by issue code (not by file) and creates one Sprint Master
 - Sprint items get a `nexusKey` field (e.g., `"eduscan::SEM-001"`) for dedup — re-running triage skips already-tracked codes.
 - Items use the `ES` series prefix for EduScan-sourced findings.
 
+### Gate
+
+The deploy gate polls configured spokes and blocks if any findings match the `failOn` severity list.
+
+- **Default:** blocks on `critical` findings only.
+- **`--strict`** blocks on `critical` + `high`.
+- **`--json`** outputs machine-readable JSON with exit code 0 (pass) or 1 (fail).
+- Spokes without data are **skipped**, not treated as failures.
+- Gate policy is configured in `nexus.config.json` under `"gate"`.
+- `deploy.sh` uses `nexus gate` as its pre-deploy check (replaces inline EduScan logic).
+
+### Pipe: hed-github
+
+Auto-creates GitHub issues from HED (Health Error Diagnostics) findings.
+
+- Requires `gh` CLI to be installed and authenticated.
+- **Threshold:** only creates issues for errors with >= N occurrences (default: 3).
+- **Dedup:** searches for existing open issues with the same `[HED-001]` signature before creating.
+- **Labels:** `bug`, `hed-auto` (configurable in `nexus.config.json`).
+- **`--dry-run`** shows what would be created without calling GitHub.
+- **`--threshold N`** overrides the configured occurrence threshold.
+
 ---
 
 ## Spoke Registry
 
-| Spoke | Tool | Provides to Hub | Receives from Hub |
-|-------|------|-----------------|-------------------|
-| `eduscan` | EduScan | Scan findings (JSON) | Gate policies, finding status |
-| `sprint` | Sprint Master | Sprint item statuses | Auto-created items from findings |
-| `hed` | HED + HealthPanel | Runtime error logs | Finding status updates |
-| `audit` | Audit Tool | Content audit findings | Scan signatures (from EduScan) |
-| `spellbook` | Spellbook | Feature ticket statuses | Cross-references from findings |
-| `todo` | ToDo CLI | Quick task list | Auto-created tasks from findings |
+| Spoke | Tool | Adapter | Mode | Notes |
+|-------|------|---------|------|-------|
+| `eduscan` | EduScan | `adapters/eduscan.js` | read-only | Reads `TREASURE_MAP.json` |
+| `sprint` | Sprint Master | `adapters/sprint-master.js` | read-write | Accepts triaged findings as backlog items |
+| `hed` | HED + HealthPanel | `adapters/hed.js` | read-only | Reads exported JSON from HED panel |
+| `audit` | Audit Tool | `adapters/audit.js` | read-only | JSON-first, HTML-fallback |
+| `spellbook` | Spellbook | `adapters/spellbook.js` | read-only | Reads spell markdown (SCRIBED/CAST) |
+| `todo` | ToDo CLI | `adapters/todo.js` | read-only | Reads `~/.todo-data.json` |
 
 ---
 
@@ -188,24 +228,60 @@ Every tool speaks the same language through the hub:
 
 ---
 
+## Configuration
+
+`nexus.config.json` controls spoke registration, gate policy, and pipe settings:
+
+```json
+{
+    "spokes": {
+        "eduscan": { "adapter": "./adapters/eduscan.js", "dataPath": "...", "enabled": true }
+    },
+    "gate": {
+        "failOn": ["critical"],
+        "sources": ["eduscan", "hed", "audit"]
+    },
+    "pipes": {
+        "hed-github": {
+            "source": "hed",
+            "target": "github",
+            "threshold": 3,
+            "labels": ["bug", "hed-auto"]
+        }
+    }
+}
+```
+
+- **`gate.failOn`** — severity levels that block deployment (default: `["critical"]`).
+- **`gate.sources`** — which spokes to poll during gate check.
+- **`pipes.hed-github.threshold`** — minimum error occurrences before creating an issue.
+- **`pipes.hed-github.labels`** — GitHub labels applied to auto-created issues.
+
+---
+
 ## Current Status
 
-**Phase 3 — Triage, Report, and Stale Pruning** (current)
+**Phase 5 — Complete** (all phases shipped)
 
 - [x] Phase 1 — Documentation (README, design doc, architecture, AD-011)
 - [x] Phase 2 — CLI entry point (`nexus.js`), hub core (`hub.js`), EduScan adapter, Sprint Master adapter, `status`/`scan`/`sync` commands
 - [x] Phase 3 — Triage routing (findings → Sprint Master), report generation, stale finding pruning
-- [ ] Phase 4 — Deploy gate, CI integration
+- [x] Phase 4 — Deploy gate (`nexus gate`), 4 new spoke adapters (HED, Audit, Spellbook, ToDo), generic spoke display
+- [x] Phase 5 — GitHub pipe (`nexus pipe hed-github`), deploy.sh integration
 
 ### Files
 
 | File | Purpose |
 |------|---------|
 | `nexus.js` | CLI entry point — command dispatch, flag parsing |
-| `hub.js` | Core module — config, findings store, spoke registry, triage, formatters |
+| `hub.js` | Core module — config, findings store, spoke registry, gate, pipes, formatters |
 | `adapters/eduscan.js` | EduScan spoke adapter (read-only) |
 | `adapters/sprint-master.js` | Sprint Master spoke adapter (read-write: accepts triaged findings) |
-| `nexus.config.json` | Auto-generated spoke configuration |
+| `adapters/hed.js` | HED spoke adapter (read-only, reads exported JSON) |
+| `adapters/audit.js` | Audit spoke adapter (read-only, JSON-first with HTML fallback) |
+| `adapters/spellbook.js` | Spellbook spoke adapter (read-only, reads spell markdown) |
+| `adapters/todo.js` | ToDo spoke adapter (read-only, reads ~/.todo-data.json) |
+| `nexus.config.json` | Spoke configuration, gate policy, pipe settings |
 | `findings.json` | Dedup-merged findings store (created on first sync) |
 
 See also:
