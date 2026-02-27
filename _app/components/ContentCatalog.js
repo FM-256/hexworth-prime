@@ -1907,9 +1907,12 @@ const ContentCatalog = (function() {
         // Eye House — New Labs (DA-22, DA-23)
         { house: 'eye', id: 'eye-log-analysis-lab', title: 'Log Analysis & Correlation Lab', description: 'Interactive investigation lab: analyze syslog, Windows Event Logs, web server logs, and firewall logs across 5 escalating scenarios', icon: '📋', status: 'available', components: ['applet'], href: 'games/eye-log-analysis-lab.applet.html', category: 'log-analysis' },
         { house: 'eye', id: 'eye-detection-engineering', title: 'Detection Engineering Lab', description: 'Build and tune SIEM detection rules: threshold alerts, process execution, DNS tunneling, lateral movement, and alert tuning', icon: '🔬', status: 'available', components: ['applet'], href: 'games/eye-detection-engineering.applet.html', category: 'detection' },
+        { house: 'eye', id: 'eye-threat-hunting-lab', title: 'Threat Hunting Lab', description: 'Hypothesis-driven threat hunting: PowerShell detection, beaconing analysis, LOLBin identification, data exfil, and APT kill chain reconstruction', icon: '🎯', status: 'available', components: ['applet'], href: 'games/eye-threat-hunting-lab.applet.html', category: 'threat-hunting' },
 
-        // Dark Arts — New Lab (DA-15)
+        // Dark Arts — Labs (DA-15, DA-24, DA-27)
         { house: 'dark-arts', id: 'dark-osint-recon-lab', title: 'OSINT Recon Lab', description: 'Metadata and OSINT reconnaissance lab: email harvesting, document metadata, DNS recon, social media OSINT, and full recon reporting', icon: '🔍', status: 'available', components: ['applet'], href: 'games/dark-osint-recon-lab.applet.html', category: 'osint' },
+        { house: 'dark-arts', id: 'dark-phishing-campaign-lab', title: 'Phishing Campaign Lab', description: 'Phishing analysis and defense: spot the phish, email header analysis, SPF/DKIM/DMARC deep dive, campaign anatomy, and defense playbook', icon: '🎣', status: 'available', components: ['applet'], href: 'games/dark-phishing-campaign-lab.applet.html', category: 'social-engineering' },
+        { house: 'dark-arts', id: 'dark-network-forensics-lab', title: 'Network Forensics Lab', description: 'Wireshark-style packet analysis: TCP handshakes, DNS exfil, HTTP inspection, encrypted traffic analysis, and full PCAP investigation', icon: '🔌', status: 'available', components: ['applet'], href: 'games/dark-network-forensics-lab.applet.html', category: 'forensics' },
 
     ];
 

