@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Container Security Lab - Dark Arts - Hexworth Prime</title>
+    <style>
+        :root{--bg:#0a0a0a;--bg2:#111;--bg3:#1a0000;--card:#160000;--border:rgba(239,68,68,.22);--border-hi:rgba(239,68,68,.55);--red:#ef4444;--red-dark:#dc2626;--red-dim:rgba(239,68,68,.12);--red-glow:rgba(239,68,68,.08);--green:#22c55e;--green-dim:rgba(34,197,94,.12);--yellow:#eab308;--blue:#3b82f6;--orange:#f97316;--text:#e5e7eb;--muted:#6b7280;--mono:'Courier New',Courier,monospace}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px)}
+        header{background:rgba(22,0,0,.9);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;backdrop-filter:blur(8px)}
+        .back-link{color:var(--red);text-decoration:none;font-size:.85rem;letter-spacing:.05em;cursor:pointer;transition:color .2s}
+        .back-link:hover{color:#fff}
+        .header-title{font-size:.95rem;color:var(--red);letter-spacing:.08em;font-weight:bold;flex:1}
+        .header-title span{color:var(--muted);font-weight:normal}
+        .score-display{background:var(--red-dim);border:1px solid var(--border);padding:6px 14px;border-radius:4px;font-size:.82rem;color:var(--red);letter-spacing:.05em}
+        .score-display strong{color:#fff}
+        .module-nav{display:flex;gap:4px;padding:12px 24px;background:rgba(0,0,0,.5);border-bottom:1px solid var(--border);overflow-x:auto}
+        .mod-tab{padding:6px 14px;border:1px solid rgba(239,68,68,.25);border-radius:3px;font-size:.75rem;cursor:pointer;color:var(--muted);background:transparent;font-family:var(--mono);white-space:nowrap;transition:all .2s;letter-spacing:.04em}
+        .mod-tab:hover{border-color:var(--red);color:var(--text)}
+        .mod-tab.active{background:var(--red-dark);border-color:var(--red-dark);color:#fff}
+        .mod-tab.done{border-color:var(--green);color:var(--green)}
+        main{max-width:1100px;margin:0 auto;padding:28px 24px 80px}
+        .module-panel{display:none}
+        .module-panel.active{display:block}
+        .mod-header{margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+        .mod-header h2{color:var(--red);font-size:1.1rem;letter-spacing:.06em;margin-bottom:4px}
+        .mod-header .meta{font-size:.78rem;color:var(--muted);letter-spacing:.04em}
+        .mod-header .meta span{color:var(--yellow);margin-left:12px}
+        .mod-desc{background:var(--red-glow);border-left:3px solid var(--red-dark);padding:10px 14px;font-size:.82rem;color:#d1d5db;line-height:1.7;margin-bottom:22px;border-radius:0 4px 4px 0}
+        pre{background:#0d0d0d;border:1px solid var(--border);border-radius:4px;padding:14px;font-size:.78rem;line-height:1.7;color:#d1d5db;overflow-x:auto;margin-bottom:6px;white-space:pre-wrap;word-break:break-word}
+        .file-label{font-size:.72rem;color:var(--muted);letter-spacing:.05em;margin-bottom:4px;margin-top:14px}
+        .file-label span{color:var(--red)}
+        .section-title{font-size:.82rem;color:var(--yellow);letter-spacing:.06em;margin:18px 0 10px;text-transform:uppercase}
+        /* Checkboxes */
+        .issue-list{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+        .issue-item{display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:9px 12px;cursor:pointer;transition:all .2s;font-size:.82rem;line-height:1.5}
+        .issue-item:hover{border-color:var(--border-hi);background:var(--red-dim)}
+        .issue-item input[type=checkbox]{accent-color:var(--red);width:15px;height:15px;flex-shrink:0;margin-top:2px;cursor:pointer}
+        .issue-item.correct{border-color:var(--green);background:var(--green-dim)}
+        .issue-item.wrong{border-color:var(--red);background:var(--red-dim)}
+        .issue-item.missed{border-color:var(--yellow);background:rgba(234,179,8,.1)}
+        /* MC */
+        .mc-block{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:14px}
+        .mc-q{font-size:.85rem;color:var(--text);margin-bottom:12px;line-height:1.6}
+        .mc-opts{display:flex;flex-direction:column;gap:6px}
+        .mc-opt{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid rgba(255,255,255,.08);border-radius:3px;cursor:pointer;font-size:.82rem;transition:all .2s}
+        .mc-opt:hover{border-color:var(--border-hi);background:var(--red-dim)}
+        .mc-opt.selected{border-color:var(--red);background:var(--red-dim)}
+        .mc-opt.correct-ans{border-color:var(--green);background:var(--green-dim)}
+        .mc-opt.wrong-ans{border-color:var(--red);background:var(--red-dim);opacity:.7}
+        .mc-opt input{accent-color:var(--red)}
+        /* Table */
+        .vuln-table{width:100%;border-collapse:collapse;font-size:.78rem;margin-bottom:18px}
+        .vuln-table th{background:rgba(239,68,68,.15);color:var(--red);padding:8px 10px;text-align:left;border:1px solid var(--border);letter-spacing:.04em}
+        .vuln-table td{padding:8px 10px;border:1px solid rgba(255,255,255,.06);color:var(--text);vertical-align:top}
+        .vuln-table tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+        .sev-critical{color:#ff3b3b;font-weight:bold}
+        .sev-high{color:var(--orange)}
+        .sev-medium{color:var(--yellow)}
+        .sev-low{color:var(--blue)}
+        /* Matching */
+        .match-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+        .match-left{font-size:.8rem;color:#d1d5db;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:9px 12px;display:flex;align-items:center;gap:8px}
+        .match-left .issue-tag{color:var(--red);font-size:.72rem;min-width:22px}
+        .match-sel{width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:.76rem;padding:7px 8px;cursor:pointer}
+        .match-sel:focus{outline:none;border-color:var(--red)}
+        /* Buttons */
+        .btn{padding:9px 22px;border:none;border-radius:4px;font-family:var(--mono);font-size:.82rem;cursor:pointer;letter-spacing:.05em;transition:all .2s;font-weight:bold}
+        .btn-primary{background:var(--red-dark);color:#fff}
+        .btn-primary:hover{background:var(--red)}
+        .btn-next{background:rgba(34,197,94,.15);border:1px solid var(--green);color:var(--green)}
+        .btn-next:hover{background:var(--green);color:#000}
+        .btn-row{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
+        /* Feedback */
+        .feedback-box{padding:12px 16px;border-radius:4px;font-size:.82rem;line-height:1.6;margin-top:14px;display:none}
+        .feedback-box.show{display:block}
+        .feedback-box.ok{background:var(--green-dim);border:1px solid var(--green);color:var(--green)}
+        .feedback-box.bad{background:var(--red-dim);border:1px solid var(--red);color:var(--red)}
+        /* Progress bar */
+        .prog-bar-wrap{height:3px;background:rgba(255,255,255,.06);margin-bottom:20px;border-radius:2px}
+        .prog-bar{height:100%;background:var(--red-dark);border-radius:2px;transition:width .4s}
+        /* Results */
+        #results-panel{display:none;text-align:center;padding:40px 24px}
+        #results-panel.show{display:block}
+        .result-rank{font-size:1.6rem;color:var(--red);letter-spacing:.08em;margin-bottom:8px}
+        .result-score{font-size:2.4rem;font-weight:bold;color:#fff;margin-bottom:4px}
+        .result-sub{font-size:.85rem;color:var(--muted);margin-bottom:28px}
+        .result-bar-wrap{max-width:400px;margin:0 auto 28px;background:rgba(255,255,255,.06);border-radius:4px;height:12px}
+        .result-bar{height:12px;border-radius:4px;background:linear-gradient(90deg,var(--red-dark),var(--red));transition:width .8s}
+        .result-breakdown{max-width:500px;margin:0 auto 28px;text-align:left}
+        .rb-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:.82rem}
+        .rb-row .label{color:var(--muted)}
+        .rb-row .val{color:var(--text)}
+        .xp-badge{display:inline-block;background:var(--red-dim);border:1px solid var(--border-hi);color:var(--red);padding:6px 18px;border-radius:20px;font-size:.82rem;letter-spacing:.06em;margin-bottom:20px}
+    </style>
+</head>
+<body>
+
+<header>
+    <a class="back-link" onclick="window.history.back()">← Back</a>
+    <div class="header-title">CONTAINER SECURITY LAB <span>// Dark Arts</span></div>
+    <div class="score-display">SCORE: <strong id="hdr-score">0</strong></div>
+</header>
+
+<nav class="module-nav" id="mod-nav">
+    <button class="mod-tab active" onclick="goMod(0)" id="tab-0">M1: Dockerfile Audit</button>
+    <button class="mod-tab" onclick="goMod(1)" id="tab-1">M2: Image Scanning</button>
+    <button class="mod-tab" onclick="goMod(2)" id="tab-2">M3: Container Escape</button>
+    <button class="mod-tab" onclick="goMod(3)" id="tab-3">M4: Kubernetes RBAC</button>
+    <button class="mod-tab" onclick="goMod(4)" id="tab-4">M5: Secure the Cluster</button>
+</nav>
+
+<main>
+    <!-- ===== M1: Dockerfile Audit ===== -->
+    <div class="module-panel active" id="mod-0">
+        <div class="mod-header">
+            <h2>MODULE 1 — Dockerfile Security Audit</h2>
+            <div class="meta">Identify security issues in each Dockerfile <span>+10 per issue / +15 per MC</span></div>
+        </div>
+        <div class="mod-desc">Three Dockerfiles are presented. Each contains security misconfigurations. Check every issue you identify. Score is awarded for correct identifications; false positives deduct nothing but missed issues do not score.</div>
+        <div class="prog-bar-wrap"><div class="prog-bar" style="width:0%" id="pb-0"></div></div>
+
+        <div class="file-label"><span>FILE 1:</span> api-server/Dockerfile</div>
+        <pre>FROM ubuntu:latest
+RUN apt-get update && apt-get install -y python3 pip
+COPY . /app
+WORKDIR /app
+ENV DB_PASSWORD=SuperSecret123
+ENV API_KEY=sk-prod-8f2a9c1e4b7d3f6a
+RUN pip install -r requirements.txt
+EXPOSE 22
+EXPOSE 8080
+CMD ["python3", "app.py"]</pre>
+
+        <div class="section-title">File 1 — Identify Issues</div>
+        <div class="issue-list" id="il-0">
+            <label class="issue-item"><input type="checkbox" data-id="0-0"> Running as root (no USER instruction)</label>
+            <label class="issue-item"><input type="checkbox" data-id="0-1"> Using <code>ubuntu:latest</code> unpinned tag</label>
+            <label class="issue-item"><input type="checkbox" data-id="0-2"> Hardcoded DB_PASSWORD secret in ENV</label>
+            <label class="issue-item"><input type="checkbox" data-id="0-3"> Hardcoded API_KEY secret in ENV</label>
+            <label class="issue-item"><input type="checkbox" data-id="0-4"> Port 22 (SSH) exposed unnecessarily</label>
+            <label class="issue-item"><input type="checkbox" data-id="0-5"> No HEALTHCHECK instruction defined</label>
+            <label class="issue-item"><input type="checkbox" data-id="0-6"> Copying entire build context with COPY .</label>
+        </div>
+
+        <div class="file-label"><span>FILE 2:</span> worker/Dockerfile</div>
+        <pre>FROM node:16
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN useradd -m worker
+EXPOSE 3000
+EXPOSE 9229
+CMD ["node", "server.js"]</pre>
+
+        <div class="section-title">File 2 — Identify Issues</div>
+        <div class="issue-list" id="il-1">
+            <label class="issue-item"><input type="checkbox" data-id="1-0"> Running as root (USER never switched to worker)</label>
+            <label class="issue-item"><input type="checkbox" data-id="1-1"> Node debug port 9229 exposed in production</label>
+            <label class="issue-item"><input type="checkbox" data-id="1-2"> Using <code>node:16</code> (EOL, unpinned minor)</label>
+            <label class="issue-item"><input type="checkbox" data-id="1-3"> No HEALTHCHECK instruction</label>
+            <label class="issue-item"><input type="checkbox" data-id="1-4"> npm install without --omit=dev (dev deps in prod)</label>
+        </div>
+
+        <div class="file-label"><span>FILE 3:</span> scanner/Dockerfile</div>
+        <pre>FROM alpine:3.18
+RUN apk add --no-cache curl bash nmap
+COPY scan.sh /scan.sh
+RUN chmod 777 /scan.sh
+HEALTHCHECK --interval=30s CMD curl -f http://localhost/ || exit 1
+USER root
+ENTRYPOINT ["/scan.sh"]</pre>
+
+        <div class="section-title">File 3 — Identify Issues</div>
+        <div class="issue-list" id="il-2">
+            <label class="issue-item"><input type="checkbox" data-id="2-0"> Explicit <code>USER root</code> — container runs as root</label>
+            <label class="issue-item"><input type="checkbox" data-id="2-1"> <code>chmod 777</code> on script — world-writable executable</label>
+            <label class="issue-item"><input type="checkbox" data-id="2-2"> nmap installed — attack tool in production image</label>
+            <label class="issue-item"><input type="checkbox" data-id="2-3"> bash installed — increases attack surface</label>
+        </div>
+
+        <div class="section-title">M1 Knowledge Check</div>
+        <div id="mc-0"></div>
+        <div class="feedback-box" id="fb-0"></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="submitMod(0)">Submit Module 1</button>
+            <button class="btn btn-next" id="next-0" style="display:none" onclick="goMod(1)">Next Module →</button>
+        </div>
+    </div>
+
+    <!-- ===== M2: Image Scanning ===== -->
+    <div class="module-panel" id="mod-1">
+        <div class="mod-header">
+            <h2>MODULE 2 — Image Vulnerability Scanning</h2>
+            <div class="meta">Analyze simulated Trivy scan output <span>+10 per correct ID / +15 per MC</span></div>
+        </div>
+        <div class="mod-desc">Review vulnerability scan results for three container images. Identify critical vulnerabilities, fixable issues, and base image problems by checking the correct statements below each table.</div>
+        <div class="prog-bar-wrap"><div class="prog-bar" style="width:0%" id="pb-1"></div></div>
+
+        <div class="file-label"><span>IMAGE 1:</span> myapp/api:latest (base: python:3.9-slim-buster)</div>
+        <table class="vuln-table">
+            <tr><th>CVE ID</th><th>Severity</th><th>Package</th><th>Installed</th><th>Fixed In</th></tr>
+            <tr><td>CVE-2023-38545</td><td class="sev-critical">CRITICAL</td><td>libcurl4</td><td>7.64.0</td><td>7.64.0-4+deb10u7</td></tr>
+            <tr><td>CVE-2023-29409</td><td class="sev-high">HIGH</td><td>golang</td><td>1.19.0</td><td>1.19.12</td></tr>
+            <tr><td>CVE-2022-4450</td><td class="sev-high">HIGH</td><td>openssl</td><td>1.1.1n</td><td>1.1.1t</td></tr>
+            <tr><td>CVE-2023-0215</td><td class="sev-medium">MEDIUM</td><td>openssl</td><td>1.1.1n</td><td>1.1.1t</td></tr>
+            <tr><td>CVE-2021-33560</td><td class="sev-low">LOW</td><td>libgcrypt20</td><td>1.8.4</td><td>No fix</td></tr>
+        </table>
+        <div class="issue-list" id="il-3">
+            <label class="issue-item"><input type="checkbox" data-id="3-0"> CVE-2023-38545 is a critical vulnerability with an available fix</label>
+            <label class="issue-item"><input type="checkbox" data-id="3-1"> Both HIGH openssl CVEs can be fixed by upgrading the package</label>
+            <label class="issue-item"><input type="checkbox" data-id="3-2"> CVE-2021-33560 has no upstream fix available</label>
+            <label class="issue-item"><input type="checkbox" data-id="3-3"> python:3.9-slim-buster is based on Debian Buster (EOL OS)</label>
+            <label class="issue-item"><input type="checkbox" data-id="3-4"> CVE-2023-29409 only affects golang runtime; can be ignored if not used</label>
+        </div>
+
+        <div class="file-label"><span>IMAGE 2:</span> myapp/worker:v2.1 (base: ubuntu:20.04)</div>
+        <table class="vuln-table">
+            <tr><th>CVE ID</th><th>Severity</th><th>Package</th><th>Installed</th><th>Fixed In</th></tr>
+            <tr><td>CVE-2023-2650</td><td class="sev-critical">CRITICAL</td><td>openssl</td><td>1.1.1f</td><td>1.1.1f-1ubuntu2.19</td></tr>
+            <tr><td>CVE-2023-32233</td><td class="sev-critical">CRITICAL</td><td>linux-libc-dev</td><td>5.4.0-150</td><td>5.4.0-153</td></tr>
+            <tr><td>CVE-2023-0461</td><td class="sev-high">HIGH</td><td>linux-libc-dev</td><td>5.4.0-150</td><td>5.4.0-153</td></tr>
+            <tr><td>CVE-2023-28484</td><td class="sev-medium">MEDIUM</td><td>libxml2</td><td>2.9.10</td><td>2.9.10+dfsg-6.7</td></tr>
+        </table>
+        <div class="issue-list" id="il-4">
+            <label class="issue-item"><input type="checkbox" data-id="4-0"> There are 2 CRITICAL vulnerabilities, both fixable</label>
+            <label class="issue-item"><input type="checkbox" data-id="4-1"> linux-libc-dev being present suggests kernel headers are unnecessarily installed</label>
+            <label class="issue-item"><input type="checkbox" data-id="4-2"> Switching to a distroless base image would eliminate the kernel header CVEs</label>
+            <label class="issue-item"><input type="checkbox" data-id="4-3"> ubuntu:20.04 is the most current Ubuntu LTS and should not be updated</label>
+        </div>
+
+        <div class="file-label"><span>IMAGE 3:</span> myapp/frontend:prod (base: nginx:1.20)</div>
+        <table class="vuln-table">
+            <tr><th>CVE ID</th><th>Severity</th><th>Package</th><th>Installed</th><th>Fixed In</th></tr>
+            <tr><td>CVE-2023-44487</td><td class="sev-critical">CRITICAL</td><td>nghttp2</td><td>1.43.0</td><td>1.43.0-1+deb11u2</td></tr>
+            <tr><td>CVE-2023-4807</td><td class="sev-high">HIGH</td><td>openssl</td><td>1.1.1n</td><td>1.1.1t</td></tr>
+            <tr><td>CVE-2022-3996</td><td class="sev-medium">MEDIUM</td><td>openssl</td><td>1.1.1n</td><td>1.1.1t</td></tr>
+            <tr><td>CVE-2021-3997</td><td class="sev-low">LOW</td><td>systemd</td><td>247.3</td><td>No fix</td></tr>
+        </table>
+        <div class="issue-list" id="il-5">
+            <label class="issue-item"><input type="checkbox" data-id="5-0"> CVE-2023-44487 is the HTTP/2 Rapid Reset attack (CRITICAL)</label>
+            <label class="issue-item"><input type="checkbox" data-id="5-1"> nginx:1.20 is outdated; upgrading to nginx:stable or nginx:alpine is recommended</label>
+            <label class="issue-item"><input type="checkbox" data-id="5-2"> systemd being present in an nginx container indicates unnecessary packages</label>
+            <label class="issue-item"><input type="checkbox" data-id="5-3"> The LOW severity CVE-2021-3997 is safe to accept risk on given no fix exists</label>
+        </div>
+
+        <div class="section-title">M2 Knowledge Check</div>
+        <div id="mc-1"></div>
+        <div class="feedback-box" id="fb-1"></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="submitMod(1)">Submit Module 2</button>
+            <button class="btn btn-next" id="next-1" style="display:none" onclick="goMod(2)">Next Module →</button>
+        </div>
+    </div>
+
+    <!-- ===== M3: Container Escape ===== -->
+    <div class="module-panel" id="mod-2">
+        <div class="mod-header">
+            <h2>MODULE 3 — Container Escape Vectors</h2>
+            <div class="meta">Identify configurations vulnerable to container escape <span>+10 per correct ID / +15 per MC</span></div>
+        </div>
+        <div class="mod-desc">Review four <code>docker run</code> commands. Check every configuration that creates a container escape risk — where an attacker who compromises the container could break out to the host.</div>
+        <div class="prog-bar-wrap"><div class="prog-bar" style="width:0%" id="pb-2"></div></div>
+
+        <div class="file-label"><span>CONFIG A:</span> Internal reporting service</div>
+        <pre>docker run -d \
+  --name reporter \
+  -p 8080:8080 \
+  -v /var/log:/var/log:ro \
+  -e REPORT_KEY=abc123 \
+  --memory=512m \
+  --cpus=0.5 \
+  myapp/reporter:v1.2</pre>
+        <div class="issue-list" id="il-6">
+            <label class="issue-item"><input type="checkbox" data-id="6-0"> This configuration has a container escape vulnerability</label>
+            <label class="issue-item"><input type="checkbox" data-id="6-1"> Read-only host volume mount is a security concern here</label>
+            <label class="issue-item"><input type="checkbox" data-id="6-2"> Resource limits (--memory, --cpus) help prevent DoS but not escape</label>
+        </div>
+
+        <div class="file-label"><span>CONFIG B:</span> CI/CD build agent</div>
+        <pre>docker run -d \
+  --name build-agent \
+  --privileged \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /home/ci:/workspace \
+  -e CI_TOKEN=ghp_xxxxxxxxxxxx \
+  myapp/builder:latest</pre>
+        <div class="issue-list" id="il-7">
+            <label class="issue-item"><input type="checkbox" data-id="7-0"> --privileged flag enables full host device access (escape vector)</label>
+            <label class="issue-item"><input type="checkbox" data-id="7-1"> Mounting /var/run/docker.sock allows spawning privileged containers (escape)</label>
+            <label class="issue-item"><input type="checkbox" data-id="7-2"> Using latest tag is a security concern but not an escape vector</label>
+            <label class="issue-item"><input type="checkbox" data-id="7-3"> The CI_TOKEN in env is a secret leak but not a container escape vector</label>
+        </div>
+
+        <div class="file-label"><span>CONFIG C:</span> System diagnostics container</div>
+        <pre>docker run -d \
+  --name diagnostics \
+  --pid=host \
+  --cap-add=SYS_ADMIN \
+  --cap-add=SYS_PTRACE \
+  -v /proc:/host-proc:rw \
+  myapp/diag:v3</pre>
+        <div class="issue-list" id="il-8">
+            <label class="issue-item"><input type="checkbox" data-id="8-0"> --pid=host shares host PID namespace (process inspection/injection escape)</label>
+            <label class="issue-item"><input type="checkbox" data-id="8-1"> SYS_ADMIN capability allows mount operations and cgroup escapes</label>
+            <label class="issue-item"><input type="checkbox" data-id="8-2"> SYS_PTRACE allows attaching to host processes via --pid=host</label>
+            <label class="issue-item"><input type="checkbox" data-id="8-3"> Read-write mount of /proc is dangerous but not independently an escape</label>
+        </div>
+
+        <div class="file-label"><span>CONFIG D:</span> Web frontend service</div>
+        <pre>docker run -d \
+  --name frontend \
+  --read-only \
+  --tmpfs /tmp \
+  -p 443:443 \
+  --cap-drop=ALL \
+  --cap-add=NET_BIND_SERVICE \
+  --security-opt=no-new-privileges \
+  myapp/frontend:v2.4.1</pre>
+        <div class="issue-list" id="il-9">
+            <label class="issue-item"><input type="checkbox" data-id="9-0"> This configuration represents security best practices (no escape vector)</label>
+            <label class="issue-item"><input type="checkbox" data-id="9-1"> --cap-drop=ALL with selective add-back is the correct capability approach</label>
+            <label class="issue-item"><input type="checkbox" data-id="9-2"> --read-only filesystem with --tmpfs is a valid secure pattern</label>
+            <label class="issue-item"><input type="checkbox" data-id="9-3"> NET_BIND_SERVICE capability is an escape vector for ports below 1024</label>
+        </div>
+
+        <div class="section-title">M3 Knowledge Check</div>
+        <div id="mc-2"></div>
+        <div class="feedback-box" id="fb-2"></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="submitMod(2)">Submit Module 3</button>
+            <button class="btn btn-next" id="next-2" style="display:none" onclick="goMod(3)">Next Module →</button>
+        </div>
+    </div>
+
+    <!-- ===== M4: Kubernetes RBAC ===== -->
+    <div class="module-panel" id="mod-3">
+        <div class="mod-header">
+            <h2>MODULE 4 — Kubernetes RBAC Analysis</h2>
+            <div class="meta">Identify overprivileged RBAC role definitions <span>+10 per correct ID / +15 per MC</span></div>
+        </div>
+        <div class="mod-desc">Examine four Kubernetes RBAC role definitions. Identify every privilege escalation risk: wildcard permissions, secret access, pod exec rights, and cluster-admin bindings.</div>
+        <div class="prog-bar-wrap"><div class="prog-bar" style="width:0%" id="pb-3"></div></div>
+
+        <div class="file-label"><span>ROLE 1:</span> app-reader (Namespace: production)</div>
+        <pre>apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-reader
+  namespace: production
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]</pre>
+        <div class="issue-list" id="il-10">
+            <label class="issue-item"><input type="checkbox" data-id="10-0"> Secret read access (get, list) violates least privilege</label>
+            <label class="issue-item"><input type="checkbox" data-id="10-1"> Pod read access is excessive for a reader role</label>
+            <label class="issue-item"><input type="checkbox" data-id="10-2"> Listing secrets exposes all secret names in the namespace</label>
+        </div>
+
+        <div class="file-label"><span>ROLE 2:</span> deploy-manager (Namespace: staging)</div>
+        <pre>apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deploy-manager
+  namespace: staging
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]</pre>
+        <div class="issue-list" id="il-11">
+            <label class="issue-item"><input type="checkbox" data-id="11-0"> Triple wildcard (*/*/*) grants full namespace admin (excessive)</label>
+            <label class="issue-item"><input type="checkbox" data-id="11-1"> Wildcard apiGroups includes CRDs and extension APIs</label>
+            <label class="issue-item"><input type="checkbox" data-id="11-2"> Wildcard verbs include delete and escalate — high risk</label>
+            <label class="issue-item"><input type="checkbox" data-id="11-3"> This role is scoped to a namespace so it cannot affect cluster resources</label>
+        </div>
+
+        <div class="file-label"><span>ROLE 3:</span> debug-access (ClusterRole)</div>
+        <pre>apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: debug-access
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/exec", "pods/log"]
+  verbs: ["get", "list", "create"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]</pre>
+        <div class="issue-list" id="il-12">
+            <label class="issue-item"><input type="checkbox" data-id="12-0"> pods/exec create right allows arbitrary command execution in any pod</label>
+            <label class="issue-item"><input type="checkbox" data-id="12-1"> ClusterRole scope means this applies across all namespaces</label>
+            <label class="issue-item"><input type="checkbox" data-id="12-2"> Node list access in a ClusterRole is excessive for debugging</label>
+            <label class="issue-item"><input type="checkbox" data-id="12-3"> Pod log access is always a critical vulnerability</label>
+        </div>
+
+        <div class="file-label"><span>ROLE 4:</span> monitoring-sa binding</div>
+        <pre>apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitoring-binding
+subjects:
+- kind: ServiceAccount
+  name: monitoring-sa
+  namespace: monitoring
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io</pre>
+        <div class="issue-list" id="il-13">
+            <label class="issue-item"><input type="checkbox" data-id="13-0"> Binding cluster-admin to a service account grants full cluster control</label>
+            <label class="issue-item"><input type="checkbox" data-id="13-1"> Compromising the monitoring pod means full cluster compromise</label>
+            <label class="issue-item"><input type="checkbox" data-id="13-2"> ClusterRoleBinding scope means this is cluster-wide, not namespace-limited</label>
+            <label class="issue-item"><input type="checkbox" data-id="13-3"> cluster-admin should never be bound to application service accounts</label>
+        </div>
+
+        <div class="section-title">M4 Knowledge Check</div>
+        <div id="mc-3"></div>
+        <div class="feedback-box" id="fb-3"></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="submitMod(3)">Submit Module 4</button>
+            <button class="btn btn-next" id="next-3" style="display:none" onclick="goMod(4)">Next Module →</button>
+        </div>
+    </div>
+
+    <!-- ===== M5: Secure the Cluster ===== -->
+    <div class="module-panel" id="mod-4">
+        <div class="mod-header">
+            <h2>MODULE 5 — Secure the Cluster</h2>
+            <div class="meta">Match each pod spec issue to its correct fix <span>+10 per correct match / +15 per MC</span></div>
+        </div>
+        <div class="mod-desc">A vulnerable Kubernetes pod spec is shown below. Six security issues are numbered. Match each issue to the correct SecurityContext fix from the dropdown. Then answer the knowledge check questions.</div>
+        <div class="prog-bar-wrap"><div class="prog-bar" style="width:0%" id="pb-4"></div></div>
+
+        <div class="file-label"><span>VULNERABLE POD SPEC:</span> webapp-pod.yaml</div>
+        <pre>apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp
+spec:
+  <span style="color:#ef4444">/* [1] No securityContext at pod level */</span>
+  containers:
+  - name: webapp
+    image: myapp/webapp:latest  <span style="color:#ef4444">/* [2] unpinned image tag */</span>
+    <span style="color:#ef4444">/* [3] No securityContext at container level */</span>
+    <span style="color:#ef4444">/* [4] No resource limits defined */</span>
+    ports:
+    - containerPort: 8080
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    hostPath:                   <span style="color:#ef4444">/* [5] hostPath volume */</span>
+      path: /var/data
+  <span style="color:#ef4444">/* [6] No network policy — all ingress/egress allowed */</span></pre>
+
+        <div class="section-title">Match Each Issue to Its Fix</div>
+        <div class="match-grid" id="match-grid">
+            <div class="match-left"><span class="issue-tag">[1]</span> No pod-level securityContext</div>
+            <div><select class="match-sel" id="m-0">
+                <option value="">-- select fix --</option>
+                <option value="a">Add runAsNonRoot: true, runAsUser: 1000</option>
+                <option value="b">Pin image to SHA256 digest or specific version tag</option>
+                <option value="c">Add allowPrivilegeEscalation: false, readOnlyRootFilesystem: true</option>
+                <option value="d">Add resources.limits.cpu and resources.limits.memory</option>
+                <option value="e">Replace hostPath with emptyDir or PVC</option>
+                <option value="f">Apply NetworkPolicy restricting ingress/egress to required ports</option>
+            </select></div>
+            <div class="match-left"><span class="issue-tag">[2]</span> Unpinned image tag</div>
+            <div><select class="match-sel" id="m-1">
+                <option value="">-- select fix --</option>
+                <option value="a">Add runAsNonRoot: true, runAsUser: 1000</option>
+                <option value="b">Pin image to SHA256 digest or specific version tag</option>
+                <option value="c">Add allowPrivilegeEscalation: false, readOnlyRootFilesystem: true</option>
+                <option value="d">Add resources.limits.cpu and resources.limits.memory</option>
+                <option value="e">Replace hostPath with emptyDir or PVC</option>
+                <option value="f">Apply NetworkPolicy restricting ingress/egress to required ports</option>
+            </select></div>
+            <div class="match-left"><span class="issue-tag">[3]</span> No container securityContext</div>
+            <div><select class="match-sel" id="m-2">
+                <option value="">-- select fix --</option>
+                <option value="a">Add runAsNonRoot: true, runAsUser: 1000</option>
+                <option value="b">Pin image to SHA256 digest or specific version tag</option>
+                <option value="c">Add allowPrivilegeEscalation: false, readOnlyRootFilesystem: true</option>
+                <option value="d">Add resources.limits.cpu and resources.limits.memory</option>
+                <option value="e">Replace hostPath with emptyDir or PVC</option>
+                <option value="f">Apply NetworkPolicy restricting ingress/egress to required ports</option>
+            </select></div>
+            <div class="match-left"><span class="issue-tag">[4]</span> No resource limits</div>
+            <div><select class="match-sel" id="m-3">
+                <option value="">-- select fix --</option>
+                <option value="a">Add runAsNonRoot: true, runAsUser: 1000</option>
+                <option value="b">Pin image to SHA256 digest or specific version tag</option>
+                <option value="c">Add allowPrivilegeEscalation: false, readOnlyRootFilesystem: true</option>
+                <option value="d">Add resources.limits.cpu and resources.limits.memory</option>
+                <option value="e">Replace hostPath with emptyDir or PVC</option>
+                <option value="f">Apply NetworkPolicy restricting ingress/egress to required ports</option>
+            </select></div>
+            <div class="match-left"><span class="issue-tag">[5]</span> hostPath volume</div>
+            <div><select class="match-sel" id="m-4">
+                <option value="">-- select fix --</option>
+                <option value="a">Add runAsNonRoot: true, runAsUser: 1000</option>
+                <option value="b">Pin image to SHA256 digest or specific version tag</option>
+                <option value="c">Add allowPrivilegeEscalation: false, readOnlyRootFilesystem: true</option>
+                <option value="d">Add resources.limits.cpu and resources.limits.memory</option>
+                <option value="e">Replace hostPath with emptyDir or PVC</option>
+                <option value="f">Apply NetworkPolicy restricting ingress/egress to required ports</option>
+            </select></div>
+            <div class="match-left"><span class="issue-tag">[6]</span> No network policy</div>
+            <div><select class="match-sel" id="m-5">
+                <option value="">-- select fix --</option>
+                <option value="a">Add runAsNonRoot: true, runAsUser: 1000</option>
+                <option value="b">Pin image to SHA256 digest or specific version tag</option>
+                <option value="c">Add allowPrivilegeEscalation: false, readOnlyRootFilesystem: true</option>
+                <option value="d">Add resources.limits.cpu and resources.limits.memory</option>
+                <option value="e">Replace hostPath with emptyDir or PVC</option>
+                <option value="f">Apply NetworkPolicy restricting ingress/egress to required ports</option>
+            </select></div>
+        </div>
+
+        <div class="section-title">M5 Knowledge Check</div>
+        <div id="mc-4"></div>
+        <div class="feedback-box" id="fb-4"></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="submitMod(4)">Submit Module 5 &amp; Finish</button>
+            <button class="btn btn-next" id="next-4" style="display:none" onclick="showResults()">View Results →</button>
+        </div>
+    </div>
+
+    <!-- ===== RESULTS ===== -->
+    <div id="results-panel">
+        <div class="result-rank" id="res-rank">--</div>
+        <div class="result-score" id="res-score">0 / 0</div>
+        <div class="result-sub">Total Score</div>
+        <div class="result-bar-wrap"><div class="result-bar" id="res-bar" style="width:0%"></div></div>
+        <div class="result-breakdown" id="res-breakdown"></div>
+        <div class="xp-badge" id="xp-badge">+75 XP AWARDED</div>
+        <button class="btn btn-primary" onclick="location.reload()">Retry Lab</button>
+    </div>
+</main>
+
+<script>
+// ===== DATA =====
+
+// Issue correctness maps: true = should be checked, false = should NOT be checked
+const CORRECT = {
+  // M1 file 1
+  '0-0':true,'0-1':true,'0-2':true,'0-3':true,'0-4':true,'0-5':true,'0-6':false,
+  // M1 file 2
+  '1-0':true,'1-1':true,'1-2':true,'1-3':true,'1-4':true,
+  // M1 file 3
+  '2-0':true,'2-1':true,'2-2':true,'2-3':false,
+  // M2 image 1
+  '3-0':true,'3-1':false,'3-2':true,'3-3':true,'3-4':false,
+  // M2 image 2
+  '4-0':true,'4-1':true,'4-2':true,'4-3':false,
+  // M2 image 3
+  '5-0':true,'5-1':true,'5-2':true,'5-3':true,
+  // M3 config A
+  '6-0':false,'6-1':false,'6-2':true,
+  // M3 config B
+  '7-0':true,'7-1':true,'7-2':false,'7-3':false,
+  // M3 config C
+  '8-0':true,'8-1':true,'8-2':true,'8-3':false,
+  // M3 config D
+  '9-0':true,'9-1':true,'9-2':true,'9-3':false,
+  // M4 role 1
+  '10-0':true,'10-1':false,'10-2':true,
+  // M4 role 2
+  '11-0':true,'11-1':true,'11-2':true,'11-3':false,
+  // M4 role 3
+  '12-0':true,'12-1':true,'12-2':true,'12-3':false,
+  // M4 role 4
+  '13-0':true,'13-1':true,'13-2':true,'13-3':true
+};
+
+// MC data per module index: [{q, opts:[text], ans:index}]
+const MC = [
+  [ // M1
+    {q:'Which Dockerfile instruction prevents a container from running as root?',opts:['EXPOSE','ENV','USER nobody','HEALTHCHECK'],ans:2},
+    {q:'What is the primary risk of using "FROM ubuntu:latest" in production?',opts:['Larger image size','Unpredictable base image — breaks reproducibility and may introduce unvetted changes','No bash shell available','Incompatible with Docker Hub'],ans:1},
+    {q:'How should secrets be passed to containers in production?',opts:['ENV instructions in Dockerfile','Hardcoded in config files','Kubernetes Secrets or a secrets manager (Vault, AWS SSM)','.env files copied into the image'],ans:2}
+  ],
+  [ // M2
+    {q:'Trivy scan shows a CRITICAL CVE with "Fixed In" populated. What is the correct immediate action?',opts:['Accept the risk and document it','Rebuild the image with the patched package version','Disable the affected service','Rotate credentials'],ans:1},
+    {q:'What is the primary security benefit of switching from ubuntu:20.04 to a distroless base image?',opts:['Smaller image size only','Removes shell, package manager, and most OS packages — reduces attack surface dramatically','Better performance','Free CVE scanning'],ans:1},
+    {q:'A scan shows a CVE with severity MEDIUM and "Fixed In: No fix". What should you do?',opts:['Ignore it permanently','Remove it — no CVE should ever be accepted','Assess exploitability in context, document risk acceptance, and monitor for upstream fix','Rebuild the container daily'],ans:2}
+  ],
+  [ // M3
+    {q:'An attacker gains RCE in a container started with --privileged. What can they do?',opts:['Read environment variables only','Access any host device, mount host filesystems, and fully compromise the host','Access only the container filesystem','Crash the container runtime'],ans:1},
+    {q:'Why is mounting /var/run/docker.sock into a container a critical escape vector?',opts:['It slows down container networking','It allows the container to control the Docker daemon — spawning new privileged containers on the host','It exposes container logs to the host','It grants read access to host environment variables'],ans:1},
+    {q:'Which capability combination creates the most dangerous container escape risk?',opts:['NET_BIND_SERVICE + CHOWN','SYS_ADMIN + --pid=host + /proc mount','CAP_AUDIT_READ + CAP_SETUID','NET_RAW + MKNOD'],ans:1}
+  ],
+  [ // M4
+    {q:'A service account has a ClusterRoleBinding to cluster-admin. An attacker compromises the pod. What can they do?',opts:['Read secrets in the current namespace only','Delete namespaces, create cluster-admin users, read all secrets cluster-wide','Restart the pod only','Access the Kubernetes dashboard'],ans:1},
+    {q:'What is the least-privilege principle for Kubernetes RBAC?',opts:['Grant cluster-admin to all service accounts for simplicity','Grant only the minimum verbs on minimum resources in minimum namespaces needed for the workload','Use wildcards to avoid missing permissions','Bind all roles at cluster scope'],ans:1},
+    {q:'Why is "verbs: [*]" dangerous even on a single resource type?',opts:["It's not dangerous — it's equivalent to full CRUD",'It includes "escalate" and "bind" verbs allowing privilege escalation beyond the current role','It only grants read access','It logs all actions'],ans:1}
+  ],
+  [ // M5
+    {q:'What does "readOnlyRootFilesystem: true" in a container securityContext prevent?',opts:['Reading files from the container image','An attacker from writing malware or modified binaries to the container filesystem','Network connections from the container','Container from accessing secrets'],ans:1},
+    {q:'Why should hostPath volumes be avoided in multi-tenant Kubernetes clusters?',opts:['They are slower than PVCs','They mount host filesystem paths directly — a compromised pod can read or write host-level files','They are not supported in Kubernetes v1.25+','They cannot be made read-only'],ans:1},
+    {q:'A NetworkPolicy with no ingress rules and no egress rules (empty spec) does what?',opts:['Allows all traffic — it is a no-op','Denies all ingress and egress to selected pods','Allows egress only','Blocks DNS resolution'],ans:1}
+  ]
+];
+
+// M5 match answers: [issue index] -> correct option value
+const MATCH_ANS = ['a','b','c','d','e','f'];
+
+// ===== STATE =====
+let totalScore = 0;
+let modScores = [0,0,0,0,0];
+let modDone = [false,false,false,false,false];
+const MAX_SCORE = 300; // approx
+let currentMod = 0;
+
+// ===== INIT =====
+function renderMC(modIdx) {
+  const container = document.getElementById('mc-' + modIdx);
+  container.innerHTML = '';
+  MC[modIdx].forEach((item, qi) => {
+    const div = document.createElement('div');
+    div.className = 'mc-block';
+    div.innerHTML = '<div class="mc-q">Q' + (qi+1) + '. ' + item.q + '</div>' +
+      '<div class="mc-opts">' + item.opts.map((o,oi) =>
+        '<label class="mc-opt" id="mc-' + modIdx + '-' + qi + '-' + oi + '">' +
+        '<input type="radio" name="mc-' + modIdx + '-' + qi + '" value="' + oi + '"> ' + o + '</label>'
+      ).join('') + '</div>';
+    container.appendChild(div);
+  });
+}
+[0,1,2,3,4].forEach(i => renderMC(i));
+
+// ===== NAVIGATION =====
+function goMod(idx) {
+  document.querySelectorAll('.module-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.mod-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('mod-' + idx).classList.add('active');
+  document.getElementById('tab-' + idx).classList.add('active');
+  document.getElementById('results-panel').style.display = 'none';
+  currentMod = idx;
+}
+
+// ===== SCORING =====
+function calcIssueScore(modIssueIds) {
+  let pts = 0;
+  modIssueIds.forEach(groupId => {
+    document.querySelectorAll('#il-' + groupId + ' input[type=checkbox]').forEach(cb => {
+      const key = cb.dataset.id;
+      const checked = cb.checked;
+      if (CORRECT[key] === true && checked) pts += 10;
+    });
+  });
+  return pts;
+}
+
+function calcMCScore(modIdx) {
+  let pts = 0;
+  MC[modIdx].forEach((item, qi) => {
+    const sel = document.querySelector('input[name="mc-' + modIdx + '-' + qi + '"]:checked');
+    if (sel && parseInt(sel.value) === item.ans) pts += 15;
+  });
+  return pts;
+}
+
+function calcMatchScore() {
+  let pts = 0;
+  MATCH_ANS.forEach((ans, i) => {
+    const sel = document.getElementById('m-' + i);
+    if (sel && sel.value === ans) pts += 10;
+  });
+  return pts;
+}
+
+function colorIssues(groupIds) {
+  groupIds.forEach(gid => {
+    document.querySelectorAll('#il-' + gid + ' .issue-item').forEach(item => {
+      const cb = item.querySelector('input[type=checkbox]');
+      const key = cb.dataset.id;
+      const checked = cb.checked;
+      const correct = CORRECT[key];
+      item.classList.remove('correct','wrong','missed');
+      if (correct === true && checked) item.classList.add('correct');
+      else if (correct === false && checked) item.classList.add('wrong');
+      else if (correct === true && !checked) item.classList.add('missed');
+    });
+    document.querySelectorAll('#il-' + gid + ' input').forEach(cb => cb.disabled = true);
+  });
+}
+
+function colorMC(modIdx) {
+  MC[modIdx].forEach((item, qi) => {
+    document.querySelectorAll('input[name="mc-' + modIdx + '-' + qi + '"]').forEach(rb => {
+      const label = document.getElementById('mc-' + modIdx + '-' + qi + '-' + rb.value);
+      label.classList.remove('selected','correct-ans','wrong-ans');
+      if (parseInt(rb.value) === item.ans) label.classList.add('correct-ans');
+      else if (rb.checked) label.classList.add('wrong-ans');
+      rb.disabled = true;
+    });
+  });
+}
+
+function colorMatch() {
+  MATCH_ANS.forEach((ans, i) => {
+    const sel = document.getElementById('m-' + i);
+    if (sel) sel.disabled = true;
+  });
+}
+
+// Maps module index to its issue-list group IDs
+const MOD_GROUPS = [[0,1,2],[3,4,5],[6,7,8,9],[10,11,12,13],[]];
+
+function submitMod(modIdx) {
+  if (modDone[modIdx]) { goMod(modIdx < 4 ? modIdx+1 : modIdx); return; }
+  modDone[modIdx] = true;
+
+  let pts = 0;
+  colorIssues(MOD_GROUPS[modIdx]);
+  colorMC(modIdx);
+
+  if (modIdx < 4) {
+    pts += calcIssueScore(MOD_GROUPS[modIdx]);
+    pts += calcMCScore(modIdx);
+  } else {
+    colorMatch();
+    pts += calcMatchScore();
+    pts += calcMCScore(modIdx);
+  }
+
+  modScores[modIdx] = pts;
+  totalScore = modScores.reduce((a,b)=>a+b,0);
+
+  const fb = document.getElementById('fb-' + modIdx);
+  fb.className = 'feedback-box show ' + (pts >= 30 ? 'ok' : 'bad');
+  fb.textContent = 'Module ' + (modIdx+1) + ' scored: ' + pts + ' pts. ' +
+    (pts >= 30 ? 'Good work — review highlighted items.' : 'Review missed items (yellow = missed, red border = false positive).');
+
+  document.getElementById('hdr-score').textContent = totalScore;
+  document.getElementById('pb-' + modIdx).style.width = '100%';
+  document.getElementById('tab-' + modIdx).classList.add('done');
+
+  const nextBtn = document.getElementById('next-' + modIdx);
+  nextBtn.style.display = 'inline-block';
+
+  // disable submit button
+  document.querySelectorAll('#mod-' + modIdx + ' .btn-primary').forEach(b => b.disabled = true);
+}
+
+// ===== RESULTS =====
+function showResults() {
+  document.querySelectorAll('.module-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('results-panel').style.display = 'block';
+
+  const maxPossible = 255; // ~17 correct issues * 10 + 15 MC * 5 mods + 6 match * 10
+  const pct = Math.round((totalScore / maxPossible) * 100);
+  let rank = 'Docker Noob';
+  if (pct >= 90) rank = 'Kubernetes Security Architect';
+  else if (pct >= 75) rank = 'Container Security Engineer';
+  else if (pct >= 50) rank = 'Container Operator';
+
+  document.getElementById('res-rank').textContent = rank;
+  document.getElementById('res-score').textContent = totalScore + ' / ~' + maxPossible;
+  setTimeout(() => { document.getElementById('res-bar').style.width = Math.min(pct,100) + '%'; }, 50);
+
+  const bd = document.getElementById('res-breakdown');
+  bd.innerHTML = ['Dockerfile Audit','Image Scanning','Container Escape','Kubernetes RBAC','Secure the Cluster']
+    .map((n,i) => '<div class="rb-row"><span class="label">M' + (i+1) + ': ' + n + '</span><span class="val">' + modScores[i] + ' pts</span></div>')
+    .join('') + '<div class="rb-row" style="margin-top:6px"><span class="label" style="color:var(--text)">Total</span><span class="val" style="color:var(--red)">' + totalScore + '</span></div>';
+
+  // XP + completion
+  if (!localStorage.getItem('game_containersec_xp_awarded')) {
+    const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+    localStorage.setItem('hexworth_xp', (currentXP + 75).toString());
+    localStorage.setItem('game_containersec_xp_awarded', 'true');
+    if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+      const uid = localStorage.getItem('hexworth_uid');
+      if (uid) FirestoreManager.addXP(uid, 75, 'Container Security Lab Complete');
+    }
+  }
+  if (typeof AchievementManager !== 'undefined') AchievementManager.unlock('game_containersec');
+  if (typeof GameTracker !== 'undefined') GameTracker.record('containersec', { score: totalScore, maxScore: maxPossible, rank: rank });
+
+  const xpEl = document.getElementById('xp-badge');
+  xpEl.textContent = localStorage.getItem('game_containersec_xp_awarded') ? '+75 XP AWARDED' : '+75 XP';
+}
+
+// MC radio highlight on click
+document.addEventListener('change', e => {
+  if (e.target.type === 'radio') {
+    const name = e.target.name;
+    document.querySelectorAll('input[name="' + name + '"]').forEach(rb => {
+      document.getElementById(rb.closest('label').id).classList.remove('selected');
+    });
+    e.target.closest('label').classList.add('selected');
+  }
+});
+</script>
+</body>
+</html>

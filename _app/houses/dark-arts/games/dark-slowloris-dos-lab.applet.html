@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slowloris & App-Layer DoS Lab - Dark Arts - Hexworth Prime</title>
+<style>
+:root{--bg:#0a0a0a;--bg2:#111;--card:#160000;--border:rgba(239,68,68,.22);--bhi:rgba(239,68,68,.55);--red:#ef4444;--rd:#dc2626;--rdim:rgba(239,68,68,.12);--rglow:rgba(239,68,68,.08);--green:#22c55e;--gdim:rgba(34,197,94,.12);--yellow:#eab308;--blue:#38bdf8;--text:#e5e7eb;--muted:#6b7280;--mono:'Courier New',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px)}
+header{background:rgba(22,0,0,.9);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;backdrop-filter:blur(8px)}
+.back-link{color:var(--red);text-decoration:none;font-size:.85rem;letter-spacing:.05em;cursor:pointer;transition:color .2s}
+.back-link:hover{color:#fff}
+.header-title{font-size:.95rem;color:var(--red);letter-spacing:.08em;font-weight:bold;flex:1}
+.header-title span{color:var(--muted);font-weight:normal}
+.score-display{background:var(--rdim);border:1px solid var(--border);padding:6px 14px;border-radius:4px;font-size:.82rem;color:var(--red);letter-spacing:.05em}
+.score-display strong{color:#fff}
+.ch-nav{display:flex;gap:4px;padding:12px 24px;background:rgba(0,0,0,.5);border-bottom:1px solid var(--border);overflow-x:auto}
+.ch-tab{padding:6px 14px;border:1px solid rgba(239,68,68,.25);border-radius:3px;font-size:.75rem;cursor:pointer;color:var(--muted);background:transparent;font-family:var(--mono);white-space:nowrap;transition:all .2s;letter-spacing:.04em}
+.ch-tab:hover{border-color:var(--red);color:var(--text)}
+.ch-tab.active{background:var(--rd);border-color:var(--rd);color:#fff}
+.ch-tab.done{border-color:var(--green);color:var(--green)}
+.ch-tab.locked{opacity:.4;cursor:not-allowed}
+main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
+.panel{display:none}.panel.active{display:block}
+.ph{margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.ph h2{color:var(--red);font-size:1.1rem;letter-spacing:.06em;margin-bottom:4px}
+.ph .meta{font-size:.78rem;color:var(--muted);letter-spacing:.04em}
+.ph .meta span{color:var(--yellow);margin-left:12px}
+.desc{background:var(--rglow);border-left:3px solid var(--rd);padding:10px 14px;font-size:.82rem;color:#d1d5db;line-height:1.7;margin-bottom:20px;border-radius:0 4px 4px 0}
+/* Visualization */
+.viz{background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:20px;position:relative;overflow:hidden}
+.viz-title{font-size:.75rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+.conn-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:12px}
+.conn-slot{height:28px;border-radius:3px;border:1px solid rgba(34,197,94,.3);background:var(--gdim);transition:background .4s,border-color .4s;position:relative;font-size:.6rem;display:flex;align-items:center;justify-content:center;color:transparent}
+.conn-slot.slow{background:rgba(234,179,8,.15);border-color:rgba(234,179,8,.5);color:var(--yellow)}
+.conn-slot.full{background:rgba(239,68,68,.2);border-color:var(--red);color:var(--red);animation:pulse 1s infinite}
+.conn-slot.normal{background:var(--gdim);border-color:rgba(34,197,94,.5);color:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.viz-label{font-size:.7rem;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+.viz-label span{display:flex;align-items:center;gap:4px}
+.dot{width:10px;height:10px;border-radius:2px;display:inline-block}
+.dot.g{background:var(--gdim);border:1px solid rgba(34,197,94,.5)}
+.dot.y{background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.5)}
+.dot.r{background:rgba(239,68,68,.2);border:1px solid var(--red)}
+/* Thread pool viz */
+.thread-pool{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.thread{width:44px;height:44px;border-radius:4px;border:1px solid rgba(56,189,248,.3);background:rgba(56,189,248,.08);font-size:.6rem;display:flex;align-items:center;justify-content:center;color:var(--blue);transition:all .5s;text-align:center;line-height:1.2}
+.thread.busy{background:rgba(239,68,68,.2);border-color:var(--red);color:var(--red);animation:pulse 1.2s infinite}
+.thread.dead{background:rgba(239,68,68,.35);border-color:var(--rd);color:#fff}
+/* Progress bar */
+.pbar-wrap{background:#1a1a1a;border-radius:3px;height:10px;margin:8px 0;overflow:hidden;border:1px solid rgba(255,255,255,.05)}
+.pbar{height:100%;border-radius:3px;transition:width .5s;background:linear-gradient(90deg,var(--rd),var(--red))}
+.pbar.warn{background:linear-gradient(90deg,#92400e,var(--yellow))}
+/* Log table */
+.log-table{width:100%;border-collapse:collapse;font-size:.72rem;margin-bottom:16px}
+.log-table th{padding:6px 8px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border);letter-spacing:.05em}
+.log-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);color:#d1d5db}
+.log-table tr.attack td{color:var(--red)}
+.log-table tr.normal td{color:var(--muted)}
+.log-table tr.suspect td{color:var(--yellow)}
+.log-table tr.flagged{background:rgba(239,68,68,.08)}
+/* Checkbox rows */
+.flag-row{display:flex;align-items:center;gap:10px;padding:5px 8px;cursor:pointer;border-radius:3px;transition:background .15s;font-size:.78rem}
+.flag-row:hover{background:rgba(255,255,255,.04)}
+.flag-row input[type=checkbox]{accent-color:var(--red);width:15px;height:15px;cursor:pointer}
+/* MC Questions */
+.mc-section{margin-top:20px}
+.mc-section h3{font-size:.8rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;border-top:1px solid var(--border);padding-top:12px}
+.q-block{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:10px}
+.q-block .q{font-size:.83rem;color:var(--text);margin-bottom:10px;line-height:1.6}
+.options{display:flex;flex-direction:column;gap:6px}
+.opt{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:.78rem;color:#d1d5db;transition:all .2s;line-height:1.5}
+.opt:hover:not(.locked){background:var(--rdim);border-color:var(--bhi)}
+.opt.correct{background:var(--gdim);border-color:var(--green);color:var(--green)}
+.opt.wrong{background:rgba(239,68,68,.1);border-color:var(--red);color:var(--red)}
+.opt.locked{cursor:default}
+.opt input{accent-color:var(--red);margin-top:2px;flex-shrink:0}
+/* Matching */
+.match-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.match-item{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:10px 12px;font-size:.78rem}
+.match-item select{background:#0d0d0d;border:1px solid var(--border);color:var(--text);padding:4px 8px;font-family:var(--mono);font-size:.75rem;border-radius:3px;width:100%;margin-top:6px;cursor:pointer}
+.match-item select:focus{outline:none;border-color:var(--red)}
+/* Submit / feedback */
+.submit-btn{background:var(--rd);color:#fff;border:none;padding:9px 22px;border-radius:4px;font-family:var(--mono);font-size:.82rem;cursor:pointer;letter-spacing:.06em;transition:background .2s;margin-top:12px}
+.submit-btn:hover{background:var(--red)}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed}
+.feedback{margin-top:10px;padding:8px 12px;border-radius:4px;font-size:.8rem;display:none}
+.feedback.show{display:block}
+.feedback.ok{background:var(--gdim);border:1px solid var(--green);color:var(--green)}
+.feedback.err{background:rgba(239,68,68,.1);border:1px solid var(--red);color:var(--red)}
+.feedback.info{background:var(--rdim);border:1px solid var(--border);color:var(--text)}
+/* Next button */
+.next-btn{display:none;background:transparent;border:1px solid var(--green);color:var(--green);padding:8px 20px;border-radius:4px;font-family:var(--mono);font-size:.8rem;cursor:pointer;margin-top:12px;letter-spacing:.05em;transition:all .2s}
+.next-btn:hover{background:var(--gdim)}
+.next-btn.show{display:inline-block}
+/* Config snippets */
+.cfg{background:#0d0d0d;border:1px solid var(--border);border-radius:5px;padding:12px;font-size:.73rem;color:#a3e635;line-height:1.7;overflow-x:auto;white-space:pre;margin-bottom:8px;letter-spacing:.02em}
+/* Result screen */
+.result-screen{display:none;text-align:center;padding:40px 20px}
+.result-screen.show{display:block}
+.rank-badge{font-size:1.8rem;color:var(--red);letter-spacing:.1em;margin-bottom:8px;text-shadow:0 0 20px rgba(239,68,68,.5)}
+.rank-sub{font-size:.85rem;color:var(--muted);margin-bottom:20px}
+.score-big{font-size:2.5rem;color:#fff;margin-bottom:4px}
+.score-pct{font-size:1rem;color:var(--yellow)}
+.xp-badge{display:inline-block;background:var(--rdim);border:1px solid var(--red);color:var(--red);padding:6px 18px;border-radius:4px;font-size:.82rem;margin-top:16px;letter-spacing:.06em}
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" onclick="window.history.back()">&#8592; Back</a>
+  <div class="header-title">SLOWLORIS &amp; APP-LAYER DoS LAB <span>// Dark Arts</span></div>
+  <div class="score-display">SCORE: <strong id="scoreDisp">0</strong> / 300</div>
+</header>
+
+<nav class="ch-nav" id="navBar">
+  <button class="ch-tab active" data-m="0">M1: Slowloris</button>
+  <button class="ch-tab locked" data-m="1">M2: Slow POST</button>
+  <button class="ch-tab locked" data-m="2">M3: RUDY</button>
+  <button class="ch-tab locked" data-m="3">M4: Detection</button>
+  <button class="ch-tab locked" data-m="4">M5: Defense Config</button>
+</nav>
+
+<main>
+<!-- ===== M1: SLOWLORIS ===== -->
+<div class="panel active" id="m0">
+  <div class="ph"><h2>M1 // Slowloris Attack Mechanics</h2><div class="meta">Application-Layer DoS <span>+15 per MC</span></div></div>
+  <div class="desc">Slowloris opens many partial HTTP connections to a web server and keeps them alive indefinitely by sending incomplete headers. The server's connection pool fills up, blocking legitimate requests — without ever completing a single request.</div>
+  <div class="viz">
+    <div class="viz-title">SERVER CONNECTION POOL (50 SLOTS) — SLOWLORIS ATTACK IN PROGRESS</div>
+    <div class="conn-grid" id="m1Grid"></div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">Occupied: <span id="m1Count" style="color:var(--red)">0</span>/50 &nbsp;|&nbsp; Attack connections holding: <span id="m1Hold" style="color:var(--yellow)">0</span></div>
+    <div class="viz-label">
+      <span><div class="dot g"></div> Free</span>
+      <span><div class="dot y"></div> Slow (partial header)</span>
+      <span><div class="dot r"></div> Exhausted</span>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="submit-btn" id="m1Start" onclick="startSlowloris()">RUN SIMULATION</button>
+      <button class="submit-btn" id="m1Reset" style="background:#1a1a1a;border:1px solid var(--border);display:none" onclick="resetM1()">RESET</button>
+    </div>
+  </div>
+  <div class="mc-section">
+    <h3>Knowledge Check</h3>
+    <div id="m1Qs"></div>
+    <button class="submit-btn" id="m1Sub" onclick="submitMC(0)" disabled>SUBMIT ANSWERS</button>
+    <div class="feedback" id="m1Fb"></div>
+    <button class="next-btn" id="m1Next" onclick="goModule(1)">NEXT MODULE &rarr;</button>
+  </div>
+</div>
+
+<!-- ===== M2: SLOW POST ===== -->
+<div class="panel" id="m1">
+  <div class="ph"><h2>M2 // Slow POST Attack</h2><div class="meta">Application-Layer DoS — POST Body Throttling <span>+15 per MC</span></div></div>
+  <div class="desc">A Slow POST attack sends a legitimate POST request with a large Content-Length header, then transmits the body at 1 byte per second. The server allocates a thread and waits for completion — consuming server threads until the pool is exhausted.</div>
+  <div class="viz">
+    <div class="viz-title">SERVER THREAD POOL (8 WORKERS) — SLOW POST ATTACK</div>
+    <div class="thread-pool" id="m2Threads"></div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px" id="m2Status">Waiting — press RUN to begin simulation</div>
+    <div style="margin-top:4px;font-size:.72rem;color:var(--muted)">POST body received (Conn-1): <span id="m2Pct">0%</span></div>
+    <div class="pbar-wrap"><div class="pbar warn" id="m2Bar" style="width:0%"></div></div>
+    <button class="submit-btn" style="margin-top:8px" id="m2Start" onclick="startSlowPost()">RUN SIMULATION</button>
+  </div>
+  <div class="mc-section">
+    <h3>Knowledge Check</h3>
+    <div id="m2Qs"></div>
+    <button class="submit-btn" id="m2Sub" onclick="submitMC(1)" disabled>SUBMIT ANSWERS</button>
+    <div class="feedback" id="m2Fb"></div>
+    <button class="next-btn" id="m2Next" onclick="goModule(2)">NEXT MODULE &rarr;</button>
+  </div>
+</div>
+
+<!-- ===== M3: RUDY ===== -->
+<div class="panel" id="m2">
+  <div class="ph"><h2>M3 // R-U-Dead-Yet (RUDY)</h2><div class="meta">App-Layer DoS — Identify Attack Connections <span>+10 per flag, +15 per MC</span></div></div>
+  <div class="desc">RUDY sends a POST with a massive Content-Length then delivers the body 1 byte every ~10 seconds. Unlike Slowloris (which stalls headers), RUDY stalls the body. Identify which connections below are RUDY attack sessions.</div>
+  <table class="log-table">
+    <thead><tr><th>Flag</th><th>ID</th><th>Method</th><th>Content-Length</th><th>Body Rcvd</th><th>Duration</th><th>IP</th></tr></thead>
+    <tbody id="m3Table"></tbody>
+  </table>
+  <button class="submit-btn" id="m3FlagSub" onclick="submitFlags()">SUBMIT FLAGS</button>
+  <div class="feedback" id="m3FlagFb"></div>
+  <div class="mc-section">
+    <h3>Knowledge Check</h3>
+    <div id="m3Qs"></div>
+    <button class="submit-btn" id="m3Sub" onclick="submitMC(2)" disabled>SUBMIT ANSWERS</button>
+    <div class="feedback" id="m3Fb"></div>
+    <button class="next-btn" id="m3Next" onclick="goModule(3)">NEXT MODULE &rarr;</button>
+  </div>
+</div>
+
+<!-- ===== M4: DETECTION ===== -->
+<div class="panel" id="m3">
+  <div class="ph"><h2>M4 // Detection &amp; Mitigation</h2><div class="meta">Identify attack signatures + countermeasures <span>+15 per MC</span></div></div>
+  <div class="desc">Analyze the server access logs below and select the detection signatures and mitigation strategies that apply to slow-rate application-layer DoS attacks.</div>
+  <table class="log-table">
+    <thead><tr><th>Timestamp</th><th>IP</th><th>Request</th><th>Status</th><th>Duration</th><th>Bytes Sent</th></tr></thead>
+    <tbody>
+      <tr class="attack"><td>03:12:01</td><td>198.51.100.7</td><td>GET / HTTP/1.1</td><td>---</td><td>320s</td><td>48</td></tr>
+      <tr class="attack"><td>03:12:03</td><td>198.51.100.7</td><td>GET /login HTTP/1.1</td><td>---</td><td>318s</td><td>48</td></tr>
+      <tr class="normal"><td>03:12:04</td><td>203.0.113.21</td><td>GET /index.html HTTP/1.1</td><td>200</td><td>0.2s</td><td>4210</td></tr>
+      <tr class="attack"><td>03:12:05</td><td>198.51.100.8</td><td>POST /api/login HTTP/1.1</td><td>---</td><td>410s</td><td>12</td></tr>
+      <tr class="attack"><td>03:12:06</td><td>198.51.100.7</td><td>GET /search HTTP/1.1</td><td>---</td><td>315s</td><td>48</td></tr>
+      <tr class="normal"><td>03:12:07</td><td>203.0.113.55</td><td>POST /form HTTP/1.1</td><td>200</td><td>0.8s</td><td>1024</td></tr>
+      <tr class="attack"><td>03:12:08</td><td>198.51.100.9</td><td>POST /upload HTTP/1.1</td><td>---</td><td>390s</td><td>8</td></tr>
+      <tr class="suspect"><td>03:12:09</td><td>198.51.100.7</td><td>GET /admin HTTP/1.1</td><td>---</td><td>299s</td><td>48</td></tr>
+    </tbody>
+  </table>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:.75rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Detection Signatures</div>
+      <div id="m4Sigs"></div>
+    </div>
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:.75rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Mitigation Strategies</div>
+      <div id="m4Mits"></div>
+    </div>
+  </div>
+  <button class="submit-btn" id="m4DetSub" onclick="submitDetection()">SUBMIT ANALYSIS</button>
+  <div class="feedback" id="m4DetFb"></div>
+  <div class="mc-section">
+    <h3>Knowledge Check</h3>
+    <div id="m4Qs"></div>
+    <button class="submit-btn" id="m4Sub" onclick="submitMC(3)" disabled>SUBMIT ANSWERS</button>
+    <div class="feedback" id="m4Fb"></div>
+    <button class="next-btn" id="m4Next" onclick="goModule(4)">NEXT MODULE &rarr;</button>
+  </div>
+</div>
+
+<!-- ===== M5: DEFENSE CONFIG ===== -->
+<div class="panel" id="m4">
+  <div class="ph"><h2>M5 // Defense Configuration</h2><div class="meta">Match configs to attack mitigations <span>+10 per match, +15 per MC</span></div></div>
+  <div class="desc">Review four server configuration snippets. For each, select which attack type it primarily mitigates. Then answer the MC questions.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div>
+      <div style="font-size:.7rem;color:var(--yellow);letter-spacing:.08em;margin-bottom:4px">CONFIG A — Apache mod_reqtimeout</div>
+      <div class="cfg">RequestReadTimeout header=20,\
+  MinRate=500 body=20,\
+  MinRate=500</div>
+      <select id="cfgA" onchange="checkMatchLive()">
+        <option value="">-- select attack --</option>
+        <option value="slowloris">Slowloris (header stall)</option>
+        <option value="slowpost">Slow POST / RUDY (body stall)</option>
+        <option value="vol">Volumetric DDoS</option>
+        <option value="both">Both header + body stall</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:.7rem;color:var(--yellow);letter-spacing:.08em;margin-bottom:4px">CONFIG B — Nginx</div>
+      <div class="cfg">client_body_timeout 10s;
+client_header_timeout 10s;
+keepalive_timeout 5s 5s;
+send_timeout 10s;</div>
+      <select id="cfgB" onchange="checkMatchLive()">
+        <option value="">-- select attack --</option>
+        <option value="slowloris">Slowloris (header stall)</option>
+        <option value="slowpost">Slow POST / RUDY (body stall)</option>
+        <option value="vol">Volumetric DDoS</option>
+        <option value="both">Both header + body stall</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:.7rem;color:var(--yellow);letter-spacing:.08em;margin-bottom:4px">CONFIG C — HAProxy</div>
+      <div class="cfg">timeout http-request 10s
+timeout client  30s
+maxconn 200
+option http-server-close</div>
+      <select id="cfgC" onchange="checkMatchLive()">
+        <option value="">-- select attack --</option>
+        <option value="slowloris">Slowloris (header stall)</option>
+        <option value="slowpost">Slow POST / RUDY (body stall)</option>
+        <option value="vol">Volumetric DDoS</option>
+        <option value="both">Both header + body stall</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:.7rem;color:var(--yellow);letter-spacing:.08em;margin-bottom:4px">CONFIG D — Rate Limiting (iptables)</div>
+      <div class="cfg">iptables -A INPUT -p tcp \
+  --dport 80 -m connlimit \
+  --connlimit-above 20 \
+  -j REJECT</div>
+      <select id="cfgD" onchange="checkMatchLive()">
+        <option value="">-- select attack --</option>
+        <option value="slowloris">Slowloris (header stall)</option>
+        <option value="slowpost">Slow POST / RUDY (body stall)</option>
+        <option value="vol">Volumetric DDoS</option>
+        <option value="both">Both header + body stall</option>
+      </select>
+    </div>
+  </div>
+  <button class="submit-btn" id="m5MatchSub" onclick="submitMatches()">SUBMIT MATCHES</button>
+  <div class="feedback" id="m5MatchFb"></div>
+  <div class="mc-section">
+    <h3>Knowledge Check</h3>
+    <div id="m5Qs"></div>
+    <button class="submit-btn" id="m5Sub" onclick="submitMC(4)" disabled>SUBMIT ANSWERS</button>
+    <div class="feedback" id="m5Fb"></div>
+    <button class="next-btn" id="m5Next" onclick="finish()">COMPLETE LAB &rarr;</button>
+  </div>
+</div>
+
+<!-- ===== RESULT ===== -->
+<div class="result-screen" id="resultScreen">
+  <div class="rank-badge" id="rankBadge">---</div>
+  <div class="rank-sub" id="rankSub"></div>
+  <div class="score-big" id="scoreBig">0 / 300</div>
+  <div class="score-pct" id="scorePct">0%</div>
+  <div class="xp-badge">+75 XP AWARDED</div>
+  <div style="margin-top:20px;font-size:.78rem;color:var(--muted)">Application-layer DoS mastery recorded.</div>
+</div>
+</main>
+
+<script>
+// ===== DATA =====
+const MC = [
+  // M1 Slowloris (3 Qs)
+  [
+    {q:"What makes Slowloris unique compared to volumetric DDoS?",opts:["It floods the network with packets","It opens many connections but sends data very slowly","It exploits a buffer overflow","It uses UDP floods"],ans:1},
+    {q:"Which HTTP component does Slowloris primarily stall?",opts:["Response body","TCP handshake","HTTP request headers","DNS resolution"],ans:2},
+    {q:"Why does Slowloris affect only certain web servers (Apache, not Nginx by default)?",opts:["Nginx has no connection pool","Apache uses a thread/process-per-connection model; Nginx uses event-driven I/O","Nginx ignores incomplete headers","Apache has stronger TLS"],ans:1}
+  ],
+  // M2 Slow POST (3 Qs)
+  [
+    {q:"How does a Slow POST attack consume server resources?",opts:["Sends a valid request then drops the connection","Declares a large Content-Length but delivers the body 1 byte at a time","Sends POST without Content-Type header","Floods the server with rapid form submissions"],ans:1},
+    {q:"Which HTTP header is key to a Slow POST attack?",opts:["Authorization","Content-Length","Accept-Encoding","Transfer-Encoding: chunked"],ans:1},
+    {q:"What is the primary difference between Slowloris and Slow POST?",opts:["Slowloris uses UDP, Slow POST uses TCP","Slowloris stalls request headers; Slow POST stalls the request body","Slowloris is louder; Slow POST is completely silent","Slow POST only works on HTTPS"],ans:1}
+  ],
+  // M3 RUDY (3 Qs)
+  [
+    {q:"What does RUDY stand for?",opts:["Routed UDP Denial Yield","R-U-Dead-Yet","Recursive URL Delay Yes","Redundant UDP Daemon Yield"],ans:1},
+    {q:"How does RUDY differ from a basic Slow POST attack?",opts:["RUDY uses GET requests","RUDY sends the body approximately 1 byte every 10 seconds, making it even slower","RUDY exploits SSL renegotiation","RUDY targets the DNS layer"],ans:1},
+    {q:"Which defense directly counters RUDY's body stalling?",opts:["Increasing max connection count","Setting a minimum body transfer rate timeout","Blocking all POST requests","Enabling HTTP/2 only"],ans:1}
+  ],
+  // M4 Detection (4 Qs)
+  [
+    {q:"Which log pattern most strongly indicates a Slowloris attack?",opts:["Many 404 errors from one IP","Hundreds of connections with tiny bytes sent, very long duration, incomplete status","High bandwidth from a single IP","Short-lived connections with full responses"],ans:1},
+    {q:"mod_reqtimeout enforces which type of timeout?",opts:["TCP connection timeout","Minimum header and body transfer rate with an optional timeout","TLS handshake timeout","Database query timeout"],ans:1},
+    {q:"Why is a reverse proxy (e.g., Nginx, HAProxy) effective against Slowloris?",opts:["It encrypts all traffic","It buffers slow clients and only forwards complete requests to the origin","It blocks all POST requests","It uses BGP to reroute traffic"],ans:1},
+    {q:"Which rate-limiting approach is most effective against slow-rate DoS from many IPs?",opts:["Block a fixed list of IPs","Limit simultaneous connections per IP with connection-rate thresholds","Block all non-GET methods","Increase server thread count"],ans:1}
+  ],
+  // M5 Defense Config (3 Qs)
+  [
+    {q:"What does `client_header_timeout 10s` in Nginx do?",opts:["Sets max time to send a response header","Sets max time to receive the full request header from the client","Limits keepalive duration","Restricts header size"],ans:1},
+    {q:"HAProxy's `timeout http-request` primarily defends against which attack type?",opts:["Volumetric UDP flood","Slowloris (slow header delivery)","SQL injection","XML bomb"],ans:1},
+    {q:"Why is connection-limit rate control (connlimit) only a partial Slowloris defense?",opts:["It requires a paid license","A distributed attack from many IPs can stay under per-IP limits while exhausting the total pool","It breaks HTTP/2","It only works with IPv6"],ans:1}
+  ]
+];
+
+// Detection items for M4
+const SIGS = [
+  {id:'s1',text:'Many connections from few IPs with near-zero body bytes',correct:true},
+  {id:'s2',text:'Requests with extremely long duration and no completion status',correct:true},
+  {id:'s3',text:'High outbound bandwidth spikes',correct:false},
+  {id:'s4',text:'Partial or incomplete HTTP headers / body',correct:true},
+  {id:'s5',text:'Large number of DNS queries from clients',correct:false}
+];
+const MITS = [
+  {id:'m1',text:'Set minimum transfer rate timeouts (mod_reqtimeout)',correct:true},
+  {id:'m2',text:'Deploy a reverse proxy to buffer slow clients',correct:true},
+  {id:'m3',text:'Enable TCP SYN cookies',correct:false},
+  {id:'m4',text:'Limit simultaneous connections per source IP',correct:true},
+  {id:'m5',text:'Increase server thread/process pool size',correct:false}
+];
+
+// RUDY connection log data
+const RUDY_ROWS = [
+  {method:'POST',cl:'10485760',recv:'12 B',dur:'412s',ip:'198.51.100.4',attack:true},
+  {method:'GET', cl:'—',       recv:'—',   dur:'0.3s',ip:'203.0.113.5', attack:false},
+  {method:'POST',cl:'5242880', recv:'8 B', dur:'388s',ip:'198.51.100.4',attack:true},
+  {method:'GET', cl:'—',       recv:'—',   dur:'0.2s',ip:'203.0.113.7', attack:false},
+  {method:'POST',cl:'8388608', recv:'6 B', dur:'450s',ip:'198.51.100.6',attack:true},
+  {method:'POST',cl:'1024',    recv:'1024 B',dur:'0.9s',ip:'203.0.113.9',attack:false},
+  {method:'POST',cl:'20971520',recv:'4 B', dur:'502s',ip:'198.51.100.5',attack:true},
+  {method:'GET', cl:'—',       recv:'—',   dur:'0.1s',ip:'203.0.113.2', attack:false}
+];
+
+// ===== STATE =====
+let score = 0;
+let maxScore = 300;
+let mcAnswers = [[],[],[],[],[]]; // user selected answers per module
+let modulesDone = [false,false,false,false,false];
+let m1SimDone = false, m2SimDone = false;
+let flagsDone = false, detDone = false, matchesDone = false;
+let m1Interval, m2Interval;
+
+// ===== INIT =====
+window.addEventListener('DOMContentLoaded', () => {
+  buildM1Grid();
+  buildMC();
+  buildRudyTable();
+  buildDetection();
+});
+
+// Build 50-slot connection grid
+function buildM1Grid() {
+  const g = document.getElementById('m1Grid');
+  for (let i = 0; i < 50; i++) {
+    const s = document.createElement('div');
+    s.className = 'conn-slot';
+    s.id = 'cs' + i;
+    g.appendChild(s);
+  }
+  buildThreadPool();
+}
+
+function buildThreadPool() {
+  const tp = document.getElementById('m2Threads');
+  for (let i = 0; i < 8; i++) {
+    const t = document.createElement('div');
+    t.className = 'thread';
+    t.id = 'th' + i;
+    t.textContent = 'FREE';
+    tp.appendChild(t);
+  }
+}
+
+// ===== SLOWLORIS SIMULATION =====
+let m1Step = 0;
+function startSlowloris() {
+  document.getElementById('m1Start').disabled = true;
+  document.getElementById('m1Reset').style.display = 'inline-block';
+  m1Step = 0;
+  m1Interval = setInterval(() => {
+    if (m1Step < 45) {
+      const slot = document.getElementById('cs' + m1Step);
+      // Transition from free -> slow -> full
+      if (m1Step < 35) {
+        slot.className = 'conn-slot slow';
+        slot.textContent = 'SL';
+      } else {
+        slot.className = 'conn-slot full';
+        slot.textContent = 'XX';
+      }
+      m1Step++;
+      document.getElementById('m1Count').textContent = m1Step;
+      document.getElementById('m1Hold').textContent = Math.min(m1Step, 35);
+    } else {
+      clearInterval(m1Interval);
+      m1SimDone = true;
+      checkM1Ready();
+    }
+  }, 120);
+}
+
+function resetM1() {
+  clearInterval(m1Interval);
+  for (let i = 0; i < 50; i++) {
+    const s = document.getElementById('cs' + i);
+    s.className = 'conn-slot';
+    s.textContent = '';
+  }
+  document.getElementById('m1Count').textContent = '0';
+  document.getElementById('m1Hold').textContent = '0';
+  document.getElementById('m1Start').disabled = false;
+  document.getElementById('m1Reset').style.display = 'none';
+  m1SimDone = false;
+  m1Step = 0;
+  checkM1Ready();
+}
+
+function checkM1Ready() {
+  const allAnswered = mcAnswers[0].length === MC[0].length && mcAnswers[0].every(a => a !== null);
+  document.getElementById('m1Sub').disabled = !(m1SimDone && allAnswered);
+}
+
+// ===== SLOW POST SIMULATION =====
+let m2Step = 0;
+function startSlowPost() {
+  document.getElementById('m2Start').disabled = true;
+  m2Step = 0;
+  const threads = ['POST /form','POST /api','POST /up','POST /data','POST /img','POST /bulk','POST /rec','POST /log'];
+  let tidx = 0;
+  m2Interval = setInterval(() => {
+    if (tidx < 8) {
+      const t = document.getElementById('th' + tidx);
+      t.className = 'thread busy';
+      t.textContent = threads[tidx].split(' ')[1];
+      tidx++;
+      document.getElementById('m2Status').textContent = 'Threads consumed: ' + tidx + '/8 — Server UNRESPONSIVE';
+    }
+    if (m2Step < 100) {
+      m2Step += 2;
+      document.getElementById('m2Pct').textContent = m2Step + '%';
+      document.getElementById('m2Bar').style.width = m2Step + '%';
+    }
+    if (tidx >= 8 && m2Step >= 100) {
+      clearInterval(m2Interval);
+      document.getElementById('m2Sub').disabled = !(mcAnswers[1].length === MC[1].length && mcAnswers[1].every(a=>a!==null));
+      m2SimDone = true;
+      checkM2Ready();
+    }
+  }, 180);
+}
+
+function checkM2Ready() {
+  const allAnswered = mcAnswers[1].length === MC[1].length && mcAnswers[1].every(a => a !== null);
+  document.getElementById('m2Sub').disabled = !(m2SimDone && allAnswered);
+}
+
+// ===== BUILD MC QUESTIONS =====
+function buildMC() {
+  MC.forEach((module, mi) => {
+    const ids = ['m1Qs','m2Qs','m3Qs','m4Qs','m5Qs'];
+    const container = document.getElementById(ids[mi]);
+    mcAnswers[mi] = new Array(module.length).fill(null);
+    module.forEach((q, qi) => {
+      const qd = document.createElement('div');
+      qd.className = 'q-block';
+      qd.id = `qblock_${mi}_${qi}`;
+      let opts = q.opts.map((o, oi) =>
+        `<label class="opt" id="opt_${mi}_${qi}_${oi}">
+          <input type="radio" name="q_${mi}_${qi}" value="${oi}" onchange="selectOpt(${mi},${qi},${oi})"> ${o}
+        </label>`).join('');
+      qd.innerHTML = `<div class="q">Q${qi+1}: ${q.q}</div><div class="options">${opts}</div>`;
+      container.appendChild(qd);
+    });
+  });
+}
+
+function selectOpt(mi, qi, oi) {
+  mcAnswers[mi][qi] = oi;
+  // Enable submit if all answered + prereqs met
+  updateSubmitState(mi);
+}
+
+function updateSubmitState(mi) {
+  const allAns = mcAnswers[mi].every(a => a !== null);
+  const subs = ['m1Sub','m2Sub','m3Sub','m4Sub','m5Sub'];
+  if (mi === 0) document.getElementById(subs[0]).disabled = !(m1SimDone && allAns);
+  else if (mi === 1) document.getElementById(subs[1]).disabled = !(m2SimDone && allAns);
+  else if (mi === 2) document.getElementById(subs[2]).disabled = !(flagsDone && allAns);
+  else if (mi === 3) document.getElementById(subs[3]).disabled = !(detDone && allAns);
+  else if (mi === 4) document.getElementById(subs[4]).disabled = !(matchesDone && allAns);
+}
+
+function submitMC(mi) {
+  let earned = 0, total = MC[mi].length;
+  MC[mi].forEach((q, qi) => {
+    const correct = q.ans === mcAnswers[mi][qi];
+    if (correct) earned++;
+    // Highlight options
+    q.opts.forEach((_, oi) => {
+      const el = document.getElementById(`opt_${mi}_${qi}_${oi}`);
+      if (!el) return;
+      el.classList.remove('correct','wrong');
+      if (oi === q.ans) el.classList.add('correct');
+      else if (oi === mcAnswers[mi][qi] && !correct) el.classList.add('wrong');
+      el.classList.add('locked');
+      const inp = el.querySelector('input');
+      if (inp) inp.disabled = true;
+    });
+  });
+  const pts = earned * 15;
+  score += pts;
+  updateScore();
+  const fbs = ['m1Fb','m2Fb','m3Fb','m4Fb','m5Fb'];
+  const fb = document.getElementById(fbs[mi]);
+  fb.className = 'feedback show ' + (earned === total ? 'ok' : earned > 0 ? 'info' : 'err');
+  fb.textContent = `${earned}/${total} correct — +${pts} pts`;
+  document.getElementById(['m1Sub','m2Sub','m3Sub','m4Sub','m5Sub'][mi]).disabled = true;
+  modulesDone[mi] = true;
+  const nexts = ['m1Next','m2Next','m3Next','m4Next','m5Next'];
+  document.getElementById(nexts[mi]).classList.add('show');
+  markTabDone(mi);
+}
+
+// ===== RUDY TABLE =====
+function buildRudyTable() {
+  const tbody = document.getElementById('m3Table');
+  RUDY_ROWS.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    tr.className = r.attack ? 'suspect flagged' : 'normal';
+    tr.innerHTML = `
+      <td><label class="flag-row"><input type="checkbox" id="flag${i}" value="${i}"> Flag</label></td>
+      <td>CONN-${i+1}</td>
+      <td>${r.method}</td>
+      <td>${r.cl}</td>
+      <td>${r.recv}</td>
+      <td>${r.dur}</td>
+      <td>${r.ip}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function submitFlags() {
+  let correct = 0, total = RUDY_ROWS.filter(r => r.attack).length;
+  let fp = 0;
+  RUDY_ROWS.forEach((r, i) => {
+    const cb = document.getElementById('flag' + i);
+    if (cb.checked && r.attack) correct++;
+    else if (cb.checked && !r.attack) fp++;
+    cb.disabled = true;
+  });
+  const pts = Math.max(0, (correct - fp) * 10);
+  score += pts;
+  updateScore();
+  flagsDone = true;
+  const fb = document.getElementById('m3FlagFb');
+  fb.className = 'feedback show ' + (correct === total && fp === 0 ? 'ok' : 'info');
+  fb.textContent = `Flagged: ${correct}/${total} RUDY connections. False positives: ${fp}. +${pts} pts`;
+  document.getElementById('m3FlagSub').disabled = true;
+  updateSubmitState(2);
+}
+
+// ===== DETECTION (M4) =====
+function buildDetection() {
+  const sc = document.getElementById('m4Sigs');
+  SIGS.forEach(s => {
+    sc.innerHTML += `<label class="flag-row"><input type="checkbox" id="${s.id}"> ${s.text}</label>`;
+  });
+  const mc = document.getElementById('m4Mits');
+  MITS.forEach(m => {
+    mc.innerHTML += `<label class="flag-row"><input type="checkbox" id="${m.id}"> ${m.text}</label>`;
+  });
+}
+
+function submitDetection() {
+  let correct = 0, total = SIGS.filter(s=>s.correct).length + MITS.filter(m=>m.correct).length;
+  let fp = 0;
+  [...SIGS,...MITS].forEach(item => {
+    const cb = document.getElementById(item.id);
+    if (cb.checked && item.correct) correct++;
+    else if (cb.checked && !item.correct) fp++;
+    cb.disabled = true;
+  });
+  const pts = Math.max(0, (correct - fp) * 10);
+  score += pts;
+  updateScore();
+  detDone = true;
+  const fb = document.getElementById('m4DetFb');
+  fb.className = 'feedback show ' + (correct === total && fp === 0 ? 'ok' : 'info');
+  fb.textContent = `Identified ${correct}/${total} correct items. False positives: ${fp}. +${pts} pts`;
+  document.getElementById('m4DetSub').disabled = true;
+  updateSubmitState(3);
+}
+
+// ===== MATCHING (M5) =====
+const CFG_ANSWERS = {cfgA:'both', cfgB:'both', cfgC:'slowloris', cfgD:'slowloris'};
+// Config A: mod_reqtimeout covers both header+body. Config B: Nginx covers both. Config C: HAProxy http-request timeout = header/slowloris. Config D: connlimit = connection flood/slowloris.
+
+function checkMatchLive() {
+  const all = ['cfgA','cfgB','cfgC','cfgD'].every(id => document.getElementById(id).value !== '');
+  document.getElementById('m5MatchSub').disabled = !all;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('m5MatchSub').disabled = true;
+});
+
+function submitMatches() {
+  let correct = 0;
+  ['cfgA','cfgB','cfgC','cfgD'].forEach(id => {
+    const val = document.getElementById(id).value;
+    if (val === CFG_ANSWERS[id]) correct++;
+    document.getElementById(id).disabled = true;
+  });
+  const pts = correct * 10;
+  score += pts;
+  updateScore();
+  matchesDone = true;
+  const fb = document.getElementById('m5MatchFb');
+  fb.className = 'feedback show ' + (correct === 4 ? 'ok' : 'info');
+  fb.textContent = `${correct}/4 correct matches. +${pts} pts. Correct: A=both, B=both, C=slowloris/header, D=slowloris/connlimit`;
+  document.getElementById('m5MatchSub').disabled = true;
+  updateSubmitState(4);
+}
+
+// ===== NAVIGATION =====
+function goModule(idx) {
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i === idx));
+  document.querySelectorAll('.ch-tab').forEach((t,i) => {
+    t.classList.remove('active');
+    if (i === idx) { t.classList.remove('locked'); t.classList.add('active'); }
+  });
+  // Unlock next tab
+  const tabs = document.querySelectorAll('.ch-tab');
+  if (idx + 1 < tabs.length) tabs[idx+1].classList.remove('locked');
+  window.scrollTo(0, 0);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.ch-tab').forEach((tab, idx) => {
+    tab.addEventListener('click', () => {
+      if (tab.classList.contains('locked')) return;
+      goModule(idx);
+    });
+  });
+});
+
+function markTabDone(mi) {
+  const tabs = document.querySelectorAll('.ch-tab');
+  tabs[mi].classList.add('done');
+  tabs[mi].classList.remove('active');
+}
+
+function updateScore() {
+  document.getElementById('scoreDisp').textContent = score;
+}
+
+// ===== FINISH =====
+function finish() {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const pct = Math.round((score / maxScore) * 100);
+  let rank, sub;
+  if (pct >= 90) { rank = 'APPLICATION LAYER DEFENDER'; sub = 'Elite-tier understanding of slow-rate DoS attacks and defenses.'; }
+  else if (pct >= 75) { rank = 'DoS SPECIALIST'; sub = 'Strong grasp of attack mechanics and mitigation strategies.'; }
+  else if (pct >= 50) { rank = 'NETWORK ADMIN'; sub = 'Basic familiarity with DoS concepts — revisit detection/mitigation.'; }
+  else { rank = 'DDoS VICTIM'; sub = 'Review all modules and retry for a passing score.'; }
+  document.getElementById('rankBadge').textContent = rank;
+  document.getElementById('rankSub').textContent = sub;
+  document.getElementById('scoreBig').textContent = score + ' / ' + maxScore;
+  document.getElementById('scorePct').textContent = pct + '%';
+  document.getElementById('resultScreen').classList.add('show');
+  window.scrollTo(0, 0);
+  awardCompletion(score, maxScore, rank);
+}
+
+function awardCompletion(totalScore, maxScore, rankTitle) {
+  if (!localStorage.getItem('game_slowloris_xp_awarded')) {
+    const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+    localStorage.setItem('hexworth_xp', (currentXP + 75).toString());
+    localStorage.setItem('game_slowloris_xp_awarded', 'true');
+    if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+      const uid = localStorage.getItem('hexworth_uid');
+      if (uid) FirestoreManager.addXP(uid, 75, 'Slowloris DoS Lab Complete');
+    }
+  }
+  if (typeof AchievementManager !== 'undefined') AchievementManager.unlock('game_slowloris');
+  if (typeof GameTracker !== 'undefined') GameTracker.record('slowloris', { score: totalScore, maxScore, rank: rankTitle });
+}
+</script>
+</body>
+</html>

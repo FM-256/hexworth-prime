@@ -1919,6 +1919,11 @@ const ContentCatalog = (function() {
         // Eye House — SOC Lab (DA-13)
         { house: 'eye', id: 'eye-security-onion-soc', title: 'Security Onion SOC Lab', description: 'SOC analyst simulation: alert triage, Suricata rule analysis, Zeek conn.log investigation, Kibana dashboards, and incident reporting', icon: '🧅', status: 'available', components: ['applet'], href: 'games/eye-security-onion-soc.applet.html', category: 'soc-ops' },
 
+        // Dark Arts — Labs (DA-16, DA-17, DA-26)
+        { house: 'dark-arts', id: 'dark-ids-evasion-lab', title: 'IDS Evasion Arsenal', description: 'IDS evasion techniques: packet fragmentation, protocol-level evasion, HTTP smuggling, encryption tunneling, and blue team defense', icon: '👻', status: 'available', components: ['applet'], href: 'games/dark-ids-evasion-lab.applet.html', category: 'evasion' },
+        { house: 'dark-arts', id: 'dark-slowloris-dos-lab', title: 'Slowloris & App-Layer DoS Lab', description: 'Application-layer DoS deep dive: Slowloris, Slow POST, R-U-Dead-Yet, detection and mitigation, defense configuration', icon: '🐌', status: 'available', components: ['applet'], href: 'games/dark-slowloris-dos-lab.applet.html', category: 'dos' },
+        { house: 'dark-arts', id: 'dark-container-security-lab', title: 'Container Security Lab', description: 'Docker and Kubernetes security: Dockerfile audit, image scanning, container escape, RBAC analysis, pod hardening', icon: '📦', status: 'available', components: ['applet'], href: 'games/dark-container-security-lab.applet.html', category: 'container' },
+
     ];
 
     // Search index cache
