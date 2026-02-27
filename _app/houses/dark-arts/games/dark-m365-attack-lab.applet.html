@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M365 Attack Vectors Lab - Dark Arts - Hexworth Prime</title>
+<style>
+:root {
+    --bg:#0a0a0a; --bg2:#111; --bg3:#1a0000; --card:#160000;
+    --border:rgba(239,68,68,.22); --border-hi:rgba(239,68,68,.55);
+    --red:#ef4444; --rd:#dc2626; --rdim:rgba(239,68,68,.12); --rglow:rgba(239,68,68,.08);
+    --green:#22c55e; --gdim:rgba(34,197,94,.12);
+    --yellow:#eab308; --blue:#3b82f6; --bdim:rgba(59,130,246,.12);
+    --text:#e5e7eb; --muted:#6b7280; --mono:'Courier New',Courier,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;
+    background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px)}
+header{background:rgba(22,0,0,.9);border-bottom:1px solid var(--border);padding:14px 24px;
+    display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;backdrop-filter:blur(8px)}
+.back-link{color:var(--red);text-decoration:none;font-size:.85rem;letter-spacing:.05em;cursor:pointer;transition:color .2s}
+.back-link:hover{color:#fff}
+.header-title{font-size:.95rem;color:var(--red);letter-spacing:.08em;font-weight:bold;flex:1}
+.header-title span{color:var(--muted);font-weight:normal}
+.score-display{background:var(--rdim);border:1px solid var(--border);padding:6px 14px;border-radius:4px;font-size:.82rem;color:var(--red);letter-spacing:.05em}
+.score-display strong{color:#fff}
+.module-nav{display:flex;gap:4px;padding:12px 24px;background:rgba(0,0,0,.5);border-bottom:1px solid var(--border);overflow-x:auto}
+.mod-tab{padding:6px 14px;border:1px solid rgba(239,68,68,.25);border-radius:3px;font-size:.75rem;cursor:pointer;
+    color:var(--muted);background:transparent;font-family:var(--mono);white-space:nowrap;transition:all .2s;letter-spacing:.04em}
+.mod-tab:hover{border-color:var(--red);color:var(--text)}
+.mod-tab.active{background:var(--rd);border-color:var(--rd);color:#fff}
+.mod-tab.done{border-color:var(--green);color:var(--green)}
+.mod-tab.locked{opacity:.4;cursor:not-allowed}
+main{max-width:1100px;margin:0 auto;padding:28px 24px 80px}
+.module-panel{display:none}
+.module-panel.active{display:block}
+.mod-header{margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.mod-header h2{color:var(--red);font-size:1.1rem;letter-spacing:.06em;margin-bottom:4px}
+.mod-header .meta{font-size:.78rem;color:var(--muted);letter-spacing:.04em}
+.mod-header .meta span{color:var(--yellow);margin-left:12px}
+.mod-desc{background:var(--rglow);border-left:3px solid var(--rd);padding:10px 14px;font-size:.82rem;
+    color:#d1d5db;line-height:1.7;margin-bottom:22px;border-radius:0 4px 4px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+/* Log / table rows */
+.log-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-bottom:22px}
+.log-table th{background:rgba(239,68,68,.15);color:var(--red);padding:7px 10px;text-align:left;letter-spacing:.05em;border:1px solid var(--border)}
+.log-table td{padding:7px 10px;border:1px solid rgba(239,68,68,.1);color:var(--text);vertical-align:top}
+.log-table tr:hover td{background:rgba(239,68,68,.05)}
+.tag{display:inline-block;padding:2px 7px;border-radius:3px;font-size:.72rem;letter-spacing:.04em;font-weight:bold}
+.tag-fail{background:rgba(239,68,68,.2);color:var(--red)}
+.tag-ok{background:var(--gdim);color:var(--green)}
+.tag-warn{background:rgba(234,179,8,.15);color:var(--yellow)}
+/* Interactive cards */
+.item-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px;cursor:pointer;transition:all .2s;position:relative}
+.item-card:hover{border-color:var(--red);background:#1e0000}
+.item-card.selected{border-color:var(--red);background:var(--rdim);box-shadow:0 0 8px rgba(239,68,68,.2)}
+.item-card.correct{border-color:var(--green);background:var(--gdim)}
+.item-card.wrong{border-color:var(--red);background:rgba(239,68,68,.08);opacity:.6}
+.item-card h4{font-size:.82rem;color:var(--red);margin-bottom:6px;letter-spacing:.04em}
+.item-card p{font-size:.76rem;color:var(--muted);line-height:1.6}
+.item-card .badge{position:absolute;top:10px;right:10px;font-size:.68rem;padding:2px 6px;border-radius:3px}
+/* JSON block */
+.json-block{background:#0d0d0d;border:1px solid var(--border);border-radius:4px;padding:12px;font-size:.72rem;
+    color:#a3e635;line-height:1.6;overflow-x:auto;white-space:pre;margin-bottom:12px;max-height:160px;overflow-y:auto}
+.json-block .key{color:#93c5fd}
+.json-block .str{color:#a3e635}
+.json-block .num{color:#f97316}
+/* Risk slider */
+.risk-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;background:var(--card);
+    border:1px solid var(--border);border-radius:5px;padding:10px 14px}
+.risk-row label{flex:1;font-size:.8rem;color:var(--text)}
+.risk-row input[type=range]{width:130px;accent-color:var(--red)}
+.risk-val{width:50px;text-align:center;font-size:.78rem;color:var(--yellow);font-weight:bold}
+/* Timeline */
+.timeline{margin-bottom:22px}
+.tl-event{display:flex;gap:14px;margin-bottom:10px;align-items:flex-start}
+.tl-num{width:28px;height:28px;border-radius:50%;background:var(--rd);color:#fff;font-size:.72rem;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:bold}
+.tl-body{flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:10px 14px}
+.tl-body .time{font-size:.7rem;color:var(--muted);margin-bottom:3px}
+.tl-body .desc{font-size:.8rem;color:var(--text);margin-bottom:6px}
+.tl-select{background:#111;border:1px solid var(--border);color:var(--text);font-family:var(--mono);
+    font-size:.75rem;padding:4px 8px;border-radius:3px;width:100%}
+.tl-select:focus{outline:none;border-color:var(--red)}
+/* MC Questions */
+.mc-section{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:18px;margin-top:24px}
+.mc-section h3{color:var(--red);font-size:.88rem;letter-spacing:.06em;margin-bottom:16px}
+.mc-q{margin-bottom:18px}
+.mc-q .q-text{font-size:.82rem;color:var(--text);margin-bottom:10px;line-height:1.6}
+.mc-opts{display:flex;flex-direction:column;gap:6px}
+.mc-opt{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:8px 12px;
+    cursor:pointer;font-size:.78rem;color:var(--text);transition:all .2s;font-family:var(--mono)}
+.mc-opt:hover{border-color:var(--red);color:#fff}
+.mc-opt.chosen{border-color:var(--rd);background:var(--rdim);color:#fff}
+.mc-opt.correct{border-color:var(--green);background:var(--gdim);color:var(--green)}
+.mc-opt.wrong{border-color:var(--red);background:rgba(239,68,68,.08);color:var(--muted)}
+/* Feedback */
+.feedback{margin-top:8px;font-size:.76rem;padding:6px 10px;border-radius:3px;display:none}
+.feedback.show{display:block}
+.feedback.good{background:var(--gdim);color:var(--green)}
+.feedback.bad{background:var(--rdim);color:var(--red)}
+/* Buttons */
+.btn{padding:9px 20px;border:none;border-radius:4px;font-family:var(--mono);font-size:.82rem;cursor:pointer;letter-spacing:.05em;transition:all .2s}
+.btn-red{background:var(--rd);color:#fff}
+.btn-red:hover{background:#b91c1c}
+.btn-ghost{background:transparent;border:1px solid var(--red);color:var(--red)}
+.btn-ghost:hover{background:var(--rdim)}
+.mod-footer{display:flex;align-items:center;justify-content:space-between;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)}
+.points-earned{font-size:.8rem;color:var(--yellow)}
+/* Result screen */
+#result-screen{display:none;text-align:center;padding:40px 20px;max-width:600px;margin:0 auto}
+#result-screen.show{display:block}
+.result-rank{font-size:1.6rem;color:var(--red);letter-spacing:.1em;margin:16px 0 8px;font-weight:bold}
+.result-score-big{font-size:2.5rem;color:#fff;font-weight:bold;margin-bottom:4px}
+.result-sub{color:var(--muted);font-size:.82rem;margin-bottom:28px}
+.rank-bar{background:rgba(239,68,68,.15);border-radius:20px;height:8px;margin:12px 0 24px;overflow:hidden}
+.rank-fill{height:100%;background:linear-gradient(90deg,var(--rd),var(--red));border-radius:20px;transition:width 1s}
+.section-label{font-size:.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<header>
+    <a class="back-link" onclick="window.history.back()">&#8592; Back</a>
+    <div class="header-title">M365 ATTACK VECTORS LAB <span>// Dark Arts</span></div>
+    <div class="score-display">XP: <strong id="hdr-score">0</strong> / <span id="hdr-max">0</span></div>
+</header>
+
+<nav class="module-nav" id="module-nav"></nav>
+
+<main>
+<!-- MODULE 1: Password Spray -->
+<div class="module-panel active" id="mod-0">
+    <div class="mod-header">
+        <h2>[M1] PASSWORD SPRAY ANALYSIS</h2>
+        <div class="meta">Identify compromised accounts from login logs <span>+10 per find &bull; +15 per MC</span></div>
+    </div>
+    <div class="mod-desc">A password spray attack cycles a single password across many accounts to avoid lockouts. Review the authentication log below and select every account that was successfully compromised.</div>
+    <table class="log-table" id="spray-log"></table>
+    <div class="section-label">Select all compromised accounts:</div>
+    <div class="grid3" id="spray-accounts"></div>
+    <div class="mc-section" id="spray-mc"></div>
+    <div class="mod-footer">
+        <div class="points-earned" id="spray-pts">Points: 0</div>
+        <button class="btn btn-red" onclick="submitMod(0)">Submit &amp; Continue</button>
+    </div>
+</div>
+
+<!-- MODULE 2: MFA Analysis -->
+<div class="module-panel" id="mod-1">
+    <div class="mod-header">
+        <h2>[M2] MFA WEAKNESS ANALYSIS</h2>
+        <div class="meta">Identify the weakest MFA methods <span>+10 per find &bull; +15 per MC</span></div>
+    </div>
+    <div class="mod-desc">Review each account's MFA configuration. Select accounts whose MFA method is vulnerable to real-time phishing or SIM-swapping attacks.</div>
+    <div class="grid2" id="mfa-cards"></div>
+    <div class="mc-section" id="mfa-mc"></div>
+    <div class="mod-footer">
+        <div class="points-earned" id="mfa-pts">Points: 0</div>
+        <button class="btn btn-red" onclick="submitMod(1)">Submit &amp; Continue</button>
+    </div>
+</div>
+
+<!-- MODULE 3: OAuth Consent -->
+<div class="module-panel" id="mod-2">
+    <div class="mod-header">
+        <h2>[M3] OAUTH CONSENT PHISHING</h2>
+        <div class="meta">Rate each permission's risk level <span>+10 per correct rating &bull; +15 per MC</span></div>
+    </div>
+    <div class="mod-desc">A rogue third-party app requests the following OAuth permissions during a consent phishing attack. Rate each permission: Low / Medium / High risk.</div>
+    <div id="oauth-perms"></div>
+    <div class="mc-section" id="oauth-mc"></div>
+    <div class="mod-footer">
+        <div class="points-earned" id="oauth-pts">Points: 0</div>
+        <button class="btn btn-red" onclick="submitMod(2)">Submit &amp; Continue</button>
+    </div>
+</div>
+
+<!-- MODULE 4: Graph API Recon -->
+<div class="module-panel" id="mod-3">
+    <div class="mod-header">
+        <h2>[M4] GRAPH API RECON</h2>
+        <div class="meta">Identify sensitive data in API responses <span>+10 per find &bull; +15 per MC</span></div>
+    </div>
+    <div class="mod-desc">An attacker with a compromised token executes Graph API queries. Select all response blocks that contain data useful for lateral movement or privilege escalation.</div>
+    <div id="graph-responses"></div>
+    <div class="mc-section" id="graph-mc"></div>
+    <div class="mod-footer">
+        <div class="points-earned" id="graph-pts">Points: 0</div>
+        <button class="btn btn-red" onclick="submitMod(3)">Submit &amp; Continue</button>
+    </div>
+</div>
+
+<!-- MODULE 5: Attack Chain -->
+<div class="module-panel" id="mod-4">
+    <div class="mod-header">
+        <h2>[M5] ATTACK CHAIN &amp; DEFENSE</h2>
+        <div class="meta">Map events to attack phases + select defenses <span>+10 per correct &bull; +15 per MC</span></div>
+    </div>
+    <div class="mod-desc">Map each timeline event to its attack phase, then answer the defense questions. Phases: Recon / Initial Access / Persistence / Lateral Movement / Exfiltration.</div>
+    <div class="timeline" id="chain-timeline"></div>
+    <div class="mc-section" id="chain-mc"></div>
+    <div class="mod-footer">
+        <div class="points-earned" id="chain-pts">Points: 0</div>
+        <button class="btn btn-red" onclick="submitMod(4)">Finish Lab</button>
+    </div>
+</div>
+
+<!-- Result -->
+<div id="result-screen">
+    <div class="section-label">LAB COMPLETE</div>
+    <div class="result-rank" id="res-rank">--</div>
+    <div class="result-score-big" id="res-score">0</div>
+    <div class="result-sub" id="res-sub">--</div>
+    <div class="rank-bar"><div class="rank-fill" id="res-bar" style="width:0%"></div></div>
+    <button class="btn btn-red" onclick="location.reload()">Restart Lab</button>
+    &nbsp;
+    <button class="btn btn-ghost" onclick="window.history.back()">Exit</button>
+</div>
+</main>
+
+<script>
+// ===== DATA =====
+const SPRAY_LOG = [
+    {user:'jsmith@corp.com',   pass:'Summer2024!', ip:'185.220.101.3', result:'FAIL'},
+    {user:'agarcia@corp.com',  pass:'Summer2024!', ip:'185.220.101.3', result:'FAIL'},
+    {user:'bwilson@corp.com',  pass:'Summer2024!', ip:'185.220.101.3', result:'SUCCESS'},
+    {user:'tmiller@corp.com',  pass:'Summer2024!', ip:'185.220.101.3', result:'FAIL'},
+    {user:'sjones@corp.com',   pass:'Summer2024!', ip:'185.220.101.4', result:'SUCCESS'},
+    {user:'klee@corp.com',     pass:'Summer2024!', ip:'185.220.101.4', result:'FAIL'},
+    {user:'rdavis@corp.com',   pass:'Summer2024!', ip:'185.220.101.4', result:'SUCCESS'},
+    {user:'npatel@corp.com',   pass:'Summer2024!', ip:'185.220.101.5', result:'FAIL'},
+    {user:'cwang@corp.com',    pass:'Summer2024!', ip:'185.220.101.5', result:'FAIL'},
+    {user:'hbrown@corp.com',   pass:'Summer2024!', ip:'185.220.101.5', result:'FAIL'},
+    {user:'mtaylor@corp.com',  pass:'Summer2024!', ip:'185.220.101.6', result:'SUCCESS'},
+    {user:'lmartinez@corp.com',pass:'Summer2024!', ip:'185.220.101.6', result:'FAIL'}
+];
+const SPRAY_COMPROMISED = ['bwilson@corp.com','sjones@corp.com','rdavis@corp.com','mtaylor@corp.com'];
+
+const MFA_ACCOUNTS = [
+    {user:'CEO — D. Harmon',       method:'SMS OTP',              weak:true,  note:'SIM-swappable'},
+    {user:'CFO — P. Singh',        method:'Authenticator App',    weak:false, note:'TOTP, phish-resistant'},
+    {user:'IT Admin — K. Torres',  method:'Voice Call OTP',       weak:true,  note:'Interceptable via SS7'},
+    {user:'HR Lead — A. Novak',    method:'Email OTP',            weak:true,  note:'Phishable if email compromised'},
+    {user:'DevOps — R. Osei',      method:'FIDO2 Hardware Key',   weak:false, note:'Strongest: phish-resistant'},
+    {user:'Sales — C. Muller',     method:'Authenticator App',    weak:false, note:'TOTP, phish-resistant'}
+];
+
+const OAUTH_PERMS = [
+    {scope:'Mail.Read',           risk:2, label:'Read all mail'},
+    {scope:'Files.ReadWrite.All', risk:3, label:'Full OneDrive read/write'},
+    {scope:'User.Read',           risk:1, label:'Sign-in and read profile'},
+    {scope:'Mail.Send',           risk:3, label:'Send mail as user'},
+    {scope:'Calendars.Read',      risk:1, label:'Read calendar events'},
+    {scope:'Directory.Read.All',  risk:3, label:'Read entire directory/org'}
+];
+
+const GRAPH_RESPONSES = [
+    {
+        endpoint:'GET /v1.0/me',
+        sensitive:false,
+        label:'Current User Profile',
+        json:`{\n  <span class=key>"displayName"</span>: <span class=str>"Dana Harmon"</span>,\n  <span class=key>"mail"</span>: <span class=str>"dharmon@corp.com"</span>,\n  <span class=key>"jobTitle"</span>: <span class=str>"Chief Executive Officer"</span>\n}`
+    },
+    {
+        endpoint:'GET /v1.0/users?$select=displayName,mail,assignedLicenses',
+        sensitive:true,
+        label:'All Users + License Assignments',
+        json:`{\n  <span class=key>"value"</span>: [\n    {<span class=key>"displayName"</span>:<span class=str>"Dana Harmon"</span>, <span class=key>"mail"</span>:<span class=str>"dharmon@corp.com"</span>},\n    {<span class=key>"displayName"</span>:<span class=str>"Paul Singh"</span>, <span class=key>"mail"</span>:<span class=str>"psingh@corp.com"</span>}\n  ]\n}`
+    },
+    {
+        endpoint:"GET /v1.0/groups?$filter=groupTypes/any(c:c+eq+'Unified')",
+        sensitive:true,
+        label:'All M365 Groups + Membership',
+        json:`{\n  <span class=key>"value"</span>: [\n    {<span class=key>"displayName"</span>:<span class=str>"IT-Admins"</span>, <span class=key>"id"</span>:<span class=str>"a1b2c3d4"</span>},\n    {<span class=key>"displayName"</span>:<span class=str>"Finance-All"</span>, <span class=key>"id"</span>:<span class=str>"e5f6g7h8"</span>}\n  ]\n}`
+    },
+    {
+        endpoint:'GET /v1.0/me/mailFolders/inbox/messages?$top=5',
+        sensitive:true,
+        label:'Inbox Messages (Top 5)',
+        json:`{\n  <span class=key>"value"</span>: [\n    {<span class=key>"subject"</span>:<span class=str>"Q3 Board Financials"</span>, <span class=key>"from"</span>:{<span class=key>"emailAddress"</span>:{<span class=key>"name"</span>:<span class=str>"Paul Singh"</span>}}},\n    {<span class=key>"subject"</span>:<span class=str>"AWS Root Credentials"</span>, <span class=key>"from"</span>:{<span class=key>"emailAddress"</span>:{<span class=key>"name"</span>:<span class=str>"DevOps Bot"</span>}}}\n  ]\n}`
+    }
+];
+
+const CHAIN_EVENTS = [
+    {time:'08:12', desc:'Attacker queries LinkedIn for Corp employee emails', phase:'Recon'},
+    {time:'08:45', desc:'Password spray across 200 accounts — 3 succeed', phase:'Initial Access'},
+    {time:'09:01', desc:'Victim clicks OAuth consent link; rogue app authorized', phase:'Initial Access'},
+    {time:'09:15', desc:'Graph API: enumerate all users, groups, and licenses', phase:'Recon'},
+    {time:'09:34', desc:'Attacker registers new OAuth app in compromised tenant', phase:'Persistence'},
+    {time:'09:52', desc:'Conditional Access bypass via legacy auth protocol (SMTP)', phase:'Persistence'},
+    {time:'10:10', desc:'Token used to access CFO mailbox via EWS delegation', phase:'Lateral Movement'},
+    {time:'10:33', desc:'New mail rule created: forward all finance email externally', phase:'Persistence'},
+    {time:'11:00', desc:'Bulk download of SharePoint finance document library', phase:'Exfiltration'},
+    {time:'11:45', desc:'7.2 GB upload to external Mega.nz account', phase:'Exfiltration'}
+];
+const CHAIN_PHASES = ['Recon','Initial Access','Persistence','Lateral Movement','Exfiltration'];
+
+// ===== MC QUESTIONS =====
+const MC = [
+    // Mod 0
+    [
+        {q:'Which lockout behavior makes password spray effective?',
+         opts:['Lockout after 3 attempts per account','No lockout when one password tried per account','Lockout after 10 total failed logins','Rate limiting on the SMTP gateway'],
+         ans:1, exp:'Spraying uses 1 password per account, staying under per-account lockout thresholds.'},
+        {q:'Which Microsoft control best detects password spray at scale?',
+         opts:['Azure AD Smart Lockout','DKIM signing','SPF record validation','Legacy auth block'],
+         ans:0, exp:'Azure AD Smart Lockout detects distributed spray patterns across the tenant.'},
+        {q:'Which log source shows successful spray authentications?',
+         opts:['Exchange message trace','Azure AD Sign-in Logs','Microsoft Defender for Endpoint','DMARC reports'],
+         ans:1, exp:'Azure AD Sign-in Logs capture every authentication attempt including spray successes.'}
+    ],
+    // Mod 1
+    [
+        {q:'Why is SMS OTP the weakest MFA form in an M365 context?',
+         opts:['It requires a smartphone','SIM swap attacks can redirect SMS codes to attacker','Microsoft does not support SMS MFA','It only works with Outlook'],
+         ans:1, exp:'SIM swapping transfers the victim phone number to attacker control, defeating SMS OTP.'},
+        {q:'Which MFA method is phishing-resistant by design?',
+         opts:['Email OTP','SMS OTP','FIDO2 Hardware Key','Voice call OTP'],
+         ans:2, exp:'FIDO2 keys are bound to the origin domain, making them immune to credential phishing.'},
+        {q:'Entra ID Conditional Access can enforce which MFA minimum?',
+         opts:['TOTP only','Authentication Strength policies','SAML assertions only','SMTP relay requirements'],
+         ans:1, exp:'Authentication Strength policies in Conditional Access enforce phishing-resistant MFA.'}
+    ],
+    // Mod 2
+    [
+        {q:'What makes OAuth consent phishing hard to detect post-compromise?',
+         opts:['It requires malware installation','The rogue app token persists even after password reset','It only works during business hours','It requires admin consent'],
+         ans:1, exp:'OAuth tokens survive password changes — attackers retain access even after victim resets credentials.'},
+        {q:'Which Entra ID control blocks unauthorized OAuth app consent?',
+         opts:['Disable legacy auth','Enable user consent to apps (restrict to verified publishers)','Block external email forwarding','Enable DMARC'],
+         ans:1, exp:'Restricting user consent prevents end users from granting OAuth access to unverified apps.'},
+        {q:'Which Graph API permission grants the most dangerous persistent access?',
+         opts:['User.Read','Calendars.Read','Mail.ReadWrite + Mail.Send','People.Read'],
+         ans:2, exp:'Mail.ReadWrite + Mail.Send allows reading all mail and sending as the victim silently.'}
+    ],
+    // Mod 3
+    [
+        {q:'What is the minimum Graph API permission needed to enumerate all org users?',
+         opts:['User.Read','User.ReadBasic.All','Directory.Read.All','Mail.Read'],
+         ans:1, exp:'User.ReadBasic.All allows listing all users in the tenant — valuable for recon.'},
+        {q:'Which Graph API call reveals admin role assignments?',
+         opts:['/me/memberOf','/v1.0/directoryRoles','/me/drive','/me/calendar'],
+         ans:1, exp:'/v1.0/directoryRoles returns all directory roles and their members.'},
+        {q:'How can defenders detect Graph API abuse post-compromise?',
+         opts:['Block all API traffic','Monitor Unified Audit Log for unusual Graph API calls','Rotate all passwords weekly','Disable the Microsoft Graph'],
+         ans:1, exp:'The Unified Audit Log in Microsoft Purview records all Graph API calls for anomaly detection.'}
+    ],
+    // Mod 4
+    [
+        {q:'What MITRE ATT&CK technique is "register rogue OAuth app for persistence"?',
+         opts:['T1078 Valid Accounts','T1136 Create Account','T1550.001 Application Access Token','T1098 Account Manipulation'],
+         ans:2, exp:'T1550.001 covers using application access tokens (OAuth) for persistence and lateral movement.'},
+        {q:'Which Conditional Access policy prevents legacy auth protocol abuse?',
+         opts:['Require compliant device','Block legacy authentication','Require MFA for all users','Restrict guest access'],
+         ans:1, exp:'Blocking legacy auth (SMTP, IMAP, POP3) eliminates protocols that bypass MFA entirely.'},
+        {q:'What is the correct IR step when a malicious OAuth app is discovered?',
+         opts:['Reset victim password only','Revoke app permissions + revoke all tokens + review audit logs','Delete the Azure AD tenant','Block all OAuth in the org'],
+         ans:1, exp:'Revoking permissions AND all tokens is critical — password reset alone does not remove OAuth access.'}
+    ]
+];
+
+// ===== STATE =====
+let currentMod = 0;
+const modDone = [false,false,false,false,false];
+let totalScore = 0;
+const maxScore = (4*10)+(3*10)+(6*10)+(4*10)+(10*10) + (5*3*15); // interactive + MC
+
+// ===== INIT =====
+function buildNav() {
+    const nav = document.getElementById('module-nav');
+    const labels = ['M1: Password Spray','M2: MFA Analysis','M3: OAuth Consent','M4: Graph API Recon','M5: Attack Chain'];
+    nav.innerHTML = labels.map((l,i)=>`<button class="mod-tab ${i===0?'active':''}" id="tab-${i}" onclick="switchMod(${i})">${l}</button>`).join('');
+}
+
+function switchMod(i) {
+    if (i !== 0 && !modDone[i-1]) return; // enforce order
+    document.querySelectorAll('.module-panel').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.mod-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('mod-'+i).classList.add('active');
+    document.getElementById('tab-'+i).classList.add('active');
+    currentMod = i;
+}
+
+function updateHeader() {
+    document.getElementById('hdr-score').textContent = totalScore;
+    document.getElementById('hdr-max').textContent = computeMax();
+}
+
+function computeMax() {
+    // simplified running max
+    return modDone.filter(Boolean).length > 0 ? maxScore : '?';
+}
+
+// ===== MODULE 1: PASSWORD SPRAY =====
+function buildSpray() {
+    const table = document.getElementById('spray-log');
+    table.innerHTML = '<tr><th>User</th><th>Password</th><th>Source IP</th><th>Result</th></tr>' +
+        SPRAY_LOG.map(r=>`<tr><td>${r.user}</td><td>${r.pass}</td><td>${r.ip}</td><td><span class="tag ${r.result==='SUCCESS'?'tag-fail':'tag-ok'}">${r.result}</span></td></tr>`).join('');
+
+    const container = document.getElementById('spray-accounts');
+    const unique = [...new Set(SPRAY_LOG.map(r=>r.user))];
+    container.innerHTML = unique.map(u=>`<div class="item-card" id="sa-${btoa(u).replace(/=/g,'')}" onclick="toggleAccount(this,'${u}',0)">${u}</div>`).join('');
+
+    buildMC('spray-mc', 0);
+}
+
+const selectedAccounts = new Set();
+function toggleAccount(el, user, mod) {
+    if (el.classList.contains('correct')||el.classList.contains('wrong')) return;
+    el.classList.toggle('selected');
+    if (selectedAccounts.has(user)) selectedAccounts.delete(user);
+    else selectedAccounts.add(user);
+}
+
+// ===== MODULE 2: MFA =====
+const selectedMFA = new Set();
+function buildMFA() {
+    const c = document.getElementById('mfa-cards');
+    c.innerHTML = MFA_ACCOUNTS.map((a,i)=>`
+    <div class="item-card" id="mfa-${i}" onclick="toggleMFA(this,${i})">
+        <h4>${a.user}</h4>
+        <p>Method: <strong style="color:var(--yellow)">${a.method}</strong></p>
+        <p style="margin-top:4px;font-size:.72rem;color:var(--muted)">${a.note}</p>
+    </div>`).join('');
+    buildMC('mfa-mc', 1);
+}
+function toggleMFA(el, i) {
+    if (el.classList.contains('correct')||el.classList.contains('wrong')) return;
+    el.classList.toggle('selected');
+    if (selectedMFA.has(i)) selectedMFA.delete(i); else selectedMFA.add(i);
+}
+
+// ===== MODULE 3: OAUTH =====
+function buildOAuth() {
+    const labels = ['Low','Medium','High'];
+    const c = document.getElementById('oauth-perms');
+    c.innerHTML = OAUTH_PERMS.map((p,i)=>`
+    <div class="risk-row">
+        <label><strong style="color:var(--red)">${p.scope}</strong> &mdash; ${p.label}</label>
+        <input type="range" min="1" max="3" value="2" id="risk-${i}" oninput="document.getElementById('rv-${i}').textContent=this.value==1?'Low':this.value==2?'Medium':'High'">
+        <div class="risk-val" id="rv-${i}">Medium</div>
+    </div>`).join('');
+    buildMC('oauth-mc', 2);
+}
+
+// ===== MODULE 4: GRAPH API =====
+const selectedGraph = new Set();
+function buildGraph() {
+    const c = document.getElementById('graph-responses');
+    c.innerHTML = GRAPH_RESPONSES.map((r,i)=>`
+    <div class="item-card" id="gr-${i}" onclick="toggleGraph(this,${i})" style="margin-bottom:12px">
+        <h4>${r.label}</h4>
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:8px">${r.endpoint}</div>
+        <div class="json-block">${r.json}</div>
+    </div>`).join('');
+    buildMC('graph-mc', 3);
+}
+function toggleGraph(el, i) {
+    if (el.classList.contains('correct')||el.classList.contains('wrong')) return;
+    el.classList.toggle('selected');
+    if (selectedGraph.has(i)) selectedGraph.delete(i); else selectedGraph.add(i);
+}
+
+// ===== MODULE 5: CHAIN =====
+function buildChain() {
+    const c = document.getElementById('chain-timeline');
+    c.innerHTML = CHAIN_EVENTS.map((e,i)=>`
+    <div class="tl-event">
+        <div class="tl-num">${i+1}</div>
+        <div class="tl-body">
+            <div class="time">${e.time}</div>
+            <div class="desc">${e.desc}</div>
+            <select class="tl-select" id="chain-${i}">
+                <option value="">-- Select Phase --</option>
+                ${CHAIN_PHASES.map(p=>`<option value="${p}">${p}</option>`).join('')}
+            </select>
+        </div>
+    </div>`).join('');
+    buildMC('chain-mc', 4);
+}
+
+// ===== MC BUILDER =====
+function buildMC(containerId, modIdx) {
+    const qs = MC[modIdx];
+    const c = document.getElementById(containerId);
+    c.innerHTML = '<h3>// Assessment Questions</h3>' + qs.map((q,qi)=>`
+    <div class="mc-q" id="mcq-${modIdx}-${qi}">
+        <div class="q-text">${qi+1}. ${q.q}</div>
+        <div class="mc-opts">${q.opts.map((o,oi)=>`<button class="mc-opt" id="opt-${modIdx}-${qi}-${oi}" onclick="pickOpt(${modIdx},${qi},${oi})">${o}</button>`).join('')}</div>
+        <div class="feedback" id="fb-${modIdx}-${qi}"></div>
+    </div>`).join('');
+}
+
+const mcAnswers = {}; // key: "m-q" -> chosen index
+function pickOpt(mod, qi, oi) {
+    const key = `${mod}-${qi}`;
+    if (mcAnswers[key] !== undefined) return; // already answered
+    mcAnswers[key] = oi;
+    const q = MC[mod][qi];
+    const correct = oi === q.ans;
+    if (correct) totalScore += 15;
+    updateHeader();
+    // style options
+    for (let i=0; i<q.opts.length; i++) {
+        const el = document.getElementById(`opt-${mod}-${qi}-${i}`);
+        if (i===oi) el.classList.add(correct?'correct':'wrong');
+        if (!correct && i===q.ans) el.classList.add('correct');
+        el.classList.add('chosen');
+    }
+    const fb = document.getElementById(`fb-${mod}-${qi}`);
+    fb.textContent = (correct ? '+ Correct: ' : 'Incorrect. ') + q.exp;
+    fb.className = 'feedback show ' + (correct?'good':'bad');
+    updateModPoints(mod);
+}
+
+function updateModPoints(mod) {
+    const ptsEl = document.getElementById(['spray','mfa','oauth','graph','chain'][mod]+'-pts');
+    if (ptsEl) ptsEl.textContent = 'Points: ' + totalScore;
+}
+
+// ===== SUBMIT MODULES =====
+function submitMod(mod) {
+    if (modDone[mod]) return;
+
+    if (mod === 0) scoreSpray();
+    else if (mod === 1) scoreMFA();
+    else if (mod === 2) scoreOAuth();
+    else if (mod === 3) scoreGraph();
+    else if (mod === 4) scoreChain();
+
+    modDone[mod] = true;
+    document.getElementById('tab-'+mod).classList.remove('active');
+    document.getElementById('tab-'+mod).classList.add('done');
+
+    if (mod < 4) {
+        const nextTab = document.getElementById('tab-'+(mod+1));
+        if (nextTab) nextTab.classList.remove('locked');
+        setTimeout(() => switchMod(mod+1), 300);
+    } else {
+        showResult();
+    }
+    updateHeader();
+}
+
+function scoreSpray() {
+    const all = [...new Set(SPRAY_LOG.map(r=>r.user))];
+    all.forEach(u=>{
+        const id = 'sa-'+btoa(u).replace(/=/g,'');
+        const el = document.getElementById(id);
+        const isTruth = SPRAY_COMPROMISED.includes(u);
+        const isSelected = selectedAccounts.has(u);
+        if (isTruth && isSelected) { el.classList.add('correct'); totalScore += 10; }
+        else if (!isTruth && isSelected) el.classList.add('wrong');
+        else if (isTruth && !isSelected) el.style.border='1px solid var(--yellow)';
+    });
+}
+
+function scoreMFA() {
+    MFA_ACCOUNTS.forEach((a,i)=>{
+        const el = document.getElementById('mfa-'+i);
+        const sel = selectedMFA.has(i);
+        if (a.weak && sel) { el.classList.add('correct'); totalScore += 10; }
+        else if (!a.weak && sel) el.classList.add('wrong');
+        else if (a.weak && !sel) el.style.border='1px solid var(--yellow)';
+    });
+}
+
+function scoreOAuth() {
+    OAUTH_PERMS.forEach((p,i)=>{
+        const val = parseInt(document.getElementById('risk-'+i).value);
+        if (val === p.risk) totalScore += 10;
+    });
+}
+
+function scoreGraph() {
+    GRAPH_RESPONSES.forEach((r,i)=>{
+        const el = document.getElementById('gr-'+i);
+        const sel = selectedGraph.has(i);
+        if (r.sensitive && sel) { el.classList.add('correct'); totalScore += 10; }
+        else if (!r.sensitive && sel) el.classList.add('wrong');
+        else if (r.sensitive && !sel) el.style.border='1px solid var(--yellow)';
+    });
+}
+
+function scoreChain() {
+    CHAIN_EVENTS.forEach((e,i)=>{
+        const sel = document.getElementById('chain-'+i);
+        if (sel && sel.value === e.phase) totalScore += 10;
+        if (sel) sel.disabled = true;
+    });
+}
+
+// ===== RESULT =====
+const RANKS = [
+    {min:0,   title:'Help Desk Analyst'},
+    {min:80,  title:'Cloud Analyst'},
+    {min:160, title:'Cloud Pentester'},
+    {min:250, title:'Azure AD Adversary'}
+];
+
+function showResult() {
+    document.querySelectorAll('.module-panel').forEach(p=>p.classList.remove('active'));
+    const screen = document.getElementById('result-screen');
+    screen.classList.add('show');
+
+    const realMax = (4+3+6+4+10)*10 + (5*3*15);
+    let rank = RANKS[0];
+    for (const r of RANKS) { if (totalScore >= r.min) rank = r; }
+
+    document.getElementById('res-rank').textContent = rank.title.toUpperCase();
+    document.getElementById('res-score').textContent = totalScore + ' XP';
+    document.getElementById('res-sub').textContent = `${totalScore} / ${realMax} points earned`;
+    const pct = Math.min(100, Math.round(totalScore/realMax*100));
+    setTimeout(()=>document.getElementById('res-bar').style.width=pct+'%', 100);
+
+    awardCompletion();
+}
+
+function awardCompletion() {
+    if (!localStorage.getItem('game_m365attack_xp_awarded')) {
+        const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+        localStorage.setItem('hexworth_xp', (currentXP + 100).toString());
+        localStorage.setItem('game_m365attack_xp_awarded', 'true');
+        if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+            const uid = localStorage.getItem('hexworth_uid');
+            if (uid) FirestoreManager.addXP(uid, 100, 'M365 Attack Lab Complete');
+        }
+    }
+    if (typeof AchievementManager !== 'undefined') AchievementManager.unlock('game_m365attack');
+    if (typeof GameTracker !== 'undefined') {
+        const realMax = (4+3+6+4+10)*10 + (5*3*15);
+        const rank = RANKS.reduce((r,c)=>totalScore>=c.min?c:r, RANKS[0]);
+        GameTracker.record('m365attack', { score: totalScore, maxScore: realMax, rank: rank.title });
+    }
+}
+
+// ===== BOOT =====
+buildNav();
+buildSpray();
+buildMFA();
+buildOAuth();
+buildGraph();
+buildChain();
+updateHeader();
+</script>
+</body>
+</html>

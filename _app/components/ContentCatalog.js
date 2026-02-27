@@ -1913,6 +1913,11 @@ const ContentCatalog = (function() {
         { house: 'dark-arts', id: 'dark-osint-recon-lab', title: 'OSINT Recon Lab', description: 'Metadata and OSINT reconnaissance lab: email harvesting, document metadata, DNS recon, social media OSINT, and full recon reporting', icon: '🔍', status: 'available', components: ['applet'], href: 'games/dark-osint-recon-lab.applet.html', category: 'osint' },
         { house: 'dark-arts', id: 'dark-phishing-campaign-lab', title: 'Phishing Campaign Lab', description: 'Phishing analysis and defense: spot the phish, email header analysis, SPF/DKIM/DMARC deep dive, campaign anatomy, and defense playbook', icon: '🎣', status: 'available', components: ['applet'], href: 'games/dark-phishing-campaign-lab.applet.html', category: 'social-engineering' },
         { house: 'dark-arts', id: 'dark-network-forensics-lab', title: 'Network Forensics Lab', description: 'Wireshark-style packet analysis: TCP handshakes, DNS exfil, HTTP inspection, encrypted traffic analysis, and full PCAP investigation', icon: '🔌', status: 'available', components: ['applet'], href: 'games/dark-network-forensics-lab.applet.html', category: 'forensics' },
+        { house: 'dark-arts', id: 'dark-m365-attack-lab', title: 'M365 Attack Vectors Lab', description: 'Azure AD/M365 cloud identity attacks: password spraying, MFA enumeration, OAuth consent phishing, Graph API exploitation', icon: '☁️', status: 'available', components: ['applet'], href: 'games/dark-m365-attack-lab.applet.html', category: 'cloud-attacks' },
+        { house: 'dark-arts', id: 'dark-malware-specimen-lab', title: 'Malware Specimen Lab', description: 'Static malware analysis: PE headers, import tables, string extraction, behavioral analysis across 5 specimen types', icon: '🦠', status: 'available', components: ['applet'], href: 'games/dark-malware-specimen-lab.applet.html', category: 'malware' },
+
+        // Eye House — SOC Lab (DA-13)
+        { house: 'eye', id: 'eye-security-onion-soc', title: 'Security Onion SOC Lab', description: 'SOC analyst simulation: alert triage, Suricata rule analysis, Zeek conn.log investigation, Kibana dashboards, and incident reporting', icon: '🧅', status: 'available', components: ['applet'], href: 'games/eye-security-onion-soc.applet.html', category: 'soc-ops' },
 
     ];
 

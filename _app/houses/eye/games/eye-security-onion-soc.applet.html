@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Onion SOC Lab - Eye House - Hexworth Prime</title>
+    <style>
+        /* ============================================================
+           ROOT & RESET
+        ============================================================ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent:      #00ff41;
+            --accent-dim:  #00c832;
+            --accent-glow: rgba(0,255,65,0.18);
+            --bg-deep:     #0a0a0a;
+            --bg-panel:    #0f1419;
+            --bg-card:     #141c23;
+            --bg-hover:    #1a2530;
+            --border:      rgba(0,255,65,0.22);
+            --border-hi:   rgba(0,255,65,0.55);
+            --text:        #c8d6e0;
+            --text-dim:    #556b7a;
+            --text-label:  #8aa0b0;
+            --red:         #ff4444;
+            --red-dim:     rgba(255,68,68,0.18);
+            --orange:      #ff9f00;
+            --yellow:      #ffd700;
+            --cyan:        #00d4e8;
+            --purple:      #b06eff;
+        }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ============================================================
+           BACK LINK
+        ============================================================ */
+        .back-link {
+            position: fixed;
+            top: 14px; left: 18px;
+            color: var(--accent-dim);
+            font-size: 13px;
+            cursor: pointer;
+            z-index: 200;
+            text-decoration: none;
+            letter-spacing: 1px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        /* ============================================================
+           HEADER BAR
+        ============================================================ */
+        #header {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px 14px 100px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        #header-title {
+            font-size: 15px;
+            color: var(--accent);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        #header-meta {
+            display: flex;
+            gap: 28px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .hm-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .hm-label { color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
+        .hm-value { color: var(--accent); font-size: 14px; font-weight: bold; }
+
+        #progress-dots {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            border: 1px solid var(--border-hi);
+            background: transparent;
+            transition: background 0.3s;
+        }
+        .dot.done   { background: var(--accent); }
+        .dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+        /* ============================================================
+           EXERCISE SCREEN WRAPPER
+        ============================================================ */
+        #exercise-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .exercise-panel {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .exercise-panel.active {
+            display: flex;
+        }
+
+        /* ============================================================
+           EXERCISE HEADER
+        ============================================================ */
+        .ex-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .ex-title {
+            font-size: 13px;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .ex-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 3px;
+            border: 1px solid;
+            letter-spacing: 1px;
+        }
+        .badge-easy   { color: var(--accent);  border-color: var(--accent);  background: rgba(0,255,65,0.08); }
+        .badge-medium { color: var(--orange);  border-color: var(--orange);  background: rgba(255,159,0,0.08); }
+        .badge-hard   { color: var(--red);     border-color: var(--red);     background: var(--red-dim); }
+
+        /* ============================================================
+           SCROLL BODY
+        ============================================================ */
+        .ex-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+        .ex-body::-webkit-scrollbar { width: 6px; }
+        .ex-body::-webkit-scrollbar-track { background: var(--bg-panel); }
+        .ex-body::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+        /* ============================================================
+           EXERCISE FOOTER / SUBMIT BAR
+        ============================================================ */
+        .ex-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .footer-score {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        .footer-score span { color: var(--accent); font-weight: bold; }
+
+        .btn {
+            padding: 9px 22px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid;
+        }
+        .btn-primary {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .btn-primary:hover {
+            background: rgba(0,255,65,0.25);
+            box-shadow: 0 0 12px rgba(0,255,65,0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.35;
+            cursor: default;
+            box-shadow: none;
+        }
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--border-hi);
+            color: var(--text-label);
+        }
+        .btn-ghost:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ============================================================
+           SEVERITY BADGES
+        ============================================================ */
+        .sev {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 7px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .sev-critical { background: rgba(255,68,68,0.2);   color: #ff4444; border: 1px solid #ff4444; }
+        .sev-high     { background: rgba(255,115,0,0.18);  color: #ff7300; border: 1px solid #ff7300; }
+        .sev-medium   { background: rgba(255,215,0,0.15);  color: #ffd700; border: 1px solid #ffd700; }
+        .sev-low      { background: rgba(0,212,232,0.12);  color: #00d4e8; border: 1px solid #00d4e8; }
+
+        /* ============================================================
+           EX1 — ALERT QUEUE
+        ============================================================ */
+        .alert-queue-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .alert-queue-table th {
+            background: var(--bg-panel);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 10px;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+        .alert-queue-table td {
+            padding: 9px 10px;
+            border-bottom: 1px solid rgba(0,255,65,0.07);
+            vertical-align: middle;
+        }
+        .alert-queue-table tr:hover td { background: var(--bg-hover); }
+        .alert-queue-table .rule-name { color: var(--cyan); font-size: 11px; }
+        .alert-queue-table .ip-cell   { color: var(--text-label); }
+        .alert-queue-table .ts-cell   { color: var(--text-dim); font-size: 11px; }
+        .alert-queue-table .count-cell { color: var(--orange); font-weight: bold; }
+
+        /* classification select */
+        .class-select {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .class-select:focus { outline: none; border-color: var(--accent); }
+        .class-select.answered { border-color: var(--accent-dim); }
+
+        /* feedback overlay on rows */
+        tr.correct-row td { background: rgba(0,255,65,0.06) !important; }
+        tr.wrong-row   td { background: rgba(255,68,68,0.06) !important; }
+
+        /* ============================================================
+           EX2 — SURICATA RULES
+        ============================================================ */
+        .rule-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .rule-block-header {
+            background: var(--bg-panel);
+            padding: 8px 14px;
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+        }
+        .rule-code {
+            padding: 14px;
+            font-size: 11px;
+            line-height: 1.6;
+            color: var(--cyan);
+            word-break: break-all;
+            background: #0b0f14;
+        }
+        .rule-code .kw  { color: var(--accent); }
+        .rule-code .opt { color: var(--yellow); }
+        .rule-code .val { color: var(--purple); }
+
+        .rule-questions {
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .rule-q {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .rule-q-label {
+            font-size: 11px;
+            color: var(--text-label);
+            letter-spacing: 1px;
+        }
+        .mc-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .mc-opt {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .mc-opt:hover   { border-color: var(--accent-dim); color: var(--accent); }
+        .mc-opt.selected { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+        .mc-opt.correct  { border-color: var(--accent); background: rgba(0,255,65,0.18); color: var(--accent); }
+        .mc-opt.wrong    { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+        .mc-opt.reveal   { border-color: var(--accent-dim); background: rgba(0,255,65,0.08); color: var(--accent-dim); }
+
+        .rule-explanation {
+            display: none;
+            padding: 10px 14px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-label);
+            line-height: 1.7;
+            background: rgba(0,255,65,0.03);
+        }
+        .rule-explanation.visible { display: block; }
+        .rule-explanation strong { color: var(--accent); }
+
+        /* ============================================================
+           EX3 — ZEEK CONN LOGS
+        ============================================================ */
+        .zeek-wrapper {
+            background: #0b0f14;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        .zeek-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5px;
+            white-space: nowrap;
+        }
+        .zeek-table th {
+            background: var(--bg-panel);
+            color: var(--text-dim);
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            letter-spacing: 1px;
+            font-size: 9.5px;
+            text-transform: uppercase;
+        }
+        .zeek-table td {
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(0,255,65,0.05);
+            color: var(--text-label);
+        }
+        .zeek-table tr:hover td { background: var(--bg-hover); }
+        .zeek-table .flag-check {
+            width: 18px; height: 18px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            cursor: pointer;
+            display: inline-block;
+            text-align: center;
+            line-height: 16px;
+            font-size: 10px;
+            color: transparent;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .zeek-table .flag-check.flagged {
+            border-color: var(--red);
+            background: rgba(255,68,68,0.15);
+            color: var(--red);
+        }
+        .zeek-table .flag-check.correct-flag   { border-color: var(--accent); background: rgba(0,255,65,0.15); color: var(--accent); }
+        .zeek-table .flag-check.wrong-flag     { border-color: var(--orange); background: rgba(255,115,0,0.12); }
+        .zeek-table .flag-check.missed-flag    { border-color: var(--yellow); background: rgba(255,215,0,0.12); color: var(--yellow); }
+        .zeek-table .state-s0    { color: var(--red); }
+        .zeek-table .state-s1    { color: var(--orange); }
+        .zeek-table .state-sf    { color: var(--accent-dim); }
+        .zeek-table .state-rsto  { color: var(--yellow); }
+        .zeek-table .dur-long    { color: var(--orange); font-weight: bold; }
+        .zeek-table .bytes-high  { color: var(--red); font-weight: bold; }
+
+        .zeek-flag-hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-left: 2px solid var(--accent-dim);
+            background: rgba(0,255,65,0.04);
+        }
+
+        /* ============================================================
+           EX4 — DASHBOARD INVESTIGATION
+        ============================================================ */
+        .dash-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .dash-widget {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .dash-widget-title {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 12px;
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .dash-widget-body {
+            padding: 12px;
+        }
+
+        /* bar chart */
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 7px;
+            font-size: 10.5px;
+        }
+        .bar-ip {
+            width: 110px;
+            color: var(--text-label);
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .bar-track {
+            flex: 1;
+            background: var(--bg-panel);
+            height: 14px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.6s ease;
+        }
+        .bar-val {
+            width: 60px;
+            font-size: 10px;
+            color: var(--text-dim);
+            flex-shrink: 0;
+        }
+
+        /* timeline chart (CSS sparkline) */
+        .timeline-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .tl-hour {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+        }
+        .tl-time { width: 38px; color: var(--text-dim); flex-shrink: 0; }
+        .tl-bar-track { flex: 1; background: var(--bg-panel); height: 10px; border-radius: 1px; overflow: hidden; }
+        .tl-bar-fill  { height: 100%; border-radius: 1px; }
+        .tl-count { width: 32px; color: var(--text-dim); font-size: 9px; }
+
+        /* protocol pie (CSS segments as stacked label list) */
+        .proto-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .proto-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+        .proto-swatch {
+            width: 10px; height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .proto-name { flex: 1; color: var(--text-label); }
+        .proto-pct  { color: var(--text-dim); font-size: 10px; }
+        .proto-bar-track { flex: 1; background: var(--bg-panel); height: 8px; border-radius: 1px; overflow: hidden; }
+        .proto-bar-fill  { height: 100%; border-radius: 1px; }
+
+        /* geo list */
+        .geo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 11px;
+        }
+        .geo-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 8px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+        }
+        .geo-row.suspicious { border-color: rgba(255,68,68,0.3); background: rgba(255,68,68,0.05); }
+        .geo-country { color: var(--text-label); }
+        .geo-count   { color: var(--text-dim); font-size: 10px; }
+        .geo-flag    { font-size: 9px; color: var(--red); }
+
+        /* dashboard questions */
+        .dash-questions {
+            margin-top: 4px;
+        }
+        .dash-q {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .dash-q-text {
+            font-size: 12px;
+            color: var(--text);
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        .dash-q-num {
+            color: var(--accent-dim);
+            font-size: 10px;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        /* ============================================================
+           EX5 — INCIDENT REPORT BUILDER
+        ============================================================ */
+        .ir-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .ir-section-pool {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ir-pool-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+        .ir-section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-size: 11px;
+            color: var(--text);
+            cursor: grab;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .ir-section-card:hover { border-color: var(--accent-dim); }
+        .ir-section-card.dragging { opacity: 0.5; }
+        .ir-section-card.placed  { background: rgba(0,255,65,0.05); border-color: var(--accent-dim); cursor: default; }
+
+        .ir-report-slots {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ir-slot {
+            min-height: 48px;
+            border: 1px dashed var(--border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            background: var(--bg-panel);
+            transition: border-color 0.15s;
+            position: relative;
+        }
+        .ir-slot.over { border-color: var(--accent); background: var(--accent-glow); }
+        .ir-slot .slot-num {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .ir-slot .slot-content {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+        .ir-slot.filled .slot-content { color: var(--accent); }
+        .ir-slot .clear-slot {
+            position: absolute;
+            top: 6px; right: 8px;
+            font-size: 10px;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: none;
+        }
+        .ir-slot.filled .clear-slot { display: block; }
+
+        .ir-content-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+        .ir-content-hdr {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 12px;
+            font-size: 10px;
+            color: var(--accent-dim);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .ir-content-options {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .ir-opt {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s;
+            line-height: 1.5;
+        }
+        .ir-opt:hover   { border-color: var(--accent-dim); }
+        .ir-opt.selected { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+        .ir-opt.correct  { border-color: var(--accent); background: rgba(0,255,65,0.12); color: var(--accent); }
+        .ir-opt.wrong    { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+
+        /* ============================================================
+           RESULT SCREEN
+        ============================================================ */
+        #result-screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px;
+            text-align: center;
+        }
+        #result-screen.active { display: flex; }
+
+        .result-rank {
+            font-size: 13px;
+            color: var(--text-dim);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .result-title {
+            font-size: 32px;
+            color: var(--accent);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(0,255,65,0.5);
+            margin-bottom: 6px;
+        }
+        .result-score-line {
+            font-size: 18px;
+            color: var(--text);
+            margin-bottom: 28px;
+        }
+        .result-score-line span { color: var(--accent); font-weight: bold; }
+
+        .result-breakdown {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            max-width: 700px;
+            width: 100%;
+            margin-bottom: 32px;
+        }
+        .rb-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 14px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .rb-ex-num { font-size: 9px; color: var(--text-dim); letter-spacing: 2px; }
+        .rb-ex-score { font-size: 18px; color: var(--accent); font-weight: bold; }
+        .rb-ex-max { font-size: 10px; color: var(--text-dim); }
+
+        .result-xp-banner {
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            border-radius: 5px;
+            padding: 12px 24px;
+            font-size: 13px;
+            color: var(--accent);
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+        }
+
+        /* ============================================================
+           FEEDBACK MESSAGES
+        ============================================================ */
+        .feedback-bar {
+            padding: 10px 16px;
+            border-radius: 4px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            margin-top: 14px;
+            display: none;
+        }
+        .feedback-bar.visible { display: block; }
+        .feedback-bar.good { background: rgba(0,255,65,0.08); border: 1px solid var(--accent-dim); color: var(--accent); }
+        .feedback-bar.bad  { background: var(--red-dim); border: 1px solid var(--red); color: var(--red); }
+
+        /* ============================================================
+           SECTION DIVIDER / LABELS
+        ============================================================ */
+        .section-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 14px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .info-box {
+            background: rgba(0,212,232,0.05);
+            border: 1px solid rgba(0,212,232,0.2);
+            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 11px;
+            color: var(--text-label);
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+        .info-box strong { color: var(--cyan); }
+
+        .findings-summary {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 14px;
+            font-size: 11px;
+            color: var(--text-label);
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+        .findings-summary h4 {
+            color: var(--accent);
+            font-size: 11px;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .findings-summary li { list-style: none; padding-left: 14px; position: relative; }
+        .findings-summary li::before { content: ">"; position: absolute; left: 0; color: var(--accent-dim); }
+    </style>
+</head>
+<body>
+
+<a class="back-link" onclick="window.history.back()">&#8592; Back</a>
+
+<!-- ================================================================
+     HEADER BAR
+================================================================ -->
+<div id="header">
+    <div id="header-title">Security Onion SOC Lab</div>
+    <div id="header-meta">
+        <div class="hm-item">
+            <span class="hm-label">Exercise</span>
+            <span class="hm-value" id="hm-ex">1 / 5</span>
+        </div>
+        <div class="hm-item">
+            <span class="hm-label">Score</span>
+            <span class="hm-value" id="hm-score">0</span>
+        </div>
+        <div id="progress-dots">
+            <div class="dot active" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+            <div class="dot" id="dot-3"></div>
+            <div class="dot" id="dot-4"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     EXERCISE SCREEN
+================================================================ -->
+<div id="exercise-screen">
+
+    <!-- ============================================================
+         EXERCISE 1: ALERT QUEUE TRIAGE
+    ============================================================ -->
+    <div class="exercise-panel active" id="ex-1">
+        <div class="ex-header">
+            <span class="ex-title">Exercise 1: Alert Queue Triage</span>
+            <span class="ex-badge badge-easy">Easy</span>
+        </div>
+        <div class="ex-body">
+            <div class="info-box">
+                <strong>Scenario:</strong> You are a Tier 1 SOC analyst reviewing the Security Onion alert queue for the past 2 hours. Classify each alert as <strong>True Positive</strong>, <strong>False Positive</strong>, or <strong>Informational</strong>. Consider severity, frequency, and context.
+            </div>
+            <div class="section-label">Alert Queue — 12 Alerts</div>
+            <table class="alert-queue-table" id="alert-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Severity</th>
+                        <th>Rule Name</th>
+                        <th>Source IP</th>
+                        <th>Dest IP</th>
+                        <th>Port</th>
+                        <th>Timestamp</th>
+                        <th>Count</th>
+                        <th>Classification</th>
+                    </tr>
+                </thead>
+                <tbody id="alert-tbody"></tbody>
+            </table>
+            <div class="feedback-bar" id="ex1-feedback"></div>
+        </div>
+        <div class="ex-footer">
+            <span class="footer-score">Max: <span>120 pts</span> (+10 each)</span>
+            <button class="btn btn-primary" id="ex1-submit" onclick="submitEx1()">Submit Triage</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EXERCISE 2: SURICATA RULE ANALYSIS
+    ============================================================ -->
+    <div class="exercise-panel" id="ex-2">
+        <div class="ex-header">
+            <span class="ex-title">Exercise 2: Suricata Rule Analysis</span>
+            <span class="ex-badge badge-easy">Easy-Medium</span>
+        </div>
+        <div class="ex-body">
+            <div class="info-box">
+                <strong>Task:</strong> Analyze the following Suricata/Snort IDS rules. For each rule, answer the questions about what it detects, the protocol, direction, and matching signature. Select one option per question.
+            </div>
+            <div id="rules-container"></div>
+            <div class="feedback-bar" id="ex2-feedback"></div>
+        </div>
+        <div class="ex-footer">
+            <span class="footer-score">Max: <span>90 pts</span> (+15 per rule)</span>
+            <button class="btn btn-primary" id="ex2-submit" onclick="submitEx2()">Analyze Rules</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EXERCISE 3: ZEEK CONNECTION LOGS
+    ============================================================ -->
+    <div class="exercise-panel" id="ex-3">
+        <div class="ex-header">
+            <span class="ex-title">Exercise 3: Zeek Connection Logs</span>
+            <span class="ex-badge badge-medium">Medium</span>
+        </div>
+        <div class="ex-body">
+            <div class="info-box">
+                <strong>Task:</strong> Review the Zeek <code>conn.log</code> entries below. Flag each connection you believe is suspicious (C2 beaconing, data exfiltration, or unusual activity), then answer the investigation questions.
+            </div>
+            <div class="zeek-flag-hint">Click the [F] button on each row to flag it as suspicious. Flag all connections that warrant investigation.</div>
+            <div class="zeek-wrapper">
+                <table class="zeek-table" id="zeek-table">
+                    <thead>
+                        <tr>
+                            <th>Flag</th>
+                            <th>Timestamp</th>
+                            <th>Orig IP</th>
+                            <th>O.Port</th>
+                            <th>Resp IP</th>
+                            <th>R.Port</th>
+                            <th>Proto</th>
+                            <th>Service</th>
+                            <th>Duration</th>
+                            <th>Orig Bytes</th>
+                            <th>Resp Bytes</th>
+                            <th>State</th>
+                        </tr>
+                    </thead>
+                    <tbody id="zeek-tbody"></tbody>
+                </table>
+            </div>
+            <div class="section-label">Investigation Questions</div>
+            <div id="zeek-questions"></div>
+            <div class="feedback-bar" id="ex3-feedback"></div>
+        </div>
+        <div class="ex-footer">
+            <span class="footer-score">Max: <span>100 pts</span> (flags + questions)</span>
+            <button class="btn btn-primary" id="ex3-submit" onclick="submitEx3()">Submit Analysis</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EXERCISE 4: DASHBOARD INVESTIGATION
+    ============================================================ -->
+    <div class="exercise-panel" id="ex-4">
+        <div class="ex-header">
+            <span class="ex-title">Exercise 4: Dashboard Investigation</span>
+            <span class="ex-badge badge-medium">Medium-Hard</span>
+        </div>
+        <div class="ex-body">
+            <div class="info-box">
+                <strong>Task:</strong> Analyze this simulated Kibana/Security Onion dashboard. Use the visualizations to answer the investigation questions below.
+            </div>
+            <div class="section-label">SOC Dashboard — Live View (2024-03-15 08:00–12:00)</div>
+            <div class="dash-grid">
+                <!-- Top Talkers -->
+                <div class="dash-widget">
+                    <div class="dash-widget-title">Top Talkers — Outbound Bytes (Last 4h)</div>
+                    <div class="dash-widget-body" id="dash-talkers"></div>
+                </div>
+                <!-- Alert Timeline -->
+                <div class="dash-widget">
+                    <div class="dash-widget-title">Alert Volume — Hourly (08:00–12:00)</div>
+                    <div class="dash-widget-body" id="dash-timeline"></div>
+                </div>
+                <!-- Protocol Distribution -->
+                <div class="dash-widget">
+                    <div class="dash-widget-title">Protocol Distribution — Suspicious Traffic</div>
+                    <div class="dash-widget-body" id="dash-protos"></div>
+                </div>
+                <!-- Geographic Heatmap -->
+                <div class="dash-widget">
+                    <div class="dash-widget-title">Geo Connections — External Destinations</div>
+                    <div class="dash-widget-body" id="dash-geo"></div>
+                </div>
+            </div>
+            <div class="section-label">Investigation Questions</div>
+            <div id="dash-questions" class="dash-questions"></div>
+            <div class="feedback-bar" id="ex4-feedback"></div>
+        </div>
+        <div class="ex-footer">
+            <span class="footer-score">Max: <span>75 pts</span> (+15 per question)</span>
+            <button class="btn btn-primary" id="ex4-submit" onclick="submitEx4()">Submit Investigation</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EXERCISE 5: INCIDENT REPORT BUILDER
+    ============================================================ -->
+    <div class="exercise-panel" id="ex-5">
+        <div class="ex-header">
+            <span class="ex-title">Exercise 5: Incident Report Builder</span>
+            <span class="ex-badge badge-hard">Hard</span>
+        </div>
+        <div class="ex-body">
+            <div class="findings-summary">
+                <h4>Findings Summary (From Exercises 1–4)</h4>
+                <ul>
+                    <li>Internal host 10.10.3.45 generated 5 Suricata alerts: CobaltStrike beacon, DNS tunneling, C2 over HTTPS</li>
+                    <li>Zeek logs show 10.10.3.45 maintained a 2847s TCP session to 185.220.101.47:443 transferring 4.2MB outbound</li>
+                    <li>Alert spike detected at 10:00–10:30 UTC (spike of 247 alerts vs baseline of 12/hr)</li>
+                    <li>Primary suspicious protocol: HTTPS (port 443) with anomalous certificate chain</li>
+                    <li>Outbound connections to Russian Federation (RU) and Netherlands (NL) Tor exit nodes</li>
+                    <li>Affected asset: workstation WS-FINANCE-045 assigned to finance department user account</li>
+                </ul>
+            </div>
+
+            <!-- Part A: Section ordering -->
+            <div class="section-label">Part A: Order the Report Sections (Drag and Drop)</div>
+            <div class="ir-layout" id="ir-layout-ordering">
+                <div>
+                    <div class="ir-pool-label">Available Sections</div>
+                    <div class="ir-section-pool" id="ir-pool"></div>
+                </div>
+                <div>
+                    <div class="ir-pool-label">Report Structure (1=First, 6=Last)</div>
+                    <div class="ir-report-slots" id="ir-slots"></div>
+                </div>
+            </div>
+
+            <!-- Part B: Content selection -->
+            <div class="section-label" style="margin-top: 24px;">Part B: Select the Correct Content for Each Section</div>
+            <div id="ir-content-selects"></div>
+            <div class="feedback-bar" id="ex5-feedback"></div>
+        </div>
+        <div class="ex-footer">
+            <span class="footer-score">Max: <span>120 pts</span> (ordering + content)</span>
+            <button class="btn btn-primary" id="ex5-submit" onclick="submitEx5()">Submit Report</button>
+        </div>
+    </div>
+
+</div><!-- /exercise-screen -->
+
+<!-- ================================================================
+     RESULT SCREEN
+================================================================ -->
+<div id="result-screen">
+    <div class="result-rank" id="result-rank-label">RANK ACHIEVED</div>
+    <div class="result-title" id="result-rank-title">SOC Manager</div>
+    <div class="result-score-line">Final Score: <span id="result-score-val">0</span> / <span id="result-score-max">505</span></div>
+    <div class="result-breakdown" id="result-breakdown"></div>
+    <div class="result-xp-banner" id="xp-banner" style="display:none;">+100 XP AWARDED — SECURITY ONION SOC LAB COMPLETE</div>
+    <button class="btn btn-ghost" onclick="window.history.back()">Return to Eye House</button>
+</div>
+
+<script>
+/* ================================================================
+   GAME STATE
+================================================================ */
+const state = {
+    currentEx: 1,
+    scores:    [0, 0, 0, 0, 0],   /* 0-indexed, ex1–ex5 */
+    maxScores: [120, 90, 100, 75, 120]
+};
+
+/* ================================================================
+   EXERCISE 1 DATA — ALERT QUEUE
+================================================================ */
+const alerts = [
+    /* True Positives (TP) */
+    { sev:'Critical', rule:'ET TROJAN CobaltStrike Beacon Activity', src:'10.10.3.45',    dst:'185.220.101.47',  port:443,  ts:'10:02:14', count:47,  answer:'tp' },
+    { sev:'High',     rule:'ET DNS Query for Known C2 Domain',       src:'10.10.3.45',    dst:'8.8.8.8',         port:53,   ts:'10:04:33', count:128, answer:'tp' },
+    { sev:'High',     rule:'ET POLICY HTTPS to Tor Exit Node',       src:'10.10.3.45',    dst:'185.220.101.47',  port:9001, ts:'10:08:07', count:12,  answer:'tp' },
+    { sev:'Critical', rule:'ET CURRENT_EVENTS Malware Dropper DL',   src:'192.168.1.105', dst:'104.21.55.221',   port:80,   ts:'10:22:48', count:3,   answer:'tp' },
+    /* False Positives (FP) */
+    { sev:'Medium',   rule:'ET SCAN Nmap Scripting Engine UA',        src:'192.168.1.20',  dst:'192.168.1.0/24',  port:0,    ts:'09:15:01', count:1,   answer:'fp' },
+    { sev:'Low',      rule:'ET INFO Executable File Download',        src:'192.168.1.88',  dst:'13.107.42.14',    port:80,   ts:'09:44:22', count:2,   answer:'fp' },
+    { sev:'Medium',   rule:'ET POLICY Internal Host Port Scan',       src:'10.10.1.1',     dst:'10.10.1.255',     port:0,    ts:'08:30:00', count:5,   answer:'fp' },
+    { sev:'Low',      rule:'ET INFO Windows Update Activity',         src:'192.168.5.22',  dst:'13.89.179.10',    port:443,  ts:'08:05:17', count:8,   answer:'fp' },
+    { sev:'Medium',   rule:'ET WEB_CLIENT MS Office Doc DL',         src:'192.168.1.200', dst:'40.89.244.232',   port:443,  ts:'11:13:44', count:1,   answer:'fp' },
+    /* Informational */
+    { sev:'Low',      rule:'ET INFO DNS Query to Public Resolver',    src:'10.10.2.10',    dst:'1.1.1.1',         port:53,   ts:'08:01:05', count:220, answer:'info' },
+    { sev:'Low',      rule:'ET INFO TLS Server SSL Cert Obs',        src:'203.0.113.5',   dst:'192.168.1.88',    port:443,  ts:'09:22:41', count:14,  answer:'info' },
+    { sev:'Low',      rule:'ET INFO ICMP Timestamp Request',         src:'192.168.0.1',   dst:'192.168.0.255',   port:0,    ts:'11:55:00', count:4,   answer:'info' },
+];
+
+/* ================================================================
+   BUILD EXERCISE 1 TABLE
+================================================================ */
+function buildEx1() {
+    const tbody = document.getElementById('alert-tbody');
+    alerts.forEach((a, i) => {
+        const sevClass = { Critical:'sev-critical', High:'sev-high', Medium:'sev-medium', Low:'sev-low' }[a.sev];
+        const tr = document.createElement('tr');
+        tr.id = 'alert-row-' + i;
+        tr.innerHTML = `
+            <td style="color:var(--text-dim);font-size:11px;">${String(i+1).padStart(2,'0')}</td>
+            <td><span class="sev ${sevClass}">${a.sev}</span></td>
+            <td class="rule-name">${a.rule}</td>
+            <td class="ip-cell">${a.src}</td>
+            <td class="ip-cell">${a.dst}</td>
+            <td style="color:var(--text-dim);font-size:11px;">${a.port || '—'}</td>
+            <td class="ts-cell">${a.ts}</td>
+            <td class="count-cell">${a.count}</td>
+            <td>
+                <select class="class-select" id="sel-${i}" onchange="markAlertAnswered(${i})">
+                    <option value="">-- Select --</option>
+                    <option value="tp">True Positive</option>
+                    <option value="fp">False Positive</option>
+                    <option value="info">Informational</option>
+                </select>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function markAlertAnswered(i) {
+    const sel = document.getElementById('sel-' + i);
+    if (sel.value) sel.classList.add('answered');
+    else sel.classList.remove('answered');
+}
+
+function submitEx1() {
+    let score = 0;
+    let unanswered = 0;
+    alerts.forEach((a, i) => {
+        const sel = document.getElementById('sel-' + i);
+        const val = sel ? sel.value : '';
+        if (!val) { unanswered++; return; }
+        const row = document.getElementById('alert-row-' + i);
+        if (val === a.answer) {
+            score += 10;
+            row.classList.add('correct-row');
+        } else {
+            row.classList.add('wrong-row');
+        }
+        if (sel) sel.disabled = true;
+    });
+    if (unanswered > 0) {
+        showFeedback('ex1-feedback', `Please classify all ${unanswered} remaining alert(s).`, 'bad');
+        return;
+    }
+    state.scores[0] = score;
+    updateHeader();
+    const fb = document.getElementById('ex1-feedback');
+    showFeedback('ex1-feedback', `Triage complete. Score: ${score}/120. (${alerts.filter(a=>a.answer==='tp').length} TPs, ${alerts.filter(a=>a.answer==='fp').length} FPs, ${alerts.filter(a=>a.answer==='info').length} Informational)`, score >= 80 ? 'good' : 'bad');
+    document.getElementById('ex1-submit').disabled = true;
+    setTimeout(() => advanceExercise(2), 2200);
+}
+
+/* ================================================================
+   EXERCISE 2 DATA — SURICATA RULES
+================================================================ */
+const suricataRules = [
+    {
+        id: 'R1',
+        raw: `alert tcp $HOME_NET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"ET TROJAN CobaltStrike Beacon Check-in"; content:"|00 00 00 4d|"; depth:4; flow:established,to_server; classtype:trojan-activity; sid:2024001; rev:3;)`,
+        questions: [
+            { q:'What does this rule detect?',     opts:['Windows Update traffic','CobaltStrike C2 beacon check-in','Normal HTTP GET request','DNS tunneling activity'], answer:1 },
+            { q:'Which protocol does it monitor?', opts:['UDP','ICMP','TCP','DNS'], answer:2 },
+            { q:'What is the content match?',      opts:['4 hex bytes at offset 0','HTTP User-Agent string','TLS SNI field','Port 4444 connection'], answer:0 },
+        ],
+        explanation: '<strong>msg:</strong> "ET TROJAN CobaltStrike Beacon Check-in" — identifies rule category. <strong>content:"|00 00 00 4d|"</strong> — matches 4 raw hex bytes (the CobaltStrike metadata header) at <strong>depth:4</strong> (first 4 bytes). <strong>flow:established,to_server</strong> — only active TCP sessions. <strong>classtype:trojan-activity</strong> — SIEM priority mapping.'
+    },
+    {
+        id: 'R2',
+        raw: `alert udp $HOME_NET any -> any 53 (msg:"ET DNS DNSCAT2 Tunneling Activity"; dns.query; content:"d1ag."; nocase; pcre:"/[a-f0-9]{32}\\.d1ag\\./i"; classtype:bad-unknown; sid:2034567; rev:2;)`,
+        questions: [
+            { q:'What attack technique does this rule catch?',  opts:['SQL injection via DNS','DNS tunneling/C2 (DNSCAT2)','Zone transfer abuse','DNS cache poisoning'], answer:1 },
+            { q:'Which direction does traffic flow?',           opts:['External to internal','Internal to internal','Internal DNS query outbound','Bidirectional'], answer:2 },
+            { q:'What does the PCRE match?',                   opts:['Any hex string','32-char hex prefix before .d1ag. domain','MD5 hash in URL','Base64 encoded payload'], answer:1 },
+        ],
+        explanation: '<strong>dns.query</strong> — sticky buffer matching DNS query names. <strong>content:"d1ag."</strong> — literal domain fragment used by DNSCAT2. <strong>pcre:"/[a-f0-9]{32}\\.d1ag\\./i"</strong> — regex matching 32 hex chars (MD5-style label) followed by .d1ag., the DNSCAT2 C2 domain signature. <strong>UDP port 53</strong> = DNS protocol.'
+    },
+    {
+        id: 'R3',
+        raw: `alert http $EXTERNAL_NET any -> $HTTP_SERVERS any (msg:"ET WEB_SERVER PHP Webshell POST Request"; http.method; content:"POST"; http.uri; content:".php"; http.request_body; content:"cmd="; nocase; classtype:web-application-attack; sid:2019401; rev:5;)`,
+        questions: [
+            { q:'What does this rule protect against?',   opts:['Brute force login','PHP webshell command execution','SQL injection','XSS payload injection'], answer:1 },
+            { q:'What HTTP elements does it inspect?',   opts:['Headers only','Method, URI, and request body','Response body','Cookies and sessions'], answer:1 },
+            { q:'What is the primary IOC being matched?',opts:['User-Agent header','POST to .php with cmd= in body','GET request with "../"','PUT method to any URI'], answer:1 },
+        ],
+        explanation: '<strong>http.method: POST</strong> — filters only POST requests. <strong>http.uri: .php</strong> — targets PHP scripts. <strong>http.request_body: cmd=</strong> — matches the classic webshell command parameter. Combined, these three sticky buffers detect an adversary executing commands via a deployed PHP webshell.'
+    },
+    {
+        id: 'R4',
+        raw: `alert tcp $HOME_NET any -> $EXTERNAL_NET 4444 (msg:"ET MALWARE Metasploit Meterpreter Reverse Shell"; flow:established,to_server; dsize:>0; threshold:type limit,track by_src,count 1,seconds 300; classtype:shellcode-detect; sid:2003068; rev:9;)`,
+        questions: [
+            { q:'What attack tool does this detect?',          opts:['Nmap port scan','Metasploit Meterpreter reverse shell','Hydra brute force','Mimikatz credential dump'], answer:1 },
+            { q:'What is the significance of port 4444?',      opts:['Default RDP port','Metasploit default reverse shell port','SSH alternative port','SMB port'], answer:1 },
+            { q:'What does the threshold keyword do?',         opts:['Block all traffic','Rate-limit alerting: 1 alert per source per 5 min','Kill the connection','Log only first 4444 bytes'], answer:1 },
+        ],
+        explanation: '<strong>port 4444</strong> = Metasploit Framework default listener port for reverse shells. <strong>flow:established</strong> = active session. <strong>threshold:type limit,track by_src,count 1,seconds 300</strong> — suppresses alert spam by allowing only 1 alert per source IP per 300 seconds. Without this, a single Meterpreter session would generate thousands of alerts.'
+    },
+    {
+        id: 'R5',
+        raw: `alert tls $HOME_NET any -> $EXTERNAL_NET any (msg:"ET JA3 Hash - Known Malicious TLS Client (CobaltStrike)"; ja3.hash; content:"72a589da586844d7f0818ce684948eea"; nocase; classtype:trojan-activity; sid:2028765; rev:1;)`,
+        questions: [
+            { q:'What fingerprinting technique does this use?', opts:['TCP SYN fingerprint','JA3 TLS client fingerprint','HTTP User-Agent matching','Certificate CN matching'], answer:1 },
+            { q:'What layer does it operate on?',              opts:['Network (L3)','Transport (L4) raw bytes','TLS handshake (L5)','Application body (L7)'], answer:2 },
+            { q:'What is the advantage of JA3 fingerprinting?',opts:['Decrypts TLS traffic','Identifies TLS clients without decryption','Requires SSL inspection','Works only on HTTP'], answer:1 },
+        ],
+        explanation: '<strong>JA3</strong> is an MD5 hash of TLS Client Hello parameters (SSLVersion, Ciphers, Extensions, Elliptic Curves, Points). <strong>72a589da586844d7f0818ce684948eea</strong> is a known CobaltStrike beacon JA3 hash. This allows detection of C2 traffic <em>without decrypting TLS</em>, making it powerful for encrypted C2 detection. Zeek and Suricata both support JA3 extraction.'
+    },
+    {
+        id: 'R6',
+        raw: `alert icmp $EXTERNAL_NET any -> $HOME_NET any (msg:"ET SCAN ICMP Tunnel Outbound Traffic"; itype:8; dsize:>100; threshold:type both,track by_src,count 10,seconds 60; classtype:network-scan; sid:2100366; rev:5;)`,
+        questions: [
+            { q:'What covert channel technique does this flag?',opts:['VLAN hopping','ICMP tunneling for C2/exfil','ARP poisoning','DHCP starvation'], answer:1 },
+            { q:'Why is dsize:>100 significant?',             opts:['Normal ICMP is 64 bytes; >100 bytes suggests data payload','ICMP requires 100-byte header','Blocks fragmented packets','Minimum MTU check'], answer:0 },
+            { q:'What does "itype:8" mean?',                  opts:['ICMP version 8','ICMP Echo Reply','ICMP Echo Request','ICMP Time Exceeded'], answer:2 },
+        ],
+        explanation: '<strong>itype:8</strong> = ICMP Echo Request (ping). Standard ping data is 32-64 bytes. <strong>dsize:>100</strong> catches oversized ping payloads indicating a covert data channel. Tools like <em>ptunnel</em> and <em>icmpsh</em> exfiltrate data or receive C2 commands embedded in ICMP payloads. <strong>threshold:both,count 10,seconds 60</strong> catches volume (10+ oversized pings in 60s).'
+    },
+];
+
+/* ================================================================
+   BUILD EXERCISE 2
+================================================================ */
+function buildEx2() {
+    const container = document.getElementById('rules-container');
+    suricataRules.forEach((rule, ri) => {
+        const div = document.createElement('div');
+        div.className = 'rule-block';
+        div.id = 'rule-block-' + ri;
+
+        /* Format the rule with syntax coloring */
+        const formatted = formatRule(rule.raw);
+
+        let questionsHtml = '';
+        rule.questions.forEach((q, qi) => {
+            let optsHtml = q.opts.map((o, oi) =>
+                `<button class="mc-opt" id="r${ri}q${qi}o${oi}" onclick="selectMcOpt(${ri},${qi},${oi},${q.opts.length})">${o}</button>`
+            ).join('');
+            questionsHtml += `
+                <div class="rule-q" id="rq-${ri}-${qi}">
+                    <div class="rule-q-label">Q${qi+1}: ${q.q}</div>
+                    <div class="mc-options">${optsHtml}</div>
+                </div>`;
+        });
+
+        div.innerHTML = `
+            <div class="rule-block-header">RULE ${rule.id} — SID ${rule.raw.match(/sid:(\d+)/)[1]}</div>
+            <div class="rule-code">${formatted}</div>
+            <div class="rule-questions">${questionsHtml}</div>
+            <div class="rule-explanation" id="rule-exp-${ri}">${rule.explanation}</div>`;
+        container.appendChild(div);
+    });
+}
+
+/* Colorize Suricata rule syntax */
+function formatRule(raw) {
+    return raw
+        .replace(/^(alert|drop|pass|log)\s/g, '<span class="kw">$1</span> ')
+        .replace(/(tcp|udp|icmp|tls|http|dns)\s/g, '<span class="kw">$1</span> ')
+        .replace(/\(([^)]+)\)/g, (m, inner) => {
+            const colorized = inner
+                .replace(/(msg|content|pcre|http\.\w+|dns\.\w+|ja3\.\w+|flow|classtype|sid|rev|itype|dsize|depth|nocase|threshold|pcre):/g, '<span class="opt">$1</span>:')
+                .replace(/"([^"]+)"/g, '"<span class="val">$1</span>"')
+                .replace(/\|([0-9a-f\s]+)\|/gi, '|<span class="val">$1</span>|');
+            return '(' + colorized + ')';
+        });
+}
+
+/* Tracks selected options per rule per question */
+const ex2Selections = {}; /* key: "ri-qi", value: oi */
+
+function selectMcOpt(ri, qi, oi, numOpts) {
+    /* Deselect others in same question */
+    for (let x = 0; x < numOpts; x++) {
+        const btn = document.getElementById(`r${ri}q${qi}o${x}`);
+        if (btn) btn.classList.remove('selected');
+    }
+    document.getElementById(`r${ri}q${qi}o${oi}`).classList.add('selected');
+    ex2Selections[`${ri}-${qi}`] = oi;
+}
+
+function submitEx2() {
+    let score = 0;
+    let unanswered = 0;
+
+    suricataRules.forEach((rule, ri) => {
+        let ruleScore = 0;
+        rule.questions.forEach((q, qi) => {
+            const key = `${ri}-${qi}`;
+            const sel = ex2Selections[key];
+            if (sel === undefined) { unanswered++; return; }
+            /* Disable all options */
+            q.opts.forEach((_, oi) => {
+                const btn = document.getElementById(`r${ri}q${qi}o${oi}`);
+                if (!btn) return;
+                btn.disabled = true;
+                btn.classList.remove('selected');
+                if (oi === q.answer)  btn.classList.add('reveal');
+                if (oi === sel && sel === q.answer) { btn.classList.remove('reveal'); btn.classList.add('correct'); }
+                if (oi === sel && sel !== q.answer) btn.classList.add('wrong');
+            });
+            if (sel === q.answer) ruleScore += 5;
+        });
+        /* All 3 q correct = 15 pts */
+        score += ruleScore;
+        /* Show explanation */
+        document.getElementById('rule-exp-' + ri).classList.add('visible');
+    });
+
+    if (unanswered > 0) {
+        showFeedback('ex2-feedback', `Please answer all ${unanswered} remaining question(s).`, 'bad');
+        return;
+    }
+    state.scores[1] = score;
+    updateHeader();
+    showFeedback('ex2-feedback', `Rule analysis complete. Score: ${score}/90. Review the explanations above.`, score >= 60 ? 'good' : 'bad');
+    document.getElementById('ex2-submit').disabled = true;
+    setTimeout(() => advanceExercise(3), 2500);
+}
+
+/* ================================================================
+   EXERCISE 3 DATA — ZEEK CONN LOGS
+================================================================ */
+const zeekConns = [
+    /* format: ts, orig_h, orig_p, resp_h, resp_p, proto, service, duration, orig_bytes, resp_bytes, state, suspicious */
+    { ts:'10:01:44.123', oh:'10.10.3.45',    op:49823, rh:'185.220.101.47', rp:443,  proto:'tcp', svc:'ssl',  dur:'2847.33', ob:'4352091', rb:'128443', state:'SF',   susp:true  }, /* C2/exfil: long dur, high outbound */
+    { ts:'10:02:01.005', oh:'10.10.3.45',    op:49824, rh:'8.8.8.8',        rp:53,   proto:'udp', svc:'dns',  dur:'0.002',   ob:'65',      rb:'128',    state:'SF',   susp:false },
+    { ts:'10:03:15.882', oh:'192.168.1.100', op:52001, rh:'10.10.0.1',      rp:80,   proto:'tcp', svc:'http', dur:'1.43',    ob:'1204',    rb:'55231',  state:'SF',   susp:false },
+    { ts:'10:04:22.417', oh:'10.10.3.45',    op:49830, rh:'45.142.212.100', rp:4444, proto:'tcp', svc:'-',    dur:'344.12',  ob:'23900',   rb:'8192',   state:'SF',   susp:true  }, /* Meterpreter port 4444 */
+    { ts:'10:05:07.991', oh:'10.10.1.20',    op:80,    rh:'10.10.3.45',     rp:80,   proto:'tcp', svc:'http', dur:'0.08',    ob:'512',     rb:'1024',   state:'SF',   susp:false },
+    { ts:'10:06:33.004', oh:'10.10.3.45',    op:49855, rh:'185.220.101.47', rp:9001, proto:'tcp', svc:'ssl',  dur:'412.88',  ob:'14200',   rb:'2048',   state:'SF',   susp:true  }, /* Tor exit node port 9001 */
+    { ts:'10:07:18.231', oh:'192.168.5.22',  op:49901, rh:'13.89.179.10',   rp:443,  proto:'tcp', svc:'ssl',  dur:'2.11',    ob:'1044',    rb:'88330',  state:'SF',   susp:false }, /* Windows Update */
+    { ts:'10:08:04.700', oh:'10.10.3.45',    op:50000, rh:'1.1.1.1',        rp:53,   proto:'udp', svc:'dns',  dur:'0.001',   ob:'120',     rb:'180',    state:'SF',   susp:false },
+    { ts:'10:09:42.119', oh:'10.10.3.45',    op:50012, rh:'91.108.56.145',  rp:443,  proto:'tcp', svc:'ssl',  dur:'1203.55', ob:'882044',  rb:'12048',  state:'SF',   susp:true  }, /* high outbound, unusual IP */
+    { ts:'10:10:00.003', oh:'192.168.1.50',  op:445,   rh:'10.10.1.0',      rp:445,  proto:'tcp', svc:'smb',  dur:'0.00',    ob:'0',       rb:'0',      state:'S0',   susp:true  }, /* SMB scan: S0 (no response) */
+    { ts:'10:11:22.440', oh:'192.168.1.200', op:51200, rh:'40.89.244.232',  rp:443,  proto:'tcp', svc:'ssl',  dur:'3.22',    ob:'4422',    rb:'122000', state:'SF',   susp:false }, /* O365 */
+    { ts:'10:12:09.555', oh:'10.10.3.45',    op:50099, rh:'77.88.55.66',    rp:443,  proto:'tcp', svc:'ssl',  dur:'897.20',  ob:'2100443', rb:'34200',  state:'SF',   susp:true  }, /* large outbound, unknown Ru IP */
+    { ts:'10:13:55.101', oh:'10.10.2.10',    op:52100, rh:'1.1.1.1',        rp:53,   proto:'udp', svc:'dns',  dur:'0.002',   ob:'55',      rb:'100',    state:'SF',   susp:false },
+    { ts:'10:14:31.776', oh:'192.168.1.105', op:49999, rh:'104.21.55.221',  rp:80,   proto:'tcp', svc:'http', dur:'0.44',    ob:'340',     rb:'1200444',state:'SF',   susp:true  }, /* large inbound download */
+    { ts:'10:15:08.002', oh:'10.10.3.45',    op:50200, rh:'185.220.101.47', rp:443,  proto:'tcp', svc:'ssl',  dur:'0.12',    ob:'280',     rb:'540',    state:'RSTO', susp:false }, /* reset, normal reconnect probe */
+    { ts:'10:16:44.891', oh:'10.10.0.1',     op:53,    rh:'10.10.3.45',     rp:53,   proto:'udp', svc:'dns',  dur:'0.001',   ob:'88',      rb:'200',    state:'SF',   susp:false },
+];
+
+/* Which rows are truly suspicious */
+const zeekSuspicious = zeekConns.reduce((acc, c, i) => { if (c.susp) acc.push(i); return acc; }, []);
+
+const zeekQuestions = [
+    {
+        q: 'What is the primary indicator of C2 beaconing in the Zeek logs?',
+        opts: ['High inbound bytes from external IPs', 'Long-duration sessions with high outbound bytes to external IPs', 'Multiple failed connection states (S0)', 'Unusual source ports above 50000'],
+        answer: 1
+    },
+    {
+        q: 'Connection at row 4 (port 4444) is most consistent with which attack tool?',
+        opts: ['Nmap SYN scan', 'Metasploit Meterpreter reverse shell', 'DNSCAT2 tunneling', 'Mimikatz LSASS dump'],
+        answer: 1
+    },
+    {
+        q: 'The conn_state value "S0" in row 10 indicates what?',
+        opts: ['Normal completed session', 'SYN sent, no response (likely port scan)', 'RST received from server', 'Half-open TCP connection established'],
+        answer: 1
+    },
+    {
+        q: 'Which host is the primary compromised system based on the log patterns?',
+        opts: ['192.168.1.100', '192.168.5.22', '10.10.3.45', '192.168.1.200'],
+        answer: 2
+    },
+];
+
+/* User-flagged rows */
+const zeekFlags = new Set();
+const zeekQAnswers = {};
+
+function buildEx3() {
+    const tbody = document.getElementById('zeek-tbody');
+    zeekConns.forEach((c, i) => {
+        const tr = document.createElement('tr');
+        tr.id = 'zeek-row-' + i;
+        const durClass = parseFloat(c.dur) > 300 ? 'dur-long' : '';
+        const obClass  = parseInt(c.ob)  > 500000 ? 'bytes-high' : '';
+        const stateClass = { S0:'state-s0', S1:'state-s1', SF:'state-sf', RSTO:'state-rsto' }[c.state] || '';
+        tr.innerHTML = `
+            <td><span class="flag-check" id="flag-${i}" onclick="toggleZeekFlag(${i})">F</span></td>
+            <td style="color:var(--text-dim)">${c.ts}</td>
+            <td style="color:var(--cyan)">${c.oh}</td>
+            <td style="color:var(--text-dim)">${c.op}</td>
+            <td style="color:var(--text-label)">${c.rh}</td>
+            <td style="color:${c.rp===443?'var(--text-label)':c.rp===4444||c.rp===9001?'var(--red)':'var(--orange)'}">${c.rp}</td>
+            <td style="color:var(--text-dim)">${c.proto}</td>
+            <td style="color:var(--text-dim)">${c.svc}</td>
+            <td class="${durClass}">${c.dur}s</td>
+            <td class="${obClass}">${Number(c.ob).toLocaleString()}</td>
+            <td>${Number(c.rb).toLocaleString()}</td>
+            <td class="${stateClass}">${c.state}</td>`;
+        tbody.appendChild(tr);
+    });
+
+    /* Build MC questions for Zeek */
+    const qContainer = document.getElementById('zeek-questions');
+    zeekQuestions.forEach((q, qi) => {
+        const div = document.createElement('div');
+        div.className = 'dash-q';
+        div.innerHTML = `<div class="dash-q-num">Q${qi+1}</div>
+            <div class="dash-q-text">${q.q}</div>
+            <div class="mc-options" id="zeek-q-${qi}">
+                ${q.opts.map((o, oi) => `<button class="mc-opt" id="zeekq${qi}o${oi}" onclick="selectZeekQ(${qi},${oi},${q.opts.length})">${o}</button>`).join('')}
+            </div>`;
+        qContainer.appendChild(div);
+    });
+}
+
+function toggleZeekFlag(i) {
+    const el = document.getElementById('flag-' + i);
+    if (zeekFlags.has(i)) {
+        zeekFlags.delete(i);
+        el.classList.remove('flagged');
+    } else {
+        zeekFlags.add(i);
+        el.classList.add('flagged');
+    }
+}
+
+function selectZeekQ(qi, oi, numOpts) {
+    for (let x = 0; x < numOpts; x++) {
+        const b = document.getElementById(`zeekq${qi}o${x}`);
+        if (b) b.classList.remove('selected');
+    }
+    document.getElementById(`zeekq${qi}o${oi}`).classList.add('selected');
+    zeekQAnswers[qi] = oi;
+}
+
+function submitEx3() {
+    /* Check all MC answered */
+    const unanswered = zeekQuestions.filter((_, qi) => zeekQAnswers[qi] === undefined).length;
+    if (unanswered > 0) {
+        showFeedback('ex3-feedback', `Please answer all ${unanswered} remaining question(s).`, 'bad');
+        return;
+    }
+
+    let score = 0;
+    /* Flag scoring: +8 per correct flag, -4 per wrong flag, max 56 */
+    const userFlagged = [...zeekFlags];
+    const correct   = userFlagged.filter(i => zeekSuspicious.includes(i));
+    const incorrect = userFlagged.filter(i => !zeekSuspicious.includes(i));
+    const missed    = zeekSuspicious.filter(i => !zeekFlags.has(i));
+
+    correct.forEach(i => { document.getElementById('flag-' + i).classList.add('correct-flag'); });
+    incorrect.forEach(i => { document.getElementById('flag-' + i).classList.add('wrong-flag'); });
+    missed.forEach(i => { document.getElementById('flag-' + i).classList.add('missed-flag'); });
+
+    score += correct.length * 8;
+    score -= incorrect.length * 4;
+    score = Math.max(0, score);
+
+    /* Question scoring +11 each */
+    zeekQuestions.forEach((q, qi) => {
+        const sel = zeekQAnswers[qi];
+        q.opts.forEach((_, oi) => {
+            const btn = document.getElementById(`zeekq${qi}o${oi}`);
+            if (!btn) return;
+            btn.disabled = true;
+            btn.classList.remove('selected');
+            if (oi === q.answer) btn.classList.add('reveal');
+            if (oi === sel && sel === q.answer) { btn.classList.remove('reveal'); btn.classList.add('correct'); score += 11; }
+            if (oi === sel && sel !== q.answer) btn.classList.add('wrong');
+        });
+    });
+    score = Math.min(score, 100);
+
+    state.scores[2] = score;
+    updateHeader();
+    showFeedback('ex3-feedback', `Analysis complete. Correct flags: ${correct.length}/${zeekSuspicious.length}, Incorrect: ${incorrect.length}, Missed: ${missed.length}. Score: ${score}/100.`, score >= 65 ? 'good' : 'bad');
+    document.getElementById('ex3-submit').disabled = true;
+    setTimeout(() => advanceExercise(4), 2500);
+}
+
+/* ================================================================
+   EXERCISE 4 DATA — DASHBOARD
+================================================================ */
+function buildEx4() {
+    /* Top Talkers */
+    const talkers = [
+        { ip:'10.10.3.45',    bytes:'4.2 GB', pct:100, color:'var(--red)' },
+        { ip:'192.168.1.105', bytes:'1.1 GB', pct:26,  color:'var(--orange)' },
+        { ip:'10.10.2.10',    bytes:'340 MB', pct:8,   color:'var(--yellow)' },
+        { ip:'192.168.5.22',  bytes:'220 MB', pct:5,   color:'var(--accent)' },
+        { ip:'192.168.1.200', bytes:'185 MB', pct:4,   color:'var(--accent-dim)' },
+    ];
+    const talkerDiv = document.getElementById('dash-talkers');
+    talkerDiv.innerHTML = talkers.map(t => `
+        <div class="bar-row">
+            <div class="bar-ip">${t.ip}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${t.pct}%;background:${t.color}"></div></div>
+            <div class="bar-val">${t.bytes}</div>
+        </div>`).join('');
+
+    /* Alert Timeline */
+    const timeline = [
+        { h:'08:00', count:11, pct:4,   color:'var(--accent-dim)' },
+        { h:'09:00', count:14, pct:6,   color:'var(--accent-dim)' },
+        { h:'10:00', count:247, pct:100, color:'var(--red)' },
+        { h:'10:30', count:198, pct:80,  color:'var(--red)' },
+        { h:'11:00', count:42,  pct:17,  color:'var(--orange)' },
+        { h:'11:30', count:28,  pct:11,  color:'var(--yellow)' },
+        { h:'12:00', count:17,  pct:7,   color:'var(--accent)' },
+    ];
+    const tlDiv = document.getElementById('dash-timeline');
+    tlDiv.innerHTML = '<div class="timeline-rows">' + timeline.map(t => `
+        <div class="tl-hour">
+            <div class="tl-time">${t.h}</div>
+            <div class="tl-bar-track"><div class="tl-bar-fill" style="width:${t.pct}%;background:${t.color}"></div></div>
+            <div class="tl-count">${t.count}</div>
+        </div>`).join('') + '</div>';
+
+    /* Protocol distribution */
+    const protos = [
+        { name:'HTTPS (443)',  pct:67, color:'#ff4444' },
+        { name:'HTTP (80)',    pct:14, color:'#ff9f00' },
+        { name:'DNS (53)',     pct:10, color:'#ffd700' },
+        { name:'ICMP',        pct:5,  color:'#b06eff' },
+        { name:'Other TCP',   pct:4,  color:'#00d4e8' },
+    ];
+    const protoDiv = document.getElementById('dash-protos');
+    protoDiv.innerHTML = '<div class="proto-list">' + protos.map(p => `
+        <div class="proto-row">
+            <div class="proto-swatch" style="background:${p.color}"></div>
+            <div class="proto-name">${p.name}</div>
+            <div class="proto-bar-track"><div class="proto-bar-fill" style="width:${p.pct}%;background:${p.color}40"></div></div>
+            <div class="proto-pct">${p.pct}%</div>
+        </div>`).join('') + '</div>';
+
+    /* Geo */
+    const geos = [
+        { country:'United States',      count:'2,344',  susp:false },
+        { country:'Russian Federation', count:'891',    susp:true  },
+        { country:'Netherlands',        count:'744',    susp:true  },
+        { country:'Germany',            count:'512',    susp:false },
+        { country:'United Kingdom',     count:'288',    susp:false },
+        { country:'Romania',            count:'211',    susp:true  },
+        { country:'China',              count:'188',    susp:true  },
+    ];
+    const geoDiv = document.getElementById('dash-geo');
+    geoDiv.innerHTML = '<div class="geo-list">' + geos.map(g => `
+        <div class="geo-row ${g.susp ? 'suspicious' : ''}">
+            <div class="geo-country">${g.country}</div>
+            <div style="display:flex;gap:8px;align-items:center">
+                <div class="geo-count">${g.count} conns</div>
+                ${g.susp ? '<div class="geo-flag">ANOMALOUS</div>' : ''}
+            </div>
+        </div>`).join('') + '</div>';
+
+    /* Dashboard Questions */
+    const dashQs = [
+        { q:'Which internal IP shows the most anomalous outbound traffic volume?',                              opts:['192.168.5.22','10.10.2.10','10.10.3.45','192.168.1.200'],  answer:2 },
+        { q:'At what time did the alert spike begin, and how many alerts were recorded?',                       opts:['09:00 with 14 alerts','10:00 with 247 alerts','11:00 with 42 alerts','08:00 with 11 alerts'], answer:1 },
+        { q:'Which protocol is most associated with the suspicious outbound traffic?',                          opts:['DNS (53)','ICMP','HTTP (80)','HTTPS (443)'], answer:3 },
+        { q:'Which country combination represents unexpected external connections consistent with Tor routing?', opts:['United States and Germany','Russian Federation and Netherlands','Germany and United Kingdom','China and Romania'], answer:1 },
+        { q:'What does the high outbound to inbound byte ratio for 10.10.3.45 most likely indicate?',           opts:['Legitimate cloud backup','Data exfiltration from the compromised host','Normal software update','High web traffic from the host'], answer:1 },
+    ];
+
+    const dqDiv = document.getElementById('dash-questions');
+    dashQs.forEach((q, qi) => {
+        const div = document.createElement('div');
+        div.className = 'dash-q';
+        div.innerHTML = `<div class="dash-q-num">Q${qi+1} of ${dashQs.length}</div>
+            <div class="dash-q-text">${q.q}</div>
+            <div class="mc-options" id="dashq-${qi}">
+                ${q.opts.map((o, oi) => `<button class="mc-opt" id="dq${qi}o${oi}" onclick="selectDashQ(${qi},${oi},${q.opts.length},${dashQs.length})">${o}</button>`).join('')}
+            </div>`;
+        dqDiv.appendChild(div);
+    });
+
+    /* Store question data for submit */
+    window._dashQs = dashQs;
+    window._dashQAnswers = {};
+}
+
+function selectDashQ(qi, oi, numOpts, total) {
+    for (let x = 0; x < numOpts; x++) {
+        const b = document.getElementById(`dq${qi}o${x}`);
+        if (b) b.classList.remove('selected');
+    }
+    document.getElementById(`dq${qi}o${oi}`).classList.add('selected');
+    window._dashQAnswers[qi] = oi;
+}
+
+function submitEx4() {
+    const qs = window._dashQs;
+    const ans = window._dashQAnswers;
+    const unanswered = qs.filter((_, qi) => ans[qi] === undefined).length;
+    if (unanswered > 0) {
+        showFeedback('ex4-feedback', `Please answer all ${unanswered} remaining question(s).`, 'bad');
+        return;
+    }
+    let score = 0;
+    qs.forEach((q, qi) => {
+        const sel = ans[qi];
+        q.opts.forEach((_, oi) => {
+            const btn = document.getElementById(`dq${qi}o${oi}`);
+            if (!btn) return;
+            btn.disabled = true;
+            btn.classList.remove('selected');
+            if (oi === q.answer) btn.classList.add('reveal');
+            if (oi === sel && sel === q.answer) { btn.classList.remove('reveal'); btn.classList.add('correct'); score += 15; }
+            if (oi === sel && sel !== q.answer) btn.classList.add('wrong');
+        });
+    });
+    state.scores[3] = score;
+    updateHeader();
+    showFeedback('ex4-feedback', `Dashboard investigation complete. Score: ${score}/75.`, score >= 45 ? 'good' : 'bad');
+    document.getElementById('ex4-submit').disabled = true;
+    setTimeout(() => advanceExercise(5), 2200);
+}
+
+/* ================================================================
+   EXERCISE 5 DATA — INCIDENT REPORT BUILDER
+================================================================ */
+const irSections = [
+    { id:'exec',    label:'Executive Summary' },
+    { id:'timeline',label:'Incident Timeline' },
+    { id:'systems', label:'Affected Systems' },
+    { id:'ioc',     label:'Indicators of Compromise (IOCs)' },
+    { id:'root',    label:'Root Cause Analysis' },
+    { id:'recs',    label:'Recommendations' },
+];
+
+/* Correct ordering: exec, timeline, systems, ioc, root, recs */
+const correctOrder = ['exec','timeline','systems','ioc','root','recs'];
+
+const irContentQs = [
+    {
+        section: 'Executive Summary',
+        opts: [
+            'On 2024-03-15, a Tier 1 analyst detected anomalous network activity from workstation WS-FINANCE-045. Investigation confirmed an active CobaltStrike C2 implant with data exfiltration to Tor exit nodes. Approximately 4.2 GB of data was transferred outbound.',
+            'The network team observed high CPU usage on the firewall appliance during routine maintenance.',
+            'A user reported their browser homepage changed unexpectedly on March 14th.',
+        ],
+        answer: 0
+    },
+    {
+        section: 'Incident Timeline',
+        opts: [
+            '10:02 UTC — CobaltStrike beacon alert fired. 10:04 UTC — DNS C2 query detected. 10:08 UTC — Tor exit node connection established. 10:22 UTC — Secondary host 192.168.1.105 showed malware download alert.',
+            'March 14 at 5PM — User clicked suspicious email link. March 15 at 8AM — IT helpdesk received a password reset request.',
+            '09:00 UTC — Routine firewall rule update applied. 10:00 UTC — Network team ran vulnerability scan.',
+        ],
+        answer: 0
+    },
+    {
+        section: 'Affected Systems',
+        opts: [
+            'All workstations in the 10.10.x.x subnet plus external DNS servers.',
+            'WS-FINANCE-045 (10.10.3.45) — primary compromised host. 192.168.1.105 — potential secondary infection (malware download observed). Finance department user account credentials potentially compromised.',
+            'Only the web server at 192.168.1.50 was affected by the incident.',
+        ],
+        answer: 1
+    },
+    {
+        section: 'Indicators of Compromise (IOCs)',
+        opts: [
+            'IOC Type: IP — 185.220.101.47 (Tor exit node, C2 server). IOC Type: IP — 45.142.212.100 (Meterpreter C2). JA3 Hash: 72a589da586844d7f0818ce684948eea (CobaltStrike). DNS: d1ag C2 query pattern. Port: 4444/tcp (Meterpreter), 9001/tcp (Tor).',
+            'IOC: Port 443 HTTPS traffic observed from multiple internal hosts.',
+            'IOC: User reported slow computer performance and occasional browser pop-ups.',
+        ],
+        answer: 0
+    },
+    {
+        section: 'Root Cause Analysis',
+        opts: [
+            'Root cause was an unpatched vulnerability on the web-facing server exploited via SQL injection.',
+            'Most likely initial access vector: spear-phishing email delivering a malicious macro document, resulting in CobaltStrike beacon deployment on WS-FINANCE-045. The beacon established persistent C2 via HTTPS and Tor, enabling lateral movement and data exfiltration.',
+            'Root cause was improper firewall configuration allowing all outbound traffic on port 443.',
+        ],
+        answer: 1
+    },
+    {
+        section: 'Recommendations',
+        opts: [
+            'Immediate: Isolate WS-FINANCE-045, reset finance user credentials, block listed IOC IPs/domains at perimeter. Short-term: Deploy EDR on all endpoints, enable Zeek + Suricata JA3 detection, enforce DNS filtering. Long-term: Implement Zero Trust network segmentation, phishing-resistant MFA, quarterly purple team exercises.',
+            'Recommendations: Update antivirus definitions and run a full system scan on all workstations company-wide.',
+            'Recommendations: Remind users not to click suspicious links via email newsletter.',
+        ],
+        answer: 0
+    },
+];
+
+/* Drag state */
+let draggedId = null;
+const slotContents = {}; /* slot index -> section id */
+const placedSections = new Set();
+const irContentAnswers = {};
+
+function buildEx5() {
+    const pool    = document.getElementById('ir-pool');
+    const slotsEl = document.getElementById('ir-slots');
+
+    /* Shuffle the cards in the pool */
+    const shuffled = [...irSections].sort(() => Math.random() - 0.5);
+    shuffled.forEach(sec => {
+        const card = document.createElement('div');
+        card.className = 'ir-section-card';
+        card.id = 'pool-card-' + sec.id;
+        card.draggable = true;
+        card.textContent = sec.label;
+        card.addEventListener('dragstart', e => {
+            draggedId = sec.id;
+            card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        pool.appendChild(card);
+    });
+
+    /* Build slots */
+    for (let i = 0; i < 6; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'ir-slot';
+        slot.id = 'ir-slot-' + i;
+        slot.innerHTML = `<div class="slot-num">Position ${i+1}</div><div class="slot-content">Drop section here</div><span class="clear-slot" onclick="clearSlot(${i})">&#x2715;</span>`;
+        slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('over'); });
+        slot.addEventListener('dragleave', () => slot.classList.remove('over'));
+        slot.addEventListener('drop', e => {
+            e.preventDefault();
+            slot.classList.remove('over');
+            if (!draggedId) return;
+            if (slotContents[i]) {
+                /* Return previous occupant to pool */
+                returnToPool(slotContents[i]);
+            }
+            slotContents[i] = draggedId;
+            placedSections.add(draggedId);
+            const label = irSections.find(s => s.id === draggedId).label;
+            slot.querySelector('.slot-content').textContent = label;
+            slot.classList.add('filled');
+            /* Hide from pool */
+            const pc = document.getElementById('pool-card-' + draggedId);
+            if (pc) pc.style.display = 'none';
+            draggedId = null;
+        });
+        slotsEl.appendChild(slot);
+    }
+
+    /* Part B: Content selection */
+    const csEl = document.getElementById('ir-content-selects');
+    irContentQs.forEach((q, qi) => {
+        const div = document.createElement('div');
+        div.className = 'ir-content-select';
+        div.innerHTML = `<div class="ir-content-hdr">Select content for: ${q.section}</div>
+            <div class="ir-content-options">
+                ${q.opts.map((o, oi) => `<div class="ir-opt" id="iropt${qi}o${oi}" onclick="selectIrOpt(${qi},${oi},${q.opts.length})">${o}</div>`).join('')}
+            </div>`;
+        csEl.appendChild(div);
+    });
+}
+
+function returnToPool(secId) {
+    placedSections.delete(secId);
+    const pc = document.getElementById('pool-card-' + secId);
+    if (pc) pc.style.display = '';
+}
+
+function clearSlot(i) {
+    if (!slotContents[i]) return;
+    returnToPool(slotContents[i]);
+    delete slotContents[i];
+    const slot = document.getElementById('ir-slot-' + i);
+    slot.querySelector('.slot-content').textContent = 'Drop section here';
+    slot.classList.remove('filled');
+}
+
+function selectIrOpt(qi, oi, numOpts) {
+    for (let x = 0; x < numOpts; x++) {
+        const el = document.getElementById(`iropt${qi}o${x}`);
+        if (el) el.classList.remove('selected');
+    }
+    document.getElementById(`iropt${qi}o${oi}`).classList.add('selected');
+    irContentAnswers[qi] = oi;
+}
+
+function submitEx5() {
+    /* Validate all slots filled */
+    const emptySlots = [];
+    for (let i = 0; i < 6; i++) { if (!slotContents[i]) emptySlots.push(i+1); }
+    if (emptySlots.length > 0) {
+        showFeedback('ex5-feedback', `Please fill all 6 report positions. Missing: ${emptySlots.join(', ')}.`, 'bad');
+        return;
+    }
+    const unansweredContent = irContentQs.filter((_, qi) => irContentAnswers[qi] === undefined).length;
+    if (unansweredContent > 0) {
+        showFeedback('ex5-feedback', `Please select content for all ${unansweredContent} remaining section(s).`, 'bad');
+        return;
+    }
+
+    let score = 0;
+
+    /* Ordering: +10 per correctly placed section */
+    for (let i = 0; i < 6; i++) {
+        if (slotContents[i] === correctOrder[i]) {
+            score += 10;
+            const slot = document.getElementById('ir-slot-' + i);
+            slot.style.borderColor = 'var(--accent)';
+            slot.style.background  = 'rgba(0,255,65,0.06)';
+        } else {
+            const slot = document.getElementById('ir-slot-' + i);
+            slot.style.borderColor = 'var(--red)';
+            /* Show correct label */
+            const correctLabel = irSections.find(s => s.id === correctOrder[i]).label;
+            slot.querySelector('.slot-content').textContent += ` (correct: ${correctLabel})`;
+            slot.querySelector('.slot-content').style.color = 'var(--red)';
+        }
+    }
+
+    /* Content: +10 per correct */
+    irContentQs.forEach((q, qi) => {
+        const sel = irContentAnswers[qi];
+        q.opts.forEach((_, oi) => {
+            const el = document.getElementById(`iropt${qi}o${oi}`);
+            if (!el) return;
+            el.style.pointerEvents = 'none';
+            el.classList.remove('selected');
+            if (oi === q.answer) el.classList.add('correct');
+            if (oi === sel && sel !== q.answer) el.classList.add('wrong');
+            if (oi !== q.answer && oi === sel) { /* already wrong above */ }
+        });
+        if (sel === q.answer) score += 10;
+    });
+
+    score = Math.min(score, 120);
+    state.scores[4] = score;
+    updateHeader();
+    const orderCorrect  = [...Array(6)].filter((_, i) => slotContents[i] === correctOrder[i]).length;
+    const contentCorrect = irContentQs.filter((q, qi) => irContentAnswers[qi] === q.answer).length;
+    showFeedback('ex5-feedback', `Report complete. Section order: ${orderCorrect}/6 correct. Content: ${contentCorrect}/6 correct. Score: ${score}/120.`, score >= 80 ? 'good' : 'bad');
+    document.getElementById('ex5-submit').disabled = true;
+    setTimeout(() => showResults(), 2500);
+}
+
+/* ================================================================
+   RESULTS SCREEN
+================================================================ */
+function showResults() {
+    document.getElementById('exercise-screen').style.display = 'none';
+    const rs = document.getElementById('result-screen');
+    rs.classList.add('active');
+
+    const totalScore = state.scores.reduce((a, b) => a + b, 0);
+    const maxScore   = state.maxScores.reduce((a, b) => a + b, 0);
+    const pct = totalScore / maxScore;
+
+    let rankTitle;
+    if      (pct >= 0.90) rankTitle = 'SOC Manager';
+    else if (pct >= 0.75) rankTitle = 'SOC Lead';
+    else if (pct >= 0.50) rankTitle = 'Tier 2 Analyst';
+    else                  rankTitle = 'Tier 1 Analyst';
+
+    document.getElementById('result-rank-title').textContent = rankTitle;
+    document.getElementById('result-score-val').textContent  = totalScore;
+    document.getElementById('result-score-max').textContent  = maxScore;
+
+    /* Breakdown cards */
+    const breakdown = document.getElementById('result-breakdown');
+    const exNames = ['Alert Triage','Rule Analysis','Zeek Logs','Dashboard','IR Builder'];
+    state.scores.forEach((s, i) => {
+        const card = document.createElement('div');
+        card.className = 'rb-card';
+        card.innerHTML = `<div class="rb-ex-num">EX ${i+1}</div>
+            <div class="rb-ex-score">${s}</div>
+            <div class="rb-ex-max">/ ${state.maxScores[i]}</div>
+            <div style="font-size:9px;color:var(--text-dim);margin-top:2px">${exNames[i]}</div>`;
+        breakdown.appendChild(card);
+    });
+
+    /* XP award */
+    if (!localStorage.getItem('game_soconion_xp_awarded')) {
+        const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+        localStorage.setItem('hexworth_xp', (currentXP + 100).toString());
+        localStorage.setItem('game_soconion_xp_awarded', 'true');
+        if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+            const uid = localStorage.getItem('hexworth_uid');
+            if (uid) FirestoreManager.addXP(uid, 100, 'Security Onion SOC Lab Complete');
+        }
+        document.getElementById('xp-banner').style.display = 'block';
+    }
+    if (typeof AchievementManager !== 'undefined') AchievementManager.unlock('game_soconion');
+    if (typeof GameTracker !== 'undefined') GameTracker.record('soconion', { score: totalScore, maxScore, rank: rankTitle });
+}
+
+/* ================================================================
+   UTILITIES
+================================================================ */
+function showFeedback(id, msg, type) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'feedback-bar visible ' + type;
+}
+
+function updateHeader() {
+    const total = state.scores.reduce((a, b) => a + b, 0);
+    document.getElementById('hm-score').textContent = total;
+    document.getElementById('hm-ex').textContent = state.currentEx + ' / 5';
+    /* Update dots */
+    for (let i = 0; i < 5; i++) {
+        const dot = document.getElementById('dot-' + i);
+        if (!dot) continue;
+        dot.className = 'dot';
+        if (i < state.currentEx - 1) dot.classList.add('done');
+        else if (i === state.currentEx - 1) dot.classList.add('active');
+    }
+}
+
+function advanceExercise(n) {
+    /* Hide current */
+    document.getElementById('ex-' + state.currentEx).classList.remove('active');
+    state.currentEx = n;
+    /* Show next */
+    document.getElementById('ex-' + n).classList.add('active');
+    updateHeader();
+    /* Scroll to top */
+    const body = document.querySelector('#ex-' + n + ' .ex-body');
+    if (body) body.scrollTop = 0;
+}
+
+/* ================================================================
+   INIT
+================================================================ */
+(function init() {
+    buildEx1();
+    buildEx2();
+    buildEx3();
+    buildEx4();
+    buildEx5();
+    updateHeader();
+})();
+</script>
+</body>
+</html>
