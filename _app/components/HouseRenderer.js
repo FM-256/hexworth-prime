@@ -78,6 +78,11 @@ const HouseRenderer = (function() {
         if (!config.emblem && config.houseId) {
             config.emblem = `/assets/images/emblems/${config.houseId}.webp`;
         }
+        // Auto-generate mascot path from houseId (dark_arts → dark-arts)
+        if (!config.mascot && config.houseId) {
+            const mascotId = config.houseId.replace(/_/g, '-');
+            config.mascot = `/assets/images/mascots/${mascotId}-hero.webp`;
+        }
         injectCSS();
         renderPage();
         initTabs();
@@ -207,6 +212,32 @@ const HouseRenderer = (function() {
                 position: relative;
             }
 
+            .hero-mascot {
+                margin-bottom: 20px;
+                filter: drop-shadow(0 0 40px var(--house-glow));
+                animation: mascotFloat 4s ease-in-out infinite;
+            }
+
+            .hero-mascot img {
+                width: 200px;
+                height: 266px;
+                border-radius: 16px;
+                border: 2px solid var(--house-primary);
+                box-shadow: 0 0 50px var(--house-glow), 0 0 100px rgba(0,0,0,0.5);
+                object-fit: cover;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            .hero-mascot img:hover {
+                transform: scale(1.05);
+                box-shadow: 0 0 70px var(--house-glow), 0 0 120px rgba(0,0,0,0.5);
+            }
+
+            @keyframes mascotFloat {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-8px); }
+            }
+
             .hero-icon {
                 font-size: 5rem;
                 margin-bottom: 25px;
@@ -214,11 +245,11 @@ const HouseRenderer = (function() {
             }
 
             .hero-icon img {
-                width: 168px;
-                height: 168px;
+                width: 64px;
+                height: 64px;
                 border-radius: 50%;
-                border: 3px solid var(--house-primary);
-                box-shadow: 0 0 40px var(--house-glow), 0 0 80px rgba(0,0,0,0.4);
+                border: 2px solid var(--house-primary);
+                box-shadow: 0 0 20px var(--house-glow);
                 object-fit: cover;
             }
 
@@ -904,6 +935,7 @@ const HouseRenderer = (function() {
                     gap: 15px;
                 }
                 .house-content { padding: 20px; }
+                .hero-mascot img { width: 150px; height: 200px; }
                 .hero-title { font-size: 1.8rem; }
                 .stats-bar { flex-wrap: wrap; gap: 20px; }
                 .stat-item { flex: 1 1 45%; }
@@ -948,6 +980,7 @@ const HouseRenderer = (function() {
         // Hero
         main.innerHTML = `
             <section class="hero-section">
+                ${config.mascot ? `<div class="hero-mascot"><img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.style.display='none'"></div>` : ''}
                 <div class="hero-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle} emblem" onerror="this.outerHTML='${config.icon}'">` : config.icon}</div>
                 <h1 class="hero-title">House of the <span>${config.title}</span></h1>
                 <p class="hero-domain">${config.domain}</p>

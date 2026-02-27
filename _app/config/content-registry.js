@@ -23421,6 +23421,8 @@ const ContentRegistry = {
             shortName: 'The Web',
             icon: '🕸️',
             emblem: 'assets/images/emblems/web.webp',
+            mascot: 'assets/images/mascots/web-hero.webp',
+            mascotName: 'Weaver',
             domain: 'Networking & Connections',
             color: '#60a5fa',
             description: 'Master the interconnected world of networks and protocols'
@@ -23431,6 +23433,8 @@ const ContentRegistry = {
             shortName: 'The Shield',
             icon: '🛡️',
             emblem: 'assets/images/emblems/shield.webp',
+            mascot: 'assets/images/mascots/shield-hero.webp',
+            mascotName: 'Bastion',
             domain: 'Security & Defense',
             color: '#f87171',
             description: 'Defend systems and protect against threats'
@@ -23441,6 +23445,8 @@ const ContentRegistry = {
             shortName: 'The Forge',
             icon: '⚒️',
             emblem: 'assets/images/emblems/forge.webp',
+            mascot: 'assets/images/mascots/forge-hero.webp',
+            mascotName: 'Ember',
             domain: 'Hardware & Systems',
             color: '#fbbf24',
             description: 'Build and configure the physical and virtual machines'
@@ -23451,6 +23457,8 @@ const ContentRegistry = {
             shortName: 'The Script',
             icon: '📜',
             emblem: 'assets/images/emblems/script.webp',
+            mascot: 'assets/images/mascots/script-hero.webp',
+            mascotName: 'Glyph',
             domain: 'Automation & Efficiency',
             color: '#a78bfa',
             description: 'Automate everything, script once run forever'
@@ -23461,6 +23469,8 @@ const ContentRegistry = {
             shortName: 'The Cloud',
             icon: '☁️',
             emblem: 'assets/images/emblems/cloud.webp',
+            mascot: 'assets/images/mascots/cloud-hero.webp',
+            mascotName: 'Nimbus',
             domain: 'Infrastructure & Scale',
             color: '#38bdf8',
             description: 'Build empires in the ether, scale infinitely'
@@ -23471,6 +23481,8 @@ const ContentRegistry = {
             shortName: 'The Code',
             icon: '💻',
             emblem: 'assets/images/emblems/code.webp',
+            mascot: 'assets/images/mascots/code-hero.webp',
+            mascotName: 'Helix',
             domain: 'Development & Engineering',
             color: '#4ade80',
             description: 'Create software that shapes the digital world'
@@ -23481,6 +23493,8 @@ const ContentRegistry = {
             shortName: 'The Key',
             icon: '🔑',
             emblem: 'assets/images/emblems/key.webp',
+            mascot: 'assets/images/mascots/key-hero.webp',
+            mascotName: 'Cipher',
             domain: 'Cryptography & Secrets',
             color: '#f472b6',
             description: 'Guard secrets with the power of mathematics'
@@ -23491,6 +23505,8 @@ const ContentRegistry = {
             shortName: 'The Eye',
             icon: '👁️',
             emblem: 'assets/images/emblems/eye.webp',
+            mascot: 'assets/images/mascots/eye-hero.webp',
+            mascotName: 'Vigil',
             domain: 'Monitoring & Analysis',
             color: '#c084fc',
             description: 'See everything, analyze all, miss nothing'
@@ -23552,6 +23568,8 @@ const ContentRegistry = {
             shortName: 'The Dark Arts',
             icon: '🌑',
             emblem: 'assets/images/emblems/dark-arts.webp',
+            mascot: 'assets/images/mascots/dark-arts-hero.webp',
+            mascotName: 'Nyx',
             domain: 'Offensive Security',
             color: '#6b21a8',
             description: 'Understand attacks to build better defenses'
@@ -23562,6 +23580,8 @@ const ContentRegistry = {
             shortName: 'Factionless',
             icon: '⚡',
             emblem: 'assets/images/emblems/divergent.webp',
+            mascot: 'assets/images/mascots/divergent-hero.webp',
+            mascotName: 'Flux',
             domain: 'All Domains',
             color: '#ff00ff',
             description: 'You cannot be contained. All houses are open to you.',
