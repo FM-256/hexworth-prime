@@ -591,8 +591,16 @@ class LeaderboardManager {
      */
     renderLeaderboard(container) {
         if (!container) return;
+        this._container = container;
 
         const data = this.getLeaderboard();
+        const showCount = this._displayCount || 5;
+        const visible = data.top.slice(0, showCount);
+        const hasMore = data.top.length > showCount;
+        const isExpanded = showCount > 5;
+
+        // Check if user is in visible slice
+        const userInVisible = visible.find(p => p.isCurrentUser);
 
         const html = `
             <div class="leaderboard-container">
@@ -605,15 +613,21 @@ class LeaderboardManager {
                 </div>
 
                 <div class="leaderboard-list">
-                    ${data.top.map((player, i) => this.renderPlayerRow(player, i)).join('')}
+                    ${visible.map((player, i) => this.renderPlayerRow(player, i)).join('')}
 
-                    ${!data.userInTop ? `
+                    ${!userInVisible && !data.userInTop ? `
                         <div class="leaderboard-gap">
                             <span>···</span>
                         </div>
                         ${this.renderPlayerRow(data.currentUser, data.userRank - 1)}
                     ` : ''}
                 </div>
+
+                ${hasMore || isExpanded ? `
+                    <button class="lb-toggle-btn" style="display:block;width:100%;padding:8px;margin-top:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#888;font-size:0.75rem;cursor:pointer;transition:all 0.2s;letter-spacing:0.05em;">
+                        ${isExpanded ? 'Show Top 5' : 'Show Top 10'}
+                    </button>
+                ` : ''}
 
                 ${this.githubAuth?.isAuthenticated && !this.isOptedIn() ? `
                     <div class="leaderboard-optin">
@@ -626,6 +640,15 @@ class LeaderboardManager {
         `;
 
         container.innerHTML = html;
+
+        // Bind toggle
+        const toggleBtn = container.querySelector('.lb-toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this._displayCount = (this._displayCount || 5) > 5 ? 5 : 10;
+                this.renderLeaderboard(this._container);
+            });
+        }
     }
 
     /**

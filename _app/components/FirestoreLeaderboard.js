@@ -31,6 +31,7 @@ const FirestoreLeaderboard = (function() {
     let cachedData = null;
     let isLoading = false;
     let autoRefreshTimer = null;
+    let displayCount = 5; // Show top 5 by default, expandable to 10
 
     // Tier badges
     const tierBadges = {
@@ -170,10 +171,15 @@ const FirestoreLeaderboard = (function() {
         if (!container) return;
 
         const currentUser = FirebaseAuth.getUser();
-        const entries = data.entries || [];
+        const allEntries = data.entries || [];
         const userRank = data.userRank;
 
-        // Check if current user is in top entries
+        // Show only displayCount entries (top 5 or top 10)
+        const entries = allEntries.slice(0, displayCount);
+        const hasMore = allEntries.length > displayCount;
+        const isExpanded = displayCount > 5;
+
+        // Check if current user is in visible entries
         const userInTop = currentUser && entries.some(e => e.id === currentUser.uid);
 
         const html = `
@@ -208,6 +214,12 @@ const FirestoreLeaderboard = (function() {
                     ` : ''}
                 </div>
 
+                ${hasMore || isExpanded ? `
+                    <button class="fsl-toggle" data-action="toggle">
+                        ${isExpanded ? 'Show Top 5' : 'Show Top 10'}
+                    </button>
+                ` : ''}
+
                 <div class="fsl-footer">
                     <span class="fsl-updated">Updated ${formatTimeAgo(data.timestamp)}</span>
                     <button class="fsl-refresh" onclick="FirestoreLeaderboard.refresh()">
@@ -231,6 +243,15 @@ const FirestoreLeaderboard = (function() {
                 }
             });
         });
+
+        // Bind toggle button
+        const toggleBtn = container.querySelector('.fsl-toggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                displayCount = displayCount > 5 ? 5 : 10;
+                render(cachedData);
+            });
+        }
     }
 
     /**
@@ -581,6 +602,27 @@ const FirestoreLeaderboard = (function() {
                 text-align: center;
                 color: #333;
                 padding: 10px;
+            }
+
+            .fsl-toggle {
+                display: block;
+                width: 100%;
+                padding: 8px;
+                margin-top: 10px;
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 8px;
+                color: #888;
+                font-size: 0.75rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                letter-spacing: 0.05em;
+            }
+
+            .fsl-toggle:hover {
+                background: rgba(255, 255, 255, 0.06);
+                color: #ccc;
+                border-color: rgba(255, 255, 255, 0.15);
             }
 
             .fsl-footer {
