@@ -63,7 +63,7 @@ const ContentDiscovery = (function() {
 
     function catIconHTML(mod) {
         if (!mod.category) return mod.icon || '📄';
-        return `<img src="/assets/images/categories/${mod.category}.webp" alt="" onerror="this.outerHTML='${mod.icon || '📄'}'">`;
+        return `<img src="/assets/images/categories/${mod.category}.webp" alt="${mod.category}" onerror="this.outerHTML='${mod.icon || '📄'}'">`;
     }
 
     // ========================================
@@ -746,7 +746,7 @@ const ContentDiscovery = (function() {
                 <div class="discovery-filter-group" id="categoryFilters">
                     <button class="discovery-filter-btn active" data-category="all">All Categories</button>
                     ${CATEGORIES.slice(0, 6).map(cat =>
-                        `<button class="discovery-filter-btn" data-category="${cat.id}"><img src="/assets/images/categories/${cat.id}.webp" alt="" style="width:18px;height:18px;border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.outerHTML='${cat.icon || '📁'} '"> ${cat.name}</button>`
+                        `<button class="discovery-filter-btn" data-category="${cat.id}"><img src="/assets/images/categories/${cat.id}.webp" alt="${cat.name}" style="width:18px;height:18px;border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.outerHTML='${cat.icon || '📁'} '"> ${cat.name}</button>`
                     ).join('')}
                 </div>
                 <div class="discovery-filter-divider"></div>

@@ -55,20 +55,22 @@ const AchievementPanel = (function() {
      * Build the visual icon HTML for an achievement card.
      * Shows badge image if available, falls back to emoji.
      */
-    function badgeIconHTML(achievementId, emoji, isLocked) {
+    function badgeIconHTML(achievementId, emoji, isLocked, name) {
         const url = getBadgeUrl(achievementId);
         const grayscale = isLocked ? 'filter:grayscale(1) brightness(0.5);' : '';
+        const altText = name ? name + ' badge' : '';
         // Image with emoji fallback via onerror
-        return '<img src="' + url + '" alt="" class="ap-badge-img" style="' + grayscale + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">'
+        return '<img src="' + url + '" alt="' + altText + '" class="ap-badge-img" style="' + grayscale + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">'
              + '<span class="ap-badge-emoji" style="display:none;">' + emoji + '</span>';
     }
 
     /**
      * Build notification icon HTML (larger size for toast).
      */
-    function notifBadgeHTML(achievementId, emoji) {
+    function notifBadgeHTML(achievementId, emoji, name) {
         const url = getBadgeUrl(achievementId);
-        return '<img src="' + url + '" alt="" class="ap-notif-badge-img" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">'
+        const altText = name ? name + ' badge' : '';
+        return '<img src="' + url + '" alt="' + altText + '" class="ap-notif-badge-img" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">'
              + '<span style="display:none;font-size:2.5rem;">' + emoji + '</span>';
     }
 
@@ -645,7 +647,7 @@ const AchievementPanel = (function() {
             }
 
             const iconContent = showBadgeId
-                ? badgeIconHTML(showBadgeId, displayEmoji, !isUnlocked)
+                ? badgeIconHTML(showBadgeId, displayEmoji, !isUnlocked, displayName)
                 : '<span class="ap-badge-emoji">' + displayEmoji + '</span>';
 
             return `
@@ -826,7 +828,7 @@ const AchievementPanel = (function() {
         const notif = document.createElement('div');
         notif.id = 'ap-notification';
         notif.className = `achievement-notification ${ach.style || ''}`;
-        const notifIcon = ach.id ? notifBadgeHTML(ach.id, ach.icon) : ach.icon;
+        const notifIcon = ach.id ? notifBadgeHTML(ach.id, ach.icon, ach.name) : ach.icon;
         notif.innerHTML = `
             <div class="achievement-notif-icon">${notifIcon}</div>
             <div class="achievement-notif-content">

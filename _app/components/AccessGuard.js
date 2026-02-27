@@ -219,7 +219,7 @@ const AccessGuard = (function() {
                     border-radius: 50%;
                 }
             </style>
-            ${user && user.photoURL ? `<img src="${user.photoURL}" alt="">` : ''}
+            ${user && user.photoURL ? `<img src="${user.photoURL}" alt="Admin avatar">` : ''}
             <span>ADMIN MODE</span>
         `;
         document.body.appendChild(badge);

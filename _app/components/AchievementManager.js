@@ -1234,7 +1234,7 @@ const AchievementManager = (function() {
                 return 'assets/images/badges/';
             })();
             const url = badgePath + achievement.id + '.webp';
-            iconHTML = '<img src="' + url + '" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;box-shadow:0 2px 12px rgba(255,215,0,0.4);" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">'
+            iconHTML = '<img src="' + url + '" alt="' + achievement.name + ' badge" style="width:48px;height:48px;border-radius:50%;object-fit:cover;box-shadow:0 2px 12px rgba(255,215,0,0.4);" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">'
                      + '<span style="display:none;font-size:2.5rem;">' + achievement.icon + '</span>';
         }
         notification.innerHTML = `

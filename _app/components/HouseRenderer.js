@@ -1261,7 +1261,7 @@ const HouseRenderer = (function() {
         const pathCards = config.paths.map(p => {
             const catId = PATH_CATEGORY_MAP[p.id];
             const iconHTML = catId
-                ? `<img src="/assets/images/categories/${catId}.webp" alt="" onerror="this.outerHTML='${p.icon}'">`
+                ? `<img src="/assets/images/categories/${catId}.webp" alt="${p.name}" onerror="this.outerHTML='${p.icon}'">`
                 : p.icon;
             return `
             <div class="path-card" data-path-id="${p.id}" data-path-href="${p.href || ''}">
@@ -1320,7 +1320,7 @@ const HouseRenderer = (function() {
                     : (p.icon && p.icon.includes('src=') ? p.icon.match(/src="([^"]+)"/)?.[1] || '' : '');
                 const fallback = (p.icon && !p.icon.includes('<')) ? p.icon : '📚';
                 const iconHTML = iconSrc
-                    ? `<img src="${iconSrc}" alt="" onerror="this.outerHTML='${fallback}'">`
+                    ? `<img src="${iconSrc}" alt="${p.name}" onerror="this.outerHTML='${fallback}'">`
                     : fallback;
                 const href = p.href || `../../path-view.html?house=${config.houseId}&path=${p.id}`;
                 return `
@@ -1366,7 +1366,7 @@ const HouseRenderer = (function() {
 
             const typeBadge = getTypeBadge(mod);
             const catIcon = mod.category
-                ? `<img src="/assets/images/categories/${mod.category}.webp" alt="" onerror="this.outerHTML='${mod.icon}'">`
+                ? `<img src="/assets/images/categories/${mod.category}.webp" alt="${mod.title || mod.category}" onerror="this.outerHTML='${mod.icon}'">`
                 : mod.icon;
             card.innerHTML = `
                 <div class="module-header">
@@ -1486,22 +1486,22 @@ const HouseRenderer = (function() {
                 <h3 class="hr-features-title">Special Features</h3>
                 <div class="hr-feature-grid">
                     <a href="/arena/index.html" class="hr-feature-card feat-arena">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/ctf.webp" alt="" onerror="this.outerHTML='&#9878;'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/ctf.webp" alt="CTF challenges" onerror="this.outerHTML='&#9878;'"></div>
                         <div class="hr-feature-name" style="color:#f87171;">The Arena</div>
                         <div class="hr-feature-desc">CTF challenges, capture-the-flag competitions, and ranked offensive security drills</div>
                     </a>
                     <a href="/hive/index.html" class="hr-feature-card feat-hive">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/games.webp" alt="" onerror="this.outerHTML='&#9888;'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/games.webp" alt="Arcade games" onerror="this.outerHTML='&#9888;'"></div>
                         <div class="hr-feature-name" style="color:#fbbf24;">The Hive</div>
                         <div class="hr-feature-desc">Arcade games, combat simulations, and gamified security training</div>
                     </a>
                     <a href="/arctic/index.html" class="hr-feature-card feat-arctic">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/linux.webp" alt="" onerror="this.outerHTML='🐧'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/linux.webp" alt="Linux terminal" onerror="this.outerHTML='🐧'"></div>
                         <div class="hr-feature-name" style="color:#38bdf8;">The Arctic</div>
                         <div class="hr-feature-desc">Linux terminal training, command-line mastery, and server administration</div>
                     </a>
                     <a href="https://colosseum-arena.web.app" target="_blank" rel="noopener" class="hr-feature-card feat-colosseum">
-                        <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="" onerror="this.outerHTML='🏛️'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="The Colosseum" onerror="this.outerHTML='🏛️'"></div>
                         <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#555;font-weight:400;">↗</span></div>
                         <div class="hr-feature-desc">Incident response card game — live multiplayer cybersecurity battle simulator</div>
                     </a>

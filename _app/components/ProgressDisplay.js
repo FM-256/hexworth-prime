@@ -133,7 +133,7 @@ class ProgressDisplay {
                     ${achievements.map(a => `
                         <div class="achievement-item">
                             <span class="achievement-icon">
-                                <img src="${_pdBadgePath}${a.id}.webp" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';">
+                                <img src="${_pdBadgePath}${a.id}.webp" alt="${a.name} badge" style="width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';">
                                 <span style="display:none;">${a.icon}</span>
                             </span>
                             <div class="achievement-info">
