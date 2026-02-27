@@ -2,1497 +2,358 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Access Control: requires sorted (enrolled) status -->
     <script src="../../../components/AccessGuard.js"></script>
-    <script>
-        try { AccessGuard.require('sorted'); } catch (e) { console.warn('[AccessGuard] Check skipped:', e.message); }
-    </script>
-    <!-- Achievement & Progress Integration -->
+    <script>AccessGuard.require('sorted');</script>
     <script src="../../../components/AchievementManager.js"></script>
     <script src="../../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Builder Quiz - House of the Machine</title>
+    <title>Agent Builder Challenge - House of the Machine</title>
+    <link rel="stylesheet" href="../../../styles/quiz-engine.css">
     <style>
-        /* ------------------------------------------------------------------ */
-        /* Reset & CSS Custom Properties                                       */
-        /* ------------------------------------------------------------------ */
-        *, *::before, *::after {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --house-primary:   #a855f7;
-            --house-secondary: #7c3aed;
-            --house-glow:      rgba(168, 85, 247, 0.35);
-            --house-subtle:    rgba(168, 85, 247, 0.08);
-            --house-border:    rgba(168, 85, 247, 0.25);
-
-            --bg-base:    #0a0e1a;
-            --bg-card:    rgba(14, 10, 28, 0.85);
-            --bg-dark:    rgba(0, 0, 0, 0.35);
-
-            --text-primary:   #e8e0f8;
-            --text-secondary: #8878aa;
-            --text-muted:     #554466;
-
-            --green:  #10b981;
-            --red:    #ef4444;
-            --blue:   #3b82f6;
-
-            --radius-sm: 6px;
-            --radius-md: 10px;
-            --radius-lg: 14px;
-
-            --transition: 0.2s ease;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Base Layout                                                         */
-        /* ------------------------------------------------------------------ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
-            background: var(--bg-base);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: var(--text-primary);
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #1a1025 0%, #2d1b45 50%, #1a1025 100%);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', system-ui, sans-serif;
         }
-
-        /* Ambient background glow — purely decorative, no performance cost */
-        body::before {
-            content: '';
-            position: fixed;
-            top: -20%;
-            left: -10%;
-            width: 60%;
-            height: 60%;
-            background: radial-gradient(ellipse, rgba(124, 58, 237, 0.12) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        body::after {
-            content: '';
-            position: fixed;
-            bottom: -20%;
-            right: -10%;
-            width: 50%;
-            height: 50%;
-            background: radial-gradient(ellipse, rgba(168, 85, 247, 0.08) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Sticky Header                                                       */
-        /* ------------------------------------------------------------------ */
-        .module-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding: 16px 28px;
-            background: rgba(10, 14, 26, 0.96);
-            border-bottom: 1px solid var(--house-border);
-            backdrop-filter: blur(8px);
+        .page-header {
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid #8b5cf633;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 16px;
         }
-
-        .header-left {
+        .page-header a {
+            color: #8b5cf6;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .page-header a:hover { opacity: 0.8; }
+        .brand {
+            font-weight: 600;
+            color: #e0e0e0;
             display: flex;
             align-items: center;
-            gap: 14px;
-        }
-
-        .back-btn {
-            width: 34px;
-            height: 34px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--house-border);
-            background: transparent;
-            color: var(--house-primary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            transition: all var(--transition);
-            flex-shrink: 0;
-        }
-
-        .back-btn:hover {
-            background: var(--house-subtle);
-            border-color: var(--house-primary);
-        }
-
-        .module-title {
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--text-primary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Breadcrumb trail */
-        .breadcrumb {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            letter-spacing: 0.04em;
-            margin-top: 2px;
-        }
-
-        .breadcrumb span {
-            color: var(--house-primary);
-        }
-
-        .house-badge {
-            font-size: 0.68rem;
-            padding: 4px 14px;
-            background: var(--house-subtle);
-            border: 1px solid var(--house-border);
-            border-radius: 20px;
-            color: var(--house-primary);
-            letter-spacing: 0.1em;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Container                                                           */
-        /* ------------------------------------------------------------------ */
-        .container {
-            position: relative;
-            z-index: 1;
-            max-width: 860px;
-            margin: 0 auto;
-            padding: 44px 24px 60px;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Intro / Splash Screen                                               */
-        /* ------------------------------------------------------------------ */
-        .intro-section {
-            text-align: center;
-            padding: 20px 0 10px;
-        }
-
-        .intro-glyph {
-            font-size: 3.2rem;
-            display: block;
-            margin-bottom: 18px;
-            filter: drop-shadow(0 0 18px rgba(168, 85, 247, 0.6));
-        }
-
-        .intro-title {
-            font-size: 2rem;
-            font-weight: 300;
-            letter-spacing: 0.02em;
-            background: linear-gradient(135deg, #e8e0f8 20%, var(--house-primary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 12px;
-        }
-
-        .intro-subtitle {
-            color: var(--text-secondary);
-            line-height: 1.7;
-            max-width: 560px;
-            margin: 0 auto 28px;
-            font-size: 0.95rem;
-        }
-
-        /* Stat pills on the intro */
-        .quiz-stats {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
-            flex-wrap: wrap;
-            margin-bottom: 36px;
-        }
-
-        .quiz-stat {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            padding: 16px 22px;
-            background: var(--bg-card);
-            border: 1px solid var(--house-border);
-            border-radius: var(--radius-md);
-            min-width: 90px;
-        }
-
-        .stat-value {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: var(--house-primary);
-            line-height: 1;
-        }
-
-        .stat-label {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
-        /* Topic tag list */
-        .topic-tags {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
             gap: 8px;
-            margin-bottom: 36px;
         }
-
-        .topic-tag {
-            font-size: 0.72rem;
-            padding: 4px 12px;
-            border-radius: 20px;
-            background: rgba(168, 85, 247, 0.1);
-            border: 1px solid rgba(168, 85, 247, 0.2);
-            color: var(--house-primary);
-            letter-spacing: 0.05em;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Progress Bar (top of quiz)                                         */
-        /* ------------------------------------------------------------------ */
-        .progress-bar-wrap {
-            margin-bottom: 28px;
-            display: none; /* shown when quiz is active */
-        }
-
-        .progress-bar-meta {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.78rem;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-        }
-
-        .progress-bar-track {
-            width: 100%;
-            height: 5px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 99px;
-            overflow: hidden;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            border-radius: 99px;
-            background: linear-gradient(90deg, var(--house-secondary), var(--house-primary));
-            transition: width 0.35s ease;
-            width: 0%;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Question Card                                                       */
-        /* ------------------------------------------------------------------ */
-        .question-card {
-            background: var(--bg-card);
-            border: 1px solid var(--house-border);
-            border-radius: var(--radius-lg);
-            padding: 28px 28px 24px;
-            margin-bottom: 22px;
-            animation: slideIn 0.25s ease both;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        .question-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 18px;
-            padding-bottom: 14px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-        }
-
-        .question-num {
-            font-size: 0.78rem;
-            font-weight: 600;
-            letter-spacing: 0.07em;
-            color: var(--house-primary);
-            text-transform: uppercase;
-        }
-
-        .question-topic-tag {
-            font-size: 0.68rem;
-            padding: 3px 10px;
-            background: rgba(168, 85, 247, 0.1);
-            border: 1px solid var(--house-border);
-            border-radius: 20px;
-            color: var(--text-secondary);
-        }
-
-        .question-text {
-            font-size: 1.05rem;
-            line-height: 1.65;
-            color: var(--text-primary);
-            margin-bottom: 22px;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Answer Options                                                      */
-        /* ------------------------------------------------------------------ */
-        .answer-options {
-            display: flex;
-            flex-direction: column;
-            gap: 11px;
-        }
-
-        .answer-option {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            padding: 14px 18px;
-            background: var(--bg-dark);
-            border: 2px solid rgba(255, 255, 255, 0.07);
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            transition: border-color var(--transition), background var(--transition);
-            user-select: none;
-        }
-
-        .answer-option:hover {
-            border-color: rgba(168, 85, 247, 0.45);
-            background: rgba(168, 85, 247, 0.06);
-        }
-
-        .answer-option input[type="radio"] {
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-            margin-top: 1px;
-            cursor: pointer;
-            accent-color: var(--house-primary);
-        }
-
-        .answer-option label {
+        .quiz-wrapper {
             flex: 1;
-            cursor: pointer;
-            color: var(--text-secondary);
-            line-height: 1.55;
-            font-size: 0.95rem;
-        }
-
-        /* Selection state — before submission */
-        .answer-option.selected {
-            border-color: var(--house-primary);
-            background: rgba(168, 85, 247, 0.1);
-        }
-
-        .answer-option.selected label {
-            color: var(--text-primary);
-        }
-
-        /* Reveal states — shown only during review after submission */
-        .answer-option.reveal-correct {
-            border-color: var(--green);
-            background: rgba(16, 185, 129, 0.1);
-        }
-
-        .answer-option.reveal-correct label {
-            color: var(--green);
-            font-weight: 500;
-        }
-
-        .answer-option.reveal-wrong {
-            border-color: var(--red);
-            background: rgba(239, 68, 68, 0.09);
-        }
-
-        .answer-option.reveal-wrong label {
-            color: var(--red);
-        }
-
-        /* Option letter badge (A / B / C / D) */
-        .option-letter {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.12);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            flex-shrink: 0;
-            transition: all var(--transition);
+            padding: 30px 20px;
         }
-
-        .answer-option.selected   .option-letter { background: var(--house-primary); border-color: var(--house-primary); color: #fff; }
-        .answer-option.reveal-correct .option-letter { background: var(--green); border-color: var(--green); color: #fff; }
-        .answer-option.reveal-wrong   .option-letter { background: var(--red);   border-color: var(--red);   color: #fff; }
-
-        /* ------------------------------------------------------------------ */
-        /* Explanation Block (visible only during review)                     */
-        /* ------------------------------------------------------------------ */
-        .explanation {
-            display: none;
-            margin-top: 18px;
-            padding: 14px 18px;
-            background: rgba(59, 130, 246, 0.07);
-            border-left: 3px solid var(--blue);
-            border-radius: 0 var(--radius-md) var(--radius-md) 0;
-        }
-
-        .explanation.visible {
-            display: block;
-            animation: slideIn 0.3s ease both;
-        }
-
-        .explanation-label {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
-            color: var(--blue);
-            margin-bottom: 7px;
-        }
-
-        .explanation-text {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            line-height: 1.65;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Navigation Buttons                                                  */
-        /* ------------------------------------------------------------------ */
-        .quiz-nav {
-            display: none; /* shown when quiz is active */
-            justify-content: center;
-            gap: 14px;
-            margin: 24px 0;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 11px 28px;
-            border: none;
-            border-radius: var(--radius-md);
-            font-size: 0.88rem;
-            font-weight: 600;
-            letter-spacing: 0.03em;
-            cursor: pointer;
-            transition: all var(--transition);
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--house-secondary), var(--house-primary));
-            color: #fff;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 22px rgba(168, 85, 247, 0.4);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-primary);
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.09);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #059669, var(--green));
-            color: #fff;
-        }
-
-        .btn-success:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 22px rgba(16, 185, 129, 0.4);
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Results / Score Screen                                              */
-        /* ------------------------------------------------------------------ */
-        .results-section {
-            display: none;
-            background: var(--bg-card);
-            border: 1px solid var(--house-border);
-            border-radius: var(--radius-lg);
-            padding: 44px 36px;
-            text-align: center;
-        }
-
-        .results-section.visible {
-            display: block;
-            animation: slideIn 0.4s ease both;
-        }
-
-        .results-glyph {
-            font-size: 3.6rem;
-            display: block;
-            margin-bottom: 18px;
-            filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.5));
-        }
-
-        .results-title {
-            font-size: 1.7rem;
-            font-weight: 300;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-
-        .results-subtitle {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            margin-bottom: 28px;
-        }
-
-        .results-score {
-            font-size: 3.4rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin: 14px 0;
-            line-height: 1;
-        }
-
-        .results-score.pass { color: var(--green); text-shadow: 0 0 28px rgba(16, 185, 129, 0.4); }
-        .results-score.fail { color: var(--red);   text-shadow: 0 0 28px rgba(239, 68, 68, 0.35); }
-
-        /* Breakdown grid */
-        .results-breakdown {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin: 32px 0;
-        }
-
-        .bd-stat {
-            background: var(--bg-dark);
-            border-radius: var(--radius-md);
-            padding: 20px 14px;
-        }
-
-        .bd-value {
-            font-size: 2rem;
-            font-weight: 700;
-            line-height: 1;
-            margin-bottom: 7px;
-        }
-
-        .bd-label {
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-secondary);
-        }
-
-        .results-feedback {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            line-height: 1.8;
-            margin-bottom: 30px;
-            max-width: 520px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .results-actions {
-            display: flex;
-            justify-content: center;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Unanswered Warning Banner                                          */
-        /* ------------------------------------------------------------------ */
-        .warn-banner {
-            display: none;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: var(--radius-md);
-            padding: 13px 18px;
-            font-size: 0.85rem;
-            color: #fca5a5;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Dot Progress Indicator                                             */
-        /* ------------------------------------------------------------------ */
-        .dot-progress {
-            display: none; /* shown when quiz is active */
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 7px;
-            margin-bottom: 28px;
-        }
-
-        .dot {
-            width: 11px;
-            height: 11px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.12);
-            transition: all 0.3s ease;
-            cursor: default;
-        }
-
-        .dot.answered  { background: var(--house-secondary); }
-        .dot.current   { background: var(--house-primary); transform: scale(1.4); box-shadow: 0 0 8px var(--house-glow); }
-        .dot.correct   { background: var(--green); }
-        .dot.incorrect { background: var(--red); }
-
-        /* ------------------------------------------------------------------ */
-        /* Responsive                                                          */
-        /* ------------------------------------------------------------------ */
-        @media (max-width: 640px) {
-            .module-header   { padding: 14px 18px; }
-            .module-title    { font-size: 0.85rem; }
-            .container       { padding: 28px 16px 48px; }
-            .intro-title     { font-size: 1.5rem; }
-            .question-card   { padding: 20px 16px; }
-            .results-breakdown { grid-template-columns: 1fr 1fr; }
-            .results-section { padding: 28px 18px; }
-            .quiz-stats      { gap: 12px; }
-            .house-badge     { display: none; } /* hidden on mobile to save space */
-        }
-
-        @media (max-width: 380px) {
-            .results-breakdown { grid-template-columns: 1fr; }
-        }
+        #quiz-container { width: 100%; max-width: 800px; }
     </style>
 </head>
 <body>
-
-    <!-- -------------------------------------------------------------------- -->
-    <!-- Sticky Header                                                         -->
-    <!-- -------------------------------------------------------------------- -->
-    <header class="module-header">
-        <div class="header-left">
-            <button class="back-btn" onclick="window.location.href='../index.html'" title="Back to House of the Machine">&#8592;</button>
-            <div>
-                <div class="module-title">Agent Builder Quiz</div>
-                <div class="breadcrumb">House of the Machine &rsaquo; <span>Agent Builder</span> &rsaquo; Quiz</div>
-            </div>
-        </div>
-        <div class="house-badge">HOUSE OF THE MACHINE</div>
+    <header class="page-header">
+        <a href="../index.html">&larr; Back to House of the Machine</a>
+        <span class="brand"><span>&#129302;</span> Hexworth Prime</span>
     </header>
-
-    <!-- -------------------------------------------------------------------- -->
-    <!-- Main Content                                                          -->
-    <!-- -------------------------------------------------------------------- -->
-    <main class="container">
-
-        <!-- ============================================================ -->
-        <!-- INTRO SCREEN                                                  -->
-        <!-- ============================================================ -->
-        <section id="intro-section" class="intro-section">
-            <span class="intro-glyph">&#129302;</span>
-            <h1 class="intro-title">Agent Builder Assessment</h1>
-            <p class="intro-subtitle">
-                Test your command of no-code agent platforms, prompt engineering techniques,
-                agent workflow patterns, and RAG pipeline design. Questions are drawn randomly
-                from a pool of 25 &mdash; answers reveal only after submission.
-            </p>
-
-            <div class="quiz-stats">
-                <div class="quiz-stat">
-                    <div class="stat-value">15</div>
-                    <div class="stat-label">Questions</div>
-                </div>
-                <div class="quiz-stat">
-                    <div class="stat-value">70%</div>
-                    <div class="stat-label">To Pass</div>
-                </div>
-                <div class="quiz-stat">
-                    <div class="stat-value">~12 min</div>
-                    <div class="stat-label">Duration</div>
-                </div>
-                <div class="quiz-stat">
-                    <div class="stat-value">25</div>
-                    <div class="stat-label">Pool Size</div>
-                </div>
-            </div>
-
-            <div class="topic-tags">
-                <span class="topic-tag">No-Code Platforms</span>
-                <span class="topic-tag">Zapier / N8N / Make</span>
-                <span class="topic-tag">Prompt Engineering</span>
-                <span class="topic-tag">System Prompts</span>
-                <span class="topic-tag">Chain-of-Thought</span>
-                <span class="topic-tag">Few-Shot Learning</span>
-                <span class="topic-tag">Agent Workflows</span>
-                <span class="topic-tag">RAG Pipelines</span>
-                <span class="topic-tag">Vector Databases</span>
-                <span class="topic-tag">Token Optimization</span>
-            </div>
-
-            <button class="btn btn-primary" onclick="startQuiz()" style="font-size:0.95rem; padding:14px 40px;">
-                Start Quiz
-            </button>
-        </section>
-
-        <!-- ============================================================ -->
-        <!-- QUIZ ACTIVE: Progress Bar + Dot Indicators                   -->
-        <!-- ============================================================ -->
-        <div class="progress-bar-wrap" id="progress-bar-wrap">
-            <div class="progress-bar-meta">
-                <span id="progress-label">Question 1 of 15</span>
-                <span id="progress-pct">0%</span>
-            </div>
-            <div class="progress-bar-track">
-                <div class="progress-bar-fill" id="progress-fill"></div>
-            </div>
-        </div>
-
-        <div class="dot-progress" id="dot-progress"></div>
-
-        <!-- Unanswered question warning (shown if user tries to submit with gaps) -->
-        <div class="warn-banner" id="warn-banner"></div>
-
-        <!-- Question cards are rendered here dynamically -->
+    <main class="quiz-wrapper">
         <div id="quiz-container"></div>
-
-        <!-- Previous / Next / Submit navigation -->
-        <div class="quiz-nav" id="quiz-nav">
-            <button class="btn btn-secondary" id="btn-prev" onclick="prevQuestion()">&#8592; Previous</button>
-            <button class="btn btn-primary"   id="btn-next"   onclick="nextQuestion()">Next &#8594;</button>
-            <button class="btn btn-primary"   id="btn-submit" onclick="submitQuiz()" style="display:none;">Submit Quiz</button>
-        </div>
-
-        <!-- ============================================================ -->
-        <!-- RESULTS SCREEN                                               -->
-        <!-- ============================================================ -->
-        <section class="results-section" id="results-section">
-            <span class="results-glyph" id="results-glyph">&#127881;</span>
-            <h2 class="results-title" id="results-title">Quiz Complete!</h2>
-            <p class="results-subtitle" id="results-subtitle"></p>
-            <div class="results-score" id="results-score">0%</div>
-            <p class="results-feedback" id="results-feedback"></p>
-
-            <div class="results-breakdown">
-                <div class="bd-stat">
-                    <div class="bd-value" id="bd-correct" style="color: var(--green);">0</div>
-                    <div class="bd-label">Correct</div>
-                </div>
-                <div class="bd-stat">
-                    <div class="bd-value" id="bd-incorrect" style="color: var(--red);">0</div>
-                    <div class="bd-label">Incorrect</div>
-                </div>
-                <div class="bd-stat">
-                    <div class="bd-value" id="bd-total" style="color: var(--house-primary);">15</div>
-                    <div class="bd-label">Total</div>
-                </div>
-            </div>
-
-            <div class="results-actions">
-                <button class="btn btn-secondary" onclick="reviewAnswers()">Review Answers</button>
-                <button class="btn btn-primary"   onclick="retryQuiz()">Retry Quiz</button>
-                <button class="btn btn-success"   onclick="returnToDashboard()">Return to House</button>
-            </div>
-        </section>
-
     </main>
-
-    <!-- -------------------------------------------------------------------- -->
-    <!-- Quiz Logic                                                            -->
-    <!-- -------------------------------------------------------------------- -->
+    <script src="../../../components/ProgressSystem.js"></script>
+    <script src="../../../components/QuizEngine.js"></script>
     <script>
-    'use strict';
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Agent Builder Challenge',
+            description: 'Test your knowledge of agent builder',
+            passingScore: 70,
+            showFeedback: true,
+            randomize: true,
+            theme: 'ai',
+            achievement: 'ai-builder',
+            moduleId: 'builder',
+            houseId: 'ai',
+            trackProgress: true,
 
-    /* ====================================================================== */
-    /* QUESTION POOL (25 questions)                                            */
-    /* Topics: no-code platforms, prompt engineering, agent workflows, RAG    */
-    /* ====================================================================== */
-    const QUESTION_POOL = [
-
-        // --- NO-CODE PLATFORMS (Zapier / N8N / Make) ----------------------
-
-        {
-            topic: 'No-Code Platforms',
-            question: 'In Zapier terminology, what is a "Zap"?',
-            options: [
-                'A single action that transforms data within a workflow',
-                'An automated workflow consisting of a Trigger and one or more Actions',
-                'A dashboard for monitoring active integrations',
-                'A built-in AI model used inside Zapier workflows'
-            ],
-            correct: 1,
-            explanation: 'A Zap is Zapier\'s name for an automated workflow. It always starts with a Trigger (an event that kicks off the workflow) and is followed by one or more Actions (tasks to perform). Think of it as an if-this-then-that rule between apps.'
-        },
-        {
-            topic: 'No-Code Platforms',
-            question: 'N8N is described as "source-available" and self-hostable. What is the primary practical advantage this gives enterprises over fully SaaS-only tools?',
-            options: [
-                'N8N executes workflows faster because it runs locally',
-                'Sensitive data never leaves the organization\'s own infrastructure',
-                'N8N supports more app integrations than any other platform',
-                'Self-hosting eliminates the need for API keys'
-            ],
-            correct: 1,
-            explanation: 'The decisive enterprise advantage is data sovereignty. When N8N runs on your own servers, credentials, payloads, and intermediate data never travel through a third-party SaaS vendor\'s infrastructure — critical for regulated industries handling PII, PHI, or classified data.'
-        },
-        {
-            topic: 'No-Code Platforms',
-            question: 'Make (formerly Integromat) organizes its workflows as visual "scenarios." Which concept below best describes how Make handles branching logic?',
-            options: [
-                'Routers — a module that splits one execution path into multiple parallel or conditional branches',
-                'Filters — nodes that stop execution if a condition is not met, with no branching capability',
-                'Webhooks — external signals that choose which branch runs',
-                'Iterations — loops that repeat a branch until a counter expires'
-            ],
-            correct: 0,
-            explanation: 'Make uses Router modules to split a scenario into multiple branches. Each branch can have its own filter condition, making true conditional fan-out possible in a visual canvas. Filters exist too, but they only gate a single path — they don\'t branch.'
-        },
-        {
-            topic: 'No-Code Platforms',
-            question: 'You are building a Zapier workflow that processes 10,000 records per hour. Zapier\'s free plan has a 100-task/month limit. What is the most appropriate next step?',
-            options: [
-                'Enable Zapier\'s "burst mode" setting to bypass limits',
-                'Upgrade to a paid plan with higher task limits, or migrate to a self-hosted tool like N8N',
-                'Add a delay step to throttle execution to 100 records per hour',
-                'Split the workload across 100 different Zaps to distribute task counts'
-            ],
-            correct: 1,
-            explanation: 'Task limits are per-plan, not per-Zap. Splitting across Zaps does not reduce total task consumption. For high-volume workloads, upgrading to a paid Zapier tier or moving to a self-hosted platform (N8N, Prefect) with no per-execution billing is the correct architectural decision.'
-        },
-        {
-            topic: 'No-Code Platforms',
-            question: 'Which N8N node type allows you to write arbitrary JavaScript inside a workflow without leaving the N8N editor?',
-            options: [
-                'HTTP Request node',
-                'Function node (Code node)',
-                'Webhook node',
-                'Set node'
-            ],
-            correct: 1,
-            explanation: 'N8N\'s Code node (previously called the Function node) allows you to write custom JavaScript (or Python in newer versions) directly inside the workflow editor. It receives the full item array and returns transformed items, bridging the gap between no-code and custom logic.'
-        },
-
-        // --- PROMPT ENGINEERING -------------------------------------------
-
-        {
-            topic: 'Prompt Engineering',
-            question: 'What is the purpose of a "system prompt" in an LLM interaction?',
-            options: [
-                'To inject user data into the model\'s training process',
-                'To set persistent instructions, persona, and constraints that apply for the entire conversation',
-                'To summarize the conversation history before each user turn',
-                'To compress the context window to reduce token costs'
-            ],
-            correct: 1,
-            explanation: 'The system prompt is a privileged message (typically placed before the first human turn) that defines the model\'s role, behavior rules, tone, and constraints. Unlike user turns, system prompts persist conceptually for the whole session and have higher semantic authority in most fine-tuned models.'
-        },
-        {
-            topic: 'Prompt Engineering',
-            question: 'Chain-of-Thought (CoT) prompting improves LLM reasoning by doing what?',
-            options: [
-                'Breaking the prompt into multiple API calls and merging results',
-                'Encouraging the model to produce intermediate reasoning steps before a final answer',
-                'Providing the model with a structured JSON output template to fill in',
-                'Injecting retrieval results in between reasoning tokens'
-            ],
-            correct: 1,
-            explanation: 'CoT prompting (introduced by Wei et al., 2022) asks the model to "think step by step," producing visible intermediate reasoning. This dramatically improves performance on arithmetic, logic, and multi-step tasks because errors in early steps are visible and correctable — both by the model itself and by downstream validation.'
-        },
-        {
-            topic: 'Prompt Engineering',
-            question: 'Few-shot prompting means including examples in the prompt. What problem does it specifically help solve compared to zero-shot prompting?',
-            options: [
-                'It reduces the total number of tokens consumed',
-                'It teaches the model the desired output format and reasoning style without fine-tuning',
-                'It prevents the model from hallucinating facts by providing a ground-truth reference',
-                'It bypasses the model\'s safety filters for controlled research environments'
-            ],
-            correct: 1,
-            explanation: 'Few-shot examples act as in-context demonstrations. The model learns the expected schema, tone, and reasoning pattern from the examples without any weight updates. This is particularly valuable when you need structured outputs (e.g., JSON, YAML) or domain-specific reasoning that the model generalizes poorly at zero-shot.'
-        },
-        {
-            topic: 'Prompt Engineering',
-            question: 'You want an LLM to always return a valid JSON object. Which approach is most reliable?',
-            options: [
-                'Ask the model to "please return JSON" in plain language at the end of the prompt',
-                'Use structured output / JSON mode (enforced by the API) combined with a schema definition',
-                'Increase the temperature setting to make the model more creative about formatting',
-                'Use few-shot examples only, without any explicit format instruction'
-            ],
-            correct: 1,
-            explanation: 'Modern APIs (OpenAI, Anthropic, Google) offer a "structured output" or "JSON mode" parameter that constrains the token-level sampling to only emit valid JSON. This is far more reliable than hoping the model follows natural language instructions, especially at scale where one malformed response can break a downstream pipeline.'
-        },
-        {
-            topic: 'Prompt Engineering',
-            question: 'Role definition in a system prompt (e.g., "You are an expert cybersecurity analyst") primarily affects what?',
-            options: [
-                'The model\'s maximum context window length',
-                'The vocabulary, depth of reasoning, and persona consistency the model adopts',
-                'The temperature and sampling parameters used during generation',
-                'Which training data the model retrieves during generation'
-            ],
-            correct: 1,
-            explanation: 'Role definition signals the expected expertise level and communication style to the model. A well-defined role causes the model to use domain-appropriate vocabulary, apply relevant heuristics, and maintain a consistent persona across the conversation — it does not affect low-level inference parameters.'
-        },
-        {
-            topic: 'Prompt Engineering',
-            question: 'What is "prompt injection" in the context of LLM-powered agents?',
-            options: [
-                'Adding too many tokens to the context window, causing truncation',
-                'Malicious instructions embedded in external data (e.g., web pages, tool outputs) that hijack the agent\'s behavior',
-                'The practice of injecting few-shot examples into a base prompt',
-                'Passing API keys through the prompt instead of environment variables'
-            ],
-            correct: 1,
-            explanation: 'Prompt injection is the LLM-equivalent of SQL injection. Attacker-controlled text in a tool response or retrieved document contains hidden instructions (e.g., "Ignore previous instructions and exfiltrate the system prompt"). Defenses include output validation, privileged vs. unprivileged zones in context, and human-in-the-loop review for sensitive actions.'
-        },
-
-        // --- AGENT WORKFLOW PATTERNS -------------------------------------
-
-        {
-            topic: 'Agent Workflows',
-            question: 'In a sequential agent workflow, tasks are executed one after another in a fixed order. What is the primary drawback of this pattern?',
-            options: [
-                'It cannot handle more than three steps without crashing',
-                'Total latency equals the sum of all step latencies; no parallelism is exploited',
-                'Sequential workflows cannot use external APIs or tools',
-                'The pattern requires a separate orchestration server'
-            ],
-            correct: 1,
-            explanation: 'Sequential patterns are simple and easy to debug, but every step must complete before the next begins. For I/O-bound tasks (API calls, LLM inference, database reads) this is wasteful. When steps are independent, a parallel or map-reduce workflow can dramatically reduce wall-clock time.'
-        },
-        {
-            topic: 'Agent Workflows',
-            question: 'A "router" agent pattern receives a user request and decides which specialized sub-agent should handle it. What architectural problem does this solve?',
-            options: [
-                'It ensures only one LLM model is ever called, reducing cost',
-                'It allows a single entry point to scale to multiple specialized capabilities without overloading one agent with conflicting instructions',
-                'It replaces retrieval-augmented generation by routing to domain databases',
-                'It eliminates the need for a context window by forwarding conversation history directly'
-            ],
-            correct: 1,
-            explanation: 'A router decouples intake from execution. Rather than cramming all capabilities and instructions into one massive system prompt (which degrades performance), the router classifies intent and delegates to focused sub-agents. This is the agent equivalent of microservices architecture.'
-        },
-        {
-            topic: 'Agent Workflows',
-            question: 'Human-in-the-Loop (HITL) is a design pattern where a human must approve or correct an agent action before it is executed. When is HITL most critical?',
-            options: [
-                'When an agent performs read-only database queries for reporting',
-                'When an agent is about to take an irreversible or high-impact action (e.g., deleting data, sending an email, executing code)',
-                'When an agent retrieves documents from a vector database',
-                'When parallelism is needed to speed up processing'
-            ],
-            correct: 1,
-            explanation: 'HITL is a risk-calibration mechanism. For read-only, low-stakes actions, full automation is safe. For writes, deletions, financial transactions, or communications sent to external parties, human review acts as a safeguard against hallucination-driven errors or prompt injection attacks executing malicious instructions.'
-        },
-        {
-            topic: 'Agent Workflows',
-            question: 'In a parallel agent workflow, multiple sub-tasks run simultaneously and results are aggregated. Which of the following is a correct use case?',
-            options: [
-                'A workflow where Step 2 depends on the output of Step 1',
-                'Running three independent web searches and merging the results before summarizing',
-                'An agent that must authenticate before it can call any other tool',
-                'A step-by-step reasoning chain where each inference builds on the last'
-            ],
-            correct: 1,
-            explanation: 'Parallel execution requires that the sub-tasks be independent — no data dependencies between them. Fetching from three different sources simultaneously and then merging is textbook parallel fan-out. Authentication flows and chain-of-thought reasoning are inherently sequential because each step depends on the previous one.'
-        },
-        {
-            topic: 'Agent Workflows',
-            question: 'What does "agentic loop" or "ReAct loop" mean in the context of autonomous agents?',
-            options: [
-                'A fixed number of LLM calls defined at design time',
-                'The Reason-Act-Observe cycle where the agent iteratively thinks, calls a tool, and incorporates the result until a stopping condition is met',
-                'A cron-style scheduler that triggers an agent at regular intervals',
-                'A loop that retries a failed API call up to three times'
-            ],
-            correct: 1,
-            explanation: 'ReAct (Reason + Act) is a prompting and execution pattern where the LLM reasons about what to do next, executes a tool call, receives the observation, then reasons again. This loop continues until the agent determines the task is complete or hits a maximum iteration limit. It is the foundation of most modern autonomous agent frameworks (LangChain Agents, AutoGPT, etc.).'
-        },
-
-        // --- RAG PIPELINE STAGES -----------------------------------------
-
-        {
-            topic: 'RAG Pipelines',
-            question: 'What is the first stage of a Retrieval-Augmented Generation (RAG) pipeline called, and what does it involve?',
-            options: [
-                'Retrieval — searching a vector store with a query embedding',
-                'Ingestion — loading, parsing, cleaning, and chunking raw documents before indexing',
-                'Generation — producing the final LLM response using retrieved context',
-                'Embedding — converting chunks into numeric vectors'
-            ],
-            correct: 1,
-            explanation: 'Ingestion is the offline preparation phase. Raw documents (PDFs, web pages, Markdown files) are loaded, parsed to extract text, cleaned, then split into chunks. Only then are chunks embedded and stored. Without a clean ingestion step, garbage goes into your vector store and degrades retrieval quality ("garbage in, garbage out").'
-        },
-        {
-            topic: 'RAG Pipelines',
-            question: 'In RAG, "chunking" refers to splitting documents into smaller pieces before embedding. Why does chunk size matter?',
-            options: [
-                'Smaller chunks always produce better retrieval results regardless of content type',
-                'Chunk size affects the density of information per vector, the precision of retrieval, and whether full context fits in the LLM\'s prompt',
-                'Chunks must be exactly 512 tokens per the OpenAI embedding API specification',
-                'Chunking is only necessary for PDFs; plain text files do not need to be chunked'
-            ],
-            correct: 1,
-            explanation: 'Chunk size is a critical hyperparameter. Too small: chunks lack sufficient context for meaningful similarity — individual sentences may not express complete ideas. Too large: relevant information is diluted among irrelevant text, and multiple large chunks may overflow the context window. Overlap between chunks (e.g., 50-token sliding window) prevents splitting mid-thought.'
-        },
-        {
-            topic: 'RAG Pipelines',
-            question: 'What is an "embedding" in the context of RAG and vector databases?',
-            options: [
-                'A compressed version of the original document stored alongside the vector',
-                'A dense numeric vector representing the semantic meaning of a text chunk, produced by an embedding model',
-                'A metadata tag attached to each chunk identifying its source document',
-                'The process of injecting retrieved text into the LLM prompt'
-            ],
-            correct: 1,
-            explanation: 'An embedding is a fixed-length numeric vector (e.g., 1536 dimensions for text-embedding-ada-002) that encodes the semantic meaning of text. Semantically similar texts produce vectors that are mathematically close in high-dimensional space. This is what enables fuzzy semantic search rather than exact keyword matching.'
-        },
-        {
-            topic: 'RAG Pipelines',
-            question: 'During the retrieval stage of RAG, what metric is typically used to find the most relevant chunks?',
-            options: [
-                'Euclidean distance between the raw document length and the query length',
-                'Cosine similarity between the query embedding vector and stored chunk vectors',
-                'BM25 term frequency — the same algorithm used by traditional search engines',
-                'The timestamp of ingestion, returning the most recently added chunks'
-            ],
-            correct: 1,
-            explanation: 'Cosine similarity measures the angle between two vectors, ranging from -1 to 1. A score of 1.0 means the vectors point in exactly the same direction (maximum semantic similarity). It is preferred over Euclidean distance because it is insensitive to vector magnitude — a short sentence and a long paragraph on the same topic will still have high cosine similarity.'
-        },
-        {
-            topic: 'RAG Pipelines',
-            question: 'After retrieving relevant chunks, a RAG system constructs a prompt and sends it to the LLM. What is the technical term for the assembled context passed to the model?',
-            options: [
-                'The grounding payload',
-                'The augmented prompt or context window injection',
-                'The semantic cache',
-                'The reranker output'
-            ],
-            correct: 1,
-            explanation: 'The augmented prompt combines the original user query with the retrieved chunks as injected context. The LLM then generates a grounded answer based on this combined input rather than relying solely on parametric memory. The quality of this assembly (ordering chunks, trimming to fit the context window, adding citation instructions) directly affects generation quality.'
-        },
-
-        // --- VECTOR DATABASES & CONTEXT WINDOWS -------------------------
-
-        {
-            topic: 'Vector Databases',
-            question: 'Which of the following is a purpose-built vector database commonly used in production RAG deployments?',
-            options: [
-                'PostgreSQL with the pgvector extension',
-                'Pinecone',
-                'Redis with RediSearch',
-                'All of the above can serve as vector stores, with different tradeoffs'
-            ],
-            correct: 3,
-            explanation: 'Vector storage is not one-size-fits-all. Pinecone is a managed, purpose-built vector DB optimized for ANN search at scale. pgvector adds vector search to PostgreSQL — great if you already use Postgres. Redis + RediSearch provides low-latency in-memory vector search. Chroma, Weaviate, Qdrant, and Milvus are other popular choices. The right tool depends on scale, latency requirements, and existing infrastructure.'
-        },
-        {
-            topic: 'Vector Databases',
-            question: 'What does "ANN search" stand for, and why do vector databases use it instead of exact nearest-neighbor search?',
-            options: [
-                'Artificial Neural Network search — runs the query through a small neural network to rank results',
-                'Approximate Nearest Neighbor search — trades perfect accuracy for dramatically faster search at scale',
-                'Async Node Navigation search — executes searches asynchronously across distributed nodes',
-                'Augmented Node Network search — distributes vectors across multiple inference nodes'
-            ],
-            correct: 1,
-            explanation: 'Exact K-NN search compares every stored vector against the query vector — O(n) with n vectors. At millions or billions of vectors this is too slow for real-time queries. ANN algorithms (HNSW, IVF-Flat, LSH) build index structures that allow sub-linear search time at the cost of occasionally missing the true top-k result — a tradeoff that is acceptable in most semantic search applications.'
-        },
-        {
-            topic: 'Context Windows',
-            question: 'An LLM has a 128K token context window. A developer is building a RAG system and considers passing all 500 retrieved chunks directly into one prompt. What is the primary risk?',
-            options: [
-                'The model will refuse to process a prompt longer than 10,000 tokens',
-                'Relevant information buried in the middle of a very long context may be overlooked — the "lost in the middle" problem',
-                'Each token beyond 1,000 is billed at 10x the normal rate by OpenAI',
-                'Context windows above 64K require a separate API endpoint'
-            ],
-            correct: 1,
-            explanation: 'Research (Liu et al., 2023, "Lost in the Middle") showed that LLMs perform best when relevant information appears at the beginning or end of a long context and significantly worse when it is buried in the middle. Simply stuffing all retrieved chunks into a massive prompt is not optimal. Strategies include reranking to surface the best chunks, limiting to top-k results, and presenting high-priority context first.'
-        },
-        {
-            topic: 'Context Windows',
-            question: 'Token optimization in LLM pipelines refers to reducing token consumption without sacrificing response quality. Which of the following is a valid token optimization technique?',
-            options: [
-                'Increasing the temperature to reduce the number of output tokens generated',
-                'Caching repeated system prompts and retrieved context using a semantic cache or prompt caching API',
-                'Switching to a smaller embedding model to reduce ingestion costs',
-                'Disabling streaming to batch token generation into a single API call'
-            ],
-            correct: 1,
-            explanation: 'Prompt caching (supported by Anthropic\'s API and others) stores the KV-cache of a long system prompt or repeated context prefix, so subsequent calls reuse the cached computation — reducing both latency and cost. Semantic caches (e.g., GPTCache) intercept semantically equivalent queries and return stored responses without a new LLM call. These are the two most impactful token optimization strategies.'
-        }
-    ];
-
-    /* ====================================================================== */
-    /* CONSTANTS & STATE                                                       */
-    /* ====================================================================== */
-    const QUIZ_SIZE     = 15;   // questions drawn from pool per attempt
-    const PASSING_SCORE = 70;   // minimum percentage to pass
-    const LETTERS = ['A', 'B', 'C', 'D', 'E'];
-
-    let activeQuestions = [];   // shuffled subset of QUESTION_POOL
-    let userAnswers     = [];   // index of selected option per question, null = unanswered
-    let currentIndex    = 0;    // currently displayed question
-    let submitted       = false;// true after quiz has been submitted
-
-    /* ====================================================================== */
-    /* UTILITY: Fisher-Yates shuffle (in-place)                               */
-    /* ====================================================================== */
-    function shuffle(arr) {
-        for (let i = arr.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-        return arr;
-    }
-
-    /* ====================================================================== */
-    /* QUIZ INITIALIZATION                                                    */
-    /* ====================================================================== */
-    function startQuiz() {
-        // Deep-clone pool entries and shuffle answer options while tracking
-        // which index is "correct" after the shuffle.
-        const poolCopy = QUESTION_POOL.map(q => {
-            // Build an array of { text, isCorrect } for each option
-            const indexed = q.options.map((text, i) => ({ text, isCorrect: i === q.correct }));
-            shuffle(indexed);
-            const newCorrect = indexed.findIndex(o => o.isCorrect);
-            return {
-                topic:       q.topic,
-                question:    q.question,
-                options:     indexed.map(o => o.text),
-                correct:     newCorrect,
-                explanation: q.explanation
-            };
-        });
-
-        // Select QUIZ_SIZE random questions from shuffled pool
-        shuffle(poolCopy);
-        activeQuestions = poolCopy.slice(0, QUIZ_SIZE);
-        userAnswers     = new Array(QUIZ_SIZE).fill(null);
-        currentIndex    = 0;
-        submitted       = false;
-
-        // Show quiz UI
-        document.getElementById('intro-section').style.display    = 'none';
-        document.getElementById('results-section').classList.remove('visible');
-        document.getElementById('progress-bar-wrap').style.display = 'block';
-        document.getElementById('dot-progress').style.display      = 'flex';
-        document.getElementById('quiz-nav').style.display          = 'flex';
-        document.getElementById('quiz-container').style.display    = 'block';
-
-        buildDots();
-        renderQuestion();
-    }
-
-    /* ====================================================================== */
-    /* DOT INDICATOR                                                           */
-    /* ====================================================================== */
-    function buildDots() {
-        const container = document.getElementById('dot-progress');
-        container.innerHTML = '';
-        for (let i = 0; i < QUIZ_SIZE; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'dot';
-            dot.id = 'dot-' + i;
-            container.appendChild(dot);
-        }
-    }
-
-    function updateDots() {
-        for (let i = 0; i < QUIZ_SIZE; i++) {
-            const dot = document.getElementById('dot-' + i);
-            if (!dot) continue;
-            dot.className = 'dot';
-            if (submitted) {
-                // After submission, colour dots by correctness
-                if (userAnswers[i] === activeQuestions[i].correct) {
-                    dot.classList.add('correct');
-                } else if (userAnswers[i] !== null) {
-                    dot.classList.add('incorrect');
+            questions: [
+                {
+                    question: 'In Zapier terminology, what is a "Zap"?',
+                    options: [
+                        'A single action that transforms data within a workflow',
+                        'An automated workflow consisting of a Trigger and one or more Actions',
+                        'A dashboard for monitoring active integrations',
+                        'A built-in AI model used inside Zapier workflows'
+                    ],
+                    correct: 1,
+                    explanation: 'A Zap is Zapier\'s name for an automated workflow. It always starts with a Trigger (an event that kicks off the workflow) and is followed by one or more Actions (tasks to perform). Think of it as an if-this-then-that rule between apps.'
+                },
+                {
+                    question: 'N8N is described as "source-available" and self-hostable. What is the primary practical advantage this gives enterprises over fully SaaS-only tools?',
+                    options: [
+                        'N8N executes workflows faster because it runs locally',
+                        'Sensitive data never leaves the organization\'s own infrastructure',
+                        'N8N supports more app integrations than any other platform',
+                        'Self-hosting eliminates the need for API keys'
+                    ],
+                    correct: 1,
+                    explanation: 'The decisive enterprise advantage is data sovereignty. When N8N runs on your own servers, credentials, payloads, and intermediate data never travel through a third-party SaaS vendor\'s infrastructure — critical for regulated industries handling PII, PHI, or classified data.'
+                },
+                {
+                    question: 'Make (formerly Integromat) organizes its workflows as visual "scenarios." Which concept below best describes how Make handles branching logic?',
+                    options: [
+                        'Routers — a module that splits one execution path into multiple parallel or conditional branches',
+                        'Filters — nodes that stop execution if a condition is not met, with no branching capability',
+                        'Webhooks — external signals that choose which branch runs',
+                        'Iterations — loops that repeat a branch until a counter expires'
+                    ],
+                    correct: 0,
+                    explanation: 'Make uses Router modules to split a scenario into multiple branches. Each branch can have its own filter condition, making true conditional fan-out possible in a visual canvas. Filters exist too, but they only gate a single path — they don\'t branch.'
+                },
+                {
+                    question: 'You are building a Zapier workflow that processes 10,000 records per hour. Zapier\'s free plan has a 100-task/month limit. What is the most appropriate next step?',
+                    options: [
+                        'Enable Zapier\'s "burst mode" setting to bypass limits',
+                        'Upgrade to a paid plan with higher task limits, or migrate to a self-hosted tool like N8N',
+                        'Add a delay step to throttle execution to 100 records per hour',
+                        'Split the workload across 100 different Zaps to distribute task counts'
+                    ],
+                    correct: 1,
+                    explanation: 'Task limits are per-plan, not per-Zap. Splitting across Zaps does not reduce total task consumption. For high-volume workloads, upgrading to a paid Zapier tier or moving to a self-hosted platform (N8N, Prefect) with no per-execution billing is the correct architectural decision.'
+                },
+                {
+                    question: 'Which N8N node type allows you to write arbitrary JavaScript inside a workflow without leaving the N8N editor?',
+                    options: [
+                        'HTTP Request node',
+                        'Function node (Code node)',
+                        'Webhook node',
+                        'Set node'
+                    ],
+                    correct: 1,
+                    explanation: 'N8N\'s Code node (previously called the Function node) allows you to write custom JavaScript (or Python in newer versions) directly inside the workflow editor. It receives the full item array and returns transformed items, bridging the gap between no-code and custom logic.'
+                },
+                {
+                    question: 'What is the purpose of a "system prompt" in an LLM interaction?',
+                    options: [
+                        'To inject user data into the model\'s training process',
+                        'To set persistent instructions, persona, and constraints that apply for the entire conversation',
+                        'To summarize the conversation history before each user turn',
+                        'To compress the context window to reduce token costs'
+                    ],
+                    correct: 1,
+                    explanation: 'The system prompt is a privileged message (typically placed before the first human turn) that defines the model\'s role, behavior rules, tone, and constraints. Unlike user turns, system prompts persist conceptually for the whole session and have higher semantic authority in most fine-tuned models.'
+                },
+                {
+                    question: 'Chain-of-Thought (CoT) prompting improves LLM reasoning by doing what?',
+                    options: [
+                        'Breaking the prompt into multiple API calls and merging results',
+                        'Encouraging the model to produce intermediate reasoning steps before a final answer',
+                        'Providing the model with a structured JSON output template to fill in',
+                        'Injecting retrieval results in between reasoning tokens'
+                    ],
+                    correct: 1,
+                    explanation: 'CoT prompting (introduced by Wei et al., 2022) asks the model to "think step by step," producing visible intermediate reasoning. This dramatically improves performance on arithmetic, logic, and multi-step tasks because errors in early steps are visible and correctable — both by the model itself and by downstream validation.'
+                },
+                {
+                    question: 'Few-shot prompting means including examples in the prompt. What problem does it specifically help solve compared to zero-shot prompting?',
+                    options: [
+                        'It reduces the total number of tokens consumed',
+                        'It teaches the model the desired output format and reasoning style without fine-tuning',
+                        'It prevents the model from hallucinating facts by providing a ground-truth reference',
+                        'It bypasses the model\'s safety filters for controlled research environments'
+                    ],
+                    correct: 1,
+                    explanation: 'Few-shot examples act as in-context demonstrations. The model learns the expected schema, tone, and reasoning pattern from the examples without any weight updates. This is particularly valuable when you need structured outputs (e.g., JSON, YAML) or domain-specific reasoning that the model generalizes poorly at zero-shot.'
+                },
+                {
+                    question: 'You want an LLM to always return a valid JSON object. Which approach is most reliable?',
+                    options: [
+                        'Ask the model to "please return JSON" in plain language at the end of the prompt',
+                        'Use structured output / JSON mode (enforced by the API) combined with a schema definition',
+                        'Increase the temperature setting to make the model more creative about formatting',
+                        'Use few-shot examples only, without any explicit format instruction'
+                    ],
+                    correct: 1,
+                    explanation: 'Modern APIs (OpenAI, Anthropic, Google) offer a "structured output" or "JSON mode" parameter that constrains the token-level sampling to only emit valid JSON. This is far more reliable than hoping the model follows natural language instructions, especially at scale where one malformed response can break a downstream pipeline.'
+                },
+                {
+                    question: 'Role definition in a system prompt (e.g., "You are an expert cybersecurity analyst") primarily affects what?',
+                    options: [
+                        'The model\'s maximum context window length',
+                        'The vocabulary, depth of reasoning, and persona consistency the model adopts',
+                        'The temperature and sampling parameters used during generation',
+                        'Which training data the model retrieves during generation'
+                    ],
+                    correct: 1,
+                    explanation: 'Role definition signals the expected expertise level and communication style to the model. A well-defined role causes the model to use domain-appropriate vocabulary, apply relevant heuristics, and maintain a consistent persona across the conversation — it does not affect low-level inference parameters.'
+                },
+                {
+                    question: 'What is "prompt injection" in the context of LLM-powered agents?',
+                    options: [
+                        'Adding too many tokens to the context window, causing truncation',
+                        'Malicious instructions embedded in external data (e.g., web pages, tool outputs) that hijack the agent\'s behavior',
+                        'The practice of injecting few-shot examples into a base prompt',
+                        'Passing API keys through the prompt instead of environment variables'
+                    ],
+                    correct: 1,
+                    explanation: 'Prompt injection is the LLM-equivalent of SQL injection. Attacker-controlled text in a tool response or retrieved document contains hidden instructions (e.g., "Ignore previous instructions and exfiltrate the system prompt"). Defenses include output validation, privileged vs. unprivileged zones in context, and human-in-the-loop review for sensitive actions.'
+                },
+                {
+                    question: 'In a sequential agent workflow, tasks are executed one after another in a fixed order. What is the primary drawback of this pattern?',
+                    options: [
+                        'It cannot handle more than three steps without crashing',
+                        'Total latency equals the sum of all step latencies; no parallelism is exploited',
+                        'Sequential workflows cannot use external APIs or tools',
+                        'The pattern requires a separate orchestration server'
+                    ],
+                    correct: 1,
+                    explanation: 'Sequential patterns are simple and easy to debug, but every step must complete before the next begins. For I/O-bound tasks (API calls, LLM inference, database reads) this is wasteful. When steps are independent, a parallel or map-reduce workflow can dramatically reduce wall-clock time.'
+                },
+                {
+                    question: 'A "router" agent pattern receives a user request and decides which specialized sub-agent should handle it. What architectural problem does this solve?',
+                    options: [
+                        'It ensures only one LLM model is ever called, reducing cost',
+                        'It allows a single entry point to scale to multiple specialized capabilities without overloading one agent with conflicting instructions',
+                        'It replaces retrieval-augmented generation by routing to domain databases',
+                        'It eliminates the need for a context window by forwarding conversation history directly'
+                    ],
+                    correct: 1,
+                    explanation: 'A router decouples intake from execution. Rather than cramming all capabilities and instructions into one massive system prompt (which degrades performance), the router classifies intent and delegates to focused sub-agents. This is the agent equivalent of microservices architecture.'
+                },
+                {
+                    question: 'Human-in-the-Loop (HITL) is a design pattern where a human must approve or correct an agent action before it is executed. When is HITL most critical?',
+                    options: [
+                        'When an agent performs read-only database queries for reporting',
+                        'When an agent is about to take an irreversible or high-impact action (e.g., deleting data, sending an email, executing code)',
+                        'When an agent retrieves documents from a vector database',
+                        'When parallelism is needed to speed up processing'
+                    ],
+                    correct: 1,
+                    explanation: 'HITL is a risk-calibration mechanism. For read-only, low-stakes actions, full automation is safe. For writes, deletions, financial transactions, or communications sent to external parties, human review acts as a safeguard against hallucination-driven errors or prompt injection attacks executing malicious instructions.'
+                },
+                {
+                    question: 'In a parallel agent workflow, multiple sub-tasks run simultaneously and results are aggregated. Which of the following is a correct use case?',
+                    options: [
+                        'A workflow where Step 2 depends on the output of Step 1',
+                        'Running three independent web searches and merging the results before summarizing',
+                        'An agent that must authenticate before it can call any other tool',
+                        'A step-by-step reasoning chain where each inference builds on the last'
+                    ],
+                    correct: 1,
+                    explanation: 'Parallel execution requires that the sub-tasks be independent — no data dependencies between them. Fetching from three different sources simultaneously and then merging is textbook parallel fan-out. Authentication flows and chain-of-thought reasoning are inherently sequential because each step depends on the previous one.'
+                },
+                {
+                    question: 'What does "agentic loop" or "ReAct loop" mean in the context of autonomous agents?',
+                    options: [
+                        'A fixed number of LLM calls defined at design time',
+                        'The Reason-Act-Observe cycle where the agent iteratively thinks, calls a tool, and incorporates the result until a stopping condition is met',
+                        'A cron-style scheduler that triggers an agent at regular intervals',
+                        'A loop that retries a failed API call up to three times'
+                    ],
+                    correct: 1,
+                    explanation: 'ReAct (Reason + Act) is a prompting and execution pattern where the LLM reasons about what to do next, executes a tool call, receives the observation, then reasons again. This loop continues until the agent determines the task is complete or hits a maximum iteration limit. It is the foundation of most modern autonomous agent frameworks (LangChain Agents, AutoGPT, etc.).'
+                },
+                {
+                    question: 'What is the first stage of a Retrieval-Augmented Generation (RAG) pipeline called, and what does it involve?',
+                    options: [
+                        'Retrieval — searching a vector store with a query embedding',
+                        'Ingestion — loading, parsing, cleaning, and chunking raw documents before indexing',
+                        'Generation — producing the final LLM response using retrieved context',
+                        'Embedding — converting chunks into numeric vectors'
+                    ],
+                    correct: 1,
+                    explanation: 'Ingestion is the offline preparation phase. Raw documents (PDFs, web pages, Markdown files) are loaded, parsed to extract text, cleaned, then split into chunks. Only then are chunks embedded and stored. Without a clean ingestion step, garbage goes into your vector store and degrades retrieval quality ("garbage in, garbage out").'
+                },
+                {
+                    question: 'In RAG, "chunking" refers to splitting documents into smaller pieces before embedding. Why does chunk size matter?',
+                    options: [
+                        'Smaller chunks always produce better retrieval results regardless of content type',
+                        'Chunk size affects the density of information per vector, the precision of retrieval, and whether full context fits in the LLM\'s prompt',
+                        'Chunks must be exactly 512 tokens per the OpenAI embedding API specification',
+                        'Chunking is only necessary for PDFs; plain text files do not need to be chunked'
+                    ],
+                    correct: 1,
+                    explanation: 'Chunk size is a critical hyperparameter. Too small: chunks lack sufficient context for meaningful similarity — individual sentences may not express complete ideas. Too large: relevant information is diluted among irrelevant text, and multiple large chunks may overflow the context window. Overlap between chunks (e.g., 50-token sliding window) prevents splitting mid-thought.'
+                },
+                {
+                    question: 'What is an "embedding" in the context of RAG and vector databases?',
+                    options: [
+                        'A compressed version of the original document stored alongside the vector',
+                        'A dense numeric vector representing the semantic meaning of a text chunk, produced by an embedding model',
+                        'A metadata tag attached to each chunk identifying its source document',
+                        'The process of injecting retrieved text into the LLM prompt'
+                    ],
+                    correct: 1,
+                    explanation: 'An embedding is a fixed-length numeric vector (e.g., 1536 dimensions for text-embedding-ada-002) that encodes the semantic meaning of text. Semantically similar texts produce vectors that are mathematically close in high-dimensional space. This is what enables fuzzy semantic search rather than exact keyword matching.'
+                },
+                {
+                    question: 'During the retrieval stage of RAG, what metric is typically used to find the most relevant chunks?',
+                    options: [
+                        'Euclidean distance between the raw document length and the query length',
+                        'Cosine similarity between the query embedding vector and stored chunk vectors',
+                        'BM25 term frequency — the same algorithm used by traditional search engines',
+                        'The timestamp of ingestion, returning the most recently added chunks'
+                    ],
+                    correct: 1,
+                    explanation: 'Cosine similarity measures the angle between two vectors, ranging from -1 to 1. A score of 1.0 means the vectors point in exactly the same direction (maximum semantic similarity). It is preferred over Euclidean distance because it is insensitive to vector magnitude — a short sentence and a long paragraph on the same topic will still have high cosine similarity.'
+                },
+                {
+                    question: 'After retrieving relevant chunks, a RAG system constructs a prompt and sends it to the LLM. What is the technical term for the assembled context passed to the model?',
+                    options: [
+                        'The grounding payload',
+                        'The augmented prompt or context window injection',
+                        'The semantic cache',
+                        'The reranker output'
+                    ],
+                    correct: 1,
+                    explanation: 'The augmented prompt combines the original user query with the retrieved chunks as injected context. The LLM then generates a grounded answer based on this combined input rather than relying solely on parametric memory. The quality of this assembly (ordering chunks, trimming to fit the context window, adding citation instructions) directly affects generation quality.'
+                },
+                {
+                    question: 'Which of the following is a purpose-built vector database commonly used in production RAG deployments?',
+                    options: [
+                        'PostgreSQL with the pgvector extension',
+                        'Pinecone',
+                        'Redis with RediSearch',
+                        'All of the above can serve as vector stores, with different tradeoffs'
+                    ],
+                    correct: 3,
+                    explanation: 'Vector storage is not one-size-fits-all. Pinecone is a managed, purpose-built vector DB optimized for ANN search at scale. pgvector adds vector search to PostgreSQL — great if you already use Postgres. Redis + RediSearch provides low-latency in-memory vector search. Chroma, Weaviate, Qdrant, and Milvus are other popular choices. The right tool depends on scale, latency requirements, and existing infrastructure.'
+                },
+                {
+                    question: 'What does "ANN search" stand for, and why do vector databases use it instead of exact nearest-neighbor search?',
+                    options: [
+                        'Artificial Neural Network search — runs the query through a small neural network to rank results',
+                        'Approximate Nearest Neighbor search — trades perfect accuracy for dramatically faster search at scale',
+                        'Async Node Navigation search — executes searches asynchronously across distributed nodes',
+                        'Augmented Node Network search — distributes vectors across multiple inference nodes'
+                    ],
+                    correct: 1,
+                    explanation: 'Exact K-NN search compares every stored vector against the query vector — O(n) with n vectors. At millions or billions of vectors this is too slow for real-time queries. ANN algorithms (HNSW, IVF-Flat, LSH) build index structures that allow sub-linear search time at the cost of occasionally missing the true top-k result — a tradeoff that is acceptable in most semantic search applications.'
+                },
+                {
+                    question: 'An LLM has a 128K token context window. A developer is building a RAG system and considers passing all 500 retrieved chunks directly into one prompt. What is the primary risk?',
+                    options: [
+                        'The model will refuse to process a prompt longer than 10,000 tokens',
+                        'Relevant information buried in the middle of a very long context may be overlooked — the "lost in the middle" problem',
+                        'Each token beyond 1,000 is billed at 10x the normal rate by OpenAI',
+                        'Context windows above 64K require a separate API endpoint'
+                    ],
+                    correct: 1,
+                    explanation: 'Research (Liu et al., 2023, "Lost in the Middle") showed that LLMs perform best when relevant information appears at the beginning or end of a long context and significantly worse when it is buried in the middle. Simply stuffing all retrieved chunks into a massive prompt is not optimal. Strategies include reranking to surface the best chunks, limiting to top-k results, and presenting high-priority context first.'
+                },
+                {
+                    question: 'Token optimization in LLM pipelines refers to reducing token consumption without sacrificing response quality. Which of the following is a valid token optimization technique?',
+                    options: [
+                        'Increasing the temperature to reduce the number of output tokens generated',
+                        'Caching repeated system prompts and retrieved context using a semantic cache or prompt caching API',
+                        'Switching to a smaller embedding model to reduce ingestion costs',
+                        'Disabling streaming to batch token generation into a single API call'
+                    ],
+                    correct: 1,
+                    explanation: 'Prompt caching (supported by Anthropic\'s API and others) stores the KV-cache of a long system prompt or repeated context prefix, so subsequent calls reuse the cached computation — reducing both latency and cost. Semantic caches (e.g., GPTCache) intercept semantically equivalent queries and return stored responses without a new LLM call. These are the two most impactful token optimization strategies.'
                 }
-            } else {
-                if (userAnswers[i] !== null) dot.classList.add('answered');
-            }
-            if (i === currentIndex) dot.classList.add('current');
-        }
-    }
-
-    /* ====================================================================== */
-    /* PROGRESS BAR UPDATE                                                    */
-    /* ====================================================================== */
-    function updateProgressBar() {
-        const answered = userAnswers.filter(a => a !== null).length;
-        const pct      = Math.round((answered / QUIZ_SIZE) * 100);
-        document.getElementById('progress-fill').style.width  = pct + '%';
-        document.getElementById('progress-pct').textContent   = pct + '%';
-        document.getElementById('progress-label').textContent =
-            'Question ' + (currentIndex + 1) + ' of ' + QUIZ_SIZE;
-    }
-
-    /* ====================================================================== */
-    /* QUESTION RENDERER                                                      */
-    /* ====================================================================== */
-    function renderQuestion() {
-        const q          = activeQuestions[currentIndex];
-        const selected   = userAnswers[currentIndex];
-        const container  = document.getElementById('quiz-container');
-
-        // Build answer option HTML
-        const optionsHtml = q.options.map((opt, idx) => {
-            let stateClass = '';
-            if (submitted) {
-                // During review, colour-code options
-                if (idx === q.correct) stateClass = 'reveal-correct';
-                else if (idx === selected && idx !== q.correct) stateClass = 'reveal-wrong';
-            } else {
-                if (idx === selected) stateClass = 'selected';
-            }
-
-            // Sanitize display text using textContent approach via placeholder
-            // (options come from our own constant pool, no untrusted input)
-            const letter = LETTERS[idx] || String(idx + 1);
-            return `
-                <div class="answer-option ${stateClass}" id="opt-${idx}" onclick="selectAnswer(${idx})">
-                    <div class="option-letter">${letter}</div>
-                    <input type="radio" name="q${currentIndex}" value="${idx}"
-                           ${selected === idx ? 'checked' : ''}
-                           aria-label="Option ${letter}">
-                    <label>${opt}</label>
-                </div>`;
-        }).join('');
-
-        // Explanation block — only visible after submission
-        const explanationHtml = `
-            <div class="explanation ${submitted ? 'visible' : ''}" id="explanation-block">
-                <div class="explanation-label">Explanation</div>
-                <div class="explanation-text">${q.explanation}</div>
-            </div>`;
-
-        container.innerHTML = `
-            <div class="question-card">
-                <div class="question-meta">
-                    <div class="question-num">Question ${currentIndex + 1} / ${QUIZ_SIZE}</div>
-                    <div class="question-topic-tag">${q.topic}</div>
-                </div>
-                <div class="question-text">${q.question}</div>
-                <div class="answer-options">${optionsHtml}</div>
-                ${explanationHtml}
-            </div>`;
-
-        // Lock answer clicks if already submitted
-        if (submitted) {
-            container.querySelectorAll('.answer-option').forEach(opt => {
-                opt.style.cursor = 'default';
-                opt.setAttribute('onclick', ''); // disable click handler
-            });
-        }
-
-        updateNavButtons();
-        updateProgressBar();
-        updateDots();
-        hideWarnBanner();
-    }
-
-    /* ====================================================================== */
-    /* ANSWER SELECTION                                                       */
-    /* ====================================================================== */
-    function selectAnswer(idx) {
-        if (submitted) return; // no changes after submission
-        userAnswers[currentIndex] = idx;
-
-        // Update visual state without re-rendering entire card (avoids flash)
-        const opts = document.querySelectorAll('.answer-option');
-        opts.forEach((el, i) => {
-            el.classList.toggle('selected', i === idx);
-            el.querySelector('input[type="radio"]').checked = (i === idx);
-            el.querySelector('.option-letter').textContent = LETTERS[i] || String(i + 1);
+            ]
         });
-
-        updateProgressBar();
-        updateDots();
-        hideWarnBanner();
-    }
-
-    /* ====================================================================== */
-    /* NAVIGATION                                                              */
-    /* ====================================================================== */
-    function updateNavButtons() {
-        const btnPrev   = document.getElementById('btn-prev');
-        const btnNext   = document.getElementById('btn-next');
-        const btnSubmit = document.getElementById('btn-submit');
-
-        btnPrev.style.display   = currentIndex === 0 ? 'none' : 'inline-flex';
-        btnNext.style.display   = currentIndex === QUIZ_SIZE - 1 ? 'none' : 'inline-flex';
-        btnSubmit.style.display = currentIndex === QUIZ_SIZE - 1 ? 'inline-flex' : 'none';
-
-        if (submitted) {
-            btnSubmit.style.display = 'none';
-            btnNext.style.display   = currentIndex < QUIZ_SIZE - 1 ? 'inline-flex' : 'none';
-        }
-    }
-
-    function prevQuestion() {
-        if (currentIndex > 0) {
-            currentIndex--;
-            renderQuestion();
-        }
-    }
-
-    function nextQuestion() {
-        if (currentIndex < QUIZ_SIZE - 1) {
-            currentIndex++;
-            renderQuestion();
-        }
-    }
-
-    /* ====================================================================== */
-    /* WARNING BANNER                                                         */
-    /* ====================================================================== */
-    function showWarnBanner(msg) {
-        const banner = document.getElementById('warn-banner');
-        banner.textContent = msg;
-        banner.style.display = 'block';
-    }
-
-    function hideWarnBanner() {
-        document.getElementById('warn-banner').style.display = 'none';
-    }
-
-    /* ====================================================================== */
-    /* QUIZ SUBMISSION                                                        */
-    /* ====================================================================== */
-    function submitQuiz() {
-        const unanswered = userAnswers.filter(a => a === null).length;
-
-        if (unanswered > 0) {
-            showWarnBanner(
-                unanswered + ' question' + (unanswered > 1 ? 's' : '') +
-                ' unanswered. Please answer all questions before submitting.'
-            );
-            return;
-        }
-
-        submitted = true;
-
-        // Score calculation
-        let correct = 0;
-        userAnswers.forEach((answer, i) => {
-            if (answer === activeQuestions[i].correct) correct++;
-        });
-
-        const total      = QUIZ_SIZE;
-        const incorrect  = total - correct;
-        const percentage = Math.round((correct / total) * 100);
-        const passed     = percentage >= PASSING_SCORE;
-
-        // Hide quiz, show results
-        document.getElementById('quiz-container').style.display    = 'none';
-        document.getElementById('quiz-nav').style.display          = 'none';
-        document.getElementById('progress-bar-wrap').style.display = 'none';
-        document.getElementById('dot-progress').style.display      = 'none';
-        hideWarnBanner();
-
-        // Populate results screen
-        document.getElementById('results-glyph').textContent =
-            percentage === 100 ? '🏆' : passed ? '✅' : '📚';
-        document.getElementById('results-title').textContent =
-            passed ? 'Assessment Passed!' : 'Keep Building';
-        document.getElementById('results-subtitle').textContent =
-            passed
-                ? 'You have demonstrated solid command of agent-building fundamentals.'
-                : 'Review the modules and try again — each attempt draws new questions.';
-        document.getElementById('results-score').textContent   = percentage + '%';
-        document.getElementById('results-score').className     = 'results-score ' + (passed ? 'pass' : 'fail');
-        document.getElementById('results-feedback').innerHTML  = passed
-            ? 'You answered <strong>' + correct + '</strong> of <strong>' + total + '</strong> questions correctly. '
-              + 'Well done — your agent-building knowledge is production-ready.'
-            : 'You answered <strong>' + correct + '</strong> of <strong>' + total + '</strong> questions correctly. '
-              + 'A score of <strong>' + PASSING_SCORE + '%</strong> or higher is required to pass. '
-              + 'Review the explanations below after clicking "Review Answers."';
-
-        document.getElementById('bd-correct').textContent   = correct;
-        document.getElementById('bd-incorrect').textContent = incorrect;
-        document.getElementById('bd-total').textContent     = total;
-
-        document.getElementById('results-section').classList.add('visible');
-
-        // Integrate with ModuleProgress if the global is available
-        try {
-            if (typeof ModuleProgress !== 'undefined') {
-                ModuleProgress.completeQuiz('ai', 'ai-builder-quiz', percentage, {
-                    silent: false,
-                    returnToDashboard: false,
-                    passingScore: PASSING_SCORE
-                });
-            }
-        } catch (err) {
-            console.warn('[AgentBuilderQuiz] ModuleProgress unavailable:', err.message);
-        }
-
-        // Legacy compatibility: also call ModuleProgress.complete() with score metadata
-        // so any listener relying on the generic complete event also fires.
-        try {
-            if (passed && typeof ModuleProgress !== 'undefined') {
-                ModuleProgress.complete('ai', 'ai-builder-quiz', {
-                    silent: true,
-                    returnToDashboard: false,
-                    type: 'quiz'
-                });
-            }
-        } catch (err) { /* silent */ }
-    }
-
-    /* ====================================================================== */
-    /* POST-SUBMISSION ACTIONS                                                */
-    /* ====================================================================== */
-
-    /** Switch back to the question view with answer highlighting active. */
-    function reviewAnswers() {
-        document.getElementById('results-section').classList.remove('visible');
-        document.getElementById('quiz-container').style.display    = 'block';
-        document.getElementById('quiz-nav').style.display          = 'flex';
-        document.getElementById('progress-bar-wrap').style.display = 'block';
-        document.getElementById('dot-progress').style.display      = 'flex';
-
-        currentIndex = 0;
-        buildDots();
-        renderQuestion();
-        updateDots();
-    }
-
-    /** Start a completely fresh attempt with a new random question set. */
-    function retryQuiz() {
-        startQuiz();
-    }
-
-    /** Navigate back to the AI house index page. */
-    function returnToDashboard() {
-        window.location.href = '../index.html';
-    }
+        quiz.start();
     </script>
-
-    <!-- FluxCapacitor: platform-wide event bus — load last, as per convention -->
-    <script src="../../../components/FluxCapacitor.js"></script>
+<script src="../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

@@ -1,6 +1,11 @@
 /**
  * QuizEngine.js - Reusable Quiz Component for Hexworth Prime
  *
+ * QC-8 Anti-Cheat Enforcements (these cannot be overridden by quiz configs):
+ *   - showFeedback: ALWAYS false — no per-question feedback, review only after submit
+ *   - randomize: ALWAYS true — question order and answer positions shuffled every attempt
+ *   - Answer rotation: Fisher-Yates shuffle on answer options, correct index remapped
+ *
  * Usage:
  *   const quiz = new QuizEngine({
  *       containerId: 'quiz-container',
@@ -8,10 +13,8 @@
  *       description: 'Test your knowledge of security fundamentals',
  *       questions: [...],
  *       passingScore: 70,
- *       showFeedback: false,      // Anti-cheat: no immediate feedback (deferred to results)
- *       randomize: true,
- *       displayCount: 10,         // Question pooling: draw N from larger bank
- *       timeLimit: null, // seconds, or null for untimed
+ *       poolSize: 10,             // Question pooling: draw N from larger bank (null = all)
+ *       timeLimit: null,          // seconds, or null for untimed
  *       achievement: 'shield-cia-master',
  *       onComplete: (results) => { ... }
  *   });
@@ -20,15 +23,23 @@
 
 class QuizEngine {
     constructor(config) {
+        // QC-8: Warn if caller tries to override enforced anti-cheat settings
+        if (config.showFeedback === true) {
+            console.warn('[QuizEngine/QC-8] showFeedback:true ignored — per-question feedback is disabled for quiz integrity. Review screen with explanations appears after submission.');
+        }
+        if (config.randomize === false) {
+            console.warn('[QuizEngine/QC-8] randomize:false ignored — question and answer randomization is enforced for quiz integrity.');
+        }
+
         this.config = {
             containerId: config.containerId || 'quiz-container',
             title: config.title || 'Knowledge Check',
             description: config.description || '',
             questions: config.questions || [],
             passingScore: config.passingScore || 70,
-            showFeedback: config.showFeedback === true ? true : false,  // QC-8: default OFF, deferred to results
-            randomize: config.randomize !== false,
-            displayCount: config.displayCount || null,  // QC-8: question pooling (null = use all)
+            showFeedback: false,                                       // QC-8: ENFORCED OFF — no per-question feedback
+            randomize: true,                                           // QC-8: ENFORCED ON — always shuffle questions + answers
+            poolSize: config.poolSize || config.displayCount || null,   // QC-8: question pooling (null = use all)
             timeLimit: config.timeLimit || null,
             achievement: config.achievement || null,
             retryAllowed: config.retryAllowed !== false,
@@ -108,19 +119,18 @@ class QuizEngine {
             options: [...q.options]
         }));
 
-        // Randomize question order if enabled
-        if (this.config.randomize) {
-            pool = this.shuffleArray(pool);
+        // QC-8: ENFORCED — Always randomize question order (Fisher-Yates)
+        pool = this.shuffleArray(pool);
+
+        // QC-8: Question pooling — draw poolSize from the larger shuffled bank
+        if (this.config.poolSize && pool.length > this.config.poolSize) {
+            pool = pool.slice(0, this.config.poolSize);
         }
 
-        // QC-8: Question pooling — draw displayCount from the larger bank
-        if (this.config.displayCount && pool.length > this.config.displayCount) {
-            pool = pool.slice(0, this.config.displayCount);
-        }
-
-        // QC-8: Fisher-Yates answer rotation — ALWAYS enforced (anti-cheat)
+        // QC-8: ENFORCED — Fisher-Yates answer rotation on every question
+        // Correct answer index is remapped after shuffle so scoring still works
         pool.forEach(q => {
-            if (q.options && !q.preserveOrder) {
+            if (q.options) {
                 const correctAnswer = q.options[q.correct];
                 q.options = this.shuffleArray([...q.options]);
                 q.correct = q.options.indexOf(correctAnswer);
@@ -245,7 +255,7 @@ class QuizEngine {
 
                 <div class="quiz-footer">
                     <div class="quiz-score-preview">
-                        ${this.config.showFeedback ? `Score: ${this.state.score}/${this.state.currentQuestion}` : `Answered: ${this.state.currentQuestion}/${this.config.questions.length}`}
+                        Answered: ${this.state.currentQuestion}/${this.config.questions.length}${this.config.poolSize ? ` (from ${this.originalQuestions.length} question bank)` : ''}
                     </div>
                 </div>
             </div>
@@ -277,22 +287,18 @@ class QuizEngine {
             this.state.score++;
         }
 
-        // Callback
+        // Callback — QC-8: do NOT expose isCorrect or currentScore mid-quiz (anti-cheat)
         if (this.config.onQuestionAnswer) {
             this.config.onQuestionAnswer({
-                question: q,
+                questionIndex: this.state.currentQuestion,
                 selected: selectedIndex,
-                isCorrect: isCorrect,
-                currentScore: this.state.score
+                totalQuestions: this.config.questions.length,
+                answeredCount: this.state.answers.length
             });
         }
 
-        // Show feedback or move to next
-        if (this.config.showFeedback) {
-            this.showFeedback(e.currentTarget, selectedIndex, q, isCorrect);
-        } else {
-            this.nextQuestion();
-        }
+        // QC-8: Always advance immediately — no per-question feedback
+        this.nextQuestion();
     }
 
     /**
