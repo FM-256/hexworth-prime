@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch9: Async &amp; Concurrency - Python Engineering | Hexworth Prime</title>
+    <style>
+        :root {
+            --house-color: #4ade80;
+            --house-color-dark: #22c55e;
+            --house-color-light: #86efac;
+            --python-blue: #306998;
+            --python-blue-light: #4b8bbe;
+            --accent-cyan: #22d3ee;
+            --success-color: #22c55e;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-primary: #c8d6e5;
+            --text-secondary: #7a8b9a;
+            --text-heading: #e2e8f0;
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1729;
+            --bg-card: rgba(14, 22, 40, 0.85);
+            --border-color: rgba(74, 222, 128, 0.15);
+            --border-glow: rgba(74, 222, 128, 0.35);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+
+        .top-header { background: rgba(10, 14, 26, 0.95); padding: 1rem 2rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; backdrop-filter: blur(10px); }
+        .top-header-left { display: flex; align-items: center; gap: 1rem; }
+        .back-btn { color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; }
+        .back-btn:hover { color: var(--house-color); }
+        .chapter-badge { background: rgba(74, 222, 128, 0.1); color: var(--house-color); padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(74, 222, 128, 0.2); }
+        .progress-container { display: flex; align-items: center; gap: 0.75rem; }
+        .progress-bar { width: 150px; height: 8px; background: rgba(74, 222, 128, 0.1); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--python-blue), var(--house-color)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .progress-text { color: var(--text-secondary); font-size: 0.8rem; min-width: 80px; }
+
+        .layout { display: flex; min-height: calc(100vh - 60px); }
+        .sidebar { width: 280px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 1.5rem 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; flex-shrink: 0; }
+        .nav-header { padding: 0 1.25rem 1rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); }
+        .nav-list { list-style: none; }
+        .nav-item { margin-bottom: 2px; }
+        .nav-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease; cursor: pointer; border-left: 3px solid transparent; }
+        .nav-link:hover { background: rgba(74, 222, 128, 0.05); border-left-color: rgba(74, 222, 128, 0.3); }
+        .nav-link.active { background: rgba(74, 222, 128, 0.1); border-left-color: var(--house-color); color: var(--house-color); font-weight: 600; }
+        .nav-link.completed .nav-icon { background: var(--success-color); color: white; }
+        .nav-icon { width: 26px; height: 26px; border-radius: 50%; background: rgba(74, 222, 128, 0.1); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; color: var(--text-secondary); }
+
+        .main-content { flex: 1; padding: 2.5rem 3rem; max-width: 900px; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .section h2 { font-size: 1.8rem; color: var(--text-heading); margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid var(--border-color); }
+        .section h3 { font-size: 1.3rem; color: var(--text-heading); margin: 2rem 0 1rem; }
+        .section h4 { font-size: 1.1rem; color: var(--house-color); margin: 1.5rem 0 0.75rem; }
+        .section p { margin-bottom: 1rem; }
+        .section ul, .section ol { margin: 0.5rem 0 1.5rem 1.5rem; }
+        .section li { margin-bottom: 0.4rem; }
+
+        code { background: rgba(74, 222, 128, 0.08); color: var(--house-color); padding: 0.15rem 0.4rem; border-radius: 4px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9em; }
+        pre { background: #1a1f2e; border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin: 1rem 0 1.5rem; overflow-x: auto; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.88rem; line-height: 1.6; color: #d4d4d4; }
+        pre code { background: none; color: inherit; padding: 0; }
+        .comment { color: #6a9955; }
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .function { color: #dcdcaa; }
+        .builtin { color: #4ec9b0; }
+
+        .callout { border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0; border-left: 4px solid; }
+        .callout-security { background: rgba(239, 68, 68, 0.08); border-color: #ef4444; }
+        .callout-security .callout-title { color: #fca5a5; }
+        .callout-tip { background: rgba(74, 222, 128, 0.08); border-color: var(--house-color); }
+        .callout-tip .callout-title { color: var(--house-color); }
+        .callout-info { background: rgba(48, 105, 152, 0.1); border-color: var(--python-blue-light); }
+        .callout-info .callout-title { color: var(--python-blue-light); }
+        .callout-title { font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        .lab-exercise { background: rgba(48, 105, 152, 0.08); border: 1px solid rgba(48, 105, 152, 0.25); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+        .lab-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .lab-badge { background: var(--python-blue); color: white; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
+        .lab-title { font-size: 1.1rem; font-weight: 600; color: var(--text-heading); }
+        .lab-instructions { color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem; }
+
+        .code-editor { background: #1e1e1e; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+        .editor-header { background: #2d2d2d; padding: 0.5rem 1rem; }
+        .editor-tab { color: #ccc; font-size: 0.8rem; font-family: 'Consolas', monospace; }
+        .editor-textarea { width: 100%; min-height: 220px; background: #1e1e1e; border: none; color: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.88rem; padding: 1rem; resize: vertical; line-height: 1.6; tab-size: 4; outline: none; }
+
+        .output-panel { background: #0d1117; border-radius: 8px; margin-bottom: 1rem; overflow: hidden; }
+        .output-header { background: #161b22; padding: 0.5rem 1rem; font-size: 0.8rem; color: #7a8b9a; font-weight: 600; }
+        .output-content { padding: 1rem; color: #c9d1d9; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; min-height: 60px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+
+        .lab-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .lab-btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .btn-run { background: var(--house-color); color: #0a0e1a; }
+        .btn-run:hover { background: var(--house-color-light); }
+        .btn-check { background: var(--python-blue); color: white; }
+        .btn-check:hover { background: var(--python-blue-light); }
+        .btn-hint { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .btn-hint:hover { background: rgba(245, 158, 11, 0.25); }
+        .btn-reset { background: rgba(127, 127, 127, 0.1); color: var(--text-secondary); border: 1px solid rgba(127, 127, 127, 0.2); }
+        .btn-reset:hover { background: rgba(127, 127, 127, 0.2); }
+
+        .hint-box { background: rgba(245, 158, 11, 0.08); border-left: 4px solid var(--warning-color); padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; display: none; color: var(--text-primary); }
+        .hint-box.show { display: block; }
+        .success-message { background: rgba(34, 197, 94, 0.1); color: var(--house-color-light); border-left: 4px solid var(--success-color); padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; display: none; }
+        .success-message.show { display: block; }
+        .error-message { background: rgba(239, 68, 68, 0.1); color: #fca5a5; border-left: 4px solid var(--error-color); padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; display: none; }
+        .error-message.show { display: block; }
+
+        .section-complete { background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(34, 197, 94, 0.06) 100%); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 12px; padding: 2rem; text-align: center; margin-top: 2rem; }
+        .complete-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .complete-title { font-size: 1.3rem; color: var(--house-color); margin-bottom: 0.5rem; }
+        .complete-message { color: var(--text-secondary); margin-bottom: 1rem; }
+        .next-btn { background: var(--house-color); color: #0a0e1a; padding: 0.75rem 2rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.95rem; transition: all 0.2s ease; }
+        .next-btn:hover { background: var(--house-color-light); transform: translateY(-2px); }
+
+        .module-complete { background: linear-gradient(135deg, rgba(74, 222, 128, 0.12), rgba(48, 105, 152, 0.08)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 16px; padding: 3rem 2rem; text-align: center; margin-top: 2rem; }
+        .module-complete h2 { color: var(--house-color); margin-bottom: 1rem; }
+        .module-complete-btn { background: linear-gradient(135deg, var(--house-color), var(--house-color-dark)); color: #0a0e1a; padding: 1rem 2.5rem; border-radius: 10px; border: none; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: all 0.3s; margin-top: 1rem; }
+        .module-complete-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(74, 222, 128, 0.3); }
+
+        .review-badge { background: rgba(167, 139, 250, 0.2); color: #c4b5fd; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .code-review { background: rgba(167, 139, 250, 0.06); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main-content { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-header">
+        <div class="top-header-left">
+            <a href="index.html" class="back-btn">&larr; Course Home</a>
+            <span class="chapter-badge">Chapter 9</span>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <div class="nav-header">Chapter Sections</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a class="nav-link active" data-section="section1"><span class="nav-icon">1</span> Threading</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section2"><span class="nav-icon">2</span> Multiprocessing</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section3"><span class="nav-icon">3</span> asyncio Fundamentals</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section4"><span class="nav-icon">4</span> Async Network Ops</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section5"><span class="nav-icon">5</span> Race Conditions &amp; Safety</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+
+            <!-- ==================== SECTION 1: Threading ==================== -->
+            <div class="section active" id="section1">
+                <h2>Threading</h2>
+                <p>Python's <code>threading</code> module lets you run tasks concurrently in the same process. Threads share memory, making them ideal for I/O-bound work like network scanning, file reads, and API calls where the CPU spends most of its time waiting.</p>
+
+                <h3>Core Threading Primitives</h3>
+                <ul>
+                    <li><code>threading.Thread</code> &mdash; create and start a thread</li>
+                    <li><code>threading.Lock</code> &mdash; mutual exclusion for shared state</li>
+                    <li><code>threading.RLock</code> &mdash; reentrant lock (same thread can acquire multiple times)</li>
+                    <li><code>threading.Event</code> &mdash; signal between threads</li>
+                </ul>
+
+                <h3>Thread Pool Executor</h3>
+                <p>For most use cases, <code>ThreadPoolExecutor</code> from <code>concurrent.futures</code> is cleaner than managing threads manually. It handles thread lifecycle, reuse, and result collection automatically.</p>
+
+                <pre><code><span class="keyword">import</span> threading
+<span class="keyword">from</span> concurrent.futures <span class="keyword">import</span> ThreadPoolExecutor
+
+<span class="comment"># Shared results list — must be protected by a lock</span>
+results = []
+lock = threading.Lock()
+
+<span class="keyword">def</span> <span class="function">scan_host</span>(ip):
+    <span class="string">"""Simulate scanning a host for open ports."""</span>
+    <span class="keyword">import</span> time
+    time.sleep(<span class="builtin">0.1</span>)  <span class="comment"># Simulated network delay</span>
+    open_ports = [<span class="builtin">22</span>, <span class="builtin">80</span>] <span class="keyword">if</span> ip.endswith(<span class="string">'.1'</span>) <span class="keyword">else</span> [<span class="builtin">443</span>]
+    <span class="keyword">with</span> lock:  <span class="comment"># Protect the shared list from concurrent writes</span>
+        results.append({<span class="string">"ip"</span>: ip, <span class="string">"ports"</span>: open_ports})
+
+<span class="comment"># Thread pool: max_workers controls concurrency level</span>
+<span class="keyword">with</span> ThreadPoolExecutor(max_workers=<span class="builtin">10</span>) <span class="keyword">as</span> executor:
+    hosts = [<span class="string">f"10.0.0.{i}"</span> <span class="keyword">for</span> i <span class="keyword">in</span> <span class="builtin">range</span>(<span class="builtin">1</span>, <span class="builtin">11</span>)]
+    executor.map(scan_host, hosts)  <span class="comment"># Runs scan_host for each host concurrently</span>
+
+<span class="builtin">print</span>(<span class="string">f"Scanned {len(results)} hosts"</span>)</code></pre>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">Info: The GIL and Threading</div>
+                    <p>Python's Global Interpreter Lock (GIL) means threads cannot run Python bytecode truly in parallel. However, the GIL is released during I/O operations — so network calls, file reads, and database queries all run concurrently. Threading is the right tool for I/O-bound work.</p>
+                </div>
+
+                <div class="callout callout-security">
+                    <div class="callout-title">Security: Why Thread-Safe Scanning Matters</div>
+                    <p>Network scanners write results from multiple threads simultaneously. Without a Lock, two threads can corrupt the results list with interleaved writes — producing incomplete or duplicated records. Always protect shared state in concurrent security tools.</p>
+                </div>
+
+                <!-- LAB 1 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 1</span>
+                        <span class="lab-title">Threaded Port Scanner</span>
+                    </div>
+                    <p class="lab-instructions">Build a <code>ThreadedScanner</code> class that scans multiple hosts concurrently using <code>ThreadPoolExecutor</code>. Use a <code>threading.Lock</code> to protect the shared results list. The <code>scan</code> method should accept a list of hosts and return the collected results.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">threaded_scanner.py</span></div>
+                        <textarea class="editor-textarea" id="lab1-code">import threading
+from concurrent.futures import ThreadPoolExecutor
+
+class ThreadedScanner:
+    """Concurrent host scanner using a thread pool."""
+
+    def __init__(self, max_workers=10):
+        self.max_workers = max_workers
+        self.results = []
+        self.lock = threading.Lock()
+
+    def _scan_host(self, ip):
+        """Scan a single host and append result to shared list."""
+        # Simulate scan: hosts ending in .1 have ports 22, 80 open
+        open_ports = [22, 80] if ip.endswith('.1') else [443]
+        # TODO: protect self.results with self.lock when appending
+        pass
+
+    def scan(self, hosts):
+        """Scan all hosts concurrently using ThreadPoolExecutor."""
+        # TODO: use ThreadPoolExecutor with self.max_workers
+        # TODO: call executor.map to run _scan_host on each host
+        # TODO: return self.results
+        pass
+
+# Test
+scanner = ThreadedScanner(max_workers=5)
+hosts = [f"192.168.1.{i}" for i in range(1, 6)]
+results = scanner.scan(hosts)
+for r in results:
+    print(r)</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab1-output">Click "Run" to see simulated output or "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(1)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(1)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(1)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(1)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint1"><strong>Hint:</strong> In <code>_scan_host</code>: use <code>with self.lock: self.results.append({...})</code>. In <code>scan</code>: use <code>with ThreadPoolExecutor(max_workers=self.max_workers) as executor: executor.map(self._scan_host, hosts)</code>, then return <code>self.results</code>.</div>
+                    <div class="success-message" id="success1">&#10003; Your threaded scanner processes multiple hosts simultaneously. In real pen testing, this turns a 10-minute sequential scan into a 10-second concurrent one.</div>
+                    <div class="error-message" id="error1"></div>
+                </div>
+
+                <div class="section-complete" id="complete1" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Threading with thread-safe state management understood.</p>
+                    <button class="next-btn" onclick="goToSection('section2')">Continue to Multiprocessing &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 2: Multiprocessing ==================== -->
+            <div class="section" id="section2">
+                <h2>Multiprocessing</h2>
+                <p>When tasks are CPU-bound (hashing, encryption, parsing large files), threading hits the GIL ceiling. The <code>multiprocessing</code> module spawns separate OS processes, each with its own Python interpreter — achieving true parallelism across all CPU cores.</p>
+
+                <h3>Process vs Thread: The Key Distinction</h3>
+                <ul>
+                    <li><strong>Threading</strong> &mdash; I/O-bound work, shared memory, limited by GIL</li>
+                    <li><strong>Multiprocessing</strong> &mdash; CPU-bound work, separate memory spaces, true parallelism</li>
+                </ul>
+
+                <h3>Pool and Process</h3>
+                <pre><code><span class="keyword">from</span> multiprocessing <span class="keyword">import</span> Pool, cpu_count
+
+<span class="keyword">def</span> <span class="function">crack_hash</span>(args):
+    <span class="string">"""Try to match a hash against a chunk of the wordlist."""</span>
+    target_hash, wordlist_chunk = args
+    <span class="keyword">import</span> hashlib
+    <span class="keyword">for</span> word <span class="keyword">in</span> wordlist_chunk:
+        <span class="keyword">if</span> hashlib.sha256(word.encode()).hexdigest() == target_hash:
+            <span class="keyword">return</span> word  <span class="comment"># Match found</span>
+    <span class="keyword">return</span> <span class="builtin">None</span>  <span class="comment"># No match in this chunk</span>
+
+<span class="comment"># Split wordlist evenly across all CPU cores</span>
+wordlist = [<span class="string">"password"</span>, <span class="string">"123456"</span>, <span class="string">"admin"</span>, <span class="string">"letmein"</span>, <span class="string">"qwerty"</span>]
+cores = cpu_count()
+chunks = [wordlist[i::cores] <span class="keyword">for</span> i <span class="keyword">in</span> <span class="builtin">range</span>(cores)]
+
+target = <span class="string">"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"</span>
+
+<span class="keyword">with</span> Pool() <span class="keyword">as</span> pool:
+    results = pool.map(crack_hash, [(target, chunk) <span class="keyword">for</span> chunk <span class="keyword">in</span> chunks])
+    match = <span class="builtin">next</span>((r <span class="keyword">for</span> r <span class="keyword">in</span> results <span class="keyword">if</span> r), <span class="builtin">None</span>)
+    <span class="builtin">print</span>(<span class="string">f"Match: {match}"</span>)  <span class="comment"># Match: password</span></code></pre>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">Tip: Chunking Strategy</div>
+                    <p>Use <code>wordlist[i::cpu_count()]</code> (stride slicing) to split a list evenly across cores. Each core gets every N-th element, distributing work uniformly without contiguous blocks that might have biased difficulty.</p>
+                </div>
+
+                <!-- LAB 2 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 2</span>
+                        <span class="lab-title">Parallel Hash Cracker</span>
+                    </div>
+                    <p class="lab-instructions">Write a <code>parallel_crack</code> function using <code>multiprocessing.Pool</code> to check a target hash against chunks of a wordlist. Split the wordlist by <code>cpu_count()</code>, map a worker function across chunks, and return the matched plaintext or <code>None</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">hash_cracker.py</span></div>
+                        <textarea class="editor-textarea" id="lab2-code">from multiprocessing import Pool, cpu_count
+import hashlib
+
+def worker(args):
+    """Check each word in a wordlist chunk against the target hash."""
+    target_hash, chunk = args
+    for word in chunk:
+        if hashlib.sha256(word.encode()).hexdigest() == target_hash:
+            return word
+    return None
+
+def parallel_crack(target_hash, wordlist):
+    """Use multiprocessing Pool to search the wordlist in parallel."""
+    # TODO: split wordlist into chunks by cpu_count()
+    # TODO: use Pool and pool.map to run worker across chunks
+    # TODO: return the matched word or None
+    pass
+
+# Test
+wordlist = ["alpha", "bravo", "charlie", "delta", "password", "secure99"]
+target = hashlib.sha256("password".encode()).hexdigest()
+result = parallel_crack(target, wordlist)
+print(f"Cracked: {result}")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab2-output">Click "Run" to see simulated output or "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(2)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(2)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(2)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(2)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint2"><strong>Hint:</strong> <code>cores = cpu_count()</code>, then <code>chunks = [wordlist[i::cores] for i in range(cores)]</code>. Inside <code>with Pool() as pool:</code>, call <code>results = pool.map(worker, [(target_hash, c) for c in chunks])</code>. Return <code>next((r for r in results if r), None)</code>.</div>
+                    <div class="success-message" id="success2">&#10003; Multiprocessing leverages all CPU cores for computation-heavy tasks. Hash cracking, file analysis, and malware scanning all benefit from true parallelism.</div>
+                    <div class="error-message" id="error2"></div>
+                </div>
+
+                <div class="section-complete" id="complete2" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">CPU-bound parallelism with multiprocessing mastered.</p>
+                    <button class="next-btn" onclick="goToSection('section3')">Continue to asyncio Fundamentals &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 3: asyncio Fundamentals ==================== -->
+            <div class="section" id="section3">
+                <h2>asyncio Fundamentals</h2>
+                <p>asyncio provides a single-threaded concurrency model using an event loop. Coroutines (functions defined with <code>async def</code>) are suspended at <code>await</code> points, allowing other coroutines to run while waiting for I/O — with zero thread overhead.</p>
+
+                <h3>The Event Loop Model</h3>
+                <ul>
+                    <li><code>async def</code> &mdash; defines a coroutine function</li>
+                    <li><code>await</code> &mdash; suspends the current coroutine, yields control back to the loop</li>
+                    <li><code>asyncio.gather()</code> &mdash; runs multiple coroutines concurrently</li>
+                    <li><code>asyncio.create_task()</code> &mdash; schedules a coroutine as a background task</li>
+                    <li><code>asyncio.run()</code> &mdash; entry point: creates and runs the event loop</li>
+                </ul>
+
+                <pre><code><span class="keyword">import</span> asyncio
+
+<span class="keyword">async def</span> <span class="function">check_service</span>(host, port, timeout=<span class="builtin">2.0</span>):
+    <span class="string">"""Check if a service is responding on the given port."""</span>
+    <span class="keyword">try</span>:
+        reader, writer = <span class="keyword">await</span> asyncio.wait_for(
+            asyncio.open_connection(host, port),
+            timeout=timeout
+        )
+        writer.close()
+        <span class="keyword">await</span> writer.wait_closed()
+        <span class="keyword">return</span> {<span class="string">"host"</span>: host, <span class="string">"port"</span>: port, <span class="string">"status"</span>: <span class="string">"open"</span>}
+    <span class="keyword">except</span> (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+        <span class="keyword">return</span> {<span class="string">"host"</span>: host, <span class="string">"port"</span>: port, <span class="string">"status"</span>: <span class="string">"closed"</span>}
+
+<span class="keyword">async def</span> <span class="function">scan_services</span>(host, ports):
+    <span class="string">"""Scan multiple ports concurrently using gather."""</span>
+    tasks = [check_service(host, port) <span class="keyword">for</span> port <span class="keyword">in</span> ports]
+    results = <span class="keyword">await</span> asyncio.gather(*tasks)
+    <span class="keyword">return</span> results
+
+<span class="comment"># All checks run concurrently — total time ≈ max single check time</span>
+results = asyncio.run(scan_services(<span class="string">"10.0.0.1"</span>, [<span class="builtin">22</span>, <span class="builtin">80</span>, <span class="builtin">443</span>, <span class="builtin">8080</span>, <span class="builtin">3306</span>]))
+<span class="keyword">for</span> r <span class="keyword">in</span> results:
+    <span class="builtin">print</span>(<span class="string">f"{r['host']}:{r['port']} - {r['status']}"</span>)</code></pre>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">Info: asyncio vs Threading for I/O</div>
+                    <p>asyncio handles thousands of concurrent connections with a single thread and zero synchronization overhead. Threading achieves the same I/O concurrency but has per-thread memory cost (~8MB stack each) and requires Locks for shared state. Use asyncio for high-concurrency network tools.</p>
+                </div>
+
+                <!-- LAB 3 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 3</span>
+                        <span class="lab-title">Async Service Checker</span>
+                    </div>
+                    <p class="lab-instructions">Write an <code>async</code> function <code>check_services</code> that accepts a list of <code>(host, port)</code> tuples and checks all of them concurrently using <code>asyncio.gather</code>. Each individual check should be a separate coroutine. Return a list of result dicts.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">async_checker.py</span></div>
+                        <textarea class="editor-textarea" id="lab3-code">import asyncio
+
+async def check_one(host, port):
+    """Simulate checking a single service endpoint."""
+    await asyncio.sleep(0.05)  # Simulate network latency
+    # Simulate: even ports are open, odd ports are closed
+    status = "open" if port % 2 == 0 else "closed"
+    return {"host": host, "port": port, "status": status}
+
+async def check_services(endpoints):
+    """Check all (host, port) endpoints concurrently."""
+    # TODO: create a coroutine for each (host, port) in endpoints
+    # TODO: use asyncio.gather to run them all concurrently
+    # TODO: return the list of results
+    pass
+
+# Test
+endpoints = [
+    ("10.0.0.1", 22),
+    ("10.0.0.1", 80),
+    ("10.0.0.1", 443),
+    ("10.0.0.2", 8080),
+    ("10.0.0.2", 3306),
+]
+results = asyncio.run(check_services(endpoints))
+for r in results:
+    print(f"{r['host']}:{r['port']} [{r['status']}]")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab3-output">Click "Run" to see simulated output or "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(3)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(3)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(3)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(3)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint3"><strong>Hint:</strong> <code>tasks = [check_one(host, port) for host, port in endpoints]</code>, then <code>results = await asyncio.gather(*tasks)</code> and <code>return list(results)</code>. Make sure the function is declared <code>async def</code>.</div>
+                    <div class="success-message" id="success3">&#10003; Async I/O handles thousands of concurrent connections without threads. This pattern is the foundation of network monitoring and service health check systems.</div>
+                    <div class="error-message" id="error3"></div>
+                </div>
+
+                <div class="section-complete" id="complete3" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">asyncio coroutines and gather understood.</p>
+                    <button class="next-btn" onclick="goToSection('section4')">Continue to Async Network Ops &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 4: Async Network Operations ==================== -->
+            <div class="section" id="section4">
+                <h2>Async Network Operations</h2>
+                <p>Real-world async scanners need rate limiting to avoid overwhelming targets, exhausting local file descriptors, or triggering IDS alerts. <code>asyncio.Semaphore</code> acts as a concurrency throttle — allowing at most N coroutines to run a given block simultaneously.</p>
+
+                <h3>Semaphore-Based Rate Limiting</h3>
+                <pre><code><span class="keyword">import</span> asyncio
+
+<span class="keyword">async def</span> <span class="function">rate_limited_scan</span>(hosts, ports, max_concurrent=<span class="builtin">50</span>):
+    <span class="string">"""Scan hosts/ports with a semaphore cap on concurrency."""</span>
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    <span class="keyword">async def</span> <span class="function">scan_with_limit</span>(host, port):
+        <span class="comment"># Semaphore blocks here if max_concurrent tasks are already running</span>
+        <span class="keyword">async with</span> semaphore:
+            <span class="keyword">return</span> <span class="keyword">await</span> check_service(host, port)
+
+    <span class="comment"># Build all tasks — the semaphore controls how many run at once</span>
+    tasks = [
+        scan_with_limit(host, port)
+        <span class="keyword">for</span> host <span class="keyword">in</span> hosts
+        <span class="keyword">for</span> port <span class="keyword">in</span> ports
+    ]
+    <span class="keyword">return</span> <span class="keyword">await</span> asyncio.gather(*tasks)</code></pre>
+
+                <h3>Concurrent DNS Lookups</h3>
+                <pre><code><span class="keyword">import</span> asyncio
+
+<span class="keyword">async def</span> <span class="function">resolve_hostnames</span>(hostnames, max_concurrent=<span class="builtin">20</span>):
+    <span class="string">"""Resolve many hostnames concurrently with rate limiting."""</span>
+    semaphore = asyncio.Semaphore(max_concurrent)
+    loop = asyncio.get_event_loop()
+
+    <span class="keyword">async def</span> <span class="function">resolve_one</span>(hostname):
+        <span class="keyword">async with</span> semaphore:
+            <span class="keyword">try</span>:
+                <span class="comment"># run_in_executor calls blocking code without blocking the loop</span>
+                ip = <span class="keyword">await</span> loop.run_in_executor(
+                    <span class="builtin">None</span>, socket.gethostbyname, hostname
+                )
+                <span class="keyword">return</span> {<span class="string">"hostname"</span>: hostname, <span class="string">"ip"</span>: ip}
+            <span class="keyword">except</span> socket.gaierror:
+                <span class="keyword">return</span> {<span class="string">"hostname"</span>: hostname, <span class="string">"ip"</span>: <span class="builtin">None</span>}
+
+    <span class="keyword">return</span> <span class="keyword">await</span> asyncio.gather(*[resolve_one(h) <span class="keyword">for</span> h <span class="keyword">in</span> hostnames])</code></pre>
+
+                <div class="callout callout-security">
+                    <div class="callout-title">Security: Responsible Scanning</div>
+                    <p>Unrestricted scanning floods targets with thousands of simultaneous connections. Beyond being noisy (easy for IDS to detect), it can cause denial-of-service conditions on the target. Always use Semaphore-based limits in production scanning tools.</p>
+                </div>
+
+                <!-- LAB 4 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 4</span>
+                        <span class="lab-title">Rate-Limited Async Scanner</span>
+                    </div>
+                    <p class="lab-instructions">Build a <code>rate_limited_scan</code> async function that accepts a list of endpoints and a <code>max_concurrent</code> limit. Use <code>asyncio.Semaphore</code> to cap concurrency. Each individual scan should be wrapped in <code>async with semaphore</code>. Return all results via <code>asyncio.gather</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">rate_limited.py</span></div>
+                        <textarea class="editor-textarea" id="lab4-code">import asyncio
+
+async def simulate_scan(host, port):
+    """Simulate a port scan with a short delay."""
+    await asyncio.sleep(0.03)
+    return {"host": host, "port": port, "open": port in [22, 80, 443]}
+
+async def rate_limited_scan(endpoints, max_concurrent=5):
+    """Scan endpoints with Semaphore-based concurrency limiting."""
+    # TODO: create asyncio.Semaphore(max_concurrent)
+    # TODO: define inner async function that uses 'async with semaphore'
+    # TODO: build tasks for each (host, port) in endpoints
+    # TODO: return await asyncio.gather(*tasks)
+    pass
+
+# Test
+endpoints = [(f"10.0.0.{i}", p) for i in range(1, 4) for p in [22, 80, 443, 8080]]
+results = asyncio.run(rate_limited_scan(endpoints, max_concurrent=3))
+open_ports = [r for r in results if r and r.get("open")]
+print(f"Total scanned: {len(results)}, Open: {len(open_ports)}")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab4-output">Click "Run" to see simulated output or "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(4)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(4)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(4)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(4)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint4"><strong>Hint:</strong> <code>semaphore = asyncio.Semaphore(max_concurrent)</code>. Define <code>async def scan_one(host, port): async with semaphore: return await simulate_scan(host, port)</code>. Then <code>tasks = [scan_one(h, p) for h, p in endpoints]</code> and <code>return await asyncio.gather(*tasks)</code>.</div>
+                    <div class="success-message" id="success4">&#10003; Rate limiting prevents your scanner from overwhelming targets. A Semaphore-capped scanner is both more ethical and harder to detect than unconstrained flooding.</div>
+                    <div class="error-message" id="error4"></div>
+                </div>
+
+                <div class="section-complete" id="complete4" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Semaphore rate limiting and async network patterns mastered.</p>
+                    <button class="next-btn" onclick="goToSection('section5')">Continue to Race Conditions &amp; Safety &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 5: Race Conditions & Thread Safety (CODE REVIEW) ==================== -->
+            <div class="section" id="section5">
+                <h2>Race Conditions &amp; Thread Safety</h2>
+                <p>Concurrent code introduces a new class of bugs that don't appear in sequential programs. Race conditions, deadlocks, and incorrect tool selection can silently corrupt data or halt your program entirely.</p>
+
+                <h3>Race Conditions</h3>
+                <p>A race condition occurs when two threads read and write shared state without coordination, producing results that depend on scheduling order rather than program logic.</p>
+
+                <h3>Deadlocks</h3>
+                <p>A deadlock occurs when Thread A holds Lock 1 and waits for Lock 2, while Thread B holds Lock 2 and waits for Lock 1. Both threads wait forever. The fix: always acquire locks in a consistent order across all threads.</p>
+
+                <h3>Choosing the Right Concurrency Model</h3>
+                <ul>
+                    <li><strong>I/O-bound + low overhead:</strong> asyncio (single thread, max concurrency)</li>
+                    <li><strong>I/O-bound + existing blocking libs:</strong> threading (ThreadPoolExecutor)</li>
+                    <li><strong>CPU-bound (hashing, parsing, encryption):</strong> multiprocessing</li>
+                    <li><strong>CPU-bound + I/O-bound mixed:</strong> multiprocessing with asyncio per process</li>
+                </ul>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">Tip: concurrent.futures Unified API</div>
+                    <p><code>concurrent.futures</code> provides <code>ThreadPoolExecutor</code> and <code>ProcessPoolExecutor</code> with an identical API. You can switch between thread-based and process-based concurrency by changing one class name — making it easy to benchmark both approaches for your specific workload.</p>
+                </div>
+
+                <!-- Code Review Exercise -->
+                <div class="code-review">
+                    <div class="lab-header">
+                        <span class="review-badge">CODE REVIEW</span>
+                        <span class="lab-title">Find the Issues</span>
+                    </div>
+                    <p class="lab-instructions">Review this concurrent scanning code. It has 3 bugs related to thread safety, deadlock risk, and incorrect concurrency model selection.</p>
+
+                    <pre><code><span class="keyword">import</span> threading
+<span class="keyword">from</span> concurrent.futures <span class="keyword">import</span> ThreadPoolExecutor
+
+scan_results = []
+lock_a = threading.Lock()
+lock_b = threading.Lock()
+
+<span class="keyword">def</span> <span class="function">collect_result</span>(ip, ports):
+    scan_results.append({<span class="string">"ip"</span>: ip, <span class="string">"ports"</span>: ports})  <span class="comment"># Issue 1</span>
+
+<span class="keyword">def</span> <span class="function">process_host</span>(ip):
+    <span class="keyword">with</span> lock_a:
+        <span class="keyword">with</span> lock_b:               <span class="comment"># Thread A: A then B</span>
+            collect_result(ip, [<span class="builtin">80</span>])
+
+<span class="keyword">def</span> <span class="function">process_network</span>(subnet):
+    <span class="keyword">with</span> lock_b:
+        <span class="keyword">with</span> lock_a:               <span class="comment"># Thread B: B then A — Issue 2</span>
+            collect_result(subnet, [<span class="builtin">443</span>])
+
+<span class="keyword">def</span> <span class="function">hash_all_files</span>(file_paths):
+    <span class="string">"""Hash every file in the list for integrity checking."""</span>
+    <span class="keyword">with</span> ThreadPoolExecutor(max_workers=<span class="builtin">8</span>) <span class="keyword">as</span> executor:  <span class="comment"># Issue 3</span>
+        <span class="keyword">return</span> <span class="builtin">list</span>(executor.map(compute_sha256, file_paths))</code></pre>
+
+                    <p style="margin-top: 1rem;"><strong>Issues Identified:</strong></p>
+                    <ol>
+                        <li><strong>Race condition (line 8):</strong> <code>scan_results.append()</code> is called without a lock. Python's list <code>append</code> is not guaranteed atomic under all conditions, and this pattern will fail when extended to non-trivial writes. Protect with <code>with lock: scan_results.append(...)</code>.</li>
+                        <li><strong>Deadlock risk (lines 15-16 vs 19-20):</strong> <code>process_host</code> acquires <code>lock_a</code> then <code>lock_b</code>, while <code>process_network</code> acquires <code>lock_b</code> then <code>lock_a</code>. If both run concurrently, each can block waiting for the other's lock — classic deadlock. Fix: always acquire in the same order (<code>lock_a</code> then <code>lock_b</code>) across all functions.</li>
+                        <li><strong>Wrong concurrency model (line 23):</strong> <code>hash_all_files</code> is a CPU-bound task (SHA-256 computation). Using <code>ThreadPoolExecutor</code> is limited by the GIL — threads cannot run Python hashing in parallel. Replace with <code>ProcessPoolExecutor</code> to use all CPU cores.</li>
+                    </ol>
+                </div>
+
+                <!-- Module Completion -->
+                <div class="module-complete" id="moduleComplete" style="display: none;">
+                    <div class="complete-icon" style="font-size: 3rem;">&#127942;</div>
+                    <h2>Chapter 9 Complete!</h2>
+                    <p class="complete-message">You've mastered Python's concurrency toolkit: threading for I/O-bound tasks, multiprocessing for CPU-bound work, and asyncio for high-throughput network operations — plus the critical safety patterns to use them correctly.</p>
+                    <button class="module-complete-btn" onclick="completeModule()">Complete Chapter &amp; Continue &rarr;</button>
+                </div>
+
+                <div class="section-complete" id="complete5" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">All Sections Complete!</h3>
+                    <p class="complete-message">You've completed all 5 sections of Chapter 9.</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="progress.js"></script>
+
+    <script>
+        let currentSection = 'section1';
+        let completedSections = [];
+        const TOTAL_SECTIONS = 5;
+        const STORAGE_KEY = 'pye-ch09-sections';
+
+        // Restore saved progress from localStorage
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) completedSections = JSON.parse(saved);
+        } catch(e) {}
+
+        // Default starter code for each lab (used by resetLab)
+        const defaultCode = {
+            1: `import threading\nfrom concurrent.futures import ThreadPoolExecutor\n\nclass ThreadedScanner:\n    """Concurrent host scanner using a thread pool."""\n\n    def __init__(self, max_workers=10):\n        self.max_workers = max_workers\n        self.results = []\n        self.lock = threading.Lock()\n\n    def _scan_host(self, ip):\n        """Scan a single host and append result to shared list."""\n        # Simulate scan: hosts ending in .1 have ports 22, 80 open\n        open_ports = [22, 80] if ip.endswith('.1') else [443]\n        # TODO: protect self.results with self.lock when appending\n        pass\n\n    def scan(self, hosts):\n        """Scan all hosts concurrently using ThreadPoolExecutor."""\n        # TODO: use ThreadPoolExecutor with self.max_workers\n        # TODO: call executor.map to run _scan_host on each host\n        # TODO: return self.results\n        pass\n\n# Test\nscanner = ThreadedScanner(max_workers=5)\nhosts = [f"192.168.1.{i}" for i in range(1, 6)]\nresults = scanner.scan(hosts)\nfor r in results:\n    print(r)`,
+            2: `from multiprocessing import Pool, cpu_count\nimport hashlib\n\ndef worker(args):\n    """Check each word in a wordlist chunk against the target hash."""\n    target_hash, chunk = args\n    for word in chunk:\n        if hashlib.sha256(word.encode()).hexdigest() == target_hash:\n            return word\n    return None\n\ndef parallel_crack(target_hash, wordlist):\n    """Use multiprocessing Pool to search the wordlist in parallel."""\n    # TODO: split wordlist into chunks by cpu_count()\n    # TODO: use Pool and pool.map to run worker across chunks\n    # TODO: return the matched word or None\n    pass\n\n# Test\nwordlist = ["alpha", "bravo", "charlie", "delta", "password", "secure99"]\ntarget = hashlib.sha256("password".encode()).hexdigest()\nresult = parallel_crack(target, wordlist)\nprint(f"Cracked: {result}")`,
+            3: `import asyncio\n\nasync def check_one(host, port):\n    """Simulate checking a single service endpoint."""\n    await asyncio.sleep(0.05)  # Simulate network latency\n    # Simulate: even ports are open, odd ports are closed\n    status = "open" if port % 2 == 0 else "closed"\n    return {"host": host, "port": port, "status": status}\n\nasync def check_services(endpoints):\n    """Check all (host, port) endpoints concurrently."""\n    # TODO: create a coroutine for each (host, port) in endpoints\n    # TODO: use asyncio.gather to run them all concurrently\n    # TODO: return the list of results\n    pass\n\n# Test\nendpoints = [\n    ("10.0.0.1", 22),\n    ("10.0.0.1", 80),\n    ("10.0.0.1", 443),\n    ("10.0.0.2", 8080),\n    ("10.0.0.2", 3306),\n]\nresults = asyncio.run(check_services(endpoints))\nfor r in results:\n    print(f"{r['host']}:{r['port']} [{r['status']}]")`,
+            4: `import asyncio\n\nasync def simulate_scan(host, port):\n    """Simulate a port scan with a short delay."""\n    await asyncio.sleep(0.03)\n    return {"host": host, "port": port, "open": port in [22, 80, 443]}\n\nasync def rate_limited_scan(endpoints, max_concurrent=5):\n    """Scan endpoints with Semaphore-based concurrency limiting."""\n    # TODO: create asyncio.Semaphore(max_concurrent)\n    # TODO: define inner async function that uses 'async with semaphore'\n    # TODO: build tasks for each (host, port) in endpoints\n    # TODO: return await asyncio.gather(*tasks)\n    pass\n\n# Test\nendpoints = [(f"10.0.0.{i}", p) for i in range(1, 4) for p in [22, 80, 443, 8080]]\nresults = asyncio.run(rate_limited_scan(endpoints, max_concurrent=3))\nopen_ports = [r for r in results if r and r.get("open")]\nprint(f"Total scanned: {len(results)}, Open: {len(open_ports)}")`
+        };
+
+        // Navigate to a section by ID
+        function goToSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.section === sectionId) link.classList.add('active');
+            });
+            currentSection = sectionId;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Attach click handlers to sidebar nav links
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => goToSection(link.dataset.section));
+        });
+
+        // Recalculate and render the progress bar
+        function updateProgress() {
+            const percent = Math.round((completedSections.length / TOTAL_SECTIONS) * 100);
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = percent + '% Complete';
+        }
+
+        // Mark a numbered section as done, update nav and localStorage
+        function markSectionComplete(sectionNum) {
+            const sectionId = 'section' + sectionNum;
+            if (!completedSections.includes(sectionId)) {
+                completedSections.push(sectionId);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+                const navLink = document.querySelector(`[data-section="${sectionId}"]`);
+                if (navLink) {
+                    navLink.classList.add('completed');
+                    navLink.querySelector('.nav-icon').textContent = '\u2713';
+                }
+                const completeDiv = document.getElementById('complete' + sectionNum);
+                if (completeDiv) completeDiv.style.display = 'block';
+                updateProgress();
+            }
+        }
+
+        // Simulated run output for each lab
+        function runLab(num) {
+            const output = document.getElementById('lab' + num + '-output');
+            const outputs = {
+                1: 'ThreadedScanner starting (max_workers=5)...\n{"ip": "192.168.1.1", "ports": [22, 80]}\n{"ip": "192.168.1.2", "ports": [443]}\n{"ip": "192.168.1.3", "ports": [443]}\n{"ip": "192.168.1.4", "ports": [443]}\n{"ip": "192.168.1.5", "ports": [443]}\nScanned 5 hosts in 0.12s (concurrent)',
+                2: 'Splitting wordlist across 4 CPU cores...\nCore 0: ["alpha", "delta"]\nCore 1: ["bravo", "password"]\nCore 2: ["charlie", "secure99"]\nCore 3: []\nPool.map dispatched. Workers running...\nCore 1 found match: "password"\nCracked: password',
+                3: '10.0.0.1:22 [closed]\n10.0.0.1:80 [open]\n10.0.0.1:443 [open]\n10.0.0.2:8080 [open]\n10.0.0.2:3306 [closed]\nAll 5 checks completed concurrently in ~0.05s',
+                4: 'rate_limited_scan starting (max_concurrent=3)...\nSemaphore allows 3 concurrent tasks at a time\nBatch 1: [10.0.0.1:22, 10.0.0.1:80, 10.0.0.1:443]\nBatch 2: [10.0.0.1:8080, 10.0.0.2:22, 10.0.0.2:80]\nBatch 3: [10.0.0.2:443, 10.0.0.2:8080, 10.0.0.3:22]\nBatch 4: [10.0.0.3:80, 10.0.0.3:443, 10.0.0.3:8080]\nTotal scanned: 12, Open: 9'
+            };
+            output.textContent = outputs[num] || 'Running...';
+        }
+
+        // Validate lab code with pattern checks
+        function checkLab(num) {
+            const code = document.getElementById('lab' + num + '-code').value;
+            const successDiv = document.getElementById('success' + num);
+            const errorDiv = document.getElementById('error' + num);
+            let isCorrect = false;
+
+            if (num === 1) {
+                // Must use ThreadPoolExecutor, a Lock (already given), and executor.map or executor.submit
+                const hasPool = code.includes('ThreadPoolExecutor');
+                const hasLock = /with\s+self\.lock/.test(code) || /Lock\(\)/.test(code);
+                const hasMap = code.includes('executor.map') || code.includes('executor.submit');
+                const hasAppend = code.includes('.append(');
+                const hasReturn = /return\s+self\.results/.test(code);
+                isCorrect = hasPool && hasLock && hasMap && hasAppend && hasReturn;
+                if (!isCorrect) errorDiv.textContent = 'Use ThreadPoolExecutor for the pool, protect self.results.append() with "with self.lock", call executor.map(), and return self.results.';
+            } else if (num === 2) {
+                // Must use Pool or multiprocessing, pool.map or pool.apply, and a worker function
+                const hasPool = code.includes('Pool') || code.includes('multiprocessing');
+                const hasMap = code.includes('pool.map') || code.includes('pool.apply');
+                const hasWorker = /def\s+\w+\(/.test(code);
+                const hasReturn = /return\s+next|return\s+match|next\(/.test(code) || code.includes('for r in results');
+                isCorrect = hasPool && hasMap && hasWorker;
+                if (!isCorrect) errorDiv.textContent = 'Use multiprocessing.Pool, call pool.map with a worker function that takes (target_hash, chunk), then return the first non-None result.';
+            } else if (num === 3) {
+                // Must have async def, await, asyncio.gather, return list
+                const hasAsync = /async\s+def\s+check_services/.test(code);
+                const hasAwait = code.includes('await');
+                const hasGather = code.includes('asyncio.gather');
+                const hasReturn = /return/.test(code);
+                isCorrect = hasAsync && hasAwait && hasGather && hasReturn;
+                if (!isCorrect) errorDiv.textContent = 'Make sure check_services is "async def", use "await asyncio.gather(*tasks)" to run all coroutines, and return the results.';
+            } else if (num === 4) {
+                // Must have asyncio.Semaphore, async with semaphore, asyncio.gather
+                const hasSemaphore = code.includes('asyncio.Semaphore');
+                const hasAsyncWith = /async\s+with\s+semaphore/.test(code);
+                const hasGather = code.includes('asyncio.gather');
+                isCorrect = hasSemaphore && hasAsyncWith && hasGather;
+                if (!isCorrect) errorDiv.textContent = 'Create asyncio.Semaphore(max_concurrent), wrap each scan in "async with semaphore:", then gather all tasks.';
+            }
+
+            if (isCorrect) {
+                successDiv.classList.add('show');
+                errorDiv.classList.remove('show');
+                markSectionComplete(num);
+            } else {
+                errorDiv.classList.add('show');
+                successDiv.classList.remove('show');
+            }
+        }
+
+        function toggleHint(num) { document.getElementById('hint' + num).classList.toggle('show'); }
+
+        // Reset a lab to its default starter code
+        function resetLab(num) {
+            document.getElementById('lab' + num + '-code').value = defaultCode[num];
+            document.getElementById('lab' + num + '-output').textContent = 'Click "Run" to see simulated output or "Check" to validate...';
+            document.getElementById('success' + num).classList.remove('show');
+            document.getElementById('error' + num).classList.remove('show');
+            document.getElementById('hint' + num).classList.remove('show');
+        }
+
+        // Mark the module complete in PYEProgress and redirect to course home
+        function completeModule() {
+            PYEProgress.markModuleComplete('ch09');
+            PYEProgress.markQuizPassed('ch09', 100);
+            window.location.href = 'index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Restore completed state for all previously finished sections
+            completedSections.forEach(sectionId => {
+                const navLink = document.querySelector(`[data-section="${sectionId}"]`);
+                if (navLink) {
+                    navLink.classList.add('completed');
+                    navLink.querySelector('.nav-icon').textContent = '\u2713';
+                }
+                const num = sectionId.replace('section', '');
+                const completeDiv = document.getElementById('complete' + num);
+                if (completeDiv) completeDiv.style.display = 'block';
+            });
+
+            // MutationObserver: auto-complete section 5 (code review) when it becomes active
+            // and at least 4 earlier sections are already done
+            const observer = new MutationObserver(() => {
+                const section5 = document.getElementById('section5');
+                if (section5 && section5.classList.contains('active') && completedSections.length >= 4) {
+                    markSectionComplete(5);
+                    // Show the module complete banner once all sections are done
+                    const mc = document.getElementById('moduleComplete');
+                    if (mc) mc.style.display = 'block';
+                }
+            });
+            observer.observe(document.getElementById('section5'), { attributes: true });
+
+            updateProgress();
+        });
+    </script>
+</body>
+</html>

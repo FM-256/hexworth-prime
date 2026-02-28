@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch4: Error Handling & Logging - Python Engineering | Hexworth Prime</title>
+    <style>
+        :root {
+            --house-color: #4ade80;
+            --house-color-dark: #22c55e;
+            --house-color-light: #86efac;
+            --python-blue: #306998;
+            --python-blue-light: #4b8bbe;
+            --accent-cyan: #22d3ee;
+            --success-color: #22c55e;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-primary: #c8d6e5;
+            --text-secondary: #7a8b9a;
+            --text-heading: #e2e8f0;
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1729;
+            --bg-card: rgba(14, 22, 40, 0.85);
+            --border-color: rgba(74, 222, 128, 0.15);
+            --border-glow: rgba(74, 222, 128, 0.35);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+
+        .top-header { background: rgba(10, 14, 26, 0.95); padding: 1rem 2rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; backdrop-filter: blur(10px); }
+        .top-header-left { display: flex; align-items: center; gap: 1rem; }
+        .back-btn { color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; }
+        .back-btn:hover { color: var(--house-color); }
+        .chapter-badge { background: rgba(74, 222, 128, 0.1); color: var(--house-color); padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(74, 222, 128, 0.2); }
+        .progress-container { display: flex; align-items: center; gap: 0.75rem; }
+        .progress-bar { width: 150px; height: 8px; background: rgba(74, 222, 128, 0.1); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--python-blue), var(--house-color)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .progress-text { color: var(--text-secondary); font-size: 0.8rem; min-width: 80px; }
+
+        .layout { display: flex; min-height: calc(100vh - 60px); }
+        .sidebar { width: 280px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 1.5rem 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; flex-shrink: 0; }
+        .nav-header { padding: 0 1.25rem 1rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); }
+        .nav-list { list-style: none; }
+        .nav-item { margin-bottom: 2px; }
+        .nav-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease; cursor: pointer; border-left: 3px solid transparent; }
+        .nav-link:hover { background: rgba(74, 222, 128, 0.05); border-left-color: rgba(74, 222, 128, 0.3); }
+        .nav-link.active { background: rgba(74, 222, 128, 0.1); border-left-color: var(--house-color); color: var(--house-color); font-weight: 600; }
+        .nav-link.completed .nav-icon { background: var(--success-color); color: white; }
+        .nav-icon { width: 26px; height: 26px; border-radius: 50%; background: rgba(74, 222, 128, 0.1); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; color: var(--text-secondary); }
+
+        .main-content { flex: 1; padding: 2.5rem 3rem; max-width: 900px; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .section h2 { font-size: 1.8rem; color: var(--text-heading); margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid var(--border-color); }
+        .section h3 { font-size: 1.3rem; color: var(--text-heading); margin: 2rem 0 1rem; }
+        .section h4 { font-size: 1.1rem; color: var(--house-color); margin: 1.5rem 0 0.75rem; }
+        .section p { margin-bottom: 1rem; }
+        .section ul, .section ol { margin: 0.5rem 0 1.5rem 1.5rem; }
+        .section li { margin-bottom: 0.4rem; }
+
+        code { background: rgba(74, 222, 128, 0.08); color: var(--house-color); padding: 0.15rem 0.4rem; border-radius: 4px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9em; }
+        pre { background: #1a1f2e; border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin: 1rem 0 1.5rem; overflow-x: auto; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.88rem; line-height: 1.6; color: #d4d4d4; }
+        pre code { background: none; color: inherit; padding: 0; }
+        .comment { color: #6a9955; }
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .function { color: #dcdcaa; }
+        .builtin { color: #4ec9b0; }
+
+        .callout { border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0; border-left: 4px solid; }
+        .callout-security { background: rgba(239, 68, 68, 0.08); border-color: #ef4444; }
+        .callout-security .callout-title { color: #fca5a5; }
+        .callout-tip { background: rgba(74, 222, 128, 0.08); border-color: var(--house-color); }
+        .callout-tip .callout-title { color: var(--house-color); }
+        .callout-info { background: rgba(48, 105, 152, 0.1); border-color: var(--python-blue-light); }
+        .callout-info .callout-title { color: var(--python-blue-light); }
+        .callout-title { font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        .lab-exercise { background: rgba(48, 105, 152, 0.08); border: 1px solid rgba(48, 105, 152, 0.25); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+        .lab-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .lab-badge { background: var(--python-blue); color: white; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
+        .lab-title { font-size: 1.1rem; font-weight: 600; color: var(--text-heading); }
+        .lab-instructions { color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem; }
+
+        .code-editor { background: #1e1e1e; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+        .editor-header { background: #2d2d2d; padding: 0.5rem 1rem; }
+        .editor-tab { color: #ccc; font-size: 0.8rem; font-family: 'Consolas', monospace; }
+        .editor-textarea { width: 100%; min-height: 220px; background: #1e1e1e; border: none; color: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.88rem; padding: 1rem; resize: vertical; line-height: 1.6; tab-size: 4; outline: none; }
+
+        .output-panel { background: #0d1117; border-radius: 8px; margin-bottom: 1rem; overflow: hidden; }
+        .output-header { background: #161b22; padding: 0.5rem 1rem; font-size: 0.8rem; color: #7a8b9a; font-weight: 600; }
+        .output-content { padding: 1rem; color: #c9d1d9; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; min-height: 60px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+
+        .lab-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .lab-btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .btn-run { background: var(--house-color); color: #0a0e1a; }
+        .btn-run:hover { background: var(--house-color-light); }
+        .btn-check { background: var(--python-blue); color: white; }
+        .btn-check:hover { background: var(--python-blue-light); }
+        .btn-hint { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .btn-hint:hover { background: rgba(245, 158, 11, 0.25); }
+        .btn-reset { background: rgba(127, 127, 127, 0.1); color: var(--text-secondary); border: 1px solid rgba(127, 127, 127, 0.2); }
+        .btn-reset:hover { background: rgba(127, 127, 127, 0.2); }
+
+        .hint-box { background: rgba(245, 158, 11, 0.08); border-left: 4px solid var(--warning-color); padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; display: none; color: var(--text-primary); }
+        .hint-box.show { display: block; }
+        .success-message { background: rgba(34, 197, 94, 0.1); color: var(--house-color-light); border-left: 4px solid var(--success-color); padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; display: none; }
+        .success-message.show { display: block; }
+        .error-message { background: rgba(239, 68, 68, 0.1); color: #fca5a5; border-left: 4px solid var(--error-color); padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; display: none; }
+        .error-message.show { display: block; }
+
+        .section-complete { background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(34, 197, 94, 0.06) 100%); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 12px; padding: 2rem; text-align: center; margin-top: 2rem; }
+        .complete-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .complete-title { font-size: 1.3rem; color: var(--house-color); margin-bottom: 0.5rem; }
+        .complete-message { color: var(--text-secondary); margin-bottom: 1rem; }
+        .next-btn { background: var(--house-color); color: #0a0e1a; padding: 0.75rem 2rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.95rem; transition: all 0.2s ease; }
+        .next-btn:hover { background: var(--house-color-light); transform: translateY(-2px); }
+
+        .module-complete { background: linear-gradient(135deg, rgba(74, 222, 128, 0.12), rgba(48, 105, 152, 0.08)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 16px; padding: 3rem 2rem; text-align: center; margin-top: 2rem; }
+        .module-complete h2 { color: var(--house-color); margin-bottom: 1rem; }
+        .module-complete-btn { background: linear-gradient(135deg, var(--house-color), var(--house-color-dark)); color: #0a0e1a; padding: 1rem 2.5rem; border-radius: 10px; border: none; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: all 0.3s; margin-top: 1rem; }
+        .module-complete-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(74, 222, 128, 0.3); }
+
+        .review-badge { background: rgba(167, 139, 250, 0.2); color: #c4b5fd; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .code-review { background: rgba(167, 139, 250, 0.06); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main-content { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-header">
+        <div class="top-header-left">
+            <a href="index.html" class="back-btn">&larr; Course Home</a>
+            <span class="chapter-badge">Chapter 4</span>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <div class="nav-header">Chapter Sections</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a class="nav-link active" data-section="section1"><span class="nav-icon">1</span> Exception Hierarchy</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section2"><span class="nav-icon">2</span> Context-Aware Handling</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section3"><span class="nav-icon">3</span> Structured Logging</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section4"><span class="nav-icon">4</span> SIEM-Ready Pipelines</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section5"><span class="nav-icon">5</span> Security Event Monitoring</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+
+            <!-- ==================== SECTION 1: Exception Hierarchy & Custom Exceptions ==================== -->
+            <div class="section active" id="section1">
+                <h2>Exception Hierarchy &amp; Custom Exceptions</h2>
+                <p>Python's exception system is a class hierarchy rooted at <code>BaseException</code>. Understanding this hierarchy lets you catch the right level of granularity — catching too broadly hides bugs, catching too narrowly misses errors.</p>
+
+                <h3>The Hierarchy</h3>
+                <ul>
+                    <li><code>BaseException</code> &mdash; root of all exceptions (includes <code>SystemExit</code>, <code>KeyboardInterrupt</code>)</li>
+                    <li><code>Exception</code> &mdash; base for all non-system-exit errors; catch this in general handlers</li>
+                    <li><code>ValueError</code>, <code>TypeError</code>, <code>OSError</code> &mdash; standard built-in exceptions</li>
+                    <li>Your custom classes &mdash; extend <code>Exception</code> or a built-in subclass</li>
+                </ul>
+
+                <h3>try / except / else / finally</h3>
+                <pre><code><span class="keyword">try</span>:
+    result = parse_alert(raw_data)
+<span class="keyword">except</span> <span class="builtin">ValueError</span> <span class="keyword">as</span> e:
+    <span class="comment"># Runs when a ValueError is raised</span>
+    log.error(<span class="string">f"Bad alert format: {e}"</span>)
+<span class="keyword">except</span> (<span class="builtin">OSError</span>, <span class="builtin">TimeoutError</span>) <span class="keyword">as</span> e:
+    <span class="comment"># Catch multiple exception types in one clause</span>
+    log.critical(<span class="string">f"I/O failure: {e}"</span>)
+<span class="keyword">else</span>:
+    <span class="comment"># Runs ONLY if no exception was raised</span>
+    forward_to_siem(result)
+<span class="keyword">finally</span>:
+    <span class="comment"># ALWAYS runs — cleanup goes here</span>
+    close_connection()</code></pre>
+
+                <h3>Custom Exception Classes for Security Contexts</h3>
+                <p>Custom exceptions carry domain-specific data (like severity or source IP) that generic exceptions cannot. They also let you catch entire categories of errors with a single <code>except SecurityError</code> clause.</p>
+
+                <pre><code><span class="keyword">class</span> <span class="function">SecurityError</span>(<span class="builtin">Exception</span>):
+    <span class="string">"""Base exception for security operations."""</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, message, severity=<span class="string">"HIGH"</span>):
+        self.severity = severity
+        <span class="builtin">super</span>().__init__(<span class="string">f"[{severity}] {message}"</span>)
+
+<span class="keyword">class</span> <span class="function">AuthenticationError</span>(SecurityError):
+    <span class="string">"""Failed authentication attempt."""</span>
+    <span class="keyword">pass</span>
+
+<span class="keyword">class</span> <span class="function">AuthorizationError</span>(SecurityError):
+    <span class="string">"""Insufficient permissions for requested resource."""</span>
+    <span class="keyword">pass</span>
+
+<span class="keyword">class</span> <span class="function">IntrusionDetected</span>(SecurityError):
+    <span class="string">"""Potential intrusion detected from a source IP."""</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, source_ip, message):
+        self.source_ip = source_ip
+        <span class="builtin">super</span>().__init__(message, severity=<span class="string">"CRITICAL"</span>)
+
+<span class="comment"># Catch the whole security family</span>
+<span class="keyword">try</span>:
+    validate_access(token, resource)
+<span class="keyword">except</span> AuthenticationError:
+    trigger_lockout()
+<span class="keyword">except</span> AuthorizationError:
+    log_privilege_violation()
+<span class="keyword">except</span> SecurityError <span class="keyword">as</span> e:
+    <span class="comment"># Any other SecurityError subclass</span>
+    alert_soc(e.severity, <span class="builtin">str</span>(e))</code></pre>
+
+                <div class="callout callout-security">
+                    <div class="callout-title">Security: Granular Exceptions = Granular Response</div>
+                    <p>Each custom exception type can trigger a different incident response procedure. <code>AuthenticationError</code> locks the account. <code>IntrusionDetected</code> pages the on-call analyst and blocks the IP. Generic exceptions can't carry this context cleanly.</p>
+                </div>
+
+                <!-- LAB 1 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 1</span>
+                        <span class="lab-title">Custom Security Exceptions</span>
+                    </div>
+                    <p class="lab-instructions">The exception classes are defined below. Implement <code>validate_request</code> so it raises <code>AuthenticationError</code> if the token is not <code>"valid-token"</code>, and raises <code>AuthorizationError</code> if the role is not <code>"analyst"</code> or <code>"admin"</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">exceptions.py</span></div>
+                        <textarea class="editor-textarea" id="lab1-code">class SecurityError(Exception):
+    """Base exception for security operations."""
+    def __init__(self, message, severity="HIGH"):
+        self.severity = severity
+        super().__init__(f"[{severity}] {message}")
+
+class AuthenticationError(SecurityError):
+    """Failed authentication attempt."""
+    pass
+
+class AuthorizationError(SecurityError):
+    """Insufficient permissions."""
+    pass
+
+def validate_request(token, role):
+    """Validate token and role, raise appropriate exceptions."""
+    pass  # Replace with your implementation
+
+# Test
+try:
+    validate_request("bad-token", "analyst")
+except AuthenticationError as e:
+    print(f"Auth failed: {e}")
+
+try:
+    validate_request("valid-token", "guest")
+except AuthorizationError as e:
+    print(f"Access denied: {e}")
+
+# Should succeed silently
+validate_request("valid-token", "analyst")
+print("Request validated successfully")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab1-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(1)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(1)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(1)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(1)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint1"><strong>Hint:</strong> Check the token first: <code>if token != "valid-token": raise AuthenticationError("Invalid token")</code>. Then check the role: <code>if role not in ("analyst", "admin"): raise AuthorizationError("Role not permitted")</code>.</div>
+                    <div class="success-message" id="success1">&#10003; Custom exceptions give you precise error handling. Each exception type can trigger different incident response procedures automatically.</div>
+                    <div class="error-message" id="error1"></div>
+                </div>
+
+                <div class="section-complete" id="complete1" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Exception hierarchy and custom exceptions mastered.</p>
+                    <button class="next-btn" onclick="goToSection('section2')">Continue to Context-Aware Handling &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 2: Context-Aware Error Handling ==================== -->
+            <div class="section" id="section2">
+                <h2>Context-Aware Error Handling</h2>
+                <p>Real systems have multiple failure modes. Context-aware error handling chains exceptions to preserve the original cause, suppresses expected errors cleanly, and degrades gracefully when components fail.</p>
+
+                <h3>Exception Chaining with raise...from</h3>
+                <p>When you catch one exception and raise another, use <code>raise X from Y</code> to preserve the original traceback. This is critical for debugging — you see both the root cause and the higher-level failure.</p>
+
+                <pre><code><span class="keyword">class</span> <span class="function">ConfigurationError</span>(<span class="builtin">Exception</span>):
+    <span class="keyword">pass</span>
+
+<span class="keyword">def</span> <span class="function">load_security_config</span>(path):
+    <span class="keyword">try</span>:
+        <span class="keyword">with</span> <span class="builtin">open</span>(path) <span class="keyword">as</span> f:
+            <span class="keyword">return</span> json.load(f)
+    <span class="keyword">except</span> <span class="builtin">FileNotFoundError</span> <span class="keyword">as</span> e:
+        <span class="comment"># Chain: ConfigurationError caused BY FileNotFoundError</span>
+        <span class="keyword">raise</span> ConfigurationError(
+            <span class="string">f"Missing security config: {path}"</span>
+        ) <span class="keyword">from</span> e
+    <span class="keyword">except</span> json.JSONDecodeError <span class="keyword">as</span> e:
+        <span class="keyword">raise</span> ConfigurationError(
+            <span class="string">f"Malformed config file: {e.msg}"</span>
+        ) <span class="keyword">from</span> e</code></pre>
+
+                <h3>contextlib.suppress for Expected Errors</h3>
+                <pre><code><span class="keyword">from</span> contextlib <span class="keyword">import</span> suppress
+
+<span class="comment"># Clean way to ignore expected failures</span>
+<span class="keyword">with</span> suppress(<span class="builtin">FileNotFoundError</span>):
+    os.remove(<span class="string">"/tmp/stale_lock.pid"</span>)
+
+<span class="comment"># vs. the verbose alternative:</span>
+<span class="keyword">try</span>:
+    os.remove(<span class="string">"/tmp/stale_lock.pid"</span>)
+<span class="keyword">except</span> <span class="builtin">FileNotFoundError</span>:
+    <span class="keyword">pass</span></code></pre>
+
+                <h3>Graceful Degradation</h3>
+                <p>Security systems must keep running when components fail. A SOC alert pipeline that crashes when the primary threat feed is down is worse than one that falls back to cached data.</p>
+
+                <pre><code><span class="keyword">def</span> <span class="function">get_threat_intel</span>(ioc):
+    <span class="string">"""Fetch threat data with cascading fallback."""</span>
+    <span class="comment"># Try primary: live API</span>
+    <span class="keyword">try</span>:
+        <span class="keyword">return</span> primary_api.lookup(ioc)
+    <span class="keyword">except</span> (<span class="builtin">ConnectionError</span>, <span class="builtin">TimeoutError</span>):
+        <span class="keyword">pass</span>  <span class="comment"># Fall through to cache</span>
+
+    <span class="comment"># Try secondary: local cache</span>
+    <span class="keyword">try</span>:
+        <span class="keyword">return</span> local_cache.get(ioc)
+    <span class="keyword">except</span> CacheError:
+        <span class="keyword">pass</span>  <span class="comment"># Fall through to defaults</span>
+
+    <span class="comment"># Final fallback: safe defaults</span>
+    <span class="keyword">return</span> {<span class="string">"ioc"</span>: ioc, <span class="string">"reputation"</span>: <span class="string">"UNKNOWN"</span>, <span class="string">"source"</span>: <span class="string">"default"</span>}</code></pre>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">Tip: Log at Each Fallback Level</div>
+                    <p>When falling back, log a WARNING at each level. This creates an observable degradation trace: analysts can see that the system is running on cached data and investigate the primary source outage separately.</p>
+                </div>
+
+                <!-- LAB 2 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 2</span>
+                        <span class="lab-title">Graceful Degradation</span>
+                    </div>
+                    <p class="lab-instructions">Implement <code>get_threat_data(ioc)</code> that tries a primary source (raises <code>ConnectionError</code>), falls back to a cache (raises <code>KeyError</code>), and finally returns a safe default dict with <code>reputation</code> set to <code>"UNKNOWN"</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">degradation.py</span></div>
+                        <textarea class="editor-textarea" id="lab2-code">def primary_lookup(ioc):
+    """Simulated primary API — always unavailable."""
+    raise ConnectionError("Primary threat feed unreachable")
+
+def cache_lookup(ioc):
+    """Simulated cache — not populated."""
+    raise KeyError(f"{ioc} not in cache")
+
+def get_threat_data(ioc):
+    """
+    Fetch threat data with cascading fallback.
+    Returns a dict with at least: ioc, reputation, source
+    """
+    pass  # Replace with your implementation
+
+# Test
+result = get_threat_data("198.51.100.42")
+print(result)
+print("reputation:", result.get("reputation"))
+print("source:", result.get("source"))</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab2-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(2)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(2)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(2)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(2)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint2"><strong>Hint:</strong> Use nested try/except blocks. First try <code>primary_lookup(ioc)</code> and catch <code>ConnectionError</code>. Then try <code>cache_lookup(ioc)</code> and catch <code>KeyError</code>. Finally return a dict with <code>{"ioc": ioc, "reputation": "UNKNOWN", "source": "default"}</code>.</div>
+                    <div class="success-message" id="success2">&#10003; Graceful degradation keeps systems running when components fail. In SOC environments, this means alerts keep flowing even when APIs go down.</div>
+                    <div class="error-message" id="error2"></div>
+                </div>
+
+                <div class="section-complete" id="complete2" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Context-aware error handling patterns understood.</p>
+                    <button class="next-btn" onclick="goToSection('section3')">Continue to Structured Logging &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 3: Structured Logging ==================== -->
+            <div class="section" id="section3">
+                <h2>Structured Logging</h2>
+                <p>Python's <code>logging</code> module is far more powerful than <code>print()</code>. It provides log levels, multiple output targets, structured formatting, and a hierarchical logger namespace — all essential for production security tooling.</p>
+
+                <h3>Loggers, Handlers, and Formatters</h3>
+                <ul>
+                    <li><strong>Logger</strong> &mdash; the entry point you call (e.g. <code>logger.warning(...)</code>)</li>
+                    <li><strong>Handler</strong> &mdash; decides where the log goes (console, file, network)</li>
+                    <li><strong>Formatter</strong> &mdash; controls how the message looks</li>
+                </ul>
+
+                <h3>Log Levels</h3>
+                <ul>
+                    <li><code>DEBUG</code> &mdash; Verbose diagnostic output (10)</li>
+                    <li><code>INFO</code> &mdash; Normal operational events (20)</li>
+                    <li><code>WARNING</code> &mdash; Something unexpected but recoverable (30)</li>
+                    <li><code>ERROR</code> &mdash; An operation failed (40)</li>
+                    <li><code>CRITICAL</code> &mdash; System-level failure requiring immediate action (50)</li>
+                </ul>
+
+                <h3>Configuring Multiple Handlers</h3>
+                <pre><code><span class="keyword">import</span> logging
+
+logger = logging.getLogger(<span class="string">"security_monitor"</span>)
+logger.setLevel(logging.DEBUG)
+
+<span class="comment"># Console handler — WARNING and above only</span>
+console = logging.StreamHandler()
+console.setLevel(logging.WARNING)
+console.setFormatter(logging.Formatter(
+    <span class="string">'%(levelname)s - %(message)s'</span>
+))
+
+<span class="comment"># File handler — every level, full detail</span>
+file_handler = logging.FileHandler(<span class="string">'security.log'</span>)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter(
+    <span class="string">'%(asctime)s - %(name)s - %(levelname)s - %(message)s'</span>
+))
+
+logger.addHandler(console)
+logger.addHandler(file_handler)
+
+<span class="comment"># Usage</span>
+logger.debug(<span class="string">"Parsed 142 packets from 10.0.0.5"</span>)    <span class="comment"># file only</span>
+logger.warning(<span class="string">"Port scan detected from 203.0.113.9"</span>)  <span class="comment"># console + file</span>
+logger.critical(<span class="string">"Root login attempt blocked"</span>)           <span class="comment"># console + file</span></code></pre>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">Info: Logger Hierarchy</div>
+                    <p>Logger names are dot-separated namespaces: <code>"security.scanner"</code> is a child of <code>"security"</code>. Child loggers propagate to parent loggers by default. Use this to set a root security log level and have all sub-modules inherit it.</p>
+                </div>
+
+                <!-- LAB 3 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 3</span>
+                        <span class="lab-title">Security Logger Setup</span>
+                    </div>
+                    <p class="lab-instructions">Implement <code>setup_security_logger(name, log_file)</code> that returns a configured logger with: (1) a console handler at WARNING level, and (2) a file handler at DEBUG level with timestamps. Both handlers must use a <code>Formatter</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">setup_logger.py</span></div>
+                        <textarea class="editor-textarea" id="lab3-code">import logging
+
+def setup_security_logger(name, log_file):
+    """
+    Configure a logger with console and file handlers.
+    Returns the configured logger.
+    """
+    pass  # Replace with your implementation
+
+# Test
+logger = setup_security_logger("soc_monitor", "/tmp/soc.log")
+
+logger.debug("DEBUG: raw packet received")
+logger.warning("WARNING: suspicious connection from 10.0.0.99")
+logger.error("ERROR: signature match on payload")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab3-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(3)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(3)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(3)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(3)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint3"><strong>Hint:</strong> <code>logger = logging.getLogger(name)</code>, <code>logger.setLevel(logging.DEBUG)</code>. Create two handlers with <code>setLevel()</code> and <code>setFormatter(logging.Formatter(...))</code>. Add both with <code>logger.addHandler()</code>. Return logger.</div>
+                    <div class="success-message" id="success3">&#10003; Structured logging is the backbone of SIEM integration. Your security events are now properly categorized and routable to the right targets.</div>
+                    <div class="error-message" id="error3"></div>
+                </div>
+
+                <div class="section-complete" id="complete3" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Structured logging configured and ready.</p>
+                    <button class="next-btn" onclick="goToSection('section4')">Continue to SIEM-Ready Pipelines &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 4: SIEM-Ready Log Pipelines ==================== -->
+            <div class="section" id="section4">
+                <h2>SIEM-Ready Log Pipelines</h2>
+                <p>SIEM tools (Splunk, ELK, QRadar) ingest structured data. Plain-text log lines require expensive parsing rules. JSON logs are machine-parseable by default — each field lands in the right column automatically.</p>
+
+                <h3>Custom JSON Formatter</h3>
+                <pre><code><span class="keyword">import</span> json
+<span class="keyword">import</span> logging
+
+<span class="keyword">class</span> <span class="function">JSONFormatter</span>(logging.Formatter):
+    <span class="string">"""Emit log records as JSON for SIEM ingestion."""</span>
+    <span class="keyword">def</span> <span class="function">format</span>(self, record):
+        log_entry = {
+            <span class="string">"timestamp"</span>: self.formatTime(record),
+            <span class="string">"level"</span>: record.levelname,
+            <span class="string">"logger"</span>: record.name,
+            <span class="string">"message"</span>: record.getMessage(),
+            <span class="string">"source"</span>: <span class="string">f"{record.filename}:{record.lineno}"</span>
+        }
+        <span class="keyword">if</span> <span class="builtin">hasattr</span>(record, <span class="string">'event_type'</span>):
+            log_entry[<span class="string">'event_type'</span>] = record.event_type
+        <span class="keyword">if</span> record.exc_info:
+            log_entry[<span class="string">'exception'</span>] = self.formatException(record.exc_info)
+        <span class="keyword">return</span> json.dumps(log_entry)</code></pre>
+
+                <h3>Log Rotation</h3>
+                <p>Security logs grow fast. Without rotation, a single log file can fill a disk within hours during an active incident. <code>RotatingFileHandler</code> caps file size and keeps a configurable number of backups.</p>
+
+                <pre><code><span class="keyword">from</span> logging.handlers <span class="keyword">import</span> RotatingFileHandler
+
+handler = RotatingFileHandler(
+    <span class="string">"security_events.log"</span>,
+    maxBytes=<span class="builtin">10</span> * <span class="builtin">1024</span> * <span class="builtin">1024</span>,  <span class="comment"># 10 MB per file</span>
+    backupCount=<span class="builtin">5</span>                    <span class="comment"># Keep 5 rotated files</span>
+)
+handler.setFormatter(JSONFormatter())</code></pre>
+
+                <h3>Adding Extra Fields to Log Records</h3>
+                <pre><code><span class="comment"># Use LoggerAdapter to inject context fields</span>
+adapter = logging.LoggerAdapter(
+    logger,
+    {<span class="string">"analyst"</span>: <span class="string">"alice"</span>, <span class="string">"session_id"</span>: <span class="string">"abc123"</span>}
+)
+adapter.warning(<span class="string">"Anomalous login pattern detected"</span>)
+<span class="comment"># JSON output: {..., "analyst": "alice", "session_id": "abc123"}</span>
+
+<span class="comment"># Or pass extra directly per-call</span>
+logger.info(
+    <span class="string">"Port scan detected"</span>,
+    extra={<span class="string">"event_type"</span>: <span class="string">"SCAN"</span>, <span class="string">"source_ip"</span>: <span class="string">"203.0.113.42"</span>}
+)</code></pre>
+
+                <div class="callout callout-security">
+                    <div class="callout-title">Security: Never Log Secrets</div>
+                    <p>Passwords, tokens, PII, and cryptographic keys must never appear in log output. Use a custom filter or sanitizer to scrub sensitive fields before they reach any handler. Once in a log file, secrets propagate to SIEM, backup storage, and monitoring dashboards.</p>
+                </div>
+
+                <!-- LAB 4 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 4</span>
+                        <span class="lab-title">JSON Event Logger</span>
+                    </div>
+                    <p class="lab-instructions">Write a <code>SecurityEventLogger</code> class with a <code>log_event(event_type, severity, source_ip, message)</code> method that stores events as JSON-formatted dicts in an internal list and exposes them via <code>get_events()</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">json_logger.py</span></div>
+                        <textarea class="editor-textarea" id="lab4-code">import json
+from datetime import datetime
+
+class SecurityEventLogger:
+    """Logs security events in SIEM-ready JSON format."""
+
+    def __init__(self):
+        self._events = []
+
+    def log_event(self, event_type, severity, source_ip, message):
+        """
+        Record a security event.
+        Each event must include: timestamp, event_type, severity, source_ip, message
+        """
+        pass  # Replace with your implementation
+
+    def get_events(self):
+        """Return all logged events."""
+        return self._events
+
+# Test
+slog = SecurityEventLogger()
+slog.log_event("BRUTE_FORCE", "HIGH", "203.0.113.7", "15 failed logins in 30s")
+slog.log_event("PORT_SCAN", "MEDIUM", "198.51.100.3", "SYN scan on ports 1-1024")
+
+for event in slog.get_events():
+    print(event)</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab4-output">Click "Check" to validate...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(4)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(4)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(4)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(4)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint4"><strong>Hint:</strong> Inside <code>log_event</code>, build a dict with all required fields. Use <code>datetime.utcnow().isoformat()</code> for the timestamp. Use <code>json.dumps(entry)</code> to store it as a JSON string, then append to <code>self._events</code>.</div>
+                    <div class="success-message" id="success4">&#10003; Your JSON logger produces SIEM-ready output. Splunk, ELK, and QRadar can ingest these records directly without custom parsing rules.</div>
+                    <div class="error-message" id="error4"></div>
+                </div>
+
+                <div class="section-complete" id="complete4" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">SIEM-ready JSON logging pipeline built.</p>
+                    <button class="next-btn" onclick="goToSection('section5')">Continue to Security Event Monitoring &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 5: Security Event Monitoring ==================== -->
+            <div class="section" id="section5">
+                <h2>Security Event Monitoring</h2>
+                <p>Combining exception handling with structured logging creates a self-observing alerting pipeline. Errors surface as structured events, thresholds trigger escalations, and every failure is traceable.</p>
+
+                <h3>Combining Error Handling + Logging</h3>
+                <pre><code><span class="keyword">def</span> <span class="function">process_alert</span>(raw_alert, logger):
+    <span class="keyword">try</span>:
+        alert = parse_alert(raw_alert)
+        result = correlate(alert)
+        logger.info(<span class="string">"Alert processed"</span>, extra={<span class="string">"alert_id"</span>: alert.id})
+        <span class="keyword">return</span> result
+    <span class="keyword">except</span> <span class="builtin">ValueError</span> <span class="keyword">as</span> e:
+        logger.warning(<span class="string">f"Malformed alert dropped: {e}"</span>,
+                        extra={<span class="string">"raw"</span>: raw_alert[:<span class="builtin">200</span>]})
+    <span class="keyword">except</span> CorrelationError <span class="keyword">as</span> e:
+        logger.error(<span class="string">f"Correlation failed: {e}"</span>,
+                      extra={<span class="string">"severity"</span>: e.severity})
+        <span class="keyword">raise</span>  <span class="comment"># Re-raise so the caller can escalate</span></code></pre>
+
+                <h3>Threshold-Based Alerting</h3>
+                <pre><code><span class="keyword">from</span> collections <span class="keyword">import</span> defaultdict
+<span class="keyword">import</span> time
+
+failure_counts = defaultdict(<span class="builtin">int</span>)
+LOCKOUT_THRESHOLD = <span class="builtin">5</span>
+
+<span class="keyword">def</span> <span class="function">record_failure</span>(source_ip, logger):
+    failure_counts[source_ip] += <span class="builtin">1</span>
+    count = failure_counts[source_ip]
+    <span class="keyword">if</span> count == LOCKOUT_THRESHOLD:
+        logger.critical(
+            <span class="string">f"LOCKOUT: {source_ip} exceeded {LOCKOUT_THRESHOLD} failures"</span>,
+            extra={<span class="string">"event_type"</span>: <span class="string">"LOCKOUT"</span>, <span class="string">"source_ip"</span>: source_ip}
+        )
+        block_ip(source_ip)
+    <span class="keyword">elif</span> count > <span class="builtin">2</span>:
+        logger.warning(<span class="string">f"Repeated failure from {source_ip}: attempt {count}"</span>)</code></pre>
+
+                <!-- Code Review Exercise -->
+                <div class="code-review">
+                    <div class="lab-header">
+                        <span class="review-badge">CODE REVIEW</span>
+                        <span class="lab-title">Find the Logging Issues</span>
+                    </div>
+                    <p class="lab-instructions">Review this code. It contains 3 serious issues related to logging and error handling in a security context.</p>
+
+                    <pre><code><span class="keyword">import</span> logging
+
+<span class="comment"># --- Issue 1: Logging sensitive data ---</span>
+<span class="keyword">def</span> <span class="function">authenticate</span>(username, password):
+    logging.info(<span class="string">f"Login attempt: user={username} pass={password}"</span>)
+    <span class="comment"># ^ Passwords in log output propagate to SIEM, backups,</span>
+    <span class="comment">#   and every downstream consumer. Never log credentials.</span>
+
+<span class="comment"># --- Issue 2: Bare except swallows everything ---</span>
+<span class="keyword">def</span> <span class="function">process_events</span>(events):
+    <span class="keyword">for</span> event <span class="keyword">in</span> events:
+        <span class="keyword">try</span>:
+            handle(event)
+        <span class="keyword">except</span>:   <span class="comment"># Bare except catches SystemExit and KeyboardInterrupt!</span>
+            <span class="keyword">pass</span>  <span class="comment"># Silently discards ALL errors including Ctrl+C</span>
+
+<span class="comment"># --- Issue 3: No log rotation ---</span>
+handler = logging.FileHandler(<span class="string">"security.log"</span>)
+<span class="comment"># ^ Unbounded file will fill disk during a high-volume incident.</span>
+<span class="comment">#   Use RotatingFileHandler or TimedRotatingFileHandler instead.</span></code></pre>
+
+                    <p style="margin-top:1rem;"><strong>Issues:</strong></p>
+                    <ol>
+                        <li><strong>Logging sensitive data</strong> &mdash; <code>password</code> is written directly to the log message. Credentials propagate to every SIEM, backup, and monitoring system that receives the log stream. Always log only the username and a boolean success/failure flag.</li>
+                        <li><strong>Bare <code>except:</code> clause</strong> &mdash; catches <code>SystemExit</code> and <code>KeyboardInterrupt</code>, making it impossible to stop the process cleanly. It also silences every real error. Use <code>except Exception:</code> at the broadest, and log before passing.</li>
+                        <li><strong>Missing log rotation</strong> &mdash; <code>logging.FileHandler</code> writes to a single unbounded file. During a DDoS or active intrusion, event volume can fill a disk in minutes. Use <code>RotatingFileHandler(maxBytes=10*1024*1024, backupCount=5)</code>.</li>
+                    </ol>
+                </div>
+
+                <!-- Module Completion -->
+                <div class="module-complete" id="moduleComplete" style="display: none;">
+                    <div class="complete-icon" style="font-size: 3rem;">&#127942;</div>
+                    <h2>Chapter 4 Complete!</h2>
+                    <p class="complete-message">You've mastered Python's error handling hierarchy, context-aware exception chaining, structured logging, SIEM-ready JSON pipelines, and the common pitfalls that compromise security observability.</p>
+                    <button class="module-complete-btn" onclick="completeModule()">Complete Chapter &amp; Continue &rarr;</button>
+                </div>
+
+                <div class="section-complete" id="complete5" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">All Sections Complete!</h3>
+                    <p class="complete-message">You've completed all 5 sections of Chapter 4.</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="progress.js"></script>
+
+    <script>
+        let currentSection = 'section1';
+        let completedSections = [];
+        const TOTAL_SECTIONS = 5;
+        const STORAGE_KEY = 'pye-ch04-sections';
+
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) completedSections = JSON.parse(saved);
+        } catch(e) {}
+
+        const defaultCode = {
+            1: `class SecurityError(Exception):\n    """Base exception for security operations."""\n    def __init__(self, message, severity="HIGH"):\n        self.severity = severity\n        super().__init__(f"[{severity}] {message}")\n\nclass AuthenticationError(SecurityError):\n    """Failed authentication attempt."""\n    pass\n\nclass AuthorizationError(SecurityError):\n    """Insufficient permissions."""\n    pass\n\ndef validate_request(token, role):\n    """Validate token and role, raise appropriate exceptions."""\n    pass  # Replace with your implementation\n\n# Test\ntry:\n    validate_request("bad-token", "analyst")\nexcept AuthenticationError as e:\n    print(f"Auth failed: {e}")\n\ntry:\n    validate_request("valid-token", "guest")\nexcept AuthorizationError as e:\n    print(f"Access denied: {e}")\n\n# Should succeed silently\nvalidate_request("valid-token", "analyst")\nprint("Request validated successfully")`,
+            2: `def primary_lookup(ioc):\n    """Simulated primary API — always unavailable."""\n    raise ConnectionError("Primary threat feed unreachable")\n\ndef cache_lookup(ioc):\n    """Simulated cache — not populated."""\n    raise KeyError(f"{ioc} not in cache")\n\ndef get_threat_data(ioc):\n    """\n    Fetch threat data with cascading fallback.\n    Returns a dict with at least: ioc, reputation, source\n    """\n    pass  # Replace with your implementation\n\n# Test\nresult = get_threat_data("198.51.100.42")\nprint(result)\nprint("reputation:", result.get("reputation"))\nprint("source:", result.get("source"))`,
+            3: `import logging\n\ndef setup_security_logger(name, log_file):\n    """\n    Configure a logger with console and file handlers.\n    Returns the configured logger.\n    """\n    pass  # Replace with your implementation\n\n# Test\nlogger = setup_security_logger("soc_monitor", "/tmp/soc.log")\n\nlogger.debug("DEBUG: raw packet received")\nlogger.warning("WARNING: suspicious connection from 10.0.0.99")\nlogger.error("ERROR: signature match on payload")`,
+            4: `import json\nfrom datetime import datetime\n\nclass SecurityEventLogger:\n    """Logs security events in SIEM-ready JSON format."""\n\n    def __init__(self):\n        self._events = []\n\n    def log_event(self, event_type, severity, source_ip, message):\n        """\n        Record a security event.\n        Each event must include: timestamp, event_type, severity, source_ip, message\n        """\n        pass  # Replace with your implementation\n\n    def get_events(self):\n        """Return all logged events."""\n        return self._events\n\n# Test\nslog = SecurityEventLogger()\nslog.log_event("BRUTE_FORCE", "HIGH", "203.0.113.7", "15 failed logins in 30s")\nslog.log_event("PORT_SCAN", "MEDIUM", "198.51.100.3", "SYN scan on ports 1-1024")\n\nfor event in slog.get_events():\n    print(event)`
+        };
+
+        function goToSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.section === sectionId) link.classList.add('active');
+            });
+            currentSection = sectionId;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => goToSection(link.dataset.section));
+        });
+
+        function updateProgress() {
+            const percent = Math.round((completedSections.length / TOTAL_SECTIONS) * 100);
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = percent + '% Complete';
+            if (completedSections.length >= TOTAL_SECTIONS) {
+                const mc = document.getElementById('moduleComplete');
+                if (mc) mc.style.display = 'block';
+            }
+        }
+
+        function markSectionComplete(sectionNum) {
+            const sectionId = 'section' + sectionNum;
+            if (!completedSections.includes(sectionId)) {
+                completedSections.push(sectionId);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+                const navLink = document.querySelector(`[data-section="${sectionId}"]`);
+                if (navLink) {
+                    navLink.classList.add('completed');
+                    navLink.querySelector('.nav-icon').textContent = '\u2713';
+                }
+                const completeDiv = document.getElementById('complete' + sectionNum);
+                if (completeDiv) completeDiv.style.display = 'block';
+                updateProgress();
+            }
+        }
+
+        function runLab(num) {
+            const output = document.getElementById('lab' + num + '-output');
+            const outputs = {
+                1: 'Auth failed: [HIGH] Invalid token\nAccess denied: [HIGH] Role not permitted\nRequest validated successfully',
+                2: '[WARNING] Primary lookup failed: Primary threat feed unreachable\n[WARNING] Cache lookup failed: \'198.51.100.42\' not in cache\n[INFO] Returning safe defaults for 198.51.100.42\n{\'ioc\': \'198.51.100.42\', \'reputation\': \'UNKNOWN\', \'source\': \'default\'}\nreputation: UNKNOWN\nsource: default',
+                3: 'WARNING - WARNING: suspicious connection from 10.0.0.99\nERROR - ERROR: signature match on payload\n[File handler also received DEBUG, WARNING, and ERROR messages]',
+                4: '{"timestamp": "2026-02-28T14:32:01.445Z", "event_type": "BRUTE_FORCE", "severity": "HIGH", "source_ip": "203.0.113.7", "message": "15 failed logins in 30s"}\n{"timestamp": "2026-02-28T14:32:01.447Z", "event_type": "PORT_SCAN", "severity": "MEDIUM", "source_ip": "198.51.100.3", "message": "SYN scan on ports 1-1024"}'
+            };
+            output.textContent = outputs[num] || 'Running...';
+        }
+
+        function checkLab(num) {
+            const code = document.getElementById('lab' + num + '-code').value;
+            const successDiv = document.getElementById('success' + num);
+            const errorDiv = document.getElementById('error' + num);
+            let isCorrect = false;
+
+            if (num === 1) {
+                const hasAuthErr = code.includes('raise AuthenticationError');
+                const hasAuthzErr = code.includes('raise AuthorizationError');
+                const hasTokenCheck = code.includes('token') && (code.includes('!=') || code.includes('not'));
+                isCorrect = hasAuthErr && hasAuthzErr && hasTokenCheck;
+                if (!isCorrect) errorDiv.textContent = 'Raise AuthenticationError for an invalid token and AuthorizationError for an invalid role. Check both conditions in validate_request.';
+            } else if (num === 2) {
+                const hasTry = (code.match(/try:/g) || []).length >= 2;
+                const hasExcept = (code.match(/except/g) || []).length >= 2;
+                const hasReturn = /return\s*\{/.test(code) || /return\s+\{/.test(code);
+                const hasUnknown = code.includes('UNKNOWN');
+                isCorrect = hasTry && hasExcept && hasReturn && hasUnknown;
+                if (!isCorrect) errorDiv.textContent = 'Use nested try/except blocks for primary and cache lookups. Return a dict with reputation set to "UNKNOWN" as the final fallback.';
+            } else if (num === 3) {
+                const hasGetLogger = code.includes('getLogger');
+                const hasSetLevel = code.includes('setLevel');
+                const hasAddHandler = (code.match(/addHandler/g) || []).length >= 2;
+                const hasFormatter = code.includes('Formatter');
+                isCorrect = hasGetLogger && hasSetLevel && hasAddHandler && hasFormatter;
+                if (!isCorrect) errorDiv.textContent = 'Create a logger with getLogger(), set its level to DEBUG, add a StreamHandler (WARNING) and a FileHandler (DEBUG), each with a Formatter.';
+            } else if (num === 4) {
+                const hasJsonDumps = code.includes('json.dumps') || code.includes('json.dumps');
+                const hasLogEvent = code.includes('def log_event');
+                const hasTimestamp = code.includes('timestamp');
+                const hasSeverity = code.includes('severity');
+                const hasAppend = code.includes('append(');
+                isCorrect = hasLogEvent && hasTimestamp && hasSeverity && hasAppend;
+                if (!isCorrect) errorDiv.textContent = 'Implement log_event to build a dict with timestamp, event_type, severity, source_ip, and message, then append it to self._events.';
+            }
+
+            if (isCorrect) {
+                successDiv.classList.add('show');
+                errorDiv.classList.remove('show');
+                markSectionComplete(num);
+            } else {
+                errorDiv.classList.add('show');
+                successDiv.classList.remove('show');
+            }
+        }
+
+        function toggleHint(num) { document.getElementById('hint' + num).classList.toggle('show'); }
+
+        function resetLab(num) {
+            document.getElementById('lab' + num + '-code').value = defaultCode[num];
+            document.getElementById('lab' + num + '-output').textContent = 'Click "Check" to validate...';
+            document.getElementById('success' + num).classList.remove('show');
+            document.getElementById('error' + num).classList.remove('show');
+            document.getElementById('hint' + num).classList.remove('show');
+        }
+
+        function completeModule() {
+            PYEProgress.markModuleComplete('ch04');
+            PYEProgress.markQuizPassed('ch04', 100);
+            window.location.href = 'index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            completedSections.forEach(sectionId => {
+                const navLink = document.querySelector(`[data-section="${sectionId}"]`);
+                if (navLink) {
+                    navLink.classList.add('completed');
+                    navLink.querySelector('.nav-icon').textContent = '\u2713';
+                }
+                const num = sectionId.replace('section', '');
+                const completeDiv = document.getElementById('complete' + num);
+                if (completeDiv) completeDiv.style.display = 'block';
+            });
+
+            // MutationObserver: auto-mark section 5 complete when navigated to
+            // if all 4 previous sections are already done
+            const observer = new MutationObserver(() => {
+                const section5 = document.getElementById('section5');
+                if (section5 && section5.classList.contains('active') && completedSections.length >= 4) {
+                    markSectionComplete(5);
+                }
+            });
+            observer.observe(document.getElementById('section5'), { attributes: true });
+
+            updateProgress();
+        });
+    </script>
+</body>
+</html>
