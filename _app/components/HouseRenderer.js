@@ -66,6 +66,8 @@ const HouseRenderer = (function() {
         'feh': 'feh-course',
         'ehe': 'certifications',
         'cyberops': 'cyberops',
+        'wifi-arsenal': 'wireless',
+        'bug-hunting': 'bh-recon',
         'vault': 'vault',
     };
 
