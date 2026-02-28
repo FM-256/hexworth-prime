@@ -8,6 +8,7 @@
  * - NAV-001: Content page has no back/return navigation
  * - NAV-002: House/course index page has no dashboard link
  * - NAV-003: Content page inside a course subdirectory has returnUrl that skips course home
+ * - NAV-004: Path card in house index has no href but a hub directory exists for it
  */
 
 const fs = require('fs');
@@ -43,6 +44,9 @@ class NavigationValidator {
 
         if (isHouseIndex || isCourseIndex) {
             issues.push(...this._checkDashboardLink(file));
+            if (isHouseIndex) {
+                issues.push(...this._checkPathCardHrefs(file));
+            }
             return issues;
         }
 
@@ -234,6 +238,68 @@ class NavigationValidator {
                 courseDir: courseDir,
                 fix: `Change href from '../../index.html' to '../index.html' to link to the course home`
             });
+        }
+
+        return issues;
+    }
+
+    /**
+     * NAV-004: Check if path cards in a house index have missing hrefs
+     * when a hub directory (modules/{pathId}/index.html) exists.
+     *
+     * A path card without an href falls back to path-view.html, which
+     * produces a 404 if the path has its own hub page.
+     *
+     * @param {Object} file - File object with content and path
+     * @returns {Array} Issues found
+     */
+    _checkPathCardHrefs(file) {
+        const content = file.content || '';
+        const filePath = (file.path || '').replace(/\\/g, '/');
+        const issues = [];
+
+        // Extract the house directory from the file path
+        // Pattern: houses/{house}/index.html
+        const houseMatch = filePath.match(/^houses\/([^/]+)\/index\.html$/);
+        if (!houseMatch) return issues;
+
+        const house = houseMatch[1];
+
+        // Find paths: [...] blocks, then parse entries within them
+        const pathsBlockRegex = /paths\s*:\s*\[([\s\S]*?)\]/g;
+        let blockMatch;
+
+        while ((blockMatch = pathsBlockRegex.exec(content)) !== null) {
+            const blockContent = blockMatch[1];
+
+            // Find individual path entries within this block
+            const entryRegex = /\{\s*id:\s*'([^']+)'[^}]*\}/g;
+            let entryMatch;
+
+            while ((entryMatch = entryRegex.exec(blockContent)) !== null) {
+                const fullEntry = entryMatch[0];
+                const pathId = entryMatch[1];
+
+                // Skip if this entry already has an href
+                if (/href\s*:/.test(fullEntry)) continue;
+
+                // Check if a hub directory exists: modules/{pathId}/index.html
+                const rootPath = this.rootPath || './_app';
+                const hubPath = path.resolve(rootPath, 'houses', house, 'modules', pathId, 'index.html');
+
+                if (fs.existsSync(hubPath)) {
+                    issues.push({
+                        code: 'NAV-004',
+                        severity: 'high',
+                        category: 'navigation',
+                        message: `Path card '${pathId}' has no href but hub exists at modules/${pathId}/index.html — clicking this card will 404`,
+                        file: filePath,
+                        house: house,
+                        pathId: pathId,
+                        fix: `Add href: 'modules/${pathId}/index.html' to the path entry`
+                    });
+                }
+            }
         }
 
         return issues;

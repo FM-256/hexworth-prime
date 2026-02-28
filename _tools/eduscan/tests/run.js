@@ -192,10 +192,10 @@ console.log('');
         navIssues.push(...result);
     }
 
-    const validCodes = ['NAV-001', 'NAV-002', 'NAV-003'];
+    const validCodes = ['NAV-001', 'NAV-002', 'NAV-003', 'NAV-004'];
     const badCodes = navIssues.filter(i => !validCodes.includes(i.code));
     if (badCodes.length === 0) {
-        console.log(`  \u2713 NavigationValidator — all ${navIssues.length} issues use NAV-001/NAV-002/NAV-003 codes`);
+        console.log(`  \u2713 NavigationValidator — all ${navIssues.length} issues use NAV-001/NAV-002/NAV-003/NAV-004 codes`);
         passed++;
     } else {
         console.log(`  \u2717 NavigationValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
@@ -374,6 +374,48 @@ console.log('');
     } else {
         console.log(`  \u2717 NAV-003 positive — expected href skip detection (found: ${navResult.map(i => i.code).join(', ') || 'none'})`);
         if (VERBOSE) navResult.forEach(i => console.log(`    - ${i.code}: ${i.message}`));
+        failed++;
+    }
+}
+
+// NAV-004: positive detection — path card with no href but hub directory exists
+{
+    const navValidator = new NavigationValidator({ profile: 'strict', rootPath: ROOT_PATH });
+
+    // Simulate a house index page with a path card missing href
+    // python-hub has a real hub at modules/python-hub/index.html
+    const mockHouseIndex = {
+        path: 'houses/code/index.html',
+        content: `
+            <script src="../../components/HouseRenderer.js"></script>
+            <script>
+            HouseRenderer.init({
+                houseId: 'code',
+                paths: [
+                    { id: 'devops-fundamentals', name: 'DevOps Fundamentals', cert: 'Primary Learning Path' },
+                    { id: 'python-hub', name: 'Python Hub', cert: '5-Track Curriculum' }
+                ]
+            });
+            </script>`,
+        role: 'house-index',
+        house: 'code'
+    };
+    const nav004Result = navValidator.validate(mockHouseIndex);
+    const nav004s = nav004Result.filter(i => i.code === 'NAV-004');
+
+    // python-hub should trigger (hub exists), devops-fundamentals should not (no hub dir)
+    const hubDetected = nav004s.some(i => i.pathId === 'python-hub');
+    const falsePositive = nav004s.some(i => i.pathId === 'devops-fundamentals');
+
+    if (hubDetected && !falsePositive) {
+        console.log(`  \u2713 NAV-004 positive — detected missing href on 'python-hub' path card, no false positive on 'devops-fundamentals'`);
+        passed++;
+    } else {
+        const parts = [];
+        if (!hubDetected) parts.push("missed 'python-hub' (hub dir exists)");
+        if (falsePositive) parts.push("false positive on 'devops-fundamentals' (no hub dir)");
+        console.log(`  \u2717 NAV-004 positive — ${parts.join(', ')} (found: ${nav004s.map(i => i.pathId).join(', ') || 'none'})`);
+        if (VERBOSE) nav004Result.forEach(i => console.log(`    - ${i.code}: ${i.message}`));
         failed++;
     }
 }
