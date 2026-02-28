@@ -69,6 +69,7 @@ const HouseRenderer = (function() {
         'wifi-arsenal': 'wireless',
         'bug-hunting': 'bh-recon',
         'vault': 'vault',
+        'python-hub': 'python',
     };
 
     // ========================================

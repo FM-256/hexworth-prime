@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Analyzer - Python Hub | Hexworth Prime</title>
+    <style>
+        :root {
+            --house-color: #4ade80;
+            --house-color-dark: #22c55e;
+            --house-color-light: #86efac;
+            --python-blue: #306998;
+            --python-blue-light: #4b8bbe;
+            --accent-cyan: #22d3ee;
+            --success-color: #22c55e;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-primary: #c8d6e5;
+            --text-secondary: #7a8b9a;
+            --text-heading: #e2e8f0;
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1729;
+            --bg-card: rgba(14, 22, 40, 0.85);
+            --border-color: rgba(74, 222, 128, 0.15);
+            --border-glow: rgba(74, 222, 128, 0.35);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        .top-header {
+            background: rgba(10, 14, 26, 0.95);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(10px);
+        }
+
+        .top-header-left { display: flex; align-items: center; gap: 1rem; }
+
+        .back-btn {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s;
+        }
+        .back-btn:hover { color: var(--house-color); }
+
+        .chapter-badge {
+            background: rgba(74, 222, 128, 0.1);
+            color: var(--house-color);
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid rgba(74, 222, 128, 0.2);
+        }
+
+        .progress-container { display: flex; align-items: center; gap: 0.75rem; }
+
+        .progress-bar {
+            width: 150px; height: 8px;
+            background: rgba(74, 222, 128, 0.1);
+            border-radius: 4px; overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--python-blue), var(--house-color));
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        .progress-text { color: var(--text-secondary); font-size: 0.8rem; min-width: 80px; }
+
+        .layout { display: flex; min-height: calc(100vh - 60px); }
+
+        .sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem 0;
+            position: sticky;
+            top: 60px;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .nav-header {
+            padding: 0 1.25rem 1rem;
+            font-size: 0.75rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .nav-list { list-style: none; }
+        .nav-item { margin-bottom: 2px; }
+
+        .nav-link {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.75rem 1.25rem;
+            color: var(--text-primary); text-decoration: none;
+            font-size: 0.9rem; transition: all 0.2s ease;
+            cursor: pointer; border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover { background: rgba(74, 222, 128, 0.05); border-left-color: rgba(74, 222, 128, 0.3); }
+        .nav-link.active { background: rgba(74, 222, 128, 0.1); border-left-color: var(--house-color); color: var(--house-color); font-weight: 600; }
+        .nav-link.completed .nav-icon { background: var(--success-color); color: white; }
+
+        .nav-icon {
+            width: 26px; height: 26px; border-radius: 50%;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+            color: var(--text-secondary);
+        }
+
+        .main-content { flex: 1; padding: 2.5rem 3rem; max-width: 900px; }
+
+        .section { display: none; }
+        .section.active { display: block; }
+        .section h2 { font-size: 1.8rem; color: var(--text-heading); margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid var(--border-color); }
+        .section h3 { font-size: 1.3rem; color: var(--text-heading); margin: 2rem 0 1rem; }
+        .section h4 { font-size: 1.1rem; color: var(--house-color); margin: 1.5rem 0 0.75rem; }
+        .section p { margin-bottom: 1rem; color: var(--text-primary); }
+        .section ul, .section ol { margin: 0.5rem 0 1.5rem 1.5rem; color: var(--text-primary); }
+        .section li { margin-bottom: 0.4rem; }
+
+        code { background: rgba(74, 222, 128, 0.08); color: var(--house-color); padding: 0.15rem 0.4rem; border-radius: 4px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9em; }
+
+        pre { background: #1a1f2e; border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin: 1rem 0 1.5rem; overflow-x: auto; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.88rem; line-height: 1.6; color: #d4d4d4; }
+        pre code { background: none; color: inherit; padding: 0; }
+
+        .comment { color: #6a9955; }
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .function { color: #dcdcaa; }
+        .builtin { color: #4ec9b0; }
+
+        .callout { border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0; border-left: 4px solid; }
+        .callout-security { background: rgba(239, 68, 68, 0.08); border-color: #ef4444; }
+        .callout-security .callout-title { color: #fca5a5; }
+        .callout-tip { background: rgba(74, 222, 128, 0.08); border-color: var(--house-color); }
+        .callout-tip .callout-title { color: var(--house-color); }
+        .callout-info { background: rgba(48, 105, 152, 0.1); border-color: var(--python-blue-light); }
+        .callout-info .callout-title { color: var(--python-blue-light); }
+        .callout-title { font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        .lab-exercise { background: rgba(48, 105, 152, 0.08); border: 1px solid rgba(48, 105, 152, 0.25); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+        .lab-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .lab-badge { background: var(--python-blue); color: white; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
+        .lab-title { font-size: 1.1rem; font-weight: 600; color: var(--text-heading); }
+        .lab-instructions { color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem; }
+
+        .code-editor { background: #1e1e1e; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+        .editor-header { background: #2d2d2d; padding: 0.5rem 1rem; display: flex; align-items: center; justify-content: space-between; }
+        .editor-tab { color: #ccc; font-size: 0.8rem; font-family: 'Consolas', monospace; }
+        .editor-textarea { width: 100%; min-height: 180px; background: #1e1e1e; border: none; color: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.88rem; padding: 1rem; resize: vertical; line-height: 1.6; tab-size: 4; outline: none; }
+
+        .output-panel { background: #0d1117; border-radius: 8px; margin-bottom: 1rem; overflow: hidden; }
+        .output-header { background: #161b22; padding: 0.5rem 1rem; font-size: 0.8rem; color: #7a8b9a; font-weight: 600; }
+        .output-content { padding: 1rem; color: #c9d1d9; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; min-height: 60px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+
+        .lab-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .lab-btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .btn-run { background: var(--house-color); color: #0a0e1a; }
+        .btn-run:hover { background: var(--house-color-light); }
+        .btn-check { background: var(--python-blue); color: white; }
+        .btn-check:hover { background: var(--python-blue-light); }
+        .btn-hint { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .btn-hint:hover { background: rgba(245, 158, 11, 0.25); }
+        .btn-reset { background: rgba(127, 127, 127, 0.1); color: var(--text-secondary); border: 1px solid rgba(127, 127, 127, 0.2); }
+        .btn-reset:hover { background: rgba(127, 127, 127, 0.2); }
+
+        .hint-box { background: rgba(245, 158, 11, 0.08); border-left: 4px solid var(--warning-color); padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; display: none; color: var(--text-primary); }
+        .hint-box.show { display: block; }
+
+        .success-message { background: rgba(34, 197, 94, 0.1); color: var(--house-color-light); border-left: 4px solid var(--success-color); padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; display: none; }
+        .success-message.show { display: block; }
+
+        .error-message { background: rgba(239, 68, 68, 0.1); color: #fca5a5; border-left: 4px solid var(--error-color); padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; display: none; }
+        .error-message.show { display: block; }
+
+        .section-complete { background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(34, 197, 94, 0.06) 100%); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 12px; padding: 2rem; text-align: center; margin-top: 2rem; }
+        .complete-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .complete-title { font-size: 1.3rem; color: var(--house-color); margin-bottom: 0.5rem; }
+        .complete-message { color: var(--text-secondary); margin-bottom: 1rem; }
+
+        .next-btn { background: var(--house-color); color: #0a0e1a; padding: 0.75rem 2rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.95rem; transition: all 0.2s ease; }
+        .next-btn:hover { background: var(--house-color-light); transform: translateY(-2px); }
+
+        .module-complete { background: linear-gradient(135deg, rgba(74, 222, 128, 0.12), rgba(48, 105, 152, 0.08)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 16px; padding: 3rem 2rem; text-align: center; margin-top: 2rem; }
+        .module-complete h2 { color: var(--house-color); margin-bottom: 1rem; }
+        .module-complete-btn { background: linear-gradient(135deg, var(--house-color), var(--house-color-dark)); color: #0a0e1a; padding: 1rem 2.5rem; border-radius: 10px; border: none; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: all 0.3s; margin-top: 1rem; }
+        .module-complete-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(74, 222, 128, 0.3); }
+
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main-content { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-header">
+        <div class="top-header-left">
+            <a href="../index.html" class="back-btn">&larr; Python Hub</a>
+            <span class="chapter-badge">Project 02</span>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <div class="nav-header">Project Sections</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a class="nav-link active" data-section="section1"><span class="nav-icon">1</span> Log File Parsing</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section2"><span class="nav-icon">2</span> Pattern Analysis</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section3"><span class="nav-icon">3</span> Time-Based Analysis</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section4"><span class="nav-icon">4</span> Anomaly Detection</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section5"><span class="nav-icon">5</span> Report Generation</a></li>
+                    <li class="nav-item"><a class="nav-link" data-section="section6"><span class="nav-icon">6</span> CLI Integration</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+
+            <!-- ==================== SECTION 1 ==================== -->
+            <div class="section active" id="section1">
+                <h2>Log File Parsing</h2>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">Project Overview</div>
+                    <p><strong>What you'll build:</strong> A log analysis tool that parses server logs, identifies patterns, detects anomalies, and generates security reports.</p>
+                    <p><strong>Libraries used:</strong> re, collections, datetime, csv</p>
+                    <p><strong>Skills practiced:</strong> Regular expressions, frequency analysis, time-series grouping, anomaly detection, report generation</p>
+                </div>
+
+                <p>Log analysis is one of the core skills in cybersecurity and system administration. Server logs, application logs, and security logs all follow semi-structured formats that are perfect for regex-based parsing.</p>
+
+                <h3>Common Log Formats</h3>
+                <p>Different systems produce different log formats. Here are three you will encounter constantly:</p>
+
+                <h4>Apache Combined Log Format</h4>
+                <pre><code>192.168.1.10 - - [15/Oct/2025:14:22:01 +0000] "GET /admin HTTP/1.1" 403 4521
+10.0.0.5 - admin [15/Oct/2025:14:22:03 +0000] "POST /login HTTP/1.1" 200 1024</code></pre>
+
+                <h4>Syslog Format</h4>
+                <pre><code>Oct 15 14:22:01 webserver sshd[2847]: Failed password for root from 192.168.1.50 port 22
+Oct 15 14:22:05 webserver sshd[2847]: Accepted password for admin from 10.0.0.1 port 22</code></pre>
+
+                <h4>Application Log Format</h4>
+                <pre><code>2025-10-15 14:22:01 ERROR [auth] Failed login attempt for user "admin" from 192.168.1.10
+2025-10-15 14:22:03 INFO  [web] GET /dashboard 200 45ms</code></pre>
+
+                <h3>Parsing with Regex</h3>
+                <p>Each format needs its own regex pattern. Named groups (<code>(?P&lt;name&gt;...)</code>) make the extracted data self-documenting:</p>
+
+                <pre><code><span class="keyword">import</span> re
+
+<span class="comment"># Application log pattern</span>
+APP_LOG_PATTERN = re.compile(
+    r<span class="string">"(?P&lt;timestamp&gt;\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"</span>
+    r<span class="string">"(?P&lt;level&gt;\w+)\s+"</span>
+    r<span class="string">"\[(?P&lt;source&gt;\w+)\]\s+"</span>
+    r<span class="string">"(?P&lt;message&gt;.+)"</span>
+)
+
+<span class="keyword">def</span> <span class="function">parse_log_line</span>(line):
+    <span class="string">"""Parse a single log line into a structured dict."""</span>
+    match = APP_LOG_PATTERN.match(line.strip())
+    <span class="keyword">if</span> match:
+        <span class="keyword">return</span> match.groupdict()
+    <span class="keyword">return</span> <span class="builtin">None</span>
+
+<span class="keyword">def</span> <span class="function">parse_log_file</span>(filepath):
+    <span class="string">"""Parse all lines in a log file."""</span>
+    entries = []
+    <span class="keyword">with</span> <span class="builtin">open</span>(filepath, <span class="string">"r"</span>) <span class="keyword">as</span> f:
+        <span class="keyword">for</span> line <span class="keyword">in</span> f:
+            entry = parse_log_line(line)
+            <span class="keyword">if</span> entry:
+                entries.append(entry)
+    <span class="keyword">return</span> entries</code></pre>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">Tip: Compile Your Patterns</div>
+                    <p>Use <code>re.compile()</code> for patterns that will be matched many times. Compiled patterns are significantly faster than calling <code>re.match()</code> with a string pattern on every line of a multi-million-line log file.</p>
+                </div>
+
+                <!-- LAB 1 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 1</span>
+                        <span class="lab-title">Write a Log Parser</span>
+                    </div>
+                    <p class="lab-instructions">Write a <code>parse_log_line</code> function using <code>re.compile()</code> with named groups that extracts <code>timestamp</code>, <code>level</code>, and <code>message</code> from application log lines in the format: <code>2025-10-15 14:22:01 ERROR [auth] Failed login</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">log_analyzer.py</span></div>
+                        <textarea class="editor-textarea" id="lab1-code">import re
+
+# TODO: Compile a regex pattern with named groups:
+#   timestamp: YYYY-MM-DD HH:MM:SS
+#   level: word like ERROR, INFO, WARNING
+#   message: everything after [source]
+LOG_PATTERN = re.compile(r"")
+
+def parse_log_line(line):
+    """Parse a log line into {timestamp, level, message} or None."""
+    # TODO: Match the pattern against the line
+    # TODO: Return groupdict() if matched, else None
+    pass
+
+# Test data
+test_lines = [
+    '2025-10-15 14:22:01 ERROR [auth] Failed login for user admin',
+    '2025-10-15 14:22:03 INFO  [web] GET /dashboard 200 45ms',
+    '2025-10-15 14:22:05 WARNING [db] Slow query detected: 2.3s',
+]
+
+for line in test_lines:
+    result = parse_log_line(line)
+    if result:
+        print(f"[{result['level']}] {result['message']}")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab1-output">Click "Run" to validate your parser...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(1)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(1)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(1)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(1)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint1">
+                        <strong>Hint:</strong> Pattern: <code>r"(?P&lt;timestamp&gt;\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P&lt;level&gt;\w+)\s+\[\w+\]\s+(?P&lt;message&gt;.+)"</code>. Use <code>match = LOG_PATTERN.match(line.strip())</code> then <code>return match.groupdict() if match else None</code>.
+                    </div>
+                    <div class="success-message" id="success1">&#10003; Your parser extracts structured data from raw log lines. This is the foundation of every SIEM and log analysis pipeline.</div>
+                    <div class="error-message" id="error1"></div>
+                </div>
+
+                <div class="section-complete" id="complete1" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">You can parse logs into structured data. Next: finding patterns.</p>
+                    <button class="next-btn" onclick="goToSection('section2')">Continue to Pattern Analysis &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 2 ==================== -->
+            <div class="section" id="section2">
+                <h2>Pattern Analysis</h2>
+                <p>Once logs are parsed, the next step is frequency analysis. Which error messages appear most often? Which IP addresses generate the most traffic? Python's <code>collections.Counter</code> is purpose-built for this.</p>
+
+                <h3>Counter for Frequency Analysis</h3>
+                <pre><code><span class="keyword">from</span> collections <span class="keyword">import</span> Counter
+
+<span class="keyword">def</span> <span class="function">count_by_level</span>(entries):
+    <span class="string">"""Count log entries by severity level."""</span>
+    levels = Counter(e[<span class="string">"level"</span>] <span class="keyword">for</span> e <span class="keyword">in</span> entries)
+    <span class="keyword">return</span> levels.most_common()
+
+<span class="comment"># Output: [('INFO', 1523), ('WARNING', 89), ('ERROR', 34), ('CRITICAL', 2)]</span></code></pre>
+
+                <h3>Extracting IPs with Regex</h3>
+                <pre><code>IP_PATTERN = re.compile(r<span class="string">"\b(\d{1,3}\.){3}\d{1,3}\b"</span>)
+
+<span class="keyword">def</span> <span class="function">extract_ips</span>(entries):
+    <span class="string">"""Extract all IP addresses from log messages."""</span>
+    ips = []
+    <span class="keyword">for</span> e <span class="keyword">in</span> entries:
+        found = IP_PATTERN.findall(e[<span class="string">"message"</span>])
+        ips.extend(found)
+    <span class="keyword">return</span> Counter(ips)
+
+<span class="keyword">def</span> <span class="function">top_ips</span>(entries, n=5):
+    <span class="string">"""Return the top N most frequent IP addresses."""</span>
+    ip_counts = extract_ips(entries)
+    <span class="keyword">return</span> ip_counts.most_common(n)</code></pre>
+
+                <div class="callout callout-security">
+                    <div class="callout-title">Security: IP Frequency as an Indicator</div>
+                    <p>An IP address appearing thousands of times in error logs is a strong indicator of a brute-force attack or vulnerability scanner. Frequency analysis is the first step in threat hunting.</p>
+                </div>
+
+                <!-- LAB 2 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 2</span>
+                        <span class="lab-title">Count Levels &amp; Top IPs</span>
+                    </div>
+                    <p class="lab-instructions">Write two functions: <code>count_by_level(entries)</code> that returns a Counter of log levels, and <code>top_ips(entries, n)</code> that extracts IP addresses from messages using <code>re.findall()</code> and returns the top N most common.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">log_analyzer.py</span></div>
+                        <textarea class="editor-textarea" id="lab2-code">import re
+from collections import Counter
+
+IP_PATTERN = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
+
+def count_by_level(entries):
+    """Count entries by log level using Counter."""
+    # TODO: Use Counter with a generator expression on entries
+    # TODO: Return counter.most_common()
+    pass
+
+def top_ips(entries, n=5):
+    """Find the top N most frequent IPs in log messages."""
+    # TODO: Use re.findall() or IP_PATTERN.findall() on each message
+    # TODO: Collect all IPs, count with Counter
+    # TODO: Return most_common(n)
+    pass
+
+# Test data
+test_entries = [
+    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},
+    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},
+    {"level": "INFO", "message": "Request from 10.0.0.5 completed"},
+    {"level": "WARNING", "message": "Rate limit hit by 192.168.1.10"},
+    {"level": "INFO", "message": "Health check from 10.0.0.1"},
+]
+
+print("Level counts:", count_by_level(test_entries))
+print("Top IPs:", top_ips(test_entries, 3))</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab2-output">Click "Run" to validate your analysis...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(2)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(2)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(2)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(2)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint2">
+                        <strong>Hint:</strong> For levels: <code>return Counter(e["level"] for e in entries).most_common()</code>. For IPs: loop through entries, use <code>IP_PATTERN.findall(e["message"])</code>, extend an <code>all_ips</code> list, then <code>return Counter(all_ips).most_common(n)</code>.
+                    </div>
+                    <div class="success-message" id="success2">&#10003; Frequency analysis reveals patterns that humans miss in raw logs. Your Counter-based approach scales to millions of entries.</div>
+                    <div class="error-message" id="error2"></div>
+                </div>
+
+                <div class="section-complete" id="complete2" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Pattern analysis is working. Next: time-based grouping.</p>
+                    <button class="next-btn" onclick="goToSection('section3')">Continue to Time-Based Analysis &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 3 ==================== -->
+            <div class="section" id="section3">
+                <h2>Time-Based Analysis</h2>
+                <p>Grouping log events by time reveals activity patterns: peak hours, attack windows, and service degradation periods. The <code>datetime</code> module handles parsing and grouping.</p>
+
+                <h3>Parsing Timestamps</h3>
+                <pre><code><span class="keyword">from</span> datetime <span class="keyword">import</span> datetime
+<span class="keyword">from</span> collections <span class="keyword">import</span> defaultdict
+
+<span class="keyword">def</span> <span class="function">parse_timestamp</span>(ts_string):
+    <span class="string">"""Parse a timestamp string into a datetime object."""</span>
+    <span class="keyword">return</span> datetime.strptime(ts_string, <span class="string">"%Y-%m-%d %H:%M:%S"</span>)
+
+<span class="keyword">def</span> <span class="function">group_by_hour</span>(entries):
+    <span class="string">"""Group entries by hour, returning {hour: count}."""</span>
+    hourly = defaultdict(<span class="builtin">int</span>)
+    <span class="keyword">for</span> e <span class="keyword">in</span> entries:
+        dt = parse_timestamp(e[<span class="string">"timestamp"</span>])
+        hour_key = dt.strftime(<span class="string">"%Y-%m-%d %H:00"</span>)
+        hourly[hour_key] += 1
+    <span class="keyword">return</span> <span class="builtin">dict</span>(<span class="builtin">sorted</span>(hourly.items()))</code></pre>
+
+                <h3>Finding Peak Activity</h3>
+                <pre><code><span class="keyword">def</span> <span class="function">find_peak_hours</span>(entries, top_n=3):
+    <span class="string">"""Find the hours with the most log activity."""</span>
+    hourly = group_by_hour(entries)
+    sorted_hours = <span class="builtin">sorted</span>(hourly.items(), key=<span class="keyword">lambda</span> x: x[1], reverse=<span class="builtin">True</span>)
+    <span class="keyword">return</span> sorted_hours[:top_n]</code></pre>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">strftime Format Codes</div>
+                    <p><code>%Y</code> = year, <code>%m</code> = month, <code>%d</code> = day, <code>%H</code> = hour (24h), <code>%M</code> = minute, <code>%S</code> = second. Truncating to <code>"%Y-%m-%d %H:00"</code> groups all events within the same hour together.</p>
+                </div>
+
+                <!-- LAB 3 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 3</span>
+                        <span class="lab-title">Create Hourly Activity Histogram</span>
+                    </div>
+                    <p class="lab-instructions">Write a <code>group_by_hour(entries)</code> function that parses timestamps with <code>datetime.strptime()</code>, groups by hour using <code>defaultdict(int)</code>, and returns a sorted dictionary of <code>{hour_key: count}</code>.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">log_analyzer.py</span></div>
+                        <textarea class="editor-textarea" id="lab3-code">from datetime import datetime
+from collections import defaultdict
+
+def group_by_hour(entries):
+    """Group log entries by hour."""
+    hourly = defaultdict(int)
+
+    # TODO: Loop through entries
+    # TODO: Parse timestamp with datetime.strptime()
+    # TODO: Create hour key with strftime("%Y-%m-%d %H:00")
+    # TODO: Increment hourly[hour_key]
+
+    return dict(sorted(hourly.items()))
+
+# Test data
+test_entries = [
+    {"timestamp": "2025-10-15 14:22:01", "level": "ERROR", "message": "test"},
+    {"timestamp": "2025-10-15 14:45:30", "level": "INFO", "message": "test"},
+    {"timestamp": "2025-10-15 15:01:00", "level": "INFO", "message": "test"},
+    {"timestamp": "2025-10-15 15:30:22", "level": "WARNING", "message": "test"},
+    {"timestamp": "2025-10-15 15:55:10", "level": "ERROR", "message": "test"},
+    {"timestamp": "2025-10-15 16:10:05", "level": "INFO", "message": "test"},
+]
+
+result = group_by_hour(test_entries)
+for hour, count in result.items():
+    bar = "#" * count
+    print(f"{hour}  {bar} ({count})")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab3-output">Click "Run" to validate your grouping...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(3)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(3)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(3)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(3)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint3">
+                        <strong>Hint:</strong> Parse: <code>dt = datetime.strptime(e["timestamp"], "%Y-%m-%d %H:%M:%S")</code>. Group: <code>hour_key = dt.strftime("%Y-%m-%d %H:00")</code>. Increment: <code>hourly[hour_key] += 1</code>.
+                    </div>
+                    <div class="success-message" id="success3">&#10003; Time-based grouping reveals attack windows and peak activity. This is exactly how SIEM dashboards build their timeline views.</div>
+                    <div class="error-message" id="error3"></div>
+                </div>
+
+                <div class="section-complete" id="complete3" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Time analysis is done. Next: detecting anomalies.</p>
+                    <button class="next-btn" onclick="goToSection('section4')">Continue to Anomaly Detection &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 4 ==================== -->
+            <div class="section" id="section4">
+                <h2>Anomaly Detection</h2>
+                <p>Anomaly detection turns raw frequency data into security intelligence. A burst of errors from one IP, a sudden spike in failed logins, or a new IP appearing on the network are all indicators worth flagging.</p>
+
+                <h3>Threshold-Based Detection</h3>
+                <pre><code><span class="keyword">from</span> collections <span class="keyword">import</span> defaultdict
+
+<span class="keyword">def</span> <span class="function">detect_brute_force</span>(entries, threshold=5):
+    <span class="string">"""Detect IPs with more than `threshold` failed attempts."""</span>
+    failed_by_ip = defaultdict(<span class="builtin">int</span>)
+    <span class="keyword">for</span> e <span class="keyword">in</span> entries:
+        <span class="keyword">if</span> <span class="string">"failed"</span> <span class="keyword">in</span> e[<span class="string">"message"</span>].lower():
+            ips = re.findall(r<span class="string">"\d+\.\d+\.\d+\.\d+"</span>, e[<span class="string">"message"</span>])
+            <span class="keyword">for</span> ip <span class="keyword">in</span> ips:
+                failed_by_ip[ip] += 1
+
+    suspects = {ip: count <span class="keyword">for</span> ip, count <span class="keyword">in</span> failed_by_ip.items()
+                <span class="keyword">if</span> count >= threshold}
+    <span class="keyword">return</span> suspects</code></pre>
+
+                <h3>Error Burst Detection</h3>
+                <pre><code><span class="keyword">def</span> <span class="function">detect_error_bursts</span>(entries, window_minutes=5, threshold=10):
+    <span class="string">"""Detect time windows with an unusually high error count."""</span>
+    errors = [e <span class="keyword">for</span> e <span class="keyword">in</span> entries <span class="keyword">if</span> e[<span class="string">"level"</span>] == <span class="string">"ERROR"</span>]
+    bursts = []
+
+    <span class="keyword">for</span> i, error <span class="keyword">in</span> <span class="builtin">enumerate</span>(errors):
+        t0 = parse_timestamp(error[<span class="string">"timestamp"</span>])
+        count = 1
+        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="builtin">range</span>(i + 1, <span class="builtin">len</span>(errors)):
+            t1 = parse_timestamp(errors[j][<span class="string">"timestamp"</span>])
+            <span class="keyword">if</span> (t1 - t0).total_seconds() &lt;= window_minutes * 60:
+                count += 1
+            <span class="keyword">else</span>:
+                <span class="keyword">break</span>
+        <span class="keyword">if</span> count >= threshold:
+            bursts.append({<span class="string">"start"</span>: error[<span class="string">"timestamp"</span>], <span class="string">"count"</span>: count})
+
+    <span class="keyword">return</span> bursts</code></pre>
+
+                <div class="callout callout-security">
+                    <div class="callout-title">Security: Defense in Depth</div>
+                    <p>Brute force detection should combine multiple signals: failed logins per IP, failed logins per user, geographic anomalies, and time-of-day patterns. No single threshold catches every attack.</p>
+                </div>
+
+                <!-- LAB 4 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 4</span>
+                        <span class="lab-title">Detect Brute Force Attempts</span>
+                    </div>
+                    <p class="lab-instructions">Write <code>detect_brute_force(entries, threshold)</code> that uses <code>defaultdict(int)</code> to count failed attempts per IP address. Return a dict of IPs exceeding the threshold. Check for "failed" in the message (case-insensitive) and extract IPs with regex.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">log_analyzer.py</span></div>
+                        <textarea class="editor-textarea" id="lab4-code">import re
+from collections import defaultdict
+
+def detect_brute_force(entries, threshold=5):
+    """Detect IPs with failed attempts exceeding threshold."""
+    failed_by_ip = defaultdict(int)
+
+    # TODO: Loop through entries
+    # TODO: Check if "failed" appears in message (case-insensitive)
+    # TODO: Extract IPs with re.findall()
+    # TODO: Increment counter for each IP
+    # TODO: Return dict of {ip: count} where count >= threshold
+
+    return {}
+
+# Test data
+test_entries = [
+    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},
+    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},
+    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},
+    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},
+    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},
+    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},
+    {"level": "INFO", "message": "Successful login from 10.0.0.1"},
+    {"level": "ERROR", "message": "Failed login from 10.0.0.5"},
+    {"level": "ERROR", "message": "Failed login from 10.0.0.5"},
+]
+
+suspects = detect_brute_force(test_entries, threshold=5)
+for ip, count in suspects.items():
+    print(f"ALERT: {ip} - {count} failed attempts")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab4-output">Click "Run" to validate your detector...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(4)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(4)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(4)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(4)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint4">
+                        <strong>Hint:</strong> Check: <code>if "failed" in e["message"].lower()</code>. Extract: <code>ips = re.findall(r"\d+\.\d+\.\d+\.\d+", e["message"])</code>. Count: <code>failed_by_ip[ip] += 1</code>. Filter: <code>{ip: c for ip, c in failed_by_ip.items() if c >= threshold}</code>.
+                    </div>
+                    <div class="success-message" id="success4">&#10003; Your brute force detector works. This is the same logic used in fail2ban and commercial SIEM alert rules.</div>
+                    <div class="error-message" id="error4"></div>
+                </div>
+
+                <div class="section-complete" id="complete4" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Anomaly detection is working. Next: generating reports.</p>
+                    <button class="next-btn" onclick="goToSection('section5')">Continue to Report Generation &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 5 ==================== -->
+            <div class="section" id="section5">
+                <h2>Report Generation</h2>
+                <p>Analysis is only valuable when it is communicated. A well-structured report summarizes findings in a format stakeholders can act on. We will generate both CSV and formatted text reports.</p>
+
+                <h3>CSV Report</h3>
+                <pre><code><span class="keyword">import</span> csv
+
+<span class="keyword">def</span> <span class="function">generate_csv_report</span>(ip_data, output_path):
+    <span class="string">"""Write IP analysis to CSV."""</span>
+    <span class="keyword">with</span> <span class="builtin">open</span>(output_path, <span class="string">"w"</span>, newline=<span class="string">""</span>) <span class="keyword">as</span> f:
+        writer = csv.writer(f)
+        writer.writerow([<span class="string">"IP Address"</span>, <span class="string">"Request Count"</span>, <span class="string">"Error Count"</span>, <span class="string">"Error Rate"</span>])
+        <span class="keyword">for</span> ip, stats <span class="keyword">in</span> ip_data.items():
+            rate = <span class="builtin">round</span>(stats[<span class="string">"errors"</span>] / stats[<span class="string">"total"</span>] * 100, 1) <span class="keyword">if</span> stats[<span class="string">"total"</span>] > 0 <span class="keyword">else</span> 0
+            writer.writerow([ip, stats[<span class="string">"total"</span>], stats[<span class="string">"errors"</span>], <span class="string">f"{rate}%"</span>])
+    <span class="builtin">print</span>(<span class="string">f"Report written to {output_path}"</span>)</code></pre>
+
+                <h3>Text Summary Report</h3>
+                <pre><code><span class="keyword">def</span> <span class="function">generate_text_report</span>(entries, suspects, hourly):
+    <span class="string">"""Generate a formatted text report."""</span>
+    lines = [
+        <span class="string">"=" * 60</span>,
+        <span class="string">"LOG ANALYSIS REPORT"</span>,
+        <span class="string">"=" * 60</span>,
+        <span class="string">f"Total entries analyzed: {len(entries)}"</span>,
+        <span class="string">f"Suspicious IPs found: {len(suspects)}"</span>,
+        <span class="string">""</span>,
+    ]
+    <span class="keyword">if</span> suspects:
+        lines.append(<span class="string">"ALERTS:"</span>)
+        <span class="keyword">for</span> ip, count <span class="keyword">in</span> suspects.items():
+            lines.append(<span class="string">f"  [!] {ip}: {count} failed attempts"</span>)
+    <span class="keyword">return</span> <span class="string">"\n"</span>.join(lines)</code></pre>
+
+                <!-- LAB 5 -->
+                <div class="lab-exercise">
+                    <div class="lab-header">
+                        <span class="lab-badge">LAB 5</span>
+                        <span class="lab-title">Generate a CSV Report</span>
+                    </div>
+                    <p class="lab-instructions">Write <code>generate_csv_report(ip_data, output_path)</code> that takes a dict of <code>{ip: {total, errors}}</code>, calculates an error rate for each IP, and writes a CSV with columns: IP Address, Request Count, Error Count, Error Rate.</p>
+
+                    <div class="code-editor">
+                        <div class="editor-header"><span class="editor-tab">log_analyzer.py</span></div>
+                        <textarea class="editor-textarea" id="lab5-code">import csv
+
+def generate_csv_report(ip_data, output_path):
+    """Write IP analysis report to CSV."""
+    # TODO: Open output_path with csv.writer
+    # TODO: Write header row
+    # TODO: Loop through ip_data
+    # TODO: Calculate error_rate = errors / total * 100
+    # TODO: Write each row
+    pass
+
+# Test data
+test_ip_data = {
+    "192.168.1.10": {"total": 150, "errors": 45},
+    "10.0.0.5": {"total": 80, "errors": 2},
+    "172.16.0.1": {"total": 200, "errors": 100},
+}
+
+generate_csv_report(test_ip_data, "report.csv")
+print("Report generated.")</textarea>
+                    </div>
+
+                    <div class="output-panel">
+                        <div class="output-header">Output</div>
+                        <div class="output-content" id="lab5-output">Click "Run" to validate your report...</div>
+                    </div>
+
+                    <div class="lab-buttons">
+                        <button class="lab-btn btn-run" onclick="runLab(5)">&#9654; Run</button>
+                        <button class="lab-btn btn-check" onclick="checkLab(5)">&#10003; Check</button>
+                        <button class="lab-btn btn-hint" onclick="toggleHint(5)">&#128161; Hint</button>
+                        <button class="lab-btn btn-reset" onclick="resetLab(5)">&#8634; Reset</button>
+                    </div>
+
+                    <div class="hint-box" id="hint5">
+                        <strong>Hint:</strong> Use <code>csv.writer(f)</code> and <code>writer.writerow()</code>. Calculate rate: <code>round(stats["errors"] / stats["total"] * 100, 1)</code>. Write header first, then loop through <code>ip_data.items()</code>.
+                    </div>
+                    <div class="success-message" id="success5">&#10003; Your CSV report is structured for import into spreadsheets and SIEM tools. Automated reporting is a force multiplier for security teams.</div>
+                    <div class="error-message" id="error5"></div>
+                </div>
+
+                <div class="section-complete" id="complete5" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">Section Complete!</h3>
+                    <p class="complete-message">Reports are generating. Final step: CLI integration.</p>
+                    <button class="next-btn" onclick="goToSection('section6')">Continue to CLI Integration &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ==================== SECTION 6 ==================== -->
+            <div class="section" id="section6">
+                <h2>CLI Integration</h2>
+                <p>The final step ties all components together with an argparse interface. Users can specify a log file path, choose output format, and filter by severity or time range.</p>
+
+                <h3>Complete CLI Design</h3>
+                <pre><code><span class="keyword">import</span> argparse
+
+<span class="keyword">def</span> <span class="function">main</span>():
+    parser = argparse.ArgumentParser(
+        prog=<span class="string">"loganalyzer"</span>,
+        description=<span class="string">"Analyze log files for patterns and anomalies"</span>
+    )
+    parser.add_argument(<span class="string">"logfile"</span>, help=<span class="string">"Path to log file"</span>)
+    parser.add_argument(
+        <span class="string">"-o"</span>, <span class="string">"--output"</span>,
+        choices=[<span class="string">"text"</span>, <span class="string">"csv"</span>, <span class="string">"json"</span>],
+        default=<span class="string">"text"</span>,
+        help=<span class="string">"Report output format"</span>
+    )
+    parser.add_argument(
+        <span class="string">"-t"</span>, <span class="string">"--threshold"</span>,
+        type=<span class="builtin">int</span>, default=5,
+        help=<span class="string">"Failed attempt threshold for alerts"</span>
+    )
+    parser.add_argument(
+        <span class="string">"-l"</span>, <span class="string">"--level"</span>,
+        choices=[<span class="string">"DEBUG"</span>, <span class="string">"INFO"</span>, <span class="string">"WARNING"</span>, <span class="string">"ERROR"</span>],
+        help=<span class="string">"Minimum log level to include"</span>
+    )
+
+    args = parser.parse_args()
+
+    <span class="comment"># 1. Parse the log file</span>
+    entries = parse_log_file(args.logfile)
+
+    <span class="comment"># 2. Filter by level if specified</span>
+    <span class="keyword">if</span> args.level:
+        levels = [<span class="string">"DEBUG"</span>, <span class="string">"INFO"</span>, <span class="string">"WARNING"</span>, <span class="string">"ERROR"</span>]
+        min_idx = levels.index(args.level)
+        entries = [e <span class="keyword">for</span> e <span class="keyword">in</span> entries <span class="keyword">if</span> levels.index(e[<span class="string">"level"</span>]) >= min_idx]
+
+    <span class="comment"># 3. Analyze</span>
+    level_counts = count_by_level(entries)
+    hourly = group_by_hour(entries)
+    suspects = detect_brute_force(entries, args.threshold)
+
+    <span class="comment"># 4. Output</span>
+    <span class="keyword">if</span> args.output == <span class="string">"csv"</span>:
+        generate_csv_report(suspects, <span class="string">"report.csv"</span>)
+    <span class="keyword">else</span>:
+        report = generate_text_report(entries, suspects, hourly)
+        <span class="builtin">print</span>(report)</code></pre>
+
+                <h3>Project Summary</h3>
+                <p>Your Log Analyzer now includes:</p>
+                <ul>
+                    <li>Regex-based log parsing with multiple format support</li>
+                    <li>Frequency analysis using Counter</li>
+                    <li>Time-based grouping with datetime</li>
+                    <li>Brute force and anomaly detection</li>
+                    <li>CSV and text report generation</li>
+                    <li>A clean argparse CLI with filters and options</li>
+                </ul>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">Tip: Next Steps</div>
+                    <p>Extend your analyzer with: email alerts for critical findings, GeoIP lookup for IP locations, integration with systemd journal for real-time monitoring, or a cron job for daily automated reports.</p>
+                </div>
+
+                <!-- Module Completion -->
+                <div class="module-complete" id="moduleComplete" style="display: none;">
+                    <div class="complete-icon" style="font-size: 3rem;">&#127942;</div>
+                    <h2>Project 02 Complete!</h2>
+                    <p class="complete-message">You built a complete log analysis pipeline: parsing, pattern matching, anomaly detection, and reporting. These are foundational security operations skills.</p>
+                    <button class="module-complete-btn" onclick="completeModule()">Complete Project &amp; Continue &rarr;</button>
+                </div>
+
+                <div class="section-complete" id="complete6" style="display: none;">
+                    <div class="complete-icon">&#9989;</div>
+                    <h3 class="complete-title">All Sections Complete!</h3>
+                    <p class="complete-message">You've completed all 6 sections of the Log Analyzer project.</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="../progress.js"></script>
+
+    <script>
+        let currentSection = 'section1';
+        let completedSections = [];
+        const TOTAL_SECTIONS = 6;
+        const STORAGE_KEY = 'pyh-project02-sections';
+
+        try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) completedSections = JSON.parse(saved); } catch(e) {}
+
+        const defaultCode = {
+            1: `import re\n\n# TODO: Compile a regex pattern with named groups:\n#   timestamp: YYYY-MM-DD HH:MM:SS\n#   level: word like ERROR, INFO, WARNING\n#   message: everything after [source]\nLOG_PATTERN = re.compile(r"")\n\ndef parse_log_line(line):\n    """Parse a log line into {timestamp, level, message} or None."""\n    # TODO: Match the pattern against the line\n    # TODO: Return groupdict() if matched, else None\n    pass\n\n# Test data\ntest_lines = [\n    '2025-10-15 14:22:01 ERROR [auth] Failed login for user admin',\n    '2025-10-15 14:22:03 INFO  [web] GET /dashboard 200 45ms',\n    '2025-10-15 14:22:05 WARNING [db] Slow query detected: 2.3s',\n]\n\nfor line in test_lines:\n    result = parse_log_line(line)\n    if result:\n        print(f"[{result['level']}] {result['message']}")`,
+            2: `import re\nfrom collections import Counter\n\nIP_PATTERN = re.compile(r"\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")\n\ndef count_by_level(entries):\n    """Count entries by log level using Counter."""\n    # TODO: Use Counter with a generator expression on entries\n    # TODO: Return counter.most_common()\n    pass\n\ndef top_ips(entries, n=5):\n    """Find the top N most frequent IPs in log messages."""\n    # TODO: Use re.findall() or IP_PATTERN.findall() on each message\n    # TODO: Collect all IPs, count with Counter\n    # TODO: Return most_common(n)\n    pass\n\n# Test data\ntest_entries = [\n    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},\n    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},\n    {"level": "INFO", "message": "Request from 10.0.0.5 completed"},\n    {"level": "WARNING", "message": "Rate limit hit by 192.168.1.10"},\n    {"level": "INFO", "message": "Health check from 10.0.0.1"},\n]\n\nprint("Level counts:", count_by_level(test_entries))\nprint("Top IPs:", top_ips(test_entries, 3))`,
+            3: `from datetime import datetime\nfrom collections import defaultdict\n\ndef group_by_hour(entries):\n    """Group log entries by hour."""\n    hourly = defaultdict(int)\n\n    # TODO: Loop through entries\n    # TODO: Parse timestamp with datetime.strptime()\n    # TODO: Create hour key with strftime("%Y-%m-%d %H:00")\n    # TODO: Increment hourly[hour_key]\n\n    return dict(sorted(hourly.items()))\n\n# Test data\ntest_entries = [\n    {"timestamp": "2025-10-15 14:22:01", "level": "ERROR", "message": "test"},\n    {"timestamp": "2025-10-15 14:45:30", "level": "INFO", "message": "test"},\n    {"timestamp": "2025-10-15 15:01:00", "level": "INFO", "message": "test"},\n    {"timestamp": "2025-10-15 15:30:22", "level": "WARNING", "message": "test"},\n    {"timestamp": "2025-10-15 15:55:10", "level": "ERROR", "message": "test"},\n    {"timestamp": "2025-10-15 16:10:05", "level": "INFO", "message": "test"},\n]\n\nresult = group_by_hour(test_entries)\nfor hour, count in result.items():\n    bar = "#" * count\n    print(f"{hour}  {bar} ({count})")`,
+            4: `import re\nfrom collections import defaultdict\n\ndef detect_brute_force(entries, threshold=5):\n    """Detect IPs with failed attempts exceeding threshold."""\n    failed_by_ip = defaultdict(int)\n\n    # TODO: Loop through entries\n    # TODO: Check if "failed" appears in message (case-insensitive)\n    # TODO: Extract IPs with re.findall()\n    # TODO: Increment counter for each IP\n    # TODO: Return dict of {ip: count} where count >= threshold\n\n    return {}\n\n# Test data\ntest_entries = [\n    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},\n    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},\n    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},\n    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},\n    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},\n    {"level": "ERROR", "message": "Failed login from 192.168.1.10"},\n    {"level": "INFO", "message": "Successful login from 10.0.0.1"},\n    {"level": "ERROR", "message": "Failed login from 10.0.0.5"},\n    {"level": "ERROR", "message": "Failed login from 10.0.0.5"},\n]\n\nsuspects = detect_brute_force(test_entries, threshold=5)\nfor ip, count in suspects.items():\n    print(f"ALERT: {ip} - {count} failed attempts")`,
+            5: `import csv\n\ndef generate_csv_report(ip_data, output_path):\n    """Write IP analysis report to CSV."""\n    # TODO: Open output_path with csv.writer\n    # TODO: Write header row\n    # TODO: Loop through ip_data\n    # TODO: Calculate error_rate = errors / total * 100\n    # TODO: Write each row\n    pass\n\n# Test data\ntest_ip_data = {\n    "192.168.1.10": {"total": 150, "errors": 45},\n    "10.0.0.5": {"total": 80, "errors": 2},\n    "172.16.0.1": {"total": 200, "errors": 100},\n}\n\ngenerate_csv_report(test_ip_data, "report.csv")\nprint("Report generated.")`
+        };
+
+        function goToSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.section === sectionId) link.classList.add('active');
+            });
+            currentSection = sectionId;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => goToSection(link.dataset.section));
+        });
+
+        function updateProgress() {
+            const percent = Math.round((completedSections.length / TOTAL_SECTIONS) * 100);
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = percent + '% Complete';
+            if (completedSections.length >= TOTAL_SECTIONS) {
+                const mc = document.getElementById('moduleComplete');
+                if (mc) mc.style.display = 'block';
+            }
+        }
+
+        function markSectionComplete(sectionNum) {
+            const sectionId = 'section' + sectionNum;
+            if (!completedSections.includes(sectionId)) {
+                completedSections.push(sectionId);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+                const navLink = document.querySelector(`[data-section="${sectionId}"]`);
+                if (navLink) { navLink.classList.add('completed'); navLink.querySelector('.nav-icon').textContent = '\u2713'; }
+                const completeDiv = document.getElementById('complete' + sectionNum);
+                if (completeDiv) completeDiv.style.display = 'block';
+                updateProgress();
+            }
+        }
+
+        function runLab(num) {
+            const output = document.getElementById('lab' + num + '-output');
+            const msgs = { 1: 'Parsing log lines...\nExtracted 3 entries.', 2: 'Counting levels and extracting IPs...', 3: 'Grouping by hour...\nBuilding histogram...', 4: 'Scanning for brute force patterns...', 5: 'Generating CSV report...' };
+            output.textContent = msgs[num] || 'Running...';
+            output.style.color = '#c9d1d9';
+        }
+
+        function checkLab(num) {
+            const code = document.getElementById('lab' + num + '-code').value;
+            const successDiv = document.getElementById('success' + num);
+            const errorDiv = document.getElementById('error' + num);
+            let isCorrect = false;
+
+            if (num === 1) {
+                const hasCompile = code.includes('re.compile(');
+                const hasNamed = code.includes('?P<timestamp>') || code.includes('?P<level>') || code.includes("?P<message>");
+                const hasMatch = code.includes('.match(') || code.includes('.search(');
+                const hasGroupdict = code.includes('groupdict()');
+                isCorrect = hasCompile && hasNamed && hasMatch && hasGroupdict;
+                if (!isCorrect) { errorDiv.textContent = 'Use re.compile() with named groups (?P<name>), .match(), and .groupdict().'; }
+            } else if (num === 2) {
+                const hasCounter = code.includes('Counter(');
+                const hasMostCommon = code.includes('most_common');
+                const hasFindall = code.includes('findall(');
+                isCorrect = hasCounter && hasMostCommon && hasFindall;
+                if (!isCorrect) { errorDiv.textContent = 'Use Counter() for counting, .most_common() for ranking, and re.findall() for IP extraction.'; }
+            } else if (num === 3) {
+                const hasStrptime = code.includes('strptime(');
+                const hasStrftime = code.includes('strftime(');
+                const hasDefaultdict = code.includes('defaultdict(');
+                isCorrect = hasStrptime && hasStrftime && hasDefaultdict;
+                if (!isCorrect) { errorDiv.textContent = 'Use datetime.strptime() to parse, .strftime() to create hour keys, and defaultdict(int) to count.'; }
+            } else if (num === 4) {
+                const hasDefaultdict = code.includes('defaultdict(');
+                const hasFailed = code.includes('"failed"') || code.includes("'failed'");
+                const hasLower = code.includes('.lower()');
+                const hasFindall = code.includes('findall(');
+                const hasThreshold = code.includes('threshold');
+                isCorrect = hasDefaultdict && hasFailed && hasLower && hasFindall && hasThreshold;
+                if (!isCorrect) { errorDiv.textContent = 'Use defaultdict(int), check for "failed" with .lower(), extract IPs with findall(), filter by threshold.'; }
+            } else if (num === 5) {
+                const hasCsvWriter = code.includes('csv.writer(') || code.includes('csv.DictWriter(');
+                const hasWriterow = code.includes('writerow(');
+                const hasCalc = code.includes('/') && (code.includes('* 100') || code.includes('*100'));
+                isCorrect = hasCsvWriter && hasWriterow && hasCalc;
+                if (!isCorrect) { errorDiv.textContent = 'Use csv.writer() with writerow(). Calculate error rate as errors/total * 100.'; }
+            }
+
+            if (isCorrect) { successDiv.classList.add('show'); errorDiv.classList.remove('show'); markSectionComplete(num); }
+            else { errorDiv.classList.add('show'); successDiv.classList.remove('show'); }
+        }
+
+        function toggleHint(num) { document.getElementById('hint' + num).classList.toggle('show'); }
+
+        function resetLab(num) {
+            document.getElementById('lab' + num + '-code').value = defaultCode[num];
+            document.getElementById('lab' + num + '-output').textContent = 'Click "Run" to validate...';
+            document.getElementById('success' + num).classList.remove('show');
+            document.getElementById('error' + num).classList.remove('show');
+            document.getElementById('hint' + num).classList.remove('show');
+        }
+
+        function completeModule() {
+            PYHProgress.markModuleComplete('project-02');
+            try { ModuleProgress.complete('code', 'pyh-project-02'); } catch(e) {}
+            window.location.href = '../index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            completedSections.forEach(sectionId => {
+                const navLink = document.querySelector(`[data-section="${sectionId}"]`);
+                if (navLink) { navLink.classList.add('completed'); navLink.querySelector('.nav-icon').textContent = '\u2713'; }
+                const num = sectionId.replace('section', '');
+                const completeDiv = document.getElementById('complete' + num);
+                if (completeDiv) completeDiv.style.display = 'block';
+            });
+            const observer = new MutationObserver(() => {
+                const section6 = document.getElementById('section6');
+                if (section6 && section6.classList.contains('active') && completedSections.length >= 5) markSectionComplete(6);
+            });
+            observer.observe(document.getElementById('section6'), { attributes: true });
+            updateProgress();
+        });
+    </script>
+</body>
+</html>
