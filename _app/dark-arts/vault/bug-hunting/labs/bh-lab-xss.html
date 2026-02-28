@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: Dark Arts vault requires all 5 gates -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievement tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XSS Discovery Lab -- Bug Hunting // Dark Arts</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x2623;</text></svg>">
+    <style>
+        /* --- Reset & Base --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-base:       #0a0508;
+            --bg-panel:      #0f0812;
+            --bg-card:       #120a18;
+            --bg-input:      #0d0710;
+            --border-dim:    rgba(100, 60, 130, 0.15);
+            --border-mid:    rgba(147, 51, 234, 0.25);
+            --border-bright: rgba(147, 51, 234, 0.5);
+            --accent:        #9333ea;
+            --accent-light:  #a855f7;
+            --accent-glow:   rgba(147, 51, 234, 0.3);
+            --text-bright:   #c4a0d8;
+            --text-mid:      #9a7aaa;
+            --text-dim:      #6a4a7a;
+            --text-faint:    #3a2a4a;
+            --green:         #22c55e;
+            --green-dim:     rgba(34, 197, 94, 0.15);
+            --red:           #ef4444;
+            --red-dim:       rgba(239, 68, 68, 0.12);
+            --amber:         #f59e0b;
+            --amber-dim:     rgba(245, 158, 11, 0.12);
+            --mono:          'Courier New', 'Consolas', monospace;
+            --sans:          'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            background: var(--bg-base);
+            font-family: var(--mono);
+            color: #a080b0;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 10%, rgba(80, 30, 120, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 100, 0.05) 0%, transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* --- Header --- */
+        .header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 50px;
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-link {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            color: #9333ea;
+            border-color: rgba(147, 51, 234, 0.4);
+        }
+
+        .header-badge {
+            font-size: 0.65rem;
+            color: #6a4a7a;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .header-title {
+            font-size: 0.85rem;
+            color: var(--text-bright);
+            letter-spacing: 0.04em;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.7rem;
+        }
+
+        .score-display { color: #a855f7; }
+        .obj-display { color: var(--text-dim); }
+        .obj-display span { color: var(--green); font-weight: 700; }
+
+        /* --- Ethics Banner --- */
+        .ethics-banner {
+            position: fixed;
+            top: 50px; left: 0; right: 0;
+            background: linear-gradient(90deg, rgba(239,68,68,0.10), rgba(239,68,68,0.05));
+            border-bottom: 1px solid rgba(239,68,68,0.2);
+            padding: 6px 20px;
+            font-size: 0.68rem;
+            color: #fca5a5;
+            letter-spacing: 0.04em;
+            z-index: 99;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ethics-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: blink 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* --- Main Layout --- */
+        .lab-body {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            height: calc(100vh - 50px - 28px);
+            margin-top: 78px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- Left Panel: Workspace --- */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-dim);
+            overflow: hidden;
+        }
+
+        /* Level tabs */
+        .level-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-dim);
+            background: rgba(8, 4, 12, 0.9);
+            flex-shrink: 0;
+        }
+
+        .level-tab {
+            flex: 1;
+            padding: 9px 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .level-tab:hover {
+            color: var(--text-mid);
+            background: rgba(147, 51, 234, 0.04);
+        }
+
+        .level-tab.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        .level-tab .tab-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            margin-right: 5px;
+            vertical-align: middle;
+            transition: background 0.3s;
+        }
+
+        .level-tab.done .tab-dot { background: var(--green); }
+
+        /* Simulated browser */
+        .browser-frame {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .browser-chrome {
+            background: #1a0e24;
+            border-bottom: 1px solid var(--border-dim);
+            padding: 7px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .browser-dots { display: flex; gap: 5px; }
+        .browser-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .browser-dot.r { background: #ef4444; }
+        .browser-dot.y { background: #eab308; }
+        .browser-dot.g { background: #22c55e; }
+
+        .browser-url {
+            flex: 1;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(147,51,234,0.15);
+            border-radius: 4px;
+            padding: 3px 10px;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: #7a8a9a;
+        }
+
+        /* Simulated app viewport */
+        .app-viewport {
+            flex: 1;
+            overflow-y: auto;
+            background: #f0f2f5;
+        }
+
+        .sim-app {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100%;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .sim-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            padding: 24px;
+            max-width: 500px;
+            margin: 0 auto 16px;
+        }
+
+        .sim-card h3 {
+            font-size: 0.95rem;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .sim-card .tagline {
+            font-size: 0.72rem;
+            color: #888;
+            margin-bottom: 16px;
+        }
+
+        .sim-form-group { margin-bottom: 12px; }
+
+        .sim-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
+        .sim-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.82rem;
+            font-family: var(--mono);
+            color: #1a1a2e;
+            background: #fafafa;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .sim-input:focus {
+            border-color: #9b59b6;
+            background: #fff;
+        }
+
+        .sim-btn {
+            padding: 8px 18px;
+            background: #7c3aed;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 4px;
+        }
+
+        .sim-btn:hover { background: #6d28d9; }
+
+        /* Rendered output area */
+        .render-box {
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            max-width: 500px;
+            margin: 0 auto 16px;
+            min-height: 60px;
+        }
+
+        .render-box-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+
+        .render-content {
+            font-size: 0.82rem;
+            color: #1f2937;
+            line-height: 1.6;
+            word-break: break-all;
+        }
+
+        .render-content .xss-highlight {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        /* Feedback messages */
+        .feedback-box {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            line-height: 1.5;
+            display: none;
+        }
+
+        .feedback-box.success {
+            display: block;
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            color: #166534;
+        }
+
+        .feedback-box.error {
+            display: block;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        /* Stored comments */
+        .comments-section {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .comment-item {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+        }
+
+        .comment-author {
+            font-weight: 700;
+            color: #374151;
+            font-size: 0.72rem;
+            margin-bottom: 3px;
+        }
+
+        .comment-body { color: #4b5563; word-break: break-all; }
+
+        .comment-body .xss-highlight {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            padding: 1px 4px;
+            border-radius: 3px;
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        /* --- Right Panel: Sidebar --- */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: var(--bg-panel);
+            padding: 16px;
+            gap: 14px;
+        }
+
+        .sidebar-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 8px 12px;
+            background: rgba(147,51,234,0.08);
+            border-bottom: 1px solid var(--border-dim);
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .sidebar-body {
+            padding: 10px 12px;
+            font-size: 0.73rem;
+            line-height: 1.7;
+            color: var(--text-mid);
+        }
+
+        /* Objectives list */
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(100,60,130,0.08);
+        }
+
+        .obj-item:last-child { border-bottom: none; }
+
+        .obj-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            margin-top: 4px;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+
+        .obj-item.done .obj-dot { background: var(--green); }
+        .obj-item.done { color: var(--green); }
+
+        /* Hint buttons */
+        .hint-btn {
+            background: rgba(147,51,234,0.1);
+            border: 1px solid var(--border-mid);
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 4px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .hint-btn:hover {
+            color: var(--accent-light);
+            border-color: var(--border-bright);
+        }
+
+        .hint-btn.revealed {
+            background: var(--amber-dim);
+            border-color: rgba(245,158,11,0.3);
+            color: var(--amber);
+            cursor: default;
+        }
+
+        .hint-text {
+            display: none;
+            padding: 6px 0 2px;
+            font-size: 0.7rem;
+            color: var(--amber);
+            line-height: 1.5;
+        }
+
+        .hint-text.show { display: block; }
+
+        /* Payload reference */
+        .ref-item {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(100,60,130,0.06);
+        }
+
+        .ref-item:last-child { border-bottom: none; }
+
+        .ref-code {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--red);
+            background: var(--red-dim);
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-bottom: 2px;
+            word-break: break-all;
+        }
+
+        .ref-desc {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+        }
+
+        /* --- Completion Overlay --- */
+        .completion-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 5, 15, 0.92);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .completion-overlay.show { display: flex; }
+
+        .completion-card {
+            background: linear-gradient(135deg, #0f0818, #150a25);
+            border: 1px solid rgba(147,51,234,0.4);
+            border-radius: 12px;
+            padding: 40px 50px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 0 60px rgba(147,51,234,0.2), 0 0 120px rgba(147,51,234,0.1);
+            animation: completionPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes completionPop {
+            from { transform: scale(0.7); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+
+        .completion-title {
+            font-size: 1.5rem;
+            color: var(--accent-light);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .completion-subtitle {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .completion-score-box {
+            background: rgba(147,51,234,0.1);
+            border: 1px solid var(--border-mid);
+            border-radius: 8px;
+            padding: 14px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .score-big {
+            font-family: var(--mono);
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-light);
+        }
+
+        .score-meta { text-align: left; }
+
+        .score-meta .label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: var(--text-faint);
+            text-transform: uppercase;
+        }
+
+        .score-meta .rank {
+            font-size: 0.88rem;
+            color: var(--text-bright);
+            font-weight: 600;
+        }
+
+        .completion-btn {
+            display: inline-block;
+            padding: 11px 32px;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .completion-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(147,51,234,0.4);
+        }
+
+        /* Flash notification */
+        .obj-flash {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.4);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.78rem;
+            color: var(--green);
+            font-weight: 600;
+            z-index: 500;
+            animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.5s forwards;
+            max-width: 320px;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(10px); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(147,51,234,0.5); }
+
+        /* Level panels */
+        .level-panel { display: none; }
+        .level-panel.active { display: block; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; Bug Hunting</a>
+            <span class="header-badge">Lab 04</span>
+            <span class="header-title">XSS Discovery Lab</span>
+        </div>
+        <div class="header-right">
+            <div class="obj-display">Objectives: <span id="obj-count">0</span>/5</div>
+            <div class="score-display">Score: <span id="score-display">100</span></div>
+        </div>
+    </div>
+
+    <!-- Ethics Banner -->
+    <div class="ethics-banner">
+        <div class="ethics-dot"></div>
+        <strong>AUTHORIZED TRAINING ENVIRONMENT</strong>
+        &mdash; All targets are simulated. XSS attacks against real systems without authorization is illegal. Educational purposes only.
+    </div>
+
+    <!-- Main Layout -->
+    <div class="lab-body">
+        <!-- Left: Workspace -->
+        <div class="workspace">
+            <!-- Level Tabs -->
+            <div class="level-tabs">
+                <button class="level-tab active" data-level="1"><span class="tab-dot"></span>L1: Basic</button>
+                <button class="level-tab" data-level="2"><span class="tab-dot"></span>L2: Filtered</button>
+                <button class="level-tab" data-level="3"><span class="tab-dot"></span>L3: Stored</button>
+                <button class="level-tab" data-level="4"><span class="tab-dot"></span>L4: Attribute</button>
+                <button class="level-tab" data-level="5"><span class="tab-dot"></span>L5: JS Context</button>
+            </div>
+
+            <!-- Browser Frame -->
+            <div class="browser-frame">
+                <div class="browser-chrome">
+                    <div class="browser-dots">
+                        <div class="browser-dot r"></div>
+                        <div class="browser-dot y"></div>
+                        <div class="browser-dot g"></div>
+                    </div>
+                    <div class="browser-url" id="browser-url">https://vulnerable-app.target/search</div>
+                </div>
+
+                <div class="app-viewport">
+                    <div class="sim-app">
+
+                        <!-- Level 1: Basic Reflected XSS -->
+                        <div class="level-panel active" id="level-1">
+                            <div class="sim-card">
+                                <h3>Search Products</h3>
+                                <div class="tagline">VulnStore -- Find what you need</div>
+                                <div class="sim-form-group">
+                                    <label class="sim-label">Search</label>
+                                    <input type="text" class="sim-input" id="input-1" placeholder="Enter search term...">
+                                </div>
+                                <button class="sim-btn" onclick="XSSLab.submit(1)">Search</button>
+                            </div>
+                            <div class="render-box" id="render-1">
+                                <div class="render-box-label">Page Output</div>
+                                <div class="render-content" id="output-1">Search results will appear here...</div>
+                            </div>
+                            <div class="feedback-box" id="feedback-1"></div>
+                        </div>
+
+                        <!-- Level 2: Filtered Reflected XSS -->
+                        <div class="level-panel" id="level-2">
+                            <div class="sim-card">
+                                <h3>User Feedback</h3>
+                                <div class="tagline">VulnStore -- We value your input (script tags are blocked)</div>
+                                <div class="sim-form-group">
+                                    <label class="sim-label">Your Feedback</label>
+                                    <input type="text" class="sim-input" id="input-2" placeholder="Enter feedback...">
+                                </div>
+                                <button class="sim-btn" onclick="XSSLab.submit(2)">Submit</button>
+                            </div>
+                            <div class="render-box" id="render-2">
+                                <div class="render-box-label">Page Output</div>
+                                <div class="render-content" id="output-2">Your feedback will be displayed here...</div>
+                            </div>
+                            <div class="feedback-box" id="feedback-2"></div>
+                        </div>
+
+                        <!-- Level 3: Stored XSS -->
+                        <div class="level-panel" id="level-3">
+                            <div class="sim-card">
+                                <h3>Post a Comment</h3>
+                                <div class="tagline">VulnStore Blog -- Share your thoughts</div>
+                                <div class="sim-form-group">
+                                    <label class="sim-label">Name</label>
+                                    <input type="text" class="sim-input" id="input-3-name" placeholder="Your name" value="Researcher">
+                                </div>
+                                <div class="sim-form-group">
+                                    <label class="sim-label">Comment</label>
+                                    <input type="text" class="sim-input" id="input-3" placeholder="Write your comment...">
+                                </div>
+                                <button class="sim-btn" onclick="XSSLab.submit(3)">Post Comment</button>
+                            </div>
+                            <div class="comments-section" id="comments-section">
+                                <div class="render-box">
+                                    <div class="render-box-label">Comments (stored)</div>
+                                    <div id="comments-list">
+                                        <div class="comment-item">
+                                            <div class="comment-author">alice92</div>
+                                            <div class="comment-body">Great product, would recommend!</div>
+                                        </div>
+                                        <div class="comment-item">
+                                            <div class="comment-author">bob_dev</div>
+                                            <div class="comment-body">Does this come in other colors?</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="feedback-box" id="feedback-3"></div>
+                        </div>
+
+                        <!-- Level 4: Attribute Context XSS -->
+                        <div class="level-panel" id="level-4">
+                            <div class="sim-card">
+                                <h3>Update Profile</h3>
+                                <div class="tagline">VulnStore -- Edit your display name</div>
+                                <div class="sim-form-group">
+                                    <label class="sim-label">Display Name</label>
+                                    <input type="text" class="sim-input" id="input-4" placeholder="Your display name...">
+                                </div>
+                                <button class="sim-btn" onclick="XSSLab.submit(4)">Save Profile</button>
+                            </div>
+                            <div class="render-box" id="render-4">
+                                <div class="render-box-label">Rendered Profile Card</div>
+                                <div class="render-content" id="output-4">
+                                    <div style="padding:10px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;">
+                                        <span style="font-weight:700;color:#374151;">Profile:</span>
+                                        <span id="profile-name" style="color:#6b7280;">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="render-box">
+                                <div class="render-box-label">Generated HTML Source</div>
+                                <div class="render-content" id="source-4" style="font-family:monospace;font-size:0.72rem;color:#6b7280;background:#f9fafb;padding:8px;border-radius:4px;white-space:pre-wrap;">&lt;span data-name=""&gt;--&lt;/span&gt;</div>
+                            </div>
+                            <div class="feedback-box" id="feedback-4"></div>
+                        </div>
+
+                        <!-- Level 5: JavaScript Context XSS -->
+                        <div class="level-panel" id="level-5">
+                            <div class="sim-card">
+                                <h3>Language Preference</h3>
+                                <div class="tagline">VulnStore -- Set your locale</div>
+                                <div class="sim-form-group">
+                                    <label class="sim-label">Language Code</label>
+                                    <input type="text" class="sim-input" id="input-5" placeholder="e.g., en-US">
+                                </div>
+                                <button class="sim-btn" onclick="XSSLab.submit(5)">Set Language</button>
+                            </div>
+                            <div class="render-box" id="render-5">
+                                <div class="render-box-label">Server-Side Template Output</div>
+                                <div class="render-content" id="output-5" style="font-family:monospace;font-size:0.72rem;background:#f9fafb;padding:10px;border-radius:4px;white-space:pre-wrap;color:#374151;">
+&lt;script&gt;
+  var userLang = '';
+  setLanguage(userLang);
+&lt;/script&gt;</div>
+                            </div>
+                            <div class="feedback-box" id="feedback-5"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Sidebar -->
+        <div class="sidebar">
+            <!-- Level Info -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Current Level</div>
+                <div class="sidebar-body">
+                    <div id="level-title" style="color:var(--accent-light);font-weight:700;margin-bottom:4px;">Level 1: Reflected XSS -- Basic</div>
+                    <div id="level-desc">User input is reflected directly in the page without any sanitization. Inject a script tag to trigger execution.</div>
+                </div>
+            </div>
+
+            <!-- Objectives -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Objectives</div>
+                <div class="sidebar-body">
+                    <div class="obj-item" id="obj-1"><span class="obj-dot"></span>L1: Execute basic reflected XSS</div>
+                    <div class="obj-item" id="obj-2"><span class="obj-dot"></span>L2: Bypass script tag filter</div>
+                    <div class="obj-item" id="obj-3"><span class="obj-dot"></span>L3: Inject stored XSS payload</div>
+                    <div class="obj-item" id="obj-4"><span class="obj-dot"></span>L4: Break out of attribute context</div>
+                    <div class="obj-item" id="obj-5"><span class="obj-dot"></span>L5: Escape JavaScript string context</div>
+                </div>
+            </div>
+
+            <!-- Hints -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Hints (-5 pts each)</div>
+                <div class="sidebar-body" id="hints-panel">
+                    <button class="hint-btn" data-hint="1" onclick="XSSLab.revealHint(1)">Hint for Level 1</button>
+                    <div class="hint-text" id="hint-1">Try the classic: &lt;script&gt;alert(1)&lt;/script&gt; -- the input is reflected directly into the HTML body without encoding.</div>
+                    <button class="hint-btn" data-hint="2" onclick="XSSLab.revealHint(2)">Hint for Level 2</button>
+                    <div class="hint-text" id="hint-2">Script tags are stripped. Use an HTML element with an event handler instead: &lt;img src=x onerror=alert(1)&gt;</div>
+                    <button class="hint-btn" data-hint="3" onclick="XSSLab.revealHint(3)">Hint for Level 3</button>
+                    <div class="hint-text" id="hint-3">Same as Level 1, but the payload persists. Any XSS vector will work in the comment body -- it gets stored and rendered for all visitors.</div>
+                    <button class="hint-btn" data-hint="4" onclick="XSSLab.revealHint(4)">Hint for Level 4</button>
+                    <div class="hint-text" id="hint-4">Your input goes inside a data-name="..." attribute. Close the attribute and add an event: " onmouseover="alert(1)</div>
+                    <button class="hint-btn" data-hint="5" onclick="XSSLab.revealHint(5)">Hint for Level 5</button>
+                    <div class="hint-text" id="hint-5">Your input is inside a JS string: var userLang = 'YOUR_INPUT'. Close the string and inject code: ';alert(1)//</div>
+                </div>
+            </div>
+
+            <!-- Payload Reference -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">XSS Payload Reference</div>
+                <div class="sidebar-body">
+                    <div class="ref-item">
+                        <div class="ref-code">&lt;script&gt;alert(1)&lt;/script&gt;</div>
+                        <div class="ref-desc">Classic script injection</div>
+                    </div>
+                    <div class="ref-item">
+                        <div class="ref-code">&lt;img src=x onerror=alert(1)&gt;</div>
+                        <div class="ref-desc">Event handler via broken image</div>
+                    </div>
+                    <div class="ref-item">
+                        <div class="ref-code">&lt;svg onload=alert(1)&gt;</div>
+                        <div class="ref-desc">SVG onload event</div>
+                    </div>
+                    <div class="ref-item">
+                        <div class="ref-code">&lt;body onload=alert(1)&gt;</div>
+                        <div class="ref-desc">Body onload event</div>
+                    </div>
+                    <div class="ref-item">
+                        <div class="ref-code">" onfocus="alert(1)" autofocus="</div>
+                        <div class="ref-desc">Attribute breakout with onfocus</div>
+                    </div>
+                    <div class="ref-item">
+                        <div class="ref-code">';alert(1)//</div>
+                        <div class="ref-desc">JS string escape</div>
+                    </div>
+                    <div class="ref-item">
+                        <div class="ref-code">&lt;details open ontoggle=alert(1)&gt;</div>
+                        <div class="ref-desc">Details element event</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Overlay -->
+    <div class="completion-overlay" id="completion-overlay">
+        <div class="completion-card">
+            <div class="completion-title">Lab Complete</div>
+            <div class="completion-subtitle">You have successfully discovered and exploited XSS vulnerabilities across 5 injection contexts.</div>
+            <div class="completion-score-box">
+                <div class="score-big" id="final-score">100</div>
+                <div class="score-meta">
+                    <div class="label">Final Score</div>
+                    <div class="rank" id="final-rank">Expert</div>
+                </div>
+            </div>
+            <button class="completion-btn" onclick="XSSLab.completeModule()">Mark Complete &amp; Return</button>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * XSSLab -- XSS Discovery Lab Simulation Engine
+     *
+     * 5 progressive levels testing different XSS injection contexts:
+     * 1. Basic reflected (direct insertion)
+     * 2. Filtered reflected (script tags stripped)
+     * 3. Stored XSS (comment persistence)
+     * 4. Attribute context (breakout from HTML attribute)
+     * 5. JavaScript context (breakout from JS string literal)
+     */
+    const XSSLab = (function() {
+        'use strict';
+
+        // --- State ---
+        let state = {
+            score: 100,
+            currentLevel: 1,
+            completed: { 1:false, 2:false, 3:false, 4:false, 5:false },
+            hintsUsed: new Set(),
+            storedComments: []
+        };
+
+        const LEVEL_INFO = {
+            1: {
+                title: 'Level 1: Reflected XSS -- Basic',
+                desc: 'User input is reflected directly in the page without any sanitization. Inject a script tag to trigger execution.',
+                url: 'https://vulnerable-app.target/search?q='
+            },
+            2: {
+                title: 'Level 2: Reflected XSS -- Filtered',
+                desc: 'The application strips <script> tags from input. You must find an alternative vector that uses event handlers.',
+                url: 'https://vulnerable-app.target/feedback?msg='
+            },
+            3: {
+                title: 'Level 3: Stored XSS -- Comment Field',
+                desc: 'Comments are saved and rendered for all users. A stored payload executes every time the page loads.',
+                url: 'https://vulnerable-app.target/blog/comments'
+            },
+            4: {
+                title: 'Level 4: Attribute Context Injection',
+                desc: 'Your input is placed inside an HTML attribute value. You must break out of the attribute to inject executable code.',
+                url: 'https://vulnerable-app.target/profile/edit'
+            },
+            5: {
+                title: 'Level 5: JavaScript Context Injection',
+                desc: 'Your input is embedded inside a JavaScript string literal. You must close the string and inject your own code.',
+                url: 'https://vulnerable-app.target/settings/language'
+            }
+        };
+
+        // --- Validation patterns for each level ---
+
+        /**
+         * Level 1: Accept any payload containing <script> tags
+         */
+        function validateLevel1(input) {
+            return /<script[^>]*>.*<\/script>/i.test(input) ||
+                   /<script[^>]*>/i.test(input);
+        }
+
+        /**
+         * Level 2: Script tags are blocked. Accept event handler vectors.
+         */
+        function validateLevel2(input) {
+            // Check for event handlers (onerror, onload, onfocus, onmouseover, ontoggle, etc.)
+            const hasEventHandler = /\bon\w+\s*=/i.test(input);
+            // Must have an HTML tag (img, svg, body, div, details, input, etc.) but NOT <script>
+            const hasTag = /<\w+/i.test(input);
+            const hasScript = /<script/i.test(input);
+            return hasEventHandler && hasTag && !hasScript;
+        }
+
+        /**
+         * Level 3: Stored XSS. Accept any XSS vector.
+         */
+        function validateLevel3(input) {
+            return /<script[^>]*>/i.test(input) ||
+                   /\bon\w+\s*=/i.test(input);
+        }
+
+        /**
+         * Level 4: Must break out of attribute context.
+         * Input goes into: <span data-name="INPUT">
+         * Needs to close the quote and add event handler or new tag.
+         */
+        function validateLevel4(input) {
+            // Must contain a quote to break out of attribute
+            const breaksOut = /["']/.test(input);
+            // Must have event handler or tag opening
+            const hasPayload = /\bon\w+\s*=/i.test(input) || /</i.test(input);
+            return breaksOut && hasPayload;
+        }
+
+        /**
+         * Level 5: Must break out of JavaScript string context.
+         * Input goes into: var userLang = 'INPUT';
+         * Needs to close the string with ' and inject code.
+         */
+        function validateLevel5(input) {
+            // Must close the string literal
+            const closesString = /'/.test(input);
+            // Must contain something that looks like code execution
+            const hasCode = /alert\s*\(/i.test(input) ||
+                            /confirm\s*\(/i.test(input) ||
+                            /prompt\s*\(/i.test(input) ||
+                            /document\./i.test(input) ||
+                            /eval\s*\(/i.test(input) ||
+                            /fetch\s*\(/i.test(input);
+            return closesString && hasCode;
+        }
+
+        // --- HTML escaping ---
+        function esc(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // --- Render functions for each level ---
+
+        function renderLevel1(input) {
+            const output = document.getElementById('output-1');
+            const feedback = document.getElementById('feedback-1');
+
+            if (!input.trim()) {
+                output.innerHTML = 'Search results will appear here...';
+                feedback.className = 'feedback-box';
+                return;
+            }
+
+            // Simulate reflected output: input inserted directly (vulnerable)
+            const escaped = esc(input);
+            const hasXSS = validateLevel1(input);
+
+            if (hasXSS) {
+                // Show the payload highlighted as "executed"
+                output.innerHTML = 'Showing results for: <span class="xss-highlight">' + escaped + '</span><br><br><span style="color:#dc2626;font-weight:700;font-size:0.9rem;">XSS TRIGGERED - alert(1) would execute here</span>';
+                feedback.className = 'feedback-box success';
+                feedback.innerHTML = '<strong>Level 1 Complete.</strong> The input was reflected directly into the page body without encoding. The &lt;script&gt; tag was parsed by the browser and JavaScript executed. In a real scenario, this would run arbitrary code in the victim\'s browser session.';
+                completeLevel(1);
+            } else {
+                output.innerHTML = 'Showing results for: <strong>' + escaped + '</strong><br><br><span style="color:#9ca3af;">No products found matching your search.</span>';
+                feedback.className = 'feedback-box error';
+                feedback.textContent = 'No XSS detected. The input was rendered but no executable code was injected. Try inserting HTML tags with JavaScript.';
+            }
+        }
+
+        function renderLevel2(input) {
+            const output = document.getElementById('output-2');
+            const feedback = document.getElementById('feedback-2');
+
+            if (!input.trim()) {
+                output.innerHTML = 'Your feedback will be displayed here...';
+                feedback.className = 'feedback-box';
+                return;
+            }
+
+            // Strip <script> tags (the "filter")
+            const filtered = input.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, '[BLOCKED]')
+                                  .replace(/<script\b[^>]*>/gi, '[BLOCKED]');
+            const escaped = esc(filtered);
+            const hasXSS = validateLevel2(input);
+
+            if (/<script/i.test(input) && !hasXSS) {
+                output.innerHTML = 'Thank you for your feedback: <strong>' + escaped + '</strong>';
+                feedback.className = 'feedback-box error';
+                feedback.textContent = 'Script tags are stripped by the server-side filter. Try an alternative injection vector that does not use <script> tags.';
+            } else if (hasXSS) {
+                output.innerHTML = 'Thank you for your feedback: <span class="xss-highlight">' + esc(input) + '</span><br><br><span style="color:#dc2626;font-weight:700;font-size:0.9rem;">XSS TRIGGERED - event handler executed</span>';
+                feedback.className = 'feedback-box success';
+                feedback.innerHTML = '<strong>Level 2 Complete.</strong> The &lt;script&gt; filter was bypassed using an HTML element with an event handler. Tags like &lt;img&gt;, &lt;svg&gt;, and &lt;details&gt; can carry JavaScript through event attributes (onerror, onload, ontoggle). This demonstrates why blacklist-based filtering is insufficient.';
+                completeLevel(2);
+            } else {
+                output.innerHTML = 'Thank you for your feedback: <strong>' + escaped + '</strong>';
+                feedback.className = 'feedback-box error';
+                feedback.textContent = 'No XSS detected. Script tags are blocked. Consider using HTML elements with event handler attributes.';
+            }
+        }
+
+        function renderLevel3(input) {
+            const nameInput = document.getElementById('input-3-name');
+            const name = nameInput ? nameInput.value.trim() || 'Anonymous' : 'Anonymous';
+            const feedback = document.getElementById('feedback-3');
+            const commentsList = document.getElementById('comments-list');
+
+            if (!input.trim()) {
+                feedback.className = 'feedback-box';
+                return;
+            }
+
+            const hasXSS = validateLevel3(input);
+            const escaped = esc(input);
+            const escapedName = esc(name);
+
+            // Add the comment to the stored list
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'comment-item';
+
+            if (hasXSS) {
+                commentDiv.innerHTML =
+                    '<div class="comment-author">' + escapedName + '</div>' +
+                    '<div class="comment-body"><span class="xss-highlight">' + escaped + '</span></div>';
+                commentsList.appendChild(commentDiv);
+
+                feedback.className = 'feedback-box success';
+                feedback.innerHTML = '<strong>Level 3 Complete.</strong> The XSS payload was stored in the comment database and rendered for all visitors. Stored XSS is particularly dangerous because it executes automatically when any user views the page -- no social engineering required to deliver the payload.';
+                completeLevel(3);
+            } else {
+                commentDiv.innerHTML =
+                    '<div class="comment-author">' + escapedName + '</div>' +
+                    '<div class="comment-body">' + escaped + '</div>';
+                commentsList.appendChild(commentDiv);
+
+                feedback.className = 'feedback-box error';
+                feedback.textContent = 'Comment posted but no XSS payload detected. The comment is stored and rendered -- try including executable HTML/JavaScript.';
+            }
+
+            // Clear the input
+            document.getElementById('input-3').value = '';
+        }
+
+        function renderLevel4(input) {
+            const output = document.getElementById('output-4');
+            const source = document.getElementById('source-4');
+            const feedback = document.getElementById('feedback-4');
+
+            if (!input.trim()) {
+                document.getElementById('profile-name').textContent = '--';
+                source.textContent = '<span data-name="">--</span>';
+                feedback.className = 'feedback-box';
+                return;
+            }
+
+            const hasXSS = validateLevel4(input);
+            const escaped = esc(input);
+
+            // Show the generated HTML source so they can see the breakout
+            const generatedHTML = '<span data-name="' + escaped + '">' + escaped + '</span>';
+            source.textContent = '<span data-name="' + input + '">' + input + '</span>';
+
+            if (hasXSS) {
+                document.getElementById('profile-name').innerHTML = '<span class="xss-highlight">' + escaped + '</span>';
+                output.innerHTML =
+                    '<div style="padding:10px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;">' +
+                    '<span style="font-weight:700;color:#374151;">Profile:</span> ' +
+                    '<span class="xss-highlight">' + escaped + '</span>' +
+                    '</div>' +
+                    '<div style="margin-top:10px;color:#dc2626;font-weight:700;font-size:0.9rem;">XSS TRIGGERED - attribute context escaped</div>';
+
+                feedback.className = 'feedback-box success';
+                feedback.innerHTML = '<strong>Level 4 Complete.</strong> By closing the attribute value with a quote character, you broke out of the data-name attribute context. The browser then parsed your event handler as a new attribute on the element. This is why output encoding must be context-aware -- HTML entity encoding alone is not sufficient when input lands in an attribute.';
+                completeLevel(4);
+            } else {
+                document.getElementById('profile-name').textContent = input;
+                feedback.className = 'feedback-box error';
+                feedback.textContent = 'No XSS detected. Your input is placed inside data-name="...". You need to close the attribute value and inject an event handler.';
+            }
+        }
+
+        function renderLevel5(input) {
+            const output = document.getElementById('output-5');
+            const feedback = document.getElementById('feedback-5');
+
+            if (!input.trim()) {
+                output.textContent = '<script>\n  var userLang = \'\';\n  setLanguage(userLang);\n</script>';
+                feedback.className = 'feedback-box';
+                return;
+            }
+
+            const hasXSS = validateLevel5(input);
+            const escaped = esc(input);
+
+            // Show the template with input embedded in JS string
+            const templateCode = '<script>\n  var userLang = \'' + escaped + '\';\n  setLanguage(userLang);\n</script>';
+
+            if (hasXSS) {
+                output.innerHTML = '<span style="color:#6b7280;">&lt;script&gt;</span>\n  <span style="color:#374151;">var userLang = \'</span><span class="xss-highlight">' + escaped + '</span><span style="color:#374151;">\';</span>\n  <span style="color:#374151;">setLanguage(userLang);</span>\n<span style="color:#6b7280;">&lt;/script&gt;</span>\n\n<span style="color:#dc2626;font-weight:700;">XSS TRIGGERED - JavaScript context escaped</span>';
+
+                feedback.className = 'feedback-box success';
+                feedback.innerHTML = '<strong>Level 5 Complete.</strong> By closing the string literal with a single quote, you terminated the userLang assignment and injected your own JavaScript statement. The // comment suffix prevents syntax errors from the remaining code. This context requires JavaScript-specific escaping -- HTML encoding does not prevent this attack since the input is already inside a script block.';
+                completeLevel(5);
+            } else {
+                output.textContent = '<script>\n  var userLang = \'' + input + '\';\n  setLanguage(userLang);\n</script>';
+                feedback.className = 'feedback-box error';
+                feedback.textContent = 'No XSS detected. Your input is placed inside a JavaScript string: var userLang = \'YOUR_INPUT\'. You need to close the string and inject executable code.';
+            }
+        }
+
+        // --- Level management ---
+
+        function completeLevel(num) {
+            if (state.completed[num]) return;
+            state.completed[num] = true;
+
+            // Update tab
+            const tabs = document.querySelectorAll('.level-tab');
+            tabs[num - 1].classList.add('done');
+
+            // Update objective
+            document.getElementById('obj-' + num).classList.add('done');
+
+            // Update count
+            const done = Object.values(state.completed).filter(Boolean).length;
+            document.getElementById('obj-count').textContent = done;
+
+            showFlash('Level ' + num + ' complete');
+
+            // Check for full completion
+            if (done === 5) {
+                setTimeout(showCompletion, 800);
+            }
+        }
+
+        function switchLevel(num) {
+            state.currentLevel = num;
+
+            // Update tabs
+            document.querySelectorAll('.level-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.level-tab[data-level="' + num + '"]').classList.add('active');
+
+            // Update panels
+            document.querySelectorAll('.level-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('level-' + num).classList.add('active');
+
+            // Update sidebar info
+            const info = LEVEL_INFO[num];
+            document.getElementById('level-title').textContent = info.title;
+            document.getElementById('level-desc').textContent = info.desc;
+            document.getElementById('browser-url').textContent = info.url;
+        }
+
+        // --- Score & hints ---
+
+        function adjustScore(delta) {
+            state.score = Math.max(0, state.score + delta);
+            document.getElementById('score-display').textContent = state.score;
+        }
+
+        function revealHint(num) {
+            if (state.hintsUsed.has(num)) return;
+            state.hintsUsed.add(num);
+
+            const btn = document.querySelector('.hint-btn[data-hint="' + num + '"]');
+            const text = document.getElementById('hint-' + num);
+            if (btn) {
+                btn.classList.add('revealed');
+                btn.textContent = 'Hint ' + num + ' revealed (-5 pts)';
+            }
+            if (text) text.classList.add('show');
+
+            adjustScore(-5);
+        }
+
+        // --- Flash notification ---
+
+        function showFlash(msg) {
+            const el = document.createElement('div');
+            el.className = 'obj-flash';
+            el.textContent = 'Objective complete: ' + msg;
+            document.body.appendChild(el);
+            setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3000);
+        }
+
+        // --- Completion ---
+
+        function showCompletion() {
+            document.getElementById('final-score').textContent = state.score;
+            const rank = state.score >= 90 ? 'Elite -- XSS Expert'
+                       : state.score >= 75 ? 'Proficient -- Skilled Hunter'
+                       : state.score >= 60 ? 'Competent -- Attack Successful'
+                       : 'Novice -- Completed with Guidance';
+            document.getElementById('final-rank').textContent = rank;
+            document.getElementById('completion-overlay').classList.add('show');
+        }
+
+        function completeModule() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'bh-lab-xss', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        // --- Submit dispatcher ---
+
+        function submit(level) {
+            const inputId = level === 3 ? 'input-3' : 'input-' + level;
+            const input = document.getElementById(inputId).value;
+
+            switch (level) {
+                case 1: renderLevel1(input); break;
+                case 2: renderLevel2(input); break;
+                case 3: renderLevel3(input); break;
+                case 4: renderLevel4(input); break;
+                case 5: renderLevel5(input); break;
+            }
+        }
+
+        // --- Init ---
+
+        function init() {
+            // Level tab switching
+            document.querySelectorAll('.level-tab').forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    switchLevel(parseInt(this.dataset.level));
+                });
+            });
+
+            // Enter key to submit on input fields
+            document.querySelectorAll('.sim-input').forEach(function(input) {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        const level = state.currentLevel;
+                        submit(level);
+                    }
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+
+        return {
+            submit: submit,
+            revealHint: revealHint,
+            completeModule: completeModule
+        };
+    })();
+    </script>
+</body>
+</html>

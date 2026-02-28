@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 22: External Resources &amp; Practice Ranges - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-weak { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-critical { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-medium { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-low { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 22</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128214;</div>
+        <h1 class="intro-title">External Resources &amp; Practice Ranges</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 22 &bull; Mastery Track</div>
+        <p class="intro-subtitle">
+            Knowing what to learn is only useful if you know where to practice it. This module maps
+            the complete landscape of free and accessible training platforms, practice ranges,
+            community resources, and learning materials available to bug bounty researchers at every
+            skill level. Each resource is evaluated for what it teaches, who it serves best, and how
+            it connects to real-world bounty skills. Build a curriculum from these resources that
+            matches your current level and target specialization.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Practice Platforms</div>
+            <div class="stat-pill">AI Security Labs</div>
+            <div class="stat-pill">CTF Competitions</div>
+            <div class="stat-pill">Open Source Tools</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 01: Free Practice Platforms -->
+    <!-- ============================================================ -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127891;</span>
+            Free Practice Platforms
+        </h2>
+        <div class="section-body">
+            <p>
+                These platforms provide intentionally vulnerable environments where you can practice
+                exploitation techniques without legal risk. They range from structured academy-style
+                courses to open-ended virtual machines. Start with the most structured option and
+                progress toward less guided environments as your skills develop.
+            </p>
+
+            <h3>Platform Comparison</h3>
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Platform</th>
+                        <th>Format</th>
+                        <th>Difficulty</th>
+                        <th>Best For</th>
+                        <th>Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">PortSwigger Web Security Academy</td>
+                        <td>Guided labs with explanations</td>
+                        <td><span class="badge badge-current">Beginner</span> to <span class="badge badge-critical">Expert</span></td>
+                        <td>Web vulnerability fundamentals</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">OWASP WebGoat</td>
+                        <td>Self-hosted vulnerable app</td>
+                        <td><span class="badge badge-current">Beginner</span> to <span class="badge badge-medium">Intermediate</span></td>
+                        <td>OWASP Top 10 hands-on practice</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">OWASP Juice Shop</td>
+                        <td>Self-hosted vulnerable app</td>
+                        <td><span class="badge badge-current">Beginner</span> to <span class="badge badge-high">Advanced</span></td>
+                        <td>Modern web app vulnerabilities</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">HackTheBox</td>
+                        <td>Virtual machines + challenges</td>
+                        <td><span class="badge badge-medium">Intermediate</span> to <span class="badge badge-critical">Expert</span></td>
+                        <td>Full-stack exploitation</td>
+                        <td>Free tier available</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">TryHackMe</td>
+                        <td>Guided learning paths</td>
+                        <td><span class="badge badge-current">Beginner</span> to <span class="badge badge-medium">Intermediate</span></td>
+                        <td>Structured learning with mentorship</td>
+                        <td>Free rooms available</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">PentesterLab</td>
+                        <td>Exercise-based labs</td>
+                        <td><span class="badge badge-current">Beginner</span> to <span class="badge badge-high">Advanced</span></td>
+                        <td>Web exploitation methodology</td>
+                        <td>Free tier + Pro</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>PortSwigger Web Security Academy</h3>
+            <p>
+                This is the single best free resource for learning web application security. Created
+                by the team behind Burp Suite, every lab uses real vulnerability patterns found in
+                production applications. The labs are organized by topic and difficulty, making it
+                possible to focus on a single vulnerability class and progress from apprentice to
+                expert level within that class.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9670;</span>
+                        <div>
+                            <div class="detail-header-title">Lab Categories and Bounty Relevance</div>
+                            <div class="detail-header-subtitle">Which PortSwigger topics map directly to bounty payouts</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Not all PortSwigger topics carry equal weight in bug bounty. Prioritize the
+                        categories that map to the highest-payout vulnerability classes:
+                    </p>
+                    <ul>
+                        <li><strong>High bounty relevance:</strong> Server-Side Request Forgery (SSRF), SQL Injection, Authentication vulnerabilities, Access Control, Business Logic, OAuth authentication</li>
+                        <li><strong>Medium bounty relevance:</strong> Cross-Site Scripting (XSS), Cross-Site Request Forgery (CSRF), XML External Entities (XXE), Server-Side Template Injection (SSTI)</li>
+                        <li><strong>Lower bounty relevance (but still valuable):</strong> Information disclosure, Clickjacking, DOM-based vulnerabilities, WebSocket vulnerabilities</li>
+                    </ul>
+                    <p>
+                        Complete all labs in the high-relevance categories before touching the others.
+                        A researcher who has mastered SSRF and authentication bypass labs will earn
+                        more bounties than one who has completed every XSS lab but never studied access
+                        control flaws.
+                    </p>
+                </div>
+            </div>
+
+            <h3>OWASP WebGoat and Juice Shop</h3>
+            <p>
+                OWASP maintains two complementary vulnerable applications. WebGoat is a traditional
+                teaching application with guided lessons that explain each vulnerability before asking
+                you to exploit it. Juice Shop is a more realistic modern web application (Angular
+                frontend, REST API, Node.js backend) with 100+ challenges hidden throughout the
+                application, many of which require no hints to discover.
+            </p>
+            <div class="code-block"><span class="comment"># Running OWASP Juice Shop locally via Docker</span>
+<span class="cmd">docker pull</span> <span class="str">bkimminich/juice-shop</span>
+<span class="cmd">docker run</span> <span class="flag">--rm -p 3000:3000</span> <span class="str">bkimminich/juice-shop</span>
+
+<span class="comment"># Access at http://localhost:3000</span>
+<span class="comment"># Score board hidden at http://localhost:3000/#/score-board</span>
+
+<span class="comment"># Running OWASP WebGoat locally via Docker</span>
+<span class="cmd">docker pull</span> <span class="str">webgoat/webgoat</span>
+<span class="cmd">docker run</span> <span class="flag">-it -p 127.0.0.1:8080:8080 -p 127.0.0.1:9090:9090</span> <span class="str">webgoat/webgoat</span>
+
+<span class="comment"># WebGoat at http://localhost:8080/WebGoat</span>
+<span class="comment"># WebWolf (companion tool) at http://localhost:9090/WebWolf</span></div>
+
+            <h3>HackTheBox and TryHackMe</h3>
+            <p>
+                HackTheBox and TryHackMe occupy different positions in the learning pipeline.
+                TryHackMe is better for absolute beginners because its rooms include step-by-step
+                instructions and theory sections before each practical exercise. HackTheBox assumes
+                more prior knowledge and provides less guidance, making it better for intermediate
+                learners who want to develop independent problem-solving skills.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div>
+                    <div class="callout-title">Recommended Progression</div>
+                    <div class="callout-text">
+                        Start with TryHackMe's "Introduction to Web Hacking" and "OWASP Top 10"
+                        learning paths. Move to PortSwigger Web Security Academy for deep web
+                        vulnerability practice. Use Juice Shop for realistic application testing.
+                        Graduate to HackTheBox when you can solve PortSwigger labs without hints.
+                        PentesterLab fills gaps with focused exercises on specific exploitation
+                        techniques.
+                    </div>
+                </div>
+            </div>
+
+            <h3>PentesterLab</h3>
+            <p>
+                PentesterLab takes an exercise-based approach where each lab focuses on a single
+                exploitation technique. The free tier covers fundamental web vulnerabilities, while
+                the Pro subscription adds advanced topics like JWT attacks, deserialization
+                vulnerabilities, and OAuth exploitation. The exercises are shorter and more focused
+                than PortSwigger's, making them useful for targeted practice on specific weaknesses.
+            </p>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 02: AI Security Practice -->
+    <!-- ============================================================ -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#129302;</span>
+            AI Security Practice
+        </h2>
+        <div class="section-body">
+            <p>
+                AI security is the fastest-growing attack surface in the industry, and the practice
+                resources are evolving rapidly. Unlike traditional web security where practice
+                platforms have existed for decades, AI security practice is being invented in real
+                time. The platforms listed here are the current best options, and they teach skills
+                that directly transfer to AI bug bounty programs.
+            </p>
+
+            <h3>Gandalf by Lakera</h3>
+            <p>
+                Gandalf is the most widely used AI security practice platform. It presents a series
+                of levels where you must extract a secret password from an AI model that has been
+                instructed not to reveal it. Each level adds more sophisticated defenses, creating a
+                progressive difficulty curve that maps directly to real-world AI guardrail bypass
+                techniques.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Level</th>
+                        <th>Defense Mechanism</th>
+                        <th>Pass Rate</th>
+                        <th>Skill Taught</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Level 1</td>
+                        <td>No defense &mdash; model has the password and will share if asked</td>
+                        <td>~95%</td>
+                        <td>Understanding baseline model behavior</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Level 2</td>
+                        <td>Basic instruction to not reveal the password</td>
+                        <td>~80%</td>
+                        <td>Simple prompt injection framing</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Level 3</td>
+                        <td>Instruction reinforcement and basic output filtering</td>
+                        <td>~60%</td>
+                        <td>Indirect extraction techniques</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Level 4</td>
+                        <td>AI-based output analysis scans responses before delivery</td>
+                        <td>~8%</td>
+                        <td>Encoding, obfuscation, and output manipulation</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Level 5</td>
+                        <td>Combined input and output filtering</td>
+                        <td>~12%</td>
+                        <td>Chained bypass techniques</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Level 6</td>
+                        <td>Multi-layer defense with context analysis</td>
+                        <td>~10%</td>
+                        <td>Advanced context manipulation</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Level 7</td>
+                        <td>Combined strongest defenses</td>
+                        <td>~8%</td>
+                        <td>Full defense bypass chains</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Level 8</td>
+                        <td>Self-learning adaptive defense</td>
+                        <td>Varies</td>
+                        <td>Adversarial creativity under adaptive pressure</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">The Level 4 Wall</div>
+                    <div class="callout-text">
+                        The drop from ~60% pass rate at Level 3 to ~8% at Level 4 represents the
+                        transition from trivial prompt injection to genuine AI security research.
+                        Level 4 introduces AI-based output scanning &mdash; a second model evaluates
+                        the first model's response before it reaches you. Bypassing this requires
+                        techniques like character-by-character extraction, encoding schemes, or
+                        convincing the model to express the password in a format the output scanner
+                        does not recognize. This is where the real learning begins.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Gandalf Agent Breaker</h3>
+            <p>
+                A newer addition to the Gandalf platform, Agent Breaker goes beyond simple password
+                extraction. It presents 10 agentic AI applications &mdash; AI systems that can take
+                actions in the world (send emails, query databases, execute code) &mdash; and
+                challenges you to make them perform unintended actions. This practice maps directly
+                to the emerging bug class of agentic AI vulnerabilities, where the attack surface
+                extends beyond the model itself to the tools and integrations it controls.
+            </p>
+            <ul>
+                <li>10 different agentic applications with distinct tool access</li>
+                <li>80M+ data points collected from player interactions</li>
+                <li>Teaches indirect prompt injection (attacking through data the agent reads)</li>
+                <li>Teaches tool abuse (making the agent misuse its own capabilities)</li>
+                <li>Teaches privilege escalation through agent chains</li>
+            </ul>
+
+            <h3>Dreadnode Crucible</h3>
+            <p>
+                Dreadnode Crucible provides AI security challenges that focus on model manipulation
+                and adversarial machine learning. While Gandalf emphasizes prompt injection, Crucible
+                includes challenges around model behavior manipulation, output poisoning, and
+                adversarial input crafting. The platform is more technically demanding and assumes
+                some familiarity with how machine learning models process inputs.
+            </p>
+
+            <h3>HackAPrompt</h3>
+            <p>
+                HackAPrompt is a competition-format platform that presents a series of prompt
+                injection challenges with specific success criteria. Each challenge provides a system
+                prompt and a goal (typically making the model produce a specific output). The
+                competitive element and leaderboard create motivation to develop increasingly
+                creative bypass techniques. Past competitions have attracted thousands of participants
+                and generated research-grade datasets of prompt injection techniques.
+            </p>
+
+            <h3>Arcanum AI Security Lab Hub</h3>
+            <p>
+                Created by Jason Haddix's Arcanum Security, the AI Security Lab Hub is the most
+                comprehensive collection of AI security practice resources available under one roof.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">23 Labs</div>
+                    <div class="concept-card-body">
+                        Structured exercises covering prompt injection, jailbreaking, model
+                        manipulation, and AI application security. Each lab includes objectives,
+                        hints, and solution walkthroughs.
+                    </div>
+                    <span class="concept-tag">Practice</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">5 Competitions</div>
+                    <div class="concept-card-body">
+                        Active and archived competitive challenges that test AI security skills
+                        under time pressure. Competition format develops the speed and creativity
+                        needed for bounty hunting.
+                    </div>
+                    <span class="concept-tag">Competition</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">4 Bug Bounties</div>
+                    <div class="concept-card-body">
+                        Links to active AI-specific bug bounty programs where you can apply
+                        practice skills to real targets with real payouts. The bridge from practice
+                        to production.
+                    </div>
+                    <span class="concept-tag">Live Targets</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">7 Tools</div>
+                    <div class="concept-card-body">
+                        Open-source tools for AI security testing including prompt injection
+                        scanners, model behavior analyzers, and automated jailbreak frameworks.
+                        Tools you will use in real assessments.
+                    </div>
+                    <span class="concept-tag">Tooling</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 03: CTF Platforms & Competitions -->
+    <!-- ============================================================ -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127942;</span>
+            CTF Platforms &amp; Competitions
+        </h2>
+        <div class="section-body">
+            <p>
+                Capture The Flag competitions develop security skills in a competitive format. While
+                CTF challenges are more artificial than real-world bug bounty targets, they build
+                foundational skills &mdash; particularly in areas like reverse engineering,
+                cryptography, and binary exploitation &mdash; that complement web application
+                security knowledge. More importantly, CTF teams often evolve into bug bounty
+                collaborators.
+            </p>
+
+            <h3>Major CTF Platforms</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">CTFtime</div>
+                    <div class="tool-role">Competition Directory</div>
+                    <div class="tool-desc">
+                        The central directory for CTF competitions worldwide. Lists upcoming events,
+                        team rankings, and writeups from past competitions. Register with a team to
+                        track your participation and ranking over time. Hundreds of competitions
+                        annually across all skill levels.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">PicoCTF</div>
+                    <div class="tool-role">Beginner CTF Platform</div>
+                    <div class="tool-desc">
+                        Created by Carnegie Mellon University, PicoCTF is designed for students and
+                        beginners. Challenges are organized by difficulty and category with clear
+                        instructions. The annual competition is one of the largest beginner CTFs.
+                        Past challenges remain available for practice year-round.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Google CTF</div>
+                    <div class="tool-role">Advanced CTF Competition</div>
+                    <div class="tool-desc">
+                        Google's annual CTF features challenges created by Google security engineers.
+                        Difficulty ranges from intermediate to extremely advanced. The "Beginners
+                        Quest" track provides a more accessible entry point. Past challenges and
+                        solutions are published for study.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">HackTheBox Challenges</div>
+                    <div class="tool-role">Diverse Challenge Categories</div>
+                    <div class="tool-desc">
+                        Beyond its virtual machine labs, HackTheBox hosts standalone challenges in
+                        categories including web, crypto, forensics, reversing, and pwn. Challenges
+                        are rated by difficulty and community solves. Retiring challenges get
+                        walkthroughs published.
+                    </div>
+                </div>
+            </div>
+
+            <h3>CTF Skills That Transfer to Bug Bounty</h3>
+            <p>
+                Not all CTF categories are equally relevant to bug bounty work. The following mapping
+                shows which CTF skills directly transfer and which develop general security thinking:
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>CTF Category</th>
+                        <th>Bounty Relevance</th>
+                        <th>Transfer Mechanism</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Web Exploitation</td>
+                        <td><span class="badge badge-critical">Direct</span></td>
+                        <td>Identical vulnerability classes (SQLi, XSS, SSRF, IDOR). CTF web challenges use the same techniques as production bug hunting.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Cryptography</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>JWT attacks, weak encryption, padding oracle, crypto misuse in APIs. Understanding crypto weaknesses is essential for authentication bypass.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Forensics</td>
+                        <td><span class="badge badge-medium">Moderate</span></td>
+                        <td>Log analysis, traffic capture analysis, data exfiltration patterns. Useful for understanding what defenders see when you test.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Reversing</td>
+                        <td><span class="badge badge-medium">Moderate</span></td>
+                        <td>Mobile app analysis, API key extraction, obfuscated JavaScript analysis. Relevant for mobile and thick-client bounty programs.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Pwn (Binary)</td>
+                        <td><span class="badge badge-low">Lower</span></td>
+                        <td>Buffer overflows and memory corruption are rare in web bounty programs. Valuable for IoT and embedded device bounties.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Misc/OSINT</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>Reconnaissance, data correlation, creative problem-solving. OSINT skills directly support the recon phase of bounty methodology.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">CTF Trap</div>
+                    <div class="callout-text">
+                        A common trap for new security researchers is spending all their time on CTF
+                        competitions and never transitioning to real-world bounty hunting. CTFs are
+                        valuable for building skills, but they can become a comfort zone because they
+                        provide clear success criteria and immediate feedback. Real bug bounty is
+                        messier: targets are complex, success is uncertain, and feedback takes days
+                        or weeks. Use CTFs to build skills, but set a deadline for when you will
+                        start hunting on real programs.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 04: Bug Bounty Learning Resources -->
+    <!-- ============================================================ -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128218;</span>
+            Bug Bounty Learning Resources
+        </h2>
+        <div class="section-body">
+            <p>
+                Beyond practice platforms, dedicated learning resources provide methodology, context,
+                and community knowledge that accelerate your development. The resources listed here
+                are the ones most frequently recommended by active, successful hunters.
+            </p>
+
+            <h3>Courses and Video Content</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9670;</span>
+                        <div>
+                            <div class="detail-header-title">Jason Haddix's TBHM Course</div>
+                            <div class="detail-header-subtitle">The Bug Hunter's Methodology &mdash; 27+ hours</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The Bug Hunter's Methodology is the most comprehensive bug bounty course
+                        available. At 27+ hours, it covers the complete workflow from target selection
+                        through reconnaissance, vulnerability discovery, exploitation, and reporting.
+                        Haddix draws on 15+ years of offensive security experience and his #59
+                        worldwide Bugcrowd ranking.
+                    </p>
+                    <p>
+                        The course is not free, but it is considered the single most valuable investment
+                        for serious bounty hunters. The methodology it teaches is platform-agnostic and
+                        target-agnostic, meaning the techniques apply regardless of which program or
+                        platform you hunt on.
+                    </p>
+                    <ul>
+                        <li>Complete reconnaissance methodology (subdomain enumeration, port scanning, content discovery)</li>
+                        <li>Application mapping and attack surface analysis</li>
+                        <li>Vulnerability class deep-dives with real examples</li>
+                        <li>Automation strategy and tool chain configuration</li>
+                        <li>Report writing and program interaction best practices</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9670;</span>
+                        <div>
+                            <div class="detail-header-title">Nahamsec's YouTube and Courses</div>
+                            <div class="detail-header-subtitle">Live hacking, tutorials, and community content</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Nahamsec (Ben Sadeghipour) produces the most accessible bug bounty content on
+                        YouTube. His live hacking streams show real-time methodology &mdash; including
+                        the dead ends, the debugging, and the moments of uncertainty that polished
+                        tutorials edit out. This unedited format is valuable because it shows you
+                        what actual bounty hunting looks like, not the curated highlight reel.
+                    </p>
+                    <ul>
+                        <li>Live hacking streams on real (in-scope) targets</li>
+                        <li>Beginner-friendly tutorials on specific vulnerability classes</li>
+                        <li>Interviews with top hunters sharing methodology</li>
+                        <li>NahamCon conference organization (free, virtual)</li>
+                        <li>Active Discord community for Q&amp;A and collaboration</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9670;</span>
+                        <div>
+                            <div class="detail-header-title">STOK's Content</div>
+                            <div class="detail-header-subtitle">Methodology breakdowns and community building</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Stok's video content focuses on methodology rather than individual exploits.
+                        His "Bug Bounty Tips" series covers specific techniques (passive Burp monitoring,
+                        JavaScript analysis, subdomain enumeration strategies) in digestible format.
+                        His content is particularly valuable for hunters who learn better through
+                        visual demonstration than text-based tutorials.
+                    </p>
+                    <ul>
+                        <li>Passive Burp Suite monitoring methodology</li>
+                        <li>Reconnaissance workflow demonstrations</li>
+                        <li>Tool configuration and automation tips</li>
+                        <li>Career development and mindset content</li>
+                        <li>Collaboration with other hunters on live targets</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Newsletters and Regular Reading</h3>
+            <ul>
+                <li><strong>PentesterLand Newsletter</strong> &mdash; Weekly curated collection of disclosed reports, tools, and technique writeups. The highest signal-to-noise ratio of any bug bounty newsletter. Subscribe and read every issue.</li>
+                <li><strong>Bug Bounty Forum</strong> &mdash; Community-maintained discussions on methodology, program reviews, and technical questions. Search archives before asking questions.</li>
+                <li><strong>PortSwigger Daily Swig</strong> &mdash; Security news covering newly disclosed vulnerabilities, research publications, and industry developments.</li>
+                <li><strong>HackerOne Hacktivity</strong> &mdash; Real-time feed of disclosed reports across all HackerOne programs. Filter by severity and program to study relevant disclosures.</li>
+            </ul>
+
+            <h3>Recommended Books</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>The Web Application Hacker's Handbook</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9670;</span> Authors: Dafydd Stuttard, Marcus Pinto</li>
+                        <li><span class="li-marker">&#9670;</span> The foundational text for web application security</li>
+                        <li><span class="li-marker">&#9670;</span> Covers every vulnerability class in depth</li>
+                        <li><span class="li-marker">&#9670;</span> Written by the creator of Burp Suite</li>
+                        <li><span class="li-marker">&#9670;</span> Companion labs available via PortSwigger</li>
+                        <li><span class="li-marker">&#9670;</span> Dense but comprehensive; read chapter by chapter, not cover to cover</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Real-World Bug Hunting</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9670;</span> Author: Peter Yaworski</li>
+                        <li><span class="li-marker">&#9670;</span> Focuses exclusively on bug bounty context</li>
+                        <li><span class="li-marker">&#9670;</span> Each chapter built around real disclosed reports</li>
+                        <li><span class="li-marker">&#9670;</span> Covers vulnerability classes by bounty frequency</li>
+                        <li><span class="li-marker">&#9670;</span> More accessible than WAHH for beginners</li>
+                        <li><span class="li-marker">&#9670;</span> Practical emphasis on what actually pays</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div>
+                    <div class="callout-title">Reading Strategy</div>
+                    <div class="callout-text">
+                        Do not read security books cover to cover. Use them as reference material.
+                        When you encounter a vulnerability class in the wild (on a CTF, in a
+                        disclosed report, or during hunting), read the relevant chapter to deepen
+                        your understanding. This just-in-time learning approach retains better
+                        than front-loading theory before you have context to anchor it to.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 05: Open Source Tools & Repos -->
+    <!-- ============================================================ -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128736;</span>
+            Open Source Tools &amp; Repos
+        </h2>
+        <div class="section-body">
+            <p>
+                The open-source ecosystem provides the majority of tools used by professional bounty
+                hunters. Knowing which repositories to follow, which wordlists to use, and which
+                frameworks to study gives you the same toolkit as top-ranked researchers without any
+                financial investment.
+            </p>
+
+            <h3>Arcanum's GitHub Repositories</h3>
+            <p>
+                Jason Haddix's Arcanum Security maintains several high-value open-source repositories
+                that are actively used by the security community:
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Repository</th>
+                        <th>Stars</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">AI Security Lab Hub</td>
+                        <td>279</td>
+                        <td>Centralized directory of AI security labs, competitions, bug bounties, and tools. Your starting point for AI security practice.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">PI Taxonomy</td>
+                        <td>517</td>
+                        <td>Prompt Injection Taxonomy with 9.9 trillion combinations. Systematic classification of prompt injection vectors for research and testing.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">sec-context</td>
+                        <td>525</td>
+                        <td>Security context resources and reference materials for offensive security research and methodology development.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">msftrecon</td>
+                        <td>772</td>
+                        <td>Microsoft-focused reconnaissance tool for enumerating Microsoft services, Azure tenants, and associated infrastructure.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Essential Wordlists and Payloads</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">SecLists</div>
+                    <div class="tool-role">Wordlist Collection</div>
+                    <div class="tool-desc">
+                        The definitive collection of wordlists for security testing. Includes
+                        username lists, password lists, directory brute-forcing wordlists, fuzzing
+                        payloads, web shells, and more. Every serious hunter has SecLists installed.
+                        Used by default in most reconnaissance tool configurations.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">PayloadsAllTheThings</div>
+                    <div class="tool-role">Exploitation Payloads</div>
+                    <div class="tool-desc">
+                        Comprehensive collection of exploitation payloads organized by vulnerability
+                        class. Each category includes technique explanations, example payloads, and
+                        bypass variations. Covers SQL injection, XSS, SSRF, XXE, SSTI, and dozens
+                        more. Your reference during active exploitation.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">HackTricks</div>
+                    <div class="tool-role">Methodology Wiki</div>
+                    <div class="tool-desc">
+                        A massive wiki covering penetration testing and bug bounty methodology.
+                        Organized by technique and target type. Includes checklists, cheat sheets,
+                        and detailed walkthroughs. Searchable and regularly updated by the
+                        community. The closest thing to a complete offensive security encyclopedia.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">awesome-bugbounty</div>
+                    <div class="tool-role">Curated Resource List</div>
+                    <div class="tool-desc">
+                        Community-maintained list of bug bounty resources including tools,
+                        writeups, platforms, and methodology guides. A meta-resource that
+                        aggregates the best content from across the community. Check periodically
+                        for newly added resources.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Setting Up Your Toolkit</h3>
+            <p>
+                A functional bounty hunting toolkit does not require hundreds of tools. Start with
+                a minimal set and add tools only when you encounter a specific need:
+            </p>
+            <div class="code-block"><span class="comment"># Minimal bounty hunting toolkit setup</span>
+
+<span class="comment"># 1. Proxy &mdash; Burp Suite Community Edition (free)</span>
+<span class="comment">#    Download from portswigger.net, configure browser proxy</span>
+
+<span class="comment"># 2. Subdomain enumeration</span>
+<span class="cmd">go install</span> <span class="flag">-v</span> <span class="str">github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest</span>
+
+<span class="comment"># 3. HTTP probing &mdash; check which subdomains are alive</span>
+<span class="cmd">go install</span> <span class="flag">-v</span> <span class="str">github.com/projectdiscovery/httpx/cmd/httpx@latest</span>
+
+<span class="comment"># 4. Directory and file brute-forcing</span>
+<span class="cmd">go install</span> <span class="flag">-v</span> <span class="str">github.com/ffuf/ffuf/v2@latest</span>
+
+<span class="comment"># 5. Vulnerability scanning</span>
+<span class="cmd">go install</span> <span class="flag">-v</span> <span class="str">github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest</span>
+
+<span class="comment"># 6. Wordlists</span>
+<span class="cmd">git clone</span> <span class="str">https://github.com/danielmiessler/SecLists.git</span> <span class="flag">~/wordlists/SecLists</span>
+
+<span class="comment"># 7. JavaScript analysis</span>
+<span class="cmd">go install</span> <span class="flag">-v</span> <span class="str">github.com/tomnomnom/waybackurls@latest</span>
+
+<span class="comment"># That is enough to start. Add tools as needed, not in advance.</span></div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Tool Hoarding</div>
+                    <div class="callout-text">
+                        A common beginner mistake is spending weeks configuring an elaborate toolkit
+                        before ever testing a target. This is procrastination disguised as
+                        preparation. The tools listed above are sufficient to find bugs. Every
+                        additional tool you install before hunting your first real target is a
+                        delay, not an investment. Install the minimum, start hunting, and add
+                        tools when you hit a specific wall that requires them.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 06: Community & Networking -->
+    <!-- ============================================================ -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            Community &amp; Networking
+        </h2>
+        <div class="section-body">
+            <p>
+                Bug bounty is often described as a solo activity, but the most successful hunters are
+                deeply embedded in communities. Collaboration, knowledge sharing, and networking create
+                compound advantages that isolated hunting cannot replicate.
+            </p>
+
+            <h3>Key Discord Servers</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Nahamsec's Discord</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9670;</span> Largest active bug bounty community</li>
+                        <li><span class="li-marker">&#9670;</span> Channels organized by topic (recon, web, mobile, etc.)</li>
+                        <li><span class="li-marker">&#9670;</span> Regular live hacking sessions</li>
+                        <li><span class="li-marker">&#9670;</span> Beginner-friendly with dedicated help channels</li>
+                        <li><span class="li-marker">&#9670;</span> Program announcements and scope discussions</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>PhD's (Pretty Hacking Dudes)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9670;</span> Smaller, more experienced community</li>
+                        <li><span class="li-marker">&#9670;</span> Higher signal-to-noise ratio</li>
+                        <li><span class="li-marker">&#9670;</span> Collaborative target analysis</li>
+                        <li><span class="li-marker">&#9670;</span> Advanced technique discussions</li>
+                        <li><span class="li-marker">&#9670;</span> Invitation or application required</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>X/Twitter Follows</h3>
+            <p>
+                X remains the primary real-time information channel for the security community. The
+                following accounts consistently share high-value methodology, disclosed findings, and
+                community news:
+            </p>
+            <ul>
+                <li><strong>@NashasSec (Nahamsec)</strong> &mdash; Live hacking announcements, methodology tips, program news</li>
+                <li><strong>@staboratory (STOK)</strong> &mdash; Bug bounty methodology, passive monitoring techniques, career advice</li>
+                <li><strong>@Jhaddix (Jason Haddix)</strong> &mdash; AI security research, TBHM updates, Arcanum publications</li>
+                <li><strong>@elderplinius (Pliny)</strong> &mdash; AI security research, jailbreak discoveries, system prompt disclosures</li>
+                <li><strong>@samwcyo (Sam Curry)</strong> &mdash; Major vulnerability disclosures, automotive and IoT security</li>
+                <li><strong>@InsiderPhD</strong> &mdash; Beginner-friendly bug bounty content, methodology breakdowns</li>
+                <li><strong>@taborator (James Kettle)</strong> &mdash; PortSwigger research director, novel vulnerability class discoveries</li>
+                <li><strong>@toaborhce (Corben Leo)</strong> &mdash; Recon methodology, novel attack surface discovery</li>
+            </ul>
+
+            <h3>Conferences</h3>
+            <p>
+                Security conferences serve three functions for bounty hunters: learning (talks and
+                workshops), networking (hallway conversations and parties), and reputation building
+                (speaking). Prioritize conferences that include bug bounty villages or live hacking
+                events.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Conference</th>
+                        <th>Format</th>
+                        <th>Bounty Relevance</th>
+                        <th>Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">DEF CON</td>
+                        <td>In-person, Las Vegas, annual</td>
+                        <td>Bug Bounty Village, live hacking events, HackerOne meetups</td>
+                        <td>Badge purchase (~$400-$460)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">BSides (various)</td>
+                        <td>In-person, 100+ locations worldwide</td>
+                        <td>Local community, approachable, good for first talks</td>
+                        <td>Free to low cost</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">NahamCon</td>
+                        <td>Virtual, annual</td>
+                        <td>Bug bounty focused, beginner-friendly, free</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Black Hat</td>
+                        <td>In-person, Las Vegas, annual</td>
+                        <td>Corporate-focused, advanced research, networking</td>
+                        <td>$2,000+ (briefings pass)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Bugcrowd LevelUp</td>
+                        <td>Virtual, periodic</td>
+                        <td>Platform-specific, methodology talks, hunter spotlights</td>
+                        <td>Free</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Local Meetups</h3>
+            <p>
+                OWASP chapters host local meetups in most major cities. These are free, regular
+                (typically monthly), and provide face-to-face networking with security professionals
+                in your area. Even if you are focused on bug bounty rather than AppSec more broadly,
+                the connections made at local meetups frequently lead to collaboration opportunities,
+                job referrals, and private program invitations.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">Mentorship</div>
+                    <div class="callout-text">
+                        Several community members actively mentor newer researchers. The most
+                        effective way to find a mentor is not to ask directly but to be visibly
+                        engaged: ask thoughtful questions in Discord, write about what you are
+                        learning, share your methodology attempts (even failed ones), and help
+                        others who are one step behind you. Mentorship in this community is
+                        earned through demonstrated effort and good faith contribution.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 07: Building a Learning Path -->
+    <!-- ============================================================ -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128203;</span>
+            Building a Learning Path
+        </h2>
+        <div class="section-body">
+            <p>
+                With the volume of resources available, the challenge is not finding material but
+                sequencing it effectively. The following progression is based on patterns observed
+                in successful hunters who went from zero to their first bounty payout within a
+                reasonable timeframe.
+            </p>
+
+            <h3>Recommended Progression</h3>
+            <ol class="numbered-list">
+                <li>
+                    <strong>Fundamentals (Weeks 1-4):</strong> Complete TryHackMe's "Introduction
+                    to Web Hacking" path. Set up Burp Suite Community Edition and learn to
+                    intercept, modify, and replay requests. Understand HTTP methods, status codes,
+                    cookies, and headers at a practical level.
+                </li>
+                <li>
+                    <strong>Web Vulnerabilities (Weeks 5-12):</strong> Work through PortSwigger Web
+                    Security Academy labs, starting with SQL injection and XSS. Complete at least the
+                    Apprentice and Practitioner levels for SSRF, Authentication, and Access Control.
+                    Run OWASP Juice Shop locally and solve at least 30 challenges.
+                </li>
+                <li>
+                    <strong>First Bug Attempts (Weeks 13-20):</strong> Create accounts on HackerOne
+                    and Bugcrowd. Read 20+ disclosed reports in your chosen vulnerability class.
+                    Pick 3 wide-scope programs and begin systematic reconnaissance. Focus on
+                    government VDPs for initial target practice. Expect to find nothing for weeks
+                    and treat that as normal.
+                </li>
+                <li>
+                    <strong>Specialization (Weeks 21-36):</strong> Choose one vulnerability class
+                    and go deep. Complete all PortSwigger labs in that class including Expert level.
+                    Read every disclosed report you can find in that class. Build custom automation
+                    for detecting your specialty. Hunt exclusively for that class across multiple
+                    programs.
+                </li>
+                <li>
+                    <strong>Advanced Techniques (Months 9-12):</strong> Add a second vulnerability
+                    class. Begin studying business logic flaws and chained vulnerabilities. Explore
+                    AI security practice platforms (Gandalf, Crucible). Start writing public
+                    methodology posts. Participate in CTF competitions for cross-training.
+                </li>
+                <li>
+                    <strong>Continuous Evolution (Year 2+):</strong> Pursue private program
+                    invitations. Consider TBHM course for advanced methodology. Begin speaking at
+                    BSides events. Mentor newer researchers. Evaluate career path options from the
+                    previous module. Never stop hunting while adding adjacent skills.
+                </li>
+            </ol>
+
+            <h3>Time Investment Expectations</h3>
+            <p>
+                Set realistic expectations for time investment at each stage. These estimates assume
+                focused practice time, not passive reading or watching:
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Phase</th>
+                        <th>Weekly Hours</th>
+                        <th>Duration</th>
+                        <th>Expected Outcome</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Fundamentals</td>
+                        <td>8-12 hours</td>
+                        <td>4 weeks</td>
+                        <td>Comfortable intercepting and analyzing HTTP traffic</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Web Vulnerabilities</td>
+                        <td>10-15 hours</td>
+                        <td>8 weeks</td>
+                        <td>Can identify and exploit common web vulnerabilities in labs</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">First Bug Attempts</td>
+                        <td>10-20 hours</td>
+                        <td>8 weeks</td>
+                        <td>Submitted first reports (may be informative/duplicate)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Specialization</td>
+                        <td>10-15 hours</td>
+                        <td>16 weeks</td>
+                        <td>First paid bounty in specialty class</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Advanced</td>
+                        <td>10-15 hours</td>
+                        <td>16 weeks</td>
+                        <td>Consistent finding rate, multiple paid bounties</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Continuous</td>
+                        <td>8-20 hours</td>
+                        <td>Ongoing</td>
+                        <td>Private program access, sustainable income</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">The Year-One Reality</div>
+                    <div class="callout-text">
+                        Most successful bounty hunters report that their first year was primarily
+                        about learning, not earning. If you approach Year 1 expecting significant
+                        income, you will likely quit before the compounding effect of your skill
+                        development pays off. Frame Year 1 as an investment in a skill set that
+                        will pay returns for a decade or more. The timeline above is aggressive
+                        but realistic for someone who shows up consistently.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Tracking Progress</h3>
+            <p>
+                Maintain a simple log of your hunting sessions and learning activities. This does not
+                need to be elaborate &mdash; a plain text file or spreadsheet works:
+            </p>
+            <div class="code-block"><span class="comment"># Example session log format</span>
+
+<span class="kw">Date:</span>       <span class="str">2026-02-28</span>
+<span class="kw">Duration:</span>   <span class="str">3 hours</span>
+<span class="kw">Target:</span>     <span class="str">example.com (HackerOne public program)</span>
+<span class="kw">Focus:</span>      <span class="str">IDOR testing on API endpoints</span>
+<span class="kw">Tools:</span>      <span class="str">Burp Suite, ffuf for endpoint discovery</span>
+<span class="kw">Findings:</span>   <span class="str">None (tested 14 endpoints, all properly authorized)</span>
+<span class="kw">Learned:</span>    <span class="str">This target uses UUID v4 for object IDs, making
+              sequential enumeration impractical. Need to look for
+              IDOR through other vectors (GraphQL, cached responses).</span>
+<span class="kw">Next:</span>       <span class="str">Test GraphQL introspection on same target</span></div>
+            <p>
+                The "Learned" and "Next" fields are the most valuable. They force you to extract a
+                lesson from every session, even unproductive ones, and create continuity between
+                sessions so you do not waste time re-discovering what you already know.
+            </p>
+
+            <h3>Setting Goals</h3>
+            <p>
+                Effective goals for bounty hunting are process-based, not outcome-based. You cannot
+                control whether you find a bug, but you can control how many hours you practice,
+                how many labs you complete, and how many programs you enumerate.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Weak Goals (Outcome-Based)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9670;</span> "Find 5 bugs this month"</li>
+                        <li><span class="li-marker">&#9670;</span> "Earn $10,000 in Q1"</li>
+                        <li><span class="li-marker">&#9670;</span> "Get invited to a private program"</li>
+                        <li><span class="li-marker">&#9670;</span> "Find a critical vulnerability"</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Strong Goals (Process-Based)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9670;</span> "Hunt for 15 hours per week minimum"</li>
+                        <li><span class="li-marker">&#9670;</span> "Complete 10 PortSwigger labs this month"</li>
+                        <li><span class="li-marker">&#9670;</span> "Read 5 disclosed reports per week"</li>
+                        <li><span class="li-marker">&#9670;</span> "Write one methodology post per month"</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>The Continuous Learning Mindset</h3>
+            <p>
+                Security is a field where the attack surface changes faster than any individual can
+                track. New frameworks, new deployment patterns, new API standards, new AI
+                integrations &mdash; each creates new vulnerability classes. The hunters who sustain
+                long-term success treat learning as a permanent condition, not a phase that ends
+                once they find their first bug.
+            </p>
+            <p>
+                Allocate at least 20% of your hunting time to learning activities: reading disclosed
+                reports, completing new labs, studying unfamiliar vulnerability classes, and exploring
+                new tools. The remaining 80% goes to active hunting. This ratio ensures that your
+                skills grow even as you earn, preventing the plateau that catches hunters who stop
+                learning once they reach competence.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div>
+                    <div class="callout-title">Start Today</div>
+                    <div class="callout-text">
+                        The single most common failure mode in bug bounty is indefinite preparation.
+                        Researchers spend months reading about methodology, configuring tools,
+                        watching tutorials, and bookmarking resources without ever hunting a real
+                        target. If you have completed the earlier modules in this course, you have
+                        enough knowledge to start. Pick a wide-scope program, open Burp Suite, and
+                        browse the target. Your first real session will teach you more than another
+                        week of preparation.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Discussion Prompts -->
+    <!-- ============================================================ -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    Using the platform comparison table in Section 1, design a 12-week practice plan that uses at least three different platforms. For each platform, specify which vulnerability classes you will focus on, how many hours per week you will allocate, and what completion milestone will trigger moving to the next platform. What does your plan optimize for: breadth of exposure or depth in a single class?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    AI security practice (Section 2) represents a fundamentally different skill set than traditional web security. If you had to choose between spending 100 hours mastering PortSwigger's web vulnerability labs or 100 hours on AI security platforms like Gandalf and Crucible, which would you choose and why? Consider both current earning potential and where the field is heading in the next 3-5 years.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    The tool hoarding warning in Section 5 identifies a common procrastination pattern. Audit your current setup: how many security tools have you installed but never used on a real target? What is the minimum toolkit you actually need for your chosen specialization, and what can you remove or defer? Simplicity in tooling correlates with consistency in hunting.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    The session log format in Section 7 includes a "Learned" field even for sessions with zero findings. Write three hypothetical session logs for zero-finding sessions that still contain genuinely valuable lessons. What does this exercise reveal about how you define productive time?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Completion -->
+    <!-- ============================================================ -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have surveyed free practice platforms from PortSwigger to HackTheBox, explored AI
+                security practice ranges including Gandalf's progressive difficulty levels and
+                Arcanum's Lab Hub, mapped CTF skills to bounty relevance, catalogued learning resources
+                from TBHM to Real-World Bug Hunting, assembled an open-source toolkit with essential
+                wordlists and tools, identified key communities and conferences for networking, and
+                built a structured learning path with realistic time investment expectations.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 22
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-resources', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

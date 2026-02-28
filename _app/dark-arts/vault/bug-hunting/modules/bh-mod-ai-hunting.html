@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 15: AI-Powered Bug Hunting - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .cmd { color: #c4a0d8; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .numbered-list {
+            list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter;
+        }
+
+        .numbered-list li {
+            counter-increment: step-counter;
+            padding: 12px 18px 12px 50px; margin-bottom: 8px;
+            background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6;
+        }
+
+        .numbered-list li::before {
+            content: counter(step-counter, decimal-leading-zero);
+            position: absolute; left: 16px; top: 12px;
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            color: #9333ea; font-weight: bold;
+        }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .tool-name {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-role {
+            font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .tool-grid { grid-template-columns: 1fr; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 15</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9881;</div>
+        <h1 class="intro-title">AI-Powered Bug Hunting</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 15 &bull; AI &amp; Emerging Surfaces</div>
+        <p class="intro-subtitle">
+            AI is not just a target for security research. It is becoming the most powerful tool in a
+            bug hunter's arsenal. From recon automation to payload generation to fully autonomous scanning
+            workflows, AI fundamentally changes what a single researcher can accomplish. This module covers
+            how to wield AI effectively without becoming dependent on it or trusting its output blindly.
+        </p>
+        <div class="module-stats">
+            <span class="stat-pill">7 Sections</span>
+            <span class="stat-pill">Practical Tooling</span>
+            <span class="stat-pill">Intermediate</span>
+            <span class="stat-pill">~45 Minutes</span>
+        </div>
+    </div>
+
+    <!-- Section 1: AI as a Force Multiplier -->
+    <div class="section" id="section-1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            AI as a Force Multiplier
+        </h2>
+        <div class="section-body">
+            <p>
+                A single researcher using AI effectively can now accomplish what previously required a
+                team. This is not about replacing human intuition or creativity. It is about eliminating
+                the mechanical bottlenecks that consume most of a hunter's time: parsing through
+                thousands of JavaScript files, generating permutations of payloads, correlating data
+                across multiple reconnaissance sources, and writing reports. AI handles the tedium
+                so you can focus on the thinking.
+            </p>
+
+            <p>
+                The key insight is understanding where AI helps and where it fails. AI excels at
+                high-volume, pattern-matching tasks with clear success criteria. It struggles with
+                novel attack chains, business logic understanding, and creative leaps that connect
+                unrelated observations. The best hunters use AI for breadth and apply human judgment
+                for depth.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Where AI Excels</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Parsing and analyzing large JavaScript bundles</li>
+                        <li><span class="li-marker">&#9656;</span> Generating wordlists from observed patterns</li>
+                        <li><span class="li-marker">&#9656;</span> Writing report templates and descriptions</li>
+                        <li><span class="li-marker">&#9656;</span> Correlating data across multiple sources</li>
+                        <li><span class="li-marker">&#9656;</span> Explaining unfamiliar code or protocols</li>
+                        <li><span class="li-marker">&#9656;</span> Brainstorming attack vectors for a given surface</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Where Manual Wins</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Understanding business logic context</li>
+                        <li><span class="li-marker">&#9656;</span> Chaining vulnerabilities creatively</li>
+                        <li><span class="li-marker">&#9656;</span> Recognizing anomalies in application behavior</li>
+                        <li><span class="li-marker">&#9656;</span> Making judgment calls on scope boundaries</li>
+                        <li><span class="li-marker">&#9656;</span> Social engineering and human-factor analysis</li>
+                        <li><span class="li-marker">&#9656;</span> Deciding what is worth pursuing further</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-icon">&#9432;</div>
+                <div>
+                    <div class="callout-title">The Collaboration Model</div>
+                    <div class="callout-text">
+                        Think of AI as a highly capable but context-blind junior analyst. It can process
+                        information faster than you, but it does not understand the target the way you do.
+                        You provide direction, context, and judgment. AI provides speed, coverage, and
+                        tireless execution. The combination is more powerful than either alone.
+                    </div>
+                </div>
+            </div>
+
+            <p>
+                This is not a temporary advantage. As AI tools improve, the researchers who learn to
+                use them effectively will pull further ahead. The gap between AI-augmented hunters and
+                purely manual hunters will widen. Adapting now is not optional; it is a competitive
+                necessity.
+            </p>
+        </div>
+    </div>
+
+    <!-- Section 2: AI-Assisted Reconnaissance -->
+    <div class="section" id="section-2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            AI-Assisted Reconnaissance
+        </h2>
+        <div class="section-body">
+            <p>
+                Reconnaissance is the most time-intensive phase of bug hunting, and the phase where AI
+                provides the greatest acceleration. Traditional recon generates enormous volumes of data:
+                subdomain lists, JavaScript files, API endpoints, technology fingerprints. The bottleneck
+                has always been analysis, not collection. AI shifts this bottleneck dramatically.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Custom Wordlist Generation</h3>
+
+            <div class="code-block"><span class="comment"># Using an LLM to generate context-aware wordlists</span>
+
+<span class="str">"I'm testing a healthcare SaaS application. Generate a wordlist of
+likely API endpoint paths for a healthcare platform. Include:
+- Patient management endpoints
+- FHIR-compliant resource paths
+- Admin/configuration endpoints
+- Common healthcare integration endpoints (HL7, DICOM)
+- Billing and insurance claim endpoints
+Format: one path per line, no leading slash."</span>
+
+<span class="comment"># Output can be piped directly into tools:</span>
+<span class="comment"># cat ai-wordlist.txt | httpx -silent -mc 200,301,302,403</span></div>
+
+            <p>
+                The advantage over static wordlists is context awareness. A generic wordlist like
+                SecLists contains thousands of common paths but nothing specific to the target's
+                industry, technology stack, or naming conventions. AI-generated wordlists can
+                incorporate all of this context to produce targeted lists that find endpoints
+                generic lists miss.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">JavaScript Analysis</h3>
+
+            <div class="code-block"><span class="comment"># Feed minified JS to an LLM for analysis</span>
+
+<span class="str">"Analyze this JavaScript bundle. Extract:
+1. All API endpoint URLs and paths
+2. Any hardcoded credentials, tokens, or API keys
+3. Hidden or admin-only feature flags
+4. Authentication logic and token handling
+5. Any references to internal services or hostnames
+
+Here is the code:
+[paste minified JS]"</span>
+
+<span class="comment"># For large bundles, chunk the code and analyze in parts</span>
+<span class="comment"># Focus on files containing: api, config, auth, admin, env</span></div>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Large Dataset Parsing</div>
+                    <div class="concept-card-body">
+                        Feed scan results from tools like Amass, subfinder, or httpx into an LLM to
+                        identify patterns, anomalies, and interesting targets. Ask it to group subdomains
+                        by purpose, identify development or staging environments, and flag unusual
+                        configurations.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Natural Language Queries</div>
+                    <div class="concept-card-body">
+                        Instead of writing complex grep chains or custom scripts, query your recon data
+                        in plain language. "Which of these subdomains appear to be running legacy
+                        software based on their response headers?" is faster to write and often more
+                        accurate than a manual filter.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Technology Fingerprinting</div>
+                    <div class="concept-card-body">
+                        Feed HTTP response headers, HTML snippets, and error messages to an LLM for
+                        technology identification. AI can often identify frameworks, versions, and
+                        configurations from subtle cues that automated scanners miss.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-icon">&#9888;</div>
+                <div>
+                    <div class="callout-title">Sensitive Data Warning</div>
+                    <div class="callout-text">
+                        Never paste actual credentials, session tokens, or PII into cloud-hosted AI services
+                        during recon analysis. Use local models (Ollama, llama.cpp) for analyzing sensitive
+                        target data, or sanitize outputs before submission. Your API calls to commercial
+                        LLMs may be logged and could create a data handling violation.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Payload Generation with AI -->
+    <div class="section" id="section-3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            Payload Generation with AI
+        </h2>
+        <div class="section-body">
+            <p>
+                AI can dramatically accelerate payload crafting, particularly for WAF bypass, encoding
+                chains, and generating test cases across injection types. The key is using AI to
+                generate variations and mutations of known working payloads, not to invent entirely
+                new vulnerability classes. AI is a payload multiplier, not a vulnerability researcher.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">WAF Bypass Generation</h3>
+
+            <div class="code-block"><span class="comment"># Prompt for generating WAF bypass variations</span>
+
+<span class="str">"I have confirmed a reflected XSS vulnerability, but the WAF blocks
+standard payloads containing &lt;script&gt; tags. The WAF allows:
+- Event handlers in non-standard tags
+- SVG elements
+- Data URIs in certain contexts
+- URL-encoded characters are decoded server-side
+
+Generate 20 XSS payload variations that avoid &lt;script&gt; tags.
+Include payloads using: SVG onload, img onerror, details/summary,
+body onpageshow, input onfocus with autofocus, and any other
+techniques that bypass keyword-based WAF rules."</span>
+
+<span class="comment"># Always test each payload manually. AI generates candidates; you validate.</span></div>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Effective Use Cases</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Generating encoding chain variations (double URL, Unicode, mixed)</li>
+                        <li><span class="li-marker">&#9656;</span> Creating SQL injection payloads for specific DBMS versions</li>
+                        <li><span class="li-marker">&#9656;</span> Mutating known XSS payloads to evade specific WAF signatures</li>
+                        <li><span class="li-marker">&#9656;</span> Building SSRF payloads with various protocol handlers</li>
+                        <li><span class="li-marker">&#9656;</span> Generating race condition test scripts</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Known Limitations</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> AI hallucinates non-functional payload syntax</li>
+                        <li><span class="li-marker">&#9656;</span> Outdated techniques presented as current best practice</li>
+                        <li><span class="li-marker">&#9656;</span> Context-free suggestions that ignore target specifics</li>
+                        <li><span class="li-marker">&#9656;</span> Inability to verify whether a payload actually works</li>
+                        <li><span class="li-marker">&#9656;</span> Potential for generating overly aggressive test cases</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Template Injection Payloads</h3>
+
+            <div class="code-block"><span class="comment"># Generate SSTI payloads for multiple template engines</span>
+
+<span class="str">"Generate Server-Side Template Injection test payloads for:
+1. Jinja2 (Python)
+2. Twig (PHP)
+3. Freemarker (Java)
+4. Pebble (Java)
+5. Handlebars (JavaScript)
+
+For each engine, provide:
+- A detection payload (mathematical expression)
+- A file read payload
+- A command execution payload
+Format as a table with engine, payload type, and payload."</span></div>
+
+            <div class="callout callout-danger">
+                <div class="callout-icon">&#9888;</div>
+                <div>
+                    <div class="callout-title">Hallucination Risk</div>
+                    <div class="callout-text">
+                        AI-generated payloads must always be validated manually. LLMs confidently produce
+                        payloads with incorrect syntax, deprecated functions, or impossible escape
+                        sequences. Treat every AI-generated payload as a hypothesis to test, not a working
+                        exploit. A payload that looks correct in the chat window may fail completely
+                        against the actual target.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Hackbots & Claude Code for Security -->
+    <div class="section" id="section-4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            Hackbots &amp; Claude Code for Security
+        </h2>
+        <div class="section-body">
+            <p>
+                Beyond ad-hoc prompting, researchers are building persistent AI assistants tailored
+                for security work. These "hackbots" combine custom system prompts with tool access
+                to create specialized security research environments. Claude Code, in particular,
+                enables file system access, command execution, and iterative workflows that make it
+                a powerful security testing companion.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Security-Focused System Prompts</h3>
+
+            <div class="code-block"><span class="comment"># Example system prompt for a security-focused AI assistant</span>
+
+<span class="str">You are a senior penetration tester assistant. Your role:
+
+1. Analyze code for security vulnerabilities (OWASP Top 10,
+   business logic, access control, injection)
+2. Generate test payloads when asked, always noting they must
+   be used only against authorized targets
+3. Explain vulnerabilities with impact, root cause, and remediation
+4. Review HTTP requests/responses for security issues
+5. Help write bug bounty reports in clear, professional format
+
+When analyzing code:
+- Flag hardcoded secrets immediately
+- Check all user input paths for injection
+- Verify authorization checks on every endpoint
+- Look for race conditions in state-changing operations
+- Identify IDOR patterns in parameter handling</span></div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Claude Code Workflows</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Automated Scanning Pipelines</div>
+                    <div class="concept-card-body">
+                        Claude Code can execute reconnaissance tools, parse their output, identify
+                        interesting targets, and run follow-up scans, all in a single conversational
+                        workflow. You describe the target, and the agent builds and executes the
+                        scanning pipeline.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Code Review at Scale</div>
+                    <div class="concept-card-body">
+                        Point Claude Code at a repository and ask it to audit for specific vulnerability
+                        classes. It can read files, trace data flows, identify sinks, and generate a
+                        prioritized list of findings with code references.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Report Generation</div>
+                    <div class="concept-card-body">
+                        Feed raw vulnerability notes and Claude Code generates professional bug bounty
+                        reports with clear titles, reproduction steps, impact analysis, and remediation
+                        recommendations. It can also format for specific platform templates
+                        (HackerOne, Bugcrowd).
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Custom Tool Building</div>
+                    <div class="concept-card-body">
+                        Describe a security testing need and have Claude Code write the tool: a custom
+                        fuzzer for a specific parameter format, a script to test for IDOR across
+                        a range of IDs, or a monitor that watches for changes in a target's
+                        JavaScript files.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># Example: Claude Code recon workflow</span>
+
+<span class="comment"># 1. Enumerate subdomains</span>
+<span class="cmd">subfinder</span> <span class="flag">-d</span> target.com <span class="flag">-silent</span> | <span class="cmd">sort</span> <span class="flag">-u</span> > subs.txt
+
+<span class="comment"># 2. Check which are alive</span>
+<span class="cmd">httpx</span> <span class="flag">-l</span> subs.txt <span class="flag">-silent</span> <span class="flag">-title</span> <span class="flag">-status-code</span> <span class="flag">-tech-detect</span> > alive.txt
+
+<span class="comment"># 3. Ask the LLM to analyze results</span>
+<span class="str">"Analyze alive.txt. Identify:
+- Any staging/development environments
+- Services running non-standard ports
+- Interesting technology stacks
+- Subdomains likely to have weaker security"</span>
+
+<span class="comment"># 4. Deep scan interesting targets identified by AI</span>
+<span class="cmd">nuclei</span> <span class="flag">-l</span> interesting.txt <span class="flag">-t</span> cves/ <span class="flag">-severity</span> high,critical</div>
+
+            <div class="callout callout-tip">
+                <div class="callout-icon">&#10004;</div>
+                <div>
+                    <div class="callout-title">Reusable Attack Chains</div>
+                    <div class="callout-text">
+                        Build a library of proven prompts and workflows. When you find a sequence that
+                        works well (recon flow, analysis pattern, report template), save it. Over time,
+                        your personal library of AI-augmented workflows becomes your competitive advantage.
+                        The best hunters have dozens of refined prompts for specific testing scenarios.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: N8N & Automation Workflows -->
+    <div class="section" id="section-5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            N8N &amp; Automation Workflows
+        </h2>
+        <div class="section-body">
+            <p>
+                N8N (and similar workflow automation platforms like Make or Tines) allow you to build
+                persistent, automated security pipelines that run continuously without manual intervention.
+                These are not one-off scripts. They are always-on infrastructure that monitors targets,
+                detects changes, runs scans, and notifies you when something interesting appears.
+                Combined with AI nodes for analysis, they create autonomous hunting systems.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Core Workflow Patterns</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Change Detection Pipeline</div>
+                    <div class="concept-card-body">
+                        Monitor target JavaScript files, API documentation, and public assets for changes.
+                        When a file changes, diff it against the previous version, feed the diff to an
+                        LLM for security analysis, and send a Slack notification if anything interesting
+                        is found. Runs on a cron schedule.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">New Subdomain Alerting</div>
+                    <div class="concept-card-body">
+                        Run subdomain enumeration daily against target domains. Compare results to the
+                        previous run. New subdomains are automatically scanned with httpx and nuclei.
+                        Results are filtered by severity and sent to your notification channel.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Vulnerability Feed Enrichment</div>
+                    <div class="concept-card-body">
+                        Ingest CVE feeds and security advisories. For each new CVE, query Shodan to check
+                        if your targets are running affected software. Correlate with your recon data.
+                        Send alerts for CVEs that match your target technology stacks.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Report Draft Pipeline</div>
+                    <div class="concept-card-body">
+                        When you find a vulnerability, feed your raw notes into a workflow that generates
+                        a formatted report, checks it against duplicate databases, estimates severity
+                        and payout, and drafts submission-ready content for the target platform.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Connecting External Services</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Integration</th>
+                        <th>Use Case</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Shodan</td>
+                        <td>API queries via HTTP node</td>
+                        <td>Port scanning, service detection, historical data for targets</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">VirusTotal</td>
+                        <td>API for domain/URL analysis</td>
+                        <td>Reputation checks, passive DNS, related domain discovery</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Slack / Discord</td>
+                        <td>Webhook notifications</td>
+                        <td>Real-time alerts for new findings, pipeline status updates</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">GitHub</td>
+                        <td>Repository monitoring API</td>
+                        <td>Watch target repos for secret leaks, config changes, new releases</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">OpenAI / Claude API</td>
+                        <td>AI analysis nodes</td>
+                        <td>Intelligent filtering, analysis, and report generation within workflows</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-block"><span class="comment"># Example N8N workflow: New subdomain detection + AI analysis</span>
+
+<span class="comment"># Node 1: Cron Trigger (daily at 2am)</span>
+<span class="comment"># Node 2: Execute Command - subfinder -d target.com -silent</span>
+<span class="comment"># Node 3: Read File - load previous subdomain list</span>
+<span class="comment"># Node 4: Code Node - compute diff (new subdomains)</span>
+<span class="comment"># Node 5: IF Node - check if new subdomains found</span>
+<span class="comment"># Node 6: Execute Command - httpx on new subdomains</span>
+<span class="comment"># Node 7: AI Node - analyze httpx output for interesting targets</span>
+<span class="comment"># Node 8: Slack Node - send formatted alert with analysis</span>
+<span class="comment"># Node 9: Write File - update subdomain list for next run</span></div>
+
+            <div class="callout callout-info">
+                <div class="callout-icon">&#9432;</div>
+                <div>
+                    <div class="callout-title">Infrastructure Note</div>
+                    <div class="callout-text">
+                        Self-host N8N rather than using cloud instances for security workflows. Your
+                        workflows contain target information, API keys, and vulnerability data. A cheap
+                        VPS running N8N in Docker is sufficient for most hunting automation. Keep your
+                        scanning infrastructure separate from your analysis infrastructure.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Multi-Model Approach -->
+    <div class="section" id="section-6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            Multi-Model Approach
+        </h2>
+        <div class="section-body">
+            <p>
+                Different AI models have different strengths. Using a single model for everything leaves
+                capability on the table. Experienced AI-augmented hunters use multiple models strategically,
+                selecting the right model for each task based on its strengths, cost, and context window
+                limitations.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Strength</th>
+                        <th>Best For</th>
+                        <th>Cost Tier</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Claude (Opus/Sonnet)</td>
+                        <td>Deep analysis, long context, careful reasoning</td>
+                        <td>Code review, vulnerability analysis, complex report writing</td>
+                        <td><span class="badge badge-latest">High/Medium</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">GPT-4o</td>
+                        <td>Creative generation, broad knowledge</td>
+                        <td>Payload brainstorming, unconventional attack ideas, WAF bypass creativity</td>
+                        <td><span class="badge badge-info">Medium</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Gemini</td>
+                        <td>Very large context window, code understanding</td>
+                        <td>Analyzing entire codebases, processing large scan outputs</td>
+                        <td><span class="badge badge-info">Medium</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Local Models (Llama, Qwen)</td>
+                        <td>Privacy, no data transmission, no rate limits</td>
+                        <td>Analyzing sensitive target data, bulk processing, offline work</td>
+                        <td><span class="badge badge-current">Free (compute)</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Claude Haiku / GPT-4o Mini</td>
+                        <td>Speed, low cost, sufficient for simple tasks</td>
+                        <td>Quick lookups, formatting, simple parsing, classification</td>
+                        <td><span class="badge badge-current">Low</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Model Selection Strategy</h3>
+
+            <ul class="numbered-list">
+                <li>Use the cheapest model that can do the job. Parsing a list of subdomains does not require an expensive model. Save your API budget for complex analysis tasks where model quality matters.</li>
+                <li>Use local models for anything involving target-sensitive data. Credentials found during recon, session tokens, internal hostnames, and vulnerability details should never leave your machine.</li>
+                <li>Use the largest context window available when analyzing full codebases or large scan outputs. Splitting data across multiple prompts loses cross-reference capability.</li>
+                <li>Run the same analysis through multiple models for high-value targets. Different models catch different things. A vulnerability missed by Claude might be flagged by GPT-4o, and vice versa.</li>
+                <li>Build model-specific prompt libraries. Each model responds differently to the same prompt. Optimize your prompts for the model you are using rather than using generic prompts everywhere.</li>
+            </ul>
+
+            <div class="callout callout-tip">
+                <div class="callout-icon">&#10004;</div>
+                <div>
+                    <div class="callout-title">Cost Optimization</div>
+                    <div class="callout-text">
+                        A typical month of AI-augmented hunting might cost $30-100 in API fees. Use
+                        caching aggressively: if you have already analyzed a JavaScript file, store the
+                        analysis rather than re-analyzing it. Batch similar tasks together. Use streaming
+                        to cancel requests early when the output is clearly not useful. The ROI on
+                        even expensive API calls is excellent when they lead to bounty payouts.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: The Future of AI in Bug Bounty -->
+    <div class="section" id="section-7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            The Future of AI in Bug Bounty
+        </h2>
+        <div class="section-body">
+            <p>
+                Autonomous AI agents are already appearing on bug bounty leaderboards. Systems that can
+                independently identify, verify, and report vulnerabilities are no longer theoretical.
+                The question for human hunters is not whether AI will compete with them, but how the
+                relationship between human and AI hunting will evolve. Understanding these trends is
+                essential for long-term career positioning.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Autonomous Agent Competition</div>
+                    <div class="concept-card-body">
+                        AI agents that run continuously, testing targets 24/7, will dominate the
+                        low-hanging fruit that many hunters rely on. Simple vulnerabilities like
+                        missing headers, default credentials, and known CVEs will be found within
+                        minutes of being introduced. Human hunters must move up the complexity chain.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Human Advantage Domain</div>
+                    <div class="concept-card-body">
+                        Business logic vulnerabilities, complex authorization bypasses, multi-step attack
+                        chains, and social engineering remain firmly in the human domain. These require
+                        understanding intent, context, and organizational dynamics that AI cannot replicate.
+                        Specializing in these areas is the sustainable strategy.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">AI-Human Hybrid Teams</div>
+                    <div class="concept-card-body">
+                        The most effective model may be hybrid: AI handles reconnaissance, scanning, and
+                        initial triage while humans handle analysis, creative exploitation, and reporting.
+                        Hunters who can orchestrate AI agents effectively will have a multiplied impact
+                        compared to either pure-AI or pure-human approaches.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Ethical Considerations</div>
+                    <div class="concept-card-body">
+                        As AI makes vulnerability discovery easier, the potential for misuse grows. Autonomous
+                        agents that find vulnerabilities can be pointed at unauthorized targets just as easily
+                        as authorized ones. The community must develop norms around responsible AI-assisted
+                        testing before regulation forces less nuanced rules.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Staying Competitive</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Short-Term (1-2 Years)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Learn to use AI tools effectively for every phase of hunting</li>
+                        <li><span class="li-marker">&#9656;</span> Build automation pipelines that run continuously</li>
+                        <li><span class="li-marker">&#9656;</span> Develop specialized prompts and workflows for your niche</li>
+                        <li><span class="li-marker">&#9656;</span> Stay current with new AI models and capabilities</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Long-Term (3-5 Years)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Specialize in vulnerability classes AI cannot handle</li>
+                        <li><span class="li-marker">&#9656;</span> Build and operate AI agent fleets for bug bounty</li>
+                        <li><span class="li-marker">&#9656;</span> Transition to AI security auditing as a service</li>
+                        <li><span class="li-marker">&#9656;</span> Develop expertise in AI-specific vulnerabilities (Module 14)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-icon">&#9888;</div>
+                <div>
+                    <div class="callout-title">The Displacement Risk</div>
+                    <div class="callout-text">
+                        Hunters who rely primarily on running automated scanners and submitting known CVEs
+                        face the highest displacement risk from AI. If your methodology can be fully
+                        automated, it will be. The hunters who thrive will be those whose judgment,
+                        creativity, and contextual understanding make them complementary to AI rather
+                        than redundant with it.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    You are testing a target and discover that another researcher is using an AI agent that submits hundreds of low-quality reports per day, overwhelming the triage team and occasionally finding real bugs before human hunters can. Is this ethical? Should bug bounty platforms impose limits on AI-generated submissions? Where is the line between augmented hunting and automated spam?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    A local model running on your machine can analyze sensitive target data without sending it to a cloud API, but it produces lower-quality analysis. A cloud model gives better results but processes your target's proprietary code on someone else's infrastructure. How do you make this tradeoff? Does it depend on the target, the data, or the bounty amount?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    If AI agents can eventually find and report most technical vulnerabilities autonomously, what role remains for human security researchers? Consider the full spectrum: from vulnerability discovery to impact assessment to organizational risk communication. Which parts of the security research lifecycle are most resistant to automation?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    Building effective AI-augmented workflows requires upfront investment: learning prompt engineering, setting up automation infrastructure, developing custom tools. How do you justify this investment when you could be spending that time hunting manually? At what point does the investment pay off, and how do you measure ROI on tooling versus direct hunting?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the practical landscape of AI-powered bug hunting: the force multiplier
+                model for human-AI collaboration, AI-assisted reconnaissance techniques, payload generation
+                with hallucination awareness, hackbot and Claude Code workflows, N8N automation pipelines,
+                multi-model strategy and cost optimization, and the evolving future of AI in bug bounty.
+                You are ready to integrate AI into your hunting methodology.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 15
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in on scroll via IntersectionObserver
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-ai-hunting', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

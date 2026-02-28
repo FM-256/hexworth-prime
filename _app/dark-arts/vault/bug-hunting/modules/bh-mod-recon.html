@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 02: Reconnaissance &amp; OSINT - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .section-body h3 { color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px; }
+
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li::before { content: none; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-item::before { content: none; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+
+        .takeaway-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; }
+        .takeaway-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; text-align: center; }
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+
+        .numbered-list { list-style: none; padding-left: 0; margin-bottom: 16px; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; position: relative; padding-left: 36px; margin-bottom: 12px; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 0; color: #9333ea; font-family: 'Courier New', monospace; font-size: 0.8rem; font-weight: bold; }
+        .inline-code { font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(40, 20, 60, 0.3); padding: 1px 6px; border-radius: 3px; font-size: 0.88rem; }
+
+        blockquote { border-left: 3px solid rgba(147, 51, 234, 0.4); padding: 16px 24px; margin: 24px 0; background: rgba(15, 8, 20, 0.5); border-radius: 0 8px 8px 0; font-style: italic; color: #9a7aaa; font-size: 0.95rem; line-height: 1.7; }
+        blockquote cite { display: block; margin-top: 10px; font-style: normal; font-size: 0.78rem; color: #6a4a7a; letter-spacing: 0.1em; }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .tool-grid { grid-template-columns: 1fr; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 02</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128269;</div>
+        <h1 class="intro-title">Reconnaissance &amp; OSINT</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 02 &bull; Attack Surface Mapping</div>
+        <p class="intro-subtitle">
+            Reconnaissance is not a preliminary step you rush through before the real work begins.
+            It is the real work. The quality of your recon directly determines the quality of your
+            findings. Every critical vulnerability you will ever discover begins as a piece of
+            intelligence gathered during reconnaissance &mdash; a forgotten subdomain, an exposed
+            configuration file, a service running on an unexpected port. This module builds the
+            systematic methodology for mapping an organization's entire external attack surface
+            before a single test payload is ever sent.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Subdomain Enumeration</div>
+            <div class="stat-pill">Google Dorking</div>
+            <div class="stat-pill">Shodan &amp; Censys</div>
+            <div class="stat-pill">DNS Recon</div>
+            <div class="stat-pill">Nmap</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: The Reconnaissance Mindset -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#129504;</span>
+            The Reconnaissance Mindset
+        </h2>
+        <div class="section-body">
+            <blockquote>
+                "Give me six hours to chop down a tree, and I will spend the first four sharpening the axe."
+                <cite>&mdash; Abraham Lincoln</cite>
+            </blockquote>
+
+            <p>
+                In bug bounty hunting, the axe is your understanding of the target. The hunters who
+                consistently find critical vulnerabilities are not the ones running the most scanners
+                &mdash; they understand the target's architecture so deeply that they know where the
+                cracks will be before they start looking. Recon separates a random tester throwing
+                payloads at a login form from a methodical researcher who understands the entire
+                topology of a target's internet presence.
+            </p>
+
+            <p>
+                A target's scope might say <span class="inline-code">*.example.com</span>, but that
+                single wildcard can represent hundreds of subdomains &mdash; each running different
+                technology stacks, each maintained by different teams, each with different security
+                maturity. The hardened production site is not the same target as the forgotten staging
+                server running unpatched software from three years ago. Recon is how you find that server.
+            </p>
+
+            <h3>Passive vs Active Reconnaissance</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128065; Passive Reconnaissance</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>No direct interaction with the target's infrastructure</li>
+                        <li><span class="li-marker">&#9656;</span>Uses publicly available data: DNS records, certificate logs, search engines</li>
+                        <li><span class="li-marker">&#9656;</span>Completely undetectable by the target organization</li>
+                        <li><span class="li-marker">&#9656;</span>Can be performed before formal authorization in many contexts</li>
+                        <li><span class="li-marker">&#9656;</span>Often yields more results than active scanning</li>
+                        <li><span class="li-marker">&#9656;</span>Tools: crt.sh, Google Dorking, Shodan, SecurityTrails</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#9889; Active Reconnaissance</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Directly interacts with target systems (sends packets)</li>
+                        <li><span class="li-marker">&#9656;</span>Port scanning, service probing, directory brute-forcing</li>
+                        <li><span class="li-marker">&#9656;</span>Detectable in server logs, WAF dashboards, IDS alerts</li>
+                        <li><span class="li-marker">&#9656;</span>Requires explicit authorization (bug bounty scope agreement)</li>
+                        <li><span class="li-marker">&#9656;</span>Higher risk of being rate-limited or IP-banned</li>
+                        <li><span class="li-marker">&#9656;</span>Tools: Nmap, Masscan, directory fuzzers, httpx</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p>
+                The best reconnaissance methodology starts passive and moves to active. Exhaust every
+                passive source of intelligence before you send a single packet to the target. Passive
+                recon is free, unlimited, and invisible. Active recon costs you stealth, rate limits,
+                and potentially your IP reputation. Know what you are looking for before you start
+                knocking on doors.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127919;</div>
+                    <div class="concept-card-title">Scope Expansion</div>
+                    <div class="concept-card-body">
+                        The real value is discovering assets the organization does not realize are
+                        exposed &mdash; forgotten subdomains, legacy systems, third-party integrations.
+                        These have weaker controls because nobody is watching them.
+                    </div>
+                    <span class="concept-tag">High Value</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128338;</div>
+                    <div class="concept-card-title">Time Investment</div>
+                    <div class="concept-card-body">
+                        Experienced hunters spend 60-80% of engagement time on recon. A single
+                        overlooked subdomain with an old framework is worth more than hours of
+                        fuzzing a hardened production endpoint.
+                    </div>
+                    <span class="concept-tag">Methodology</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128203;</div>
+                    <div class="concept-card-title">Documentation</div>
+                    <div class="concept-card-body">
+                        Subdomains, IPs, tech stacks, interesting endpoints &mdash; all documented
+                        and organized. Your recon notes become the roadmap for the entire engagement.
+                    </div>
+                    <span class="concept-tag">Process</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128275;</div>
+                    <div class="concept-card-title">Ethical Boundaries</div>
+                    <div class="concept-card-body">
+                        Even passive techniques can reveal sensitive data. If you discover data
+                        outside your scope, do not access or store it. Report it responsibly.
+                    </div>
+                    <span class="concept-tag">Ethics</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">The Recon Advantage</div>
+                    <div class="callout-text">
+                        In competitive bug bounty programs where thousands of researchers test the same
+                        targets, recon quality is the primary differentiator. Everyone runs the same
+                        scanners and tests the same login forms. The researcher who finds the forgotten
+                        staging server or the undocumented API endpoint is the one who submits the
+                        critical finding. Recon is your competitive edge.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Subdomain Enumeration -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            Subdomain Enumeration
+        </h2>
+        <div class="section-body">
+            <p>
+                Subdomain enumeration is the cornerstone of bug bounty reconnaissance. When a program
+                scope includes <span class="inline-code">*.target.com</span>, your first job is to
+                discover every subdomain that resolves under that wildcard. Each subdomain is a potential
+                attack surface &mdash; a different application, a different team, a different security
+                posture. The forgotten ones are where the vulnerabilities live.
+            </p>
+
+            <h3>Why Subdomains Matter</h3>
+
+            <p>
+                Organizations accumulate subdomains over years &mdash; staging environments, campaign
+                microsites, internal tools exposed during migrations. Every forgotten asset is a
+                potential entry point with reduced monitoring and outdated software.
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Staging environments</strong> &mdash; mirror production but lack WAF, use default credentials, expose debug endpoints</li>
+                <li><strong style="color: #c4a0d8;">Internal tools</strong> &mdash; admin panels, CI/CD interfaces accidentally exposed to the internet</li>
+                <li><strong style="color: #c4a0d8;">Legacy applications</strong> &mdash; old versions running with known CVEs on forgotten subdomains</li>
+                <li><strong style="color: #c4a0d8;">Third-party integrations</strong> &mdash; helpdesk portals, status pages on branded subdomains</li>
+            </ul>
+
+            <h3>Certificate Transparency Logs</h3>
+
+            <p>
+                Certificate Transparency (CT) requires CAs to publish every SSL/TLS certificate to
+                public logs. Every subdomain with a certificate is discoverable &mdash; including
+                internal subdomains never intended to be public. <span class="inline-code">crt.sh</span>
+                provides a free search interface.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Query crt.sh for all certificates issued to *.target.com</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">"https://crt.sh/?q=%25.target.com&output=json"</span> | \
+  <span class="kw">jq</span> <span class="flag">-r</span> <span class="str">'.[].name_value'</span> | \
+  <span class="kw">sort</span> <span class="flag">-u</span> &gt; ct-subdomains.txt
+
+<span class="comment"># Count unique subdomains discovered</span>
+$ <span class="kw">wc</span> <span class="flag">-l</span> ct-subdomains.txt
+<span class="str">247 ct-subdomains.txt</span>
+</div>
+
+            <h3>Amass &mdash; Comprehensive Enumeration</h3>
+
+            <p>
+                OWASP Amass combines passive sources, brute-force, permutation techniques, and active
+                DNS resolution into a single pipeline. Default configuration queries 50+ data sources.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Basic passive enumeration (no direct interaction with target)</span>
+$ <span class="kw">amass enum</span> <span class="flag">-passive</span> <span class="flag">-d</span> target.com <span class="flag">-o</span> amass-passive.txt
+
+<span class="comment"># Full enumeration with brute-force and alterations</span>
+$ <span class="kw">amass enum</span> <span class="flag">-active</span> <span class="flag">-brute</span> <span class="flag">-d</span> target.com <span class="flag">-o</span> amass-full.txt
+
+<span class="comment"># Use a config file for API keys (VirusTotal, Censys, Shodan, etc.)</span>
+$ <span class="kw">amass enum</span> <span class="flag">-active</span> <span class="flag">-brute</span> <span class="flag">-d</span> target.com \
+  <span class="flag">-config</span> ~/.config/amass/config.ini <span class="flag">-o</span> amass-apikeys.txt
+</div>
+
+            <h3>subfinder + httpx &mdash; Fast Discovery Pipeline</h3>
+
+            <p>
+                subfinder is faster for initial enumeration. Piping output to httpx immediately checks
+                which subdomains serve live HTTP content, eliminating dead DNS records from your list.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Discover subdomains and check which are live</span>
+$ <span class="kw">subfinder</span> <span class="flag">-d</span> target.com <span class="flag">-silent</span> | \
+  <span class="kw">httpx</span> <span class="flag">-silent</span> <span class="flag">-status-code</span> <span class="flag">-title</span> <span class="flag">-tech-detect</span> <span class="flag">-o</span> live-hosts.txt
+
+<span class="comment"># Example output:</span>
+<span class="str">https://www.target.com [200] [Target Inc] [Nginx,React]</span>
+<span class="str">https://staging.target.com [200] [Staging - Target] [Apache,Django]</span>
+<span class="str">https://api.target.com [401] [] [Nginx]</span>
+<span class="str">https://admin.target.com [403] [Forbidden] [Cloudflare]</span>
+<span class="str">https://old.target.com [200] [Target v2.1] [Apache,PHP/7.2]</span>
+</div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Combine Multiple Tools for Coverage</div>
+                    <div class="callout-text">
+                        No single tool discovers all subdomains. Amass, subfinder, findomain, and
+                        assetfinder each query different data sources and use different techniques.
+                        Run all of them, merge the results, deduplicate, and then resolve against
+                        live DNS. A typical comprehensive enumeration combines the output of 3-4
+                        tools and discovers 20-40% more subdomains than any single tool alone.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Enumeration Tool Comparison</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">amass</div>
+                    <div class="tool-role">OWASP Project &bull; Comprehensive</div>
+                    <div class="tool-desc">Queries 50+ data sources with brute-force and permutations. Slower but most complete results. Supports API key config for premium sources.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">subfinder</div>
+                    <div class="tool-role">ProjectDiscovery &bull; Fast Passive</div>
+                    <div class="tool-desc">Designed for speed. Passive sources only. Clean output pipes well into downstream tools like httpx. Written in Go.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">findomain</div>
+                    <div class="tool-role">Rust-based &bull; Monitoring</div>
+                    <div class="tool-desc">Cross-platform finder with monitoring capabilities. Alerts on newly discovered subdomains via webhooks &mdash; ideal for continuous recon.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">assetfinder</div>
+                    <div class="tool-role">Tomnomnom &bull; Minimal</div>
+                    <div class="tool-desc">Single-purpose tool. Queries CT logs and DNS datasets with minimal config. Fast and reliable for quick enumeration checks.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Google Dorking -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128270;</span>
+            Google Dorking
+        </h2>
+        <div class="section-body">
+            <p>
+                Google Dorking uses advanced search operators to discover information organizations
+                have inadvertently exposed. Google indexes content indiscriminately &mdash; config
+                files, backups, admin panels, database dumps, error pages. A skilled dorker maps the
+                exposed attack surface without sending a single request to the target.
+            </p>
+
+            <h3>Core Search Operators</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Operator</th>
+                        <th>Function</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">site:</td>
+                        <td>Restrict results to a specific domain or subdomain</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">site:target.com</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">inurl:</td>
+                        <td>Match text appearing in the URL path</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">inurl:admin site:target.com</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">intitle:</td>
+                        <td>Match text appearing in the page title</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">intitle:"index of" site:target.com</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">filetype:</td>
+                        <td>Restrict results to a specific file extension</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">filetype:pdf site:target.com</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">intext:</td>
+                        <td>Match text appearing in the page body</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">intext:"sql syntax" site:target.com</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">cache:</td>
+                        <td>View Google's cached version of a page</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">cache:target.com/admin</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">-</td>
+                        <td>Exclude results matching a term</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">site:target.com -www</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Essential Dork Queries for Bug Bounty</h3>
+
+            <div class="code-block">
+<span class="comment"># Directory listings &amp; admin panels</span>
+<span class="kw">intitle:"index of"</span> site:target.com
+<span class="kw">inurl:admin</span> OR <span class="kw">inurl:login</span> OR <span class="kw">inurl:dashboard</span> site:target.com
+
+<span class="comment"># Exposed config files, .git dirs, phpinfo</span>
+<span class="kw">filetype:env</span> OR <span class="kw">filetype:yml</span> OR <span class="kw">filetype:config</span> site:target.com
+<span class="kw">inurl:".git"</span> site:target.com
+<span class="kw">inurl:phpinfo</span> OR <span class="kw">intitle:"phpinfo()"</span> site:target.com
+
+<span class="comment"># Backup files &amp; database dumps</span>
+<span class="kw">filetype:sql</span> OR <span class="kw">filetype:bak</span> OR <span class="kw">filetype:old</span> site:target.com
+
+<span class="comment"># API docs &amp; credential leaks</span>
+<span class="kw">inurl:swagger</span> OR <span class="kw">inurl:api-docs</span> OR <span class="kw">inurl:graphql</span> site:target.com
+<span class="kw">filetype:log</span> <span class="kw">intext:"password"</span> site:target.com
+
+<span class="comment"># Indexed subdomains &amp; error pages</span>
+<span class="kw">site:*.target.com</span> -www
+<span class="kw">intext:"stack trace"</span> OR <span class="kw">intext:"traceback"</span> site:target.com
+</div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Dorking Is Passive Recon</div>
+                    <div class="callout-text">
+                        Google Dorking queries Google's index, not the target's servers. You are
+                        searching through data Google has already crawled and cached. This makes
+                        dorking a passive reconnaissance technique &mdash; the target has no way
+                        to detect that you are searching for their exposed assets. However, clicking
+                        through to the actual pages transitions you to active interaction with the
+                        target. Be aware of this boundary.
+                    </div>
+                </div>
+            </div>
+
+            <p>
+                The Google Hacking Database (GHDB) at <span class="inline-code">exploit-db.com/google-hacking-database</span>
+                maintains thousands of proven dork queries organized by vulnerability type &mdash;
+                sensitive directories, exposed servers, login portals, and more.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Beyond Google</div>
+                    <div class="callout-text">
+                        Do not limit yourself to Google. Bing, DuckDuckGo, and Yandex index different
+                        content and sometimes surface results Google has suppressed. Yandex in particular
+                        is less aggressive about removing sensitive cached content. GitHub code search
+                        is another critical dorking surface &mdash; search for the target's domain name
+                        in public repositories to find leaked API keys, internal URLs, and credentials
+                        committed by developers.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Shodan, Censys & Internet-Wide Scanning -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128752;</span>
+            Shodan, Censys &amp; Internet-Wide Scanning
+        </h2>
+        <div class="section-body">
+            <p>
+                Shodan and Censys continuously scan the entire IPv4 address space, indexing every
+                internet-connected device. Where Google indexes web content, these platforms index
+                network services &mdash; open ports, TLS certificates, banners, and protocol metadata.
+                They reveal exposed services and databases not discoverable through DNS or web crawling.
+            </p>
+
+            <h3>Shodan Search Operators</h3>
+
+            <p>
+                Shodan's query language allows precise filtering across dozens of metadata fields.
+                Combining operators narrows results to exactly the assets belonging to your target.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Find all Shodan-indexed hosts for a specific organization</span>
+<span class="kw">org:</span><span class="str">"Target Inc"</span>
+
+<span class="comment"># Search by hostname/domain</span>
+<span class="kw">hostname:</span><span class="str">target.com</span>
+
+<span class="comment"># Find hosts within a specific IP range (CIDR notation)</span>
+<span class="kw">net:</span><span class="str">203.0.113.0/24</span>
+
+<span class="comment"># Find specific services by port</span>
+<span class="kw">hostname:</span><span class="str">target.com</span> <span class="kw">port:</span><span class="str">8080,8443,9200</span>
+
+<span class="comment"># Find exposed databases</span>
+<span class="kw">hostname:</span><span class="str">target.com</span> <span class="kw">product:</span><span class="str">"MongoDB"</span>
+
+<span class="comment"># Search for specific HTTP response headers</span>
+<span class="kw">http.title:</span><span class="str">"Dashboard"</span> <span class="kw">hostname:</span><span class="str">target.com</span>
+
+<span class="comment"># Find hosts with SSL certificates issued to the target</span>
+<span class="kw">ssl.cert.subject.cn:</span><span class="str">target.com</span>
+</div>
+
+            <h3>Shodan CLI</h3>
+
+            <p>
+                The Shodan CLI provides command-line access to the full search API. With a paid API
+                key, you can run bulk queries, download result sets, and integrate Shodan into
+                automated recon pipelines.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Initialize Shodan CLI with your API key</span>
+$ <span class="kw">shodan init</span> <span class="str">YOUR_API_KEY</span>
+
+<span class="comment"># Search for all hosts associated with a domain</span>
+$ <span class="kw">shodan search</span> <span class="flag">--fields</span> ip_str,port,org,hostnames <span class="str">"hostname:target.com"</span>
+
+<span class="comment"># Get detailed information about a specific IP</span>
+$ <span class="kw">shodan host</span> <span class="str">203.0.113.42</span>
+
+<span class="comment"># Count results without consuming query credits</span>
+$ <span class="kw">shodan count</span> <span class="str">"org:\"Target Inc\""</span>
+
+<span class="comment"># Download results for offline analysis</span>
+$ <span class="kw">shodan download</span> target-results <span class="str">"hostname:target.com"</span>
+$ <span class="kw">shodan parse</span> <span class="flag">--fields</span> ip_str,port,data target-results.json.gz
+</div>
+
+            <h3>ASN Discovery for IP Range Mapping</h3>
+
+            <p>
+                Large organizations own Autonomous System Numbers (ASNs) and announce IP ranges via
+                BGP. Discovering a target's ASN lets you enumerate their entire IP address space &mdash;
+                including servers that may not have DNS records pointing to them. This is critical for
+                finding assets that live on IP addresses without any hostname association.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Look up ASN information for a target</span>
+$ <span class="kw">whois</span> <span class="flag">-h</span> whois.radb.net <span class="str">"-- -i origin AS13335"</span>
+
+<span class="comment"># Use Shodan to find all hosts in an ASN</span>
+$ <span class="kw">shodan search</span> <span class="str">"asn:AS13335"</span>
+
+<span class="comment"># Use bgp.he.net for ASN lookups (web interface)</span>
+<span class="comment"># https://bgp.he.net/AS13335 &mdash; shows all announced prefixes</span>
+</div>
+
+            <h3>Shodan vs Censys Comparison</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Shodan</th>
+                        <th>Censys</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Primary Focus</td>
+                        <td>Internet-connected devices and services</td>
+                        <td>TLS certificates and host metadata</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Certificate Search</td>
+                        <td>Basic certificate field search</td>
+                        <td>Deep search with full CT log integration</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Query Language</td>
+                        <td>Shodan-specific filter syntax</td>
+                        <td>CensysQL (SQL-like query language)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Best For</td>
+                        <td>Exposed services, IoT devices, banners</td>
+                        <td>Certificate-based discovery, host relationships</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Use Both Platforms</div>
+                    <div class="callout-text">
+                        Shodan and Censys scan differently, index different metadata, and update on
+                        different schedules. A service visible on Shodan may not appear on Censys and
+                        vice versa. For thorough reconnaissance, query both platforms and merge results.
+                        Censys excels at certificate-based subdomain discovery; Shodan excels at
+                        service-level detail and banner grabbing.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: DNS Reconnaissance -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128218;</span>
+            DNS Reconnaissance
+        </h2>
+        <div class="section-body">
+            <p>
+                DNS is the map of the internet. Every organization's DNS records reveal infrastructure
+                details &mdash; mail servers, cloud providers, naming conventions, third-party services,
+                and sometimes internal hostnames never intended to be publicly queryable. A thorough
+                DNS investigation reveals more about architecture than hours of port scanning.
+            </p>
+
+            <h3>DNS Record Types and What They Reveal</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Record Type</th>
+                        <th>Contains</th>
+                        <th>Intelligence Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">A / AAAA</td>
+                        <td>IPv4 / IPv6 address mappings</td>
+                        <td>Identifies hosting providers, cloud infrastructure, IP ranges to scan. Multiple A records suggest load balancing.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CNAME</td>
+                        <td>Canonical name alias (points to another hostname)</td>
+                        <td>Reveals third-party services (CDN, SaaS). Dangling CNAMEs pointing to unclaimed services = subdomain takeover vulnerability.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">MX</td>
+                        <td>Mail exchange servers with priority</td>
+                        <td>Identifies email provider (Google Workspace, Microsoft 365, self-hosted). Mail server hostnames can reveal internal naming patterns.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">TXT</td>
+                        <td>Arbitrary text data</td>
+                        <td>SPF records list authorized mail servers (reveals IP ranges). DKIM selectors, domain verification records for third-party services (Google, Microsoft, Atlassian).</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">NS</td>
+                        <td>Authoritative nameservers</td>
+                        <td>Identifies DNS provider. Self-hosted DNS may allow zone transfers. Cloud providers (Route53, Cloudflare) indicate infrastructure choices.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">SOA</td>
+                        <td>Start of Authority</td>
+                        <td>Admin email reveals internal addresses or naming conventions. Serial number format can indicate DNS management tooling.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">PTR</td>
+                        <td>Reverse DNS (IP to hostname)</td>
+                        <td>Reverse lookups reveal internal hostnames and naming conventions not visible in forward DNS.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>dig Commands for DNS Enumeration</h3>
+
+            <div class="code-block">
+<span class="comment"># A records, MX records, TXT records</span>
+$ <span class="kw">dig</span> target.com <span class="flag">A +short</span>          <span class="comment"># &rarr; 203.0.113.42, 203.0.113.43</span>
+$ <span class="kw">dig</span> target.com <span class="flag">MX +short</span>         <span class="comment"># &rarr; 10 aspmx.l.google.com.</span>
+$ <span class="kw">dig</span> target.com <span class="flag">TXT +short</span>        <span class="comment"># &rarr; SPF, DKIM, verification records</span>
+$ <span class="kw">dig</span> target.com <span class="flag">NS +short</span>         <span class="comment"># &rarr; ns1.cloudflare.com.</span>
+
+<span class="comment"># Zone transfer attempt (rarely works, always worth trying)</span>
+$ <span class="kw">dig</span> <span class="flag">axfr</span> target.com <span class="flag">@ns1.target.com</span>
+
+<span class="comment"># Reverse DNS lookup on discovered IP</span>
+$ <span class="kw">dig</span> <span class="flag">-x</span> 203.0.113.42 <span class="flag">+short</span>
+<span class="str">mail-prod-01.internal.target.com.</span>
+</div>
+
+            <h3>SPF, DKIM, and DMARC &mdash; Email Infrastructure Intelligence</h3>
+
+            <p>
+                Email authentication records are a goldmine. SPF records explicitly list every IP
+                address and third-party service authorized to send email &mdash; effectively a
+                self-published infrastructure inventory.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># SPF record analysis</span>
+<span class="str">"v=spf1 include:_spf.google.com include:sendgrid.net ip4:203.0.113.0/24 ~all"</span>
+<span class="comment">#  &rarr; Google Workspace for email, SendGrid for transactional mail</span>
+<span class="comment">#  &rarr; They own the 203.0.113.0/24 IP range</span>
+
+<span class="comment"># Check DMARC policy</span>
+$ <span class="kw">dig</span> _dmarc.target.com <span class="flag">TXT +short</span>
+<span class="str">"v=DMARC1; p=quarantine; rua=mailto:dmarc@target.com; pct=100"</span>
+</div>
+
+            <h3>Finding Internal Hostnames Through Reverse DNS</h3>
+
+            <p>
+                Reverse DNS lookups across discovered IP ranges reveal internal hostnames like
+                <span class="inline-code">jenkins-prod-01.internal.target.com</span> &mdash; exposing
+                both the service and the naming convention. DNSdumpster provides free visual DNS mapping,
+                while SecurityTrails maintains historical DNS records that can reveal origin server IPs
+                hidden behind CDNs.
+            </p>
+        </div>
+    </div>
+
+    <!-- Section 6: Port Scanning & Service Detection -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128274;</span>
+            Port Scanning &amp; Service Detection
+        </h2>
+        <div class="section-body">
+            <p>
+                Port scanning in bug bounty differs from internal pentesting. You are scanning through
+                firewalls, WAFs, and IDS systems actively monitoring for scan activity. Aggressive
+                scanning gets your IP blocked. The goal: discover exposed services while maintaining
+                a profile that does not trigger automated defenses.
+            </p>
+
+            <h3>Nmap Fundamentals for Bug Bounty</h3>
+
+            <div class="code-block">
+<span class="comment"># Quick top-port scan with service detection</span>
+$ <span class="kw">nmap</span> <span class="flag">-sV</span> <span class="flag">--top-ports</span> 1000 <span class="flag">-T3</span> <span class="flag">-oA</span> target-scan target.com
+
+<span class="comment"># Full TCP port scan (all 65535 ports) &mdash; slow but thorough</span>
+$ <span class="kw">nmap</span> <span class="flag">-sV</span> <span class="flag">-p-</span> <span class="flag">-T2</span> <span class="flag">--open</span> <span class="flag">-oA</span> target-full target.com
+
+<span class="comment"># Service + version detection with default scripts</span>
+$ <span class="kw">nmap</span> <span class="flag">-sC</span> <span class="flag">-sV</span> <span class="flag">-p</span> 80,443,8080,8443,3000,5000,9200 \
+  <span class="flag">-oA</span> target-services target.com
+
+<span class="comment"># UDP scan on common ports (often overlooked by other hunters)</span>
+$ <span class="kw">sudo nmap</span> <span class="flag">-sU</span> <span class="flag">--top-ports</span> 50 <span class="flag">-T3</span> <span class="flag">-oA</span> target-udp target.com
+
+<span class="comment"># Scan multiple hosts from your subdomain enumeration</span>
+$ <span class="kw">nmap</span> <span class="flag">-sV</span> <span class="flag">--top-ports</span> 200 <span class="flag">-T3</span> <span class="flag">-iL</span> live-hosts.txt <span class="flag">-oA</span> bulk-scan
+</div>
+
+            <h3>Masscan for Large-Scale, Fast Scanning</h3>
+
+            <p>
+                For large IP ranges, Nmap is too slow. Masscan is a stateless TCP scanner that
+                sacrifices accuracy for speed. Use it for initial discovery, then follow up with
+                Nmap for service detection on discovered ports.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Fast scan of an IP range on common web ports</span>
+$ <span class="kw">sudo masscan</span> <span class="flag">-p</span> 80,443,8080,8443 203.0.113.0/24 \
+  <span class="flag">--rate</span> 1000 <span class="flag">-oJ</span> masscan-results.json
+
+<span class="comment"># Scan top 100 ports across the target's IP range</span>
+$ <span class="kw">sudo masscan</span> <span class="flag">-p</span> 1-1024,3000,3306,5432,5900,6379,8000,8080,8443,9200,27017 \
+  203.0.113.0/24 <span class="flag">--rate</span> 500 <span class="flag">-oJ</span> masscan-extended.json
+</div>
+
+            <h3>Top Ports for Bug Bounty Testing</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Port</th>
+                        <th>Service</th>
+                        <th>Bug Bounty Relevance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">80 / 443</td>
+                        <td>HTTP / HTTPS</td>
+                        <td>Primary web application surface, certificate analysis</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">8080 / 8443</td>
+                        <td>Alt HTTP / HTTPS</td>
+                        <td>Dev servers, proxies, admin panels, API gateways</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">3000 / 5000</td>
+                        <td>Node.js / Flask</td>
+                        <td>Development servers, Grafana dashboards, Docker registries</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">9200 / 27017</td>
+                        <td>Elasticsearch / MongoDB</td>
+                        <td>Exposed databases, often without authentication (critical)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">6379 / 11211</td>
+                        <td>Redis / Memcached</td>
+                        <td>In-memory datastores, typically unauthenticated, data leakage</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">3306 / 5432</td>
+                        <td>MySQL / PostgreSQL</td>
+                        <td>Exposed relational databases, credential testing</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">22 / 21</td>
+                        <td>SSH / FTP</td>
+                        <td>Version fingerprinting, anonymous FTP, credential brute-force</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">2379 / 10250</td>
+                        <td>etcd / Kubelet</td>
+                        <td>Kubernetes secrets exposure, container escape potential</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">9090 / 8888</td>
+                        <td>Prometheus / Jupyter</td>
+                        <td>Metrics exposure, unauthenticated code execution (critical)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Scan Etiquette &mdash; Not Getting Banned</h3>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Rate Limiting and IP Reputation</div>
+                    <div class="callout-text">
+                        Aggressive scanning triggers automated defenses. Use Nmap timing templates
+                        T2 or T3 (not T4/T5) against internet targets. Space your scans across time.
+                        If you get rate-limited or blocked, stop and wait &mdash; do not escalate
+                        scan intensity. Some programs explicitly prohibit port scanning in their
+                        rules; always check the program policy before scanning. Consider using
+                        Shodan/Censys data instead of active scanning when possible &mdash; the same
+                        intelligence, zero packets sent.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Technology Fingerprinting -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128295;</span>
+            Technology Fingerprinting
+        </h2>
+        <div class="section-body">
+            <p>
+                Knowing the tech stack directly determines your exploit selection. Django has different
+                vulnerability classes than Rails. Cloudflare WAF requires different bypass techniques
+                than AWS WAF. WordPress has a completely different methodology than a custom React
+                frontend with GraphQL. Fingerprinting turns unknown targets into known quantities with
+                specific, testable vulnerability profiles.
+            </p>
+
+            <h3>Why Tech Stack Identification Matters</h3>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">CVE lookup</strong> &mdash; specific versions of frameworks and libraries have known vulnerabilities with public exploits</li>
+                <li><strong style="color: #c4a0d8;">Payload selection</strong> &mdash; SSTI payloads for Jinja2 differ from Twig, Freemarker, or Velocity templates</li>
+                <li><strong style="color: #c4a0d8;">Default paths</strong> &mdash; every framework has known admin panels, debug endpoints, and configuration paths</li>
+                <li><strong style="color: #c4a0d8;">WAF bypass</strong> &mdash; understanding the WAF vendor guides your evasion technique selection</li>
+                <li><strong style="color: #c4a0d8;">Authentication quirks</strong> &mdash; Django, Rails, Spring, and Express handle session management differently, each with unique attack vectors</li>
+            </ul>
+
+            <h3>httpx for Bulk Probing and Tech Detection</h3>
+
+            <p>
+                httpx is the Swiss Army knife of web probing. It takes a list of hosts and extracts
+                HTTP metadata in bulk &mdash; status codes, titles, tech stack, content length, and
+                more. It integrates with the entire ProjectDiscovery toolchain and outputs in formats
+                that pipe cleanly into downstream analysis.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Comprehensive probe: status, title, tech, web server</span>
+$ <span class="kw">cat</span> subdomains.txt | <span class="kw">httpx</span> <span class="flag">-silent</span> \
+  <span class="flag">-status-code</span> <span class="flag">-title</span> <span class="flag">-tech-detect</span> \
+  <span class="flag">-web-server</span> <span class="flag">-follow-redirects</span> <span class="flag">-o</span> probe-results.txt
+
+<span class="comment"># Filter for admin panels (401/403 status codes)</span>
+$ <span class="kw">cat</span> subdomains.txt | <span class="kw">httpx</span> <span class="flag">-silent</span> <span class="flag">-status-code</span> <span class="flag">-mc</span> 401,403 <span class="flag">-title</span>
+
+<span class="comment"># JSON output for structured analysis</span>
+$ <span class="kw">cat</span> subdomains.txt | <span class="kw">httpx</span> <span class="flag">-silent</span> <span class="flag">-json</span> \
+  <span class="flag">-status-code</span> <span class="flag">-title</span> <span class="flag">-tech-detect</span> <span class="flag">-o</span> probe-results.json
+</div>
+
+            <h3>Identifying Frameworks and CMS Platforms</h3>
+
+            <p>
+                Each framework leaves distinctive fingerprints &mdash; headers, cookies, meta tags,
+                JavaScript files, and default paths. Some are obvious (<span class="inline-code">X-Powered-By</span>),
+                others require knowledge of framework-specific conventions.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9881;</div>
+                    <div class="concept-card-title">HTTP Headers</div>
+                    <div class="concept-card-body">
+                        <span class="inline-code">X-Powered-By: Express</span>,
+                        <span class="inline-code">Server: Apache/2.4.41</span>,
+                        <span class="inline-code">X-Drupal-Cache</span>,
+                        <span class="inline-code">X-Django-*</span>.
+                        Error pages and default 404 responses also reveal frameworks.
+                    </div>
+                    <span class="concept-tag">Passive</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127850;</div>
+                    <div class="concept-card-title">Session Cookies</div>
+                    <div class="concept-card-body">
+                        <span class="inline-code">JSESSIONID</span> = Java,
+                        <span class="inline-code">PHPSESSID</span> = PHP,
+                        <span class="inline-code">csrftoken</span> = Django,
+                        <span class="inline-code">_rails_session</span> = Rails,
+                        <span class="inline-code">connect.sid</span> = Express.
+                    </div>
+                    <span class="concept-tag">Reliable</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">Default Paths</div>
+                    <div class="concept-card-body">
+                        <span class="inline-code">/wp-admin/</span> = WordPress,
+                        <span class="inline-code">/admin/</span> = Django,
+                        <span class="inline-code">/actuator/</span> = Spring Boot,
+                        <span class="inline-code">/server-status</span> = Apache.
+                    </div>
+                    <span class="concept-tag">Active</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128202;</div>
+                    <div class="concept-card-title">JavaScript Fingerprints</div>
+                    <div class="concept-card-body">
+                        React's <span class="inline-code">data-reactroot</span>,
+                        Angular's <span class="inline-code">ng-version</span>,
+                        Vue's <span class="inline-code">data-v-</span> attributes.
+                        Bundled JS filenames reveal build tooling.
+                    </div>
+                    <span class="concept-tag">Client-Side</span>
+                </div>
+            </div>
+
+            <h3>Fingerprinting Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">Wappalyzer</div>
+                    <div class="tool-role">Browser Extension &bull; Passive</div>
+                    <div class="tool-desc">Identifies technologies passively as you browse. Detects CMS, frameworks, JS libraries, analytics, CDNs. Also available as CLI and API.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">BuiltWith</div>
+                    <div class="tool-role">Web Service &bull; Historical</div>
+                    <div class="tool-desc">Tracks tech stack changes over time. Historical view reveals recent migrations &mdash; prime vulnerability windows.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">WhatWeb</div>
+                    <div class="tool-role">CLI &bull; 1800+ Signatures</div>
+                    <div class="tool-desc">Multiple aggression levels from passive to aggressive. Outputs in multiple formats for pipeline integration.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">httpx -tech-detect</div>
+                    <div class="tool-role">ProjectDiscovery &bull; Pipeline</div>
+                    <div class="tool-desc">Built-in tech detection. Not as deep as Wappalyzer but integrates directly into enumeration pipelines at scale.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 8: Building Your Recon Pipeline -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9881;</span>
+            Building Your Recon Pipeline
+        </h2>
+        <div class="section-body">
+            <p>
+                Individual tools are powerful, but the real methodology emerges when you chain them
+                into automated pipelines. A well-built pipeline takes a domain as input and produces
+                a comprehensive inventory &mdash; live hosts, open ports, tech stacks, and screenshots
+                &mdash; with minimal manual intervention.
+            </p>
+
+            <h3>The Reconnaissance Pipeline</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">Subdomain Enumeration</strong> &mdash; Cast the widest net. Run Amass, subfinder, assetfinder, and crt.sh queries. Merge and deduplicate all results into a master subdomain list.</li>
+                <li><strong style="color: #c4a0d8;">DNS Resolution</strong> &mdash; Resolve every subdomain to confirm it exists and get its IP address. Filter out NXDOMAIN responses. Group by IP to identify shared hosting.</li>
+                <li><strong style="color: #c4a0d8;">HTTP Probing</strong> &mdash; Check which resolved hosts are serving HTTP/HTTPS content. httpx handles this efficiently, testing both port 80 and 443, following redirects, and extracting metadata.</li>
+                <li><strong style="color: #c4a0d8;">Port Scanning</strong> &mdash; Scan discovered IPs for non-standard ports. Use Masscan for speed on large ranges, Nmap for detailed service detection on interesting hosts.</li>
+                <li><strong style="color: #c4a0d8;">Technology Fingerprinting</strong> &mdash; Identify the tech stack on every live host. This drives your vulnerability testing strategy and payload selection.</li>
+                <li><strong style="color: #c4a0d8;">Screenshot Gallery</strong> &mdash; Take screenshots of every live web interface. Visual review often reveals interesting targets that metadata alone would not highlight &mdash; login panels, dashboards, error pages.</li>
+            </ol>
+
+            <h3>Screenshot Tools</h3>
+
+            <p>
+                A screenshot gallery of 200 subdomains lets you quickly identify login panels,
+                admin interfaces, default installations, and error pages that deserve closer attention.
+            </p>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">gowitness</div>
+                    <div class="tool-role">Go &bull; Chrome DevTools Protocol</div>
+                    <div class="tool-desc">Fast headless Chrome screenshots. Generates browsable HTML report with thumbnails for efficient visual triage.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Aquatone</div>
+                    <div class="tool-role">Go &bull; Discovery + Screenshots</div>
+                    <div class="tool-desc">Combines HTTP probing with screenshots. Interactive HTML report with tech fingerprints and headers. Built for bug bounty workflows.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">EyeWitness</div>
+                    <div class="tool-role">Python &bull; Multi-Protocol</div>
+                    <div class="tool-desc">Screenshots web, RDP, and VNC. Categorizes results by significance (default creds, old software). Helps prioritize large result sets.</div>
+                </div>
+            </div>
+
+            <h3>Complete Recon Pipeline Script</h3>
+
+            <p>
+                The following script chains the core reconnaissance tools into a single automated
+                workflow. Feed it a domain, walk away, and come back to a fully organized recon
+                output directory ready for testing.
+            </p>
+
+            <div class="code-block">
+<span class="comment">#!/bin/bash</span>
+<span class="comment"># recon.sh &mdash; Usage: ./recon.sh target.com</span>
+<span class="kw">DOMAIN</span>=<span class="str">$1</span> ; <span class="kw">OUT</span>=<span class="str">"./recon-$DOMAIN"</span> ; <span class="kw">mkdir</span> <span class="flag">-p</span> <span class="str">"$OUT"</span>
+
+<span class="comment"># Step 1: Subdomain enumeration (multiple sources)</span>
+<span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">"$DOMAIN"</span> <span class="flag">-silent</span> &gt; <span class="str">"$OUT/subs-subfinder.txt"</span>
+<span class="kw">assetfinder</span> <span class="flag">--subs-only</span> <span class="str">"$DOMAIN"</span> &gt; <span class="str">"$OUT/subs-assetfinder.txt"</span>
+<span class="kw">amass enum</span> <span class="flag">-passive</span> <span class="flag">-d</span> <span class="str">"$DOMAIN"</span> <span class="flag">-o</span> <span class="str">"$OUT/subs-amass.txt"</span>
+<span class="kw">cat</span> <span class="str">"$OUT"/subs-*.txt</span> | <span class="kw">sort</span> <span class="flag">-u</span> &gt; <span class="str">"$OUT/all-subdomains.txt"</span>
+
+<span class="comment"># Step 2: HTTP probing with tech detection</span>
+<span class="kw">cat</span> <span class="str">"$OUT/all-subdomains.txt"</span> | \
+  <span class="kw">httpx</span> <span class="flag">-silent</span> <span class="flag">-status-code</span> <span class="flag">-title</span> <span class="flag">-tech-detect</span> \
+  <span class="flag">-web-server</span> <span class="flag">-o</span> <span class="str">"$OUT/live-hosts.txt"</span>
+
+<span class="comment"># Step 3: DNS resolution for port scanning targets</span>
+<span class="kw">cat</span> <span class="str">"$OUT/all-subdomains.txt"</span> | \
+  <span class="kw">dnsx</span> <span class="flag">-silent</span> <span class="flag">-a</span> <span class="flag">-resp-only</span> | <span class="kw">sort</span> <span class="flag">-u</span> &gt; <span class="str">"$OUT/ips.txt"</span>
+
+<span class="comment"># Step 4: Screenshot gallery</span>
+<span class="kw">gowitness file</span> <span class="flag">-f</span> <span class="str">"$OUT/live-hosts.txt"</span> <span class="flag">--screenshot-path</span> <span class="str">"$OUT/screenshots"</span>
+<span class="kw">echo</span> <span class="str">"[+] Recon complete. Results in $OUT/"</span>
+</div>
+
+            <h3>Organizing Your Results</h3>
+
+            <p>
+                Maintain a consistent directory structure for every target. Store raw tool output
+                alongside curated notes. Use <span class="inline-code">jq</span> for JSON processing,
+                <span class="inline-code">anew</span> for deduplication across runs, and a note-taking
+                system for recording observations and testing priorities.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Continuous Recon</div>
+                    <div class="callout-text">
+                        The best bug bounty hunters do not run recon once and move on. They set up
+                        continuous reconnaissance that monitors for changes &mdash; new subdomains,
+                        new services, certificate changes. Tools like findomain support webhook
+                        notifications on new discoveries. A new subdomain appearing on a target you
+                        hunt regularly is often a freshly deployed service with minimal security
+                        hardening &mdash; the optimal window for finding vulnerabilities.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    Why do you think passive recon often yields more results than active scanning? Consider the dynamics of bug bounty programs where thousands of researchers target the same assets. What advantages does a researcher who invests heavily in passive reconnaissance have over one who immediately begins active scanning?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    How would you build a custom recon pipeline for a specific target? Consider a large enterprise with a wildcard scope (*.enterprise.com), known to use AWS infrastructure, with a mix of legacy and modern web applications. What tools would you prioritize, in what order, and how would you organize your results to maximize testing efficiency?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    What ethical boundaries should you observe during reconnaissance? You discover a subdomain hosting an exposed database with customer PII during passive recon. The database is clearly out of scope for the bug bounty program. What do you do? How does your response change if the data appears to be actively leaking versus historical?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the reconnaissance mindset and methodology, subdomain enumeration
+                across multiple tools and data sources, Google Dorking operators and essential queries,
+                Shodan and Censys for internet-wide intelligence, DNS reconnaissance and email
+                infrastructure analysis, port scanning etiquette and service detection, technology
+                fingerprinting techniques, and building automated recon pipelines.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 02
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates both the fixed top bar and the mini bar in the header
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — adds 'visible' class when section enters viewport
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Module completion — delegates to ModuleProgress if available, falls back gracefully
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-recon', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

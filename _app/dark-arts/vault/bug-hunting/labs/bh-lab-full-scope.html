@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: requires dark-arts enrollment -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress tracking and achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- Terminal engines -->
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/SecurityTerminal.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 15: Full Scope Simulation - Bug Hunting | The Vault</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127942;</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:          #0a0508;
+            --bg-panel:    rgba(10, 5, 16, 0.97);
+            --accent:      #9333ea;
+            --accent-hi:   #a855f7;
+            --accent-dim:  rgba(147, 51, 234, 0.15);
+            --accent-bdr:  rgba(147, 51, 234, 0.30);
+            --green:       #22c55e;
+            --green-dim:   rgba(34, 197, 94, 0.12);
+            --red:         #ef4444;
+            --amber:       #f59e0b;
+            --amber-dim:   rgba(245, 158, 11, 0.12);
+            --text-hi:     #e2d9f0;
+            --text-mid:    #a080b0;
+            --text-lo:     #6a4a7a;
+            --text-muted:  #3d2850;
+            --border:      rgba(100, 60, 130, 0.20);
+            --border-lo:   rgba(100, 60, 130, 0.12);
+            --mono:        'Courier New', 'Lucida Console', monospace;
+            --sans:        'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--text-mid);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(88, 28, 135, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(59, 7, 100, 0.05) 0%, transparent 50%);
+            pointer-events: none; z-index: 0;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0; position: sticky; top: 0; z-index: 200;
+            backdrop-filter: blur(12px);
+        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .back-link {
+            color: var(--text-lo); text-decoration: none; font-size: 0.75rem;
+            letter-spacing: 0.08em; padding: 5px 12px;
+            border: 1px solid var(--border-lo); border-radius: 4px; transition: all 0.2s;
+        }
+        .back-link:hover { color: var(--accent-hi); border-color: var(--accent-bdr); background: var(--accent-dim); }
+        .header-badge {
+            background: rgba(239, 68, 68, 0.12); color: #ef4444;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.15em;
+            border: 1px solid rgba(239, 68, 68, 0.25); font-family: var(--mono);
+        }
+        .header h1 { font-size: 1.05rem; color: var(--accent-hi); font-weight: 600; }
+        .header-score {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.82rem; color: var(--text-lo);
+        }
+        .score-value {
+            color: var(--accent-hi); font-weight: 700; font-size: 1.1rem;
+            font-family: var(--mono);
+        }
+
+        /* Phase Tabs */
+        .phase-tabs {
+            display: flex; background: rgba(8, 4, 12, 0.95);
+            border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .phase-tab {
+            flex: 1; padding: 10px 14px; font-size: 0.72rem;
+            color: var(--text-muted); cursor: pointer; text-align: center;
+            border-bottom: 2px solid transparent; transition: all 0.25s;
+            font-family: var(--sans); background: transparent; border-top: none;
+            border-left: none; border-right: none; letter-spacing: 0.06em;
+        }
+        .phase-tab:hover { color: var(--text-lo); background: rgba(147, 51, 234, 0.04); }
+        .phase-tab.active { color: var(--accent-hi); border-bottom-color: var(--accent); background: rgba(147, 51, 234, 0.06); }
+        .phase-tab.done { color: var(--green); }
+        .phase-tab .tab-num {
+            display: inline-block; width: 18px; height: 18px; border-radius: 50%;
+            border: 1px solid var(--text-muted); font-size: 0.58rem; line-height: 16px;
+            text-align: center; margin-right: 6px; transition: all 0.3s;
+            font-family: var(--mono);
+        }
+        .phase-tab.active .tab-num { border-color: var(--accent); color: var(--accent-hi); background: var(--accent-dim); }
+        .phase-tab.done .tab-num { border-color: var(--green); color: #000; background: var(--green); }
+
+        /* Main Layout */
+        .main-container {
+            display: grid; grid-template-columns: 1fr 340px;
+            flex: 1; overflow: hidden; position: relative; z-index: 1;
+        }
+
+        /* Left Panel */
+        .left-panel { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+
+        /* Phase Content Panels */
+        .phase-panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+        .phase-panel.active { display: flex; }
+
+        /* Terminal phases */
+        .terminal-wrap { flex: 1; min-height: 0; }
+
+        /* Form phases */
+        .form-phase {
+            flex: 1; overflow-y: auto; padding: 20px 24px;
+            scrollbar-width: thin; scrollbar-color: rgba(147, 51, 234, 0.15) transparent;
+        }
+        .form-phase::-webkit-scrollbar { width: 5px; }
+        .form-phase::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.15); border-radius: 3px; }
+
+        .phase-title { font-size: 1rem; color: var(--text-hi); margin-bottom: 6px; }
+        .phase-desc { font-size: 0.82rem; color: var(--text-lo); line-height: 1.6; margin-bottom: 18px; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-label {
+            display: block; font-size: 0.68rem; color: var(--text-lo);
+            letter-spacing: 0.12em; text-transform: uppercase;
+            margin-bottom: 5px; font-family: var(--mono);
+        }
+        .form-input, .form-textarea, .form-select {
+            width: 100%; background: rgba(5, 2, 10, 0.6);
+            border: 1px solid var(--border); border-radius: 4px;
+            padding: 9px 12px; color: var(--text-hi); font-family: var(--mono);
+            font-size: 0.8rem; outline: none; transition: border-color 0.25s;
+        }
+        .form-input:focus, .form-textarea:focus { border-color: rgba(147, 51, 234, 0.5); }
+        .form-textarea { min-height: 80px; resize: vertical; }
+
+        .scope-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px; background: rgba(5, 2, 10, 0.4);
+            border: 1px solid var(--border-lo); border-radius: 4px;
+            margin-bottom: 6px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+        }
+        .scope-item:hover { border-color: var(--accent-bdr); }
+        .scope-item input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; }
+        .scope-item .domain { color: var(--text-hi); font-family: var(--mono); font-size: 0.76rem; }
+        .scope-item .tag {
+            font-size: 0.58rem; padding: 2px 6px; border-radius: 3px;
+            font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em;
+            margin-left: auto;
+        }
+        .scope-item .tag.in { color: var(--green); background: var(--green-dim); }
+        .scope-item .tag.out { color: var(--red); background: rgba(239, 68, 68, 0.1); }
+
+        .check-btn {
+            padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer;
+            font-family: var(--sans); font-size: 0.82rem; transition: all 0.3s;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); color: #f3e8ff;
+            margin-top: 10px;
+        }
+        .check-btn:hover { box-shadow: 0 0 18px rgba(147, 51, 234, 0.3); transform: translateY(-1px); }
+        .check-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .validation-msg {
+            font-size: 0.72rem; margin-top: 6px; font-family: var(--mono);
+        }
+        .validation-msg.ok { color: var(--green); }
+        .validation-msg.warn { color: var(--amber); }
+        .validation-msg.err { color: var(--red); }
+
+        /* Feedback bar */
+        .feedback-bar {
+            background: rgba(8, 4, 12, 0.95); padding: 10px 20px;
+            border-top: 1px solid var(--border-lo);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+        .feedback-msg { font-size: 0.8rem; color: var(--text-lo); }
+        .feedback-msg.success { color: var(--green); }
+        .feedback-msg.info { color: var(--accent-hi); }
+        .bar-btns { display: flex; gap: 8px; }
+        .hint-btn {
+            background: transparent; border: 1px solid var(--border-lo);
+            padding: 5px 14px; border-radius: 4px; font-size: 0.75rem;
+            cursor: pointer; color: var(--text-lo); transition: all 0.2s;
+            font-family: var(--sans);
+        }
+        .hint-btn:hover { border-color: var(--accent-bdr); color: var(--accent-hi); background: var(--accent-dim); }
+
+        /* Right Sidebar */
+        .sidebar {
+            background: var(--bg-panel); display: flex; flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: thin; scrollbar-color: rgba(147, 51, 234, 0.15) transparent;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.15); border-radius: 2px; }
+
+        .sidebar-section { padding: 14px 18px; border-bottom: 1px solid var(--border-lo); }
+        .sidebar-title {
+            font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+            color: var(--text-muted); font-family: var(--mono); margin-bottom: 10px;
+        }
+
+        /* Scope Document */
+        .scope-doc {
+            background: rgba(5, 2, 10, 0.5); border: 1px solid var(--border-lo);
+            border-radius: 6px; padding: 14px; font-size: 0.75rem; line-height: 1.6;
+            color: var(--text-lo);
+        }
+        .scope-doc h4 { color: var(--text-hi); font-size: 0.82rem; margin-bottom: 6px; font-weight: normal; }
+        .scope-doc .in-scope { color: var(--green); }
+        .scope-doc .out-scope { color: var(--red); }
+        .scope-doc ul { padding-left: 16px; margin: 6px 0; }
+        .scope-doc li { margin: 3px 0; }
+        .scope-doc .divider { border-top: 1px solid var(--border-lo); margin: 10px 0; }
+
+        /* Progress */
+        .progress-bar-bg {
+            height: 4px; background: rgba(60, 30, 80, 0.3);
+            border-radius: 2px; overflow: hidden; margin-bottom: 6px;
+        }
+        .progress-bar-fill {
+            height: 100%; background: linear-gradient(90deg, #7c3aed, #a855f7);
+            border-radius: 2px; transition: width 0.6s; width: 0%;
+        }
+        .progress-meta {
+            font-size: 0.63rem; font-family: var(--mono);
+            color: var(--text-muted); display: flex; justify-content: space-between;
+        }
+        .progress-meta .pct { color: var(--accent-hi); }
+
+        /* Objectives */
+        .obj-list { list-style: none; }
+        .obj-item {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: 5px 0; font-size: 0.72rem; color: var(--text-muted);
+            transition: color 0.3s;
+        }
+        .obj-item.active { color: var(--text-hi); }
+        .obj-item.done { color: var(--green); }
+        .obj-check {
+            width: 15px; height: 15px; border-radius: 50%;
+            border: 1px solid var(--text-muted); display: flex;
+            align-items: center; justify-content: center;
+            font-size: 0.5rem; flex-shrink: 0; margin-top: 1px;
+            transition: all 0.3s; font-family: var(--mono);
+        }
+        .obj-item.active .obj-check { border-color: var(--accent); color: var(--accent-hi); }
+        .obj-item.done .obj-check { background: var(--green); border-color: var(--green); color: #000; }
+
+        .phase-label {
+            font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.15em; margin-top: 10px; margin-bottom: 4px;
+            font-family: var(--mono);
+        }
+        .phase-label:first-child { margin-top: 0; }
+
+        /* Score Widget */
+        .score-widget { padding: 14px 18px; border-top: 1px solid var(--border-lo); margin-top: auto; }
+        .score-row {
+            display: flex; justify-content: space-between; font-size: 0.7rem;
+            color: var(--text-muted); padding: 3px 0;
+        }
+        .score-row .val { font-family: var(--mono); }
+        .score-row.total {
+            color: var(--accent-hi); font-weight: bold;
+            border-top: 1px solid var(--border-lo); padding-top: 6px; margin-top: 4px;
+        }
+
+        /* CVSS in report phase */
+        .cvss-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+        .cvss-m {
+            background: rgba(5, 2, 10, 0.4); border: 1px solid var(--border-lo);
+            border-radius: 4px; padding: 8px;
+        }
+        .cvss-m-name { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; font-family: var(--mono); }
+        .cvss-m-opts { display: flex; gap: 3px; flex-wrap: wrap; }
+        .cvss-m-opt {
+            padding: 2px 7px; font-size: 0.62rem; border: 1px solid var(--border-lo);
+            border-radius: 3px; cursor: pointer; color: var(--text-muted);
+            background: transparent; font-family: var(--mono); transition: all 0.2s;
+        }
+        .cvss-m-opt:hover { border-color: var(--accent-bdr); }
+        .cvss-m-opt.selected { background: var(--accent-dim); border-color: var(--accent-bdr); color: var(--accent-hi); }
+
+        .finding-card {
+            background: rgba(5, 2, 10, 0.4); border: 1px solid var(--border-lo);
+            border-radius: 6px; padding: 14px; margin-bottom: 12px;
+        }
+        .finding-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .finding-sev {
+            font-size: 0.58rem; padding: 2px 8px; border-radius: 3px;
+            font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em;
+        }
+        .finding-sev.critical { color: var(--red); background: rgba(239, 68, 68, 0.12); }
+        .finding-sev.high { color: #f97316; background: rgba(249, 115, 22, 0.12); }
+        .finding-sev.medium { color: var(--amber); background: var(--amber-dim); }
+        .finding-name { color: var(--text-hi); font-size: 0.85rem; }
+
+        /* Completion Modal */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(4, 2, 8, 0.94); z-index: 500;
+            justify-content: center; align-items: center; backdrop-filter: blur(6px);
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: linear-gradient(145deg, #0d0618, #13082a);
+            border: 1px solid var(--accent-bdr); border-radius: 14px;
+            padding: 44px 48px; text-align: center; max-width: 500px; width: 90%;
+            box-shadow: 0 0 80px rgba(147, 51, 234, 0.18);
+            animation: modalIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.88) translateY(20px); opacity: 0; }
+            to   { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .modal-icon { font-size: 3rem; margin-bottom: 16px; }
+        .modal h2 { font-size: 1.5rem; color: var(--text-hi); font-weight: normal; margin-bottom: 8px; }
+        .modal p { font-size: 0.82rem; color: var(--text-lo); margin-bottom: 20px; }
+        .modal-stats { display: flex; justify-content: center; gap: 28px; margin-bottom: 28px; }
+        .modal-stat { text-align: center; }
+        .modal-stat-val { font-size: 1.6rem; font-family: var(--mono); color: var(--text-hi); }
+        .modal-stat-val.good { color: var(--green); }
+        .modal-stat-val.pts { color: var(--accent-hi); }
+        .modal-stat-lbl { font-size: 0.58rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; margin-top: 4px; }
+        .modal-btn {
+            padding: 13px 32px; border: none; border-radius: 28px; cursor: pointer;
+            font-size: 0.85rem; transition: all 0.3s; display: inline-flex; align-items: center; gap: 10px;
+            background: linear-gradient(135deg, rgba(100, 50, 140, 0.45), rgba(76, 29, 110, 0.38));
+            border: 1px solid var(--accent-bdr); color: var(--text-hi); letter-spacing: 0.12em;
+            font-family: var(--sans);
+        }
+        .modal-btn:hover {
+            background: linear-gradient(135deg, rgba(130, 70, 170, 0.55), rgba(100, 50, 140, 0.5));
+            box-shadow: 0 0 30px rgba(147, 51, 234, 0.28); transform: translateY(-2px);
+        }
+
+        @media (max-width: 900px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&#8592; Back to Course</a>
+            <span class="header-badge">Capstone // BH-15</span>
+            <h1>Full Scope Simulation</h1>
+        </div>
+        <div class="header-score">
+            <span>Score</span>
+            <span class="score-value" id="scoreDisplay">100</span>
+            <span>/100</span>
+        </div>
+    </header>
+
+    <!-- Phase Tabs -->
+    <div class="phase-tabs">
+        <button class="phase-tab active" id="tab-0" onclick="switchPhase(0)">
+            <span class="tab-num">1</span>Scope Review
+        </button>
+        <button class="phase-tab" id="tab-1" onclick="switchPhase(1)">
+            <span class="tab-num">2</span>Reconnaissance
+        </button>
+        <button class="phase-tab" id="tab-2" onclick="switchPhase(2)">
+            <span class="tab-num">3</span>Discovery
+        </button>
+        <button class="phase-tab" id="tab-3" onclick="switchPhase(3)">
+            <span class="tab-num">4</span>Exploitation
+        </button>
+        <button class="phase-tab" id="tab-4" onclick="switchPhase(4)">
+            <span class="tab-num">5</span>Reporting
+        </button>
+    </div>
+
+    <div class="main-container">
+        <!-- Left Panel -->
+        <div class="left-panel">
+
+            <!-- Phase 1: Scope Review -->
+            <div class="phase-panel active" id="phase-0">
+                <div class="form-phase">
+                    <h2 class="phase-title">Phase 1: Scope Review</h2>
+                    <p class="phase-desc">
+                        Read the bug bounty program scope document in the sidebar. Identify which assets
+                        are in scope and which are explicitly excluded. Check the boxes for in-scope domains
+                        and note the out-of-scope restrictions.
+                    </p>
+
+                    <div class="form-group">
+                        <label class="form-label">Select all IN-SCOPE domains</label>
+                        <div id="scopeChecklist">
+                            <div class="scope-item" onclick="toggleScope(this, 'www')">
+                                <input type="checkbox" id="scope-www"> <span class="domain">www.globalpay.finance</span>
+                                <span class="tag in" style="display:none;">in scope</span>
+                            </div>
+                            <div class="scope-item" onclick="toggleScope(this, 'api')">
+                                <input type="checkbox" id="scope-api"> <span class="domain">api.globalpay.finance</span>
+                                <span class="tag in" style="display:none;">in scope</span>
+                            </div>
+                            <div class="scope-item" onclick="toggleScope(this, 'portal')">
+                                <input type="checkbox" id="scope-portal"> <span class="domain">portal.globalpay.finance</span>
+                                <span class="tag in" style="display:none;">in scope</span>
+                            </div>
+                            <div class="scope-item" onclick="toggleScope(this, 'admin')">
+                                <input type="checkbox" id="scope-admin"> <span class="domain">admin.globalpay.finance</span>
+                                <span class="tag out" style="display:none;">out of scope</span>
+                            </div>
+                            <div class="scope-item" onclick="toggleScope(this, 'staging')">
+                                <input type="checkbox" id="scope-staging"> <span class="domain">staging.globalpay.finance</span>
+                                <span class="tag in" style="display:none;">in scope</span>
+                            </div>
+                            <div class="scope-item" onclick="toggleScope(this, 'blog')">
+                                <input type="checkbox" id="scope-blog"> <span class="domain">blog.globalpay.finance</span>
+                                <span class="tag out" style="display:none;">out of scope</span>
+                            </div>
+                            <div class="scope-item" onclick="toggleScope(this, 'careers')">
+                                <input type="checkbox" id="scope-careers"> <span class="domain">careers.globalpay.finance</span>
+                                <span class="tag out" style="display:none;">out of scope</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Out-of-Scope Restrictions (select all that apply)</label>
+                        <div class="scope-item" onclick="toggleRestriction(this, 'dos')">
+                            <input type="checkbox" id="restrict-dos"> <span>Denial of Service testing is prohibited</span>
+                        </div>
+                        <div class="scope-item" onclick="toggleRestriction(this, 'social')">
+                            <input type="checkbox" id="restrict-social"> <span>Social engineering against employees is prohibited</span>
+                        </div>
+                        <div class="scope-item" onclick="toggleRestriction(this, 'physical')">
+                            <input type="checkbox" id="restrict-physical"> <span>Physical security testing is prohibited</span>
+                        </div>
+                        <div class="scope-item" onclick="toggleRestriction(this, 'prod-data')">
+                            <input type="checkbox" id="restrict-prod-data"> <span>Accessing or modifying real customer financial data is prohibited</span>
+                        </div>
+                    </div>
+
+                    <button class="check-btn" id="scopeSubmitBtn" onclick="checkScope()">Verify Scope Understanding</button>
+                    <div class="validation-msg" id="scopeValidation"></div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Reconnaissance (Terminal) -->
+            <div class="phase-panel" id="phase-1">
+                <div class="terminal-wrap" id="reconTerminal"></div>
+                <div class="feedback-bar">
+                    <div class="feedback-msg" id="reconFeedback">Run scans against in-scope targets. Start with <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">nmap www.globalpay.finance</code></div>
+                    <div class="bar-btns">
+                        <button class="hint-btn" onclick="showHint(1)">Hint (-5 pts)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Discovery (Terminal) -->
+            <div class="phase-panel" id="phase-2">
+                <div class="terminal-wrap" id="discoveryTerminal"></div>
+                <div class="feedback-bar">
+                    <div class="feedback-msg" id="discoveryFeedback">Probe discovered services for vulnerabilities.</div>
+                    <div class="bar-btns">
+                        <button class="hint-btn" onclick="showHint(2)">Hint (-5 pts)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 4: Exploitation (Terminal) -->
+            <div class="phase-panel" id="phase-3">
+                <div class="terminal-wrap" id="exploitTerminal"></div>
+                <div class="feedback-bar">
+                    <div class="feedback-msg" id="exploitFeedback">Demonstrate impact of discovered vulnerabilities.</div>
+                    <div class="bar-btns">
+                        <button class="hint-btn" onclick="showHint(3)">Hint (-5 pts)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 5: Reporting (Form) -->
+            <div class="phase-panel" id="phase-4">
+                <div class="form-phase">
+                    <h2 class="phase-title">Phase 5: Engagement Report</h2>
+                    <p class="phase-desc">
+                        Document your findings from this engagement. Score each vulnerability using CVSS
+                        and provide a written summary of the engagement.
+                    </p>
+
+                    <!-- Finding 1 -->
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-sev high">High</span>
+                            <span class="finding-name">Debug Endpoint Exposed on Staging</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CVSS Base Score</label>
+                            <div class="cvss-mini">
+                                <div class="cvss-m"><div class="cvss-m-name">Attack Vector</div><div class="cvss-m-opts">
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','AV','N')">N</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','AV','A')">A</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','AV','L')">L</button>
+                                </div></div>
+                                <div class="cvss-m"><div class="cvss-m-name">Complexity</div><div class="cvss-m-opts">
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','AC','L')">Low</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','AC','H')">High</button>
+                                </div></div>
+                                <div class="cvss-m"><div class="cvss-m-name">Confidentiality</div><div class="cvss-m-opts">
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','C','N')">N</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','C','L')">L</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','C','H')">H</button>
+                                </div></div>
+                                <div class="cvss-m"><div class="cvss-m-name">Integrity</div><div class="cvss-m-opts">
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','I','N')">N</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','I','L')">L</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f1','I','H')">H</button>
+                                </div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Finding 2 -->
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-sev critical">Critical</span>
+                            <span class="finding-name">IDOR on API -- Account Data Exposure</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CVSS Base Score</label>
+                            <div class="cvss-mini">
+                                <div class="cvss-m"><div class="cvss-m-name">Attack Vector</div><div class="cvss-m-opts">
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','AV','N')">N</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','AV','A')">A</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','AV','L')">L</button>
+                                </div></div>
+                                <div class="cvss-m"><div class="cvss-m-name">Complexity</div><div class="cvss-m-opts">
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','AC','L')">Low</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','AC','H')">High</button>
+                                </div></div>
+                                <div class="cvss-m"><div class="cvss-m-name">Confidentiality</div><div class="cvss-m-opts">
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','C','N')">N</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','C','L')">L</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','C','H')">H</button>
+                                </div></div>
+                                <div class="cvss-m"><div class="cvss-m-name">Integrity</div><div class="cvss-m-opts">
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','I','N')">N</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','I','L')">L</button>
+                                    <button class="cvss-m-opt" onclick="setCvss(this,'f2','I','H')">H</button>
+                                </div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Engagement Summary -->
+                    <div class="form-group">
+                        <label class="form-label">Engagement Summary</label>
+                        <textarea class="form-textarea" id="engagementSummary" style="min-height:120px;"
+                            placeholder="Summarize your engagement: what you tested, what you found, overall risk assessment, and prioritized remediation recommendations..."
+                            oninput="validateReport()"></textarea>
+                        <div class="validation-msg warn" id="reportValidation">Write at least 120 characters</div>
+                    </div>
+
+                    <button class="check-btn" id="reportSubmitBtn" onclick="submitReport()" disabled>Submit Engagement Report</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Program Scope Document</div>
+                <div class="scope-doc">
+                    <h4>GlobalPay Financial Bug Bounty Program</h4>
+                    <div>Effective: February 2026</div>
+                    <div class="divider"></div>
+                    <h4>In-Scope Assets</h4>
+                    <ul>
+                        <li class="in-scope">www.globalpay.finance (main site)</li>
+                        <li class="in-scope">api.globalpay.finance (API endpoints)</li>
+                        <li class="in-scope">portal.globalpay.finance (customer portal)</li>
+                        <li class="in-scope">staging.globalpay.finance (staging)</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h4>Out of Scope</h4>
+                    <ul>
+                        <li class="out-scope">admin.globalpay.finance (internal only)</li>
+                        <li class="out-scope">blog.globalpay.finance (third-party hosted)</li>
+                        <li class="out-scope">careers.globalpay.finance (third-party hosted)</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h4>Rules of Engagement</h4>
+                    <ul>
+                        <li class="out-scope">No Denial of Service testing</li>
+                        <li class="out-scope">No social engineering of employees</li>
+                        <li class="out-scope">No physical security testing</li>
+                        <li class="out-scope">Do not access or modify real customer financial data</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h4>Reward Tiers</h4>
+                    <ul>
+                        <li>Critical: $5,000 - $15,000</li>
+                        <li>High: $2,000 - $5,000</li>
+                        <li>Medium: $500 - $2,000</li>
+                        <li>Low: $100 - $500</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Progress</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-meta">
+                    <span><span id="completedCount">0</span> / 10 objectives</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Objectives</div>
+                <ul class="obj-list" id="objList"></ul>
+            </div>
+
+            <div class="score-widget">
+                <div class="sidebar-title" style="margin-bottom:8px;">Score</div>
+                <div class="score-row"><span>Base</span><span class="val">100 pts</span></div>
+                <div class="score-row"><span>Hints used</span><span class="val" id="hintDeduct">-0 pts</span></div>
+                <div class="score-row total"><span>Total</span><span class="val" id="scoreFinal">100</span></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <div class="modal-icon">&#127942;</div>
+            <h2>Capstone Complete</h2>
+            <p>Full bug bounty engagement simulation completed.</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-val good" id="modalCompleted">0</div>
+                    <div class="modal-stat-lbl">Objectives</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-val" id="modalFindings" style="color:#f97316;">0</div>
+                    <div class="modal-stat-lbl">Findings</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-val pts" id="modalScore">100</div>
+                    <div class="modal-stat-lbl">Points</div>
+                </div>
+            </div>
+            <button class="modal-btn" onclick="finishLab()">
+                <span>Complete Lab</span> <span>&#10003;</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+    // ================================================================
+    // Bug Hunting Lab 15: Full Scope Simulation (Capstone)
+    // 5-phase engagement: Scope -> Recon -> Discovery -> Exploit -> Report
+    // Target: GlobalPay Financial (globalpay.finance)
+    // ================================================================
+
+    // -- Objectives --
+
+    var OBJECTIVES = [
+        { id: 'obj1',  phase: 0, text: 'Identify all in-scope domains from the scope document' },
+        { id: 'obj2',  phase: 0, text: 'Note the out-of-scope items and restrictions' },
+        { id: 'obj3',  phase: 1, text: 'Scan www.globalpay.finance' },
+        { id: 'obj4',  phase: 1, text: 'Discover the staging environment' },
+        { id: 'obj5',  phase: 2, text: 'Find the exposed debug endpoint on staging' },
+        { id: 'obj6',  phase: 2, text: 'Discover IDOR on the API' },
+        { id: 'obj7',  phase: 3, text: 'Extract data via the IDOR' },
+        { id: 'obj8',  phase: 3, text: 'Chain debug endpoint + IDOR for elevated access' },
+        { id: 'obj9',  phase: 4, text: 'Score the findings using CVSS' },
+        { id: 'obj10', phase: 4, text: 'Submit the engagement report' }
+    ];
+
+    // -- Network Topology --
+
+    var NETWORK = {
+        'www-server': {
+            ip: '203.0.113.10',
+            hostname: 'www.globalpay.finance',
+            mac: '00:1a:2b:3c:4d:10',
+            os: 'Ubuntu 22.04 LTS',
+            services: [
+                { port: 80, service: 'http', version: 'nginx 1.24.0', state: 'open', banner: 'nginx/1.24.0' },
+                { port: 443, service: 'https', version: 'nginx 1.24.0', state: 'open', ssl: true, banner: 'nginx/1.24.0' },
+                { port: 22, service: 'ssh', version: 'OpenSSH 9.3p1', state: 'filtered' }
+            ]
+        },
+        'api-server': {
+            ip: '203.0.113.20',
+            hostname: 'api.globalpay.finance',
+            mac: '00:1a:2b:3c:4d:20',
+            os: 'Alpine Linux',
+            services: [
+                { port: 443, service: 'https', version: 'Express 4.18.2', state: 'open', ssl: true },
+                { port: 8443, service: 'https-alt', version: 'Express 4.18.2', state: 'open', ssl: true }
+            ]
+        },
+        'portal-server': {
+            ip: '203.0.113.30',
+            hostname: 'portal.globalpay.finance',
+            mac: '00:1a:2b:3c:4d:30',
+            os: 'Ubuntu 22.04 LTS',
+            services: [
+                { port: 443, service: 'https', version: 'Apache 2.4.57', state: 'open', ssl: true }
+            ]
+        },
+        'admin-server': {
+            ip: '10.0.1.50',
+            hostname: 'admin.globalpay.finance',
+            mac: '00:1a:2b:3c:4d:50',
+            os: 'Ubuntu 22.04 LTS',
+            services: [
+                { port: 443, service: 'https', version: 'nginx 1.24.0', state: 'open', ssl: true }
+            ]
+        },
+        'staging-server': {
+            ip: '203.0.113.40',
+            hostname: 'staging.globalpay.finance',
+            mac: '00:1a:2b:3c:4d:40',
+            os: 'Ubuntu 22.04 LTS',
+            services: [
+                { port: 443, service: 'https', version: 'Express 4.18.2', state: 'open', ssl: true },
+                { port: 3000, service: 'http', version: 'Express 4.18.2 (DEBUG)', state: 'open', banner: 'Express Debug Server' },
+                { port: 22, service: 'ssh', version: 'OpenSSH 9.3p1', state: 'open' }
+            ]
+        }
+    };
+
+    // -- State --
+
+    var state = {
+        currentPhase: 0,
+        score: 100,
+        hintsUsed: 0,
+        completedObj: new Set(),
+        cvssSelections: { f1: {}, f2: {} },
+        scopeChecked: {},
+        restrictionsChecked: {},
+        phaseDone: [false, false, false, false, false],
+        terminalReady: false,
+        reconScanned: {},
+        discoveryFound: {},
+        exploitDone: {}
+    };
+
+    // Terminal instance (shared across phases 2-4)
+    var terminal = null;
+
+    // -- Phase Navigation --
+
+    function switchPhase(idx) {
+        // Hide current
+        document.getElementById('phase-' + state.currentPhase).classList.remove('active');
+        document.getElementById('tab-' + state.currentPhase).classList.remove('active');
+
+        state.currentPhase = idx;
+
+        // Show target
+        document.getElementById('phase-' + idx).classList.add('active');
+        document.getElementById('tab-' + idx).classList.add('active');
+
+        // Initialize terminal on first switch to phases 1-3
+        if ((idx === 1 || idx === 2 || idx === 3) && !state.terminalReady) {
+            initTerminal();
+        }
+
+        // Move terminal to the active phase panel
+        if (idx >= 1 && idx <= 3 && state.terminalReady) {
+            var wrap = document.getElementById(['', 'reconTerminal', 'discoveryTerminal', 'exploitTerminal'][idx]);
+            var termEl = document.getElementById('sharedTerminal');
+            if (termEl && wrap) {
+                wrap.appendChild(termEl);
+            }
+        }
+    }
+
+    // -- Terminal Initialization --
+
+    function initTerminal() {
+        if (state.terminalReady) return;
+
+        // Create a shared terminal div
+        var termDiv = document.createElement('div');
+        termDiv.id = 'sharedTerminal';
+        termDiv.style.height = '100%';
+        document.getElementById('reconTerminal').appendChild(termDiv);
+
+        terminal = new SecurityTerminal({
+            container: '#sharedTerminal',
+            user: 'hunter',
+            hostname: 'kali-vm',
+            scenario: 'default',
+            customNetwork: NETWORK,
+            onObjectiveComplete: function() {}
+        });
+
+        // Override display output for our feedback system
+        terminal._displayOutput = function(command, output) {
+            var termBody = document.getElementById('sharedTerminal');
+            if (!termBody) return;
+
+            var cmdLine = document.createElement('div');
+            cmdLine.className = 'terminal-line';
+            cmdLine.innerHTML = '<span style="color:#a855f7;">hunter@kali-vm:~$</span> <span style="color:#c4b5d4;">' + escHtml(command) + '</span>';
+            termBody.appendChild(cmdLine);
+
+            if (output) {
+                var outLine = document.createElement('div');
+                outLine.className = 'terminal-line';
+                outLine.innerHTML = output;
+                termBody.appendChild(outLine);
+            }
+
+            var blank = document.createElement('div');
+            blank.innerHTML = '&nbsp;';
+            termBody.appendChild(blank);
+
+            termBody.scrollTop = termBody.scrollHeight;
+
+            // Check commands against objectives
+            handleTerminalCommand(command, output);
+        };
+
+        // Create input handler
+        var inputLine = document.createElement('div');
+        inputLine.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(5,2,10,0.8);border-top:1px solid rgba(147,51,234,0.15);';
+        inputLine.innerHTML = '<span style="color:#a855f7;font-family:var(--mono);font-size:0.8rem;flex-shrink:0;">hunter@kali-vm:~$</span>';
+        var cmdInput = document.createElement('input');
+        cmdInput.type = 'text';
+        cmdInput.id = 'cmdInput';
+        cmdInput.style.cssText = 'flex:1;background:transparent;border:none;color:#e2d9f0;font-family:var(--mono);font-size:0.82rem;outline:none;';
+        cmdInput.placeholder = 'Type a command...';
+        cmdInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var cmd = e.target.value.trim();
+                if (cmd) {
+                    terminal.execute(cmd);
+                    e.target.value = '';
+                }
+            }
+        });
+        inputLine.appendChild(cmdInput);
+        document.getElementById('sharedTerminal').parentElement.appendChild(inputLine);
+
+        // Welcome
+        var welcomeDiv = document.createElement('div');
+        welcomeDiv.innerHTML = [
+            '<div style="color:#a855f7;margin-bottom:4px;">[ Bug Hunting Lab 15: Full Scope Simulation ]</div>',
+            '<div style="color:#6a4a7a;">Target: GlobalPay Financial (globalpay.finance)</div>',
+            '<div style="color:#6a4a7a;">Network: 203.0.113.0/24 (simulated)</div>',
+            '<div style="color:#6a4a7a;">Tools available: nmap, curl, dig, whois, traceroute</div>',
+            '<div style="color:#6a4a7a;">Type <span style="color:#c084fc;">sechelp</span> for security command reference.</div>',
+            '<div>&nbsp;</div>'
+        ].join('');
+        document.getElementById('sharedTerminal').insertBefore(welcomeDiv, document.getElementById('sharedTerminal').firstChild);
+
+        state.terminalReady = true;
+        setTimeout(function() { if (cmdInput) cmdInput.focus(); }, 200);
+    }
+
+    // -- Terminal Command Checking --
+
+    function handleTerminalCommand(cmd, output) {
+        var lower = cmd.toLowerCase().trim();
+
+        // Phase 2: Recon
+        // Obj 3: Scan www.globalpay.finance
+        if (lower.indexOf('nmap') !== -1 && (lower.indexOf('www.globalpay') !== -1 || lower.indexOf('203.0.113.10') !== -1)) {
+            state.reconScanned['www'] = true;
+            completeObjective('obj3');
+            setFeedback('reconFeedback', 'Web server scanned: nginx 1.24.0 on ports 80, 443. Now discover the staging environment.', 'success');
+        }
+
+        // Obj 4: Discover staging
+        if (lower.indexOf('nmap') !== -1 && (lower.indexOf('staging.globalpay') !== -1 || lower.indexOf('203.0.113.40') !== -1 || lower.indexOf('203.0.113.0/24') !== -1)) {
+            state.reconScanned['staging'] = true;
+            completeObjective('obj4');
+            setFeedback('reconFeedback', 'Staging server discovered at 203.0.113.40. Port 3000 running Express Debug Server -- investigate this.', 'success');
+        }
+
+        // Also detect subnet scan that would reveal staging
+        if (lower.indexOf('nmap') !== -1 && (lower.indexOf('/24') !== -1 || lower.indexOf('203.0.113.*') !== -1 || lower.indexOf('203.0.113.0') !== -1)) {
+            if (!state.reconScanned['www']) {
+                state.reconScanned['www'] = true;
+                completeObjective('obj3');
+            }
+            state.reconScanned['staging'] = true;
+            completeObjective('obj4');
+            setFeedback('reconFeedback', 'Subnet scan complete. Multiple hosts discovered including staging at 203.0.113.40 with debug port 3000.', 'success');
+        }
+
+        // Phase 3: Discovery
+        // Obj 5: Find debug endpoint on staging
+        if ((lower.indexOf('curl') !== -1 || lower.indexOf('nmap') !== -1) &&
+            (lower.indexOf('staging') !== -1 || lower.indexOf('203.0.113.40') !== -1) &&
+            (lower.indexOf('3000') !== -1 || lower.indexOf('debug') !== -1)) {
+            state.discoveryFound['debug'] = true;
+            completeObjective('obj5');
+            setFeedback('discoveryFeedback', 'Debug endpoint found at staging.globalpay.finance:3000/debug. Exposes environment variables, internal routes, and session data.', 'success');
+        }
+
+        // Obj 6: Discover IDOR on API
+        if ((lower.indexOf('curl') !== -1) &&
+            (lower.indexOf('api.globalpay') !== -1 || lower.indexOf('203.0.113.20') !== -1) &&
+            (lower.indexOf('/users/') !== -1 || lower.indexOf('/account/') !== -1 || lower.indexOf('/user/') !== -1)) {
+            state.discoveryFound['idor'] = true;
+            completeObjective('obj6');
+            setFeedback('discoveryFeedback', 'IDOR confirmed: api.globalpay.finance/users/{id} returns account data for any user ID without authorization checks.', 'success');
+        }
+
+        // Phase 4: Exploitation
+        // Obj 7: Extract data via IDOR
+        if ((lower.indexOf('curl') !== -1) &&
+            (lower.indexOf('api.globalpay') !== -1 || lower.indexOf('203.0.113.20') !== -1) &&
+            /\/users\/\d+/.test(lower)) {
+            state.exploitDone['extract'] = true;
+            completeObjective('obj7');
+            setFeedback('exploitFeedback', 'Data extracted: enumerated user accounts 1-5 via sequential IDOR. PII exposed: names, emails, account balances, transaction history.', 'success');
+        }
+
+        // Obj 8: Chain debug + IDOR
+        if (state.exploitDone['extract'] && state.discoveryFound['debug']) {
+            if ((lower.indexOf('curl') !== -1 && lower.indexOf('staging') !== -1 && (lower.indexOf('session') !== -1 || lower.indexOf('token') !== -1 || lower.indexOf('admin') !== -1 || lower.indexOf('debug') !== -1)) ||
+                (lower.indexOf('curl') !== -1 && lower.indexOf('api.globalpay') !== -1 && (lower.indexOf('admin') !== -1 || lower.indexOf('token') !== -1 || lower.indexOf('Authorization') !== -1 || lower.indexOf('-H') !== -1))) {
+                state.exploitDone['chain'] = true;
+                completeObjective('obj8');
+                setFeedback('exploitFeedback', 'Attack chain demonstrated: debug endpoint leaks admin session token -> used to authenticate IDOR requests as admin -> full account takeover.', 'success');
+            }
+        }
+    }
+
+    // -- Phase 1: Scope Review --
+
+    var CORRECT_SCOPE = { www: true, api: true, portal: true, admin: false, staging: true, blog: false, careers: false };
+    var CORRECT_RESTRICTIONS = { dos: true, social: true, physical: true, 'prod-data': true };
+
+    function toggleScope(el, domain) {
+        var cb = el.querySelector('input[type="checkbox"]');
+        cb.checked = !cb.checked;
+        state.scopeChecked[domain] = cb.checked;
+        el.querySelector('.tag').style.display = cb.checked ? 'inline' : 'none';
+    }
+
+    function toggleRestriction(el, key) {
+        var cb = el.querySelector('input[type="checkbox"]');
+        cb.checked = !cb.checked;
+        state.restrictionsChecked[key] = cb.checked;
+    }
+
+    function checkScope() {
+        var scopeCorrect = true;
+        var keys = Object.keys(CORRECT_SCOPE);
+        for (var i = 0; i < keys.length; i++) {
+            var k = keys[i];
+            if (!!state.scopeChecked[k] !== CORRECT_SCOPE[k]) {
+                scopeCorrect = false;
+                break;
+            }
+        }
+
+        var restrictCorrect = true;
+        var rKeys = Object.keys(CORRECT_RESTRICTIONS);
+        for (var j = 0; j < rKeys.length; j++) {
+            var rk = rKeys[j];
+            if (!state.restrictionsChecked[rk]) {
+                restrictCorrect = false;
+                break;
+            }
+        }
+
+        var msgEl = document.getElementById('scopeValidation');
+        if (scopeCorrect && restrictCorrect) {
+            msgEl.textContent = 'Scope understanding verified. 4 in-scope domains, 3 out-of-scope, 4 restrictions identified.';
+            msgEl.className = 'validation-msg ok';
+            completeObjective('obj1');
+            completeObjective('obj2');
+            state.phaseDone[0] = true;
+            document.getElementById('tab-0').classList.add('done');
+        } else if (scopeCorrect) {
+            msgEl.textContent = 'Domains correct, but check all restrictions.';
+            msgEl.className = 'validation-msg warn';
+            completeObjective('obj1');
+        } else if (restrictCorrect) {
+            msgEl.textContent = 'Restrictions correct, but review the domain scope. Check: 4 domains are in scope, 3 are out.';
+            msgEl.className = 'validation-msg warn';
+            completeObjective('obj2');
+        } else {
+            msgEl.textContent = 'Review the scope document carefully. In-scope: www, api, portal, staging. Out-of-scope: admin, blog, careers.';
+            msgEl.className = 'validation-msg err';
+        }
+    }
+
+    // -- Phase 5: Reporting --
+
+    function setCvss(el, finding, metric, value) {
+        el.parentElement.querySelectorAll('.cvss-m-opt').forEach(function(b) { b.classList.remove('selected'); });
+        el.classList.add('selected');
+        state.cvssSelections[finding][metric] = value;
+        checkCvssComplete();
+    }
+
+    function checkCvssComplete() {
+        var required = ['AV', 'AC', 'C', 'I'];
+        var f1Done = required.every(function(k) { return state.cvssSelections.f1[k]; });
+        var f2Done = required.every(function(k) { return state.cvssSelections.f2[k]; });
+
+        if (f1Done && f2Done) {
+            completeObjective('obj9');
+        }
+    }
+
+    function validateReport() {
+        var val = document.getElementById('engagementSummary').value.trim();
+        var msgEl = document.getElementById('reportValidation');
+        var btn = document.getElementById('reportSubmitBtn');
+
+        if (val.length < 120) {
+            msgEl.textContent = val.length + '/120 minimum characters';
+            msgEl.className = 'validation-msg warn';
+            btn.disabled = true;
+        } else {
+            msgEl.textContent = 'Summary length OK (' + val.length + ' chars)';
+            msgEl.className = 'validation-msg ok';
+            btn.disabled = false;
+        }
+    }
+
+    function submitReport() {
+        completeObjective('obj10');
+        state.phaseDone[4] = true;
+        document.getElementById('tab-4').classList.add('done');
+
+        // Check if all objectives are done
+        if (state.completedObj.size >= OBJECTIVES.length) {
+            setTimeout(showCompletion, 600);
+        } else {
+            // Still show completion with partial score
+            setTimeout(showCompletion, 600);
+        }
+    }
+
+    // -- Hints --
+
+    var HINTS = {
+        0: 'The scope document lists 4 in-scope domains (www, api, portal, staging) and 3 out-of-scope (admin, blog, careers). All 4 restrictions should be checked.',
+        1: 'Try: nmap www.globalpay.finance to scan the main site. Then nmap 203.0.113.0/24 to discover all hosts on the subnet including the staging server.',
+        2: 'Try: curl staging.globalpay.finance:3000/debug to find the debug endpoint. Then: curl api.globalpay.finance/users/1 to test for IDOR.',
+        3: 'After finding the debug endpoint and IDOR, chain them: use the debug endpoint to get a session token, then use it with the API IDOR to access admin data.',
+        4: 'Score both findings using the CVSS selectors, then write at least 120 characters summarizing your engagement.'
+    };
+
+    function showHint(phase) {
+        state.hintsUsed++;
+        state.score = Math.max(0, state.score - 5);
+        updateScore();
+
+        var hint = HINTS[phase !== undefined ? phase : state.currentPhase] || HINTS[state.currentPhase];
+        var feedbackIds = ['', 'reconFeedback', 'discoveryFeedback', 'exploitFeedback', ''];
+        var fbId = feedbackIds[phase !== undefined ? phase : state.currentPhase];
+        if (fbId) {
+            setFeedback(fbId, hint, 'info');
+        }
+    }
+
+    // -- Objective Management --
+
+    function completeObjective(id) {
+        if (state.completedObj.has(id)) return;
+        state.completedObj.add(id);
+        updateObjList();
+        updateProgress();
+
+        // Mark phase tabs as done
+        var obj = OBJECTIVES.find(function(o) { return o.id === id; });
+        if (obj) {
+            var phaseObjs = OBJECTIVES.filter(function(o) { return o.phase === obj.phase; });
+            var allDone = phaseObjs.every(function(o) { return state.completedObj.has(o.id); });
+            if (allDone) {
+                state.phaseDone[obj.phase] = true;
+                document.getElementById('tab-' + obj.phase).classList.add('done');
+            }
+        }
+    }
+
+    // -- UI Updates --
+
+    function buildObjList() {
+        var list = document.getElementById('objList');
+        var phaseNames = ['Scope Review', 'Reconnaissance', 'Discovery', 'Exploitation', 'Reporting'];
+        var html = '';
+        var lastPhase = -1;
+
+        OBJECTIVES.forEach(function(obj, i) {
+            if (obj.phase !== lastPhase) {
+                html += '<div class="phase-label">Phase ' + (obj.phase + 1) + ': ' + phaseNames[obj.phase] + '</div>';
+                lastPhase = obj.phase;
+            }
+            html += '<li class="obj-item" id="obj-item-' + i + '">' +
+                '<div class="obj-check">' + (i + 1) + '</div>' +
+                '<span>' + obj.text + '</span></li>';
+        });
+
+        list.innerHTML = html;
+    }
+
+    function updateObjList() {
+        OBJECTIVES.forEach(function(obj, i) {
+            var el = document.getElementById('obj-item-' + i);
+            if (!el) return;
+            el.className = 'obj-item';
+            if (state.completedObj.has(obj.id)) {
+                el.className += ' done';
+                el.querySelector('.obj-check').innerHTML = '&#10003;';
+            } else if (obj.phase === state.currentPhase) {
+                el.className += ' active';
+            }
+        });
+    }
+
+    function updateProgress() {
+        var done = state.completedObj.size;
+        var total = OBJECTIVES.length;
+        var pct = Math.round((done / total) * 100);
+
+        document.getElementById('completedCount').textContent = done;
+        document.getElementById('progressPct').textContent = pct + '%';
+        document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function updateScore() {
+        document.getElementById('scoreDisplay').textContent = state.score;
+        document.getElementById('hintDeduct').textContent = '-' + (state.hintsUsed * 5) + ' pts';
+        document.getElementById('scoreFinal').textContent = state.score;
+    }
+
+    function setFeedback(id, msg, cls) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = msg;
+        el.className = 'feedback-msg' + (cls ? ' ' + cls : '');
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // -- Completion --
+
+    function showCompletion() {
+        document.getElementById('modalCompleted').textContent = state.completedObj.size + '/10';
+        document.getElementById('modalFindings').textContent = '2';
+        document.getElementById('modalScore').textContent = state.score;
+        document.getElementById('completionModal').classList.add('show');
+    }
+
+    function finishLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-lab-full-scope', {
+                returnUrl: '../index.html'
+            });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    // -- Boot --
+
+    window.addEventListener('DOMContentLoaded', function() {
+        buildObjList();
+        updateProgress();
+    });
+    </script>
+</body>
+</html>

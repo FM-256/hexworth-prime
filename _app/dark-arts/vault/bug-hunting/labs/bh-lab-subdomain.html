@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 03: Subdomain Discovery -- Bug Hunting Hub | The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Courier New', monospace; color: #a080b0; overflow: hidden; }
+        .header { position: fixed; top: 0; left: 0; right: 0; height: 50px; background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-link { color: #6a4a7a; text-decoration: none; font-size: 0.75rem; padding: 4px 10px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 3px; transition: all 0.3s; }
+        .back-link:hover { color: #9333ea; border-color: rgba(147, 51, 234, 0.4); }
+        .header-badge { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.15em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 15px; font-size: 0.7rem; }
+        .score-display { color: #a855f7; }
+        .progress-display { color: #6a4a7a; }
+        .main-container { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 50px); margin-top: 50px; }
+        .terminal-panel { display: flex; flex-direction: column; border-right: 1px solid rgba(100, 60, 130, 0.15); }
+        .terminal-wrapper { flex: 1; overflow: hidden; }
+        .task-prompt { padding: 12px 16px; background: rgba(40, 20, 60, 0.3); border-bottom: 1px solid rgba(100, 60, 130, 0.1); font-size: 0.8rem; color: #c4a0d8; min-height: 50px; display: flex; align-items: center; gap: 10px; }
+        .task-number { color: #9333ea; font-weight: bold; }
+        .sidebar { overflow-y: auto; background: rgba(8, 4, 12, 0.6); padding: 20px; }
+        .sidebar-section { margin-bottom: 24px; }
+        .sidebar-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #6a4a7a; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid rgba(100, 60, 130, 0.1); }
+        .objective-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; font-size: 0.75rem; color: #7a5a8a; border-bottom: 1px solid rgba(100, 60, 130, 0.06); }
+        .objective-item.completed { color: #4ade80; text-decoration: line-through; opacity: 0.7; }
+        .obj-check { width: 14px; height: 14px; border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; margin-top: 1px; }
+        .objective-item.completed .obj-check { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.5); color: #4ade80; }
+        .hint-btn { display: block; width: 100%; padding: 8px; background: rgba(40, 20, 60, 0.3); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 4px; color: #7a5a8a; font-size: 0.72rem; cursor: pointer; text-align: left; margin-bottom: 6px; font-family: 'Courier New', monospace; transition: all 0.3s; }
+        .hint-btn:hover { background: rgba(60, 30, 80, 0.4); border-color: rgba(147, 51, 234, 0.3); color: #a080b0; }
+        .hint-btn.revealed { background: rgba(20, 40, 30, 0.3); border-color: rgba(34, 197, 94, 0.2); color: #86efac; }
+        .ref-item { font-size: 0.72rem; color: #6a4a7a; padding: 4px 0; }
+        .ref-item code { color: #a855f7; background: rgba(40, 20, 60, 0.4); padding: 1px 4px; border-radius: 2px; }
+        .feedback-bar { padding: 10px 16px; background: rgba(10, 5, 15, 0.8); border-top: 1px solid rgba(100, 60, 130, 0.1); font-size: 0.75rem; min-height: 36px; }
+        .feedback-bar.success { color: #4ade80; }
+        .feedback-bar.error { color: #f87171; }
+        .feedback-bar.info { color: #93c5fd; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: rgba(15, 8, 25, 0.98); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; padding: 40px; max-width: 500px; width: 90%; text-align: center; }
+        .modal h2 { color: #c4a0d8; font-size: 1.4rem; margin-bottom: 15px; font-family: Georgia, serif; }
+        .modal p { color: #8a6a9a; font-size: 0.85rem; margin-bottom: 10px; }
+        .modal .score-final { font-size: 2rem; color: #a855f7; margin: 15px 0; }
+        .modal-btn { padding: 10px 24px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 6px; color: #f3e8ff; font-size: 0.85rem; cursor: pointer; font-family: 'Courier New', monospace; margin: 5px; transition: all 0.3s; }
+        .modal-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3); }
+        @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; } .sidebar { display: none; } }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <a href="../index.html" class="back-link">&larr; Bug Hunting</a>
+        <span class="header-badge">Lab 03 -- Subdomain Discovery</span>
+    </div>
+    <div class="header-right">
+        <span class="score-display">Score: <strong id="score-val">100</strong></span>
+        <span class="progress-display" id="progress-val">0 / 8</span>
+    </div>
+</div>
+
+<div class="main-container">
+    <div class="terminal-panel">
+        <div class="task-prompt" id="task-prompt">
+            <span class="task-number">[1/8]</span>
+            <span id="task-text">Run subfinder against acmecorp.com to enumerate subdomains.</span>
+        </div>
+        <div class="terminal-wrapper" id="terminal"></div>
+        <div class="feedback-bar" id="feedback"></div>
+    </div>
+    <div class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">Objectives</div>
+            <div id="objectives-list"></div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Hints (-5 pts each)</div>
+            <div id="hints-list"></div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Reference</div>
+            <div class="ref-item"><code>subfinder -d &lt;domain&gt;</code> -- enumerate subdomains</div>
+            <div class="ref-item"><code>amass enum -passive -d &lt;domain&gt;</code> -- comprehensive enum</div>
+            <div class="ref-item"><code>httpx</code> -- HTTP probe discovered hosts</div>
+            <div class="ref-item"><code>waybackurls &lt;domain&gt;</code> -- historical URLs</div>
+            <div class="ref-item"><code>cat &lt;file&gt;</code> -- display file contents</div>
+            <div class="ref-item"><code>sort -u</code> -- sort and deduplicate</div>
+            <div class="ref-item"><code>wc -l</code> -- count lines</div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="completion-modal">
+    <div class="modal">
+        <h2>Subdomain Discovery Complete</h2>
+        <p>All 8 objectives completed. Full subdomain enumeration pipeline executed.</p>
+        <div class="score-final" id="final-score">100</div>
+        <p id="final-summary"></p>
+        <button class="modal-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+</div>
+
+<script src="../../../../components/LinuxTerminal.js"></script>
+<script>
+'use strict';
+
+/* ================================================================
+   SUBDOMAIN DATA
+================================================================ */
+const SUBFINDER_RESULTS = [
+    'www.acmecorp.com',
+    'api.acmecorp.com',
+    'staging.acmecorp.com',
+    'dev.acmecorp.com',
+    'mail.acmecorp.com',
+    'blog.acmecorp.com',
+    'shop.acmecorp.com',
+    'admin.acmecorp.com',
+    'vpn.acmecorp.com',
+    'cdn.acmecorp.com',
+    'support.acmecorp.com',
+    'docs.acmecorp.com'
+];
+
+const AMASS_RESULTS = [
+    'www.acmecorp.com',
+    'api.acmecorp.com',
+    'staging.acmecorp.com',
+    'dev.acmecorp.com',
+    'mail.acmecorp.com',
+    'blog.acmecorp.com',
+    'shop.acmecorp.com',
+    'admin.acmecorp.com',
+    'vpn.acmecorp.com',
+    'cdn.acmecorp.com',
+    'support.acmecorp.com',
+    'docs.acmecorp.com',
+    'grafana.acmecorp.com',
+    'jenkins.acmecorp.com',
+    'git.acmecorp.com',
+    'internal.acmecorp.com',
+    'test.acmecorp.com',
+    'beta.acmecorp.com'
+];
+
+const ALL_SUBDOMAINS = [...new Set([...SUBFINDER_RESULTS, ...AMASS_RESULTS])].sort();
+
+const HTTPX_RESULTS = [
+    { url: 'https://www.acmecorp.com', status: 200, title: 'AcmeCorp - Home', tech: 'nginx', length: 14523 },
+    { url: 'https://api.acmecorp.com', status: 200, title: '', tech: 'nginx', length: 42 },
+    { url: 'https://staging.acmecorp.com', status: 200, title: 'AcmeCorp Staging', tech: 'nginx', length: 12891 },
+    { url: 'http://staging.acmecorp.com:3000', status: 200, title: 'AcmeCorp Dev Build', tech: 'Node.js', length: 15677 },
+    { url: 'https://dev.acmecorp.com', status: 403, title: 'Forbidden', tech: 'nginx', length: 162 },
+    { url: 'https://mail.acmecorp.com', status: 200, title: 'Roundcube Webmail', tech: 'Apache', length: 9801 },
+    { url: 'https://blog.acmecorp.com', status: 200, title: 'AcmeCorp Engineering Blog', tech: 'Ghost', length: 22104 },
+    { url: 'https://shop.acmecorp.com', status: 200, title: 'AcmeCorp Store', tech: 'Shopify', length: 31200 },
+    { url: 'https://admin.acmecorp.com', status: 401, title: 'Admin Login', tech: 'nginx', length: 891 },
+    { url: 'https://vpn.acmecorp.com', status: 200, title: 'AnyConnect VPN', tech: 'Cisco', length: 3422 },
+    { url: 'https://cdn.acmecorp.com', status: 200, title: '', tech: 'CloudFront', length: 0 },
+    { url: 'https://support.acmecorp.com', status: 200, title: 'AcmeCorp Support', tech: 'Zendesk', length: 18900 },
+    { url: 'https://docs.acmecorp.com', status: 200, title: 'AcmeCorp Docs', tech: 'ReadTheDocs', length: 7234 },
+    { url: 'https://grafana.acmecorp.com', status: 200, title: 'Grafana', tech: 'Grafana', length: 4102 },
+    { url: 'https://jenkins.acmecorp.com', status: 200, title: 'Jenkins Dashboard', tech: 'Jetty', length: 6780 },
+    { url: 'http://git.acmecorp.com:3000', status: 200, title: 'Gitea: Git with a cup of tea', tech: 'Gitea', length: 8901 },
+    { url: 'https://beta.acmecorp.com', status: 200, title: 'AcmeCorp Beta', tech: 'nginx', length: 11200 }
+];
+
+const WAYBACK_RESULTS = [
+    'https://www.acmecorp.com/robots.txt',
+    'https://www.acmecorp.com/.env',
+    'https://www.acmecorp.com/wp-admin/',
+    'https://api.acmecorp.com/v1/users',
+    'https://api.acmecorp.com/v1/admin/config',
+    'https://api.acmecorp.com/swagger.json',
+    'https://staging.acmecorp.com/debug/info',
+    'https://staging.acmecorp.com/phpinfo.php',
+    'https://dev.acmecorp.com/.git/config',
+    'https://dev.acmecorp.com/test/credentials.txt',
+    'https://admin.acmecorp.com/login',
+    'https://admin.acmecorp.com/api/v1/users',
+    'https://shop.acmecorp.com/admin/',
+    'https://blog.acmecorp.com/ghost/api/',
+    'https://internal.acmecorp.com/dashboard',
+    'https://jenkins.acmecorp.com/script'
+];
+
+/* ================================================================
+   TASKS
+================================================================ */
+const TASKS = [
+    {
+        id: 0,
+        prompt: 'Run subfinder against acmecorp.com to enumerate subdomains.',
+        hint: 'Try: subfinder -d acmecorp.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.includes('subfinder') && c.includes('acmecorp.com');
+        }
+    },
+    {
+        id: 1,
+        prompt: 'Run amass for comprehensive subdomain enumeration.',
+        hint: 'Try: amass enum -passive -d acmecorp.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.includes('amass') && c.includes('acmecorp.com');
+        }
+    },
+    {
+        id: 2,
+        prompt: 'Sort and deduplicate results (pipe subfinder output to sort -u).',
+        hint: 'Try: subfinder -d acmecorp.com | sort -u',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.includes('sort') && c.includes('-u') && (c.includes('subfinder') || c.includes('amass') || c.includes('subdomains'));
+        }
+    },
+    {
+        id: 3,
+        prompt: 'Probe discovered subdomains with httpx.',
+        hint: 'Try: cat subdomains.txt | httpx',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.includes('httpx');
+        }
+    },
+    {
+        id: 4,
+        prompt: 'Find the live staging environment.',
+        hint: 'Look for staging.acmecorp.com in the httpx output, or try: httpx -u staging.acmecorp.com',
+        validate: (cmd) => {
+            // Completes when httpx has been run (staging is in the output) or httpx targeting staging
+            const c = cmd.toLowerCase();
+            return c.includes('httpx') && c.includes('staging');
+        }
+    },
+    {
+        id: 5,
+        prompt: 'Identify the subdomain running on a non-standard port.',
+        hint: 'Look for git.acmecorp.com:3000 or try: httpx -u git.acmecorp.com -ports 3000',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return (c.includes('httpx') && (c.includes('git.acmecorp') || c.includes('3000') || c.includes('ports'))) ||
+                   (c.includes('nmap') && c.includes('git.acmecorp'));
+        }
+    },
+    {
+        id: 6,
+        prompt: 'Use waybackurls to find historical endpoints.',
+        hint: 'Try: waybackurls acmecorp.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.includes('waybackurls') && c.includes('acmecorp');
+        }
+    },
+    {
+        id: 7,
+        prompt: 'Create a consolidated target list of live hosts.',
+        hint: 'Try: cat subdomains.txt | httpx | tee live-targets.txt',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return (c.includes('tee') && c.includes('httpx')) ||
+                   (c.includes('httpx') && (c.includes('>') || c.includes('tee'))) ||
+                   (c.includes('cat') && c.includes('live'));
+        }
+    }
+];
+
+/* ================================================================
+   STATE
+================================================================ */
+const state = {
+    score: 100,
+    hintsUsed: 0,
+    hintsRevealed: new Set(),
+    completed: new Set(),
+    subfinderRan: false,
+    amassRan: false,
+    httpxRan: false,
+    filesCreated: {}
+};
+
+/* ================================================================
+   INIT
+================================================================ */
+function initLab() {
+    renderObjectives();
+    renderHints();
+    updateTaskPrompt();
+
+    // Initialize LinuxTerminal
+    LinuxTerminal.init('BH-SUBDOMAIN', '#terminal', {
+        user: 'hunter',
+        hostname: 'kali-recon',
+        startDir: '/home/hunter',
+        height: '100%',
+        onCommand: handleCommand,
+        objectives: TASKS.map(t => ({ id: `obj${t.id}`, desc: t.prompt.substring(0, 60) }))
+    });
+
+    // Add filesystem entries
+    LinuxTerminal.addFilesystem({
+        '/home/hunter': {
+            type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+            children: ['wordlists', 'notes.txt']
+        },
+        '/home/hunter/wordlists': {
+            type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+            children: ['subdomains-top1mil.txt']
+        },
+        '/home/hunter/wordlists/subdomains-top1mil.txt': {
+            type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+            content: '# SecLists subdomain wordlist\nwww\nmail\nftp\nlocalhost\nwebmail\nsmtp\npop\nns1\nwebdisk\nns2\ncpanel\nwhm\nautodiscover\nautoconfig\nm\nimap\ntest\nns\nblog\npop3\ndev\nwww2\nadmin\nforum\nnews\nvpn\nns3\nmail2\nnew\nmysql\nold\nlistserver\nsupport\nmobile\nmx\nstatic\ndocs\nbeta\nshop\nsql\nsecure\ndemo\ncp\ncalendar\nwiki\nweb\nmedia\nemail\nimages\nimg\nwww1\nintranet\nportal\nvideo\nsip\ndns2\napi\ncdn\nstats\ndns1\nns4\nwww3\ndns\nsearch\nstaging\nserver\nmx1\nchat\nwap\nmy\nsvn\nmail1\nsites\nproxy\nads\nhost\ncrm\ncms\nbackup\nmx2\nlyncdiscover\ninfo\napps\ndownload\nremote\ndb\nforums\nstore\nrelay\nfiles\nnewsletter\napp\nlive\noc\nvps\ncloud\nftp2\ndev2\nwww4\nwww5\nirc\ntest1\ndomain\nns5\nns6\nns7\nns8\nns9\nns10'
+        },
+        '/home/hunter/notes.txt': {
+            type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+            content: 'Bug Bounty Recon Notes - AcmeCorp\n==================================\nTarget: acmecorp.com\nScope: *.acmecorp.com\n\nTools to use:\n  1. subfinder -d acmecorp.com\n  2. amass enum -passive -d acmecorp.com\n  3. Combine results: sort -u\n  4. Probe with httpx\n  5. Historical recon: waybackurls\n\nRemember: save output to files for pipeline!'
+        }
+    });
+
+    // Welcome message
+    LinuxTerminal.print('<span style="color:#a855f7;">[ Subdomain Discovery Lab -- AcmeCorp ]</span>');
+    LinuxTerminal.print('<span style="color:#6b7280;">Target: *.acmecorp.com (wildcard scope)</span>');
+    LinuxTerminal.print('<span style="color:#6b7280;">Tools: subfinder, amass, httpx, waybackurls</span>');
+    LinuxTerminal.print('<span style="color:#6b7280;">Type <span style="color:#c084fc;">help</span> for commands or <span style="color:#c084fc;">objectives</span> for tasks.</span>');
+    LinuxTerminal.print('<span style="color:#f59e0b;">[!] Simulated environment -- all data is fictional</span>\n');
+}
+
+/* ================================================================
+   COMMAND HANDLER
+================================================================ */
+function handleCommand(cmdLine, output, cmd, args) {
+    const fullCmd = cmdLine.toLowerCase().trim();
+
+    // Custom command handlers
+    if (cmd === 'subfinder') {
+        handleSubfinder(fullCmd, args);
+        checkObjectives(fullCmd);
+        return true; // handled
+    }
+    if (cmd === 'amass') {
+        handleAmass(fullCmd, args);
+        checkObjectives(fullCmd);
+        return true;
+    }
+    if (cmd === 'httpx') {
+        handleHttpx(fullCmd, args);
+        checkObjectives(fullCmd);
+        return true;
+    }
+    if (cmd === 'waybackurls') {
+        handleWaybackurls(fullCmd, args);
+        checkObjectives(fullCmd);
+        return true;
+    }
+    if (cmd === 'objectives') {
+        printObjectivesInTerminal();
+        return true;
+    }
+
+    // Pipe handling for sort/tee/wc
+    if (fullCmd.includes('|')) {
+        handlePipe(fullCmd);
+        checkObjectives(fullCmd);
+        return true;
+    }
+
+    // cat command for generated files
+    if (cmd === 'cat' && args.length > 0) {
+        const filename = args[0];
+        if (state.filesCreated[filename]) {
+            LinuxTerminal.print(state.filesCreated[filename]);
+            checkObjectives(fullCmd);
+            return true;
+        }
+        // Let LinuxTerminal handle cat for filesystem files
+    }
+
+    // Let LinuxTerminal handle built-in commands
+    checkObjectives(fullCmd);
+    return false;
+}
+
+/* ================================================================
+   SUBFINDER
+================================================================ */
+function handleSubfinder(fullCmd, args) {
+    if (!fullCmd.includes('acmecorp')) {
+        LinuxTerminal.print('<span style="color:#f87171;">Usage: subfinder -d &lt;domain&gt;</span>');
+        LinuxTerminal.print('<span style="color:#4a3a5a;">Example: subfinder -d acmecorp.com</span>');
+        return;
+    }
+
+    state.subfinderRan = true;
+
+    LinuxTerminal.print('<span style="color:#6a9ecf;">                 __    _____           __         </span>');
+    LinuxTerminal.print('<span style="color:#6a9ecf;">   _______  __  / /_  / __(_)___  ____/ /__  _____</span>');
+    LinuxTerminal.print('<span style="color:#6a9ecf;">  / ___/ / / / / __ \\/ /_/ / __ \\/ __  / _ \\/ ___/</span>');
+    LinuxTerminal.print('<span style="color:#6a9ecf;"> (__  ) /_/ / / /_/ / __/ / / / / /_/ /  __/ /    </span>');
+    LinuxTerminal.print('<span style="color:#6a9ecf;">/____/\\__,_/ /_.___/_/ /_/_/ /_/\\__,_/\\___/_/     </span>');
+    LinuxTerminal.print('<span style="color:#4a3a5a;">                         v2.6.3</span>');
+    LinuxTerminal.print('');
+    LinuxTerminal.print('<span style="color:#f59e0b;">[INF] Enumerating subdomains for acmecorp.com</span>');
+    LinuxTerminal.print('<span style="color:#4a3a5a;">[INF] Sources: alienvault, anubis, bufferover, c99, certspotter, crtsh, dnsdumpster, hackertarget, rapiddns, securitytrails, shodan, urlscan, virustotal</span>');
+    LinuxTerminal.print('');
+
+    SUBFINDER_RESULTS.forEach(sub => {
+        LinuxTerminal.print(`<span style="color:#22c55e;">${sub}</span>`);
+    });
+
+    LinuxTerminal.print('');
+    LinuxTerminal.print(`<span style="color:#6a9ecf;">[INF] Found ${SUBFINDER_RESULTS.length} subdomains for acmecorp.com in 4.2s</span>`);
+
+    // Save to virtual file
+    state.filesCreated['subfinder-output.txt'] = SUBFINDER_RESULTS.join('\n');
+
+    // Also pipe handling: if piping to file or sort
+    if (fullCmd.includes('>')) {
+        const filename = fullCmd.split('>').pop().trim();
+        state.filesCreated[filename] = SUBFINDER_RESULTS.join('\n');
+        LinuxTerminal.print(`<span style="color:#4a3a5a;">[Output saved to ${filename}]</span>`);
+    }
+}
+
+/* ================================================================
+   AMASS
+================================================================ */
+function handleAmass(fullCmd, args) {
+    if (!fullCmd.includes('acmecorp')) {
+        LinuxTerminal.print('<span style="color:#f87171;">Usage: amass enum -passive -d &lt;domain&gt;</span>');
+        return;
+    }
+
+    state.amassRan = true;
+
+    LinuxTerminal.print('<span style="color:#a855f7;">        .+++:.            :                             .+++.</span>');
+    LinuxTerminal.print('<span style="color:#a855f7;">      +W@@@@@@8        &+W@#               o8W8:      +W@@@@@@#.   o</span>');
+    LinuxTerminal.print('<span style="color:#a855f7;">    AMASS v4.2.0                   oW@@@W#+</span>');
+    LinuxTerminal.print('');
+    LinuxTerminal.print('<span style="color:#6a9ecf;">[INFO] Passive enumeration for: acmecorp.com</span>');
+    LinuxTerminal.print('<span style="color:#4a3a5a;">[INFO] Sources: AlienVault, BufferOver, CertSpotter, CommonCrawl, CIRCL, CrtSh, DNSDb, HackerTarget, Mnemonic, PassiveTotal, RADb, Robtex, ShadowServer, Shodan, SonarSearch, Spyse, Sublist3rAPI, ThreatCrowd, UrlScan, VirusTotal, Wayback</span>');
+    LinuxTerminal.print('');
+
+    AMASS_RESULTS.forEach(sub => {
+        const isNew = !SUBFINDER_RESULTS.includes(sub);
+        const color = isNew ? '#22d3ee' : '#22c55e';
+        const tag = isNew ? ' [NEW]' : '';
+        LinuxTerminal.print(`<span style="color:${color};">${sub}${tag}</span>`);
+    });
+
+    LinuxTerminal.print('');
+    LinuxTerminal.print(`<span style="color:#6a9ecf;">[INFO] Found ${AMASS_RESULTS.length} subdomains (${AMASS_RESULTS.length - SUBFINDER_RESULTS.length} unique to amass)</span>`);
+    LinuxTerminal.print(`<span style="color:#22c55e;">[+] New discoveries: grafana, jenkins, git, internal, test, beta</span>`);
+
+    state.filesCreated['amass-output.txt'] = AMASS_RESULTS.join('\n');
+
+    if (fullCmd.includes('>')) {
+        const filename = fullCmd.split('>').pop().trim();
+        state.filesCreated[filename] = AMASS_RESULTS.join('\n');
+        LinuxTerminal.print(`<span style="color:#4a3a5a;">[Output saved to ${filename}]</span>`);
+    }
+}
+
+/* ================================================================
+   HTTPX
+================================================================ */
+function handleHttpx(fullCmd, args) {
+    state.httpxRan = true;
+
+    // Check if targeting specific subdomain
+    if (fullCmd.includes('staging')) {
+        LinuxTerminal.print('<span style="color:#6a9ecf;">    __    __  __       _  __</span>');
+        LinuxTerminal.print('<span style="color:#6a9ecf;">   / /_  / /_/ /_____ | |/ /</span>');
+        LinuxTerminal.print('<span style="color:#6a9ecf;">  / __ \\/ __/ __/ __ \\|   / </span>');
+        LinuxTerminal.print('<span style="color:#6a9ecf;"> / / / / /_/ /_/ /_/ /   |  </span>');
+        LinuxTerminal.print('<span style="color:#6a9ecf;">/_/ /_/\\__/\\__/ .___/_/|_|  </span>');
+        LinuxTerminal.print('<span style="color:#4a3a5a;">               v1.3.7</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#22c55e;">https://staging.acmecorp.com [200] [AcmeCorp Staging] [nginx]</span>');
+        LinuxTerminal.print('<span style="color:#22d3ee;">http://staging.acmecorp.com:3000 [200] [AcmeCorp Dev Build] [Node.js]</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#22c55e;">[+] Staging environment live on HTTPS (443) and HTTP (3000)</span>');
+        LinuxTerminal.print('<span style="color:#f59e0b;">[!] Dev build server on non-standard port 3000</span>');
+        return;
+    }
+
+    if (fullCmd.includes('git.acmecorp') || (fullCmd.includes('git') && fullCmd.includes('3000'))) {
+        LinuxTerminal.print('<span style="color:#6a9ecf;">httpx v1.3.7</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#22d3ee;">http://git.acmecorp.com:3000 [200] [Gitea: Git with a cup of tea] [Gitea]</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#22c55e;">[+] Gitea running on non-standard port 3000</span>');
+        LinuxTerminal.print('<span style="color:#f59e0b;">[!] Self-hosted Git on non-standard port -- check for public repos</span>');
+        return;
+    }
+
+    // Full httpx probe
+    LinuxTerminal.print('<span style="color:#6a9ecf;">    __    __  __       _  __</span>');
+    LinuxTerminal.print('<span style="color:#6a9ecf;">   / /_  / /_/ /_____ | |/ /</span>');
+    LinuxTerminal.print('<span style="color:#6a9ecf;">  / __ \\/ __/ __/ __ \\|   / </span>');
+    LinuxTerminal.print('<span style="color:#6a9ecf;"> / / / / /_/ /_/ /_/ /   |  </span>');
+    LinuxTerminal.print('<span style="color:#6a9ecf;">/_/ /_/\\__/\\__/ .___/_/|_|  </span>');
+    LinuxTerminal.print('<span style="color:#4a3a5a;">               v1.3.7</span>');
+    LinuxTerminal.print('');
+
+    HTTPX_RESULTS.forEach(r => {
+        const statusColor = r.status === 200 ? '#22c55e' : r.status === 401 ? '#f59e0b' : r.status === 403 ? '#f87171' : '#6b7280';
+        const titlePart = r.title ? ` [${r.title}]` : '';
+        LinuxTerminal.print(`<span style="color:${statusColor};">${r.url} [${r.status}]${titlePart} [${r.tech}]</span>`);
+    });
+
+    LinuxTerminal.print('');
+    const liveCount = HTTPX_RESULTS.filter(r => r.status === 200).length;
+    LinuxTerminal.print(`<span style="color:#6a9ecf;">[INF] Probed ${HTTPX_RESULTS.length} URLs, ${liveCount} alive</span>`);
+    LinuxTerminal.print('<span style="color:#22c55e;">[+] Notable: staging:3000 (dev server), git:3000 (Gitea on non-standard port)</span>');
+    LinuxTerminal.print('<span style="color:#f59e0b;">[!] admin.acmecorp.com returns 401 -- login required</span>');
+    LinuxTerminal.print('<span style="color:#f59e0b;">[!] dev.acmecorp.com returns 403 -- access restricted</span>');
+
+    // Save live results
+    const liveHosts = HTTPX_RESULTS.filter(r => r.status === 200).map(r => r.url).join('\n');
+    state.filesCreated['live-targets.txt'] = liveHosts;
+    state.filesCreated['httpx-output.txt'] = HTTPX_RESULTS.map(r => `${r.url} [${r.status}] [${r.title || ''}] [${r.tech}]`).join('\n');
+
+    if (fullCmd.includes('tee')) {
+        const parts = fullCmd.split('tee');
+        const filename = parts[parts.length - 1].trim().split(/\s+/)[0];
+        if (filename) {
+            state.filesCreated[filename] = liveHosts;
+            LinuxTerminal.print(`<span style="color:#4a3a5a;">[Output saved to ${filename}]</span>`);
+        }
+    }
+
+    if (fullCmd.includes('>')) {
+        const filename = fullCmd.split('>').pop().trim();
+        if (filename) {
+            state.filesCreated[filename] = liveHosts;
+            LinuxTerminal.print(`<span style="color:#4a3a5a;">[Output saved to ${filename}]</span>`);
+        }
+    }
+}
+
+/* ================================================================
+   WAYBACKURLS
+================================================================ */
+function handleWaybackurls(fullCmd, args) {
+    if (!fullCmd.includes('acmecorp')) {
+        LinuxTerminal.print('<span style="color:#f87171;">Usage: waybackurls &lt;domain&gt;</span>');
+        return;
+    }
+
+    LinuxTerminal.print('<span style="color:#6a9ecf;">[waybackurls] Fetching historical URLs for acmecorp.com...</span>');
+    LinuxTerminal.print('');
+
+    WAYBACK_RESULTS.forEach(url => {
+        const isSensitive = url.includes('.env') || url.includes('.git') || url.includes('credentials') ||
+                           url.includes('swagger') || url.includes('admin/config') || url.includes('phpinfo') ||
+                           url.includes('debug') || url.includes('/script');
+        const color = isSensitive ? '#f87171' : '#22c55e';
+        const tag = isSensitive ? ' [INTERESTING]' : '';
+        LinuxTerminal.print(`<span style="color:${color};">${url}${tag}</span>`);
+    });
+
+    LinuxTerminal.print('');
+    LinuxTerminal.print(`<span style="color:#6a9ecf;">[INF] Found ${WAYBACK_RESULTS.length} historical URLs</span>`);
+    LinuxTerminal.print('<span style="color:#f87171;">[!] Sensitive endpoints found:</span>');
+    LinuxTerminal.print('<span style="color:#f87171;">    - .env file (credential exposure)</span>');
+    LinuxTerminal.print('<span style="color:#f87171;">    - .git/config (source code leak)</span>');
+    LinuxTerminal.print('<span style="color:#f87171;">    - swagger.json (API documentation)</span>');
+    LinuxTerminal.print('<span style="color:#f87171;">    - phpinfo.php (server info disclosure)</span>');
+    LinuxTerminal.print('<span style="color:#f87171;">    - /debug/info (debug endpoint)</span>');
+    LinuxTerminal.print('<span style="color:#f87171;">    - jenkins /script (RCE risk)</span>');
+    LinuxTerminal.print('<span style="color:#f87171;">    - credentials.txt (plaintext creds)</span>');
+
+    state.filesCreated['wayback-output.txt'] = WAYBACK_RESULTS.join('\n');
+}
+
+/* ================================================================
+   PIPE HANDLER
+================================================================ */
+function handlePipe(fullCmd) {
+    const segments = fullCmd.split('|').map(s => s.trim());
+    const firstCmd = segments[0];
+    const hasSortU = segments.some(s => s.includes('sort') && s.includes('-u'));
+    const hasWc = segments.some(s => s.includes('wc'));
+    const hasTee = segments.some(s => s.includes('tee'));
+    const hasHttpx = segments.some(s => s.startsWith('httpx'));
+    const hasGrep = segments.some(s => s.startsWith('grep'));
+
+    // Determine data source
+    let data = [];
+    if (firstCmd.includes('subfinder') && firstCmd.includes('acmecorp')) {
+        data = [...SUBFINDER_RESULTS];
+        state.subfinderRan = true;
+    } else if (firstCmd.includes('amass') && firstCmd.includes('acmecorp')) {
+        data = [...AMASS_RESULTS];
+        state.amassRan = true;
+    } else if (firstCmd.includes('cat')) {
+        const filename = firstCmd.replace('cat', '').trim();
+        if (state.filesCreated[filename]) {
+            data = state.filesCreated[filename].split('\n');
+        } else if (filename.includes('subdomains') || filename.includes('all-subs')) {
+            data = [...ALL_SUBDOMAINS];
+        } else {
+            LinuxTerminal.print(`<span style="color:#f87171;">cat: ${filename}: No such file or directory</span>`);
+            return;
+        }
+    } else {
+        data = [...ALL_SUBDOMAINS];
+    }
+
+    // Apply grep filter
+    if (hasGrep) {
+        const grepSeg = segments.find(s => s.startsWith('grep'));
+        const pattern = grepSeg.replace('grep', '').replace(/['"]/g, '').trim();
+        if (pattern) {
+            data = data.filter(line => line.toLowerCase().includes(pattern.toLowerCase()));
+        }
+    }
+
+    // Apply sort -u
+    if (hasSortU) {
+        data = [...new Set(data)].sort();
+    }
+
+    // Apply httpx
+    if (hasHttpx) {
+        state.httpxRan = true;
+        handleHttpx(fullCmd, []);
+        return;
+    }
+
+    // Apply wc -l
+    if (hasWc) {
+        LinuxTerminal.print(`<span style="color:#22c55e;">${data.length}</span>`);
+        return;
+    }
+
+    // Apply tee
+    if (hasTee) {
+        const teeSeg = segments.find(s => s.includes('tee'));
+        const filename = teeSeg.replace('tee', '').trim();
+        if (filename) {
+            state.filesCreated[filename] = data.join('\n');
+        }
+    }
+
+    // Output results
+    data.forEach(line => {
+        LinuxTerminal.print(`<span style="color:#22c55e;">${line}</span>`);
+    });
+
+    if (hasSortU) {
+        LinuxTerminal.print('');
+        LinuxTerminal.print(`<span style="color:#6a9ecf;">[+] ${data.length} unique subdomains after deduplication</span>`);
+    }
+
+    // Save if redirecting
+    if (fullCmd.includes('>') && !fullCmd.includes('|')) {
+        const filename = fullCmd.split('>').pop().trim();
+        if (filename) {
+            state.filesCreated[filename] = data.join('\n');
+            LinuxTerminal.print(`<span style="color:#4a3a5a;">[Saved to ${filename}]</span>`);
+        }
+    }
+
+    // Create subdomains.txt automatically for convenience
+    if (hasSortU) {
+        state.filesCreated['subdomains.txt'] = data.join('\n');
+    }
+}
+
+/* ================================================================
+   TERMINAL OBJECTIVES DISPLAY
+================================================================ */
+function printObjectivesInTerminal() {
+    LinuxTerminal.print('<span style="color:#a855f7;">Objectives -- Subdomain Discovery Lab</span>');
+    LinuxTerminal.print('<span style="color:#4a3a5a;">-----------------------------------------------------------</span>');
+    TASKS.forEach((t, i) => {
+        const done = state.completed.has(t.id);
+        const marker = done ? '<span style="color:#22c55e;">[X]</span>' : '<span style="color:#4a3a5a;">[ ]</span>';
+        const color = done ? '#22c55e' : '#7a5a8a';
+        LinuxTerminal.print(`  ${marker} <span style="color:${color};">${i + 1}. ${t.prompt}</span>`);
+    });
+    LinuxTerminal.print('');
+    LinuxTerminal.print(`<span style="color:#a855f7;">Progress: ${state.completed.size}/8  |  Score: ${state.score}</span>`);
+}
+
+/* ================================================================
+   OBJECTIVE CHECKING
+================================================================ */
+function checkObjectives(raw) {
+    let anyNew = false;
+    TASKS.forEach(task => {
+        if (state.completed.has(task.id)) return;
+        if (task.validate(raw)) {
+            state.completed.add(task.id);
+            anyNew = true;
+            showFeedback(`Objective ${task.id + 1} complete: ${task.prompt}`, 'success');
+            LinuxTerminal.print(`\n<span style="color:#22c55e;">[OBJECTIVE ${task.id + 1} COMPLETE] ${task.prompt}</span>\n`);
+        }
+    });
+
+    // Auto-complete objective 4 (staging) if httpx was run and staging is in results
+    if (!state.completed.has(4) && state.httpxRan) {
+        // Check if the last command was a general httpx (staging is in output)
+        if (raw.includes('httpx') && !raw.includes('staging') && !raw.includes('git')) {
+            state.completed.add(4);
+            anyNew = true;
+            showFeedback('Objective 5 complete: Find the live staging environment.', 'success');
+            LinuxTerminal.print(`\n<span style="color:#22c55e;">[OBJECTIVE 5 COMPLETE] Find the live staging environment.</span>\n`);
+        }
+    }
+
+    // Auto-complete objective 5 (non-standard port) if httpx was run on full list
+    if (!state.completed.has(5) && state.httpxRan) {
+        if (raw.includes('httpx') && !raw.includes('staging') && !raw.includes('git')) {
+            state.completed.add(5);
+            anyNew = true;
+            showFeedback('Objective 6 complete: Identify subdomain on non-standard port.', 'success');
+            LinuxTerminal.print(`\n<span style="color:#22c55e;">[OBJECTIVE 6 COMPLETE] Identify the subdomain running on a non-standard port.</span>\n`);
+        }
+    }
+
+    if (anyNew) {
+        renderObjectives();
+        updateProgress();
+        updateTaskPrompt();
+        if (state.completed.size === TASKS.length) {
+            setTimeout(showCompletionModal, 800);
+        }
+    }
+}
+
+/* ================================================================
+   UI
+================================================================ */
+function renderObjectives() {
+    const list = document.getElementById('objectives-list');
+    list.innerHTML = '';
+    TASKS.forEach((task, i) => {
+        const done = state.completed.has(task.id);
+        const div = document.createElement('div');
+        div.className = 'objective-item' + (done ? ' completed' : '');
+        div.innerHTML = `<div class="obj-check">${done ? 'X' : ''}</div><span>${i + 1}. ${task.prompt}</span>`;
+        list.appendChild(div);
+    });
+}
+
+function renderHints() {
+    const list = document.getElementById('hints-list');
+    list.innerHTML = '';
+    TASKS.forEach((task, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'hint-btn';
+        btn.textContent = `Hint ${i + 1}: Objective ${i + 1}`;
+        btn.onclick = () => revealHint(i, btn);
+        list.appendChild(btn);
+    });
+}
+
+function revealHint(idx, btn) {
+    if (state.hintsRevealed.has(idx)) return;
+    state.hintsRevealed.add(idx);
+    state.score = Math.max(0, state.score - 5);
+    state.hintsUsed++;
+    btn.textContent = TASKS[idx].hint;
+    btn.classList.add('revealed');
+    updateProgress();
+    LinuxTerminal.print(`<span style="color:#f59e0b;">[HINT -5 pts] ${TASKS[idx].hint}</span>`);
+}
+
+function updateProgress() {
+    document.getElementById('score-val').textContent = state.score;
+    document.getElementById('progress-val').textContent = `${state.completed.size} / 8`;
+}
+
+function updateTaskPrompt() {
+    const nextTask = TASKS.find(t => !state.completed.has(t.id));
+    const promptEl = document.getElementById('task-prompt');
+    if (nextTask) {
+        promptEl.querySelector('.task-number').textContent = `[${nextTask.id + 1}/8]`;
+        document.getElementById('task-text').textContent = nextTask.prompt;
+    } else {
+        promptEl.querySelector('.task-number').textContent = '[DONE]';
+        document.getElementById('task-text').textContent = 'All objectives complete. Click Complete Lab.';
+    }
+}
+
+function showFeedback(msg, type) {
+    const fb = document.getElementById('feedback');
+    fb.textContent = msg;
+    fb.className = 'feedback-bar ' + type;
+    setTimeout(() => { fb.textContent = ''; fb.className = 'feedback-bar'; }, 4000);
+}
+
+function showCompletionModal() {
+    document.getElementById('final-score').textContent = state.score;
+    document.getElementById('final-summary').textContent = `Hints used: ${state.hintsUsed} | Deductions: ${state.hintsUsed * 5} pts`;
+    document.getElementById('completion-modal').classList.add('active');
+}
+
+function completeLab() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('dark-arts', 'bh-lab-subdomain', { returnUrl: '../index.html' });
+    } else {
+        window.location.href = '../index.html';
+    }
+}
+
+/* ================================================================
+   BOOT
+================================================================ */
+document.addEventListener('DOMContentLoaded', initLab);
+</script>
+</body>
+</html>

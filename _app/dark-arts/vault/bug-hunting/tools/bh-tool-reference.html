@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Quick Reference - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        /* ---- Intro ---- */
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        /* ---- Sections ---- */
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '&#9656;'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* ---- Master table ---- */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.85rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 14px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.75rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 11px 14px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .tool-col { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.88rem; }
+        .standards-table .syntax-col { font-family: 'Courier New', monospace; font-size: 0.78rem; color: #b090c0; }
+
+        /* Category badges */
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.63rem; letter-spacing: 0.08em; text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-recon    { background: rgba(34,197,94,0.13);   color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .badge-web      { background: rgba(147,51,234,0.18);  color: #c084fc; border: 1px solid rgba(147,51,234,0.35); }
+        .badge-exploit  { background: rgba(249,115,22,0.15);  color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+        .badge-api      { background: rgba(59,130,246,0.15);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+        .badge-cloud    { background: rgba(239,68,68,0.15);   color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .badge-utility  { background: rgba(100,116,139,0.2);  color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+
+        /* ---- Tool grid + cards ---- */
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px; margin: 24px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover {
+            border-color: rgba(147, 51, 234, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            transform: translateY(-3px);
+        }
+
+        .tool-card-header {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 10px; margin-bottom: 10px;
+        }
+
+        .tool-name {
+            font-size: 1.05rem; color: #c4a0d8;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.65; margin-bottom: 14px; }
+
+        /* ---- Code blocks ---- */
+        .code-block {
+            background: rgba(5, 2, 10, 0.85);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 14px 18px; margin: 12px 0;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.65;
+            white-space: pre-wrap;
+        }
+
+        .code-block .kw      { color: #a855f7; }
+        .code-block .str     { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag    { color: #fbbf24; }
+        .code-block .var     { color: #f472b6; }
+
+        .code-block-sm {
+            background: rgba(5, 2, 10, 0.85);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 5px; padding: 10px 14px; margin: 8px 0;
+            font-family: 'Courier New', monospace; font-size: 0.78rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.55;
+            white-space: pre-wrap;
+        }
+
+        .code-block-sm .kw      { color: #a855f7; }
+        .code-block-sm .str     { color: #86efac; }
+        .code-block-sm .comment { color: #6a4a7a; font-style: italic; }
+        .code-block-sm .flag    { color: #fbbf24; }
+        .code-block-sm .var     { color: #f472b6; }
+
+        /* ---- Flags table ---- */
+        .flags-table {
+            width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem;
+        }
+
+        .flags-table th {
+            background: rgba(30, 15, 45, 0.6); color: #9a7aaa; padding: 7px 10px;
+            text-align: left; font-weight: normal; font-size: 0.7rem;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+        }
+
+        .flags-table td {
+            padding: 7px 10px; color: #8a6a9a;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.06); vertical-align: top;
+        }
+
+        .flags-table .flag-name { font-family: 'Courier New', monospace; color: #fbbf24; font-size: 0.78rem; }
+
+        /* ---- Callouts ---- */
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info    { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger  { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip     { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title    { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title  { color: #ef4444; }
+        .callout-tip .callout-title     { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        /* ---- Lab link pills ---- */
+        .lab-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+        .lab-link {
+            display: inline-block; padding: 2px 9px;
+            background: rgba(147, 51, 234, 0.1);
+            border: 1px solid rgba(147, 51, 234, 0.25);
+            border-radius: 10px; font-size: 0.65rem; color: #a855f7;
+            letter-spacing: 0.07em; text-transform: uppercase;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* ---- Workflow flow diagram ---- */
+        .flow-diagram {
+            display: flex; align-items: flex-start; gap: 0;
+            margin: 28px 0; overflow-x: auto; padding-bottom: 10px;
+        }
+
+        .flow-phase {
+            flex: 1; min-width: 140px;
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 8px; padding: 18px 14px; text-align: center;
+            position: relative;
+        }
+
+        .flow-phase + .flow-phase { margin-left: 0; }
+
+        .flow-arrow {
+            flex-shrink: 0; width: 36px; display: flex; align-items: center;
+            justify-content: center; color: #6a4a7a; font-size: 1.1rem;
+            padding-top: 16px;
+        }
+
+        .flow-phase-num {
+            font-size: 0.6rem; color: #6a4a7a; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 6px;
+        }
+
+        .flow-phase-title {
+            font-size: 0.88rem; color: #c4a0d8; margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .flow-tools { list-style: none; padding: 0; }
+
+        .flow-tools li {
+            font-size: 0.72rem; color: #8a6a9a; font-family: 'Courier New', monospace;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.07);
+        }
+
+        .flow-tools li:last-child { border-bottom: none; }
+        .flow-tools li::before { content: none; }
+
+        /* ---- Cheat sheet grid ---- */
+        .cheat-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px; margin: 24px 0;
+        }
+
+        .cheat-block {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px;
+        }
+
+        .cheat-block-title {
+            font-size: 0.72rem; color: #9333ea; letter-spacing: 0.18em;
+            text-transform: uppercase; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .cheat-block-title::after {
+            content: ''; flex: 1; height: 1px;
+            background: rgba(100, 60, 130, 0.2);
+        }
+
+        .cheat-entry { margin-bottom: 10px; }
+
+        .cheat-entry-label {
+            font-size: 0.7rem; color: #6a4a7a; letter-spacing: 0.1em;
+            text-transform: uppercase; margin-bottom: 3px;
+        }
+
+        /* ---- Completion ---- */
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .flow-diagram { flex-direction: column; }
+            .flow-arrow { transform: rotate(90deg); align-self: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">Bug Hunting &middot; Tool Reference</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9881;</div>
+        <h1 class="intro-title">Tool Quick Reference</h1>
+        <div class="intro-meta">Bug Hunting &bull; Reference &bull; 20 Tools</div>
+        <p class="intro-subtitle">
+            A comprehensive quick-reference for every tool in the Bug Hunting curriculum. Covers
+            syntax, flags, category context, and lab cross-references for all 20 tools across the
+            full bug bounty workflow &mdash; from reconnaissance and enumeration through exploitation,
+            API testing, and report generation.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">20 Tools</div>
+            <div class="stat-pill">6 Categories</div>
+            <div class="stat-pill">Cheat Sheet</div>
+            <div class="stat-pill">Lab Cross-Reference</div>
+            <div class="stat-pill">Hunt Workflow</div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 1: Master Comparison Table
+         ================================================================ -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9776;</span>
+            Master Comparison Table
+        </h2>
+        <div class="section-body">
+            <p>
+                All 20 tools at a glance. The table maps each tool to its category, primary use case,
+                canonical syntax, and the labs where it appears. Use this as your first stop when you
+                need to recall which tool handles a given task.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Category</th>
+                        <th>Primary Use</th>
+                        <th>Key Syntax</th>
+                        <th>Related Lab(s)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="tool-col">Amass</td>
+                        <td><span class="badge badge-recon">Recon</span></td>
+                        <td>In-depth subdomain enumeration and attack surface mapping</td>
+                        <td class="syntax-col">amass enum -d target.com</td>
+                        <td>Lab 01</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">subfinder</td>
+                        <td><span class="badge badge-recon">Recon</span></td>
+                        <td>Fast passive subdomain discovery from public sources</td>
+                        <td class="syntax-col">subfinder -d target.com -o subs.txt</td>
+                        <td>Lab 01</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">httpx</td>
+                        <td><span class="badge badge-recon">Recon</span></td>
+                        <td>HTTP probing, tech detection, status codes on subdomain lists</td>
+                        <td class="syntax-col">cat subs.txt | httpx -sc -td</td>
+                        <td>Lab 01, Lab 05</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">nmap</td>
+                        <td><span class="badge badge-recon">Recon</span></td>
+                        <td>Port scanning, service detection, OS fingerprinting</td>
+                        <td class="syntax-col">nmap -sV -sC target.com</td>
+                        <td>Lab 01</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">Shodan</td>
+                        <td><span class="badge badge-recon">Recon</span></td>
+                        <td>Internet-wide device and service search engine</td>
+                        <td class="syntax-col">shodan search hostname:target.com</td>
+                        <td>Lab 01</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">Burp Suite</td>
+                        <td><span class="badge badge-web">Web Testing</span></td>
+                        <td>Intercepting proxy, scanner, repeater, intruder</td>
+                        <td class="syntax-col">java -jar burpsuite.jar</td>
+                        <td>Lab 02, Lab 03, Lab 04, Lab 07</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">Caido</td>
+                        <td><span class="badge badge-web">Web Testing</span></td>
+                        <td>Modern web proxy alternative (Rust-based, fast)</td>
+                        <td class="syntax-col">caido</td>
+                        <td>Lab 02</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">ffuf</td>
+                        <td><span class="badge badge-web">Web Testing</span></td>
+                        <td>Fast web fuzzer for directories, parameters, vhosts</td>
+                        <td class="syntax-col">ffuf -u URL/FUZZ -w wordlist.txt</td>
+                        <td>Lab 02, Lab 05</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">nuclei</td>
+                        <td><span class="badge badge-exploit">Exploit</span></td>
+                        <td>Template-based vulnerability scanner (CVEs, misconfigs)</td>
+                        <td class="syntax-col">nuclei -u target.com -t cves/</td>
+                        <td>Lab 02, Lab 07</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">sqlmap</td>
+                        <td><span class="badge badge-exploit">Exploit</span></td>
+                        <td>Automated SQL injection detection and exploitation</td>
+                        <td class="syntax-col">sqlmap -u "url?id=1" --dbs</td>
+                        <td>Lab 03</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">XSStrike</td>
+                        <td><span class="badge badge-exploit">Exploit</span></td>
+                        <td>Advanced XSS detection with context-aware payloads</td>
+                        <td class="syntax-col">python xsstrike.py -u "url?q=test"</td>
+                        <td>Lab 02</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">dalfox</td>
+                        <td><span class="badge badge-exploit">Exploit</span></td>
+                        <td>Parameter-based XSS scanner with DOM analysis</td>
+                        <td class="syntax-col">dalfox url "target?q=test"</td>
+                        <td>Lab 02</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">Postman</td>
+                        <td><span class="badge badge-api">API</span></td>
+                        <td>API testing platform with collections and environments</td>
+                        <td class="syntax-col">GUI &mdash; import collection</td>
+                        <td>Lab 05</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">jwt_tool</td>
+                        <td><span class="badge badge-api">API</span></td>
+                        <td>JWT analysis, tampering, and attack automation</td>
+                        <td class="syntax-col">python3 jwt_tool.py TOKEN</td>
+                        <td>Lab 04, Lab 05</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">GraphQL Voyager</td>
+                        <td><span class="badge badge-api">API</span></td>
+                        <td>GraphQL schema visualization and introspection</td>
+                        <td class="syntax-col">Browser-based &mdash; paste introspection</td>
+                        <td>Lab 05</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">aws CLI</td>
+                        <td><span class="badge badge-cloud">Cloud</span></td>
+                        <td>AWS service interaction, S3 enum, IAM recon</td>
+                        <td class="syntax-col">aws s3 ls s3://bucket --no-sign</td>
+                        <td>Lab 07</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">trufflehog</td>
+                        <td><span class="badge badge-cloud">Cloud</span></td>
+                        <td>Secret scanning in git repos, S3, filesystems</td>
+                        <td class="syntax-col">trufflehog git https://repo.git</td>
+                        <td>Lab 07</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">CyberChef</td>
+                        <td><span class="badge badge-utility">Utility</span></td>
+                        <td>Data encoding/decoding, crypto, and analysis</td>
+                        <td class="syntax-col">Browser-based &mdash; gchq.github.io</td>
+                        <td>Lab 06</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">curl</td>
+                        <td><span class="badge badge-utility">Utility</span></td>
+                        <td>HTTP requests from CLI, header inspection, API calls</td>
+                        <td class="syntax-col">curl -v -H "Header: val" URL</td>
+                        <td>Lab 04, Lab 05, Lab 06</td>
+                    </tr>
+                    <tr>
+                        <td class="tool-col">jq</td>
+                        <td><span class="badge badge-utility">Utility</span></td>
+                        <td>JSON parsing and transformation on CLI</td>
+                        <td class="syntax-col">curl -s URL | jq '.data[]'</td>
+                        <td>Lab 05, Lab 06</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 2: Recon Tools
+         ================================================================ -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128225;</span>
+            Reconnaissance Tools
+        </h2>
+        <div class="section-body">
+            <p>
+                Reconnaissance is the foundation of every successful bug hunt. These tools map the attack
+                surface before you test a single endpoint &mdash; discovering subdomains, open ports,
+                technology stacks, and exposed services that define where bugs live.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- Amass -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Amass</div>
+                        <span class="badge badge-recon">Recon</span>
+                    </div>
+                    <p class="tool-desc">
+                        OWASP's open-source attack surface mapping tool. Performs both passive (DNS records,
+                        certificate transparency, web archives) and active (DNS brute-force, zone transfer
+                        attempts) subdomain enumeration. Integrates with 40+ data sources including
+                        VirusTotal, SecurityTrails, Censys, and Shodan via API keys.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Passive enumeration (no direct target contact)</span>
+$ <span class="kw">amass</span> enum <span class="flag">-passive</span> <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-o</span> passive-subs.txt
+
+<span class="comment"># Active enumeration (brute-force + resolving)</span>
+$ <span class="kw">amass</span> enum <span class="flag">-active</span> <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-brute</span> <span class="flag">-w</span> /usr/share/wordlists/dns.txt
+
+<span class="comment"># Intel mode — discover root domains from ASN or CIDR</span>
+$ <span class="kw">amass</span> intel <span class="flag">-asn</span> <span class="str">12345</span>
+
+<span class="comment"># Use config file with API keys for data sources</span>
+$ <span class="kw">amass</span> enum <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-config</span> ~/.config/amass/config.ini</div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-d &lt;domain&gt;</td><td>Target domain to enumerate</td></tr>
+                            <tr><td class="flag-name">-passive</td><td>Only use passive data sources (no DNS queries)</td></tr>
+                            <tr><td class="flag-name">-active</td><td>Perform active DNS queries and zone transfers</td></tr>
+                            <tr><td class="flag-name">-brute</td><td>Enable DNS brute-force subdomain discovery</td></tr>
+                            <tr><td class="flag-name">-o &lt;file&gt;</td><td>Output results to file</td></tr>
+                            <tr><td class="flag-name">-config &lt;file&gt;</td><td>Path to config with API keys</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 01 &mdash; Recon Pipeline</span>
+                    </div>
+                </div>
+
+                <!-- subfinder -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">subfinder</div>
+                        <span class="badge badge-recon">Recon</span>
+                    </div>
+                    <p class="tool-desc">
+                        A fast passive subdomain discovery tool by ProjectDiscovery. Queries certificate
+                        transparency logs (crt.sh), search engines, DNS datasets, and threat intelligence
+                        feeds. Designed for speed and pipeline integration &mdash; output pipes directly
+                        into httpx, nuclei, or other ProjectDiscovery tools.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Basic subdomain enumeration</span>
+$ <span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-o</span> subs.txt
+
+<span class="comment"># Recursive enumeration (find subdomains of subdomains)</span>
+$ <span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-recursive</span>
+
+<span class="comment"># Multiple domains from file</span>
+$ <span class="kw">subfinder</span> <span class="flag">-dL</span> domains.txt <span class="flag">-o</span> all-subs.txt
+
+<span class="comment"># Pipe into httpx for live host detection</span>
+$ <span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-silent</span> | <span class="kw">httpx</span> <span class="flag">-sc</span> <span class="flag">-td</span></div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-d &lt;domain&gt;</td><td>Target domain</td></tr>
+                            <tr><td class="flag-name">-dL &lt;file&gt;</td><td>File containing list of domains</td></tr>
+                            <tr><td class="flag-name">-recursive</td><td>Recursive subdomain enumeration</td></tr>
+                            <tr><td class="flag-name">-silent</td><td>Show only subdomains (clean for piping)</td></tr>
+                            <tr><td class="flag-name">-o &lt;file&gt;</td><td>Output to file</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 01 &mdash; Recon Pipeline</span>
+                    </div>
+                </div>
+
+                <!-- httpx -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">httpx</div>
+                        <span class="badge badge-recon">Recon</span>
+                    </div>
+                    <p class="tool-desc">
+                        A fast HTTP toolkit by ProjectDiscovery. Probes a list of hosts for live HTTP
+                        services, extracts status codes, content lengths, page titles, technology stacks
+                        (via Wappalyzer signatures), TLS certificate info, and web server headers.
+                        Essential for filtering recon output down to live, testable targets.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Probe subdomains with status codes and tech detection</span>
+$ <span class="kw">cat</span> subs.txt | <span class="kw">httpx</span> <span class="flag">-sc</span> <span class="flag">-td</span> <span class="flag">-title</span>
+
+<span class="comment"># Filter for specific status codes</span>
+$ <span class="kw">cat</span> subs.txt | <span class="kw">httpx</span> <span class="flag">-mc</span> <span class="str">200,301,302,403</span>
+
+<span class="comment"># Extract response headers and content length</span>
+$ <span class="kw">cat</span> subs.txt | <span class="kw">httpx</span> <span class="flag">-sc</span> <span class="flag">-cl</span> <span class="flag">-server</span>
+
+<span class="comment"># JSON output for downstream processing</span>
+$ <span class="kw">cat</span> subs.txt | <span class="kw">httpx</span> <span class="flag">-json</span> <span class="flag">-o</span> probed.json</div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-sc</td><td>Show HTTP status code</td></tr>
+                            <tr><td class="flag-name">-td</td><td>Technology detection (Wappalyzer)</td></tr>
+                            <tr><td class="flag-name">-title</td><td>Show page title</td></tr>
+                            <tr><td class="flag-name">-mc &lt;codes&gt;</td><td>Match specific status codes</td></tr>
+                            <tr><td class="flag-name">-cl</td><td>Show content length</td></tr>
+                            <tr><td class="flag-name">-json</td><td>Output in JSON format</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 01 &mdash; Recon Pipeline</span>
+                        <span class="lab-link">Lab 05 &mdash; API Hunting</span>
+                    </div>
+                </div>
+
+                <!-- nmap -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">nmap</div>
+                        <span class="badge badge-recon">Recon</span>
+                    </div>
+                    <p class="tool-desc">
+                        The industry-standard network scanner. In bug bounty context, nmap identifies open
+                        ports, running services and versions, and OS fingerprints. The NSE scripting engine
+                        extends it with vulnerability detection, brute-force, and information-gathering
+                        scripts. Use judiciously &mdash; active scanning generates significant traffic.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Service version + default scripts</span>
+$ <span class="kw">nmap</span> <span class="flag">-sV</span> <span class="flag">-sC</span> <span class="str">target.com</span>
+
+<span class="comment"># Top 1000 ports, fast scan</span>
+$ <span class="kw">nmap</span> <span class="flag">-T4</span> <span class="flag">--top-ports</span> <span class="str">1000</span> <span class="str">target.com</span>
+
+<span class="comment"># Full port scan with version detection</span>
+$ <span class="kw">nmap</span> <span class="flag">-p-</span> <span class="flag">-sV</span> <span class="flag">-T4</span> <span class="str">target.com</span>
+
+<span class="comment"># Vuln scan using NSE scripts</span>
+$ <span class="kw">nmap</span> <span class="flag">--script</span> <span class="str">vuln</span> <span class="str">target.com</span>
+
+<span class="comment"># Scan specific ports</span>
+$ <span class="kw">nmap</span> <span class="flag">-p</span> <span class="str">80,443,8080,8443</span> <span class="flag">-sV</span> <span class="str">target.com</span></div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-sV</td><td>Service version detection</td></tr>
+                            <tr><td class="flag-name">-sC</td><td>Default NSE scripts</td></tr>
+                            <tr><td class="flag-name">-p-</td><td>Scan all 65,535 ports</td></tr>
+                            <tr><td class="flag-name">-T4</td><td>Aggressive timing (faster)</td></tr>
+                            <tr><td class="flag-name">--script &lt;name&gt;</td><td>Run specific NSE scripts</td></tr>
+                            <tr><td class="flag-name">-oA &lt;base&gt;</td><td>Output in all formats (nmap, xml, grep)</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 01 &mdash; Recon Pipeline</span>
+                    </div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 3: Web Testing Tools
+         ================================================================ -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            Web Testing Tools
+        </h2>
+        <div class="section-body">
+            <p>
+                Web application testing tools intercept, modify, and replay HTTP traffic. The intercepting
+                proxy is the core of every bug hunter's workflow &mdash; it reveals how an application
+                communicates with its backend, exposing hidden parameters, authentication tokens, and
+                business logic that can be exploited.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- Burp Suite -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Burp Suite</div>
+                        <span class="badge badge-web">Web Testing</span>
+                    </div>
+                    <p class="tool-desc">
+                        The industry-standard web application security testing platform. Community Edition
+                        provides an intercepting proxy, repeater (manual request replay), decoder, and
+                        comparer. Professional Edition adds an automated scanner, intruder (fuzzing),
+                        and extensions via BApp Store. Used by the vast majority of professional bug
+                        bounty hunters. Stok recommends running it passively with Logger++ to learn
+                        how applications behave before attacking.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Proxy setup: configure browser to 127.0.0.1:8080</span>
+<span class="comment"># Install Burp CA certificate for HTTPS interception</span>
+
+<span class="comment"># Key workflow tabs:</span>
+<span class="comment">#   Proxy  → Intercept and modify requests in real-time</span>
+<span class="comment">#   Repeater → Manually replay and tweak individual requests</span>
+<span class="comment">#   Intruder → Automated fuzzing with payload positions</span>
+<span class="comment">#   Scanner → (Pro) Automated vulnerability scanning</span>
+
+<span class="comment"># Essential extensions (BApp Store):</span>
+<span class="comment">#   Logger++   — enhanced request/response logging</span>
+<span class="comment">#   Autorize   — automated authorization testing</span>
+<span class="comment">#   Param Miner — hidden parameter discovery</span>
+<span class="comment">#   Turbo Intruder — high-speed race condition testing</span></div>
+
+                    <div class="callout callout-tip" style="margin-top:14px;">
+                        <span class="callout-icon">&#9733;</span>
+                        <div class="callout-content">
+                            <div class="callout-title">Pro Tip from Stok</div>
+                            <div class="callout-text">
+                                Run Burp Suite passively while browsing target applications normally. Use
+                                Logger++ to monitor all requests. Learn how the application works before
+                                you attempt any active testing. Understanding the app's logic is more
+                                valuable than running automated scans.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 02 &mdash; XSS</span>
+                        <span class="lab-link">Lab 03 &mdash; SQLi</span>
+                        <span class="lab-link">Lab 04 &mdash; IDOR</span>
+                        <span class="lab-link">Lab 07 &mdash; Full Scope</span>
+                    </div>
+                </div>
+
+                <!-- Caido -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Caido</div>
+                        <span class="badge badge-web">Web Testing</span>
+                    </div>
+                    <p class="tool-desc">
+                        A modern, Rust-based web security testing proxy. Offers similar core functionality
+                        to Burp Suite (intercept, replay, automate) with a faster, more responsive UI
+                        and built-in workflow automation. Growing rapidly in the bug bounty community as
+                        a lightweight alternative. Free tier available.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Launch Caido (default proxy on 127.0.0.1:8080)</span>
+$ <span class="kw">caido</span>
+
+<span class="comment"># Core features:</span>
+<span class="comment">#   Intercept → proxy with real-time request/response editing</span>
+<span class="comment">#   Replay    → manual request modification and resend</span>
+<span class="comment">#   Automate  → built-in fuzzing and automation workflows</span>
+<span class="comment">#   Search    → full-text search across all captured traffic</span>
+<span class="comment">#   HTTPQL    → query language for filtering traffic</span></div>
+
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 02 &mdash; XSS</span>
+                    </div>
+                </div>
+
+                <!-- ffuf -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">ffuf</div>
+                        <span class="badge badge-web">Web Testing</span>
+                    </div>
+                    <p class="tool-desc">
+                        Fuzz Faster U Fool &mdash; a fast web fuzzer written in Go. Discovers hidden
+                        directories, files, parameters, vhosts, and API endpoints by replacing the FUZZ
+                        keyword in URLs, headers, or POST bodies with wordlist entries. Filters results
+                        by status code, content length, word count, or regex to cut through noise.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Directory brute-force</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/FUZZ</span> <span class="flag">-w</span> /usr/share/wordlists/dirb/common.txt
+
+<span class="comment"># Filter by status code (exclude 404s)</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/FUZZ</span> <span class="flag">-w</span> wordlist.txt <span class="flag">-fc</span> <span class="str">404</span>
+
+<span class="comment"># Parameter fuzzing (GET)</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">"https://target.com/page?FUZZ=value"</span> <span class="flag">-w</span> params.txt
+
+<span class="comment"># Vhost discovery</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com</span> <span class="flag">-H</span> <span class="str">"Host: FUZZ.target.com"</span> <span class="flag">-w</span> subs.txt <span class="flag">-fs</span> <span class="str">4242</span>
+
+<span class="comment"># POST body fuzzing with filter</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/login</span> <span class="flag">-X</span> POST \
+    <span class="flag">-d</span> <span class="str">"user=admin&amp;pass=FUZZ"</span> <span class="flag">-w</span> passwords.txt <span class="flag">-fc</span> <span class="str">401</span></div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-u &lt;URL&gt;</td><td>Target URL (FUZZ = injection point)</td></tr>
+                            <tr><td class="flag-name">-w &lt;file&gt;</td><td>Wordlist file</td></tr>
+                            <tr><td class="flag-name">-fc &lt;codes&gt;</td><td>Filter (exclude) by status code</td></tr>
+                            <tr><td class="flag-name">-mc &lt;codes&gt;</td><td>Match (include) only specific codes</td></tr>
+                            <tr><td class="flag-name">-fs &lt;size&gt;</td><td>Filter by response size</td></tr>
+                            <tr><td class="flag-name">-H &lt;header&gt;</td><td>Add custom header</td></tr>
+                            <tr><td class="flag-name">-t &lt;N&gt;</td><td>Number of concurrent threads (default 40)</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 02 &mdash; XSS</span>
+                        <span class="lab-link">Lab 05 &mdash; API Hunting</span>
+                    </div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 4: Exploitation Tools
+         ================================================================ -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Exploitation Tools
+        </h2>
+        <div class="section-body">
+            <p>
+                Exploitation tools automate the detection and validation of specific vulnerability classes.
+                While manual testing with a proxy is essential for logic bugs, these tools accelerate
+                discovery of injection flaws, known CVEs, and misconfigurations across large attack surfaces.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- nuclei -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">nuclei</div>
+                        <span class="badge badge-exploit">Exploit</span>
+                    </div>
+                    <p class="tool-desc">
+                        A fast, template-based vulnerability scanner by ProjectDiscovery. Community-maintained
+                        templates cover CVEs, misconfigurations, exposed panels, default credentials, and
+                        technology-specific checks. Scans thousands of hosts in minutes. Templates are
+                        YAML-based and easy to write custom checks for.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Scan single target with all templates</span>
+$ <span class="kw">nuclei</span> <span class="flag">-u</span> <span class="str">https://target.com</span>
+
+<span class="comment"># Scan with specific template tags</span>
+$ <span class="kw">nuclei</span> <span class="flag">-u</span> <span class="str">https://target.com</span> <span class="flag">-tags</span> <span class="str">cve,misconfig</span>
+
+<span class="comment"># Scan list of URLs from recon pipeline</span>
+$ <span class="kw">cat</span> live-hosts.txt | <span class="kw">nuclei</span> <span class="flag">-severity</span> <span class="str">critical,high</span>
+
+<span class="comment"># Use custom template directory</span>
+$ <span class="kw">nuclei</span> <span class="flag">-u</span> <span class="str">target.com</span> <span class="flag">-t</span> ~/custom-templates/
+
+<span class="comment"># Rate-limited scan (stay under WAF radar)</span>
+$ <span class="kw">nuclei</span> <span class="flag">-u</span> <span class="str">target.com</span> <span class="flag">-rl</span> <span class="str">10</span> <span class="flag">-c</span> <span class="str">2</span></div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-u &lt;URL&gt;</td><td>Single target URL</td></tr>
+                            <tr><td class="flag-name">-l &lt;file&gt;</td><td>List of URLs to scan</td></tr>
+                            <tr><td class="flag-name">-tags &lt;tags&gt;</td><td>Filter templates by tag</td></tr>
+                            <tr><td class="flag-name">-severity &lt;s&gt;</td><td>Filter by severity (info, low, medium, high, critical)</td></tr>
+                            <tr><td class="flag-name">-rl &lt;N&gt;</td><td>Rate limit (requests per second)</td></tr>
+                            <tr><td class="flag-name">-t &lt;dir&gt;</td><td>Custom template directory</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 02 &mdash; XSS</span>
+                        <span class="lab-link">Lab 07 &mdash; Full Scope</span>
+                    </div>
+                </div>
+
+                <!-- sqlmap -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">sqlmap</div>
+                        <span class="badge badge-exploit">Exploit</span>
+                    </div>
+                    <p class="tool-desc">
+                        The de facto standard for automated SQL injection detection and exploitation.
+                        Tests for union-based, boolean-blind, time-based blind, error-based, stacked
+                        queries, and out-of-band injection across MySQL, PostgreSQL, MSSQL, Oracle,
+                        SQLite, and more. Can extract databases, tables, columns, and dump data once
+                        injection is confirmed.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Test a URL parameter for SQL injection</span>
+$ <span class="kw">sqlmap</span> <span class="flag">-u</span> <span class="str">"https://target.com/page?id=1"</span> <span class="flag">--dbs</span>
+
+<span class="comment"># Test with specific parameter</span>
+$ <span class="kw">sqlmap</span> <span class="flag">-u</span> <span class="str">"https://target.com/page?id=1&amp;name=test"</span> <span class="flag">-p</span> <span class="str">id</span>
+
+<span class="comment"># Use saved Burp request file</span>
+$ <span class="kw">sqlmap</span> <span class="flag">-r</span> request.txt <span class="flag">--batch</span>
+
+<span class="comment"># Enumerate tables in a specific database</span>
+$ <span class="kw">sqlmap</span> <span class="flag">-u</span> <span class="str">"url?id=1"</span> <span class="flag">-D</span> <span class="str">dbname</span> <span class="flag">--tables</span>
+
+<span class="comment"># Dump specific table data</span>
+$ <span class="kw">sqlmap</span> <span class="flag">-u</span> <span class="str">"url?id=1"</span> <span class="flag">-D</span> <span class="str">dbname</span> <span class="flag">-T</span> <span class="str">users</span> <span class="flag">--dump</span>
+
+<span class="comment"># Tamper scripts to bypass WAF</span>
+$ <span class="kw">sqlmap</span> <span class="flag">-u</span> <span class="str">"url?id=1"</span> <span class="flag">--tamper</span> <span class="str">space2comment,between</span></div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-u &lt;URL&gt;</td><td>Target URL with injectable parameter</td></tr>
+                            <tr><td class="flag-name">-r &lt;file&gt;</td><td>Load HTTP request from file (Burp export)</td></tr>
+                            <tr><td class="flag-name">--dbs</td><td>Enumerate databases</td></tr>
+                            <tr><td class="flag-name">--tables</td><td>Enumerate tables</td></tr>
+                            <tr><td class="flag-name">--dump</td><td>Dump table contents</td></tr>
+                            <tr><td class="flag-name">--batch</td><td>Never ask for user input (use defaults)</td></tr>
+                            <tr><td class="flag-name">--tamper &lt;scripts&gt;</td><td>Use tamper scripts for WAF evasion</td></tr>
+                            <tr><td class="flag-name">--level &lt;1-5&gt;</td><td>Test depth level (higher = more tests)</td></tr>
+                            <tr><td class="flag-name">--risk &lt;1-3&gt;</td><td>Risk level (higher = more dangerous payloads)</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="callout callout-danger" style="margin-top:14px;">
+                        <span class="callout-icon">&#9888;</span>
+                        <div class="callout-content">
+                            <div class="callout-title">Authorized Testing Only</div>
+                            <div class="callout-text">
+                                sqlmap with --dump can extract sensitive data. Only use on targets where you
+                                have explicit written authorization. In bug bounty, demonstrate the injection
+                                exists without dumping real user data &mdash; use <code style="color:#c4a0d8;">--technique=B</code>
+                                (boolean blind) to prove impact without exfiltration.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 03 &mdash; SQL Injection</span>
+                    </div>
+                </div>
+
+                <!-- XSStrike -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">XSStrike</div>
+                        <span class="badge badge-exploit">Exploit</span>
+                    </div>
+                    <p class="tool-desc">
+                        An advanced XSS detection suite that uses context-aware analysis to generate
+                        payloads that match the specific injection context (HTML attribute, JavaScript
+                        string, DOM sink). Goes beyond dumb fuzzing by parsing the response and
+                        constructing payloads that will actually execute. Includes a DOM XSS scanner,
+                        fuzzer, and WAF detection/evasion.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Scan a URL parameter for reflected XSS</span>
+$ <span class="kw">python3</span> xsstrike.py <span class="flag">-u</span> <span class="str">"https://target.com/search?q=test"</span>
+
+<span class="comment"># Crawl and scan for XSS</span>
+$ <span class="kw">python3</span> xsstrike.py <span class="flag">-u</span> <span class="str">"https://target.com"</span> <span class="flag">--crawl</span>
+
+<span class="comment"># Fuzzing mode (test all parameters)</span>
+$ <span class="kw">python3</span> xsstrike.py <span class="flag">-u</span> <span class="str">"url?p1=a&amp;p2=b"</span> <span class="flag">--fuzzer</span>
+
+<span class="comment"># Blind XSS (out-of-band callback)</span>
+$ <span class="kw">python3</span> xsstrike.py <span class="flag">-u</span> <span class="str">"url?q=test"</span> <span class="flag">--blind</span></div>
+
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 02 &mdash; XSS</span>
+                    </div>
+                </div>
+
+                <!-- dalfox -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">dalfox</div>
+                        <span class="badge badge-exploit">Exploit</span>
+                    </div>
+                    <p class="tool-desc">
+                        A fast, Go-based parameter analysis and XSS scanning tool. Excels at testing
+                        multiple parameters simultaneously, identifying DOM-based XSS sinks, and
+                        integrating into automated recon pipelines. Supports Burp/ZAP integration
+                        and custom payload injection.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Scan single URL</span>
+$ <span class="kw">dalfox</span> url <span class="str">"https://target.com/search?q=test"</span>
+
+<span class="comment"># Pipe from parameter discovery tool</span>
+$ <span class="kw">cat</span> params.txt | <span class="kw">dalfox</span> pipe
+
+<span class="comment"># With custom blind XSS callback</span>
+$ <span class="kw">dalfox</span> url <span class="str">"url?q=test"</span> <span class="flag">-b</span> <span class="str">https://your-server.com</span></div>
+
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 02 &mdash; XSS</span>
+                    </div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 5: API Testing Tools
+         ================================================================ -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128279;</span>
+            API Testing Tools
+        </h2>
+        <div class="section-body">
+            <p>
+                API security testing requires specialized tools for authentication token manipulation,
+                schema analysis, and endpoint discovery. Modern applications expose REST and GraphQL
+                APIs that often contain BOLA, broken authentication, and mass assignment vulnerabilities
+                invisible to traditional web scanners.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- jwt_tool -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">jwt_tool</div>
+                        <span class="badge badge-api">API</span>
+                    </div>
+                    <p class="tool-desc">
+                        A Python toolkit for testing, forging, and attacking JSON Web Tokens. Decodes JWT
+                        headers and payloads, tests for the "none" algorithm bypass, performs key confusion
+                        attacks (RS256→HS256), brute-forces weak signing keys, and generates tampered tokens
+                        with modified claims for authorization testing.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Decode and inspect a JWT</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="var">TOKEN</span>
+
+<span class="comment"># Test all known attack vectors</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="var">TOKEN</span> <span class="flag">-M</span> <span class="str">at</span>
+
+<span class="comment"># Tamper with claims (e.g., escalate role)</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="var">TOKEN</span> <span class="flag">-T</span> <span class="flag">-S</span> <span class="str">hs256</span> <span class="flag">-p</span> <span class="str">"secret"</span>
+
+<span class="comment"># Test "none" algorithm bypass</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="var">TOKEN</span> <span class="flag">-X</span> <span class="str">a</span>
+
+<span class="comment"># Key confusion attack (RS256 → HS256)</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="var">TOKEN</span> <span class="flag">-X</span> <span class="str">k</span> <span class="flag">-pk</span> public.pem
+
+<span class="comment"># Brute-force HMAC signing key</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="var">TOKEN</span> <span class="flag">-C</span> <span class="flag">-d</span> /usr/share/wordlists/rockyou.txt</div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-M at</td><td>Run all attack tests</td></tr>
+                            <tr><td class="flag-name">-T</td><td>Tamper mode (modify claims)</td></tr>
+                            <tr><td class="flag-name">-X a</td><td>Exploit: algorithm "none" bypass</td></tr>
+                            <tr><td class="flag-name">-X k</td><td>Exploit: key confusion attack</td></tr>
+                            <tr><td class="flag-name">-C</td><td>Crack HMAC signing key</td></tr>
+                            <tr><td class="flag-name">-S &lt;alg&gt;</td><td>Signing algorithm to use</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 04 &mdash; IDOR</span>
+                        <span class="lab-link">Lab 05 &mdash; API Hunting</span>
+                    </div>
+                </div>
+
+                <!-- Postman -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Postman</div>
+                        <span class="badge badge-api">API</span>
+                    </div>
+                    <p class="tool-desc">
+                        An API development and testing platform. In bug bounty context, use it to organize
+                        API endpoints into collections, manage authentication tokens across environments
+                        (dev/staging/prod), run automated test sequences, and replay requests with
+                        modified parameters for IDOR and authorization testing.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Key workflow for bug bounty:</span>
+<span class="comment"># 1. Import OpenAPI/Swagger spec or build collection manually</span>
+<span class="comment"># 2. Set up environments (tokens, base URLs, user IDs)</span>
+<span class="comment"># 3. Create test sequences for auth bypass scenarios</span>
+<span class="comment"># 4. Use Collection Runner for automated testing</span>
+
+<span class="comment"># Pro tip: use Postman Interceptor to capture browser traffic</span>
+<span class="comment"># and auto-build API collections from observed requests</span>
+
+<span class="comment"># Alternatives: Insomnia (open-source), Bruno (git-friendly)</span></div>
+
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 05 &mdash; API Hunting</span>
+                    </div>
+                </div>
+
+                <!-- GraphQL Voyager -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">GraphQL Voyager</div>
+                        <span class="badge badge-api">API</span>
+                    </div>
+                    <p class="tool-desc">
+                        A browser-based tool that visualizes GraphQL API schemas as interactive graphs.
+                        Feed it an introspection query result and it renders the entire type system,
+                        showing relationships between queries, mutations, and types. Invaluable for
+                        identifying sensitive fields, hidden mutations, and authorization boundaries
+                        in GraphQL APIs.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Step 1: Run introspection query against target</span>
+$ <span class="kw">curl</span> <span class="flag">-X</span> POST <span class="str">https://target.com/graphql</span> \
+    <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+    <span class="flag">-d</span> <span class="str">'{"query":"{__schema{types{name fields{name type{name}}}}}"}'</span>
+
+<span class="comment"># Step 2: Paste introspection result into GraphQL Voyager</span>
+<span class="comment"># Step 3: Explore the visual schema map</span>
+<span class="comment"># Look for: user PII fields, admin mutations, nested relationships</span>
+
+<span class="comment"># Full introspection query (for complex schemas):</span>
+<span class="comment"># Use IntrospectionQuery from graphql-js specification</span></div>
+
+                    <div class="callout callout-info" style="margin-top:14px;">
+                        <span class="callout-icon">&#8505;</span>
+                        <div class="callout-content">
+                            <div class="callout-title">GraphQL Attack Surface</div>
+                            <div class="callout-text">
+                                If introspection is enabled, the API is telling you its entire schema.
+                                Check for: mutations that modify other users' data (BOLA), fields that
+                                expose PII, nested queries that bypass pagination (DoS), and batch queries
+                                that allow brute-force attacks.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 05 &mdash; API Hunting</span>
+                    </div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 6: Cloud & Secret Scanning
+         ================================================================ -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9729;</span>
+            Cloud &amp; Secret Scanning
+        </h2>
+        <div class="section-body">
+            <p>
+                Cloud misconfigurations and leaked secrets are among the highest-impact bug bounty
+                findings. Exposed S3 buckets, leaked API keys in git history, and overly permissive
+                IAM roles can lead to critical data breaches. These tools detect such issues at scale.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- aws CLI -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">aws CLI</div>
+                        <span class="badge badge-cloud">Cloud</span>
+                    </div>
+                    <p class="tool-desc">
+                        The official AWS command-line interface. In bug bounty context, used for
+                        unauthenticated S3 bucket enumeration, testing for public object access,
+                        and validating leaked AWS credentials. Many targets expose S3 buckets through
+                        subdomain patterns, JavaScript source maps, or error messages.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># List S3 bucket contents (unauthenticated)</span>
+$ <span class="kw">aws</span> s3 ls <span class="str">s3://target-bucket</span> <span class="flag">--no-sign-request</span>
+
+<span class="comment"># Try to download a file from public bucket</span>
+$ <span class="kw">aws</span> s3 cp <span class="str">s3://target-bucket/file.txt</span> . <span class="flag">--no-sign-request</span>
+
+<span class="comment"># Check bucket ACL (access control list)</span>
+$ <span class="kw">aws</span> s3api get-bucket-acl <span class="flag">--bucket</span> <span class="str">target-bucket</span> <span class="flag">--no-sign-request</span>
+
+<span class="comment"># Validate leaked credentials (check identity)</span>
+$ <span class="kw">aws</span> sts get-caller-identity
+
+<span class="comment"># Enumerate accessible services with found creds</span>
+$ <span class="kw">aws</span> iam list-users
+$ <span class="kw">aws</span> s3 ls
+$ <span class="kw">aws</span> ec2 describe-instances <span class="flag">--region</span> <span class="str">us-east-1</span></div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">--no-sign-request</td><td>Make unauthenticated request (public access test)</td></tr>
+                            <tr><td class="flag-name">--region &lt;r&gt;</td><td>Specify AWS region</td></tr>
+                            <tr><td class="flag-name">--profile &lt;p&gt;</td><td>Use named credential profile</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 07 &mdash; Full Scope</span>
+                    </div>
+                </div>
+
+                <!-- trufflehog -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">trufflehog</div>
+                        <span class="badge badge-cloud">Cloud</span>
+                    </div>
+                    <p class="tool-desc">
+                        A secret scanning tool that searches git repositories, S3 buckets, filesystems,
+                        and other data sources for leaked credentials (API keys, passwords, tokens).
+                        Uses both regex patterns and entropy analysis to detect secrets with high
+                        accuracy. Scans entire git history including deleted commits.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Scan a public git repository</span>
+$ <span class="kw">trufflehog</span> git <span class="str">https://github.com/target/repo.git</span>
+
+<span class="comment"># Scan with verified-only results (reduced false positives)</span>
+$ <span class="kw">trufflehog</span> git <span class="str">https://github.com/target/repo.git</span> <span class="flag">--only-verified</span>
+
+<span class="comment"># Scan an entire GitHub organization</span>
+$ <span class="kw">trufflehog</span> github <span class="flag">--org</span> <span class="str">target-org</span>
+
+<span class="comment"># Scan an S3 bucket for exposed secrets</span>
+$ <span class="kw">trufflehog</span> s3 <span class="flag">--bucket</span> <span class="str">target-bucket</span>
+
+<span class="comment"># Scan local filesystem</span>
+$ <span class="kw">trufflehog</span> filesystem <span class="flag">--directory</span> /path/to/code</div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">--only-verified</td><td>Only show secrets verified as active</td></tr>
+                            <tr><td class="flag-name">--json</td><td>Output in JSON format</td></tr>
+                            <tr><td class="flag-name">--org &lt;name&gt;</td><td>Scan entire GitHub organization</td></tr>
+                            <tr><td class="flag-name">--since &lt;date&gt;</td><td>Scan commits after date</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 07 &mdash; Full Scope</span>
+                    </div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 7: Utility Tools
+         ================================================================ -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128295;</span>
+            Utility Tools
+        </h2>
+        <div class="section-body">
+            <p>
+                Utility tools handle the data transformation, encoding, and HTTP communication tasks
+                that glue the entire bug hunting workflow together. Mastering curl, jq, and CyberChef
+                makes you faster at every other phase of testing.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- CyberChef -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">CyberChef</div>
+                        <span class="badge badge-utility">Utility</span>
+                    </div>
+                    <p class="tool-desc">
+                        GCHQ's open-source "Cyber Swiss Army Knife" &mdash; a browser-based tool for
+                        encoding, decoding, encryption, compression, data analysis, and format conversion.
+                        Chain multiple operations into "recipes" for complex transformations. Essential
+                        for decoding JWT payloads, base64 strings, URL encoding, and analyzing obfuscated
+                        JavaScript.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Common recipes for bug bounty:</span>
+<span class="comment">#   Base64 Decode → reveals encoded tokens/payloads</span>
+<span class="comment">#   URL Decode    → decodes %xx encoded strings</span>
+<span class="comment">#   JWT Decode    → splits header.payload.signature</span>
+<span class="comment">#   From Hex      → converts hex dumps to readable text</span>
+<span class="comment">#   Magic         → auto-detects encoding and decodes</span>
+<span class="comment">#   Entropy       → measures randomness (detect encryption)</span>
+
+<span class="comment"># Access at: gchq.github.io/CyberChef</span>
+<span class="comment"># Can run entirely offline (download from GitHub)</span></div>
+
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 06 &mdash; Report Writing</span>
+                    </div>
+                </div>
+
+                <!-- curl -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">curl</div>
+                        <span class="badge badge-utility">Utility</span>
+                    </div>
+                    <p class="tool-desc">
+                        The universal command-line HTTP client. Every bug hunter's most-used tool for
+                        quick endpoint checks, header inspection, cookie manipulation, and API calls.
+                        Supports every HTTP method, custom headers, certificates, proxies, and output
+                        formatting. Burp Suite can export any captured request as a curl command.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Verbose request with all headers</span>
+$ <span class="kw">curl</span> <span class="flag">-v</span> <span class="str">https://target.com</span>
+
+<span class="comment"># Send custom headers (auth, content-type)</span>
+$ <span class="kw">curl</span> <span class="flag">-H</span> <span class="str">"Authorization: Bearer TOKEN"</span> \
+    <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> <span class="str">https://api.target.com/users</span>
+
+<span class="comment"># POST JSON data</span>
+$ <span class="kw">curl</span> <span class="flag">-X</span> POST <span class="str">https://api.target.com/login</span> \
+    <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+    <span class="flag">-d</span> <span class="str">'{"user":"admin","pass":"test"}'</span>
+
+<span class="comment"># Follow redirects and show response headers</span>
+$ <span class="kw">curl</span> <span class="flag">-L</span> <span class="flag">-D</span> - <span class="str">https://target.com/redirect</span>
+
+<span class="comment"># Send request through Burp proxy</span>
+$ <span class="kw">curl</span> <span class="flag">-x</span> <span class="str">http://127.0.0.1:8080</span> <span class="flag">-k</span> <span class="str">https://target.com</span>
+
+<span class="comment"># SSRF testing — internal metadata endpoint</span>
+$ <span class="kw">curl</span> <span class="str">http://target.com/fetch?url=http://169.254.169.254/latest/meta-data/</span></div>
+
+                    <table class="flags-table">
+                        <thead>
+                            <tr><th>Flag</th><th>Effect</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="flag-name">-v</td><td>Verbose output (show headers)</td></tr>
+                            <tr><td class="flag-name">-H &lt;header&gt;</td><td>Add custom request header</td></tr>
+                            <tr><td class="flag-name">-X &lt;method&gt;</td><td>HTTP method (GET, POST, PUT, DELETE)</td></tr>
+                            <tr><td class="flag-name">-d &lt;data&gt;</td><td>POST request body</td></tr>
+                            <tr><td class="flag-name">-x &lt;proxy&gt;</td><td>Use HTTP proxy</td></tr>
+                            <tr><td class="flag-name">-k</td><td>Allow insecure SSL (skip cert check)</td></tr>
+                            <tr><td class="flag-name">-L</td><td>Follow redirects</td></tr>
+                            <tr><td class="flag-name">-o &lt;file&gt;</td><td>Save response to file</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 04 &mdash; IDOR</span>
+                        <span class="lab-link">Lab 05 &mdash; API Hunting</span>
+                        <span class="lab-link">Lab 06 &mdash; Report Writing</span>
+                    </div>
+                </div>
+
+                <!-- jq -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">jq</div>
+                        <span class="badge badge-utility">Utility</span>
+                    </div>
+                    <p class="tool-desc">
+                        A lightweight command-line JSON processor. Extracts, filters, and transforms
+                        JSON data from API responses, recon tool output, and configuration files.
+                        Essential for parsing large JSON API responses and automating data extraction
+                        in bug bounty pipelines.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Pretty-print JSON response</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">https://api.target.com/users</span> | <span class="kw">jq</span> <span class="str">'.'</span>
+
+<span class="comment"># Extract specific fields</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">https://api.target.com/users</span> | <span class="kw">jq</span> <span class="str">'.data[] | {id, email}'</span>
+
+<span class="comment"># Filter by condition</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">https://api.target.com/users</span> | <span class="kw">jq</span> <span class="str">'.data[] | select(.role == "admin")'</span>
+
+<span class="comment"># Count results</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">https://api.target.com/users</span> | <span class="kw">jq</span> <span class="str">'.data | length'</span>
+
+<span class="comment"># Extract URLs from nuclei JSON output</span>
+$ <span class="kw">cat</span> nuclei-results.json | <span class="kw">jq</span> <span class="flag">-r</span> <span class="str">'.matched_at'</span></div>
+
+                    <div class="lab-links">
+                        <span class="lab-link">Lab 05 &mdash; API Hunting</span>
+                        <span class="lab-link">Lab 06 &mdash; Report Writing</span>
+                    </div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 8: Bug Hunting Workflow
+         ================================================================ -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128736;</span>
+            Bug Hunting Workflow
+        </h2>
+        <div class="section-body">
+            <p>
+                The standard bug bounty workflow progresses through five phases. Each phase feeds into
+                the next &mdash; thorough reconnaissance enables targeted enumeration, which reveals
+                the attack surface for exploitation, validated by reporting.
+            </p>
+
+            <div class="flow-diagram">
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 01</div>
+                    <div class="flow-phase-title">Recon</div>
+                    <ul class="flow-tools">
+                        <li>Amass</li>
+                        <li>subfinder</li>
+                        <li>Shodan</li>
+                        <li>nmap</li>
+                    </ul>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 02</div>
+                    <div class="flow-phase-title">Enumerate</div>
+                    <ul class="flow-tools">
+                        <li>httpx</li>
+                        <li>ffuf</li>
+                        <li>nuclei</li>
+                        <li>GraphQL Voyager</li>
+                    </ul>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 03</div>
+                    <div class="flow-phase-title">Exploit</div>
+                    <ul class="flow-tools">
+                        <li>Burp Suite</li>
+                        <li>sqlmap</li>
+                        <li>XSStrike</li>
+                        <li>jwt_tool</li>
+                    </ul>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 04</div>
+                    <div class="flow-phase-title">Validate</div>
+                    <ul class="flow-tools">
+                        <li>curl</li>
+                        <li>Caido</li>
+                        <li>CyberChef</li>
+                        <li>jq</li>
+                    </ul>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 05</div>
+                    <div class="flow-phase-title">Report</div>
+                    <ul class="flow-tools">
+                        <li>CVSS Calculator</li>
+                        <li>Screenshots</li>
+                        <li>PoC Script</li>
+                        <li>Impact Analysis</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#9733;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Pipeline Automation</div>
+                    <div class="callout-text">
+                        The ProjectDiscovery suite (subfinder, httpx, nuclei) is designed for piping:
+                        <code style="color:#c4a0d8;">subfinder -d target.com -silent | httpx -silent | nuclei -severity high,critical</code>.
+                        This single command discovers subdomains, filters live hosts, and scans for critical
+                        vulnerabilities in one pipeline.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 9: Cheat Sheet
+         ================================================================ -->
+    <div class="section" id="s9">
+        <div class="section-number">Section 09</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128203;</span>
+            Quick Reference Cheat Sheet
+        </h2>
+        <div class="section-body">
+            <p>
+                Copy-paste-ready commands organized by workflow phase. Each command is the most
+                common usage for that tool in a bug bounty context.
+            </p>
+
+            <div class="cheat-grid">
+
+                <!-- Phase: Recon -->
+                <div class="cheat-block">
+                    <div class="cheat-block-title"><span class="badge badge-recon">Recon</span></div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Passive subdomain enum</div>
+                        <div class="code-block-sm">
+$ <span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-silent</span> <span class="flag">-o</span> subs.txt</div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Active subdomain enum with brute-force</div>
+                        <div class="code-block-sm">
+$ <span class="kw">amass</span> enum <span class="flag">-active</span> <span class="flag">-brute</span> <span class="flag">-d</span> <span class="str">target.com</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Probe live hosts with tech detection</div>
+                        <div class="code-block-sm">
+$ <span class="kw">cat</span> subs.txt | <span class="kw">httpx</span> <span class="flag">-sc</span> <span class="flag">-td</span> <span class="flag">-title</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Service version scan</div>
+                        <div class="code-block-sm">
+$ <span class="kw">nmap</span> <span class="flag">-sV</span> <span class="flag">-sC</span> <span class="flag">-T4</span> <span class="str">target.com</span></div>
+                    </div>
+                </div>
+
+                <!-- Phase: Enumeration -->
+                <div class="cheat-block">
+                    <div class="cheat-block-title"><span class="badge badge-web">Enumeration</span></div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Directory brute-force</div>
+                        <div class="code-block-sm">
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/FUZZ</span> <span class="flag">-w</span> common.txt <span class="flag">-fc</span> <span class="str">404</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Parameter fuzzing</div>
+                        <div class="code-block-sm">
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">"https://target.com/page?FUZZ=value"</span> <span class="flag">-w</span> params.txt</div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Vulnerability scan (critical + high)</div>
+                        <div class="code-block-sm">
+$ <span class="kw">cat</span> live.txt | <span class="kw">nuclei</span> <span class="flag">-severity</span> <span class="str">critical,high</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Full pipeline (recon → scan)</div>
+                        <div class="code-block-sm">
+$ <span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-silent</span> | <span class="kw">httpx</span> <span class="flag">-silent</span> | <span class="kw">nuclei</span></div>
+                    </div>
+                </div>
+
+                <!-- Phase: Exploitation -->
+                <div class="cheat-block">
+                    <div class="cheat-block-title"><span class="badge badge-exploit">Exploitation</span></div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">SQL injection test</div>
+                        <div class="code-block-sm">
+$ <span class="kw">sqlmap</span> <span class="flag">-u</span> <span class="str">"url?id=1"</span> <span class="flag">--dbs</span> <span class="flag">--batch</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">XSS scan (context-aware)</div>
+                        <div class="code-block-sm">
+$ <span class="kw">python3</span> xsstrike.py <span class="flag">-u</span> <span class="str">"url?q=test"</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">JWT attack (all vectors)</div>
+                        <div class="code-block-sm">
+$ <span class="kw">python3</span> jwt_tool.py <span class="var">TOKEN</span> <span class="flag">-M</span> <span class="str">at</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">SQLi via Burp request file</div>
+                        <div class="code-block-sm">
+$ <span class="kw">sqlmap</span> <span class="flag">-r</span> request.txt <span class="flag">--batch</span> <span class="flag">--level</span> <span class="str">3</span></div>
+                    </div>
+                </div>
+
+                <!-- Phase: Cloud/Secrets -->
+                <div class="cheat-block">
+                    <div class="cheat-block-title"><span class="badge badge-cloud">Cloud</span></div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">S3 bucket enumeration (unauthenticated)</div>
+                        <div class="code-block-sm">
+$ <span class="kw">aws</span> s3 ls <span class="str">s3://target-bucket</span> <span class="flag">--no-sign-request</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Git repo secret scan</div>
+                        <div class="code-block-sm">
+$ <span class="kw">trufflehog</span> git <span class="str">https://github.com/target/repo</span> <span class="flag">--only-verified</span></div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Validate leaked AWS credentials</div>
+                        <div class="code-block-sm">
+$ <span class="kw">aws</span> sts get-caller-identity</div>
+                    </div>
+
+                    <div class="cheat-entry">
+                        <div class="cheat-entry-label">Scan GitHub org for secrets</div>
+                        <div class="code-block-sm">
+$ <span class="kw">trufflehog</span> github <span class="flag">--org</span> <span class="str">target-org</span> <span class="flag">--only-verified</span></div>
+                    </div>
+                </div>
+
+            </div><!-- /.cheat-grid -->
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#9881;</div>
+            <h2 class="completion-title">Reference Complete</h2>
+            <p class="completion-text">
+                You have reviewed all 20 Bug Hunting tools across six categories: Reconnaissance,
+                Web Testing, Exploitation, API Testing, Cloud &amp; Secrets, and Utility. The master
+                table, per-category deep dives, attack workflow diagram, and cheat sheet provide a
+                complete field reference for the full bug bounty lifecycle.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Mark Reference Complete
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    // Scroll progress bar update
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in on scroll via IntersectionObserver
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Module completion handler
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-tool-reference', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

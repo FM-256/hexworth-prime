@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Security Toolkit - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { font-size: 1.15rem; color: #c4a0d8; margin: 28px 0 14px; font-weight: 400; }
+
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px; margin: 24px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover {
+            border-color: rgba(147, 51, 234, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            transform: translateY(-3px);
+        }
+
+        .tool-card-header {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 10px; margin-bottom: 10px;
+        }
+
+        .tool-name {
+            font-size: 1.05rem; color: #c4a0d8;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.65; margin-bottom: 14px; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.63rem; letter-spacing: 0.08em; text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-android { background: rgba(34,197,94,0.13);   color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .badge-ios     { background: rgba(59,130,246,0.15);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+        .badge-network { background: rgba(147,51,234,0.18);  color: #c084fc; border: 1px solid rgba(147,51,234,0.35); }
+        .badge-dynamic { background: rgba(249,115,22,0.15);  color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+        .badge-platform{ background: rgba(239,68,68,0.15);   color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.85);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 14px 18px; margin: 12px 0;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.65;
+            white-space: pre-wrap;
+        }
+
+        .code-block .kw      { color: #a855f7; }
+        .code-block .str     { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag    { color: #fbbf24; }
+        .code-block .var     { color: #f472b6; }
+
+        .flags-table {
+            width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem;
+        }
+
+        .flags-table th {
+            background: rgba(30, 15, 45, 0.6); color: #9a7aaa; padding: 7px 10px;
+            text-align: left; font-weight: normal; font-size: 0.7rem;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+        }
+
+        .flags-table td {
+            padding: 7px 10px; color: #8a6a9a;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.06); vertical-align: top;
+        }
+
+        .flags-table .flag-name { font-family: 'Courier New', monospace; color: #fbbf24; font-size: 0.78rem; }
+
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.85rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 14px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.75rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 11px 14px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .tool-col { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.88rem; }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info    { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger  { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip     { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title    { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title  { color: #ef4444; }
+        .callout-tip .callout-title     { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">Bug Hunting &middot; Mobile Security Toolkit</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128241;</div>
+        <h1 class="intro-title">Mobile Security Toolkit</h1>
+        <div class="intro-meta">Bug Hunting &bull; Reference &bull; 18 Tools</div>
+        <p class="intro-subtitle">
+            A complete reference for mobile application security testing tools across Android and iOS.
+            Covers static analysis, dynamic instrumentation, network interception, and testing platform
+            setup. Each tool includes command syntax, key flags, and practical usage examples for
+            bug bounty contexts.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">18 Tools</div>
+            <div class="stat-pill">Android + iOS</div>
+            <div class="stat-pill">Static &amp; Dynamic</div>
+            <div class="stat-pill">Network Interception</div>
+            <div class="stat-pill">Command Reference</div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 1: Android Analysis Tools
+         ================================================================ -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#129302;</span>
+            Android Analysis Tools
+        </h2>
+        <div class="section-body">
+            <p>
+                Android static analysis begins with decompiling the APK to examine its manifest, resources,
+                and decompiled source code. Android applications are packaged as APK files containing
+                Dalvik bytecode (DEX files), which can be converted back to Java source with varying
+                degrees of accuracy. These tools form the foundation of any Android security assessment.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- apktool -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">apktool</div>
+                        <span class="badge badge-android">Android</span>
+                    </div>
+                    <p class="tool-desc">
+                        Decodes APK resources to near-original form, including AndroidManifest.xml,
+                        layouts, strings, and smali bytecode. Essential for examining app permissions,
+                        exported components, deep links, and custom URL schemes. Can also repackage
+                        modified APKs for testing.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Decode APK to directory</span>
+$ <span class="kw">apktool</span> <span class="flag">d</span> <span class="str">target.apk</span> <span class="flag">-o</span> <span class="str">target_decoded</span>
+
+<span class="comment"># Decode without decompiling sources (resources only)</span>
+$ <span class="kw">apktool</span> <span class="flag">d</span> <span class="flag">-s</span> <span class="str">target.apk</span>
+
+<span class="comment"># Rebuild modified APK</span>
+$ <span class="kw">apktool</span> <span class="flag">b</span> <span class="str">target_decoded</span> <span class="flag">-o</span> <span class="str">modified.apk</span>
+
+<span class="comment"># Sign rebuilt APK for installation</span>
+$ <span class="kw">jarsigner</span> <span class="flag">-keystore</span> <span class="str">debug.keystore</span> <span class="str">modified.apk</span> <span class="str">androiddebugkey</span></div>
+
+                    <table class="flags-table">
+                        <thead><tr><th>Flag</th><th>Effect</th></tr></thead>
+                        <tbody>
+                            <tr><td class="flag-name">d</td><td>Decode (decompile) APK</td></tr>
+                            <tr><td class="flag-name">b</td><td>Build (repackage) APK from decoded directory</td></tr>
+                            <tr><td class="flag-name">-s</td><td>Skip decompiling sources (resources only)</td></tr>
+                            <tr><td class="flag-name">-o &lt;dir&gt;</td><td>Output directory or file</td></tr>
+                            <tr><td class="flag-name">-f</td><td>Force overwrite existing output</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- jadx -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">jadx</div>
+                        <span class="badge badge-android">Android</span>
+                    </div>
+                    <p class="tool-desc">
+                        Decompiles Android DEX and APK files directly to readable Java source code.
+                        The jadx-gui provides a full IDE-like interface with search, cross-references,
+                        and syntax highlighting. More readable output than smali for source code review.
+                        Use jadx for reading logic; use apktool for modifying and rebuilding.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Decompile APK to Java source</span>
+$ <span class="kw">jadx</span> <span class="str">target.apk</span> <span class="flag">-d</span> <span class="str">output_dir</span>
+
+<span class="comment"># Open in GUI for interactive analysis</span>
+$ <span class="kw">jadx-gui</span> <span class="str">target.apk</span>
+
+<span class="comment"># Search for hardcoded secrets in decompiled source</span>
+$ <span class="kw">grep</span> <span class="flag">-rn</span> <span class="str">"api_key\|secret\|password\|token"</span> output_dir/
+
+<span class="comment"># Export with deobfuscation mapping</span>
+$ <span class="kw">jadx</span> <span class="str">target.apk</span> <span class="flag">--deobf</span> <span class="flag">-d</span> <span class="str">output_dir</span></div>
+                </div>
+
+                <!-- dex2jar -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">dex2jar</div>
+                        <span class="badge badge-android">Android</span>
+                    </div>
+                    <p class="tool-desc">
+                        Converts Android DEX bytecode to standard Java JAR files, enabling analysis
+                        with any Java decompiler (JD-GUI, CFR, Procyon). Useful when jadx fails on
+                        heavily obfuscated apps or when you need to use a specific Java analysis tool.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Convert APK's DEX to JAR</span>
+$ <span class="kw">d2j-dex2jar</span> <span class="str">target.apk</span> <span class="flag">-o</span> <span class="str">target.jar</span>
+
+<span class="comment"># Open resulting JAR in JD-GUI</span>
+$ <span class="kw">jd-gui</span> <span class="str">target.jar</span>
+
+<span class="comment"># Handle multi-DEX APKs</span>
+$ <span class="kw">d2j-dex2jar</span> <span class="str">classes2.dex</span> <span class="flag">-o</span> <span class="str">classes2.jar</span></div>
+                </div>
+
+                <!-- ADB -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">adb</div>
+                        <span class="badge badge-android">Android</span>
+                    </div>
+                    <p class="tool-desc">
+                        Android Debug Bridge &mdash; the primary command-line interface for communicating with
+                        Android devices and emulators. Handles app installation, file transfer, log collection,
+                        shell access, and intent broadcasting. Every Android testing workflow depends on adb.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># List connected devices</span>
+$ <span class="kw">adb</span> devices
+
+<span class="comment"># Install APK on device</span>
+$ <span class="kw">adb</span> install <span class="str">target.apk</span>
+
+<span class="comment"># Pull APK from device</span>
+$ <span class="kw">adb</span> shell pm path <span class="str">com.target.app</span>
+$ <span class="kw">adb</span> pull <span class="str">/data/app/com.target.app/base.apk</span>
+
+<span class="comment"># Open shell on device</span>
+$ <span class="kw">adb</span> shell
+
+<span class="comment"># View application logs</span>
+$ <span class="kw">adb</span> logcat <span class="flag">--pid</span>=$(<span class="kw">adb</span> shell pidof <span class="str">com.target.app</span>)
+
+<span class="comment"># Pull app's private data directory (root required)</span>
+$ <span class="kw">adb</span> shell su -c <span class="str">"cp -r /data/data/com.target.app /sdcard/appdata"</span>
+$ <span class="kw">adb</span> pull <span class="str">/sdcard/appdata</span>
+
+<span class="comment"># Send intent to exported activity</span>
+$ <span class="kw">adb</span> shell am start <span class="flag">-n</span> <span class="str">com.target.app/.DeepLinkActivity</span> \
+    <span class="flag">-d</span> <span class="str">"https://target.com/callback?token=test"</span></div>
+
+                    <table class="flags-table">
+                        <thead><tr><th>Command</th><th>Effect</th></tr></thead>
+                        <tbody>
+                            <tr><td class="flag-name">adb devices</td><td>List all connected devices/emulators</td></tr>
+                            <tr><td class="flag-name">adb install &lt;apk&gt;</td><td>Install APK on connected device</td></tr>
+                            <tr><td class="flag-name">adb pull &lt;path&gt;</td><td>Copy file from device to host</td></tr>
+                            <tr><td class="flag-name">adb push &lt;src&gt; &lt;dst&gt;</td><td>Copy file from host to device</td></tr>
+                            <tr><td class="flag-name">adb logcat</td><td>View device log output in real-time</td></tr>
+                            <tr><td class="flag-name">adb shell</td><td>Open interactive shell on device</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 2: Dynamic Android Tools
+         ================================================================ -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Dynamic Android Tools
+        </h2>
+        <div class="section-body">
+            <p>
+                Dynamic analysis tools attach to running applications to intercept function calls,
+                modify return values, bypass security controls, and observe runtime behavior. Frida
+                is the industry standard for mobile dynamic instrumentation, with objection providing
+                a higher-level automation layer built on top of it.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- Frida -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Frida</div>
+                        <span class="badge badge-dynamic">Dynamic</span>
+                    </div>
+                    <p class="tool-desc">
+                        A dynamic instrumentation toolkit that lets you inject JavaScript into
+                        running processes on Android, iOS, Windows, macOS, and Linux. In mobile security,
+                        Frida is used to hook functions, bypass SSL pinning, disable root detection,
+                        trace API calls, and modify application behavior at runtime.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># List running processes on device</span>
+$ <span class="kw">frida-ps</span> <span class="flag">-U</span>
+
+<span class="comment"># Attach to running app</span>
+$ <span class="kw">frida</span> <span class="flag">-U</span> <span class="str">com.target.app</span>
+
+<span class="comment"># Spawn app with script injection</span>
+$ <span class="kw">frida</span> <span class="flag">-U</span> <span class="flag">-f</span> <span class="str">com.target.app</span> <span class="flag">-l</span> <span class="str">bypass.js</span>
+
+<span class="comment"># SSL pinning bypass script example</span>
+<span class="comment"># bypass.js:</span>
+Java.perform(function() {
+    var TrustManager = Java.use(<span class="str">'javax.net.ssl.X509TrustManager'</span>);
+    var SSLContext = Java.use(<span class="str">'javax.net.ssl.SSLContext'</span>);
+
+    <span class="comment">// Override checkServerTrusted to accept all certs</span>
+    var TrustManagerImpl = Java.registerClass({
+        name: <span class="str">'com.custom.TrustManager'</span>,
+        implements: [TrustManager],
+        methods: {
+            checkServerTrusted: function(chain, authType) { },
+            checkClientTrusted: function(chain, authType) { },
+            getAcceptedIssuers: function() { return []; }
+        }
+    });
+});</div>
+                </div>
+
+                <!-- objection -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">objection</div>
+                        <span class="badge badge-dynamic">Dynamic</span>
+                    </div>
+                    <p class="tool-desc">
+                        A runtime mobile exploration toolkit built on Frida. Provides pre-built
+                        commands for common tasks like SSL pinning bypass, root detection bypass,
+                        dumping keychain entries, exploring the filesystem, and hooking methods &mdash;
+                        without writing custom Frida scripts.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Connect to running app</span>
+$ <span class="kw">objection</span> <span class="flag">-g</span> <span class="str">com.target.app</span> explore
+
+<span class="comment"># Inside objection REPL:</span>
+
+<span class="comment"># Bypass SSL pinning</span>
+&gt; <span class="kw">android</span> sslpinning disable
+
+<span class="comment"># Bypass root detection</span>
+&gt; <span class="kw">android</span> root disable
+
+<span class="comment"># List activities</span>
+&gt; <span class="kw">android</span> hooking list activities
+
+<span class="comment"># List classes matching pattern</span>
+&gt; <span class="kw">android</span> hooking list classes <span class="str">com.target</span>
+
+<span class="comment"># Hook a method and print arguments</span>
+&gt; <span class="kw">android</span> hooking watch class_method <span class="str">com.target.app.AuthManager.login</span> <span class="flag">--dump-args</span>
+
+<span class="comment"># Dump shared preferences</span>
+&gt; <span class="kw">android</span> sharedpreferences dump
+
+<span class="comment"># Explore filesystem</span>
+&gt; <span class="kw">env</span>
+&gt; <span class="kw">ls</span> /data/data/com.target.app/</div>
+                </div>
+
+                <!-- Magisk -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Magisk</div>
+                        <span class="badge badge-android">Android</span>
+                    </div>
+                    <p class="tool-desc">
+                        A systemless root solution for Android that modifies the boot image without
+                        altering the system partition. MagiskHide (or its successors like Shamiko and
+                        Zygisk DenyList) can hide root from applications that perform root detection.
+                        Essential for testing apps that refuse to run on rooted devices.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Root detection bypass workflow:</span>
+<span class="comment"># 1. Install Magisk on test device</span>
+<span class="comment"># 2. Enable Zygisk in Magisk settings</span>
+<span class="comment"># 3. Install Shamiko module (or configure DenyList)</span>
+<span class="comment"># 4. Add target app to DenyList</span>
+<span class="comment"># 5. Force stop and relaunch target app</span>
+
+<span class="comment"># If app still detects root, escalate to Frida hooks:</span>
+<span class="comment"># Hook Runtime.exec() to block 'su', 'which su' commands</span>
+<span class="comment"># Hook File.exists() for known root paths</span>
+<span class="comment"># Hook PackageManager for Magisk/SuperSU package names</span></div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Root Detection vs. Integrity</div>
+                    <div class="callout-text">
+                        Bypassing root detection is a testing technique, not a vulnerability in itself.
+                        Most programs consider root/jailbreak bypass out of scope unless it leads to
+                        a security-relevant finding (e.g., accessing encrypted data, bypassing authentication).
+                        Always check the program policy before reporting root detection bypass alone.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 3: iOS Analysis Tools
+         ================================================================ -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127822;</span>
+            iOS Analysis Tools
+        </h2>
+        <div class="section-body">
+            <p>
+                iOS testing requires a jailbroken device or specialized tools to work around Apple's
+                code signing and sandboxing. iOS applications are distributed as IPA files containing
+                Mach-O binaries encrypted with FairPlay DRM, which must be decrypted before static
+                analysis.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- class-dump -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">class-dump</div>
+                        <span class="badge badge-ios">iOS</span>
+                    </div>
+                    <p class="tool-desc">
+                        Extracts Objective-C class declarations from Mach-O binaries. Reveals class
+                        names, method signatures, properties, and protocols without needing source code.
+                        Useful for understanding app architecture and identifying interesting methods
+                        to hook with Frida.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Dump class headers from decrypted binary</span>
+$ <span class="kw">class-dump</span> <span class="str">TargetApp</span> &gt; <span class="str">headers.h</span>
+
+<span class="comment"># Search for auth-related classes</span>
+$ <span class="kw">grep</span> <span class="flag">-i</span> <span class="str">"auth\|login\|token\|session\|credential"</span> headers.h
+
+<span class="comment"># Search for API endpoint classes</span>
+$ <span class="kw">grep</span> <span class="flag">-i</span> <span class="str">"api\|request\|endpoint\|url"</span> headers.h
+
+<span class="comment"># Dump with full method types</span>
+$ <span class="kw">class-dump</span> <span class="flag">-A</span> <span class="str">TargetApp</span> &gt; <span class="str">headers_full.h</span></div>
+                </div>
+
+                <!-- Cycript -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Cycript</div>
+                        <span class="badge badge-ios">iOS</span>
+                    </div>
+                    <p class="tool-desc">
+                        A runtime manipulation tool that blends JavaScript and Objective-C syntax.
+                        Attaches to running iOS processes to inspect and modify objects, call methods,
+                        and explore the runtime. Useful for quick exploration, though Frida has largely
+                        replaced it for complex instrumentation.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Attach to running process</span>
+$ <span class="kw">cycript</span> <span class="flag">-p</span> <span class="str">TargetApp</span>
+
+<span class="comment"># Inside Cycript REPL:</span>
+
+<span class="comment"># Get the root view controller</span>
+cy# <span class="var">UIApp</span>.keyWindow.rootViewController
+
+<span class="comment"># List all view controllers in hierarchy</span>
+cy# <span class="var">UIApp</span>.keyWindow.rootViewController.childViewControllers
+
+<span class="comment"># Call a method on a specific object</span>
+cy# [<span class="var">obj</span> performSelector:@selector(<span class="str">isAuthenticated</span>)]
+
+<span class="comment"># Modify a property at runtime</span>
+cy# <span class="var">obj</span>.isPremiumUser = <span class="kw">true</span></div>
+                </div>
+
+                <!-- Hopper -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Hopper Disassembler</div>
+                        <span class="badge badge-ios">iOS</span>
+                    </div>
+                    <p class="tool-desc">
+                        A reverse-engineering tool for macOS that disassembles, decompiles, and debugs
+                        Mach-O binaries. Provides pseudocode output, control flow graphs, and string
+                        cross-references. The primary tool for analyzing iOS app binaries when source
+                        code review is needed beyond what class-dump provides.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Workflow:</span>
+<span class="comment"># 1. Extract IPA (rename .ipa to .zip, unzip)</span>
+<span class="comment"># 2. Decrypt binary (use frida-ios-dump or flexdecrypt)</span>
+<span class="comment"># 3. Open decrypted binary in Hopper</span>
+<span class="comment"># 4. Navigate to Labels > search for method names</span>
+<span class="comment"># 5. Use pseudocode view (Shift+Cmd+Y) for readability</span>
+
+<span class="comment"># IPA extraction via command line:</span>
+$ <span class="kw">unzip</span> <span class="str">TargetApp.ipa</span> <span class="flag">-d</span> <span class="str">extracted/</span>
+$ <span class="kw">ls</span> extracted/Payload/TargetApp.app/
+
+<span class="comment"># Decrypt on jailbroken device using frida-ios-dump:</span>
+$ <span class="kw">python3</span> dump.py <span class="str">com.target.app</span></div>
+                </div>
+
+                <!-- otool -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">otool</div>
+                        <span class="badge badge-ios">iOS</span>
+                    </div>
+                    <p class="tool-desc">
+                        A macOS command-line utility for inspecting Mach-O object files. Displays
+                        linked libraries, load commands, header information, and sections. Quick way
+                        to check which frameworks an app uses, whether PIE is enabled, and what
+                        encryption status the binary has.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Check encryption status (0 = decrypted, 1 = encrypted)</span>
+$ <span class="kw">otool</span> <span class="flag">-l</span> <span class="str">TargetApp</span> | <span class="kw">grep</span> <span class="flag">-A4</span> <span class="str">LC_ENCRYPTION_INFO</span>
+
+<span class="comment"># List linked shared libraries</span>
+$ <span class="kw">otool</span> <span class="flag">-L</span> <span class="str">TargetApp</span>
+
+<span class="comment"># Check for PIE (Position Independent Executable)</span>
+$ <span class="kw">otool</span> <span class="flag">-hv</span> <span class="str">TargetApp</span> | <span class="kw">grep</span> <span class="str">PIE</span>
+
+<span class="comment"># Dump string references</span>
+$ <span class="kw">strings</span> <span class="str">TargetApp</span> | <span class="kw">grep</span> <span class="flag">-i</span> <span class="str">"http\|api\|key\|secret"</span></div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 4: Network Interception
+         ================================================================ -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128274;</span>
+            Network Interception
+        </h2>
+        <div class="section-body">
+            <p>
+                Intercepting mobile app network traffic reveals API endpoints, authentication mechanisms,
+                and data handling practices that are invisible from the client side alone. SSL/TLS
+                interception requires installing a trusted CA certificate on the device and, for apps
+                with certificate pinning, using Frida or objection to bypass the pinning logic.
+            </p>
+
+            <div class="tool-grid">
+
+                <!-- mitmproxy -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">mitmproxy</div>
+                        <span class="badge badge-network">Network</span>
+                    </div>
+                    <p class="tool-desc">
+                        An open-source interactive HTTPS proxy with a terminal UI (mitmproxy),
+                        web interface (mitmweb), and scriptable Python API (mitmdump). Lighter than
+                        Burp Suite for mobile-specific testing and excels at scripted traffic
+                        manipulation. Free and fully featured.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Start proxy on port 8080</span>
+$ <span class="kw">mitmproxy</span> <span class="flag">-p</span> <span class="str">8080</span>
+
+<span class="comment"># Web interface (browser-based UI)</span>
+$ <span class="kw">mitmweb</span> <span class="flag">-p</span> <span class="str">8080</span>
+
+<span class="comment"># Dump all traffic to file</span>
+$ <span class="kw">mitmdump</span> <span class="flag">-p</span> <span class="str">8080</span> <span class="flag">-w</span> <span class="str">traffic.flow</span>
+
+<span class="comment"># Filter for specific domain</span>
+$ <span class="kw">mitmproxy</span> <span class="flag">-p</span> <span class="str">8080</span> <span class="flag">--set</span> <span class="str">view_filter="~d api.target.com"</span>
+
+<span class="comment"># Install CA certificate:</span>
+<span class="comment"># 1. Configure device proxy to [your-ip]:8080</span>
+<span class="comment"># 2. Visit mitm.it on device browser</span>
+<span class="comment"># 3. Download and install cert for your platform</span>
+<span class="comment"># 4. Android 7+: must install as system cert (requires root)</span></div>
+                </div>
+
+                <!-- Burp Mobile -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Burp Suite (Mobile)</div>
+                        <span class="badge badge-network">Network</span>
+                    </div>
+                    <p class="tool-desc">
+                        Burp Suite's proxy works with mobile devices by configuring the device's
+                        WiFi proxy settings. The same Repeater, Intruder, and Scanner features
+                        that work for web testing apply to mobile API traffic. Requires installing
+                        Burp's CA certificate on the device.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Mobile proxy setup:</span>
+<span class="comment"># 1. Burp > Proxy > Options > Bind to all interfaces</span>
+<span class="comment"># 2. Device WiFi > Proxy > Manual > [your-ip]:8080</span>
+<span class="comment"># 3. Visit http://burp on device > download CA cert</span>
+<span class="comment"># 4. Install certificate on device</span>
+
+<span class="comment"># Android system cert install (root required):</span>
+$ <span class="kw">openssl</span> x509 <span class="flag">-inform</span> DER <span class="flag">-in</span> <span class="str">burp-cert.der</span> <span class="flag">-out</span> <span class="str">burp-cert.pem</span>
+$ <span class="var">HASH</span>=$(<span class="kw">openssl</span> x509 <span class="flag">-inform</span> PEM <span class="flag">-subject_hash_old</span> <span class="flag">-in</span> <span class="str">burp-cert.pem</span> | <span class="kw">head</span> -1)
+$ <span class="kw">cp</span> <span class="str">burp-cert.pem</span> <span class="var">${HASH}</span>.0
+$ <span class="kw">adb</span> push <span class="var">${HASH}</span>.0 /system/etc/security/cacerts/
+$ <span class="kw">adb</span> shell chmod 644 /system/etc/security/cacerts/<span class="var">${HASH}</span>.0</div>
+                </div>
+
+                <!-- Certificate Pinning -->
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Pinning Bypass Methods</div>
+                        <span class="badge badge-network">Network</span>
+                    </div>
+                    <p class="tool-desc">
+                        Certificate pinning prevents MITM proxying by validating the server's
+                        certificate against a hardcoded value. Multiple bypass techniques exist
+                        depending on the pinning implementation (OkHttp, TrustManager, NSURLSession).
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Method 1: objection (easiest)</span>
+$ <span class="kw">objection</span> <span class="flag">-g</span> <span class="str">com.target.app</span> explore
+&gt; <span class="kw">android</span> sslpinning disable
+
+<span class="comment"># Method 2: Frida script (universal-ssl-pinning-bypass)</span>
+$ <span class="kw">frida</span> <span class="flag">-U</span> <span class="flag">-f</span> <span class="str">com.target.app</span> <span class="flag">-l</span> <span class="str">frida-universal-pinning-bypass.js</span>
+
+<span class="comment"># Method 3: Patch APK (for apps that detect Frida)</span>
+<span class="comment"># 1. Decompile with apktool</span>
+<span class="comment"># 2. Modify network_security_config.xml to trust user certs</span>
+<span class="comment"># 3. Rebuild, sign, install</span>
+
+<span class="comment"># network_security_config.xml patch:</span>
+<span class="comment"># &lt;network-security-config&gt;</span>
+<span class="comment">#   &lt;base-config&gt;</span>
+<span class="comment">#     &lt;trust-anchors&gt;</span>
+<span class="comment">#       &lt;certificates src="user" /&gt;</span>
+<span class="comment">#       &lt;certificates src="system" /&gt;</span>
+<span class="comment">#     &lt;/trust-anchors&gt;</span>
+<span class="comment">#   &lt;/base-config&gt;</span>
+<span class="comment"># &lt;/network-security-config&gt;</span></div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 5: Mobile Testing Platforms
+         ================================================================ -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128187;</span>
+            Mobile Testing Platforms
+        </h2>
+        <div class="section-body">
+            <p>
+                Testing platforms provide the device environments needed for mobile security testing.
+                Options range from cloud-based virtual devices to local emulators and physical hardware.
+                The right choice depends on your budget, testing requirements, and target app complexity.
+            </p>
+
+            <div class="tool-grid">
+
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Corellium</div>
+                        <span class="badge badge-platform">Platform</span>
+                    </div>
+                    <p class="tool-desc">
+                        Cloud-based ARM virtual devices for iOS and Android. Provides jailbroken iOS
+                        devices without needing physical hardware. Supports snapshots, network monitoring,
+                        and Frida integration. The gold standard for professional mobile testing but
+                        requires a paid subscription.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Corellium features for bug bounty:</span>
+<span class="comment"># - Pre-jailbroken iOS devices (any iOS version)</span>
+<span class="comment"># - Rooted Android devices</span>
+<span class="comment"># - Kernel debugging support</span>
+<span class="comment"># - Network traffic capture built-in</span>
+<span class="comment"># - Snapshot and restore for clean testing</span>
+<span class="comment"># - Frida pre-installed</span>
+<span class="comment"># - SSH access to device filesystem</span></div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Genymotion</div>
+                        <span class="badge badge-platform">Platform</span>
+                    </div>
+                    <p class="tool-desc">
+                        Fast x86 Android emulator built on VirtualBox. Supports multiple Android
+                        versions, Google Play Services installation, and proxy configuration. Free
+                        for personal use. Good for testing Android apps when you do not need ARM
+                        binary compatibility or hardware features.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Setup for bug bounty testing:</span>
+<span class="comment"># 1. Create device (Pixel, Samsung, etc.)</span>
+<span class="comment"># 2. Install Open GApps for Google Play access</span>
+<span class="comment"># 3. Root: Settings > Developer > SuperUser</span>
+<span class="comment"># 4. Install Frida server via adb push</span>
+<span class="comment"># 5. Configure proxy in WiFi settings</span>
+
+<span class="comment"># Push and start Frida server:</span>
+$ <span class="kw">adb</span> push <span class="str">frida-server</span> /data/local/tmp/
+$ <span class="kw">adb</span> shell chmod 755 /data/local/tmp/frida-server
+$ <span class="kw">adb</span> shell /data/local/tmp/frida-server &amp;</div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <div class="tool-name">Physical Devices</div>
+                        <span class="badge badge-platform">Platform</span>
+                    </div>
+                    <p class="tool-desc">
+                        Physical rooted/jailbroken devices provide the most realistic testing
+                        environment. Required for testing hardware-specific features (NFC, Bluetooth,
+                        biometrics, GPS), apps with emulator detection, and ARM-only binaries.
+                        Recommended: a dedicated testing phone separate from your personal device.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Recommended physical test devices:</span>
+<span class="comment">#</span>
+<span class="comment"># Android: Google Pixel (any generation)</span>
+<span class="comment">#   - Unlockable bootloader</span>
+<span class="comment">#   - Magisk root support</span>
+<span class="comment">#   - Fast OS updates for version testing</span>
+<span class="comment">#</span>
+<span class="comment"># iOS: iPhone SE or older model</span>
+<span class="comment">#   - Check jailbreak compatibility before buying</span>
+<span class="comment">#   - checkra1n supports A5-A11 chips (hardware exploit)</span>
+<span class="comment">#   - Keep on jailbreak-compatible iOS version</span></div>
+                </div>
+
+            </div><!-- /.tool-grid -->
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#9733;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Budget Setup</div>
+                    <div class="callout-text">
+                        If you are starting mobile bug bounty on a budget, begin with Genymotion
+                        (free) for Android testing and focus on API traffic interception through
+                        Burp Suite or mitmproxy. Most mobile vulnerabilities are actually server-side
+                        issues (IDOR, broken auth, SSRF) discoverable through API traffic analysis
+                        without needing advanced on-device instrumentation.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 6: Quick Command Reference
+         ================================================================ -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Quick Command Reference
+        </h2>
+        <div class="section-body">
+            <p>
+                The table below provides a one-line reference for the most commonly used commands
+                across all mobile testing tools. Print or bookmark this section for use during
+                live testing sessions.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr><th>Task</th><th>Tool</th><th>Command</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Decompile APK</td><td class="tool-col">apktool</td><td><code style="color:#b090c0;">apktool d target.apk -o out</code></td></tr>
+                    <tr><td>Decompile to Java</td><td class="tool-col">jadx</td><td><code style="color:#b090c0;">jadx target.apk -d out</code></td></tr>
+                    <tr><td>Convert DEX to JAR</td><td class="tool-col">dex2jar</td><td><code style="color:#b090c0;">d2j-dex2jar target.apk -o out.jar</code></td></tr>
+                    <tr><td>Install APK</td><td class="tool-col">adb</td><td><code style="color:#b090c0;">adb install target.apk</code></td></tr>
+                    <tr><td>Pull APK from device</td><td class="tool-col">adb</td><td><code style="color:#b090c0;">adb shell pm path com.app && adb pull [path]</code></td></tr>
+                    <tr><td>View app logs</td><td class="tool-col">adb</td><td><code style="color:#b090c0;">adb logcat --pid=$(adb shell pidof com.app)</code></td></tr>
+                    <tr><td>List processes</td><td class="tool-col">frida</td><td><code style="color:#b090c0;">frida-ps -U</code></td></tr>
+                    <tr><td>Attach to app</td><td class="tool-col">frida</td><td><code style="color:#b090c0;">frida -U com.target.app</code></td></tr>
+                    <tr><td>Spawn with script</td><td class="tool-col">frida</td><td><code style="color:#b090c0;">frida -U -f com.app -l script.js</code></td></tr>
+                    <tr><td>Bypass SSL pinning</td><td class="tool-col">objection</td><td><code style="color:#b090c0;">objection -g com.app explore > android sslpinning disable</code></td></tr>
+                    <tr><td>Bypass root detection</td><td class="tool-col">objection</td><td><code style="color:#b090c0;">objection -g com.app explore > android root disable</code></td></tr>
+                    <tr><td>Dump shared prefs</td><td class="tool-col">objection</td><td><code style="color:#b090c0;">android sharedpreferences dump</code></td></tr>
+                    <tr><td>Dump iOS class headers</td><td class="tool-col">class-dump</td><td><code style="color:#b090c0;">class-dump TargetApp > headers.h</code></td></tr>
+                    <tr><td>Check encryption</td><td class="tool-col">otool</td><td><code style="color:#b090c0;">otool -l Binary | grep -A4 LC_ENCRYPTION</code></td></tr>
+                    <tr><td>Start MITM proxy</td><td class="tool-col">mitmproxy</td><td><code style="color:#b090c0;">mitmproxy -p 8080</code></td></tr>
+                    <tr><td>Dump traffic to file</td><td class="tool-col">mitmdump</td><td><code style="color:#b090c0;">mitmdump -p 8080 -w traffic.flow</code></td></tr>
+                    <tr><td>Decrypt iOS IPA</td><td class="tool-col">frida-ios-dump</td><td><code style="color:#b090c0;">python3 dump.py com.target.app</code></td></tr>
+                    <tr><td>Start Frida server</td><td class="tool-col">adb</td><td><code style="color:#b090c0;">adb shell /data/local/tmp/frida-server &</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#128241;</div>
+            <h2 class="completion-title">Toolkit Complete</h2>
+            <p class="completion-text">
+                You have reviewed 18 mobile security testing tools across Android analysis, dynamic
+                instrumentation, iOS analysis, network interception, and testing platforms. Use the
+                quick command reference table during live testing sessions.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Mark Reference Complete
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-tool-mobile', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

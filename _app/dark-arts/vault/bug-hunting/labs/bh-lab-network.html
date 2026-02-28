@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Recon Lab - Bug Hunting Hub | Dark Arts Vault</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        /* ═══════════════════════════════════════════════════════════
+           RESET & ROOT VARIABLES
+        ═══════════════════════════════════════════════════════════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:           #0a0508;
+            --bg-panel:     #0f0a12;
+            --bg-terminal:  #070409;
+            --border:       rgba(147, 51, 234, 0.18);
+            --border-hover: rgba(147, 51, 234, 0.40);
+            --accent:       #9333ea;
+            --accent-light: #a855f7;
+            --accent-glow:  rgba(147, 51, 234, 0.25);
+            --term-green:   #22c55e;
+            --term-cyan:    #22d3ee;
+            --term-yellow:  #facc15;
+            --term-red:     #f87171;
+            --term-orange:  #fb923c;
+            --ink:          #d4b8e8;
+            --ink-muted:    #7c6a8e;
+            --ink-dim:      #4a3a5a;
+            --font-mono:    'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
+            --font-ui:      'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--font-mono);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 10%, rgba(147, 51, 234, 0.07) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 90%, rgba(88, 28, 135, 0.05) 0%, transparent 45%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           HEADER
+        ═══════════════════════════════════════════════════════════ */
+        .lab-header {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 28px;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 18px; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 14px; background: rgba(147, 51, 234, 0.08);
+            border: 1px solid var(--border); border-radius: 6px;
+            color: var(--accent-light); text-decoration: none;
+            font-family: var(--font-mono); font-size: 0.78rem;
+            letter-spacing: 0.05em; transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(147, 51, 234, 0.16); border-color: var(--border-hover); color: #c084fc; }
+        .lab-title-group { display: flex; flex-direction: column; gap: 2px; }
+        .lab-title { font-family: var(--font-ui); font-size: 0.95rem; font-weight: 600; color: #e2cdf8; }
+        .lab-subtitle { font-size: 0.72rem; color: var(--ink-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .score-display { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+        .score-label { font-size: 0.65rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+        .score-value { font-size: 1.15rem; font-weight: 700; color: var(--accent-light); font-family: var(--font-mono); }
+
+        /* ═══════════════════════════════════════════════════════════
+           ETHICAL WARNING
+        ═══════════════════════════════════════════════════════════ */
+        .ethical-warning {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 28px;
+            background: rgba(248, 113, 113, 0.06);
+            border-bottom: 1px solid rgba(248, 113, 113, 0.2);
+            flex-shrink: 0;
+        }
+        .warning-icon { font-size: 0.85rem; color: var(--term-red); flex-shrink: 0; }
+        .warning-text { font-family: var(--font-mono); font-size: 0.72rem; color: rgba(248, 113, 113, 0.85); letter-spacing: 0.03em; }
+        .warning-text strong { color: var(--term-red); }
+
+        /* ═══════════════════════════════════════════════════════════
+           MAIN LAYOUT: SIDEBAR + TERMINAL
+        ═══════════════════════════════════════════════════════════ */
+        .lab-body { display: flex; height: calc(100vh - 84px); overflow: hidden; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 300px; flex-shrink: 0; background: var(--bg-panel);
+            border-right: 1px solid var(--border); display: flex;
+            flex-direction: column; overflow: hidden;
+        }
+        .sidebar-inner {
+            width: 300px; display: flex; flex-direction: column;
+            height: 100%; overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar-inner::-webkit-scrollbar { width: 4px; }
+        .sidebar-inner::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-inner::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .sidebar-header { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .sidebar-heading { font-family: var(--font-ui); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-light); margin-bottom: 6px; }
+        .progress-bar-wrap { height: 3px; background: rgba(147, 51, 234, 0.12); border-radius: 2px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-light)); border-radius: 2px; transition: width 0.5s ease; }
+        .progress-label { margin-top: 6px; font-size: 0.68rem; color: var(--ink-muted); }
+
+        /* Objective items */
+        .objectives-list { padding: 12px; display: flex; flex-direction: column; gap: 7px; }
+        .obj-item {
+            display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+            background: rgba(147, 51, 234, 0.04); border: 1px solid var(--border);
+            border-radius: 7px; transition: all 0.25s ease; cursor: default;
+        }
+        .obj-item.active { border-color: var(--accent); background: rgba(147, 51, 234, 0.08); }
+        .obj-item.completed { background: rgba(34, 197, 94, 0.06); border-color: rgba(34, 197, 94, 0.25); }
+        .obj-item.completed .obj-number { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.4); color: var(--term-green); }
+        .obj-item.skipped { background: rgba(245, 158, 11, 0.06); border-color: rgba(245, 158, 11, 0.25); }
+        .obj-number {
+            width: 22px; height: 22px; border-radius: 50%;
+            background: rgba(147, 51, 234, 0.12); border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; color: var(--ink-muted); flex-shrink: 0;
+            font-family: var(--font-ui); font-weight: 600; transition: all 0.25s ease;
+        }
+        .obj-text { font-size: 0.78rem; color: var(--ink); line-height: 1.45; font-family: var(--font-ui); }
+        .obj-item.completed .obj-text { color: rgba(34, 197, 94, 0.8); text-decoration: line-through; text-decoration-color: rgba(34, 197, 94, 0.4); }
+        .obj-hint-btn {
+            display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+            padding: 2px 8px; background: rgba(250, 204, 21, 0.07);
+            border: 1px solid rgba(250, 204, 21, 0.2); border-radius: 4px;
+            color: var(--term-yellow); font-size: 0.65rem; font-family: var(--font-mono);
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .obj-hint-btn:hover { background: rgba(250, 204, 21, 0.14); border-color: rgba(250, 204, 21, 0.4); }
+        .obj-hint-btn.used { opacity: 0.4; cursor: default; }
+        .obj-item.completed .obj-hint-btn { display: none; }
+
+        /* Network map */
+        .network-map-section { padding: 12px; border-top: 1px solid var(--border); margin-top: auto; flex-shrink: 0; }
+        .map-heading { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-dim); margin-bottom: 8px; }
+        .network-hosts { display: flex; flex-direction: column; gap: 4px; }
+        .host-dot { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 5px; transition: background 0.2s ease; }
+        .host-dot:hover { background: rgba(147, 51, 234, 0.08); }
+        .dot-indicator { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-dim); flex-shrink: 0; transition: all 0.4s ease; }
+        .dot-indicator.discovered { background: var(--term-green); box-shadow: 0 0 6px rgba(34, 197, 94, 0.6); }
+        .host-ip { font-size: 0.7rem; color: var(--ink-muted); font-family: var(--font-mono); }
+        .host-label { font-size: 0.65rem; color: var(--ink-dim); flex: 1; font-family: var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* ── TERMINAL PANEL ── */
+        .terminal-panel { flex: 1; display: flex; flex-direction: column; background: var(--bg-terminal); overflow: hidden; min-width: 0; }
+        .terminal-titlebar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 18px; background: rgba(15, 10, 18, 0.9);
+            border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .terminal-dots { display: flex; gap: 6px; }
+        .tdot { width: 10px; height: 10px; border-radius: 50%; }
+        .tdot-red { background: #ef4444; }
+        .tdot-yellow { background: #f59e0b; }
+        .tdot-green { background: #22c55e; }
+        .terminal-label { font-size: 0.7rem; color: var(--ink-dim); letter-spacing: 0.08em; }
+        .terminal-actions { display: flex; gap: 8px; }
+        .term-action-btn {
+            padding: 4px 10px; background: rgba(147, 51, 234, 0.07);
+            border: 1px solid var(--border); border-radius: 4px;
+            color: var(--ink-muted); font-family: var(--font-mono); font-size: 0.68rem;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .term-action-btn:hover { background: rgba(147, 51, 234, 0.14); color: var(--ink); }
+
+        /* Terminal output */
+        .terminal-output {
+            flex: 1; padding: 16px 20px; overflow-y: auto;
+            font-size: 0.82rem; line-height: 1.7; font-family: var(--font-mono);
+            color: #aaa8b0; min-height: 0; word-break: break-word;
+        }
+        .terminal-output::-webkit-scrollbar { width: 5px; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.2); border-radius: 3px; }
+        .t-cmd { color: var(--term-green); }
+        .t-info { color: #aaa8b0; }
+        .t-host { color: var(--term-cyan); font-weight: 600; }
+        .t-port { color: var(--term-green); }
+        .t-svc { color: var(--term-yellow); }
+        .t-warn { color: var(--term-yellow); }
+        .t-err { color: var(--term-red); }
+        .t-dim { color: var(--ink-dim); }
+        .t-accent { color: var(--accent-light); }
+        .t-blank { display: block; height: 0.5em; }
+
+        /* Terminal input */
+        .terminal-input-row {
+            display: flex; align-items: center; padding: 12px 20px;
+            background: rgba(12, 7, 16, 0.95); border-top: 1px solid var(--border);
+            gap: 10px; flex-shrink: 0;
+        }
+        .terminal-prompt { color: var(--term-green); font-family: var(--font-mono); font-size: 0.82rem; white-space: nowrap; flex-shrink: 0; user-select: none; }
+        .terminal-input {
+            flex: 1; background: transparent; border: none; outline: none;
+            color: #e2cdf8; font-family: var(--font-mono); font-size: 0.82rem;
+            caret-color: var(--term-green); width: 100%;
+        }
+        .terminal-input::placeholder { color: var(--ink-dim); }
+
+        /* ═══════════════════════════════════════════════════════════
+           COMPLETION MODAL
+        ═══════════════════════════════════════════════════════════ */
+        .completion-modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .completion-modal.show { display: flex; }
+        .completion-card {
+            background: linear-gradient(135deg, #130b1a, #0a0508);
+            border: 2px solid rgba(147, 51, 234, 0.6); border-radius: 16px;
+            padding: 44px 48px; text-align: center; max-width: 480px; width: 90%;
+            box-shadow: 0 0 60px rgba(147, 51, 234, 0.25);
+            animation: cardPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes cardPop { from { transform: scale(0.75); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .completion-icon {
+            width: 100px; height: 100px; margin: 0 auto 22px;
+            border: 3px solid var(--accent-light); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.6rem; background: rgba(147, 51, 234, 0.1);
+        }
+        .completion-headline { font-family: var(--font-ui); font-size: 1.4rem; font-weight: 700; color: #e2cdf8; margin-bottom: 8px; }
+        .completion-subtext { font-size: 0.82rem; color: var(--ink-muted); font-family: var(--font-ui); margin-bottom: 20px; line-height: 1.6; }
+        .completion-score-display {
+            display: inline-flex; flex-direction: column; align-items: center;
+            padding: 12px 28px; background: rgba(147, 51, 234, 0.1);
+            border: 1px solid rgba(147, 51, 234, 0.3); border-radius: 10px; margin-bottom: 28px;
+        }
+        .cscore-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); }
+        .cscore-value { font-size: 2.2rem; font-weight: 800; color: var(--accent-light); font-family: var(--font-mono); }
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 13px 32px; background: linear-gradient(135deg, var(--accent), #7c3aed);
+            border: none; border-radius: 8px; color: white;
+            font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(147, 51, 234, 0.45); }
+
+        /* Toast notifications */
+        .obj-toast {
+            position: fixed; bottom: 80px; right: 24px; z-index: 500;
+            padding: 12px 18px; background: rgba(10, 5, 15, 0.96);
+            border: 1px solid rgba(34, 197, 94, 0.5); border-radius: 8px;
+            font-family: var(--font-mono); font-size: 0.78rem; color: var(--term-green);
+            transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 280px;
+        }
+        .obj-toast.show { transform: translateX(0); }
+        .obj-toast .toast-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(34, 197, 94, 0.6); margin-bottom: 4px; }
+
+        @media (max-width: 960px) {
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn"><span>&larr;</span> <span>Bug Hunting Hub</span></a>
+        <div class="lab-title-group">
+            <span class="lab-title">Network Recon Lab</span>
+            <span class="lab-subtitle">Bug Hunting Hub &mdash; Lab 11 &bull; Network Reconnaissance</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="score-display">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">100</span>
+        </div>
+    </div>
+</header>
+
+<!-- ── ETHICAL WARNING ── -->
+<div class="ethical-warning">
+    <span class="warning-icon">[!]</span>
+    <span class="warning-text">
+        <strong>EDUCATIONAL SIMULATION ONLY.</strong>
+        All network hosts and IP addresses are fictitious. Unauthorized scanning of real networks violates the Computer Fraud and Abuse Act (CFAA).
+        Only scan networks you own or have explicit written authorization to test.
+    </span>
+</div>
+
+<!-- ── MAIN BODY ── -->
+<div class="lab-body">
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar">
+        <div class="sidebar-inner">
+            <div class="sidebar-header">
+                <div class="sidebar-heading">Objectives</div>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+                </div>
+                <div class="progress-label" id="progressLabel">0 / 8 completed</div>
+            </div>
+            <div class="objectives-list" id="objectivesList"></div>
+            <div class="network-map-section">
+                <div class="map-heading">Target: CyberTech Industries (10.0.0.0/24)</div>
+                <div class="network-hosts" id="networkMap"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── TERMINAL PANEL ── -->
+    <main class="terminal-panel">
+        <div class="terminal-titlebar">
+            <div class="terminal-dots">
+                <div class="tdot tdot-red"></div>
+                <div class="tdot tdot-yellow"></div>
+                <div class="tdot tdot-green"></div>
+            </div>
+            <span class="terminal-label">pentester@kali: ~ &mdash; bash</span>
+            <div class="terminal-actions">
+                <button class="term-action-btn" onclick="showObjectivesInTerminal()">objectives</button>
+                <button class="term-action-btn" onclick="clearTerminal()">clear</button>
+            </div>
+        </div>
+        <div class="terminal-output" id="terminalOutput"></div>
+        <div class="terminal-input-row">
+            <span class="terminal-prompt">pentester@kali:~$</span>
+            <input type="text" class="terminal-input" id="termInput"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                   placeholder="Type a command (nmap, curl, traceroute, snmpwalk)..." />
+        </div>
+    </main>
+</div>
+
+<!-- Toast -->
+<div class="obj-toast" id="objToast">
+    <div class="toast-title">Objective Completed</div>
+    <div id="objToastText"></div>
+</div>
+
+<!-- ── COMPLETION MODAL ── -->
+<div class="completion-modal" id="completionModal">
+    <div class="completion-card">
+        <div class="completion-icon">&#128269;</div>
+        <div class="completion-headline">Lab Complete</div>
+        <div class="completion-subtext">
+            All 8 objectives completed. You have successfully mapped the CyberTech Industries
+            corporate network infrastructure.
+        </div>
+        <div class="completion-score-display">
+            <span class="cscore-label">Final Score</span>
+            <span class="cscore-value" id="finalScore">100</span>
+        </div>
+        <button class="completion-btn" id="continueBtn">Complete Lab</button>
+    </div>
+</div>
+
+<script src="../../../../components/SecurityTerminal.js"></script>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════
+   Network Recon Lab — CyberTech Industries
+   Simulated corporate network with exposed services
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Network Topology ──────────────────────────────────────── */
+const NETWORK = {
+    '10.0.0.1': {
+        hostname: 'gateway.cybertech.io',
+        role: 'VPN Gateway',
+        os: 'Cisco ASA 9.16',
+        mac: 'A8:9C:ED:00:01:01',
+        macVendor: 'Cisco Systems',
+        ports: [
+            [22, 'open', 'ssh', 'OpenSSH 8.6 (Cisco ASA)'],
+            [443, 'open', 'https', 'Cisco ASA SSL VPN'],
+            [500, 'open', 'isakmp', 'IKEv2'],
+            [8443, 'open', 'https-alt', 'Cisco AnyConnect SSLVPN']
+        ]
+    },
+    '10.0.0.10': {
+        hostname: 'jenkins.cybertech.io',
+        role: 'Jenkins CI/CD',
+        os: 'Linux 5.15 (Ubuntu 22.04)',
+        mac: '00:1A:4B:00:10:AA',
+        macVendor: 'Dell Inc.',
+        ports: [
+            [22, 'open', 'ssh', 'OpenSSH 8.9p1 Ubuntu'],
+            [8080, 'open', 'http', 'Jetty 10.0.12 (Jenkins 2.387.3)'],
+            [50000, 'open', 'http', 'Jenkins agent listener']
+        ]
+    },
+    '10.0.0.20': {
+        hostname: 'grafana.cybertech.io',
+        role: 'Grafana Monitoring',
+        os: 'Linux 5.4 (Debian 11)',
+        mac: '00:50:56:AA:20:BB',
+        macVendor: 'VMware Inc.',
+        ports: [
+            [22, 'open', 'ssh', 'OpenSSH 8.4p1 Debian'],
+            [3000, 'open', 'http', 'Grafana v9.5.2']
+        ]
+    },
+    '10.0.0.30': {
+        hostname: 'elastic.cybertech.io',
+        role: 'Elasticsearch Cluster',
+        os: 'Linux 5.15 (Ubuntu 22.04)',
+        mac: '08:00:27:00:30:CC',
+        macVendor: 'Oracle VirtualBox',
+        ports: [
+            [22, 'open', 'ssh', 'OpenSSH 8.9p1 Ubuntu'],
+            [9200, 'open', 'http', 'Elasticsearch REST API 8.7.0'],
+            [9300, 'open', 'elasticsearch', 'Elasticsearch cluster node 8.7.0']
+        ]
+    },
+    '10.0.0.40': {
+        hostname: 'redis.cybertech.io',
+        role: 'Redis Cache',
+        os: 'Linux 5.4 (Alpine 3.18)',
+        mac: '02:42:0A:00:00:28',
+        macVendor: 'Docker Container',
+        ports: [
+            [6379, 'open', 'redis', 'Redis 7.0.11 (no auth)']
+        ]
+    },
+    '10.0.0.50': {
+        hostname: 'db.cybertech.io',
+        role: 'PostgreSQL Database',
+        os: 'Linux 5.15 (Ubuntu 22.04)',
+        mac: '00:1A:4B:00:50:DD',
+        macVendor: 'Dell Inc.',
+        ports: [
+            [22, 'open', 'ssh', 'OpenSSH 8.9p1 Ubuntu'],
+            [5432, 'open', 'postgresql', 'PostgreSQL 15.3']
+        ]
+    }
+};
+
+/* ── Objectives ────────────────────────────────────────────── */
+const OBJECTIVES = [
+    {
+        id: 0,
+        text: 'Scan the VPN gateway (10.0.0.1) for services on ports 443 and 8443',
+        hint: 'nmap -sV -p 443,8443 10.0.0.1',
+        checker: function(cmd, targets, ports) {
+            return cmd.includes('nmap') && targets.includes('10.0.0.1') && (ports.includes('443') || ports.includes('8443') || cmd.includes('-p-') || cmd.includes('-A'));
+        }
+    },
+    {
+        id: 1,
+        text: 'Identify the Jenkins instance and detect its version (10.0.0.10)',
+        hint: 'nmap -sV -p 8080 10.0.0.10',
+        checker: function(cmd, targets) {
+            return cmd.includes('nmap') && targets.includes('10.0.0.10') && (cmd.includes('-sV') || cmd.includes('-A'));
+        }
+    },
+    {
+        id: 2,
+        text: 'Check Grafana for default credentials by scanning port 3000 (10.0.0.20)',
+        hint: 'curl http://10.0.0.20:3000/api/health or nmap -sV -p 3000 10.0.0.20',
+        checker: function(cmd, targets, ports) {
+            if (cmd.includes('curl') && cmd.includes('10.0.0.20') && cmd.includes('3000')) return true;
+            return cmd.includes('nmap') && targets.includes('10.0.0.20') && (ports.includes('3000') || cmd.includes('-A'));
+        }
+    },
+    {
+        id: 3,
+        text: 'Discover the exposed Elasticsearch cluster (10.0.0.30) on port 9200',
+        hint: 'nmap -sV -p 9200,9300 10.0.0.30 or curl http://10.0.0.30:9200/',
+        checker: function(cmd, targets, ports) {
+            if (cmd.includes('curl') && cmd.includes('10.0.0.30') && cmd.includes('9200')) return true;
+            return cmd.includes('nmap') && targets.includes('10.0.0.30') && (ports.includes('9200') || ports.includes('9300') || cmd.includes('-A') || cmd.includes('-p-'));
+        }
+    },
+    {
+        id: 4,
+        text: 'Find the Redis instance (10.0.0.40) with no authentication on port 6379',
+        hint: 'nmap -sV -p 6379 10.0.0.40',
+        checker: function(cmd, targets, ports) {
+            if (cmd.includes('redis') && cmd.includes('10.0.0.40')) return true;
+            return cmd.includes('nmap') && targets.includes('10.0.0.40') && (ports.includes('6379') || cmd.includes('-A') || cmd.includes('-p-'));
+        }
+    },
+    {
+        id: 5,
+        text: 'Enumerate the PostgreSQL service on 10.0.0.50 (port 5432)',
+        hint: 'nmap -sV -p 5432 10.0.0.50',
+        checker: function(cmd, targets, ports) {
+            return cmd.includes('nmap') && targets.includes('10.0.0.50') && (ports.includes('5432') || cmd.includes('-A') || cmd.includes('-p-'));
+        }
+    },
+    {
+        id: 6,
+        text: 'Check for SNMP community strings on the gateway (10.0.0.1, port 161/udp)',
+        hint: 'snmpwalk -c public -v2c 10.0.0.1 or nmap -sU -p 161 10.0.0.1',
+        checker: function(cmd, targets) {
+            if (cmd.includes('snmpwalk') && cmd.includes('10.0.0.1')) return true;
+            return cmd.includes('nmap') && cmd.includes('-sU') && targets.includes('10.0.0.1');
+        }
+    },
+    {
+        id: 7,
+        text: 'Map the complete network topology using traceroute to 10.0.0.50',
+        hint: 'traceroute 10.0.0.50 or nmap --traceroute 10.0.0.50',
+        checker: function(cmd, targets) {
+            if (cmd.includes('traceroute') && (targets.includes('10.0.0.50') || cmd.includes('10.0.0.50'))) return true;
+            return cmd.includes('nmap') && cmd.includes('--traceroute');
+        }
+    }
+];
+
+/* ── Lab State ─────────────────────────────────────────────── */
+const state = {
+    score: 100,
+    completedObjectives: new Set(),
+    hintUsed: new Set(),
+    commandHistory: [],
+    historyIndex: -1,
+    discoveredHosts: new Set()
+};
+
+/* ── DOM ───────────────────────────────────────────────────── */
+const dom = {
+    output:       document.getElementById('terminalOutput'),
+    input:        document.getElementById('termInput'),
+    scoreDisplay: document.getElementById('scoreDisplay'),
+    progressBar:  document.getElementById('progressBar'),
+    progressLabel:document.getElementById('progressLabel'),
+    objList:      document.getElementById('objectivesList'),
+    networkMap:   document.getElementById('networkMap'),
+    objToast:     document.getElementById('objToast'),
+    objToastText: document.getElementById('objToastText'),
+    finalScore:   document.getElementById('finalScore'),
+    completionModal: document.getElementById('completionModal'),
+    continueBtn:  document.getElementById('continueBtn')
+};
+
+/* ── Init ──────────────────────────────────────────────────── */
+function init() {
+    renderObjectives();
+    renderNetworkMap();
+    printWelcome();
+    dom.input.addEventListener('keydown', handleKeyDown);
+    dom.continueBtn.addEventListener('click', completeLab);
+    dom.input.focus();
+    document.addEventListener('click', function() { dom.input.focus(); });
+}
+
+/* ── Render Objectives ─────────────────────────────────────── */
+function renderObjectives() {
+    dom.objList.innerHTML = '';
+    OBJECTIVES.forEach(function(obj) {
+        var done = state.completedObjectives.has(obj.id);
+        var div = document.createElement('div');
+        div.className = 'obj-item' + (done ? ' completed' : '');
+        div.id = 'obj-' + obj.id;
+        div.innerHTML =
+            '<div class="obj-number">' + (done ? '&#10003;' : (obj.id + 1)) + '</div>' +
+            '<div style="flex:1;min-width:0;">' +
+            '<div class="obj-text">' + obj.text + '</div>' +
+            '<button class="obj-hint-btn' + (state.hintUsed.has(obj.id) ? ' used' : '') + '" onclick="useHint(' + obj.id + ')">' +
+            (state.hintUsed.has(obj.id) ? 'hint used' : '? hint (-5 pts)') + '</button></div>';
+        dom.objList.appendChild(div);
+    });
+}
+
+/* ── Render Network Map ────────────────────────────────────── */
+function renderNetworkMap() {
+    dom.networkMap.innerHTML = '';
+    Object.keys(NETWORK).forEach(function(ip) {
+        var found = state.discoveredHosts.has(ip);
+        var div = document.createElement('div');
+        div.className = 'host-dot' + (found ? ' discovered' : '');
+        div.id = 'map-' + ip.replace(/\./g, '_');
+        div.innerHTML =
+            '<div class="dot-indicator' + (found ? ' discovered' : '') + '"></div>' +
+            '<span class="host-ip">' + ip + '</span>' +
+            '<span class="host-label">' + NETWORK[ip].role + '</span>';
+        dom.networkMap.appendChild(div);
+    });
+}
+
+function markHostDiscovered(ip) {
+    if (state.discoveredHosts.has(ip)) return;
+    state.discoveredHosts.add(ip);
+    var el = document.getElementById('map-' + ip.replace(/\./g, '_'));
+    if (el) {
+        el.classList.add('discovered');
+        var dot = el.querySelector('.dot-indicator');
+        if (dot) dot.classList.add('discovered');
+    }
+}
+
+/* ── Print Helpers ─────────────────────────────────────────── */
+function print(text, cls) {
+    cls = cls || 't-info';
+    var line = document.createElement('div');
+    line.className = 'output-line ' + cls;
+    if (cls === 't-blank') {
+        line.innerHTML = '&nbsp;';
+    } else {
+        line.textContent = text;
+    }
+    dom.output.appendChild(line);
+    dom.output.scrollTop = dom.output.scrollHeight;
+}
+
+function printHtml(html) {
+    var line = document.createElement('div');
+    line.className = 'output-line t-info';
+    line.innerHTML = html;
+    dom.output.appendChild(line);
+    dom.output.scrollTop = dom.output.scrollHeight;
+}
+
+function printBlank() { print('', 't-blank'); }
+function printCmd(cmd) { printBlank(); print('pentester@kali:~$ ' + cmd, 't-cmd'); }
+
+/* ── Welcome Screen ────────────────────────────────────────── */
+function printWelcome() {
+    var lines = [
+        '  _   _ _____ _____            ',
+        ' | \\ | | ____|_   _|           ',
+        ' |  \\| |  _|   | |             ',
+        ' | |\\  | |___  | |  RECON      ',
+        ' |_| \\_|_____| |_|  Lab v1.0   ',
+        '                                ',
+        ' Target: CyberTech Industries   '
+    ];
+    lines.forEach(function(l) { print(l, 't-accent'); });
+    printBlank();
+    print('Kali Linux 2024.1  |  Nmap 7.94  |  IP: 192.168.1.99', 't-dim');
+    print('Target network: 10.0.0.0/24 (CyberTech Industries)', 't-dim');
+    printBlank();
+    print('Type  help       to see supported commands.', 't-accent');
+    print('Type  objectives to review lab objectives.', 't-accent');
+    print('Hints cost 5 points each. Base score: 100 pts.', 't-warn');
+    printBlank();
+}
+
+/* ── Input Handling ────────────────────────────────────────── */
+function handleKeyDown(e) {
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (state.historyIndex > 0) { state.historyIndex--; dom.input.value = state.commandHistory[state.historyIndex]; }
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (state.historyIndex < state.commandHistory.length - 1) { state.historyIndex++; dom.input.value = state.commandHistory[state.historyIndex]; }
+        else { state.historyIndex = state.commandHistory.length; dom.input.value = ''; }
+    } else if (e.key === 'Enter') {
+        submitCommand();
+    }
+}
+
+function submitCommand() {
+    var raw = dom.input.value.trim();
+    dom.input.value = '';
+    if (!raw) return;
+    state.commandHistory.push(raw);
+    state.historyIndex = state.commandHistory.length;
+    printCmd(raw);
+    processCommand(raw);
+}
+
+/* ── Command Processing ────────────────────────────────────── */
+function processCommand(raw) {
+    var parts = raw.split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+
+    if (cmd === 'clear') { dom.output.innerHTML = ''; return; }
+    if (cmd === 'help') { printHelp(); return; }
+    if (cmd === 'objectives') { showObjectivesInTerminal(); return; }
+
+    /* Parse targets and ports for objective checking */
+    var targets = [];
+    var ports = [];
+    var flags = raw;
+
+    parts.forEach(function(p) {
+        if (/^10\.0\.0\.\d+/.test(p) || p.includes('/24')) targets.push(p);
+    });
+    var portMatch = raw.match(/-p\s*([0-9,\-]+)/);
+    if (portMatch) ports = portMatch[1].split(',');
+
+    /* Handle nmap */
+    if (cmd === 'nmap') {
+        processNmap(raw, parts, targets, ports);
+        checkObjectives(raw, targets, ports);
+        return;
+    }
+
+    /* Handle curl */
+    if (cmd === 'curl') {
+        processCurl(raw, parts);
+        checkObjectives(raw, targets, ports);
+        return;
+    }
+
+    /* Handle traceroute */
+    if (cmd === 'traceroute' || cmd === 'tracert') {
+        processTraceroute(raw, parts);
+        targets = [];
+        parts.forEach(function(p) { if (/^10\.0\.0\.\d+/.test(p)) targets.push(p); });
+        checkObjectives(raw, targets, ports);
+        return;
+    }
+
+    /* Handle snmpwalk */
+    if (cmd === 'snmpwalk') {
+        processSnmpwalk(raw, parts);
+        targets = [];
+        parts.forEach(function(p) { if (/^10\.0\.0\.\d+/.test(p)) targets.push(p); });
+        checkObjectives(raw, targets, ports);
+        return;
+    }
+
+    /* Handle nc/ncat */
+    if (cmd === 'nc' || cmd === 'ncat') {
+        processNetcat(raw, parts);
+        return;
+    }
+
+    print('Command not found: ' + cmd + '. Type "help" for available commands.', 't-err');
+}
+
+/* ── Nmap Processing ───────────────────────────────────────── */
+function processNmap(raw, parts, targets, ports) {
+    if (targets.length === 0) {
+        print('Nmap requires a target. Example: nmap -sV 10.0.0.1', 't-err');
+        return;
+    }
+
+    var hasVersion = raw.includes('-sV') || raw.includes('-A');
+    var hasOS = raw.includes('-O') || raw.includes('-A');
+    var isSubnet = targets.some(function(t) { return t.includes('/24'); });
+    var isUDP = raw.includes('-sU');
+
+    print('Starting Nmap 7.94 ( https://nmap.org )', 't-dim');
+    printBlank();
+
+    if (isSubnet) {
+        /* Subnet scan */
+        print('Scanning 10.0.0.0/24 [256 hosts]', 't-dim');
+        printBlank();
+        Object.keys(NETWORK).forEach(function(ip) {
+            var h = NETWORK[ip];
+            markHostDiscovered(ip);
+            print('Nmap scan report for ' + h.hostname + ' (' + ip + ')', 't-host');
+            print('Host is up (0.00' + Math.floor(Math.random() * 9 + 1) + 's latency).', 't-info');
+            if (h.mac) print('MAC Address: ' + h.mac + ' (' + h.macVendor + ')', 't-dim');
+            printBlank();
+        });
+        print('Nmap done: 256 IP addresses (' + Object.keys(NETWORK).length + ' hosts up)', 't-dim');
+        return;
+    }
+
+    targets.forEach(function(target) {
+        var host = NETWORK[target];
+        if (!host) {
+            print('Note: Host ' + target + ' seems down.', 't-err');
+            return;
+        }
+        markHostDiscovered(target);
+        print('Nmap scan report for ' + host.hostname + ' (' + target + ')', 't-host');
+        print('Host is up (0.00' + Math.floor(Math.random() * 9 + 1) + 's latency).', 't-info');
+        printBlank();
+
+        /* Filter ports if -p specified */
+        var servicesToShow = host.ports;
+        if (ports.length > 0) {
+            var portNums = [];
+            ports.forEach(function(p) {
+                if (p.includes('-')) {
+                    var range = p.split('-');
+                    for (var i = parseInt(range[0]); i <= parseInt(range[1]); i++) portNums.push(i);
+                } else {
+                    portNums.push(parseInt(p));
+                }
+            });
+            servicesToShow = host.ports.filter(function(s) { return portNums.includes(s[0]); });
+        }
+
+        if (isUDP && target === '10.0.0.1') {
+            /* Special SNMP output for UDP scan */
+            print('PORT      STATE    SERVICE    VERSION', 't-accent');
+            print('161/udp   open     snmp       SNMPv2c (community: public)', 't-port');
+            print('500/udp   open     isakmp     IKEv2', 't-port');
+            printBlank();
+        } else {
+            print('PORT      STATE    SERVICE' + (hasVersion ? '         VERSION' : ''), 't-accent');
+            servicesToShow.forEach(function(svc) {
+                var line = (svc[0] + '/tcp').padEnd(10) + svc[1].padEnd(9) + svc[2].padEnd(14);
+                if (hasVersion) line += svc[3];
+                print(line, svc[1] === 'open' ? 't-port' : 't-err');
+            });
+            printBlank();
+        }
+
+        if (hasOS) {
+            print('OS Detection:', 't-accent');
+            print('Running: ' + host.os, 't-info');
+            printBlank();
+        }
+
+        if (host.mac) print('MAC Address: ' + host.mac + ' (' + host.macVendor + ')', 't-dim');
+        printBlank();
+    });
+
+    print('Nmap done: ' + targets.length + ' IP address(es) scanned in ' + (Math.random() * 5 + 2).toFixed(2) + ' seconds', 't-dim');
+}
+
+/* ── Curl Processing ───────────────────────────────────────── */
+function processCurl(raw, parts) {
+    var url = parts.find(function(p) { return p.includes('http'); }) || parts[1] || '';
+
+    if (url.includes('10.0.0.20') && url.includes('3000')) {
+        markHostDiscovered('10.0.0.20');
+        print('HTTP/1.1 200 OK', 't-info');
+        print('Content-Type: application/json', 't-dim');
+        printBlank();
+        print('{"commit":"abc123","database":"ok","version":"9.5.2"}', 't-info');
+        print('', 't-blank');
+        print('[!] Default credentials active: admin / admin', 't-warn');
+        return;
+    }
+
+    if (url.includes('10.0.0.30') && url.includes('9200')) {
+        markHostDiscovered('10.0.0.30');
+        print('HTTP/1.1 200 OK', 't-info');
+        print('Content-Type: application/json', 't-dim');
+        printBlank();
+        print('{', 't-info');
+        print('  "name" : "es-node-01",', 't-info');
+        print('  "cluster_name" : "cybertech-logs",', 't-info');
+        print('  "cluster_uuid" : "a1b2c3d4e5f6",', 't-info');
+        print('  "version" : {', 't-info');
+        print('    "number" : "8.7.0",', 't-info');
+        print('    "build_flavor" : "default"', 't-info');
+        print('  },', 't-info');
+        print('  "tagline" : "You Know, for Search"', 't-info');
+        print('}', 't-info');
+        printBlank();
+        print('[!] Elasticsearch cluster exposed without authentication', 't-warn');
+        return;
+    }
+
+    if (url.includes('10.0.0.10') && url.includes('8080')) {
+        markHostDiscovered('10.0.0.10');
+        print('HTTP/1.1 200 OK', 't-info');
+        print('X-Jenkins: 2.387.3', 't-dim');
+        print('X-Jenkins-Session: abc123', 't-dim');
+        printBlank();
+        print('<html><head><title>Dashboard [Jenkins]</title></head>', 't-info');
+        print('[!] Jenkins dashboard accessible without authentication', 't-warn');
+        return;
+    }
+
+    print('curl: Could not resolve or connect: ' + url, 't-err');
+}
+
+/* ── Traceroute Processing ─────────────────────────────────── */
+function processTraceroute(raw, parts) {
+    var target = parts.find(function(p) { return /^10\.0\.0\.\d+/.test(p); }) || '10.0.0.50';
+    var host = NETWORK[target];
+    if (host) markHostDiscovered(target);
+
+    print('traceroute to ' + target + ', 30 hops max, 60 byte packets', 't-accent');
+    print(' 1  192.168.1.1 (gateway.local)  0.543 ms  0.412 ms  0.381 ms', 't-info');
+    print(' 2  10.0.0.1 (gateway.cybertech.io)  1.221 ms  1.108 ms  1.053 ms', 't-info');
+
+    if (target !== '10.0.0.1') {
+        var hopNum = 3;
+        /* Show intermediate hops for hosts on the subnet */
+        if (parseInt(target.split('.')[3]) > 1) {
+            print(' ' + hopNum + '  ' + target + ' (' + (host ? host.hostname : target) + ')  1.842 ms  1.701 ms  1.654 ms', 't-info');
+        }
+    }
+    printBlank();
+    markHostDiscovered('10.0.0.1');
+}
+
+/* ── SNMP Processing ───────────────────────────────────────── */
+function processSnmpwalk(raw, parts) {
+    var target = parts.find(function(p) { return /^10\.0\.0\.\d+/.test(p); });
+    if (!target) { print('Usage: snmpwalk -c <community> -v2c <host>', 't-err'); return; }
+
+    if (target === '10.0.0.1') {
+        markHostDiscovered('10.0.0.1');
+        print('SNMPv2-MIB::sysDescr.0 = STRING: Cisco Adaptive Security Appliance Version 9.16(3)', 't-info');
+        print('SNMPv2-MIB::sysObjectID.0 = OID: enterprises.9.1.2503', 't-info');
+        print('SNMPv2-MIB::sysUpTime.0 = Timeticks: (405792000) 47 days, 3:12:00.00', 't-info');
+        print('SNMPv2-MIB::sysContact.0 = STRING: netops@cybertech.io', 't-info');
+        print('SNMPv2-MIB::sysName.0 = STRING: gateway.cybertech.io', 't-info');
+        print('SNMPv2-MIB::sysLocation.0 = STRING: DC-East Rack 14', 't-info');
+        print('IF-MIB::ifNumber.0 = INTEGER: 4', 't-info');
+        print('IF-MIB::ifDescr.1 = STRING: GigabitEthernet0/0 (WAN)', 't-info');
+        print('IF-MIB::ifDescr.2 = STRING: GigabitEthernet0/1 (LAN)', 't-info');
+        print('IF-MIB::ifDescr.3 = STRING: Management0/0', 't-info');
+        print('IF-MIB::ifDescr.4 = STRING: VPN-Tunnel-1', 't-info');
+        printBlank();
+        print('[!] SNMP community string "public" accepted -- information disclosure', 't-warn');
+    } else {
+        print('Timeout: No Response from ' + target + '.', 't-err');
+    }
+}
+
+/* ── Netcat Processing ─────────────────────────────────────── */
+function processNetcat(raw, parts) {
+    var target = parts.find(function(p) { return /^10\.0\.0\.\d+/.test(p); });
+    var port = parts.find(function(p, i) { return /^\d+$/.test(p) && i > 0 && parts[i-1] !== '-c'; });
+    if (!target || !port) { print('Usage: nc <host> <port>', 't-err'); return; }
+
+    var host = NETWORK[target];
+    if (!host) { print('nc: connect to ' + target + ' port ' + port + ' (tcp) failed: No route to host', 't-err'); return; }
+
+    var svc = host.ports.find(function(s) { return s[0] === parseInt(port); });
+    if (!svc) { print('nc: connect to ' + target + ' port ' + port + ' (tcp) failed: Connection refused', 't-err'); return; }
+
+    markHostDiscovered(target);
+    print('Connection to ' + target + ' ' + port + ' port [tcp/' + svc[2] + '] succeeded!', 't-port');
+    if (svc[3]) print(svc[3], 't-info');
+}
+
+/* ── Objective Checking ────────────────────────────────────── */
+function checkObjectives(raw, targets, ports) {
+    OBJECTIVES.forEach(function(obj) {
+        if (state.completedObjectives.has(obj.id)) return;
+        if (obj.checker(raw, targets, ports)) {
+            completeObjective(obj.id);
+        }
+    });
+}
+
+function completeObjective(id) {
+    if (state.completedObjectives.has(id)) return;
+    state.completedObjectives.add(id);
+    renderObjectives();
+    updateProgress();
+    showToast(OBJECTIVES[id].text);
+
+    if (state.completedObjectives.size === OBJECTIVES.length) {
+        setTimeout(function() { showCompletion(); }, 1500);
+    }
+}
+
+/* ── Hints ─────────────────────────────────────────────────── */
+function useHint(id) {
+    if (state.hintUsed.has(id) || state.completedObjectives.has(id)) return;
+    state.hintUsed.add(id);
+    state.score = Math.max(0, state.score - 5);
+    dom.scoreDisplay.textContent = state.score;
+    renderObjectives();
+    printBlank();
+    print('[HINT -5 pts] ' + OBJECTIVES[id].hint, 't-warn');
+}
+
+/* ── Progress Updates ──────────────────────────────────────── */
+function updateProgress() {
+    var pct = Math.round((state.completedObjectives.size / OBJECTIVES.length) * 100);
+    dom.progressBar.style.width = pct + '%';
+    dom.progressLabel.textContent = state.completedObjectives.size + ' / ' + OBJECTIVES.length + ' completed';
+    dom.scoreDisplay.textContent = state.score;
+}
+
+/* ── Toast ─────────────────────────────────────────────────── */
+function showToast(text) {
+    dom.objToastText.textContent = text;
+    dom.objToast.classList.add('show');
+    setTimeout(function() { dom.objToast.classList.remove('show'); }, 3500);
+}
+
+/* ── Completion ────────────────────────────────────────────── */
+function showCompletion() {
+    dom.finalScore.textContent = state.score;
+    dom.completionModal.classList.add('show');
+}
+
+function completeLab() {
+    try {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-lab-network', { returnUrl: '../index.html' });
+        }
+    } catch (e) { /* non-fatal */ }
+
+    try {
+        if (typeof AchievementManager !== 'undefined') {
+            if (state.score >= 90) AchievementManager.unlock('network_recon_ace');
+            if (state.completedObjectives.size === OBJECTIVES.length) AchievementManager.unlock('full_mapper');
+        }
+    } catch (e) { /* non-fatal */ }
+}
+
+/* ── Help ──────────────────────────────────────────────────── */
+function printHelp() {
+    printBlank();
+    print('=== Network Recon Lab - Available Commands ===', 't-accent');
+    printBlank();
+    print('SCANNING:', 't-accent');
+    print('  nmap [options] <target>     Network scanner', 't-info');
+    print('    -sS    SYN stealth scan', 't-dim');
+    print('    -sV    Version detection', 't-dim');
+    print('    -sU    UDP scan', 't-dim');
+    print('    -O     OS detection', 't-dim');
+    print('    -A     Aggressive scan (OS + version + scripts)', 't-dim');
+    print('    -p <ports>  Specify ports (e.g., -p 80,443)', 't-dim');
+    printBlank();
+    print('NETWORK:', 't-accent');
+    print('  traceroute <target>         Trace network path', 't-info');
+    print('  snmpwalk -c <community> -v2c <host>   SNMP walk', 't-info');
+    print('  nc <host> <port>            Netcat banner grab', 't-info');
+    print('  curl <url>                  HTTP request', 't-info');
+    printBlank();
+    print('LAB:', 't-accent');
+    print('  objectives                  Show current objectives', 't-info');
+    print('  clear                       Clear terminal', 't-info');
+    print('  help                        This help message', 't-info');
+    printBlank();
+    print('TARGET NETWORK: 10.0.0.0/24 (CyberTech Industries)', 't-warn');
+    printBlank();
+}
+
+function showObjectivesInTerminal() {
+    printBlank();
+    print('=== Lab Objectives ===', 't-accent');
+    OBJECTIVES.forEach(function(obj) {
+        var status = state.completedObjectives.has(obj.id) ? '[DONE]' : '[    ]';
+        var cls = state.completedObjectives.has(obj.id) ? 't-port' : 't-info';
+        print('  ' + status + ' ' + (obj.id + 1) + '. ' + obj.text, cls);
+    });
+    printBlank();
+}
+
+function clearTerminal() { dom.output.innerHTML = ''; }
+
+/* ── Boot ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

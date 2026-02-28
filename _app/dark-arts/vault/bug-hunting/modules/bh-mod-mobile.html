@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 11: Mobile Application Security - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; } .code-block .str { color: #86efac; } .code-block .comment { color: #6a4a7a; font-style: italic; } .code-block .flag { color: #fbbf24; } .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li::before { content: none; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-item::before { content: none; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        .inline-code { font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(40, 20, 60, 0.3); padding: 1px 6px; border-radius: 3px; font-size: 0.88rem; }
+        blockquote { border-left: 3px solid rgba(147, 51, 234, 0.4); padding: 16px 24px; margin: 24px 0; background: rgba(15, 8, 20, 0.5); border-radius: 0 8px 8px 0; font-style: italic; color: #9a7aaa; font-size: 0.95rem; line-height: 1.7; }
+        blockquote cite { display: block; margin-top: 10px; font-style: normal; font-size: 0.78rem; color: #6a4a7a; letter-spacing: 0.1em; }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 11</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128241;</div>
+        <h1 class="intro-title">Mobile Application Security</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 11 &bull; Mobile Attack Surface</div>
+        <p class="intro-subtitle">
+            Mobile applications represent one of the most lucrative and underexplored attack surfaces
+            in modern bug bounty programs. While thousands of researchers compete over web application
+            targets, mobile apps &mdash; with their local storage, inter-process communication,
+            compiled binaries, and complex client-server architectures &mdash; remain comparatively
+            uncrowded. The skills required to decompile an APK, hook runtime functions with Frida,
+            or bypass certificate pinning create a natural barrier to entry that rewards those willing
+            to invest in learning the mobile security toolchain. This module covers both Android and
+            iOS assessment methodologies, from static analysis through dynamic instrumentation to
+            network interception.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">APK Analysis</div>
+            <div class="stat-pill">Frida &amp; Objection</div>
+            <div class="stat-pill">iOS Testing</div>
+            <div class="stat-pill">SSL Pinning Bypass</div>
+            <div class="stat-pill">Local Data Leakage</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Mobile Bug Bounty Landscape -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127758;</span>
+            Mobile Bug Bounty Landscape
+        </h2>
+        <div class="section-body">
+            <p>
+                The mobile application security space in bug bounty is defined by a paradox: virtually
+                every major company ships a mobile app, most of those apps are in scope for their bounty
+                programs, and yet the vast majority of bug bounty submissions are web-based findings.
+                This gap exists because mobile testing requires a different skill set, different tools,
+                and often physical hardware that web researchers do not own. For the researcher willing
+                to bridge that gap, the reward-to-competition ratio is exceptional.
+            </p>
+
+            <h3>Android vs iOS: Two Ecosystems, Two Approaches</h3>
+
+            <p>
+                The fundamental difference between Android and iOS bug bounty testing comes down to
+                openness. Android is built on open-source foundations, APK files can be freely
+                decompiled to near-source-quality Java or Kotlin, and the emulator ecosystem supports
+                rooted environments out of the box. iOS, by contrast, requires a jailbroken device
+                for deep testing, uses compiled Mach-O binaries that yield less readable decompiled
+                output, and enforces stricter sandboxing at every level.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Android Advantages</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> APK files decompile to readable Java/Kotlin</li>
+                        <li><span class="li-marker">&#8250;</span> Free emulators with root access</li>
+                        <li><span class="li-marker">&#8250;</span> ADB provides deep debugging access</li>
+                        <li><span class="li-marker">&#8250;</span> Intent system creates IPC attack surface</li>
+                        <li><span class="li-marker">&#8250;</span> Custom ROMs allow full system control</li>
+                        <li><span class="li-marker">&#8250;</span> Sideloading apps requires no special setup</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> iOS Advantages</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> Smaller researcher pool means less competition</li>
+                        <li><span class="li-marker">&#8250;</span> Keychain implementation is often misused</li>
+                        <li><span class="li-marker">&#8250;</span> URL schemes provide unique attack vectors</li>
+                        <li><span class="li-marker">&#8250;</span> Higher bounty payouts for iOS-specific bugs</li>
+                        <li><span class="li-marker">&#8250;</span> Fewer automated scanners targeting iOS</li>
+                        <li><span class="li-marker">&#8250;</span> Enterprise provisioning creates side channels</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Mobile-Specific Scope Considerations</h3>
+
+            <p>
+                When a bug bounty program includes mobile apps in scope, the scope definition carries
+                nuances that do not apply to web targets. Always confirm which version is in scope
+                &mdash; typically the latest production release on the App Store or Play Store.
+                Beta or TestFlight builds are usually out of scope unless explicitly included.
+                The backend APIs that the mobile app communicates with are almost always in scope,
+                and this is where the majority of mobile bug bounty findings actually originate.
+            </p>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Scope Trap</div>
+                    <div class="callout-text">
+                        Many researchers assume that finding a vulnerability in a third-party SDK
+                        embedded in the target's app counts as a valid submission. In most programs,
+                        it does not. If the vulnerability is in a library like Firebase, Crashlytics,
+                        or a third-party analytics SDK, the program will typically redirect you to
+                        report it to that vendor instead. Always check the program's policy on
+                        third-party components before investing time.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Notable Mobile Bounty Programs</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Program</th>
+                        <th>Platform</th>
+                        <th>Typical Bounty Range</th>
+                        <th>Focus Areas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Google VRP</td>
+                        <td>Android</td>
+                        <td>$500 &ndash; $30,000+</td>
+                        <td>Android OS, Google apps, Chrome</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Apple Security Bounty</td>
+                        <td>iOS</td>
+                        <td>$5,000 &ndash; $1,000,000</td>
+                        <td>Kernel, Safari, iCloud, lock screen bypass</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Samsung SVMP</td>
+                        <td>Android</td>
+                        <td>$200 &ndash; $200,000</td>
+                        <td>Samsung Knox, Galaxy devices, Bixby</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Meta (Facebook)</td>
+                        <td>Both</td>
+                        <td>$500 &ndash; $50,000+</td>
+                        <td>Instagram, WhatsApp, Messenger apps</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Uber</td>
+                        <td>Both</td>
+                        <td>$500 &ndash; $15,000</td>
+                        <td>Rider/Driver apps, payment flows</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 2: Android APK Analysis -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128230;</span>
+            Android APK Analysis
+        </h2>
+        <div class="section-body">
+            <p>
+                Static analysis of Android applications begins with obtaining and decompiling the APK
+                file. An APK is essentially a ZIP archive containing compiled Dalvik bytecode (DEX files),
+                the application manifest, resources, assets, and native libraries. The goal of static
+                analysis is to reconstruct enough of the application's logic to identify hardcoded
+                secrets, insecure configurations, exported components, and vulnerable code patterns
+                &mdash; all without ever running the application.
+            </p>
+
+            <h3>Obtaining the APK</h3>
+
+            <p>
+                There are several methods for obtaining an APK file. The most straightforward approach
+                is to pull it directly from a device or emulator where the app is installed. You can
+                also use online APK mirrors, though you should verify the hash against the Play Store
+                version to ensure it has not been tampered with.
+            </p>
+
+            <div class="code-block"><span class="comment"># Pull APK from a connected device via ADB</span>
+<span class="cmd">adb</span> shell pm list packages | <span class="cmd">grep</span> <span class="str">"targetapp"</span>
+<span class="cmd">adb</span> shell pm path <span class="str">com.target.app</span>
+<span class="cmd">adb</span> pull <span class="str">/data/app/com.target.app-1/base.apk</span> <span class="flag">./target.apk</span>
+
+<span class="comment"># For split APKs (common with App Bundles)</span>
+<span class="cmd">adb</span> shell pm path <span class="str">com.target.app</span>
+<span class="comment"># May return multiple paths - pull all of them</span>
+<span class="cmd">adb</span> pull <span class="str">/data/app/com.target.app-1/</span> <span class="flag">./target_splits/</span></div>
+
+            <h3>Decompilation Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">apktool</div>
+                    <div class="tool-role">Resource Decoder</div>
+                    <div class="tool-desc">
+                        Decodes APK resources to near-original form. Extracts the AndroidManifest.xml
+                        in readable format, reconstructs resource files, and produces smali bytecode.
+                        Essential for manifest analysis and understanding app structure.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">jadx</div>
+                    <div class="tool-role">Java Decompiler</div>
+                    <div class="tool-desc">
+                        Converts DEX bytecode directly to readable Java source code. Includes a GUI
+                        (<span class="inline-code">jadx-gui</span>) for navigating decompiled code
+                        with search, cross-references, and syntax highlighting. The preferred tool
+                        for most Android reverse engineering tasks.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">dex2jar</div>
+                    <div class="tool-role">Format Converter</div>
+                    <div class="tool-desc">
+                        Converts DEX files to standard JAR format, which can then be opened in any
+                        Java decompiler like JD-GUI or Procyon. Useful as a fallback when jadx
+                        cannot decompile certain obfuscated classes.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">MobSF</div>
+                    <div class="tool-role">Automated Scanner</div>
+                    <div class="tool-desc">
+                        Mobile Security Framework provides automated static and dynamic analysis.
+                        Generates comprehensive reports covering manifest analysis, code analysis,
+                        hardcoded secrets, and binary protections. Good for initial triage before
+                        manual review.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># Decompile APK with apktool (resources + smali)</span>
+<span class="cmd">apktool</span> d <span class="flag">target.apk</span> <span class="flag">-o</span> <span class="str">target_apktool/</span>
+
+<span class="comment"># Decompile APK with jadx (Java source code)</span>
+<span class="cmd">jadx</span> <span class="flag">-d</span> <span class="str">target_jadx/</span> <span class="flag">target.apk</span>
+
+<span class="comment"># Open in jadx GUI for interactive analysis</span>
+<span class="cmd">jadx-gui</span> <span class="flag">target.apk</span>
+
+<span class="comment"># Convert DEX to JAR as fallback</span>
+<span class="cmd">d2j-dex2jar</span> <span class="flag">target.apk</span> <span class="flag">-o</span> <span class="str">target.jar</span></div>
+
+            <h3>AndroidManifest.xml Analysis</h3>
+
+            <p>
+                The manifest is the single most important file for understanding an Android application's
+                attack surface. It declares every activity, service, broadcast receiver, and content
+                provider in the application, along with their export status, intent filters, and
+                permission requirements. A thorough manifest review often reveals more actionable
+                findings than hours of code review.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">Key Manifest Attributes</div>
+                    <div class="callout-text">
+                        Look for <span class="inline-code">android:exported="true"</span> on activities,
+                        services, and content providers. Any component with an intent filter is implicitly
+                        exported unless <span class="inline-code">exported="false"</span> is explicitly set.
+                        On Android 12+ (API 31), the system requires explicit export declarations, but
+                        legacy apps targeting older APIs may still have implicitly exported components.
+                        Also check for <span class="inline-code">android:debuggable="true"</span>,
+                        <span class="inline-code">android:allowBackup="true"</span>, and
+                        <span class="inline-code">android:usesCleartextTraffic="true"</span>.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Exported Components Attack Surface</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Component Type</th>
+                        <th>Risk When Exported</th>
+                        <th>What to Test</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Activity</td>
+                        <td>Bypassing authentication, accessing internal screens</td>
+                        <td>Launch directly via ADB, test with unexpected intents</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Service</td>
+                        <td>Triggering privileged operations, data manipulation</td>
+                        <td>Bind to service, send crafted messages</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Content Provider</td>
+                        <td>SQL injection, path traversal, data leakage</td>
+                        <td>Query content URIs, test for injection in selection args</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Broadcast Receiver</td>
+                        <td>Triggering app logic, spoofing system events</td>
+                        <td>Send crafted broadcasts, test for input validation</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-block"><span class="comment"># Test exported activities via ADB</span>
+<span class="cmd">adb</span> shell am start <span class="flag">-n</span> <span class="str">com.target.app/.admin.DashboardActivity</span>
+<span class="cmd">adb</span> shell am start <span class="flag">-n</span> <span class="str">com.target.app/.debug.DebugMenuActivity</span>
+
+<span class="comment"># Query exported content providers</span>
+<span class="cmd">adb</span> shell content query <span class="flag">--uri</span> <span class="str">content://com.target.app.provider/users</span>
+
+<span class="comment"># Send broadcast to exported receiver</span>
+<span class="cmd">adb</span> shell am broadcast <span class="flag">-a</span> <span class="str">com.target.app.ACTION_RESET</span>
+
+<span class="comment"># Test deep links / intent filters</span>
+<span class="cmd">adb</span> shell am start <span class="flag">-a</span> android.intent.action.VIEW <span class="flag">-d</span> <span class="str">"targetapp://account/settings"</span></div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Hardcoded Secrets: What to Search For</div>
+                            <div class="detail-header-subtitle">Common patterns that leak sensitive data in decompiled code</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>After decompiling with jadx, search the entire source tree for these patterns:</p>
+                    <ul>
+                        <li><span class="inline-code">API_KEY</span>, <span class="inline-code">api_key</span>, <span class="inline-code">apiKey</span> &mdash; hardcoded API keys for third-party services</li>
+                        <li><span class="inline-code">SECRET</span>, <span class="inline-code">secret_key</span>, <span class="inline-code">client_secret</span> &mdash; OAuth or signing secrets</li>
+                        <li><span class="inline-code">password</span>, <span class="inline-code">passwd</span>, <span class="inline-code">pwd</span> &mdash; hardcoded credentials</li>
+                        <li><span class="inline-code">firebase</span>, <span class="inline-code">firebaseio.com</span> &mdash; Firebase database URLs (check if database rules allow public read/write)</li>
+                        <li><span class="inline-code">aws_access_key</span>, <span class="inline-code">AKIA</span> &mdash; AWS credentials embedded in the binary</li>
+                        <li><span class="inline-code">-----BEGIN</span> &mdash; embedded private keys or certificates</li>
+                        <li><span class="inline-code">jdbc:</span>, <span class="inline-code">mongodb://</span>, <span class="inline-code">redis://</span> &mdash; database connection strings</li>
+                    </ul>
+                    <p>
+                        Also check <span class="inline-code">res/values/strings.xml</span> and
+                        <span class="inline-code">assets/</span> directories. Developers frequently store
+                        configuration files, JSON credentials, and even entire API schemas in the assets
+                        folder, assuming they are hidden from users.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Dynamic Android Testing -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9881;</span>
+            Dynamic Android Testing
+        </h2>
+        <div class="section-body">
+            <p>
+                Dynamic analysis goes beyond reading decompiled code. It involves running the application,
+                observing its behavior in real time, hooking into its runtime to modify function returns,
+                bypassing security controls like root detection and SSL pinning, and intercepting every
+                network request the app makes. The two tools that have transformed mobile dynamic testing
+                are Frida and its higher-level wrapper, Objection.
+            </p>
+
+            <h3>Frida: The Runtime Instrumentation Toolkit</h3>
+
+            <p>
+                Frida is a dynamic instrumentation framework that lets you inject JavaScript into
+                running processes on Android, iOS, Windows, macOS, and Linux. For mobile security
+                testing, Frida enables you to hook any function in the application at runtime,
+                read and modify its arguments and return values, trace method calls, and bypass
+                security mechanisms &mdash; all without modifying the APK itself.
+            </p>
+
+            <div class="code-block"><span class="comment"># Install Frida tools on your machine</span>
+<span class="cmd">pip</span> install <span class="str">frida-tools</span>
+
+<span class="comment"># Push frida-server to the Android device (match architecture)</span>
+<span class="cmd">adb</span> push <span class="str">frida-server-16.x.x-android-arm64</span> <span class="flag">/data/local/tmp/frida-server</span>
+<span class="cmd">adb</span> shell chmod <span class="flag">755</span> <span class="str">/data/local/tmp/frida-server</span>
+<span class="cmd">adb</span> shell <span class="str">/data/local/tmp/frida-server &amp;</span>
+
+<span class="comment"># List running processes</span>
+<span class="cmd">frida-ps</span> <span class="flag">-U</span>
+
+<span class="comment"># Attach to target application</span>
+<span class="cmd">frida</span> <span class="flag">-U</span> <span class="str">com.target.app</span></div>
+
+            <h3>Writing Frida Scripts</h3>
+
+            <p>
+                Frida scripts are JavaScript files that describe which functions to hook and what to
+                do when those hooks trigger. The API provides access to Java classes and methods on
+                Android, and Objective-C classes and methods on iOS. Here is a practical example
+                that hooks a login validation method:
+            </p>
+
+            <div class="code-block"><span class="comment">// Hook a login validation method to always return true</span>
+Java.perform(<span class="kw">function</span>() {
+    <span class="kw">var</span> LoginManager = Java.use(<span class="str">"com.target.app.auth.LoginManager"</span>);
+
+    LoginManager.validateToken.implementation = <span class="kw">function</span>(token) {
+        console.log(<span class="str">"[*] validateToken called with: "</span> + token);
+        <span class="comment">// Call the original method to see normal behavior</span>
+        <span class="kw">var</span> result = <span class="kw">this</span>.validateToken(token);
+        console.log(<span class="str">"[*] Original result: "</span> + result);
+        <span class="comment">// Override the return value</span>
+        <span class="kw">return</span> <span class="str">true</span>;
+    };
+});
+
+<span class="comment">// Enumerate loaded classes matching a pattern</span>
+Java.perform(<span class="kw">function</span>() {
+    Java.enumerateLoadedClasses({
+        onMatch: <span class="kw">function</span>(className) {
+            <span class="kw">if</span> (className.includes(<span class="str">"crypto"</span>) || className.includes(<span class="str">"Cipher"</span>)) {
+                console.log(<span class="str">"[+] Found: "</span> + className);
+            }
+        },
+        onComplete: <span class="kw">function</span>() { console.log(<span class="str">"[*] Enumeration complete"</span>); }
+    });
+});</div>
+
+            <h3>Objection: Frida Made Accessible</h3>
+
+            <p>
+                Objection is a runtime mobile exploration toolkit built on top of Frida. It provides
+                pre-built scripts for common tasks &mdash; SSL pinning bypass, root detection bypass,
+                file system browsing, SQLite database dumping, and keychain access &mdash; through
+                a simple command-line interface. For many bug bounty tasks, Objection eliminates the
+                need to write custom Frida scripts entirely.
+            </p>
+
+            <div class="code-block"><span class="comment"># Install objection</span>
+<span class="cmd">pip</span> install <span class="str">objection</span>
+
+<span class="comment"># Explore the target application</span>
+<span class="cmd">objection</span> <span class="flag">-g</span> <span class="str">com.target.app</span> explore
+
+<span class="comment"># Inside the objection REPL:</span>
+<span class="comment"># Disable SSL pinning</span>
+android sslpinning disable
+
+<span class="comment"># Disable root detection</span>
+android root disable
+
+<span class="comment"># List activities</span>
+android hooking list activities
+
+<span class="comment"># List services</span>
+android hooking list services
+
+<span class="comment"># Dump SQLite databases</span>
+sqlite connect <span class="str">/data/data/com.target.app/databases/app.db</span>
+
+<span class="comment"># Browse the filesystem</span>
+env
+file ls <span class="str">/data/data/com.target.app/</span></div>
+
+            <h3>Bypassing Root Detection</h3>
+
+            <p>
+                Most commercial mobile applications implement root detection to prevent running on
+                rooted devices. Root detection typically checks for the presence of
+                <span class="inline-code">su</span> binary, known root management apps (Magisk,
+                SuperSU), build tags indicating test builds, or writable system partitions. These
+                checks are implemented in application code and can be bypassed by hooking the
+                detection functions with Frida.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128274;</div>
+                    <div class="concept-card-title">File-Based Detection</div>
+                    <div class="concept-card-body">
+                        Checks for <span class="inline-code">/system/xbin/su</span>,
+                        <span class="inline-code">/system/app/Superuser.apk</span>, Magisk
+                        directories. Bypass by hooking <span class="inline-code">File.exists()</span>
+                        to return false for these paths.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128736;</div>
+                    <div class="concept-card-title">Property-Based Detection</div>
+                    <div class="concept-card-body">
+                        Reads system properties like <span class="inline-code">ro.build.tags</span>
+                        looking for "test-keys" or checks
+                        <span class="inline-code">ro.debuggable</span>. Bypass by hooking
+                        <span class="inline-code">SystemProperties.get()</span>.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128187;</div>
+                    <div class="concept-card-title">Process-Based Detection</div>
+                    <div class="concept-card-body">
+                        Scans running processes for <span class="inline-code">daemonsu</span>,
+                        <span class="inline-code">magiskd</span>, or Frida server itself. Advanced
+                        apps use SafetyNet/Play Integrity API for server-side attestation, which
+                        is harder to bypass.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128679;</div>
+                    <div class="concept-card-title">Native Library Detection</div>
+                    <div class="concept-card-body">
+                        Some apps move root checks into native code (C/C++ via JNI) to make hooking
+                        harder. These require hooking at the native level using
+                        <span class="inline-code">Interceptor.attach()</span> on libc functions
+                        like <span class="inline-code">fopen</span> and <span class="inline-code">access</span>.
+                    </div>
+                </div>
+            </div>
+
+            <h3>SSL Pinning Bypass on Android</h3>
+
+            <p>
+                Certificate pinning prevents the application from accepting any TLS certificate that
+                is not explicitly trusted by the app, even if the certificate is signed by a CA trusted
+                by the operating system. This blocks proxy tools like Burp Suite from intercepting
+                HTTPS traffic. Bypassing SSL pinning is almost always the first step in mobile dynamic
+                testing.
+            </p>
+
+            <div class="code-block"><span class="comment">// Frida script to bypass common SSL pinning implementations</span>
+Java.perform(<span class="kw">function</span>() {
+    <span class="comment">// Bypass OkHttp CertificatePinner</span>
+    <span class="kw">var</span> CertPinner = Java.use(<span class="str">"okhttp3.CertificatePinner"</span>);
+    CertPinner.check.overload(<span class="str">"java.lang.String"</span>, <span class="str">"java.util.List"</span>)
+        .implementation = <span class="kw">function</span>(hostname, peerCerts) {
+            console.log(<span class="str">"[*] Bypassing OkHttp pinning for: "</span> + hostname);
+            <span class="kw">return</span>;
+        };
+
+    <span class="comment">// Bypass TrustManagerFactory</span>
+    <span class="kw">var</span> TrustManagerImpl = Java.use(<span class="str">"com.android.org.conscrypt.TrustManagerImpl"</span>);
+    TrustManagerImpl.verifyChain.implementation = <span class="kw">function</span>() {
+        console.log(<span class="str">"[*] Bypassing TrustManager chain verification"</span>);
+        <span class="kw">return</span> arguments[0];
+    };
+});</div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10004;</span>
+                <div>
+                    <div class="callout-title">Quick Bypass</div>
+                    <div class="callout-text">
+                        Before writing custom Frida scripts, try
+                        <span class="inline-code">objection -g com.target.app explore --startup-command "android sslpinning disable"</span>.
+                        Objection's built-in SSL pinning bypass handles OkHttp, Retrofit, HttpsURLConnection,
+                        TrustManager, and WebView pinning implementations automatically. It works in the
+                        majority of cases without any custom scripting.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: iOS Application Testing -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127822;</span>
+            iOS Application Testing
+        </h2>
+        <div class="section-body">
+            <p>
+                iOS application testing presents unique challenges compared to Android. Apple's
+                closed ecosystem means that meaningful dynamic testing generally requires a
+                jailbroken device. The applications are compiled to native ARM binaries rather
+                than bytecode, so decompilation produces assembly or pseudo-C rather than readable
+                source code. Despite these barriers, iOS testing rewards persistence with findings
+                that fewer researchers are capable of discovering.
+            </p>
+
+            <h3>IPA File Analysis</h3>
+
+            <p>
+                An IPA file is the iOS equivalent of an APK. It is a ZIP archive containing the
+                compiled Mach-O binary, embedded provisioning profiles, entitlements, Info.plist,
+                and application resources. Apps downloaded from the App Store are encrypted with
+                FairPlay DRM and must be decrypted before meaningful static analysis is possible.
+            </p>
+
+            <div class="code-block"><span class="comment"># Decrypt an IPA from a jailbroken device using frida-ios-dump</span>
+<span class="cmd">python3</span> <span class="str">dump.py</span> <span class="flag">com.target.app</span>
+
+<span class="comment"># Alternative: use Clutch on the jailbroken device</span>
+<span class="cmd">Clutch</span> <span class="flag">-d</span> <span class="str">com.target.app</span>
+
+<span class="comment"># Unzip the decrypted IPA</span>
+<span class="cmd">unzip</span> <span class="str">target.ipa</span> <span class="flag">-d</span> <span class="str">target_ipa/</span>
+
+<span class="comment"># The binary is at Payload/AppName.app/AppName</span>
+<span class="cmd">file</span> <span class="str">target_ipa/Payload/TargetApp.app/TargetApp</span>
+<span class="comment"># Output: Mach-O 64-bit executable arm64</span></div>
+
+            <h3>Binary Analysis Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">class-dump</div>
+                    <div class="tool-role">Objective-C Header Extractor</div>
+                    <div class="tool-desc">
+                        Extracts Objective-C class declarations, method signatures, and property
+                        definitions from Mach-O binaries. Produces header files that reveal the
+                        application's class hierarchy and API surface without full decompilation.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Hopper</div>
+                    <div class="tool-role">Disassembler &amp; Decompiler</div>
+                    <div class="tool-desc">
+                        Commercial disassembler with ARM64 support that can produce pseudo-C from
+                        compiled Objective-C and Swift binaries. Provides control flow graphs,
+                        cross-references, and string analysis. The macOS-native alternative to
+                        IDA Pro for iOS reverse engineering.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Ghidra</div>
+                    <div class="tool-role">NSA Decompiler (Free)</div>
+                    <div class="tool-desc">
+                        Free, open-source reverse engineering framework with ARM64 Mach-O support.
+                        Produces decompiled pseudo-C output comparable to commercial tools. Excellent
+                        for analyzing iOS binaries without the cost of a Hopper or IDA license.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">otool / jtool2</div>
+                    <div class="tool-role">Binary Inspection</div>
+                    <div class="tool-desc">
+                        Command-line tools for inspecting Mach-O headers, load commands, shared
+                        libraries, and entitlements. Quick triage before loading into a full
+                        disassembler. Check for PIE, ARC, stack canaries, and encryption status.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># Extract Objective-C class information</span>
+<span class="cmd">class-dump</span> <span class="flag">-H</span> <span class="str">TargetApp</span> <span class="flag">-o</span> <span class="str">headers/</span>
+
+<span class="comment"># Check binary protections</span>
+<span class="cmd">otool</span> <span class="flag">-hv</span> <span class="str">TargetApp</span>          <span class="comment"># Check PIE flag</span>
+<span class="cmd">otool</span> <span class="flag">-l</span> <span class="str">TargetApp</span> | <span class="cmd">grep</span> <span class="str">crypt</span>  <span class="comment"># Check encryption</span>
+<span class="cmd">otool</span> <span class="flag">-L</span> <span class="str">TargetApp</span>             <span class="comment"># List linked libraries</span>
+
+<span class="comment"># Check entitlements</span>
+<span class="cmd">codesign</span> <span class="flag">-d --entitlements :-</span> <span class="str">TargetApp.app</span>
+
+<span class="comment"># Search for strings in the binary</span>
+<span class="cmd">strings</span> <span class="str">TargetApp</span> | <span class="cmd">grep</span> <span class="flag">-i</span> <span class="str">"api\|key\|secret\|password\|token"</span></div>
+
+            <h3>Frida on iOS</h3>
+
+            <p>
+                Frida works on jailbroken iOS devices with the same power as on Android. The
+                primary difference is that you hook Objective-C methods using
+                <span class="inline-code">ObjC.classes</span> and Swift methods through their
+                mangled names. Objection also supports iOS with commands for Keychain dumping,
+                jailbreak detection bypass, and SSL pinning bypass.
+            </p>
+
+            <div class="code-block"><span class="comment">// Hook an Objective-C method on iOS</span>
+<span class="kw">var</span> className = <span class="str">"LoginViewController"</span>;
+<span class="kw">var</span> methodName = <span class="str">"- validateCredentials:"</span>;
+
+<span class="kw">var</span> hook = ObjC.classes[className][methodName];
+Interceptor.attach(hook.implementation, {
+    onEnter: <span class="kw">function</span>(args) {
+        console.log(<span class="str">"[*] validateCredentials called"</span>);
+        <span class="comment">// args[0] = self, args[1] = selector, args[2] = first param</span>
+        console.log(<span class="str">"[*] Credentials: "</span> + ObjC.Object(args[2]).toString());
+    },
+    onLeave: <span class="kw">function</span>(retval) {
+        console.log(<span class="str">"[*] Return value: "</span> + retval);
+        retval.replace(<span class="str">0x1</span>);  <span class="comment">// Force return TRUE</span>
+    }
+});</div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Jailbreak Warning</div>
+                    <div class="callout-text">
+                        Never use your personal iPhone for security testing. Jailbreaking voids
+                        warranties, disables certain security features, and creates genuine risk
+                        if you are testing applications that handle sensitive data. Use a dedicated
+                        test device purchased specifically for security research. Older models
+                        (iPhone 8, iPhone X) are preferred because they support more jailbreak
+                        tools and can be obtained cheaply on the secondary market.
+                    </div>
+                </div>
+            </div>
+
+            <h3>iOS-Specific Vulnerability Patterns</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Pattern</th>
+                        <th>Description</th>
+                        <th>Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">URL Scheme Hijacking</td>
+                        <td>Custom URL schemes (myapp://) can be registered by any app. A malicious app can register the same scheme and intercept deep links.</td>
+                        <td>Authentication bypass, token theft, phishing</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Pasteboard Leakage</td>
+                        <td>Data copied to the general pasteboard is accessible to all apps. Sensitive data (tokens, passwords) copied via UIPasteboard persists across app switches.</td>
+                        <td>Credential theft, session hijacking</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Snapshot Caching</td>
+                        <td>iOS takes screenshots of apps for the task switcher. Sensitive screens (account balances, PII) are cached to disk as images.</td>
+                        <td>Information disclosure from device backups</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Keychain Misconfiguration</td>
+                        <td>Keychain items stored with <span class="inline-code">kSecAttrAccessibleAlways</span> are readable even when the device is locked.</td>
+                        <td>Credential extraction from stolen devices</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 5: API & Network Interception -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128279;</span>
+            API &amp; Network Interception
+        </h2>
+        <div class="section-body">
+            <p>
+                The most productive area for mobile bug bounty findings is not the mobile client
+                itself but the API endpoints it communicates with. Mobile APIs frequently implement
+                weaker security controls than their web counterparts because developers assume the
+                compiled mobile client provides sufficient obfuscation. In reality, once you bypass
+                SSL pinning and set up a proxy, the mobile app becomes a transparent window into
+                API endpoints that may not even be documented in the web application.
+            </p>
+
+            <h3>Proxy Setup for Mobile Traffic</h3>
+
+            <p>
+                Intercepting mobile HTTPS traffic requires installing your proxy's CA certificate
+                on the device and configuring the device to route traffic through the proxy. On
+                Android 7.0+ (Nougat), user-installed CA certificates are no longer trusted by
+                default for apps targeting API level 24+. This requires either modifying the app's
+                network security configuration or installing the certificate as a system CA on a
+                rooted device.
+            </p>
+
+            <div class="code-block"><span class="comment"># Android: Install Burp CA as system certificate (requires root)</span>
+<span class="comment"># Export Burp's CA cert in DER format, then convert</span>
+<span class="cmd">openssl</span> x509 <span class="flag">-inform DER -in</span> <span class="str">cacert.der</span> <span class="flag">-out</span> <span class="str">cacert.pem</span>
+<span class="cmd">HASH</span>=$(<span class="cmd">openssl</span> x509 <span class="flag">-inform PEM -subject_hash_old -in</span> <span class="str">cacert.pem</span> | head -1)
+<span class="cmd">mv</span> <span class="str">cacert.pem</span> <span class="str">${HASH}.0</span>
+
+<span class="comment"># Push to system cert store</span>
+<span class="cmd">adb</span> root
+<span class="cmd">adb</span> remount
+<span class="cmd">adb</span> push <span class="str">${HASH}.0</span> <span class="str">/system/etc/security/cacerts/</span>
+<span class="cmd">adb</span> shell chmod <span class="flag">644</span> <span class="str">/system/etc/security/cacerts/${HASH}.0</span>
+<span class="cmd">adb</span> reboot
+
+<span class="comment"># Set proxy on the device</span>
+<span class="cmd">adb</span> shell settings put global http_proxy <span class="str">192.168.1.100:8080</span></div>
+
+            <h3>Certificate Pinning Bypass Techniques</h3>
+
+            <p>
+                When <span class="inline-code">objection</span>'s automatic bypass does not work,
+                you need to identify the specific pinning implementation and write a targeted bypass.
+                The most common implementations and their bypass strategies are:
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Pinning Method</th>
+                        <th>Detection</th>
+                        <th>Bypass Approach</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">OkHttp CertificatePinner</td>
+                        <td>Search for "CertificatePinner" or "sha256/" in decompiled code</td>
+                        <td>Hook <span class="inline-code">CertificatePinner.check()</span> to return void</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Network Security Config</td>
+                        <td>Check <span class="inline-code">res/xml/network_security_config.xml</span></td>
+                        <td>Modify the XML to add your CA or remove pin entries, repackage APK</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">TrustKit (iOS)</td>
+                        <td>Search for "TrustKit" in binary or Info.plist</td>
+                        <td>Hook <span class="inline-code">TSKPinningValidator</span> evaluation method</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Custom TrustManager</td>
+                        <td>Search for classes implementing X509TrustManager</td>
+                        <td>Hook <span class="inline-code">checkServerTrusted()</span> to return empty</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Native (OpenSSL)</td>
+                        <td>Pinning logic in .so libraries, calls to <span class="inline-code">SSL_CTX_set_verify</span></td>
+                        <td>Hook native functions with <span class="inline-code">Interceptor.attach()</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Analyzing Mobile API Calls</h3>
+
+            <p>
+                Once traffic is flowing through your proxy, the real analysis begins. Mobile APIs
+                frequently expose vulnerabilities that their web counterparts do not, because the
+                mobile client was developed by a separate team or relies on a different API version.
+                Focus on these areas:
+            </p>
+
+            <ul>
+                <li><strong style="color:#c4a0d8;">IDOR on user-specific endpoints</strong> &mdash; Mobile apps frequently pass user IDs in API requests rather than relying solely on session tokens. Change the ID to access other users' data.</li>
+                <li><strong style="color:#c4a0d8;">Missing authorization on internal endpoints</strong> &mdash; The mobile client may call admin or debug endpoints that are not protected by role-based access controls on the server side.</li>
+                <li><strong style="color:#c4a0d8;">Older API versions</strong> &mdash; Mobile API paths like <span class="inline-code">/api/v1/</span> may still be active alongside <span class="inline-code">/api/v3/</span>, with the older version lacking security fixes applied to newer versions.</li>
+                <li><strong style="color:#c4a0d8;">Excessive data in responses</strong> &mdash; Mobile APIs often return complete user objects including fields (email, phone, internal IDs) that the mobile UI does not display but are present in the JSON response.</li>
+                <li><strong style="color:#c4a0d8;">Hardcoded API keys in headers</strong> &mdash; Custom headers like <span class="inline-code">X-API-Key</span> sent by the mobile client may be the only authentication mechanism for certain endpoints.</li>
+            </ul>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">Hidden Endpoints</div>
+                    <div class="callout-text">
+                        Search the decompiled source code for API endpoint paths. Mobile apps often
+                        contain references to endpoints that are never called in normal user flows
+                        &mdash; admin panels, debug endpoints, feature-flagged functionality, and
+                        deprecated routes. Build a complete API map from the client code, then test
+                        each endpoint through your proxy regardless of whether the UI triggers it.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Local Storage & Data Leakage -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128451;</span>
+            Local Storage &amp; Data Leakage
+        </h2>
+        <div class="section-body">
+            <p>
+                Mobile applications store data locally in ways that web applications simply cannot.
+                SharedPreferences files, SQLite databases, Keychain entries, cached images, log
+                files, and backup archives all create opportunities for sensitive data exposure.
+                A vulnerability that leaks data through local storage may seem low-impact in
+                isolation, but when combined with a backup extraction or a device theft scenario,
+                the impact becomes significant &mdash; particularly for financial, healthcare,
+                or authentication-related data.
+            </p>
+
+            <h3>Android Local Storage</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">SharedPreferences</div>
+                    <div class="concept-card-body">
+                        XML files stored at <span class="inline-code">/data/data/&lt;pkg&gt;/shared_prefs/</span>.
+                        Developers frequently store authentication tokens, user IDs, feature flags,
+                        and session data here in plaintext. On rooted devices or via backup extraction,
+                        these files are trivially readable.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128450;</div>
+                    <div class="concept-card-title">SQLite Databases</div>
+                    <div class="concept-card-body">
+                        Located at <span class="inline-code">/data/data/&lt;pkg&gt;/databases/</span>.
+                        Apps use SQLite for caching user data, message history, transaction records,
+                        and offline content. Pull the database file and open it with
+                        <span class="inline-code">sqlite3</span> or DB Browser for SQLite.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128193;</div>
+                    <div class="concept-card-title">Internal Storage Files</div>
+                    <div class="concept-card-body">
+                        Files in <span class="inline-code">/data/data/&lt;pkg&gt;/files/</span> and
+                        <span class="inline-code">/data/data/&lt;pkg&gt;/cache/</span>. May contain
+                        downloaded documents, cached API responses with sensitive data, temporary
+                        files that were never cleaned up, or exported reports.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128220;</div>
+                    <div class="concept-card-title">Application Logs</div>
+                    <div class="concept-card-body">
+                        Debug logging left enabled in production builds. Use
+                        <span class="inline-code">adb logcat</span> filtered by the app's package
+                        name to capture log output. Developers frequently log API responses, tokens,
+                        user credentials, and internal state during development and forget to remove
+                        these statements before release.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># Examine SharedPreferences on a rooted device</span>
+<span class="cmd">adb</span> shell cat <span class="str">/data/data/com.target.app/shared_prefs/auth_prefs.xml</span>
+<span class="comment"># Look for: access_token, refresh_token, user_id, session_id</span>
+
+<span class="comment"># Pull and examine SQLite databases</span>
+<span class="cmd">adb</span> pull <span class="str">/data/data/com.target.app/databases/</span> <span class="flag">./databases/</span>
+<span class="cmd">sqlite3</span> <span class="str">./databases/app.db</span> <span class="str">".tables"</span>
+<span class="cmd">sqlite3</span> <span class="str">./databases/app.db</span> <span class="str">"SELECT * FROM users;"</span>
+
+<span class="comment"># Capture application logs</span>
+<span class="cmd">adb</span> logcat | <span class="cmd">grep</span> <span class="flag">-i</span> <span class="str">"com.target.app"</span>
+
+<span class="comment"># Extract backup data (if allowBackup=true)</span>
+<span class="cmd">adb</span> backup <span class="flag">-apk</span> <span class="str">com.target.app</span> <span class="flag">-f</span> <span class="str">backup.ab</span>
+<span class="cmd">java</span> <span class="flag">-jar</span> <span class="str">abe.jar</span> unpack <span class="str">backup.ab</span> <span class="str">backup.tar</span>
+<span class="cmd">tar</span> <span class="flag">xvf</span> <span class="str">backup.tar</span></div>
+
+            <h3>iOS Local Storage</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Storage Location</th>
+                        <th>Purpose</th>
+                        <th>Security Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">NSUserDefaults</td>
+                        <td>Simple key-value storage, similar to SharedPreferences</td>
+                        <td>Stored as plist in app sandbox, readable from backups</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Keychain</td>
+                        <td>Encrypted credential storage managed by iOS</td>
+                        <td>Misconfigured accessibility attributes, readable on jailbroken devices</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CoreData / SQLite</td>
+                        <td>Structured data storage for offline caching</td>
+                        <td>Sensitive data cached without encryption, accessible via backup</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Cookies.binarycookies</td>
+                        <td>Cookie storage for UIWebView/WKWebView</td>
+                        <td>Session tokens stored persistently, may survive logout</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Snapshots</td>
+                        <td>Task switcher screenshots taken automatically by iOS</td>
+                        <td>Captures sensitive screen content (balances, PII, messages)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-block"><span class="comment"># iOS: Dump Keychain on jailbroken device (via objection)</span>
+<span class="cmd">objection</span> <span class="flag">-g</span> <span class="str">com.target.app</span> explore
+
+<span class="comment"># Inside objection REPL:</span>
+ios keychain dump
+ios cookies get
+ios nsuserdefaults get
+ios plist cat <span class="str">Info.plist</span></div>
+
+            <h3>Clipboard Data Leakage</h3>
+
+            <p>
+                Both Android and iOS share a system-wide clipboard. When a user copies sensitive
+                data &mdash; a password, a one-time code, an account number &mdash; that data
+                sits on the clipboard accessible to every other app on the device. Well-designed
+                apps either disable copy on sensitive fields or clear the clipboard after a timeout.
+                Many apps do neither. On Android, any app with the
+                <span class="inline-code">READ_CLIPBOARD</span> permission (implicit before Android
+                10) can read the clipboard contents. On iOS 14+, Apple added clipboard access
+                notifications, but the data is still readable.
+            </p>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Backup Extraction</div>
+                    <div class="callout-text">
+                        If <span class="inline-code">android:allowBackup="true"</span> is set in the
+                        manifest (which is the default), an attacker with physical device access or
+                        ADB access can extract the application's entire data directory. This includes
+                        SharedPreferences, databases, and internal files. On iOS, unencrypted iTunes
+                        backups expose similar data. Always test what data survives a backup extraction
+                        &mdash; many applications store authentication tokens and sensitive user data
+                        that persists through this vector.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Mobile Testing Methodology -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128736;</span>
+            Mobile Testing Methodology
+        </h2>
+        <div class="section-body">
+            <p>
+                A structured mobile testing methodology ensures you cover every attack surface
+                systematically rather than jumping between tools and hoping to stumble on findings.
+                The workflow below integrates static analysis, dynamic instrumentation, network
+                interception, and local storage review into a repeatable process.
+            </p>
+
+            <h3>Complete Mobile Assessment Workflow</h3>
+
+            <ol class="numbered-list">
+                <li>
+                    <strong style="color:#c4a0d8;">Obtain the binary.</strong> Download the APK
+                    from the Play Store or pull it from a device. For iOS, extract the IPA from
+                    a jailbroken device and decrypt it with frida-ios-dump.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Static analysis: manifest and configuration.</strong>
+                    Review AndroidManifest.xml or Info.plist. Identify exported components, permissions,
+                    URL schemes, and security configuration (network security config, ATS settings).
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Static analysis: decompiled source.</strong>
+                    Decompile with jadx (Android) or class-dump/Ghidra (iOS). Search for hardcoded
+                    credentials, API endpoints, encryption keys, and insecure code patterns.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Set up the proxy.</strong> Install your CA
+                    certificate, configure the device proxy, and bypass SSL pinning using Objection
+                    or a custom Frida script.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Map the API surface.</strong> Use the app through
+                    every user flow while capturing traffic in Burp Suite. Catalog every API endpoint,
+                    authentication mechanism, and data format.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Test API endpoints.</strong> Apply standard web
+                    vulnerability testing (IDOR, broken authentication, injection, mass assignment)
+                    to every captured API call. Test older API versions discovered in static analysis.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Test local storage.</strong> Review SharedPreferences,
+                    databases, Keychain, logs, and cached files for sensitive data exposure. Test
+                    backup extraction.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Test IPC and deep links.</strong> Fuzz exported
+                    activities, content providers, broadcast receivers, and URL schemes with unexpected
+                    input. Test for intent redirection and deep link hijacking.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Dynamic instrumentation.</strong> Use Frida to
+                    hook authentication checks, encryption routines, and business logic. Test whether
+                    client-side validation can be bypassed.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Document and report.</strong> Write clear
+                    reproduction steps that include device model, OS version, app version, and
+                    precise tool configurations used.
+                </li>
+            </ol>
+
+            <h3>Tools Summary</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">Frida</div>
+                    <div class="tool-role">Dynamic Instrumentation</div>
+                    <div class="tool-desc">Runtime hooking, SSL pinning bypass, root detection bypass, method tracing on both Android and iOS.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Objection</div>
+                    <div class="tool-role">Mobile Exploration</div>
+                    <div class="tool-desc">High-level Frida wrapper with built-in commands for common mobile security testing tasks.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">jadx</div>
+                    <div class="tool-role">Android Decompiler</div>
+                    <div class="tool-desc">DEX-to-Java decompiler with GUI. Primary tool for Android static analysis and code review.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Burp Suite</div>
+                    <div class="tool-role">HTTP Proxy</div>
+                    <div class="tool-desc">Intercepting proxy for capturing, modifying, and replaying mobile API traffic.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">apktool</div>
+                    <div class="tool-role">APK Decoder</div>
+                    <div class="tool-desc">Decodes and rebuilds APKs. Essential for modifying network security config and repackaging.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">MobSF</div>
+                    <div class="tool-role">Automated Analysis</div>
+                    <div class="tool-desc">Automated static and dynamic analysis framework. Good for initial triage and generating baseline reports.</div>
+                </div>
+            </div>
+
+            <h3>Reporting Mobile Vulnerabilities</h3>
+
+            <p>
+                Mobile vulnerability reports require additional context that web reports do not.
+                Always include the exact app version tested (build number, not just the version
+                string), the device model and OS version, whether the device was rooted or
+                jailbroken, and the specific tools and versions used. For findings that require
+                Frida scripts, include the complete script in your report so the triage team
+                can reproduce the issue.
+            </p>
+
+            <h3>Common High-Impact Findings</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Top 10 Mobile Bug Bounty Findings</div>
+                            <div class="detail-header-subtitle">Ranked by frequency and typical bounty payout</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <ol class="numbered-list">
+                        <li><strong style="color:#c4a0d8;">Broken API authentication</strong> &mdash; Mobile APIs that rely on client-side logic for access control, accept expired tokens, or have predictable token generation.</li>
+                        <li><strong style="color:#c4a0d8;">IDOR via mobile API</strong> &mdash; Changing user IDs or resource IDs in mobile API requests to access other users' data. The most common high-severity mobile finding.</li>
+                        <li><strong style="color:#c4a0d8;">Hardcoded API keys with excessive permissions</strong> &mdash; AWS keys, Firebase admin tokens, or payment processor credentials embedded in the binary.</li>
+                        <li><strong style="color:#c4a0d8;">Insecure deep link handling</strong> &mdash; URL schemes or Android App Links that bypass authentication or perform sensitive actions without validation.</li>
+                        <li><strong style="color:#c4a0d8;">Sensitive data in local storage</strong> &mdash; Authentication tokens, PII, or financial data stored in plaintext SharedPreferences, SQLite, or NSUserDefaults.</li>
+                        <li><strong style="color:#c4a0d8;">Exported components without protection</strong> &mdash; Activities, services, or content providers accessible to any app on the device.</li>
+                        <li><strong style="color:#c4a0d8;">Missing certificate pinning</strong> &mdash; While this alone is often considered informational, it enables interception of traffic containing sensitive data.</li>
+                        <li><strong style="color:#c4a0d8;">Cleartext traffic</strong> &mdash; API calls made over HTTP instead of HTTPS, especially for authentication or data transmission.</li>
+                        <li><strong style="color:#c4a0d8;">Excessive data in API responses</strong> &mdash; Server returning more data than the mobile UI displays (other users' emails, internal IDs, admin flags).</li>
+                        <li><strong style="color:#c4a0d8;">Client-side business logic bypass</strong> &mdash; Payment validation, premium feature checks, or rate limiting enforced only in the mobile client.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    A bug bounty program lists their Android and iOS apps in scope but states that "vulnerabilities requiring physical device access or root/jailbreak are out of scope." You find that the app stores authentication tokens in plaintext SharedPreferences, extractable via ADB backup without root. Is this in scope? How would you frame the report to demonstrate impact without requiring root access?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    You discover an older, undocumented API version (<span class="inline-code">/api/v1/</span>) referenced in the decompiled mobile app that bypasses rate limiting and lacks certain authorization checks present in the current version (<span class="inline-code">/api/v3/</span>). The mobile client no longer calls v1 endpoints in normal operation. Is this a valid finding? How does the existence of these endpoints in the compiled binary affect its severity?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Consider the tradeoff between testing breadth and depth in mobile bug bounty. Given a target with both an Android app and an iOS app that communicate with the same backend API, would you test both mobile platforms or focus exclusively on Android (which is easier to instrument) and test the shared API surface? Under what circumstances would iOS-specific testing be more valuable?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the mobile bug bounty landscape across Android and iOS,
+                APK decompilation and manifest analysis, dynamic testing with Frida and Objection,
+                iOS binary analysis and platform-specific vulnerabilities, API interception and
+                certificate pinning bypass techniques, local storage examination and data leakage
+                vectors, and a complete mobile assessment methodology with reporting guidelines.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 11
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-mobile', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

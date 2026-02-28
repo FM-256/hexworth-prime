@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 10: Cloud Security - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; } .code-block .str { color: #86efac; } .code-block .comment { color: #6a4a7a; font-style: italic; } .code-block .flag { color: #fbbf24; } .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li::before { content: none; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-item::before { content: none; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        .inline-code { font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(40, 20, 60, 0.3); padding: 1px 6px; border-radius: 3px; font-size: 0.88rem; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 10</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9729;</div>
+        <h1 class="intro-title">Cloud Security</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 10 &bull; Cloud Infrastructure Exploitation</div>
+        <p class="intro-subtitle">
+            Cloud misconfigurations have surpassed traditional web vulnerabilities as the leading source of
+            critical findings in modern bug bounty programs. Every major organization runs on AWS, Azure,
+            or GCP &mdash; and every one of them has storage buckets with overly permissive ACLs, IAM
+            policies granting unintended privilege escalation paths, metadata services reachable through
+            SSRF, and Kubernetes clusters with default configurations that were never hardened. This module
+            covers the complete cloud attack surface: from S3 enumeration and IAM abuse through container
+            escapes and serverless exploitation. Cloud is where the critical bounties live.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">AWS / Azure / GCP</div>
+            <div class="stat-pill">S3 &amp; IAM Exploitation</div>
+            <div class="stat-pill">SSRF to Metadata</div>
+            <div class="stat-pill">Kubernetes Security</div>
+            <div class="stat-pill">Serverless &amp; Terraform</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Cloud Security Landscape -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9729;</span>
+            Cloud Security Landscape
+        </h2>
+        <div class="section-body">
+            <p>
+                The cloud fundamentally changed the security model. In traditional infrastructure, the
+                organization controls everything from the physical hardware to the application layer.
+                In the cloud, responsibility is shared between the cloud provider and the customer &mdash;
+                and that boundary is where the vulnerabilities concentrate. AWS, Azure, and GCP secure
+                the infrastructure itself with world-class engineering. But everything the customer
+                configures on top of that infrastructure &mdash; storage permissions, IAM policies,
+                network rules, encryption settings &mdash; is the customer's problem. And customers
+                get it wrong constantly.
+            </p>
+
+            <h3>The Shared Responsibility Model</h3>
+
+            <p>
+                Every major cloud provider defines a shared responsibility model that splits security
+                obligations between themselves and the customer. The provider secures the physical
+                data centers, the hypervisor, the network fabric, and the core service APIs. The
+                customer is responsible for identity management, access policies, data encryption,
+                network configuration, and operating system patches on compute instances. Most
+                cloud vulnerabilities exist in the customer-controlled layer &mdash; the provider
+                side is battle-tested by billions of API calls daily.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128274; Provider Responsibility</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Physical security of data centers</li>
+                        <li><span class="li-marker">&#9656;</span>Hypervisor and host OS security</li>
+                        <li><span class="li-marker">&#9656;</span>Network infrastructure and DDoS protection</li>
+                        <li><span class="li-marker">&#9656;</span>Service API availability and integrity</li>
+                        <li><span class="li-marker">&#9656;</span>Hardware lifecycle and firmware patches</li>
+                        <li><span class="li-marker">&#9656;</span>Global backbone encryption in transit</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#9888; Customer Responsibility</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>IAM policies, roles, and access keys</li>
+                        <li><span class="li-marker">&#9656;</span>Storage bucket permissions and ACLs</li>
+                        <li><span class="li-marker">&#9656;</span>Network security groups and firewall rules</li>
+                        <li><span class="li-marker">&#9656;</span>Data encryption at rest and key management</li>
+                        <li><span class="li-marker">&#9656;</span>OS patching on EC2/VM instances</li>
+                        <li><span class="li-marker">&#9656;</span>Application-level security and secrets management</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Why Cloud Misconfigs Dominate Bug Bounties</h3>
+
+            <p>
+                Cloud misconfigurations are the number one source of critical infrastructure findings
+                in modern bounty programs. The reasons are structural. Cloud platforms offer thousands
+                of configuration options across hundreds of services. Default settings frequently
+                prioritize usability over security. Development teams spin up resources quickly without
+                security review. Infrastructure-as-Code templates get copied from Stack Overflow without
+                understanding their permission implications. And cloud environments change constantly
+                &mdash; a secure configuration today can become insecure after a single policy update
+                tomorrow.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128194;</div>
+                    <div class="concept-card-title">Storage Exposure</div>
+                    <div class="concept-card-body">
+                        S3 buckets, Azure Blobs, and GCP Storage objects with public read or write
+                        permissions. Entire databases, backups, source code, and credentials exposed
+                        to anyone who guesses the bucket name.
+                    </div>
+                    <span class="concept-tag">Critical</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128273;</div>
+                    <div class="concept-card-title">IAM Misconfiguration</div>
+                    <div class="concept-card-body">
+                        Overly permissive IAM policies, wildcard permissions, roles assumable by
+                        any authenticated AWS user, and service accounts with admin-level access
+                        that were meant to be temporary.
+                    </div>
+                    <span class="concept-tag">High Impact</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127760;</div>
+                    <div class="concept-card-title">Network Misconfig</div>
+                    <div class="concept-card-body">
+                        Security groups allowing 0.0.0.0/0 ingress on management ports, VPCs with
+                        no network segmentation, load balancers forwarding traffic to internal
+                        services without authentication.
+                    </div>
+                    <span class="concept-tag">Infrastructure</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128736;</div>
+                    <div class="concept-card-title">Multi-Cloud Sprawl</div>
+                    <div class="concept-card-body">
+                        Organizations running workloads across AWS, Azure, and GCP simultaneously.
+                        Each platform has different security primitives, different defaults, and
+                        different audit tooling. Complexity multiplies attack surface.
+                    </div>
+                    <span class="concept-tag">Growing Risk</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Cloud Attack Surface Is Expanding</div>
+                    <div class="callout-text">
+                        Every new AWS service announcement adds new configuration surfaces and new
+                        potential for misconfiguration. AWS alone has over 200 services. Azure and GCP
+                        continue to expand at similar rates. Security teams cannot review every new
+                        service configuration as fast as development teams adopt them. This gap between
+                        adoption speed and security review capacity is the structural advantage cloud
+                        bug hunters exploit.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: AWS S3 Bucket Enumeration -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128230;</span>
+            AWS S3 Bucket Enumeration
+        </h2>
+        <div class="section-body">
+            <p>
+                S3 bucket misconfiguration remains one of the most common and most impactful cloud
+                vulnerabilities. Companies store application data, database backups, log files, deployment
+                artifacts, and customer data in S3 &mdash; often with permissions far more liberal than
+                intended. The first step is finding the buckets. The second step is testing what you
+                can access.
+            </p>
+
+            <h3>Bucket Discovery Techniques</h3>
+
+            <p>
+                S3 bucket names are globally unique across all AWS accounts. If you can guess or discover
+                the name, you can attempt to interact with it regardless of which account owns it. This
+                makes bucket enumeration a passive reconnaissance technique &mdash; you are testing name
+                resolution, not sending requests to the target's infrastructure.
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Naming pattern prediction</strong> &mdash; Companies follow predictable patterns: <span class="inline-code">companyname-backups</span>, <span class="inline-code">companyname-prod</span>, <span class="inline-code">companyname-staging</span>, <span class="inline-code">companyname-assets</span>, <span class="inline-code">companyname-logs</span></li>
+                <li><strong style="color: #c4a0d8;">Google Dorking</strong> &mdash; Search for <span class="inline-code">site:s3.amazonaws.com "companyname"</span> or <span class="inline-code">inurl:s3.amazonaws.com companyname</span> to find buckets referenced in public web pages</li>
+                <li><strong style="color: #c4a0d8;">Certificate Transparency</strong> &mdash; S3 buckets with custom domains require TLS certificates, which are logged in CT logs and searchable via crt.sh</li>
+                <li><strong style="color: #c4a0d8;">Source code analysis</strong> &mdash; JavaScript source, mobile app binaries, and configuration files frequently reference S3 bucket URLs directly</li>
+                <li><strong style="color: #c4a0d8;">DNS CNAME records</strong> &mdash; Subdomains with CNAME records pointing to <span class="inline-code">.s3.amazonaws.com</span> reveal bucket names and may indicate subdomain takeover potential if the bucket is deleted</li>
+                <li><strong style="color: #c4a0d8;">GitHub search</strong> &mdash; Search the target's domain name or known bucket patterns in public GitHub repositories for hardcoded S3 references</li>
+            </ul>
+
+            <h3>Testing Bucket Permissions</h3>
+
+            <p>
+                Once you have discovered bucket names, systematically test what operations are permitted.
+                The AWS CLI is the primary tool. Test both unauthenticated (no AWS credentials) and
+                authenticated (with any valid AWS account) access &mdash; many misconfigurations grant
+                access to the <span class="inline-code">AuthenticatedUsers</span> group, which means
+                any AWS account holder in the world.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Test unauthenticated bucket listing</span>
+$ <span class="kw">aws s3 ls</span> <span class="str">s3://target-company-assets</span> <span class="flag">--no-sign-request</span>
+<span class="comment"># If this returns a file listing, the bucket allows public read</span>
+
+<span class="comment"># Test unauthenticated file read</span>
+$ <span class="kw">aws s3 cp</span> <span class="str">s3://target-company-assets/test.txt</span> <span class="flag">- --no-sign-request</span>
+
+<span class="comment"># Test authenticated listing (using your own AWS creds)</span>
+$ <span class="kw">aws s3 ls</span> <span class="str">s3://target-company-assets</span>
+
+<span class="comment"># Check bucket ACL</span>
+$ <span class="kw">aws s3api get-bucket-acl</span> <span class="flag">--bucket</span> target-company-assets <span class="flag">--no-sign-request</span>
+
+<span class="comment"># Check bucket policy</span>
+$ <span class="kw">aws s3api get-bucket-policy</span> <span class="flag">--bucket</span> target-company-assets <span class="flag">--no-sign-request</span>
+
+<span class="comment"># Test write access (upload a harmless proof file, never overwrite existing data)</span>
+$ <span class="kw">echo</span> <span class="str">"security-test-by-researcher"</span> | \
+  <span class="kw">aws s3 cp</span> <span class="flag">-</span> <span class="str">s3://target-company-assets/security-test.txt</span> <span class="flag">--no-sign-request</span>
+</div>
+
+            <h3>Common S3 Misconfigurations</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Misconfiguration</th>
+                        <th>Risk Level</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Public Read (Everyone)</td>
+                        <td><span class="badge badge-danger" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3);">Critical</span></td>
+                        <td>Any anonymous user can list and download all objects. Data exfiltration of backups, credentials, PII.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Public Write (Everyone)</td>
+                        <td><span class="badge badge-danger" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3);">Critical</span></td>
+                        <td>Any anonymous user can upload or overwrite objects. Enables malware hosting, defacement, supply chain attacks.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">AuthenticatedUsers Read</td>
+                        <td><span class="badge badge-latest">High</span></td>
+                        <td>Any person with any AWS account can list and download. Often mistaken for "our authenticated users" &mdash; it means all 1+ million AWS account holders globally.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Public ACL Grants</td>
+                        <td><span class="badge badge-latest">High</span></td>
+                        <td>ACL grants FULL_CONTROL or WRITE_ACP to AllUsers or AuthenticatedUsers. Attacker can modify ACL to escalate access.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Overly Broad Policy</td>
+                        <td><span class="badge badge-info">Medium</span></td>
+                        <td>Bucket policy with <span class="inline-code">"Principal": "*"</span> and conditions that can be bypassed or are missing entirely.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Versioning + Public Read</td>
+                        <td><span class="badge badge-latest">High</span></td>
+                        <td>Bucket versioning enabled with public read. Previous object versions may contain credentials or sensitive data that was "deleted" but still accessible via version ID.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Automated Bucket Enumeration Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">cloud_enum</div>
+                    <div class="tool-role">Multi-Cloud &bull; Enumeration</div>
+                    <div class="tool-desc">Enumerates public resources across AWS, Azure, and GCP simultaneously. Tests S3 buckets, Azure Blobs, and GCP Storage using keyword mutations and permutations.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">S3Scanner</div>
+                    <div class="tool-role">AWS &bull; Bucket Testing</div>
+                    <div class="tool-desc">Takes a list of bucket names and tests each for listing, reading, writing, and ACL access. Outputs a clear report of permissions found on each bucket.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">bucket_finder</div>
+                    <div class="tool-role">AWS &bull; Discovery</div>
+                    <div class="tool-desc">Generates bucket name permutations from a keyword list and tests each for existence and access level. Lightweight and fast for initial discovery sweeps.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">grayhatwarfare.com</div>
+                    <div class="tool-role">Web &bull; Search Engine</div>
+                    <div class="tool-desc">Search engine for open S3 buckets. Indexes publicly accessible buckets and their contents. Useful for checking if a target's data is already indexed.</div>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Never Exfiltrate or Modify Production Data</div>
+                    <div class="callout-text">
+                        When testing S3 permissions, never download large datasets, never access
+                        files that clearly contain PII or protected health information, and never
+                        overwrite or delete existing objects. Your proof of concept should demonstrate
+                        the misconfiguration without causing harm. List a directory, read a non-sensitive
+                        file, or upload a clearly labeled test file. Screenshot your CLI output. That
+                        is sufficient evidence for a well-written report.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: AWS IAM Privilege Escalation -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128273;</span>
+            AWS IAM Privilege Escalation
+        </h2>
+        <div class="section-body">
+            <p>
+                AWS Identity and Access Management controls who can do what within an AWS account.
+                IAM policies are JSON documents that grant or deny permissions on specific resources.
+                The complexity of IAM &mdash; thousands of possible actions across hundreds of services,
+                combined with policy inheritance, permission boundaries, and cross-account trust
+                relationships &mdash; creates a vast surface for privilege escalation. A low-privilege
+                set of credentials with the right combination of permissions can escalate to full
+                administrator access through over twenty documented escalation paths.
+            </p>
+
+            <h3>Dangerous IAM Permissions</h3>
+
+            <p>
+                Certain IAM permissions are inherently dangerous because they allow a principal to
+                expand its own access or impersonate other principals with higher privileges. These
+                permissions are frequently granted without understanding their escalation potential.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Permission</th>
+                        <th>Escalation Path</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">iam:CreatePolicy</td>
+                        <td>Create a new policy with <span class="inline-code">*:*</span> permissions and attach it to your own user or role</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">iam:AttachUserPolicy</td>
+                        <td>Attach the AWS-managed <span class="inline-code">AdministratorAccess</span> policy to your own user account</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">iam:PassRole + lambda:CreateFunction</td>
+                        <td>Create a Lambda function that assumes a high-privilege role, execute the function, and inherit that role's permissions</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">iam:PassRole + ec2:RunInstances</td>
+                        <td>Launch an EC2 instance with a high-privilege instance profile, then access the metadata service from the instance to get temporary credentials</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">sts:AssumeRole</td>
+                        <td>Assume a different role with higher permissions. If the trust policy is overly permissive, any principal in the account (or cross-account) can assume it</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">iam:CreateLoginProfile</td>
+                        <td>Create a console login for an IAM user that only has API access, potentially for an admin user without a current password</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">iam:UpdateAssumeRolePolicy</td>
+                        <td>Modify a role's trust policy to allow your own principal to assume it, then assume the role and inherit its permissions</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">iam:PutUserPolicy</td>
+                        <td>Attach an inline policy to your own user granting any permissions you choose</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">lambda:UpdateFunctionCode</td>
+                        <td>Replace the code of an existing Lambda function that runs with a high-privilege role, inject your payload, then invoke it</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">glue:CreateDevEndpoint + iam:PassRole</td>
+                        <td>Create a Glue development endpoint with an SSH key you control, passing a high-privilege service role. SSH into the endpoint and use the role's credentials</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Enumerating IAM Permissions</h3>
+
+            <p>
+                Before escalating, you need to know what permissions you currently hold. When you
+                obtain AWS credentials (from an exposed <span class="inline-code">.env</span> file,
+                SSRF to metadata, or a leaked access key), the first step is always enumeration of
+                the identity and its attached permissions.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Identify who you are</span>
+$ <span class="kw">aws sts get-caller-identity</span>
+{
+    <span class="str">"UserId"</span>: <span class="str">"AIDAJQABLZS4A3QDU576Q"</span>,
+    <span class="str">"Account"</span>: <span class="str">"123456789012"</span>,
+    <span class="str">"Arn"</span>: <span class="str">"arn:aws:iam::123456789012:user/webapp-deploy"</span>
+}
+
+<span class="comment"># List your attached policies</span>
+$ <span class="kw">aws iam list-attached-user-policies</span> <span class="flag">--user-name</span> webapp-deploy
+$ <span class="kw">aws iam list-user-policies</span> <span class="flag">--user-name</span> webapp-deploy
+
+<span class="comment"># Get policy document to see actual permissions</span>
+$ <span class="kw">aws iam get-policy-version</span> <span class="flag">--policy-arn</span> arn:aws:iam::123456789012:policy/DeployPolicy \
+  <span class="flag">--version-id</span> v1
+
+<span class="comment"># List all roles (to find assumable targets)</span>
+$ <span class="kw">aws iam list-roles</span> | <span class="kw">jq</span> <span class="str">'.Roles[] | {RoleName, Arn}'</span>
+</div>
+
+            <h3>IAM Privilege Escalation Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">PACU</div>
+                    <div class="tool-role">Rhino Security &bull; AWS Exploitation Framework</div>
+                    <div class="tool-desc">The Metasploit of AWS. Modular framework with 30+ modules for enumeration, privilege escalation, persistence, and data exfiltration. Tracks discovered data across modules. The standard tool for AWS penetration testing.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">enumerate-iam</div>
+                    <div class="tool-role">Andres Riancho &bull; Permission Brute-Force</div>
+                    <div class="tool-desc">Brute-forces AWS API calls to determine which actions a set of credentials can perform. Does not rely on IAM policy enumeration permissions &mdash; tests every API endpoint directly. Slow but comprehensive.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">cloudfox</div>
+                    <div class="tool-role">BishopFox &bull; Multi-Cloud</div>
+                    <div class="tool-desc">Identifies attack paths across AWS and Azure. Finds assumable roles, exploitable permissions, secrets in environment variables, and network pivots. Written in Go, outputs loot files for downstream use.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">pmapper</div>
+                    <div class="tool-role">NCC Group &bull; IAM Graph Analysis</div>
+                    <div class="tool-desc">Builds a graph of all IAM principals and their relationships. Identifies privilege escalation paths by analyzing which principals can reach admin access through chains of assumable roles and attachable policies.</div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Escalation Requires Existing Credentials</div>
+                    <div class="callout-text">
+                        IAM privilege escalation starts from a position of some access. You need valid
+                        AWS credentials before any of these techniques apply. In bug bounty, those
+                        credentials typically come from exposed <span class="inline-code">.env</span>
+                        files, SSRF to the instance metadata service, leaked access keys in source
+                        code or GitHub, or misconfigured application endpoints that return AWS
+                        credentials in error messages. The credential discovery is the hard part;
+                        the escalation is the high-impact follow-through.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Example: PassRole + Lambda Escalation</h3>
+
+            <p>
+                One of the most common escalation paths. If your credentials have
+                <span class="inline-code">iam:PassRole</span> and
+                <span class="inline-code">lambda:CreateFunction</span> plus
+                <span class="inline-code">lambda:InvokeFunction</span>, you can escalate
+                to any role the Lambda service is allowed to assume.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># 1. Identify a high-privilege role that Lambda can assume</span>
+$ <span class="kw">aws iam list-roles</span> | <span class="kw">jq</span> <span class="str">'.Roles[] | select(.AssumeRolePolicyDocument.Statement[].Principal.Service == "lambda.amazonaws.com") | .RoleName'</span>
+<span class="str">"AdminLambdaExecutionRole"</span>
+
+<span class="comment"># 2. Create a Lambda function that uses the admin role</span>
+$ <span class="kw">aws lambda create-function</span> \
+  <span class="flag">--function-name</span> escalation-test \
+  <span class="flag">--runtime</span> python3.9 \
+  <span class="flag">--role</span> arn:aws:iam::123456789012:role/AdminLambdaExecutionRole \
+  <span class="flag">--handler</span> index.handler \
+  <span class="flag">--zip-file</span> fileb://escalation.zip
+
+<span class="comment"># 3. The Lambda function's code calls STS to prove admin access</span>
+<span class="comment"># import boto3; sts = boto3.client('sts'); print(sts.get_caller_identity())</span>
+
+<span class="comment"># 4. Invoke the function and observe admin-level identity</span>
+$ <span class="kw">aws lambda invoke</span> <span class="flag">--function-name</span> escalation-test output.json
+$ <span class="kw">cat</span> output.json
+</div>
+        </div>
+    </div>
+
+    <!-- Section 4: SSRF to Cloud Metadata -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128268;</span>
+            SSRF to Cloud Metadata
+        </h2>
+        <div class="section-body">
+            <p>
+                Server-Side Request Forgery becomes catastrophically dangerous in cloud environments
+                because of the instance metadata service. Every cloud compute instance (EC2, Azure VM,
+                GCP Compute Engine) runs a metadata API on a link-local address that returns sensitive
+                configuration data &mdash; including temporary IAM credentials. An SSRF vulnerability
+                in any application running on a cloud instance can be leveraged to steal the instance's
+                cloud credentials and pivot to the broader cloud account. This is the single most
+                impactful SSRF exploitation path in modern environments.
+            </p>
+
+            <h3>AWS Instance Metadata Service (IMDS)</h3>
+
+            <p>
+                The AWS metadata service runs at <span class="inline-code">169.254.169.254</span> and
+                is accessible from any process running on the instance without authentication. It returns
+                instance identity, network configuration, user data scripts, and &mdash; critically &mdash;
+                temporary IAM role credentials that refresh automatically.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># IMDSv1 &mdash; simple GET request, no authentication</span>
+$ <span class="kw">curl</span> <span class="str">http://169.254.169.254/latest/meta-data/</span>
+ami-id
+hostname
+iam/
+instance-id
+local-ipv4
+public-ipv4
+security-groups
+
+<span class="comment"># Get the IAM role name</span>
+$ <span class="kw">curl</span> <span class="str">http://169.254.169.254/latest/meta-data/iam/security-credentials/</span>
+<span class="str">webapp-ec2-role</span>
+
+<span class="comment"># Extract temporary credentials (AccessKeyId, SecretAccessKey, Token)</span>
+$ <span class="kw">curl</span> <span class="str">http://169.254.169.254/latest/meta-data/iam/security-credentials/webapp-ec2-role</span>
+{
+    <span class="str">"AccessKeyId"</span>: <span class="str">"ASIAJEXAMPLEKEY"</span>,
+    <span class="str">"SecretAccessKey"</span>: <span class="str">"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"</span>,
+    <span class="str">"Token"</span>: <span class="str">"FwoGZXIvYXdzE..."</span>,
+    <span class="str">"Expiration"</span>: <span class="str">"2026-02-28T12:00:00Z"</span>
+}
+
+<span class="comment"># User data often contains bootstrap scripts with hardcoded secrets</span>
+$ <span class="kw">curl</span> <span class="str">http://169.254.169.254/latest/user-data</span>
+</div>
+
+            <h3>IMDSv1 vs IMDSv2</h3>
+
+            <p>
+                IMDSv1 uses simple HTTP GET requests with no authentication. IMDSv2 requires a
+                session token obtained via a PUT request with a TTL header. This makes IMDSv2
+                significantly harder to exploit via SSRF because most SSRF vulnerabilities only
+                allow GET requests, and the PUT request with custom headers required for IMDSv2
+                token retrieval cannot be triggered through typical SSRF vectors.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#9888; IMDSv1 (Vulnerable)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Simple GET to 169.254.169.254</li>
+                        <li><span class="li-marker">&#9656;</span>No authentication required</li>
+                        <li><span class="li-marker">&#9656;</span>Exploitable via any SSRF (GET-based)</li>
+                        <li><span class="li-marker">&#9656;</span>Still enabled by default on many instances</li>
+                        <li><span class="li-marker">&#9656;</span>Single request returns credentials</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128274; IMDSv2 (Hardened)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Requires PUT request with TTL header to get token</li>
+                        <li><span class="li-marker">&#9656;</span>Token must be included in subsequent GET requests</li>
+                        <li><span class="li-marker">&#9656;</span>PUT with custom headers blocks most SSRF vectors</li>
+                        <li><span class="li-marker">&#9656;</span>Token has configurable TTL (max 6 hours)</li>
+                        <li><span class="li-marker">&#9656;</span>Hop limit of 1 prevents container-based forwarding</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># IMDSv2 token retrieval (requires PUT + custom header)</span>
+$ <span class="kw">TOKEN</span>=$(<span class="kw">curl</span> <span class="flag">-X PUT</span> <span class="str">"http://169.254.169.254/latest/api/token"</span> \
+  <span class="flag">-H</span> <span class="str">"X-aws-ec2-metadata-token-ttl-seconds: 21600"</span>)
+
+<span class="comment"># Use token for subsequent metadata requests</span>
+$ <span class="kw">curl</span> <span class="flag">-H</span> <span class="str">"X-aws-ec2-metadata-token: $TOKEN"</span> \
+  <span class="str">http://169.254.169.254/latest/meta-data/iam/security-credentials/webapp-ec2-role</span>
+</div>
+
+            <h3>GCP and Azure Metadata Endpoints</h3>
+
+            <p>
+                Azure and GCP have their own metadata services with different URLs and slightly different
+                protections, but the fundamental risk is the same: SSRF to metadata yields cloud credentials.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># GCP Metadata Server</span>
+$ <span class="kw">curl</span> <span class="flag">-H</span> <span class="str">"Metadata-Flavor: Google"</span> \
+  <span class="str">http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token</span>
+
+<span class="comment"># GCP also exposes project-level metadata and SSH keys</span>
+$ <span class="kw">curl</span> <span class="flag">-H</span> <span class="str">"Metadata-Flavor: Google"</span> \
+  <span class="str">http://metadata.google.internal/computeMetadata/v1/project/attributes/ssh-keys</span>
+
+<span class="comment"># Azure Instance Metadata Service (IMDS)</span>
+$ <span class="kw">curl</span> <span class="flag">-H</span> <span class="str">"Metadata: true"</span> \
+  <span class="str">"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&amp;resource=https://management.azure.com/"</span>
+
+<span class="comment"># Azure IMDS requires Metadata: true header (similar to GCP's Metadata-Flavor)</span>
+</div>
+
+            <h3>SSRF to Account Compromise Chain</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">Discover SSRF</strong> &mdash; URL parameter, webhook URL, PDF generator, image proxy, or any server-side HTTP request that accepts user-controlled URLs</li>
+                <li><strong style="color: #c4a0d8;">Fetch metadata credentials</strong> &mdash; Redirect the SSRF to <span class="inline-code">http://169.254.169.254/latest/meta-data/iam/security-credentials/ROLE_NAME</span></li>
+                <li><strong style="color: #c4a0d8;">Enumerate current access</strong> &mdash; Use the stolen credentials with <span class="inline-code">aws sts get-caller-identity</span> and enumerate attached policies</li>
+                <li><strong style="color: #c4a0d8;">Assess scope</strong> &mdash; Determine what the role can access: S3 buckets, DynamoDB tables, Lambda functions, Secrets Manager, other accounts via cross-account roles</li>
+                <li><strong style="color: #c4a0d8;">Attempt escalation</strong> &mdash; If the role has dangerous IAM permissions (PassRole, AssumeRole, CreatePolicy), escalate using the techniques from Section 03</li>
+                <li><strong style="color: #c4a0d8;">Document and report</strong> &mdash; Show the full chain: SSRF endpoint, credentials obtained, permissions enumerated, and potential impact. Do not access production data.</li>
+            </ol>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">SSRF Bypass Techniques for Metadata</div>
+                    <div class="callout-text">
+                        Applications often block <span class="inline-code">169.254.169.254</span>
+                        directly. Common bypasses include: decimal IP notation
+                        (<span class="inline-code">http://2852039166/</span>), hex notation
+                        (<span class="inline-code">http://0xa9fea9fe/</span>), DNS rebinding
+                        (register a domain that resolves to the metadata IP), IPv6 notation, and
+                        URL encoding variations. Also test redirect-based SSRF: point the URL to
+                        a server you control that returns a 302 redirect to the metadata service.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Azure & GCP Security -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9741;</span>
+            Azure &amp; GCP Security
+        </h2>
+        <div class="section-body">
+            <p>
+                While AWS dominates the cloud market, Azure and GCP each have their own unique attack
+                surfaces and misconfigurations. Azure's tight integration with Active Directory creates
+                hybrid identity attack paths. GCP's project-based structure and default service account
+                behavior introduce different risks. Understanding all three platforms is essential because
+                large organizations frequently run multi-cloud environments, and attackers who only
+                know AWS miss entire categories of findings.
+            </p>
+
+            <h3>Azure-Specific Attacks</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#128194;</span>
+                        <span class="detail-header-title">Exposed Azure Blob Storage</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Azure Blob Storage is the equivalent of S3. Containers can be set to
+                        <span class="inline-code">Public access level: Blob</span> (anonymous read of
+                        individual blobs if you know the name) or
+                        <span class="inline-code">Public access level: Container</span> (anonymous listing
+                        and reading of all blobs). Storage account names are globally unique subdomains
+                        under <span class="inline-code">.blob.core.windows.net</span>.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Enumerate Azure storage account + container</span>
+$ <span class="kw">curl</span> <span class="str">"https://targetcompany.blob.core.windows.net/backups?restype=container&amp;comp=list"</span>
+
+<span class="comment"># Download a specific blob</span>
+$ <span class="kw">curl</span> <span class="str">"https://targetcompany.blob.core.windows.net/backups/db-dump-2026.sql"</span> <span class="flag">-o</span> dump.sql
+</div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#128100;</span>
+                        <span class="detail-header-title">Managed Identity Abuse</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Azure Managed Identities are analogous to AWS IAM roles for EC2. A VM or App
+                        Service with a managed identity can request access tokens from the metadata
+                        service without any credentials. If you compromise an application running on
+                        an Azure resource with a managed identity, you can request tokens for any
+                        Azure service the identity has access to.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Request a token for Azure Resource Manager</span>
+$ <span class="kw">curl</span> <span class="flag">-H</span> <span class="str">"Metadata: true"</span> \
+  <span class="str">"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&amp;resource=https://management.azure.com/"</span>
+
+<span class="comment"># Request a token for Azure Key Vault</span>
+$ <span class="kw">curl</span> <span class="flag">-H</span> <span class="str">"Metadata: true"</span> \
+  <span class="str">"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&amp;resource=https://vault.azure.net"</span>
+
+<span class="comment"># Use the token to list resources</span>
+$ <span class="kw">curl</span> <span class="flag">-H</span> <span class="str">"Authorization: Bearer &lt;TOKEN&gt;"</span> \
+  <span class="str">"https://management.azure.com/subscriptions?api-version=2020-01-01"</span>
+</div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#127760;</span>
+                        <span class="detail-header-title">App Service Misconfigurations</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Azure App Service (web app hosting) has several common misconfigurations:
+                        exposed SCM/Kudu deployment endpoints at
+                        <span class="inline-code">https://appname.scm.azurewebsites.net</span>,
+                        publicly accessible application settings containing connection strings,
+                        FTP deployment credentials left enabled, and debug endpoints leaking
+                        environment variables. The SCM endpoint is particularly dangerous because
+                        it provides a web-based console with file system access.
+                    </p>
+                </div>
+            </div>
+
+            <h3>GCP-Specific Attacks</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#128230;</span>
+                        <span class="detail-header-title">Public Cloud Storage Buckets</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        GCP Cloud Storage follows the same pattern as S3: globally unique bucket names,
+                        ACL-based permissions, and common misconfigurations granting public access. GCP
+                        buckets are accessible at <span class="inline-code">storage.googleapis.com/BUCKET_NAME</span>
+                        or <span class="inline-code">BUCKET_NAME.storage.googleapis.com</span>.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># List bucket contents (if publicly readable)</span>
+$ <span class="kw">curl</span> <span class="str">"https://storage.googleapis.com/storage/v1/b/target-bucket/o"</span>
+
+<span class="comment"># Using gsutil</span>
+$ <span class="kw">gsutil ls</span> <span class="str">gs://target-bucket/</span>
+$ <span class="kw">gsutil cp</span> <span class="str">gs://target-bucket/config.json</span> .
+</div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#128273;</span>
+                        <span class="detail-header-title">Service Account Key Exposure</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        GCP service accounts use JSON key files for authentication. These files are
+                        frequently committed to repositories, stored in public buckets, or left in
+                        accessible deployment artifacts. Unlike AWS temporary credentials, GCP service
+                        account keys do not expire until explicitly rotated &mdash; a leaked key
+                        provides persistent access.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># GCP service account key file structure</span>
+{
+    <span class="str">"type"</span>: <span class="str">"service_account"</span>,
+    <span class="str">"project_id"</span>: <span class="str">"target-project-123"</span>,
+    <span class="str">"private_key_id"</span>: <span class="str">"abc123..."</span>,
+    <span class="str">"private_key"</span>: <span class="str">"-----BEGIN RSA PRIVATE KEY-----\n..."</span>,
+    <span class="str">"client_email"</span>: <span class="str">"deploy@target-project-123.iam.gserviceaccount.com"</span>
+}
+
+<span class="comment"># Authenticate with a discovered key file</span>
+$ <span class="kw">gcloud auth activate-service-account</span> <span class="flag">--key-file</span> found-key.json
+$ <span class="kw">gcloud projects list</span>
+$ <span class="kw">gcloud iam service-accounts list</span> <span class="flag">--project</span> target-project-123
+</div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#128736;</span>
+                        <span class="detail-header-title">GCP Default Service Account</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        GCP assigns a default service account to compute instances with the Editor
+                        role unless explicitly configured otherwise. The Editor role grants read/write
+                        access to most GCP services in the project. Any SSRF or command injection on
+                        a GCP instance running with the default service account provides near-admin
+                        access to the entire GCP project via the metadata service.
+                    </p>
+                </div>
+            </div>
+
+            <h3>Cross-Cloud Comparison</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Attack Surface</th>
+                        <th>AWS</th>
+                        <th>Azure</th>
+                        <th>GCP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Object Storage</td>
+                        <td>S3 buckets, globally unique names, ACL + bucket policies</td>
+                        <td>Blob Storage in Storage Accounts, container-level access</td>
+                        <td>Cloud Storage buckets, globally unique, IAM + ACL</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Metadata Service</td>
+                        <td>169.254.169.254, IMDSv1 (GET) / IMDSv2 (PUT+GET)</td>
+                        <td>169.254.169.254, requires <span class="inline-code">Metadata: true</span> header</td>
+                        <td>metadata.google.internal, requires <span class="inline-code">Metadata-Flavor: Google</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Identity System</td>
+                        <td>IAM users, roles, policies (JSON-based)</td>
+                        <td>Azure AD, RBAC, Managed Identities (AAD-integrated)</td>
+                        <td>IAM, service accounts, Workload Identity</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Serverless</td>
+                        <td>Lambda, API Gateway, Step Functions</td>
+                        <td>Azure Functions, Logic Apps</td>
+                        <td>Cloud Functions, Cloud Run</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Kubernetes</td>
+                        <td>EKS (managed K8s)</td>
+                        <td>AKS (managed K8s, AAD-integrated RBAC)</td>
+                        <td>GKE (managed K8s, Workload Identity)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Secrets Manager</td>
+                        <td>Secrets Manager, Systems Manager Parameter Store</td>
+                        <td>Key Vault</td>
+                        <td>Secret Manager</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Multi-Cloud Complexity Is Your Advantage</div>
+                    <div class="callout-text">
+                        Most security teams are experts in one cloud platform and have passing
+                        familiarity with the others. Organizations running multi-cloud environments
+                        often have strong AWS security but weaker Azure or GCP configurations,
+                        because their security tooling and expertise concentrates on the primary
+                        platform. The secondary cloud provider is where the misconfigurations
+                        accumulate. If a target's primary infrastructure is on AWS, check whether
+                        they have Azure AD or GCP projects as well.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Kubernetes & Container Security -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9881;</span>
+            Kubernetes &amp; Container Security
+        </h2>
+        <div class="section-body">
+            <p>
+                Kubernetes is the de facto standard for container orchestration, and it introduces an
+                entirely new layer of security configuration between the cloud provider and the application.
+                A Kubernetes cluster has its own RBAC system, its own network policies, its own secrets
+                management, and its own API server that controls everything. Misconfigurations at the
+                Kubernetes layer can expose the entire cluster regardless of how well the underlying
+                cloud infrastructure is configured.
+            </p>
+
+            <h3>Kubernetes RBAC Misconfigurations</h3>
+
+            <p>
+                Kubernetes Role-Based Access Control defines what actions (verbs) subjects (users, groups,
+                service accounts) can perform on which resources (pods, secrets, configmaps). The most
+                common misconfiguration is binding the <span class="inline-code">cluster-admin</span>
+                ClusterRole to service accounts or groups that should have limited access.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Check your current permissions within a cluster</span>
+$ <span class="kw">kubectl auth can-i</span> <span class="flag">--list</span>
+
+<span class="comment"># Check if you can read secrets (often the highest-value target)</span>
+$ <span class="kw">kubectl auth can-i get secrets</span> <span class="flag">--all-namespaces</span>
+
+<span class="comment"># List all cluster role bindings (who has cluster-admin?)</span>
+$ <span class="kw">kubectl get clusterrolebindings</span> <span class="flag">-o json</span> | \
+  <span class="kw">jq</span> <span class="str">'.items[] | select(.roleRef.name == "cluster-admin") | .subjects'</span>
+
+<span class="comment"># Enumerate secrets in the current namespace</span>
+$ <span class="kw">kubectl get secrets</span>
+$ <span class="kw">kubectl get secret</span> db-credentials <span class="flag">-o jsonpath='{.data}'</span> | \
+  <span class="kw">jq</span> <span class="str">'to_entries[] | .value |= @base64d'</span>
+</div>
+
+            <h3>Exposed Kubernetes Dashboards and APIs</h3>
+
+            <p>
+                The Kubernetes Dashboard provides a web UI for cluster management. When exposed to
+                the internet without authentication (or with a default token), it grants full cluster
+                control. The API server itself, if exposed without authentication, allows arbitrary
+                resource creation, modification, and deletion &mdash; including deploying containers
+                with host-mounted volumes.
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Dashboard without auth</strong> &mdash; Search Shodan for <span class="inline-code">title:"Kubernetes Dashboard"</span>. Default installations sometimes skip the authentication proxy, exposing full cluster management</li>
+                <li><strong style="color: #c4a0d8;">Anonymous API access</strong> &mdash; Test <span class="inline-code">curl -k https://TARGET:6443/api/v1/namespaces</span>. If it returns data without credentials, the API server allows anonymous access</li>
+                <li><strong style="color: #c4a0d8;">Exposed etcd</strong> &mdash; etcd stores all Kubernetes state including secrets. Port 2379 exposed without TLS client auth means full cluster data access: <span class="inline-code">etcdctl get / --prefix</span></li>
+                <li><strong style="color: #c4a0d8;">Kubelet API</strong> &mdash; Port 10250 on worker nodes. If unauthenticated, allows running commands inside any container on that node via <span class="inline-code">/run</span> endpoint</li>
+            </ul>
+
+            <h3>Container Escape Techniques</h3>
+
+            <p>
+                A container is meant to isolate workloads from the host kernel and other containers.
+                Container escapes break that isolation and give the attacker access to the underlying
+                host &mdash; which in a Kubernetes environment means potential access to the node's
+                service account, other containers, and the kubelet.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#9888;</span>
+                        <span class="detail-header-title">Privileged Container Escape</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Containers running with <span class="inline-code">privileged: true</span>
+                        have full access to the host's devices, can mount the host filesystem, and
+                        can load kernel modules. Escaping is trivial:
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Inside a privileged container: mount the host filesystem</span>
+$ <span class="kw">mkdir</span> /mnt/host
+$ <span class="kw">mount</span> /dev/sda1 /mnt/host
+$ <span class="kw">chroot</span> /mnt/host <span class="kw">bash</span>
+<span class="comment"># You now have a root shell on the host node</span>
+
+<span class="comment"># Alternative: access host PID namespace</span>
+$ <span class="kw">nsenter</span> <span class="flag">--target</span> 1 <span class="flag">--mount</span> <span class="flag">--uts</span> <span class="flag">--ipc</span> <span class="flag">--net</span> <span class="flag">--pid</span> <span class="kw">bash</span>
+</div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#128273;</span>
+                        <span class="detail-header-title">Service Account Token Abuse</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Every pod in Kubernetes receives a service account token mounted at
+                        <span class="inline-code">/var/run/secrets/kubernetes.io/serviceaccount/token</span>.
+                        If the service account has broad permissions, this token can be used to
+                        interact with the Kubernetes API from inside the container.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Read the mounted service account token</span>
+$ <span class="kw">cat</span> /var/run/secrets/kubernetes.io/serviceaccount/token
+
+<span class="comment"># Use the token to query the Kubernetes API</span>
+$ <span class="kw">APISERVER</span>=https://kubernetes.default.svc
+$ <span class="kw">TOKEN</span>=$(<span class="kw">cat</span> /var/run/secrets/kubernetes.io/serviceaccount/token)
+$ <span class="kw">curl</span> <span class="flag">-k</span> <span class="flag">-H</span> <span class="str">"Authorization: Bearer $TOKEN"</span> \
+  <span class="str">"$APISERVER/api/v1/namespaces/default/secrets"</span>
+</div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span>&#128736;</span>
+                        <span class="detail-header-title">Host Path Mount Escape</span>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Pods with <span class="inline-code">hostPath</span> volume mounts
+                        can read and write to the host filesystem without being privileged.
+                        A <span class="inline-code">hostPath: /</span> mount gives full host
+                        filesystem access. Even limited mounts like <span class="inline-code">hostPath: /var/log</span>
+                        can be leveraged to read sensitive host data or write cron jobs.
+                    </p>
+                </div>
+            </div>
+
+            <h3>Kubernetes Security Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">kube-hunter</div>
+                    <div class="tool-role">Aqua Security &bull; Cluster Scanner</div>
+                    <div class="tool-desc">Penetration testing tool for Kubernetes clusters. Tests for exposed APIs, RBAC weaknesses, and known CVEs. Can run from outside, inside a pod, or as a Job within the cluster.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">kubeaudit</div>
+                    <div class="tool-role">Shopify &bull; Config Auditor</div>
+                    <div class="tool-desc">Audits Kubernetes configurations for security best practices. Checks for privileged containers, missing resource limits, automounted service accounts, and hostPath mounts.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">kubeletctl</div>
+                    <div class="tool-role">CyberArk &bull; Kubelet Exploitation</div>
+                    <div class="tool-desc">Interacts directly with the Kubelet API on worker nodes. Lists running pods, executes commands in containers, and downloads files. Primary tool for exploiting exposed Kubelet endpoints.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">peirates</div>
+                    <div class="tool-role">InGuardians &bull; K8s Post-Exploitation</div>
+                    <div class="tool-desc">Kubernetes penetration testing tool for use inside a compromised pod. Enumerates secrets, attempts lateral movement, tests service account permissions, and probes cloud metadata from within containers.</div>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Container Escapes Are Critical Findings</div>
+                    <div class="callout-text">
+                        A container escape in a production Kubernetes cluster is almost always a critical
+                        severity finding. The escaped attacker gains host-level access, which typically
+                        provides the node's cloud credentials (via the instance metadata service), access
+                        to other containers on the same node (including their secrets and network
+                        connections), and potentially the ability to pivot to the Kubernetes control
+                        plane if the node's kubelet token has sufficient permissions.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Serverless & Terraform -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Serverless &amp; Terraform
+        </h2>
+        <div class="section-body">
+            <p>
+                Serverless computing and Infrastructure-as-Code represent two sides of the modern cloud
+                deployment model. Serverless (Lambda, Azure Functions, Cloud Functions) moves the attack
+                surface from operating system and runtime configuration to application logic and event
+                triggers. Terraform and other IaC tools introduce a different risk: the state files and
+                plan outputs that contain every secret, credential, and configuration detail for the
+                entire infrastructure.
+            </p>
+
+            <h3>Lambda and Cloud Functions Attack Surface</h3>
+
+            <p>
+                Serverless functions eliminate traditional attack vectors (no SSH, no OS-level exploits)
+                but introduce new ones. The function's event source (API Gateway, S3 triggers, SQS
+                messages) becomes the injection point. The function's environment variables become
+                the credential store. And the function's IAM role determines the blast radius of
+                any compromise.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128229;</div>
+                    <div class="concept-card-title">Event Injection</div>
+                    <div class="concept-card-body">
+                        Lambda functions process events from API Gateway, S3, SQS, SNS, DynamoDB
+                        Streams, and more. The event data is the user input. If the function
+                        parses event data without validation, it is vulnerable to injection
+                        attacks &mdash; command injection, SQL injection, or deserialization attacks
+                        depending on the runtime and libraries used.
+                    </div>
+                    <span class="concept-tag">Input Validation</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">Environment Variable Leaks</div>
+                    <div class="concept-card-body">
+                        Developers frequently store database credentials, API keys, and encryption
+                        keys in Lambda environment variables. If you can trigger a verbose error
+                        response or access the Lambda configuration via API, all environment
+                        variables are exposed as plaintext.
+                    </div>
+                    <span class="concept-tag">Secrets Exposure</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">Serverless SSRF</div>
+                    <div class="concept-card-body">
+                        Lambda functions run in AWS-managed VPCs with internet access. SSRF in a Lambda
+                        function cannot reach 169.254.169.254 (Lambda uses a different credential
+                        mechanism), but can reach internal VPC resources, other AWS services, and
+                        any internal network the Lambda is configured to access.
+                    </div>
+                    <span class="concept-tag">Network Pivot</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128273;</div>
+                    <div class="concept-card-title">Overprivileged Roles</div>
+                    <div class="concept-card-body">
+                        Lambda execution roles often have wildcard permissions because developers grant
+                        broad access during development and never restrict them. A compromised function
+                        with <span class="inline-code">s3:*</span> or <span class="inline-code">dynamodb:*</span>
+                        can access every table or bucket in the account.
+                    </div>
+                    <span class="concept-tag">IAM Abuse</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Enumerate Lambda functions (if you have credentials)</span>
+$ <span class="kw">aws lambda list-functions</span> <span class="flag">--region</span> us-east-1 | \
+  <span class="kw">jq</span> <span class="str">'.Functions[] | {FunctionName, Runtime, Role, Handler}'</span>
+
+<span class="comment"># Get function configuration including environment variables</span>
+$ <span class="kw">aws lambda get-function-configuration</span> <span class="flag">--function-name</span> process-orders
+<span class="comment"># Environment.Variables may contain DB_PASSWORD, API_KEY, etc.</span>
+
+<span class="comment"># Get the function's IAM role and enumerate its permissions</span>
+$ <span class="kw">aws lambda get-function-configuration</span> <span class="flag">--function-name</span> process-orders | \
+  <span class="kw">jq</span> <span class="str">'.Role'</span>
+$ <span class="kw">aws iam list-attached-role-policies</span> <span class="flag">--role-name</span> process-orders-role
+</div>
+
+            <h3>Terraform State File Exposure</h3>
+
+            <p>
+                Terraform stores the complete state of managed infrastructure in a state file
+                (<span class="inline-code">terraform.tfstate</span>). This file contains every
+                resource attribute Terraform manages &mdash; including database passwords, API
+                keys, private keys, and access tokens in plaintext. State files are the single
+                most dangerous artifact in any IaC deployment.
+            </p>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Terraform State Files Contain All Secrets</div>
+                    <div class="callout-text">
+                        Every <span class="inline-code">terraform.tfstate</span> file contains the
+                        plaintext value of every secret managed by Terraform: database passwords,
+                        IAM access keys, TLS private keys, API tokens, and encryption keys. A single
+                        exposed state file can compromise an entire cloud infrastructure. State files
+                        are commonly found in public S3 buckets, exposed Git repositories, CI/CD
+                        artifacts, and misconfigured Terraform Cloud workspaces.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Terraform state file structure (simplified)</span>
+{
+  <span class="str">"version"</span>: 4,
+  <span class="str">"resources"</span>: [
+    {
+      <span class="str">"type"</span>: <span class="str">"aws_db_instance"</span>,
+      <span class="str">"name"</span>: <span class="str">"production"</span>,
+      <span class="str">"instances"</span>: [{
+        <span class="str">"attributes"</span>: {
+          <span class="str">"address"</span>: <span class="str">"prod-db.abc123.us-east-1.rds.amazonaws.com"</span>,
+          <span class="str">"username"</span>: <span class="str">"admin"</span>,
+          <span class="str">"password"</span>: <span class="str">"SuperSecretP@ssw0rd!"</span>   <span class="comment">// plaintext</span>
+        }
+      }]
+    },
+    {
+      <span class="str">"type"</span>: <span class="str">"aws_iam_access_key"</span>,
+      <span class="str">"name"</span>: <span class="str">"deploy_key"</span>,
+      <span class="str">"instances"</span>: [{
+        <span class="str">"attributes"</span>: {
+          <span class="str">"id"</span>: <span class="str">"AKIAIOSFODNN7EXAMPLE"</span>,
+          <span class="str">"secret"</span>: <span class="str">"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"</span>   <span class="comment">// plaintext</span>
+        }
+      }]
+    }
+  ]
+}
+</div>
+
+            <h3>Finding Exposed State Files</h3>
+
+            <div class="code-block">
+<span class="comment"># Google dork for publicly accessible state files</span>
+<span class="kw">filetype:tfstate</span>
+<span class="kw">inurl:terraform.tfstate</span>
+
+<span class="comment"># Check S3 buckets for state files</span>
+$ <span class="kw">aws s3 ls</span> <span class="str">s3://target-terraform/</span> <span class="flag">--no-sign-request</span> <span class="flag">--recursive</span> | \
+  <span class="kw">grep</span> <span class="str">".tfstate"</span>
+
+<span class="comment"># GitHub search for exposed state</span>
+<span class="comment"># Search: "terraform.tfstate" org:targetcompany</span>
+<span class="comment"># Search: "aws_db_instance" "password" filetype:tfstate</span>
+</div>
+
+            <h3>IaC Misconfigurations</h3>
+
+            <p>
+                Beyond state file exposure, the Terraform configuration files themselves
+                (<span class="inline-code">.tf</span> files) reveal the entire infrastructure
+                architecture and often contain hardcoded secrets, overly permissive security
+                group rules, and resources intentionally configured without encryption or
+                authentication.
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Hardcoded secrets in .tf files</strong> &mdash; Database passwords, API keys, and access tokens embedded directly in resource definitions instead of using variables or Vault</li>
+                <li><strong style="color: #c4a0d8;">Overly permissive security groups</strong> &mdash; <span class="inline-code">ingress { cidr_blocks = ["0.0.0.0/0"] }</span> on ports that should be restricted to internal access</li>
+                <li><strong style="color: #c4a0d8;">Unencrypted resources</strong> &mdash; S3 buckets, EBS volumes, RDS instances, and DynamoDB tables without encryption at rest enabled</li>
+                <li><strong style="color: #c4a0d8;">Public resources by default</strong> &mdash; S3 bucket ACLs set to <span class="inline-code">public-read</span>, RDS instances with <span class="inline-code">publicly_accessible = true</span></li>
+                <li><strong style="color: #c4a0d8;">Terraform plan injection</strong> &mdash; In CI/CD pipelines, if an attacker can modify .tf files before <span class="inline-code">terraform plan</span> runs, they can inject data sources that exfiltrate secrets during the planning phase (before any human review)</li>
+            </ul>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">IaC Scanning Tools</div>
+                    <div class="callout-text">
+                        Tools like <span class="inline-code">tfsec</span>,
+                        <span class="inline-code">checkov</span>, and
+                        <span class="inline-code">terrascan</span> scan Terraform configurations
+                        for security misconfigurations before deployment. If you find a target's
+                        Terraform code in a public repository, run these scanners against it to
+                        quickly identify misconfigured resources that may still be deployed in
+                        their live environment.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 8: Cloud Bug Bounty Strategy -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127919;</span>
+            Cloud Bug Bounty Strategy
+        </h2>
+        <div class="section-body">
+            <p>
+                Cloud vulnerabilities in bug bounty programs require a different approach than
+                traditional web application testing. The attack surface is infrastructure rather
+                than UI. The evidence is API responses and CLI output rather than screenshots of
+                reflected XSS. And the impact assessment requires demonstrating what the misconfiguration
+                enables rather than just that it exists. A public S3 bucket listing empty test
+                files is informational. A public S3 bucket listing database backups with customer
+                PII is critical. Same vulnerability, vastly different impact.
+            </p>
+
+            <h3>Cloud Provider Bug Bounty Programs</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Provider</th>
+                        <th>Program</th>
+                        <th>Scope</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">AWS</td>
+                        <td>AWS Vulnerability Reporting</td>
+                        <td>AWS service vulnerabilities, not customer misconfigs</td>
+                        <td>Report via HackerOne. Focused on flaws in AWS-managed services. Customer misconfigs are out of scope.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Microsoft Azure</td>
+                        <td>Microsoft Bug Bounty</td>
+                        <td>Azure services, Azure AD, M365 cloud</td>
+                        <td>Well-structured program with clear scope. Azure AD and identity federation bugs are high-priority targets.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Google Cloud</td>
+                        <td>Google VRP</td>
+                        <td>GCP services, Google Cloud infrastructure</td>
+                        <td>Part of the broader Google VRP. Strong payouts for GKE, IAM, and cross-tenant vulnerabilities.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Customer Programs</td>
+                        <td>Various (HackerOne, Bugcrowd)</td>
+                        <td>Customer-controlled cloud infrastructure</td>
+                        <td>Most bounty programs include cloud misconfigurations if they affect the target's assets. S3 buckets, exposed APIs, and metadata leaks are in scope.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Cloud-Specific Reporting Considerations</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">Demonstrate the full chain</strong> &mdash; Do not just report "S3 bucket is public." Show what data is accessible, what the bucket contains (without downloading PII), and what an attacker could achieve. A bucket with source code has different impact than a bucket with marketing images.</li>
+                <li><strong style="color: #c4a0d8;">Prove credential validity without abuse</strong> &mdash; If you obtain cloud credentials via SSRF or leaked keys, use <span class="inline-code">sts:GetCallerIdentity</span> to prove they work and enumerate permissions to show potential impact. Do not access production data, create resources, or modify infrastructure.</li>
+                <li><strong style="color: #c4a0d8;">Include remediation steps</strong> &mdash; Cloud teams may not understand IAM policy nuances. Include specific remediation: "Remove the <span class="inline-code">iam:PassRole</span> permission from the deploy user policy" is more actionable than "fix IAM permissions."</li>
+                <li><strong style="color: #c4a0d8;">Capture evidence thoroughly</strong> &mdash; Cloud findings are transient. Credentials rotate, buckets get locked down, configurations change. Capture complete CLI output, timestamps, and HTTP request/response pairs at the time of discovery.</li>
+                <li><strong style="color: #c4a0d8;">Classify impact accurately</strong> &mdash; An exposed metadata service returning credentials for a role with <span class="inline-code">AdministratorAccess</span> is critical. The same SSRF returning credentials for a role with only CloudWatch read access is medium. The vulnerability is the same; the impact depends on what the credentials can do.</li>
+                <li><strong style="color: #c4a0d8;">Note credential expiration</strong> &mdash; STS temporary credentials expire (typically 1-12 hours). IAM access keys persist until rotated. GCP service account keys never expire. Note the credential type and expiration in your report because it affects the remediation urgency.</li>
+            </ol>
+
+            <h3>Cloud Security Tools Summary</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Platform</th>
+                        <th>Primary Use</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">PACU</td>
+                        <td>AWS</td>
+                        <td>Full exploitation framework: enumeration, escalation, persistence, exfiltration</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">cloudfox</td>
+                        <td>AWS, Azure</td>
+                        <td>Attack path discovery: assumable roles, secrets, network pivots</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">ScoutSuite</td>
+                        <td>AWS, Azure, GCP</td>
+                        <td>Multi-cloud security auditing: generates HTML report of misconfigurations</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Prowler</td>
+                        <td>AWS, Azure, GCP</td>
+                        <td>CIS benchmark checks: comprehensive compliance and security scanning</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">enumerate-iam</td>
+                        <td>AWS</td>
+                        <td>Permission brute-forcing: determines what API calls credentials can make</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">cloud_enum</td>
+                        <td>AWS, Azure, GCP</td>
+                        <td>Public resource enumeration: buckets, blobs, storage across all three clouds</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">kube-hunter</td>
+                        <td>Kubernetes</td>
+                        <td>Cluster penetration testing: exposed APIs, RBAC issues, node security</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">tfsec</td>
+                        <td>Terraform</td>
+                        <td>Static analysis of Terraform configurations for security misconfigurations</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">truffleHog</td>
+                        <td>Git repos</td>
+                        <td>Scans Git history for high-entropy strings and credential patterns (AWS keys, GCP keys)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">pmapper</td>
+                        <td>AWS</td>
+                        <td>IAM privilege escalation path analysis via graph-based relationship modeling</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Cloud Hunting Methodology</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">Identify the cloud provider</strong> &mdash; DNS records (CNAME to amazonaws.com, azurewebsites.net, googleapis.com), HTTP headers (x-amz-*, x-ms-*, x-goog-*), IP range lookups, and certificate subjects</li>
+                <li><strong style="color: #c4a0d8;">Enumerate storage</strong> &mdash; Use cloud_enum, Google dorking, and naming pattern prediction to discover S3 buckets, Azure Blob containers, and GCP Storage buckets</li>
+                <li><strong style="color: #c4a0d8;">Test storage permissions</strong> &mdash; Check listing, reading, writing, and ACL access on every discovered storage resource, both unauthenticated and with your own cloud credentials</li>
+                <li><strong style="color: #c4a0d8;">Hunt for credentials</strong> &mdash; Check source code, .env files, GitHub repos, Terraform state, CI/CD artifacts, and SSRF vectors for exposed cloud credentials</li>
+                <li><strong style="color: #c4a0d8;">Enumerate and escalate</strong> &mdash; For any credentials found, identify the principal, enumerate permissions, and test for privilege escalation paths</li>
+                <li><strong style="color: #c4a0d8;">Check Kubernetes exposure</strong> &mdash; Scan for exposed dashboards (443, 8443), API servers (6443), etcd (2379), and Kubelet (10250) on discovered IP ranges</li>
+                <li><strong style="color: #c4a0d8;">Review IaC artifacts</strong> &mdash; Search for exposed Terraform state files, CloudFormation templates, and Helm charts that reveal infrastructure details and secrets</li>
+                <li><strong style="color: #c4a0d8;">Document and report</strong> &mdash; Capture complete evidence with timestamps, demonstrate the full attack chain, quantify the impact, and provide specific remediation guidance</li>
+            </ol>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Cloud Is the Future of Bug Bounty</div>
+                    <div class="callout-text">
+                        As organizations continue migrating to the cloud, the proportion of
+                        critical findings that involve cloud infrastructure will only increase.
+                        Researchers who combine traditional web application testing skills with
+                        deep cloud platform knowledge will find the highest-impact vulnerabilities
+                        &mdash; the SSRF that chains to metadata credential theft, the public
+                        bucket containing database backups, the IAM policy that allows any
+                        authenticated user to escalate to admin. These are the findings that
+                        earn four- and five-figure bounties.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    You discover an SSRF vulnerability in a target's image processing endpoint. The application runs on an EC2 instance. Walk through the complete exploitation chain: what do you request first from the metadata service, how do you determine the role's permissions, and at what point do you stop testing and start writing your report?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    A target's S3 bucket is publicly listable and contains what appears to be a database backup from six months ago. The bucket also contains recent application logs. How do you assess and report the impact without downloading or reading the database backup? What evidence do you include in your report?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    You find AWS credentials in a public GitHub repository belonging to a developer at a target company. The credentials are three months old. What steps do you take before using them, and how does the age of the credentials affect your approach and the potential severity of your report?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the cloud shared responsibility model and why misconfigurations
+                dominate modern bounty programs, S3 bucket enumeration and permission testing,
+                AWS IAM privilege escalation paths and tooling, SSRF to cloud metadata exploitation
+                across AWS, Azure, and GCP, platform-specific attacks for Azure and GCP, Kubernetes
+                RBAC misconfigurations and container escape techniques, serverless attack surfaces
+                and Terraform state file exposure, and cloud-specific bug bounty reporting strategy.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 10
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Toggle detail/expand sections
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        body.classList.toggle('open');
+        toggle.classList.toggle('open');
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-cloud', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

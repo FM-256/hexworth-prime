@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 01: Recon Pipeline -- Bug Hunting Hub | The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Courier New', monospace; color: #a080b0; overflow: hidden; }
+        .header { position: fixed; top: 0; left: 0; right: 0; height: 50px; background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-link { color: #6a4a7a; text-decoration: none; font-size: 0.75rem; padding: 4px 10px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 3px; transition: all 0.3s; }
+        .back-link:hover { color: #9333ea; border-color: rgba(147, 51, 234, 0.4); }
+        .header-badge { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.15em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 15px; font-size: 0.7rem; }
+        .score-display { color: #a855f7; }
+        .progress-display { color: #6a4a7a; }
+        .main-container { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 50px); margin-top: 50px; }
+        .terminal-panel { display: flex; flex-direction: column; border-right: 1px solid rgba(100, 60, 130, 0.15); }
+        .terminal-wrapper { flex: 1; overflow: hidden; }
+        .task-prompt { padding: 12px 16px; background: rgba(40, 20, 60, 0.3); border-bottom: 1px solid rgba(100, 60, 130, 0.1); font-size: 0.8rem; color: #c4a0d8; min-height: 50px; display: flex; align-items: center; gap: 10px; }
+        .task-number { color: #9333ea; font-weight: bold; }
+        .sidebar { overflow-y: auto; background: rgba(8, 4, 12, 0.6); padding: 20px; }
+        .sidebar-section { margin-bottom: 24px; }
+        .sidebar-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #6a4a7a; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid rgba(100, 60, 130, 0.1); }
+        .objective-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; font-size: 0.75rem; color: #7a5a8a; border-bottom: 1px solid rgba(100, 60, 130, 0.06); }
+        .objective-item.completed { color: #4ade80; text-decoration: line-through; opacity: 0.7; }
+        .obj-check { width: 14px; height: 14px; border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; margin-top: 1px; }
+        .objective-item.completed .obj-check { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.5); color: #4ade80; }
+        .hint-btn { display: block; width: 100%; padding: 8px; background: rgba(40, 20, 60, 0.3); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 4px; color: #7a5a8a; font-size: 0.72rem; cursor: pointer; text-align: left; margin-bottom: 6px; font-family: 'Courier New', monospace; transition: all 0.3s; }
+        .hint-btn:hover { background: rgba(60, 30, 80, 0.4); border-color: rgba(147, 51, 234, 0.3); color: #a080b0; }
+        .hint-btn.revealed { background: rgba(20, 40, 30, 0.3); border-color: rgba(34, 197, 94, 0.2); color: #86efac; }
+        .ref-item { font-size: 0.72rem; color: #6a4a7a; padding: 4px 0; }
+        .ref-item code { color: #a855f7; background: rgba(40, 20, 60, 0.4); padding: 1px 4px; border-radius: 2px; }
+        .feedback-bar { padding: 10px 16px; background: rgba(10, 5, 15, 0.8); border-top: 1px solid rgba(100, 60, 130, 0.1); font-size: 0.75rem; min-height: 36px; }
+        .feedback-bar.success { color: #4ade80; }
+        .feedback-bar.error { color: #f87171; }
+        .feedback-bar.info { color: #93c5fd; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: rgba(15, 8, 25, 0.98); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; padding: 40px; max-width: 500px; width: 90%; text-align: center; }
+        .modal h2 { color: #c4a0d8; font-size: 1.4rem; margin-bottom: 15px; font-family: Georgia, serif; }
+        .modal p { color: #8a6a9a; font-size: 0.85rem; margin-bottom: 10px; }
+        .modal .score-final { font-size: 2rem; color: #a855f7; margin: 15px 0; }
+        .modal-btn { padding: 10px 24px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 6px; color: #f3e8ff; font-size: 0.85rem; cursor: pointer; font-family: 'Courier New', monospace; margin: 5px; transition: all 0.3s; }
+        .modal-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3); }
+        @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; } .sidebar { display: none; } }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <a href="../index.html" class="back-link">&larr; Bug Hunting</a>
+        <span class="header-badge">Lab 01 -- Recon Pipeline</span>
+    </div>
+    <div class="header-right">
+        <span class="score-display">Score: <strong id="score-val">100</strong></span>
+        <span class="progress-display" id="progress-val">0 / 8</span>
+    </div>
+</div>
+
+<div class="main-container">
+    <div class="terminal-panel">
+        <div class="task-prompt" id="task-prompt">
+            <span class="task-number">[1/8]</span>
+            <span id="task-text">Run an nmap scan on bounty-target.com to discover open ports.</span>
+        </div>
+        <div class="terminal-wrapper" id="terminal"></div>
+        <div class="feedback-bar" id="feedback"></div>
+    </div>
+    <div class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">Objectives</div>
+            <div id="objectives-list"></div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Hints (-5 pts each)</div>
+            <div id="hints-list"></div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Reference</div>
+            <div class="ref-item"><code>nmap &lt;host&gt;</code> -- port scan</div>
+            <div class="ref-item"><code>nmap -sV &lt;host&gt;</code> -- version detection</div>
+            <div class="ref-item"><code>dig &lt;domain&gt;</code> -- DNS records</div>
+            <div class="ref-item"><code>whois &lt;domain&gt;</code> -- registration info</div>
+            <div class="ref-item"><code>traceroute &lt;host&gt;</code> -- path trace</div>
+            <div class="ref-item"><code>help</code> -- list commands</div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="completion-modal">
+    <div class="modal">
+        <h2>Recon Pipeline Complete</h2>
+        <p>All 8 objectives completed. Target network fully mapped.</p>
+        <div class="score-final" id="final-score">100</div>
+        <p id="final-summary"></p>
+        <button class="modal-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+</div>
+
+<script src="../../../../components/LinuxTerminal.js"></script>
+<script src="../../../../components/SecurityTerminal.js"></script>
+<script>
+'use strict';
+
+/* ================================================================
+   NETWORK TOPOLOGY
+================================================================ */
+const HOSTS = {
+    'bounty-target.com': {
+        ip: '198.51.100.10',
+        ports: [
+            { port: 80,   state: 'open', service: 'http',    version: 'nginx 1.24.0' },
+            { port: 443,  state: 'open', service: 'https',   version: 'nginx 1.24.0 (OpenSSL 3.0.9)' },
+            { port: 8080, state: 'open', service: 'http-proxy', version: 'Apache Tomcat 9.0.80' }
+        ],
+        os: 'Linux 5.15 (Ubuntu 22.04 LTS)',
+        mac: '00:1A:2B:3C:4D:5E'
+    },
+    'api.bounty-target.com': {
+        ip: '198.51.100.11',
+        ports: [
+            { port: 443,  state: 'open', service: 'https',  version: 'nginx 1.24.0 (REST API Gateway)' },
+            { port: 8443, state: 'open', service: 'https-alt', version: 'Node.js Express 4.18.2 (API v2)' }
+        ],
+        os: 'Linux 5.15 (Ubuntu 22.04 LTS)',
+        mac: '00:1A:2B:3C:4D:5F'
+    },
+    'staging.bounty-target.com': {
+        ip: '198.51.100.12',
+        ports: [
+            { port: 80,   state: 'open', service: 'http',   version: 'nginx 1.24.0' },
+            { port: 443,  state: 'open', service: 'https',  version: 'nginx 1.24.0' },
+            { port: 3000, state: 'open', service: 'ppp',    version: 'Node.js 18.17.1 (Next.js dev server)' }
+        ],
+        os: 'Linux 5.15 (Ubuntu 22.04 LTS)',
+        mac: '00:1A:2B:3C:4D:60'
+    },
+    'admin.bounty-target.com': {
+        ip: '198.51.100.13',
+        ports: [
+            { port: 443,  state: 'open', service: 'https', version: 'nginx 1.24.0 (Admin Panel v3.1)' },
+            { port: 8888, state: 'open', service: 'sun-answerbook', version: 'Django Admin 4.2.5 (DEBUG=True)' }
+        ],
+        os: 'Linux 5.15 (Ubuntu 22.04 LTS)',
+        mac: '00:1A:2B:3C:4D:61'
+    },
+    'mail.bounty-target.com': {
+        ip: '198.51.100.14',
+        ports: [
+            { port: 25,  state: 'open', service: 'smtp',  version: 'Postfix smtpd 3.7.4' },
+            { port: 110, state: 'open', service: 'pop3',  version: 'Dovecot pop3d 2.3.19' },
+            { port: 143, state: 'open', service: 'imap',  version: 'Dovecot imapd 2.3.19' },
+            { port: 993, state: 'open', service: 'imaps', version: 'Dovecot imapd 2.3.19 (SSL)' }
+        ],
+        os: 'Linux 4.18 (CentOS Stream 8)',
+        mac: '00:1A:2B:3C:4D:62'
+    },
+    'dev.bounty-target.com': {
+        ip: '198.51.100.15',
+        ports: [
+            { port: 22,   state: 'open', service: 'ssh',        version: 'OpenSSH 9.3p1 (Ubuntu)' },
+            { port: 3000, state: 'open', service: 'ppp',        version: 'Gitea 1.20.4' },
+            { port: 5432, state: 'open', service: 'postgresql', version: 'PostgreSQL 15.4' }
+        ],
+        os: 'Linux 5.15 (Ubuntu 22.04 LTS)',
+        mac: '00:1A:2B:3C:4D:63'
+    }
+};
+
+/* ================================================================
+   TASKS
+================================================================ */
+const TASKS = [
+    {
+        id: 0,
+        prompt: 'Run an nmap scan on bounty-target.com to discover open ports.',
+        hint: 'Try: nmap bounty-target.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('nmap') && c.includes('bounty-target.com') && !c.includes('api.') && !c.includes('staging.') && !c.includes('admin.') && !c.includes('mail.') && !c.includes('dev.');
+        }
+    },
+    {
+        id: 1,
+        prompt: 'Use dig to find DNS records for bounty-target.com.',
+        hint: 'Try: dig bounty-target.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('dig') && c.includes('bounty-target.com');
+        }
+    },
+    {
+        id: 2,
+        prompt: 'Use whois to get registration info for bounty-target.com.',
+        hint: 'Try: whois bounty-target.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('whois') && c.includes('bounty-target.com');
+        }
+    },
+    {
+        id: 3,
+        prompt: 'Scan api.bounty-target.com to find the non-standard API port.',
+        hint: 'Try: nmap api.bounty-target.com or nmap -sV api.bounty-target.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('nmap') && c.includes('api.bounty-target.com');
+        }
+    },
+    {
+        id: 4,
+        prompt: 'Discover the staging server\'s Node.js service on port 3000.',
+        hint: 'Try: nmap -p 3000 staging.bounty-target.com or nmap staging.bounty-target.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('nmap') && c.includes('staging.bounty-target.com');
+        }
+    },
+    {
+        id: 5,
+        prompt: 'Find the hidden admin panel on admin.bounty-target.com.',
+        hint: 'Try: nmap -p- admin.bounty-target.com or nmap -sV admin.bounty-target.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('nmap') && c.includes('admin.bounty-target.com');
+        }
+    },
+    {
+        id: 6,
+        prompt: 'Enumerate mail server services on mail.bounty-target.com.',
+        hint: 'Try: nmap -sV mail.bounty-target.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('nmap') && c.includes('mail.bounty-target.com');
+        }
+    },
+    {
+        id: 7,
+        prompt: 'Identify the exposed PostgreSQL database on dev.bounty-target.com.',
+        hint: 'Try: nmap -sV dev.bounty-target.com',
+        validate: (cmd) => {
+            const c = cmd.toLowerCase();
+            return c.startsWith('nmap') && c.includes('dev.bounty-target.com');
+        }
+    }
+];
+
+/* ================================================================
+   STATE
+================================================================ */
+const state = {
+    score: 100,
+    hintsUsed: 0,
+    hintsRevealed: new Set(),
+    completed: new Set(),
+    history: [],
+    historyIdx: -1
+};
+
+/* ================================================================
+   DOM
+================================================================ */
+const dom = {
+    score: document.getElementById('score-val'),
+    progress: document.getElementById('progress-val'),
+    taskPrompt: document.getElementById('task-prompt'),
+    taskText: document.getElementById('task-text'),
+    feedback: document.getElementById('feedback'),
+    objList: document.getElementById('objectives-list'),
+    hintsList: document.getElementById('hints-list'),
+    modal: document.getElementById('completion-modal'),
+    finalScore: document.getElementById('final-score'),
+    finalSummary: document.getElementById('final-summary')
+};
+
+/* ================================================================
+   INIT
+================================================================ */
+function initLab() {
+    renderObjectives();
+    renderHints();
+    updateTaskPrompt();
+
+    // Build SecurityTerminal custom network
+    const customNetwork = {};
+    Object.entries(HOSTS).forEach(([hostname, data]) => {
+        customNetwork[hostname] = {
+            ip: data.ip,
+            hostname: hostname,
+            mac: data.mac,
+            os: data.os,
+            services: data.ports.map(p => ({
+                port: p.port,
+                service: p.service,
+                version: p.version,
+                state: p.state
+            }))
+        };
+    });
+
+    const secTerminal = new SecurityTerminal({
+        container: '#terminal',
+        inputElement: null,
+        scenario: 'recon',
+        customNetwork: customNetwork,
+        onObjectiveComplete: null
+    });
+
+    // Attach our custom command handler
+    const origExecute = secTerminal.execute.bind(secTerminal);
+
+    // Override handleCommand via listening to the input element
+    const termContainer = document.getElementById('terminal');
+    const inputEl = termContainer.querySelector('.lt-input') || termContainer.querySelector('input');
+
+    if (inputEl) {
+        inputEl.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const raw = inputEl.value.trim();
+                if (raw) {
+                    setTimeout(() => checkObjectives(raw), 100);
+                }
+            }
+        });
+    }
+
+    // Also intercept via a MutationObserver on terminal output for command detection
+    const outputEl = termContainer.querySelector('.lt-output');
+    if (outputEl) {
+        let lastCommandCheck = '';
+        const observer = new MutationObserver(() => {
+            const lines = outputEl.querySelectorAll('.lt-line');
+            if (lines.length === 0) return;
+            const last = lines[lines.length - 1];
+            const text = last.textContent || '';
+            if (text !== lastCommandCheck && text.includes('$')) {
+                lastCommandCheck = text;
+            }
+        });
+        observer.observe(outputEl, { childList: true });
+    }
+}
+
+/* ================================================================
+   ALTERNATIVE INIT: build custom terminal if SecurityTerminal
+   fails to render interactive input
+================================================================ */
+function initFallbackTerminal() {
+    const container = document.getElementById('terminal');
+
+    // Check if SecurityTerminal rendered properly
+    const hasInput = container.querySelector('.lt-input') || container.querySelector('input');
+    if (hasInput) return; // SecurityTerminal worked fine
+
+    // Build our own terminal interface
+    container.innerHTML = '';
+    container.style.cssText = 'display:flex;flex-direction:column;height:100%;background:#070409;';
+
+    const outputDiv = document.createElement('div');
+    outputDiv.id = 'term-output';
+    outputDiv.style.cssText = 'flex:1;overflow-y:auto;padding:16px 20px;font-family:"Courier New",monospace;font-size:0.82rem;line-height:1.7;color:#22c55e;';
+    container.appendChild(outputDiv);
+
+    const inputRow = document.createElement('div');
+    inputRow.style.cssText = 'display:flex;align-items:center;padding:12px 20px;background:rgba(12,7,16,0.95);border-top:1px solid rgba(100,60,130,0.15);gap:8px;flex-shrink:0;';
+
+    const promptSpan = document.createElement('span');
+    promptSpan.style.cssText = 'color:#a855f7;font-family:"Courier New",monospace;font-size:0.82rem;white-space:nowrap;';
+    promptSpan.textContent = 'recon@kali:~$ ';
+
+    const inputEl = document.createElement('input');
+    inputEl.type = 'text';
+    inputEl.id = 'term-input';
+    inputEl.autocomplete = 'off';
+    inputEl.spellcheck = false;
+    inputEl.placeholder = 'Type a command...';
+    inputEl.style.cssText = 'flex:1;background:transparent;border:none;outline:none;color:#e2d4f0;font-family:"Courier New",monospace;font-size:0.82rem;caret-color:#a855f7;';
+
+    inputRow.appendChild(promptSpan);
+    inputRow.appendChild(inputEl);
+    container.appendChild(inputRow);
+
+    // Print welcome
+    printLine(outputDiv, '-----------------------------------------------------------', 'dim');
+    printLine(outputDiv, '  HEXWORTH RECON TERMINAL  v3.0', 'info');
+    printLine(outputDiv, '  Bug Bounty Recon Pipeline Lab', 'dim');
+    printLine(outputDiv, '-----------------------------------------------------------', 'dim');
+    printLine(outputDiv, '', 'blank');
+    printLine(outputDiv, '  TARGET SCOPE:', 'info');
+    printLine(outputDiv, '    bounty-target.com       (primary web server)', 'output');
+    printLine(outputDiv, '    api.bounty-target.com   (API endpoints)', 'output');
+    printLine(outputDiv, '    staging.bounty-target.com (staging env)', 'output');
+    printLine(outputDiv, '    admin.bounty-target.com (admin panel)', 'output');
+    printLine(outputDiv, '    mail.bounty-target.com  (mail services)', 'output');
+    printLine(outputDiv, '    dev.bounty-target.com   (dev environment)', 'output');
+    printLine(outputDiv, '', 'blank');
+    printLine(outputDiv, '  [!] Simulated environment -- all data is fictional', 'warn');
+    printLine(outputDiv, '  Type "help" for available commands.', 'dim');
+    printLine(outputDiv, '', 'blank');
+
+    // Input handler
+    inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const raw = inputEl.value.trim();
+            inputEl.value = '';
+            if (!raw) return;
+            state.history.unshift(raw);
+            state.historyIdx = -1;
+            handleCommand(raw, outputDiv);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (state.history.length > 0) {
+                state.historyIdx = Math.min(state.historyIdx + 1, state.history.length - 1);
+                inputEl.value = state.history[state.historyIdx] || '';
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (state.historyIdx > 0) {
+                state.historyIdx--;
+                inputEl.value = state.history[state.historyIdx] || '';
+            } else {
+                state.historyIdx = -1;
+                inputEl.value = '';
+            }
+        }
+    });
+
+    inputEl.focus();
+    container.addEventListener('click', () => inputEl.focus());
+}
+
+/* ================================================================
+   TERMINAL RENDERING HELPERS
+================================================================ */
+const COLORS = {
+    dim: '#4a3a5a', info: '#6a9ecf', output: '#22c55e', warn: '#f59e0b',
+    error: '#f87171', success: '#22c55e', result: '#a855f7', val: '#c09ad0',
+    host: '#22d3ee', blank: 'transparent', cmd: '#e2d4f0', prompt: '#a855f7'
+};
+
+function printLine(container, text, type) {
+    const span = document.createElement('div');
+    span.style.color = COLORS[type] || COLORS.output;
+    span.style.fontFamily = '"Courier New", monospace';
+    span.style.fontSize = '0.82rem';
+    span.style.lineHeight = '1.7';
+    span.style.whiteSpace = 'pre-wrap';
+    span.style.wordBreak = 'break-word';
+    if (type === 'blank') {
+        span.innerHTML = '&nbsp;';
+    } else {
+        span.textContent = text;
+    }
+    container.appendChild(span);
+    container.scrollTop = container.scrollHeight;
+}
+
+function printLines(container, lines) {
+    lines.forEach(l => printLine(container, l.text, l.type));
+}
+
+/* ================================================================
+   COMMAND HANDLER
+================================================================ */
+function handleCommand(raw, output) {
+    // Echo
+    printLine(output, `recon@kali:~$ ${raw}`, 'prompt');
+    printLine(output, '', 'blank');
+
+    const parts = raw.trim().split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1).join(' ').toLowerCase();
+
+    switch (cmd) {
+        case 'help': cmdHelp(output); break;
+        case 'clear': output.innerHTML = ''; break;
+        case 'objectives': cmdObjectives(output); break;
+        case 'nmap': cmdNmap(args, raw, output); break;
+        case 'dig': cmdDig(args, output); break;
+        case 'whois': cmdWhois(args, output); break;
+        case 'traceroute': cmdTraceroute(args, output); break;
+        default:
+            printLine(output, `bash: ${cmd}: command not found`, 'error');
+            printLine(output, 'Type "help" for available commands.', 'dim');
+    }
+
+    printLine(output, '', 'blank');
+    checkObjectives(raw);
+}
+
+function cmdHelp(out) {
+    const lines = [
+        { text: 'Available Commands', type: 'info' },
+        { text: '-----------------------------------------------------------', type: 'dim' },
+        { text: '  nmap <host>             Port scan a target host', type: 'output' },
+        { text: '  nmap -sV <host>         Version detection scan', type: 'output' },
+        { text: '  nmap -p <ports> <host>  Scan specific ports', type: 'output' },
+        { text: '  nmap -p- <host>         Scan all 65535 ports', type: 'output' },
+        { text: '  dig <domain>            DNS record lookup', type: 'output' },
+        { text: '  dig <domain> any        All DNS records', type: 'output' },
+        { text: '  whois <domain>          WHOIS registration lookup', type: 'output' },
+        { text: '  traceroute <host>       Trace network path', type: 'output' },
+        { text: '  objectives              Show lab progress', type: 'output' },
+        { text: '  clear                   Clear terminal', type: 'output' },
+        { text: '  help                    This help message', type: 'output' },
+        { text: '', type: 'blank' },
+        { text: 'Target hosts in scope:', type: 'info' },
+        { text: '  bounty-target.com, api.bounty-target.com', type: 'dim' },
+        { text: '  staging.bounty-target.com, admin.bounty-target.com', type: 'dim' },
+        { text: '  mail.bounty-target.com, dev.bounty-target.com', type: 'dim' }
+    ];
+    printLines(out, lines);
+}
+
+function cmdObjectives(out) {
+    printLine(out, 'Objectives -- Recon Pipeline Lab', 'info');
+    printLine(out, '-----------------------------------------------------------', 'dim');
+    TASKS.forEach((t, i) => {
+        const done = state.completed.has(t.id);
+        const marker = done ? '[X]' : '[ ]';
+        printLine(out, `  ${marker} ${i + 1}. ${t.prompt}`, done ? 'success' : 'dim');
+    });
+    printLine(out, '', 'blank');
+    printLine(out, `  Progress: ${state.completed.size}/8  |  Score: ${state.score}`, 'result');
+}
+
+function cmdNmap(args, raw, out) {
+    // Find the target host in the args
+    let targetHost = null;
+    const allHosts = Object.keys(HOSTS);
+    for (const h of allHosts) {
+        if (args.includes(h)) { targetHost = h; break; }
+    }
+
+    if (!targetHost) {
+        if (!args) {
+            printLine(out, 'Usage: nmap [options] <target>', 'error');
+            printLine(out, 'Example: nmap bounty-target.com', 'dim');
+        } else {
+            printLine(out, `Failed to resolve "${args.split(/\s+/).pop()}".`, 'error');
+            printLine(out, 'Target must be a host in the bounty scope.', 'dim');
+        }
+        return;
+    }
+
+    const host = HOSTS[targetHost];
+    const hasVersion = args.includes('-sv') || args.includes('-a ') || raw.toLowerCase().includes('-a') || raw.includes('-sV') || raw.includes('-A');
+    const hasAllPorts = args.includes('-p-');
+    const hasPortSpec = args.match(/-p\s+(\S+)/);
+
+    let visiblePorts = host.ports;
+
+    if (hasPortSpec) {
+        const specStr = hasPortSpec[1];
+        const requested = new Set();
+        specStr.split(',').forEach(seg => {
+            if (seg.includes('-')) {
+                const [lo, hi] = seg.split('-').map(Number);
+                for (let p = lo; p <= hi; p++) requested.add(p);
+            } else {
+                const n = parseInt(seg, 10);
+                if (!isNaN(n)) requested.add(n);
+            }
+        });
+        visiblePorts = host.ports.filter(p => requested.has(p.port));
+    }
+
+    // Nmap header
+    printLine(out, `Starting Nmap 7.94 ( https://nmap.org )`, 'dim');
+    printLine(out, `Nmap scan report for ${targetHost} (${host.ip})`, 'host');
+    printLine(out, `Host is up (0.0023s latency).`, 'output');
+
+    if (visiblePorts.length === 0) {
+        printLine(out, 'All scanned ports are closed or filtered.', 'dim');
+    } else {
+        if (!hasPortSpec && !hasAllPorts) {
+            printLine(out, `Not shown: ${1000 - visiblePorts.length} closed tcp ports`, 'dim');
+        } else if (hasAllPorts) {
+            printLine(out, `Not shown: ${65535 - visiblePorts.length} closed tcp ports`, 'dim');
+        }
+        printLine(out, '', 'blank');
+
+        if (hasVersion) {
+            printLine(out, 'PORT      STATE  SERVICE        VERSION', 'info');
+            visiblePorts.forEach(p => {
+                const portStr = `${p.port}/tcp`.padEnd(10);
+                const stateStr = p.state.padEnd(7);
+                const svcStr = p.service.padEnd(15);
+                printLine(out, `${portStr}${stateStr}${svcStr}${p.version}`, 'success');
+            });
+        } else {
+            printLine(out, 'PORT      STATE  SERVICE', 'info');
+            visiblePorts.forEach(p => {
+                const portStr = `${p.port}/tcp`.padEnd(10);
+                const stateStr = p.state.padEnd(7);
+                printLine(out, `${portStr}${stateStr}${p.service}`, 'success');
+            });
+        }
+    }
+
+    printLine(out, '', 'blank');
+    printLine(out, `MAC Address: ${host.mac}`, 'dim');
+    printLine(out, `OS detection: ${host.os}`, 'dim');
+    printLine(out, '', 'blank');
+    printLine(out, `Nmap done: 1 IP address (1 host up) scanned in 2.34 seconds`, 'dim');
+
+    // Analysis notes
+    if (targetHost === 'bounty-target.com') {
+        printLine(out, '', 'blank');
+        printLine(out, '[+] Web server detected: nginx on ports 80, 443, 8080', 'success');
+        printLine(out, '[+] Tomcat on 8080 -- potential management interface exposure', 'warn');
+    } else if (targetHost === 'api.bounty-target.com') {
+        printLine(out, '', 'blank');
+        printLine(out, '[+] API gateway on 443, secondary API on non-standard port 8443', 'success');
+        printLine(out, '[!] Port 8443 exposes API v2 -- check for version-specific vulns', 'warn');
+    } else if (targetHost === 'staging.bounty-target.com') {
+        printLine(out, '', 'blank');
+        printLine(out, '[+] Staging environment detected on port 3000', 'success');
+        printLine(out, '[!] Next.js dev server exposed -- likely has debug features enabled', 'warn');
+    } else if (targetHost === 'admin.bounty-target.com') {
+        printLine(out, '', 'blank');
+        printLine(out, '[+] Admin panel found on 443', 'success');
+        printLine(out, '[!] Hidden Django admin on port 8888 with DEBUG=True -- critical finding', 'error');
+    } else if (targetHost === 'mail.bounty-target.com') {
+        printLine(out, '', 'blank');
+        printLine(out, '[+] Full mail stack: SMTP (25), POP3 (110), IMAP (143), IMAPS (993)', 'success');
+        printLine(out, '[+] Dovecot version 2.3.19 -- check for CVEs', 'warn');
+    } else if (targetHost === 'dev.bounty-target.com') {
+        printLine(out, '', 'blank');
+        printLine(out, '[+] SSH, Gitea, and PostgreSQL exposed', 'success');
+        printLine(out, '[!] PostgreSQL 15.4 on port 5432 -- database directly accessible', 'error');
+        printLine(out, '[!] Gitea on port 3000 -- check for public repos with secrets', 'warn');
+    }
+}
+
+function cmdDig(args, out) {
+    if (!args || !args.includes('bounty-target')) {
+        if (!args) {
+            printLine(out, 'Usage: dig <domain> [type]', 'error');
+        } else {
+            printLine(out, `;; connection timed out; no servers could be reached for "${args}"`, 'error');
+        }
+        return;
+    }
+
+    const lines = [
+        { text: `; <<>> DiG 9.18.18 <<>> bounty-target.com`, type: 'dim' },
+        { text: ';; global options: +cmd', type: 'dim' },
+        { text: ';; Got answer:', type: 'dim' },
+        { text: ';; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 38291', type: 'output' },
+        { text: ';; flags: qr rd ra; QUERY: 1, ANSWER: 6, AUTHORITY: 2, ADDITIONAL: 4', type: 'output' },
+        { text: '', type: 'blank' },
+        { text: ';; QUESTION SECTION:', type: 'info' },
+        { text: ';bounty-target.com.          IN  ANY', type: 'output' },
+        { text: '', type: 'blank' },
+        { text: ';; ANSWER SECTION:', type: 'info' },
+        { text: 'bounty-target.com.    300  IN  A      198.51.100.10', type: 'val' },
+        { text: 'bounty-target.com.    300  IN  AAAA   2001:db8:1::10', type: 'val' },
+        { text: 'bounty-target.com.    3600 IN  MX  10 mail.bounty-target.com.', type: 'val' },
+        { text: 'bounty-target.com.    3600 IN  NS     ns1.cloudflare.com.', type: 'val' },
+        { text: 'bounty-target.com.    3600 IN  NS     ns2.cloudflare.com.', type: 'val' },
+        { text: 'bounty-target.com.    3600 IN  TXT    "v=spf1 include:_spf.google.com ~all"', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: ';; ADDITIONAL SECTION:', type: 'info' },
+        { text: 'api.bounty-target.com.     300 IN  A  198.51.100.11', type: 'val' },
+        { text: 'staging.bounty-target.com. 300 IN  A  198.51.100.12', type: 'val' },
+        { text: 'admin.bounty-target.com.   300 IN  A  198.51.100.13', type: 'val' },
+        { text: 'mail.bounty-target.com.    300 IN  A  198.51.100.14', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: ';; Query time: 38 msec', type: 'dim' },
+        { text: ';; SERVER: 1.1.1.1#53(1.1.1.1)', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '[+] A record: 198.51.100.10 (primary)', type: 'success' },
+        { text: '[+] MX: mail.bounty-target.com -- in-house mail server', type: 'success' },
+        { text: '[+] Subdomains discovered via DNS: api, staging, admin, mail', type: 'success' },
+        { text: '[+] SPF record present -- email spoofing partially mitigated', type: 'success' },
+        { text: '[+] Cloudflare nameservers -- DNS-level protection active', type: 'info' }
+    ];
+    printLines(out, lines);
+}
+
+function cmdWhois(args, out) {
+    if (!args || !args.includes('bounty-target')) {
+        if (!args) {
+            printLine(out, 'Usage: whois <domain>', 'error');
+        } else {
+            printLine(out, `No match for "${args}" in WHOIS database.`, 'error');
+        }
+        return;
+    }
+
+    const lines = [
+        { text: 'WHOIS lookup: bounty-target.com', type: 'info' },
+        { text: '-----------------------------------------------------------', type: 'dim' },
+        { text: '   Domain Name: BOUNTY-TARGET.COM', type: 'output' },
+        { text: '   Registry Domain ID: 2781930471_DOMAIN_COM-VRSN', type: 'output' },
+        { text: '', type: 'blank' },
+        { text: '   Registrar:                 GoDaddy.com, LLC', type: 'result' },
+        { text: '   Registrar WHOIS Server:    whois.godaddy.com', type: 'result' },
+        { text: '   Registrar URL:             https://www.godaddy.com', type: 'result' },
+        { text: '', type: 'blank' },
+        { text: '   Creation Date:             2020-06-12T14:30:22Z', type: 'result' },
+        { text: '   Updated Date:              2024-05-18T09:12:44Z', type: 'result' },
+        { text: '   Registry Expiry Date:      2026-06-12T14:30:22Z', type: 'result' },
+        { text: '', type: 'blank' },
+        { text: '   Domain Status:             clientDeleteProhibited', type: 'result' },
+        { text: '   Domain Status:             clientTransferProhibited', type: 'result' },
+        { text: '', type: 'blank' },
+        { text: '   Name Server:               NS1.CLOUDFLARE.COM', type: 'result' },
+        { text: '   Name Server:               NS2.CLOUDFLARE.COM', type: 'result' },
+        { text: '', type: 'blank' },
+        { text: '   Registrant Organization:   BountyTarget Inc.', type: 'val' },
+        { text: '   Registrant State:          California', type: 'val' },
+        { text: '   Registrant Country:        US', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: '   Admin Name:                Marcus Rivera', type: 'val' },
+        { text: '   Admin Email:               admin@bounty-target.com', type: 'val' },
+        { text: '   Tech Email:                devops@bounty-target.com', type: 'val' },
+        { text: '', type: 'blank' },
+        { text: '   DNSSEC: unsigned', type: 'dim' },
+        { text: '', type: 'blank' },
+        { text: '[+] Registrar: GoDaddy -- check for domain takeover opportunities', type: 'success' },
+        { text: '[+] Admin contact: Marcus Rivera (admin@bounty-target.com)', type: 'success' },
+        { text: '[+] Domain expires 2026-06-12 -- renewal phishing window', type: 'warn' },
+        { text: '[+] DNSSEC unsigned -- DNS spoofing possible', type: 'warn' }
+    ];
+    printLines(out, lines);
+}
+
+function cmdTraceroute(args, out) {
+    if (!args) {
+        printLine(out, 'Usage: traceroute <host>', 'error');
+        return;
+    }
+
+    let targetHost = null;
+    Object.keys(HOSTS).forEach(h => { if (args.includes(h)) targetHost = h; });
+
+    if (!targetHost) {
+        printLine(out, `traceroute: unknown host ${args}`, 'error');
+        return;
+    }
+
+    const host = HOSTS[targetHost];
+    const lines = [
+        { text: `traceroute to ${targetHost} (${host.ip}), 30 hops max, 60 byte packets`, type: 'dim' },
+        { text: ` 1  192.168.1.1 (192.168.1.1)  0.412 ms  0.389 ms  0.371 ms`, type: 'output' },
+        { text: ` 2  10.0.0.1 (10.0.0.1)  1.234 ms  1.198 ms  1.165 ms`, type: 'output' },
+        { text: ` 3  172.16.0.1 (172.16.0.1)  5.891 ms  5.723 ms  5.614 ms`, type: 'output' },
+        { text: ` 4  198.51.100.1 (198.51.100.1)  12.445 ms  12.331 ms  12.289 ms`, type: 'output' },
+        { text: ` 5  ${host.ip} (${host.ip})  14.201 ms  14.167 ms  14.102 ms`, type: 'success' },
+        { text: '', type: 'blank' },
+        { text: `[+] Route to ${targetHost}: 5 hops, ~14ms latency`, type: 'info' }
+    ];
+    printLines(out, lines);
+}
+
+/* ================================================================
+   OBJECTIVE CHECKING
+================================================================ */
+function checkObjectives(raw) {
+    let anyNew = false;
+    TASKS.forEach(task => {
+        if (state.completed.has(task.id)) return;
+        if (task.validate(raw)) {
+            state.completed.add(task.id);
+            anyNew = true;
+            showFeedback(`Objective ${task.id + 1} complete: ${task.prompt}`, 'success');
+        }
+    });
+
+    if (anyNew) {
+        renderObjectives();
+        updateProgress();
+        updateTaskPrompt();
+
+        if (state.completed.size === TASKS.length) {
+            setTimeout(showCompletionModal, 800);
+        }
+    }
+}
+
+/* ================================================================
+   UI UPDATES
+================================================================ */
+function renderObjectives() {
+    dom.objList.innerHTML = '';
+    TASKS.forEach((task, i) => {
+        const done = state.completed.has(task.id);
+        const div = document.createElement('div');
+        div.className = 'objective-item' + (done ? ' completed' : '');
+        div.innerHTML = `<div class="obj-check">${done ? 'X' : ''}</div><span>${i + 1}. ${task.prompt}</span>`;
+        dom.objList.appendChild(div);
+    });
+}
+
+function renderHints() {
+    dom.hintsList.innerHTML = '';
+    TASKS.forEach((task, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'hint-btn';
+        btn.textContent = `Hint ${i + 1}: Objective ${i + 1}`;
+        btn.onclick = () => revealHint(i, btn);
+        dom.hintsList.appendChild(btn);
+    });
+}
+
+function revealHint(idx, btn) {
+    if (state.hintsRevealed.has(idx)) return;
+    state.hintsRevealed.add(idx);
+    state.score = Math.max(0, state.score - 5);
+    state.hintsUsed++;
+    btn.textContent = TASKS[idx].hint;
+    btn.classList.add('revealed');
+    updateProgress();
+    showFeedback(`Hint revealed (-5 pts): ${TASKS[idx].hint}`, 'info');
+}
+
+function updateProgress() {
+    dom.score.textContent = state.score;
+    dom.progress.textContent = `${state.completed.size} / 8`;
+}
+
+function updateTaskPrompt() {
+    const nextTask = TASKS.find(t => !state.completed.has(t.id));
+    if (nextTask) {
+        dom.taskPrompt.querySelector('.task-number').textContent = `[${nextTask.id + 1}/8]`;
+        dom.taskText.textContent = nextTask.prompt;
+    } else {
+        dom.taskPrompt.querySelector('.task-number').textContent = '[DONE]';
+        dom.taskText.textContent = 'All objectives complete. Click Complete Lab.';
+    }
+}
+
+function showFeedback(msg, type) {
+    dom.feedback.textContent = msg;
+    dom.feedback.className = 'feedback-bar ' + type;
+    setTimeout(() => { dom.feedback.textContent = ''; dom.feedback.className = 'feedback-bar'; }, 4000);
+}
+
+function showCompletionModal() {
+    dom.finalScore.textContent = state.score;
+    dom.finalSummary.textContent = `Hints used: ${state.hintsUsed} | Deductions: ${state.hintsUsed * 5} pts`;
+    dom.modal.classList.add('active');
+}
+
+function completeLab() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('dark-arts', 'bh-lab-recon', { returnUrl: '../index.html' });
+    } else {
+        window.location.href = '../index.html';
+    }
+}
+
+/* ================================================================
+   BOOT
+================================================================ */
+document.addEventListener('DOMContentLoaded', function() {
+    // Try SecurityTerminal first, then fallback
+    try {
+        initLab();
+        setTimeout(initFallbackTerminal, 300);
+    } catch (e) {
+        initFallbackTerminal();
+    }
+});
+</script>
+</body>
+</html>

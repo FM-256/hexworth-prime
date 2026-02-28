@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Methodology Framework - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        /* ---- Intro ---- */
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        /* ---- Sections ---- */
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { font-size: 1.15rem; color: #c4a0d8; margin: 28px 0 14px; font-weight: 400; }
+        .section-body h4 { font-size: 0.95rem; color: #b090c0; margin: 20px 0 10px; font-weight: 400; letter-spacing: 0.05em; }
+
+        /* ---- Tables ---- */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.85rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 14px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.75rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 11px 14px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+
+        /* ---- Phase badges ---- */
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.63rem; letter-spacing: 0.08em; text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-recon    { background: rgba(34,197,94,0.13);   color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .badge-discover { background: rgba(147,51,234,0.18);  color: #c084fc; border: 1px solid rgba(147,51,234,0.35); }
+        .badge-exploit  { background: rgba(249,115,22,0.15);  color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+        .badge-report   { background: rgba(59,130,246,0.15);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+        .badge-verify   { background: rgba(239,68,68,0.15);   color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        /* ---- Code blocks ---- */
+        .code-block {
+            background: rgba(5, 2, 10, 0.85);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 14px 18px; margin: 12px 0;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.65;
+            white-space: pre-wrap;
+        }
+
+        .code-block .kw      { color: #a855f7; }
+        .code-block .str     { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag    { color: #fbbf24; }
+        .code-block .var     { color: #f472b6; }
+
+        /* ---- Flow diagram ---- */
+        .flow-diagram {
+            display: flex; align-items: flex-start; gap: 0;
+            margin: 28px 0; overflow-x: auto; padding-bottom: 10px;
+        }
+
+        .flow-phase {
+            flex: 1; min-width: 120px;
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 8px; padding: 18px 12px; text-align: center;
+            position: relative;
+        }
+
+        .flow-arrow {
+            flex-shrink: 0; width: 28px; display: flex; align-items: center;
+            justify-content: center; color: #6a4a7a; font-size: 1.1rem;
+            padding-top: 16px;
+        }
+
+        .flow-phase-num {
+            font-size: 0.6rem; color: #6a4a7a; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 6px;
+        }
+
+        .flow-phase-title {
+            font-size: 0.82rem; color: #c4a0d8; margin-bottom: 6px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .flow-phase-desc {
+            font-size: 0.68rem; color: #7a5a8a; line-height: 1.4;
+        }
+
+        /* ---- Callouts ---- */
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info    { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger  { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip     { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title    { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title  { color: #ef4444; }
+        .callout-tip .callout-title     { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        /* ---- Checklist ---- */
+        .checklist { list-style: none; padding-left: 0; margin: 16px 0; }
+        .checklist li {
+            margin-bottom: 8px; padding: 8px 14px;
+            background: rgba(15, 8, 20, 0.4);
+            border: 1px solid rgba(100, 60, 130, 0.1);
+            border-radius: 4px; font-size: 0.88rem; color: #9a7aaa;
+            position: relative; padding-left: 36px;
+        }
+        .checklist li::before {
+            content: '\2610'; position: absolute; left: 12px; top: 8px;
+            color: #7a5a8a; font-size: 1rem;
+        }
+
+        /* ---- Template block ---- */
+        .template-block {
+            background: rgba(5, 2, 10, 0.7);
+            border: 1px solid rgba(100, 60, 130, 0.25);
+            border-radius: 8px; padding: 24px; margin: 20px 0;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #b090c0; line-height: 1.8; white-space: pre-wrap;
+        }
+
+        .template-label {
+            font-size: 0.7rem; color: #9333ea; letter-spacing: 0.15em;
+            text-transform: uppercase; margin-bottom: 10px;
+            font-family: 'Georgia', serif;
+        }
+
+        /* ---- Priority matrix ---- */
+        .priority-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .priority-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 18px;
+        }
+
+        .priority-card-title {
+            font-size: 0.75rem; color: #c4a0d8; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .priority-card-list { list-style: none; padding: 0; }
+        .priority-card-list li {
+            font-size: 0.82rem; color: #9a7aaa; padding: 4px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.06);
+        }
+        .priority-card-list li:last-child { border-bottom: none; }
+        .priority-card-list li::before { content: none; }
+
+        /* ---- Completion ---- */
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .flow-diagram { flex-direction: column; }
+            .flow-arrow { transform: rotate(90deg); align-self: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">Bug Hunting &middot; Methodology Framework</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9776;</div>
+        <h1 class="intro-title">Methodology Framework</h1>
+        <div class="intro-meta">Bug Hunting &bull; Reference &bull; 8 Phases</div>
+        <p class="intro-subtitle">
+            A structured recon-to-report workflow based on the Penetration Testing Execution Standard (PTES),
+            adapted for bug bounty hunting. This framework provides a repeatable, phase-by-phase approach that
+            maximizes coverage while minimizing wasted effort. Follow the phases sequentially on new targets,
+            then iterate as you develop intuition for specific application types.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">8 Phases</div>
+            <div class="stat-pill">Checklists</div>
+            <div class="stat-pill">Decision Trees</div>
+            <div class="stat-pill">Report Template</div>
+            <div class="stat-pill">Time Management</div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 1: The PTES-Inspired Framework
+         ================================================================ -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9776;</span>
+            The PTES-Inspired Framework
+        </h2>
+        <div class="section-body">
+            <p>
+                The Penetration Testing Execution Standard defines a structured approach to security testing
+                that translates directly to bug bounty work. The eight phases below adapt PTES for the
+                unique constraints of bounty programs &mdash; where scope is defined by the vendor, time
+                is self-managed, and the deliverable is a vulnerability report rather than a pentest engagement.
+            </p>
+
+            <div class="flow-diagram">
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 01</div>
+                    <div class="flow-phase-title">Scope</div>
+                    <div class="flow-phase-desc">Read policy, identify assets, note exclusions</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 02</div>
+                    <div class="flow-phase-title">Recon</div>
+                    <div class="flow-phase-desc">Passive OSINT, subdomain enum, tech stack</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 03</div>
+                    <div class="flow-phase-title">Enum</div>
+                    <div class="flow-phase-desc">Directories, params, endpoints, JS analysis</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 04</div>
+                    <div class="flow-phase-title">Discovery</div>
+                    <div class="flow-phase-desc">Vuln scanning, manual testing, pattern matching</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 05</div>
+                    <div class="flow-phase-title">Exploit</div>
+                    <div class="flow-phase-desc">Confirm, chain, prove impact</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 06</div>
+                    <div class="flow-phase-title">Post-Exploit</div>
+                    <div class="flow-phase-desc">Assess blast radius, document impact</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 07</div>
+                    <div class="flow-phase-title">Report</div>
+                    <div class="flow-phase-desc">Write clear, reproducible report</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div class="flow-phase">
+                    <div class="flow-phase-num">Phase 08</div>
+                    <div class="flow-phase-title">Verify</div>
+                    <div class="flow-phase-desc">Retest after fix, confirm resolution</div>
+                </div>
+            </div>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Phase</th>
+                        <th>Objective</th>
+                        <th>Key Deliverable</th>
+                        <th>Time %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>1. Scope Analysis</td><td>Understand boundaries and rules of engagement</td><td>Scope document notes</td><td>5%</td></tr>
+                    <tr><td>2. Reconnaissance</td><td>Map the attack surface passively</td><td>Subdomain list, tech stack</td><td>20%</td></tr>
+                    <tr><td>3. Enumeration</td><td>Actively discover endpoints and parameters</td><td>Endpoint inventory</td><td>20%</td></tr>
+                    <tr><td>4. Vulnerability Discovery</td><td>Identify potential vulnerabilities</td><td>Candidate vulnerability list</td><td>25%</td></tr>
+                    <tr><td>5. Exploitation</td><td>Confirm and prove vulnerabilities</td><td>Working PoC</td><td>15%</td></tr>
+                    <tr><td>6. Post-Exploitation</td><td>Determine full impact and blast radius</td><td>Impact assessment</td><td>5%</td></tr>
+                    <tr><td>7. Reporting</td><td>Communicate findings clearly</td><td>Submission-ready report</td><td>8%</td></tr>
+                    <tr><td>8. Verification</td><td>Confirm fix after remediation</td><td>Retest confirmation</td><td>2%</td></tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#9432;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Iterative, Not Linear</div>
+                    <div class="callout-text">
+                        While the phases are numbered sequentially, experienced hunters cycle through them
+                        fluidly. Discovery during Phase 4 often sends you back to Phase 3 for deeper
+                        enumeration. Exploitation (Phase 5) regularly reveals new attack surface that
+                        requires additional reconnaissance. Treat the framework as a compass, not a railroad track.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 2: Phase 1 — Scope Analysis Checklist
+         ================================================================ -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128196;</span>
+            Phase 1: Scope Analysis Checklist
+        </h2>
+        <div class="section-body">
+            <p>
+                Scope analysis is the most overlooked phase. Spending 15 minutes here saves hours of
+                wasted testing on out-of-scope assets. Many duplicates and N/A reports result from
+                hunters who skip straight to recon without reading the program policy.
+            </p>
+
+            <h3>Reading the Program Policy</h3>
+            <ul class="checklist">
+                <li>Read the full program description, not just the scope table</li>
+                <li>Identify all in-scope domains, subdomains, and wildcard entries</li>
+                <li>Note any IP ranges or CIDR blocks explicitly included</li>
+                <li>Check if mobile applications (iOS, Android) are in scope</li>
+                <li>Look for API documentation links in the program page</li>
+                <li>Read the changelog or update history for recent scope changes</li>
+            </ul>
+
+            <h3>Identifying Asset Types</h3>
+            <table class="standards-table">
+                <thead>
+                    <tr><th>Asset Type</th><th>Examples</th><th>Testing Approach</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Web Applications</td><td>Main site, admin panels, dashboards</td><td>Full OWASP Top 10 testing</td></tr>
+                    <tr><td>APIs</td><td>REST, GraphQL, gRPC endpoints</td><td>Authentication, authorization, injection</td></tr>
+                    <tr><td>Mobile Apps</td><td>iOS IPA, Android APK</td><td>Static analysis, API interception, local storage</td></tr>
+                    <tr><td>Infrastructure</td><td>Cloud services, DNS, mail servers</td><td>Misconfigurations, exposed services</td></tr>
+                    <tr><td>Source Code</td><td>Open-source repos, published libraries</td><td>Code review, dependency analysis</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Noting Exclusions</h3>
+            <ul class="checklist">
+                <li>List all explicitly out-of-scope domains and features</li>
+                <li>Check for excluded vulnerability types (e.g., self-XSS, CSRF logout, rate limiting)</li>
+                <li>Note any testing restrictions (no DoS, no social engineering, no physical)</li>
+                <li>Identify safe harbor language and legal protections</li>
+                <li>Check response SLA and triage team reputation on disclosure platforms</li>
+            </ul>
+
+            <h3>Rules of Engagement</h3>
+            <ul class="checklist">
+                <li>Understand the disclosure policy (coordinated, full, or program-managed)</li>
+                <li>Note any required testing accounts or credentials provided</li>
+                <li>Check if automated scanning is allowed or restricted</li>
+                <li>Identify any rate-limiting requirements the program imposes</li>
+                <li>Determine if you need to create test accounts or if they are provided</li>
+                <li>Check the duplicate window and how priority is determined</li>
+            </ul>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Exclusion Trap</div>
+                    <div class="callout-text">
+                        Many programs exclude third-party integrations (e.g., Zendesk, Intercom, Stripe checkout).
+                        Vulnerabilities found in these third-party services hosted on the target's domain are
+                        almost always out of scope. Check the program policy before spending time on embedded widgets.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 3: Phase 2-3 — Recon & Enumeration Decision Tree
+         ================================================================ -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128269;</span>
+            Phase 2-3: Recon &amp; Enumeration Decision Tree
+        </h2>
+        <div class="section-body">
+            <p>
+                Reconnaissance and enumeration form the foundation of every successful hunt. The decision
+                tree below helps you choose between passive and active techniques based on the target type,
+                scope constraints, and your available time.
+            </p>
+
+            <h3>Passive vs. Active: When to Use Each</h3>
+            <table class="standards-table">
+                <thead>
+                    <tr><th>Technique</th><th>Category</th><th>When to Use</th><th>Risk Level</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Certificate Transparency logs</td><td>Passive</td><td>Always &mdash; first step for subdomain discovery</td><td>None</td></tr>
+                    <tr><td>DNS record enumeration</td><td>Passive</td><td>Always &mdash; reveals mail, name, and CNAME records</td><td>None</td></tr>
+                    <tr><td>Wayback Machine / web archives</td><td>Passive</td><td>Historical endpoint discovery, removed features</td><td>None</td></tr>
+                    <tr><td>Google dorking</td><td>Passive</td><td>Finding exposed files, admin panels, error pages</td><td>None</td></tr>
+                    <tr><td>GitHub/GitLab search</td><td>Passive</td><td>Leaked credentials, API keys, internal paths</td><td>None</td></tr>
+                    <tr><td>Subdomain brute-forcing</td><td>Active</td><td>After passive discovery exhausted</td><td>Low</td></tr>
+                    <tr><td>Directory/file brute-forcing</td><td>Active</td><td>Per-host, after identifying tech stack</td><td>Medium</td></tr>
+                    <tr><td>Port scanning</td><td>Active</td><td>Only if infrastructure is in scope</td><td>Medium</td></tr>
+                    <tr><td>Parameter fuzzing</td><td>Active</td><td>After identifying endpoints with limited params</td><td>Medium</td></tr>
+                    <tr><td>Spider/crawl</td><td>Active</td><td>For large web apps, after proxy setup</td><td>Low</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Tool Selection Flowchart</h3>
+            <div class="code-block">
+<span class="comment"># Subdomain Discovery Pipeline</span>
+<span class="comment"># Start passive, escalate to active</span>
+
+<span class="comment"># 1. Passive: Certificate Transparency</span>
+$ <span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">target.com</span> <span class="flag">-silent</span> &gt; subs.txt
+
+<span class="comment"># 2. Passive: Additional sources (Amass passive mode)</span>
+$ <span class="kw">amass</span> enum <span class="flag">-passive</span> <span class="flag">-d</span> <span class="str">target.com</span> &gt;&gt; subs.txt
+
+<span class="comment"># 3. Deduplicate</span>
+$ <span class="kw">sort</span> <span class="flag">-u</span> subs.txt <span class="flag">-o</span> subs.txt
+
+<span class="comment"># 4. Resolve live hosts</span>
+$ <span class="kw">httpx</span> <span class="flag">-l</span> subs.txt <span class="flag">-silent</span> <span class="flag">-o</span> live.txt
+
+<span class="comment"># 5. Active: Brute-force remaining (if time allows)</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://FUZZ.target.com</span> <span class="flag">-w</span> wordlist.txt <span class="flag">-mc</span> <span class="str">200,301,302,403</span>
+
+<span class="comment"># 6. Screenshot all live hosts for visual triage</span>
+$ <span class="kw">gowitness</span> file <span class="flag">-f</span> live.txt</div>
+
+            <h3>Time Allocation Guide</h3>
+            <div class="priority-grid">
+                <div class="priority-card">
+                    <div class="priority-card-title">Short Hunt (2-4 hours)</div>
+                    <ul class="priority-card-list">
+                        <li>60 min &mdash; Passive recon only</li>
+                        <li>30 min &mdash; Quick directory scan on main app</li>
+                        <li>90 min &mdash; Manual testing of top 3 features</li>
+                        <li>30 min &mdash; Report writing</li>
+                    </ul>
+                </div>
+                <div class="priority-card">
+                    <div class="priority-card-title">Standard Hunt (8-12 hours)</div>
+                    <ul class="priority-card-list">
+                        <li>2 hr &mdash; Full passive + active recon</li>
+                        <li>2 hr &mdash; Enumeration (dirs, params, JS)</li>
+                        <li>4 hr &mdash; Systematic vuln testing</li>
+                        <li>1 hr &mdash; Exploitation and PoC</li>
+                        <li>1 hr &mdash; Report writing</li>
+                    </ul>
+                </div>
+                <div class="priority-card">
+                    <div class="priority-card-title">Deep Dive (multi-day)</div>
+                    <ul class="priority-card-list">
+                        <li>Day 1 &mdash; Complete recon + enumeration</li>
+                        <li>Day 2 &mdash; Auth testing + business logic</li>
+                        <li>Day 3 &mdash; API testing + source review</li>
+                        <li>Day 4 &mdash; Chaining + edge cases</li>
+                        <li>Day 5 &mdash; Report + verify + submit</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 4: Phase 4-5 — Discovery & Exploitation Checklist
+         ================================================================ -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128270;</span>
+            Phase 4-5: Discovery &amp; Exploitation Checklist
+        </h2>
+        <div class="section-body">
+            <p>
+                Systematic vulnerability discovery requires checking every class of vulnerability against
+                every attack surface identified during enumeration. The checklists below cover the OWASP
+                Top 10 for web applications and the OWASP API Security Top 10, organized by testing priority.
+            </p>
+
+            <h3>OWASP Web Top 10 Checklist</h3>
+            <table class="standards-table">
+                <thead>
+                    <tr><th>#</th><th>Category</th><th>Test For</th><th>Priority</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>A01</td><td>Broken Access Control</td><td>IDOR, privilege escalation, forced browsing, missing function-level access</td><td>Critical</td></tr>
+                    <tr><td>A02</td><td>Cryptographic Failures</td><td>Sensitive data in transit/rest, weak algorithms, exposed secrets</td><td>High</td></tr>
+                    <tr><td>A03</td><td>Injection</td><td>SQL, NoSQL, OS command, LDAP, XSS, template injection</td><td>Critical</td></tr>
+                    <tr><td>A04</td><td>Insecure Design</td><td>Business logic flaws, missing rate limits, trust boundary violations</td><td>High</td></tr>
+                    <tr><td>A05</td><td>Security Misconfiguration</td><td>Default creds, verbose errors, unnecessary features, missing headers</td><td>Medium</td></tr>
+                    <tr><td>A06</td><td>Vulnerable Components</td><td>Outdated libraries, known CVEs, unpatched frameworks</td><td>Medium</td></tr>
+                    <tr><td>A07</td><td>Auth Failures</td><td>Credential stuffing, weak passwords, session fixation, JWT flaws</td><td>High</td></tr>
+                    <tr><td>A08</td><td>Software/Data Integrity</td><td>Insecure deserialization, unsigned updates, CI/CD compromise</td><td>High</td></tr>
+                    <tr><td>A09</td><td>Logging Failures</td><td>Missing audit logs, log injection, monitoring gaps</td><td>Low</td></tr>
+                    <tr><td>A10</td><td>SSRF</td><td>Internal network access, cloud metadata, service interaction</td><td>Critical</td></tr>
+                </tbody>
+            </table>
+
+            <h3>OWASP API Security Top 10 Checklist</h3>
+            <table class="standards-table">
+                <thead>
+                    <tr><th>#</th><th>Category</th><th>Test For</th><th>Priority</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>API1</td><td>BOLA</td><td>Change object IDs in requests, access other users' data</td><td>Critical</td></tr>
+                    <tr><td>API2</td><td>Broken Authentication</td><td>Weak token generation, missing auth on endpoints, token leakage</td><td>Critical</td></tr>
+                    <tr><td>API3</td><td>Broken Object Property Auth</td><td>Mass assignment, excessive data exposure in responses</td><td>High</td></tr>
+                    <tr><td>API4</td><td>Unrestricted Resource Consumption</td><td>Missing rate limits, large payload processing, expensive operations</td><td>Medium</td></tr>
+                    <tr><td>API5</td><td>Broken Function Level Auth</td><td>Access admin functions as regular user, horizontal privilege escalation</td><td>Critical</td></tr>
+                    <tr><td>API6</td><td>Unrestricted Access to Sensitive Flows</td><td>Automated abuse of business features, purchase flow bypass</td><td>High</td></tr>
+                    <tr><td>API7</td><td>SSRF</td><td>URL parameters that fetch remote resources, webhook URLs</td><td>Critical</td></tr>
+                    <tr><td>API8</td><td>Security Misconfiguration</td><td>CORS misconfig, unnecessary HTTP methods, missing TLS</td><td>Medium</td></tr>
+                    <tr><td>API9</td><td>Improper Inventory Management</td><td>Deprecated API versions, undocumented endpoints, shadow APIs</td><td>High</td></tr>
+                    <tr><td>API10</td><td>Unsafe API Consumption</td><td>Third-party API trust, unvalidated redirects, webhook injection</td><td>Medium</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Testing Priority Matrix</h3>
+            <p>
+                Not all vulnerability classes deserve equal time. The matrix below orders testing by the
+                combination of likelihood (how often the bug exists) and bounty impact (how much programs
+                typically pay for it).
+            </p>
+
+            <div class="priority-grid">
+                <div class="priority-card">
+                    <div class="priority-card-title" style="color:#f87171;">Test First &mdash; High ROI</div>
+                    <ul class="priority-card-list">
+                        <li>IDOR / Broken Access Control</li>
+                        <li>Authentication bypass</li>
+                        <li>SSRF (especially cloud targets)</li>
+                        <li>SQL Injection</li>
+                        <li>Privilege escalation</li>
+                    </ul>
+                </div>
+                <div class="priority-card">
+                    <div class="priority-card-title" style="color:#fbbf24;">Test Second &mdash; Medium ROI</div>
+                    <ul class="priority-card-list">
+                        <li>Stored XSS</li>
+                        <li>Business logic flaws</li>
+                        <li>API mass assignment</li>
+                        <li>Information disclosure (sensitive)</li>
+                        <li>Race conditions</li>
+                    </ul>
+                </div>
+                <div class="priority-card">
+                    <div class="priority-card-title" style="color:#4ade80;">Test Third &mdash; Lower ROI</div>
+                    <ul class="priority-card-list">
+                        <li>Reflected XSS</li>
+                        <li>CSRF on non-critical actions</li>
+                        <li>Open redirect</li>
+                        <li>Missing security headers</li>
+                        <li>Verbose error messages</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 5: Phase 6-7 — Reporting Template
+         ================================================================ -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128221;</span>
+            Phase 6-7: Reporting Template
+        </h2>
+        <div class="section-body">
+            <p>
+                A well-written report is the difference between a paid bounty and a closed-as-informative
+                submission. Triage analysts review dozens of reports daily &mdash; clarity, reproducibility,
+                and impact articulation determine how quickly your report moves through the pipeline.
+            </p>
+
+            <h3>Report Structure</h3>
+            <div class="template-block">
+                <div class="template-label">Report Template</div>
+## Title
+[Vulnerability Type] in [Feature/Endpoint] allows [Impact]
+
+## Summary
+One paragraph describing what the vulnerability is, where it exists,
+and what an attacker can achieve by exploiting it.
+
+## Severity
+CVSS 3.1 Score: [X.X] ([Critical/High/Medium/Low])
+Vector: AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N
+
+## Steps to Reproduce
+1. Navigate to [URL]
+2. Authenticate as [user type] with credentials [test account]
+3. Intercept the request to [endpoint] using Burp Suite
+4. Modify [parameter] from [original value] to [malicious value]
+5. Forward the request and observe [result]
+
+## Proof of Concept
+[Screenshot or video demonstrating the vulnerability]
+[HTTP request/response showing the issue]
+[Code snippet if relevant]
+
+## Impact
+Describe the real-world impact:
+- What data can an attacker access?
+- What actions can they perform?
+- How many users are affected?
+- What is the business impact?
+
+## Suggested Remediation
+Specific, actionable fix recommendations.
+
+## Environment
+- Browser: Chrome 120.0
+- OS: macOS 14.2
+- Tools: Burp Suite Pro 2024.1
+- Testing Date: YYYY-MM-DD</div>
+
+            <h3>CVSS 3.1 Quick Reference</h3>
+            <table class="standards-table">
+                <thead>
+                    <tr><th>Metric</th><th>Values</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Attack Vector (AV)</td><td>N / A / L / P</td><td>Network, Adjacent, Local, Physical</td></tr>
+                    <tr><td>Attack Complexity (AC)</td><td>L / H</td><td>Low (no special conditions) / High (race condition, specific config)</td></tr>
+                    <tr><td>Privileges Required (PR)</td><td>N / L / H</td><td>None, Low (normal user), High (admin)</td></tr>
+                    <tr><td>User Interaction (UI)</td><td>N / R</td><td>None / Required (victim must click)</td></tr>
+                    <tr><td>Scope (S)</td><td>U / C</td><td>Unchanged (same component) / Changed (affects other components)</td></tr>
+                    <tr><td>Confidentiality (C)</td><td>N / L / H</td><td>None, Low (limited data), High (all data)</td></tr>
+                    <tr><td>Integrity (I)</td><td>N / L / H</td><td>None, Low (limited modification), High (full control)</td></tr>
+                    <tr><td>Availability (A)</td><td>N / L / H</td><td>None, Low (degraded), High (full denial)</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Impact Statement Templates</h3>
+            <div class="priority-grid">
+                <div class="priority-card">
+                    <div class="priority-card-title">Data Exposure</div>
+                    <ul class="priority-card-list">
+                        <li>"An attacker can access [data type] belonging to any user by modifying [parameter]"</li>
+                        <li>"This exposes [N] records containing [PII/financial/health] data"</li>
+                        <li>"No authentication is required to access this data"</li>
+                    </ul>
+                </div>
+                <div class="priority-card">
+                    <div class="priority-card-title">Account Takeover</div>
+                    <ul class="priority-card-list">
+                        <li>"An attacker can take over any user account by exploiting [mechanism]"</li>
+                        <li>"This bypasses [MFA/password reset/session] controls"</li>
+                        <li>"Once compromised, the attacker gains full access to [scope]"</li>
+                    </ul>
+                </div>
+                <div class="priority-card">
+                    <div class="priority-card-title">Server-Side Execution</div>
+                    <ul class="priority-card-list">
+                        <li>"An attacker can execute arbitrary [SQL/commands/code] on [component]"</li>
+                        <li>"This grants [read/write/admin] access to [database/filesystem/network]"</li>
+                        <li>"The vulnerable endpoint is [authenticated/unauthenticated]"</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#9733;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Report Writing Best Practices</div>
+                    <div class="callout-text">
+                        Always write reports as if the reader has never seen the application before.
+                        Include exact URLs, not relative paths. Show full HTTP requests and responses.
+                        Use screenshots with annotations. Explain the impact in business terms,
+                        not just technical terms. A triage analyst who can reproduce your bug in under
+                        5 minutes will prioritize it faster.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Section 6: Time Management
+         ================================================================ -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9200;</span>
+            Time Management
+        </h2>
+        <div class="section-body">
+            <p>
+                Time is the scarcest resource in bug bounty. Unlike a pentest engagement with defined
+                hours, bounty hunting is speculative &mdash; you invest time before knowing whether the
+                target will yield results. Effective time management separates profitable hunters from
+                those who burn out.
+            </p>
+
+            <h3>Phase Time Allocation</h3>
+            <p>
+                The percentages from the framework overview translate to concrete time blocks. For a
+                standard 4-hour hunting session, the breakdown is:
+            </p>
+            <table class="standards-table">
+                <thead>
+                    <tr><th>Phase</th><th>% of Session</th><th>4-Hour Session</th><th>Activities</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Scope Analysis</td><td>5%</td><td>12 min</td><td>Read policy, note exclusions, plan approach</td></tr>
+                    <tr><td>Reconnaissance</td><td>20%</td><td>48 min</td><td>Subdomain enum, tech stack, passive OSINT</td></tr>
+                    <tr><td>Enumeration</td><td>20%</td><td>48 min</td><td>Directories, parameters, JS analysis</td></tr>
+                    <tr><td>Discovery</td><td>25%</td><td>60 min</td><td>Manual testing, automated scanning</td></tr>
+                    <tr><td>Exploitation</td><td>15%</td><td>36 min</td><td>Confirm bugs, build PoC</td></tr>
+                    <tr><td>Post-Exploit</td><td>5%</td><td>12 min</td><td>Assess impact, test chaining</td></tr>
+                    <tr><td>Reporting</td><td>8%</td><td>20 min</td><td>Write and review report</td></tr>
+                    <tr><td>Verification</td><td>2%</td><td>5 min</td><td>Final check before submission</td></tr>
+                </tbody>
+            </table>
+
+            <h3>When to Pivot</h3>
+            <p>
+                Knowing when to abandon a target or feature is critical. Apply the following rules:
+            </p>
+            <ul>
+                <li><strong>30-Minute Rule:</strong> If you have spent 30 minutes on a single feature without finding any anomalous behavior, move to the next feature.</li>
+                <li><strong>2-Hour Rule:</strong> If you have spent 2 hours on a target with no findings at all, switch to a different target program.</li>
+                <li><strong>Rabbit Hole Detection:</strong> If you find yourself spending more time on tooling or setup than actual testing, stop and reassess.</li>
+                <li><strong>Duplicate Signal:</strong> If you find a vulnerability class that was recently patched (visible in changelog), the triaging team is already aware of that area. Move to less-tested features.</li>
+            </ul>
+
+            <h3>Target Rotation Strategy</h3>
+            <div class="priority-grid">
+                <div class="priority-card">
+                    <div class="priority-card-title">New Program Launch</div>
+                    <ul class="priority-card-list">
+                        <li>Highest ROI window: first 48 hours</li>
+                        <li>Focus on low-hanging fruit (IDOR, info disclosure)</li>
+                        <li>Speed matters more than depth</li>
+                        <li>Submit early, even if impact is moderate</li>
+                    </ul>
+                </div>
+                <div class="priority-card">
+                    <div class="priority-card-title">Mature Program</div>
+                    <ul class="priority-card-list">
+                        <li>Low-hanging fruit already found</li>
+                        <li>Focus on business logic and chaining</li>
+                        <li>Deep-dive into less-tested features</li>
+                        <li>Look for recently added features</li>
+                    </ul>
+                </div>
+                <div class="priority-card">
+                    <div class="priority-card-title">Program Rotation</div>
+                    <ul class="priority-card-list">
+                        <li>Maintain a portfolio of 3-5 active programs</li>
+                        <li>Rotate weekly to avoid tunnel vision</li>
+                        <li>Track your hit rate per program</li>
+                        <li>Drop programs below 10% hit rate</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#9432;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Sustainability</div>
+                    <div class="callout-text">
+                        Bug bounty burnout is real. Structure your hunting in focused sessions of
+                        2-4 hours rather than marathon 12-hour days. Take breaks between sessions.
+                        Track your time per target so you can identify which programs yield the best
+                        hourly return. Treat it like a job with defined working hours, especially
+                        when starting out.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#9776;</div>
+            <h2 class="completion-title">Framework Complete</h2>
+            <p class="completion-text">
+                You have reviewed the full 8-phase methodology framework, including scope analysis
+                checklists, recon decision trees, vulnerability discovery priorities, report templates,
+                and time management strategies. Apply this framework systematically on your next target.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Mark Reference Complete
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-tool-methodology', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

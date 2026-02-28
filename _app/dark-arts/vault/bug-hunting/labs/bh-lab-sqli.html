@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: Dark Arts vault requires all 5 gates -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievement tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Injection Lab -- Bug Hunting // Dark Arts</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x2623;</text></svg>">
+    <style>
+        /* --- Reset & Base --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-base:       #0a0508;
+            --bg-panel:      #0f0812;
+            --bg-card:       #120a18;
+            --bg-input:      #0d0710;
+            --border-dim:    rgba(100, 60, 130, 0.15);
+            --border-mid:    rgba(147, 51, 234, 0.25);
+            --border-bright: rgba(147, 51, 234, 0.5);
+            --accent:        #9333ea;
+            --accent-light:  #a855f7;
+            --accent-glow:   rgba(147, 51, 234, 0.3);
+            --text-bright:   #c4a0d8;
+            --text-mid:      #9a7aaa;
+            --text-dim:      #6a4a7a;
+            --text-faint:    #3a2a4a;
+            --green:         #22c55e;
+            --green-dim:     rgba(34, 197, 94, 0.15);
+            --red:           #ef4444;
+            --red-dim:       rgba(239, 68, 68, 0.12);
+            --amber:         #f59e0b;
+            --amber-dim:     rgba(245, 158, 11, 0.12);
+            --mono:          'Courier New', 'Consolas', monospace;
+            --sans:          'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            background: var(--bg-base);
+            font-family: var(--mono);
+            color: #a080b0;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 10%, rgba(80, 30, 120, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 100, 0.05) 0%, transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* --- Header --- */
+        .header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 50px;
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-link {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            color: #9333ea;
+            border-color: rgba(147, 51, 234, 0.4);
+        }
+
+        .header-badge {
+            font-size: 0.65rem;
+            color: #6a4a7a;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .header-title {
+            font-size: 0.85rem;
+            color: var(--text-bright);
+            letter-spacing: 0.04em;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.7rem;
+        }
+
+        .score-display { color: #a855f7; }
+        .obj-display { color: var(--text-dim); }
+        .obj-display span { color: var(--green); font-weight: 700; }
+
+        /* --- Ethics Banner --- */
+        .ethics-banner {
+            position: fixed;
+            top: 50px; left: 0; right: 0;
+            background: linear-gradient(90deg, rgba(239,68,68,0.10), rgba(239,68,68,0.05));
+            border-bottom: 1px solid rgba(239,68,68,0.2);
+            padding: 6px 20px;
+            font-size: 0.68rem;
+            color: #fca5a5;
+            letter-spacing: 0.04em;
+            z-index: 99;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ethics-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: blink 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* --- Main Layout --- */
+        .lab-body {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            height: calc(100vh - 50px - 28px);
+            margin-top: 78px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- Left Panel: Application --- */
+        .app-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-dim);
+            overflow: hidden;
+        }
+
+        /* Stage tabs */
+        .stage-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-dim);
+            background: rgba(8, 4, 12, 0.9);
+            flex-shrink: 0;
+        }
+
+        .stage-tab {
+            flex: 1;
+            padding: 9px 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.67rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .stage-tab:hover {
+            color: var(--text-mid);
+            background: rgba(147, 51, 234, 0.04);
+        }
+
+        .stage-tab.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        .stage-tab .tab-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            margin-right: 5px;
+            vertical-align: middle;
+            transition: background 0.3s;
+        }
+
+        .stage-tab.done .tab-dot { background: var(--green); }
+        .stage-tab.locked { opacity: 0.4; cursor: not-allowed; }
+
+        /* Browser frame */
+        .browser-frame {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .browser-chrome {
+            background: #1a0e24;
+            border-bottom: 1px solid var(--border-dim);
+            padding: 7px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .browser-dots { display: flex; gap: 5px; }
+        .browser-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .browser-dot.r { background: #ef4444; }
+        .browser-dot.y { background: #eab308; }
+        .browser-dot.g { background: #22c55e; }
+
+        .browser-url {
+            flex: 1;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(147,51,234,0.15);
+            border-radius: 4px;
+            padding: 3px 10px;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: #7a8a9a;
+        }
+
+        /* App viewport */
+        .app-viewport {
+            flex: 1;
+            overflow-y: auto;
+            background: #f0f2f5;
+        }
+
+        .sim-app {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100%;
+            background: #f0f2f5;
+        }
+
+        .sim-nav {
+            background: #1a1a2e;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sim-nav-brand {
+            color: #e0d0ff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .sim-nav-brand em { color: #9b59b6; font-style: normal; }
+
+        .sim-nav-user {
+            font-size: 0.72rem;
+            color: #888;
+        }
+
+        .sim-nav-user.logged-in { color: #22c55e; }
+
+        .sim-content { padding: 20px; }
+
+        /* Cards */
+        .sim-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 14px;
+        }
+
+        .sim-card h3 {
+            font-size: 0.88rem;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .sim-card .tagline {
+            font-size: 0.7rem;
+            color: #888;
+            margin-bottom: 14px;
+        }
+
+        .sim-form-group { margin-bottom: 12px; }
+
+        .sim-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
+        .sim-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.82rem;
+            font-family: var(--mono);
+            color: #1a1a2e;
+            background: #fafafa;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .sim-input:focus { border-color: #9b59b6; background: #fff; }
+
+        .sim-btn {
+            padding: 8px 18px;
+            background: #7c3aed;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .sim-btn:hover { background: #6d28d9; }
+
+        .sim-search-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sim-search-row .sim-input { flex: 1; }
+
+        /* Results table */
+        .sim-table-wrap {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-bottom: 14px;
+        }
+
+        .sim-table-header {
+            padding: 10px 16px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #6b7280;
+            letter-spacing: 0.05em;
+        }
+
+        .sim-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+
+        .sim-table th {
+            background: #f3f4f6;
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #374151;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .sim-table td {
+            padding: 7px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #1f2937;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+        }
+
+        .sim-table tr:last-child td { border-bottom: none; }
+        .sim-table tr.injected td { background: #fef3c7; color: #92400e; }
+        .sim-table tr.sensitive td { background: #fef2f2; color: #991b1b; }
+
+        .sim-no-results {
+            padding: 16px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+
+        .sim-error-box {
+            padding: 12px 14px;
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+            font-family: var(--mono);
+            font-size: 0.73rem;
+            color: #991b1b;
+            line-height: 1.5;
+        }
+
+        /* Login form */
+        .sim-login-card {
+            max-width: 360px;
+            margin: 0 auto;
+        }
+
+        .sim-login-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 0.76rem;
+            color: #dc2626;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .sim-login-error.show { display: block; }
+
+        .sim-bypass-banner {
+            background: #f0fdf4;
+            border: 1.5px solid #86efac;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            color: #166534;
+            margin-top: 12px;
+            display: none;
+            font-weight: 600;
+        }
+
+        .sim-bypass-banner.show { display: block; }
+
+        /* Admin dashboard sim */
+        .admin-dash {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: none;
+        }
+
+        .admin-dash.show { display: block; }
+
+        .admin-dash h3 { color: #7c3aed; margin-bottom: 12px; }
+
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .admin-stat {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .admin-stat .val { font-size: 1.3rem; font-weight: 700; color: #7c3aed; }
+        .admin-stat .lbl { font-size: 0.65rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; }
+
+        /* --- Right Panel: Sidebar --- */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: var(--bg-panel);
+            gap: 0;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .sidebar-header {
+            padding: 8px 14px;
+            background: rgba(147,51,234,0.08);
+            border-bottom: 1px solid var(--border-dim);
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .sidebar-body {
+            padding: 10px 14px;
+            font-size: 0.73rem;
+            line-height: 1.7;
+            color: var(--text-mid);
+        }
+
+        /* Query visualizer */
+        .query-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid var(--border-dim);
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .query-block-header {
+            padding: 6px 12px;
+            background: rgba(147,51,234,0.08);
+            border-bottom: 1px solid var(--border-dim);
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .query-badge {
+            font-size: 0.58rem;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .query-badge.safe { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+        .query-badge.injected { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+
+        .query-code {
+            padding: 10px 12px;
+            font-family: var(--mono);
+            font-size: 0.73rem;
+            line-height: 1.7;
+            word-break: break-all;
+            min-height: 44px;
+            color: var(--text-mid);
+        }
+
+        .sql-kw  { color: #60a5fa; font-weight: 700; }
+        .sql-str { color: #86efac; }
+        .sql-inj { color: #f87171; font-weight: 600; }
+        .sql-tbl { color: #67e8f9; }
+        .sql-op  { color: #fb923c; }
+        .sql-cmt { color: #6b7280; font-style: italic; }
+        .sql-null { color: #9ca3af; }
+
+        /* DB response block */
+        .response-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid var(--border-dim);
+            border-radius: 6px;
+        }
+
+        .response-header {
+            padding: 6px 12px;
+            background: rgba(147,51,234,0.08);
+            border-bottom: 1px solid var(--border-dim);
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .http-code {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+
+        .http-code.s200 { background: rgba(34,197,94,0.2); color: var(--green); }
+        .http-code.s500 { background: rgba(234,179,8,0.2); color: var(--amber); }
+
+        .response-body {
+            padding: 10px 12px;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            line-height: 1.6;
+            color: var(--text-dim);
+            min-height: 44px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .r-key  { color: #9b59b6; }
+        .r-val  { color: var(--text-bright); }
+        .r-rows { color: #60a5fa; }
+        .r-sens { color: var(--red); font-weight: 600; }
+        .r-ok   { color: var(--green); }
+
+        /* Objectives */
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(100,60,130,0.08);
+        }
+
+        .obj-item:last-child { border-bottom: none; }
+
+        .obj-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            margin-top: 4px;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+
+        .obj-item.done .obj-dot { background: var(--green); }
+        .obj-item.done { color: var(--green); }
+
+        /* Hint buttons */
+        .hint-btn {
+            background: rgba(147,51,234,0.1);
+            border: 1px solid var(--border-mid);
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 4px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .hint-btn:hover { color: var(--accent-light); border-color: var(--border-bright); }
+        .hint-btn.revealed { background: var(--amber-dim); border-color: rgba(245,158,11,0.3); color: var(--amber); cursor: default; }
+
+        .hint-text {
+            display: none;
+            padding: 6px 0 2px;
+            font-size: 0.7rem;
+            color: var(--amber);
+            line-height: 1.5;
+        }
+
+        .hint-text.show { display: block; }
+
+        /* Stage panels */
+        .stage-panel { display: none; }
+        .stage-panel.active { display: block; }
+
+        /* --- Completion Overlay --- */
+        .completion-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 5, 15, 0.92);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .completion-overlay.show { display: flex; }
+
+        .completion-card {
+            background: linear-gradient(135deg, #0f0818, #150a25);
+            border: 1px solid rgba(147,51,234,0.4);
+            border-radius: 12px;
+            padding: 40px 50px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 0 60px rgba(147,51,234,0.2), 0 0 120px rgba(147,51,234,0.1);
+            animation: completionPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes completionPop {
+            from { transform: scale(0.7); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+
+        .completion-title { font-size: 1.5rem; color: var(--accent-light); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 8px; }
+        .completion-subtitle { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 24px; line-height: 1.5; }
+
+        .completion-score-box {
+            background: rgba(147,51,234,0.1);
+            border: 1px solid var(--border-mid);
+            border-radius: 8px;
+            padding: 14px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .score-big { font-family: var(--mono); font-size: 2.5rem; font-weight: 700; color: var(--accent-light); }
+        .score-meta { text-align: left; }
+        .score-meta .label { font-size: 0.65rem; letter-spacing: 0.15em; color: var(--text-faint); text-transform: uppercase; }
+        .score-meta .rank { font-size: 0.88rem; color: var(--text-bright); font-weight: 600; }
+
+        .completion-btn {
+            display: inline-block;
+            padding: 11px 32px;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .completion-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(147,51,234,0.4); }
+
+        /* Flash notification */
+        .obj-flash {
+            position: fixed;
+            bottom: 24px; right: 24px;
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.4);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.78rem;
+            color: var(--green);
+            font-weight: 600;
+            z-index: 500;
+            animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.5s forwards;
+            max-width: 320px;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(10px); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(147,51,234,0.5); }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; Bug Hunting</a>
+            <span class="header-badge">Lab 05</span>
+            <span class="header-title">SQL Injection Lab</span>
+        </div>
+        <div class="header-right">
+            <div class="obj-display">Stages: <span id="obj-count">0</span>/4</div>
+            <div class="score-display">Score: <span id="score-display">100</span></div>
+        </div>
+    </div>
+
+    <!-- Ethics Banner -->
+    <div class="ethics-banner">
+        <div class="ethics-dot"></div>
+        <strong>AUTHORIZED TRAINING ENVIRONMENT</strong>
+        &mdash; All targets are simulated. SQL injection against real systems without authorization is illegal. Educational purposes only.
+    </div>
+
+    <!-- Main Layout -->
+    <div class="lab-body">
+        <!-- Left: Application Panel -->
+        <div class="app-panel">
+            <!-- Stage Tabs -->
+            <div class="stage-tabs">
+                <button class="stage-tab active" data-stage="1"><span class="tab-dot"></span>1: Detection</button>
+                <button class="stage-tab locked" data-stage="2"><span class="tab-dot"></span>2: Columns</button>
+                <button class="stage-tab locked" data-stage="3"><span class="tab-dot"></span>3: Extraction</button>
+                <button class="stage-tab locked" data-stage="4"><span class="tab-dot"></span>4: Auth Bypass</button>
+            </div>
+
+            <!-- Browser Frame -->
+            <div class="browser-frame">
+                <div class="browser-chrome">
+                    <div class="browser-dots">
+                        <div class="browser-dot r"></div>
+                        <div class="browser-dot y"></div>
+                        <div class="browser-dot g"></div>
+                    </div>
+                    <div class="browser-url" id="browser-url">https://acmecorp-portal.target/employees/search</div>
+                </div>
+
+                <div class="app-viewport">
+                    <div class="sim-app">
+                        <!-- Sim Nav -->
+                        <div class="sim-nav">
+                            <div class="sim-nav-brand"><em>Acme</em>Corp Portal</div>
+                            <div class="sim-nav-user" id="sim-user">Guest</div>
+                        </div>
+
+                        <!-- Stage 1: Detection -->
+                        <div class="stage-panel active" id="stage-1">
+                            <div class="sim-content">
+                                <div class="sim-card">
+                                    <h3>Employee Directory</h3>
+                                    <div class="tagline">Search by name or department</div>
+                                    <div class="sim-search-row">
+                                        <input type="text" class="sim-input" id="search-1" placeholder="Search employees...">
+                                        <button class="sim-btn" onclick="SQLiLab.submitSearch(1)">Search</button>
+                                    </div>
+                                </div>
+                                <div class="sim-table-wrap" id="results-1">
+                                    <div class="sim-table-header">Search Results</div>
+                                    <div class="sim-no-results" id="results-body-1">Enter a search term to find employees.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stage 2: Column Enumeration -->
+                        <div class="stage-panel" id="stage-2">
+                            <div class="sim-content">
+                                <div class="sim-card">
+                                    <h3>Employee Directory</h3>
+                                    <div class="tagline">Determine column count via UNION SELECT</div>
+                                    <div class="sim-search-row">
+                                        <input type="text" class="sim-input" id="search-2" placeholder="Enter UNION payload...">
+                                        <button class="sim-btn" onclick="SQLiLab.submitSearch(2)">Search</button>
+                                    </div>
+                                </div>
+                                <div class="sim-table-wrap" id="results-2">
+                                    <div class="sim-table-header">Search Results</div>
+                                    <div class="sim-no-results" id="results-body-2">Use UNION SELECT NULL to probe column count.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stage 3: Data Extraction -->
+                        <div class="stage-panel" id="stage-3">
+                            <div class="sim-content">
+                                <div class="sim-card">
+                                    <h3>Employee Directory</h3>
+                                    <div class="tagline">Extract data from the users table</div>
+                                    <div class="sim-search-row">
+                                        <input type="text" class="sim-input" id="search-3" placeholder="Enter extraction payload...">
+                                        <button class="sim-btn" onclick="SQLiLab.submitSearch(3)">Search</button>
+                                    </div>
+                                </div>
+                                <div class="sim-table-wrap" id="results-3">
+                                    <div class="sim-table-header">Search Results</div>
+                                    <div class="sim-no-results" id="results-body-3">Craft a UNION SELECT to extract username, password, email, role FROM users.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stage 4: Authentication Bypass -->
+                        <div class="stage-panel" id="stage-4">
+                            <div class="sim-content">
+                                <div class="sim-card sim-login-card">
+                                    <h3>Admin Login</h3>
+                                    <div class="tagline">AcmeCorp Administrator Panel</div>
+                                    <div class="sim-form-group">
+                                        <label class="sim-label">Username</label>
+                                        <input type="text" class="sim-input" id="login-user" placeholder="admin">
+                                    </div>
+                                    <div class="sim-form-group">
+                                        <label class="sim-label">Password</label>
+                                        <input type="password" class="sim-input" id="login-pass" placeholder="Password">
+                                    </div>
+                                    <button class="sim-btn" onclick="SQLiLab.submitLogin()" style="width:100%;">Sign In</button>
+                                    <div class="sim-login-error" id="login-error">Invalid credentials.</div>
+                                    <div class="sim-bypass-banner" id="bypass-banner">Authentication bypassed -- logged in as admin.</div>
+                                </div>
+                                <div class="admin-dash" id="admin-dash">
+                                    <h3>Admin Dashboard</h3>
+                                    <div class="admin-stats">
+                                        <div class="admin-stat"><div class="val">847</div><div class="lbl">Users</div></div>
+                                        <div class="admin-stat"><div class="val">12</div><div class="lbl">Admins</div></div>
+                                        <div class="admin-stat"><div class="val">3</div><div class="lbl">Alerts</div></div>
+                                    </div>
+                                    <div style="font-size:0.78rem;color:#6b7280;">Full administrative access granted. User management, audit logs, and system configuration available.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Sidebar -->
+        <div class="sidebar">
+            <!-- Query Visualizer -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">SQL Query Visualizer</div>
+                <div class="sidebar-body">
+                    <div class="query-block">
+                        <div class="query-block-header">
+                            Constructed Query
+                            <span class="query-badge safe" id="query-badge">SAFE</span>
+                        </div>
+                        <div class="query-code" id="query-display"><span class="sql-kw">-- Waiting for input...</span></div>
+                    </div>
+                    <div class="response-block">
+                        <div class="response-header">
+                            Database Response
+                            <span class="http-code s200" id="http-code">200 OK</span>
+                        </div>
+                        <div class="response-body" id="db-response">Awaiting query execution...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stage Info -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Current Stage</div>
+                <div class="sidebar-body">
+                    <div id="stage-title" style="color:var(--accent-light);font-weight:700;margin-bottom:4px;">Stage 1: Detection</div>
+                    <div id="stage-desc">Test the search form for SQL injection. Enter a payload that modifies the query logic to return all rows.</div>
+                </div>
+            </div>
+
+            <!-- Objectives -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Objectives</div>
+                <div class="sidebar-body">
+                    <div class="obj-item" id="obj-1"><span class="obj-dot"></span>Stage 1: Confirm SQLi in search form</div>
+                    <div class="obj-item" id="obj-2"><span class="obj-dot"></span>Stage 2: Enumerate column count</div>
+                    <div class="obj-item" id="obj-3"><span class="obj-dot"></span>Stage 3: Extract user credentials</div>
+                    <div class="obj-item" id="obj-4"><span class="obj-dot"></span>Stage 4: Bypass authentication</div>
+                </div>
+            </div>
+
+            <!-- Hints -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Hints (-5 pts each)</div>
+                <div class="sidebar-body">
+                    <button class="hint-btn" data-hint="1" onclick="SQLiLab.revealHint(1)">Hint for Stage 1</button>
+                    <div class="hint-text" id="hint-1">Try: ' OR '1'='1 -- This closes the original string and adds a condition that is always true, returning all rows.</div>
+                    <button class="hint-btn" data-hint="2" onclick="SQLiLab.revealHint(2)">Hint for Stage 2</button>
+                    <div class="hint-text" id="hint-2">Start with: ' UNION SELECT NULL-- then add more NULLs: ' UNION SELECT NULL,NULL-- and so on. The query has 4 columns.</div>
+                    <button class="hint-btn" data-hint="3" onclick="SQLiLab.revealHint(3)">Hint for Stage 3</button>
+                    <div class="hint-text" id="hint-3">Use: ' UNION SELECT username,password,email,role FROM users-- to extract all columns from the users table.</div>
+                    <button class="hint-btn" data-hint="4" onclick="SQLiLab.revealHint(4)">Hint for Stage 4</button>
+                    <div class="hint-text" id="hint-4">Enter admin' -- as the username (with any password). The -- comments out the password check in the WHERE clause.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Overlay -->
+    <div class="completion-overlay" id="completion-overlay">
+        <div class="completion-card">
+            <div class="completion-title">Lab Complete</div>
+            <div class="completion-subtitle">You have successfully exploited SQL injection vulnerabilities across detection, enumeration, extraction, and authentication bypass.</div>
+            <div class="completion-score-box">
+                <div class="score-big" id="final-score">100</div>
+                <div class="score-meta">
+                    <div class="label">Final Score</div>
+                    <div class="rank" id="final-rank">Expert</div>
+                </div>
+            </div>
+            <button class="completion-btn" onclick="SQLiLab.completeModule()">Mark Complete &amp; Return</button>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * SQLiLab -- SQL Injection Lab Simulation Engine
+     *
+     * 4 progressive stages:
+     * 1. Detection   - confirm injection via tautology
+     * 2. Columns     - UNION SELECT NULL enumeration
+     * 3. Extraction  - dump users table via UNION
+     * 4. Auth bypass - comment out password check
+     */
+    const SQLiLab = (function() {
+        'use strict';
+
+        // --- State ---
+        let state = {
+            score: 100,
+            currentStage: 1,
+            completed: { 1:false, 2:false, 3:false, 4:false },
+            hintsUsed: new Set(),
+            unlocked: { 1:true, 2:false, 3:false, 4:false }
+        };
+
+        // --- Simulated Database ---
+        const DB = {
+            employees: [
+                { name:'James Park',     department:'Engineering', email:'jpark@acmecorp.com',    title:'Senior Developer' },
+                { name:'Maria Lopez',    department:'Marketing',   email:'mlopez@acmecorp.com',   title:'Campaign Manager' },
+                { name:'Sarah Chen',     department:'IT Security', email:'schen@acmecorp.com',    title:'Security Analyst' },
+                { name:'Robert Johnson', department:'Finance',     email:'rjohnson@acmecorp.com', title:'Financial Controller' },
+                { name:'Emily Davis',    department:'HR',          email:'edavis@acmecorp.com',   title:'HR Director' }
+            ],
+            users: [
+                { username:'admin',    password:'Adm1n@Secure!', email:'admin@acmecorp.com',    role:'administrator' },
+                { username:'jpark',    password:'Summer2024!',   email:'jpark@acmecorp.com',    role:'user' },
+                { username:'mlopez',   password:'Market1ng#',    email:'mlopez@acmecorp.com',   role:'user' },
+                { username:'schen',    password:'S3curity$99',   email:'schen@acmecorp.com',    role:'manager' },
+                { username:'rjohnson', password:'F1nance!22',    email:'rjohnson@acmecorp.com', role:'user' }
+            ]
+        };
+
+        const STAGE_INFO = {
+            1: { title:'Stage 1: Detection',     desc:'Test the search form for SQL injection. Enter a payload that modifies the query logic to return all rows.',           url:'https://acmecorp-portal.target/employees/search' },
+            2: { title:'Stage 2: Column Count',   desc:'Determine the number of columns in the query using UNION SELECT. Start with one NULL and increment until the query succeeds.', url:'https://acmecorp-portal.target/employees/search' },
+            3: { title:'Stage 3: Data Extraction', desc:'Now that you know there are 4 columns, use UNION SELECT to extract username, password, email, and role from the users table.', url:'https://acmecorp-portal.target/employees/search' },
+            4: { title:'Stage 4: Auth Bypass',    desc:'Use SQL injection in the login form to bypass authentication and access the admin dashboard without knowing the password.',     url:'https://acmecorp-portal.target/admin/login' }
+        };
+
+        // --- Helpers ---
+
+        function esc(str) {
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function adjustScore(delta) {
+            state.score = Math.max(0, state.score + delta);
+            document.getElementById('score-display').textContent = state.score;
+        }
+
+        function showFlash(msg) {
+            var el = document.createElement('div');
+            el.className = 'obj-flash';
+            el.textContent = 'Stage complete: ' + msg;
+            document.body.appendChild(el);
+            setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3000);
+        }
+
+        function hasInjectionChars(input) {
+            return /['";]|(--)|(\/\*)|(union|select|or\b|and\b)/i.test(input);
+        }
+
+        // --- Query display ---
+
+        function renderQuery(sql, isInjected) {
+            var badge = document.getElementById('query-badge');
+            badge.className = 'query-badge ' + (isInjected ? 'injected' : 'safe');
+            badge.textContent = isInjected ? 'INJECTED' : 'SAFE';
+            document.getElementById('query-display').innerHTML = sql;
+        }
+
+        function renderResponse(html, statusCode) {
+            document.getElementById('db-response').innerHTML = html;
+            var code = document.getElementById('http-code');
+            if (statusCode === 500) {
+                code.className = 'http-code s500';
+                code.textContent = '500 ERROR';
+            } else {
+                code.className = 'http-code s200';
+                code.textContent = '200 OK';
+            }
+        }
+
+        // --- Build SQL display strings ---
+
+        function buildSearchSQL(input) {
+            var escaped = esc(input);
+            var isInj = hasInjectionChars(input);
+            var inputPart = isInj
+                ? '<span class="sql-inj">' + escaped + '</span>'
+                : '<span class="sql-str">\'' + escaped + '\'</span>';
+
+            // Handle comment markers
+            if (input.includes('--')) {
+                var idx = input.indexOf('--');
+                var before = esc(input.substring(0, idx));
+                var after = esc(input.substring(idx));
+                inputPart = '<span class="sql-inj">' + before + '</span><span class="sql-cmt">' + after + '</span>';
+            }
+
+            var sql = '<span class="sql-kw">SELECT</span> <span class="sql-tbl">name, department, email, title</span> ' +
+                      '<span class="sql-kw">FROM</span> <span class="sql-tbl">employees</span> ' +
+                      '<span class="sql-kw">WHERE</span> <span class="sql-tbl">name</span> ' +
+                      '<span class="sql-kw">LIKE</span> <span class="sql-str">\'%</span>' + inputPart + '<span class="sql-str">%\'</span>';
+            return { sql: sql, isInjected: isInj };
+        }
+
+        function buildLoginSQL(user, pass) {
+            var userEsc = esc(user);
+            var passEsc = esc(pass);
+            var isInj = hasInjectionChars(user) || hasInjectionChars(pass);
+
+            var userPart, passPart;
+
+            if (user.includes('--')) {
+                var idx = user.indexOf('--');
+                var before = esc(user.substring(0, idx));
+                var after = esc(user.substring(idx));
+                userPart = '<span class="sql-inj">' + before + '</span><span class="sql-cmt">' + after + '</span>';
+            } else if (isInj && hasInjectionChars(user)) {
+                userPart = '<span class="sql-inj">' + userEsc + '</span>';
+            } else {
+                userPart = '<span class="sql-str">\'' + userEsc + '\'</span>';
+            }
+
+            passPart = '<span class="sql-str">\'' + passEsc + '\'</span>';
+
+            var sql = '<span class="sql-kw">SELECT</span> <span class="sql-tbl">*</span> ' +
+                      '<span class="sql-kw">FROM</span> <span class="sql-tbl">users</span> ' +
+                      '<span class="sql-kw">WHERE</span> <span class="sql-tbl">username</span><span class="sql-op">=</span>' + userPart + ' ' +
+                      '<span class="sql-kw">AND</span> <span class="sql-tbl">password</span><span class="sql-op">=</span>' + passPart;
+            return { sql: sql, isInjected: isInj };
+        }
+
+        // --- Stage completion ---
+
+        function completeStage(num) {
+            if (state.completed[num]) return;
+            state.completed[num] = true;
+
+            // Update tab dot
+            var tabs = document.querySelectorAll('.stage-tab');
+            tabs[num - 1].classList.add('done');
+
+            // Update objective
+            document.getElementById('obj-' + num).classList.add('done');
+
+            // Update count
+            var done = Object.values(state.completed).filter(Boolean).length;
+            document.getElementById('obj-count').textContent = done;
+
+            // Unlock next stage
+            if (num < 4) {
+                state.unlocked[num + 1] = true;
+                tabs[num].classList.remove('locked');
+            }
+
+            showFlash(STAGE_INFO[num].title);
+
+            if (done === 4) {
+                setTimeout(showCompletion, 800);
+            }
+        }
+
+        function switchStage(num) {
+            if (!state.unlocked[num]) return;
+            state.currentStage = num;
+
+            document.querySelectorAll('.stage-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelector('.stage-tab[data-stage="' + num + '"]').classList.add('active');
+
+            document.querySelectorAll('.stage-panel').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById('stage-' + num).classList.add('active');
+
+            var info = STAGE_INFO[num];
+            document.getElementById('stage-title').textContent = info.title;
+            document.getElementById('stage-desc').textContent = info.desc;
+            document.getElementById('browser-url').textContent = info.url;
+
+            // Reset query display
+            renderQuery('<span class="sql-kw">-- Waiting for input...</span>', false);
+            renderResponse('Awaiting query execution...', 200);
+        }
+
+        // --- Table rendering ---
+
+        function renderEmployeeTable(target, rows) {
+            var html = '<table class="sim-table"><thead><tr>' +
+                       '<th>Name</th><th>Department</th><th>Email</th><th>Title</th>' +
+                       '</tr></thead><tbody>';
+            rows.forEach(function(r) {
+                html += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.department) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.title) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results (' + rows.length + ' rows)</div>' + html;
+        }
+
+        function renderUsersTable(target) {
+            var html = '<table class="sim-table"><thead><tr>' +
+                       '<th>Username</th><th>Password</th><th>Email</th><th>Role</th>' +
+                       '</tr></thead><tbody>';
+            DB.users.forEach(function(u) {
+                html += '<tr class="sensitive"><td>' + esc(u.username) + '</td><td>' + esc(u.password) + '</td><td>' + esc(u.email) + '</td><td>' + esc(u.role) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById(target).innerHTML = '<div class="sim-table-header" style="color:#dc2626;">INJECTED RESULTS -- users table (5 rows)</div>' + html;
+        }
+
+        // --- Submit handlers ---
+
+        function submitSearch(stage) {
+            var input = document.getElementById('search-' + stage).value;
+            if (!input.trim()) return;
+
+            var q = buildSearchSQL(input);
+            renderQuery(q.sql, q.isInjected);
+
+            if (stage === 1) {
+                handleStage1(input);
+            } else if (stage === 2) {
+                handleStage2(input);
+            } else if (stage === 3) {
+                handleStage3(input);
+            }
+        }
+
+        function handleStage1(input) {
+            var target = 'results-1';
+            // Check for tautology injection: ' OR '1'='1  or  ' OR 1=1
+            var isTautology = /'\s*or\s*('1'\s*=\s*'1|1\s*=\s*1|''=')/i.test(input);
+
+            if (isTautology) {
+                // Return all employees
+                renderEmployeeTable(target, DB.employees);
+                renderResponse('<span class="r-rows">5 rows returned</span>\n<span class="r-sens">WARNING: WHERE clause always TRUE</span>\n<span class="r-ok">Injection confirmed -- tautology bypass</span>', 200);
+                completeStage(1);
+            } else if (hasInjectionChars(input)) {
+                // SQL error
+                document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-error-box">ERROR 1064 (42000): You have an error in your SQL syntax near \'' + esc(input) + '\' at line 1</div>';
+                renderResponse('<span class="r-sens">SQL Error: syntax error near input</span>\nThe injection modified the query but caused a syntax error.\nTry a payload that keeps the SQL valid.', 500);
+            } else {
+                // Normal search
+                var results = DB.employees.filter(function(e) {
+                    return e.name.toLowerCase().includes(input.toLowerCase()) || e.department.toLowerCase().includes(input.toLowerCase());
+                });
+                if (results.length > 0) {
+                    renderEmployeeTable(target, results);
+                    renderResponse('<span class="r-rows">' + results.length + ' rows returned</span>\nNormal query execution -- no injection detected.', 200);
+                } else {
+                    document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-no-results">No employees found matching "' + esc(input) + '".</div>';
+                    renderResponse('<span class="r-rows">0 rows returned</span>\nNo matching records.', 200);
+                }
+            }
+        }
+
+        function handleStage2(input) {
+            var target = 'results-2';
+            var lower = input.toLowerCase().trim();
+
+            // Count NULLs in UNION SELECT
+            var unionMatch = lower.match(/union\s+select\s+(null(?:\s*,\s*null)*)/i);
+
+            if (unionMatch) {
+                var nullCount = unionMatch[1].split(',').length;
+
+                if (nullCount === 4) {
+                    // Correct column count
+                    var html = '<table class="sim-table"><thead><tr>' +
+                               '<th>Name</th><th>Department</th><th>Email</th><th>Title</th>' +
+                               '</tr></thead><tbody>' +
+                               '<tr class="injected"><td>NULL</td><td>NULL</td><td>NULL</td><td>NULL</td></tr>' +
+                               '</tbody></table>';
+                    document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results (1 injected row)</div>' + html;
+                    renderResponse('<span class="r-rows">1 row returned (UNION injection)</span>\n<span class="r-ok">Column count confirmed: 4 columns</span>\n<span class="r-sens">UNION SELECT successful</span>', 200);
+                    completeStage(2);
+                } else {
+                    document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-error-box">ERROR 1222 (21000): The used SELECT statements have a different number of columns.<br>Your UNION SELECT has ' + nullCount + ' column(s), but the original query has a different count.</div>';
+                    renderResponse('<span class="r-sens">Column count mismatch: ' + nullCount + ' != expected</span>\nUNION requires both SELECTs to have the same number of columns.\nTry adding or removing NULL values.', 500);
+                }
+            } else if (hasInjectionChars(input)) {
+                document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-error-box">ERROR 1064 (42000): Syntax error in SQL statement near \'' + esc(input) + '\'</div>';
+                renderResponse('<span class="r-sens">SQL syntax error</span>\nUse UNION SELECT NULL,NULL,... format to probe column count.', 500);
+            } else {
+                document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-no-results">No injection detected. Use UNION SELECT to enumerate columns.</div>';
+                renderResponse('Normal query -- no injection attempt detected.', 200);
+            }
+        }
+
+        function handleStage3(input) {
+            var target = 'results-3';
+            var lower = input.toLowerCase().trim();
+
+            // Check for UNION SELECT ... FROM users
+            var extractPattern = /union\s+select\s+(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s+from\s+users/i;
+            var match = lower.match(extractPattern);
+
+            if (match) {
+                var cols = [match[1], match[2], match[3], match[4]];
+                var validCols = ['username','password','email','role'];
+                var allValid = cols.every(function(c) { return validCols.includes(c); });
+
+                if (allValid) {
+                    renderUsersTable(target);
+                    renderResponse('<span class="r-rows">5 rows extracted from users table</span>\n<span class="r-sens">CRITICAL: credentials exposed</span>\n  admin    : Adm1n@Secure!\n  jpark    : Summer2024!\n  mlopez   : Market1ng#\n  schen    : S3curity$99\n  rjohnson : F1nance!22', 200);
+                    completeStage(3);
+                } else {
+                    // Valid UNION but wrong column names
+                    document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-error-box">ERROR 1054 (42S22): Unknown column \'' + esc(cols.find(function(c) { return !validCols.includes(c); }) || 'unknown') + '\' in field list.<br>Valid columns in users table: username, password, email, role</div>';
+                    renderResponse('<span class="r-sens">Unknown column name</span>\nThe users table has columns: username, password, email, role.\nAdjust your SELECT statement.', 500);
+                }
+            } else if (/union\s+select/i.test(lower) && /from\s+/i.test(lower)) {
+                // UNION with wrong table or wrong number of columns
+                if (!/from\s+users/i.test(lower)) {
+                    document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-error-box">ERROR 1146 (42S02): Table does not exist or access denied.<br>Target table: users</div>';
+                    renderResponse('<span class="r-sens">Table not found</span>\nTry extracting from the "users" table.', 500);
+                } else {
+                    document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-error-box">ERROR 1222 (21000): Column count mismatch in UNION SELECT.<br>Ensure you select exactly 4 columns.</div>';
+                    renderResponse('<span class="r-sens">Column mismatch</span>\nSelect exactly 4 columns from users to match the original query.', 500);
+                }
+            } else if (hasInjectionChars(input)) {
+                document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-error-box">ERROR 1064 (42000): Syntax error near \'' + esc(input) + '\'</div>';
+                renderResponse('<span class="r-sens">SQL syntax error</span>', 500);
+            } else {
+                document.getElementById(target).innerHTML = '<div class="sim-table-header">Search Results</div><div class="sim-no-results">Craft a UNION SELECT payload to extract data from the users table.</div>';
+                renderResponse('No injection detected.', 200);
+            }
+        }
+
+        function submitLogin() {
+            var user = document.getElementById('login-user').value;
+            var pass = document.getElementById('login-pass').value;
+
+            if (!user.trim()) return;
+
+            var q = buildLoginSQL(user, pass);
+            renderQuery(q.sql, q.isInjected);
+
+            var errorEl = document.getElementById('login-error');
+            var bypassEl = document.getElementById('bypass-banner');
+            var dashEl = document.getElementById('admin-dash');
+
+            // Check for auth bypass patterns
+            var isBypass = /admin'\s*--/i.test(user) ||
+                           /'\s*or\s*('1'\s*=\s*'1|1\s*=\s*1)/i.test(user) ||
+                           /'\s*or\s*('1'\s*=\s*'1|1\s*=\s*1)/i.test(pass) ||
+                           /admin'\s*or\s*'1/i.test(user);
+
+            if (isBypass) {
+                errorEl.classList.remove('show');
+                bypassEl.classList.add('show');
+                dashEl.classList.add('show');
+                document.getElementById('sim-user').textContent = 'admin (injected)';
+                document.getElementById('sim-user').classList.add('logged-in');
+                renderResponse('<span class="r-ok">Authentication bypassed</span>\n<span class="r-sens">Logged in as: admin (administrator)</span>\nThe WHERE clause was modified to bypass password validation.\nFull admin access granted.', 200);
+                completeStage(4);
+            } else {
+                // Check for valid credentials
+                var validUser = DB.users.find(function(u) {
+                    return u.username === user && u.password === pass;
+                });
+
+                if (validUser) {
+                    errorEl.classList.remove('show');
+                    bypassEl.classList.remove('show');
+                    renderResponse('<span class="r-ok">Login successful (legitimate)</span>\nUser: ' + esc(validUser.username) + ' (' + esc(validUser.role) + ')\nThis was a normal login, not an injection.', 200);
+                } else {
+                    errorEl.classList.add('show');
+                    bypassEl.classList.remove('show');
+                    dashEl.classList.remove('show');
+
+                    if (hasInjectionChars(user)) {
+                        renderResponse('<span class="r-sens">Injection detected but login failed</span>\nThe SQL was modified but did not return a valid user row.\nTry: admin\' -- to comment out the password check.', 200);
+                    } else {
+                        renderResponse('Login failed: invalid credentials.\nNo injection detected in input.', 200);
+                    }
+                }
+            }
+        }
+
+        // --- Hints ---
+
+        function revealHint(num) {
+            if (state.hintsUsed.has(num)) return;
+            state.hintsUsed.add(num);
+            var btn = document.querySelector('.hint-btn[data-hint="' + num + '"]');
+            var text = document.getElementById('hint-' + num);
+            if (btn) { btn.classList.add('revealed'); btn.textContent = 'Hint ' + num + ' revealed (-5 pts)'; }
+            if (text) text.classList.add('show');
+            adjustScore(-5);
+        }
+
+        // --- Completion ---
+
+        function showCompletion() {
+            document.getElementById('final-score').textContent = state.score;
+            var rank = state.score >= 90 ? 'Elite -- SQL Injection Expert'
+                     : state.score >= 75 ? 'Proficient -- Skilled Attacker'
+                     : state.score >= 60 ? 'Competent -- Attack Successful'
+                     : 'Novice -- Completed with Guidance';
+            document.getElementById('final-rank').textContent = rank;
+            document.getElementById('completion-overlay').classList.add('show');
+        }
+
+        function completeModule() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'bh-lab-sqli', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        // --- Init ---
+
+        function init() {
+            document.querySelectorAll('.stage-tab').forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    switchStage(parseInt(this.dataset.stage));
+                });
+            });
+
+            // Enter key support
+            document.querySelectorAll('.sim-input').forEach(function(input) {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        var stage = state.currentStage;
+                        if (stage <= 3) {
+                            submitSearch(stage);
+                        } else {
+                            submitLogin();
+                        }
+                    }
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+
+        return {
+            submitSearch: submitSearch,
+            submitLogin: submitLogin,
+            revealHint: revealHint,
+            completeModule: completeModule
+        };
+    })();
+    </script>
+</body>
+</html>

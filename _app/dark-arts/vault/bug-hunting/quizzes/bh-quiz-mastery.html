@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Mastery Quiz - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .quiz-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .header-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.1em; }
+        .quiz-content { max-width: 900px; margin: 0 auto; padding: 40px 40px 80px; position: relative; z-index: 10; }
+        .hero-section { text-align: center; padding: 50px 0 55px; }
+        .hero-title { font-size: 2.2rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .hero-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 18px; }
+        .hero-subtitle { font-size: 0.97rem; color: #8a6a9a; max-width: 620px; margin: 0 auto 28px; line-height: 1.8; }
+        .hero-pills { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .questions-wrapper { display: flex; flex-direction: column; gap: 20px; margin-bottom: 36px; }
+        .quiz-question { background: rgba(15, 8, 20, 0.7); border: 1px solid rgba(100, 60, 130, 0.22); border-radius: 10px; padding: 26px 28px; transition: border-color 0.3s ease; }
+        .quiz-question:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .quiz-submitted .quiz-question:hover { border-color: rgba(100, 60, 130, 0.22); }
+        .question-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 16px; }
+        .question-number { font-family: 'Courier New', monospace; font-size: 0.72rem; color: #9333ea; letter-spacing: 0.25em; text-transform: uppercase; flex-shrink: 0; }
+        .question-text { font-size: 0.97rem; color: #c4a0d8; line-height: 1.6; }
+        .options-list { display: flex; flex-direction: column; gap: 8px; list-style: none; padding: 0; }
+        .quiz-option { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 6px; border: 1px solid rgba(100, 60, 130, 0.12); cursor: pointer; transition: all 0.2s ease; background: rgba(10, 5, 15, 0.4); }
+        .quiz-option:hover { background: rgba(40, 20, 60, 0.4); border-color: rgba(147, 51, 234, 0.28); }
+        .quiz-option input[type="radio"] { display: none; }
+        .option-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(100, 60, 130, 0.4); flex-shrink: 0; margin-top: 2px; transition: all 0.2s ease; background: transparent; position: relative; }
+        .quiz-option input[type="radio"]:checked ~ .option-dot { border-color: #9333ea; background: #9333ea; box-shadow: 0 0 8px rgba(147, 51, 234, 0.4); }
+        .option-label { font-size: 0.9rem; color: #9a7aaa; line-height: 1.55; cursor: pointer; }
+        .quiz-option:has(input[type="radio"]:checked) { border-color: rgba(147, 51, 234, 0.35); background: rgba(40, 20, 70, 0.35); }
+        .quiz-submitted .quiz-option { cursor: default; pointer-events: none; opacity: 0.6; }
+        .quiz-submitted .quiz-option:has(input[type="radio"]:checked) { opacity: 1; }
+        .submit-area { display: flex; justify-content: center; margin: 10px 0 40px; }
+        .submit-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 44px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .submit-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        .submit-btn:active { transform: translateY(0); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .quiz-result { display: none; border-radius: 12px; padding: 40px; text-align: center; margin-top: 8px; border: 1px solid rgba(100, 60, 130, 0.3); background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); }
+        .quiz-result.visible { display: block; }
+        .result-icon { font-size: 3rem; margin-bottom: 18px; }
+        .result-score { font-size: 2.4rem; margin-bottom: 8px; font-weight: 400; letter-spacing: 0.04em; }
+        .result-percent { font-size: 1rem; margin-bottom: 20px; letter-spacing: 0.1em; }
+        .result-message { font-size: 0.97rem; max-width: 520px; margin: 0 auto; line-height: 1.8; }
+        .quiz-result.pass { border-color: rgba(34, 197, 94, 0.35); background: linear-gradient(135deg, rgba(20, 50, 25, 0.4), rgba(15, 40, 20, 0.5)); }
+        .quiz-result.pass .result-score { color: #4ade80; }
+        .quiz-result.pass .result-percent { color: #86efac; }
+        .quiz-result.pass .result-message { color: #86efac; }
+        .quiz-result.fail { border-color: rgba(239, 68, 68, 0.35); background: linear-gradient(135deg, rgba(50, 15, 15, 0.4), rgba(40, 10, 10, 0.5)); }
+        .quiz-result.fail .result-score { color: #f87171; }
+        .quiz-result.fail .result-percent { color: #fca5a5; }
+        .quiz-result.fail .result-message { color: #fca5a5; }
+        @media (max-width: 768px) { .quiz-header { padding: 15px 20px; } .quiz-content { padding: 20px 20px 60px; } .hero-title { font-size: 1.7rem; } .quiz-question { padding: 20px 18px; } }
+    </style>
+</head>
+<body>
+
+<header class="quiz-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div><div class="header-label">Bug Hunting &bull; Advanced Mastery Assessment</div></div>
+    </div>
+    <div class="header-right">15 Questions &bull; 12/15 to Pass</div>
+</header>
+
+<main class="quiz-content">
+    <div class="hero-section">
+        <h1 class="hero-title">Advanced Mastery</h1>
+        <div class="hero-meta">Modules 18&ndash;22 &bull; Knowledge Assessment &bull; Dark Arts Vault</div>
+        <p class="hero-subtitle">
+            Test your mastery of advanced techniques &mdash; source code review, vulnerability chaining,
+            automation pipelines, real-world case studies, and professional resources. Answer all
+            15 questions and submit. A score of 12 or higher (80%) is required to pass.
+        </p>
+        <div class="hero-pills">
+            <div class="stat-pill">15 Questions</div>
+            <div class="stat-pill">12/15 Required to Pass</div>
+            <div class="stat-pill">SHA-256 Answer Verification</div>
+            <div class="stat-pill">No Per-Question Feedback</div>
+        </div>
+    </div>
+
+    <form id="quizForm" novalidate>
+        <div class="questions-wrapper" id="questionsWrapper">
+
+            <div class="quiz-question" data-q="q1">
+                <div class="question-header">
+                    <span class="question-number">Q01</span>
+                    <span class="question-text">During source code review of a Node.js application, you find: exec("convert " + req.query.file + " output.png"). What is the vulnerability and the best remediation?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q1" value="a"><span class="option-dot"></span><span class="option-label">Path traversal - validate the file extension</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q1" value="b"><span class="option-dot"></span><span class="option-label">OS command injection - replace exec() with execFile() and pass arguments as an array, never concatenating user input into shell commands</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q1" value="c"><span class="option-dot"></span><span class="option-label">XSS - HTML-encode the filename</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q1" value="d"><span class="option-dot"></span><span class="option-label">SSRF - block localhost connections</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q2">
+                <div class="question-header">
+                    <span class="question-number">Q02</span>
+                    <span class="question-text">You chain three bugs: (1) self-XSS in profile name, (2) CSRF on profile update, (3) stored XSS renders to admin panel. Individually they are low/medium severity. What is the combined impact?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q2" value="a"><span class="option-dot"></span><span class="option-label">Still low severity since self-XSS is out of scope</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q2" value="b"><span class="option-dot"></span><span class="option-label">Medium severity since CSRF alone is medium</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q2" value="c"><span class="option-dot"></span><span class="option-label">Critical - the chain achieves stored XSS in the admin panel without authentication, enabling admin account takeover</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q2" value="d"><span class="option-dot"></span><span class="option-label">The bugs cancel each other out</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q3">
+                <div class="question-header">
+                    <span class="question-number">Q03</span>
+                    <span class="question-text">You are building a Nuclei template to detect exposed .git/config files. Which matcher correctly identifies a positive finding?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q3" value="a"><span class="option-dot"></span><span class="option-label">Match status code 200 AND body contains "[core]" or "[remote" - confirming it is a valid git config, not a generic 200 page</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q3" value="b"><span class="option-dot"></span><span class="option-label">Match any 200 status code on /.git/config</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q3" value="c"><span class="option-dot"></span><span class="option-label">Match if the response size is greater than 0 bytes</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q3" value="d"><span class="option-dot"></span><span class="option-label">Match if Content-Type is text/plain</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q4">
+                <div class="question-header">
+                    <span class="question-number">Q04</span>
+                    <span class="question-text">In the Uber breach case study, how did the attacker initially gain access to internal systems?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q4" value="a"><span class="option-dot"></span><span class="option-label">Zero-day exploit in Uber's web application</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q4" value="b"><span class="option-dot"></span><span class="option-label">SQL injection on the main website</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q4" value="c"><span class="option-dot"></span><span class="option-label">Brute-forcing an admin password</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q4" value="d"><span class="option-dot"></span><span class="option-label">Social engineering / MFA fatigue attack against an employee, then pivoting through hardcoded credentials found in internal repositories</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q5">
+                <div class="question-header">
+                    <span class="question-number">Q05</span>
+                    <span class="question-text">When reviewing source code for deserialization vulnerabilities in Java, which method call should immediately raise a red flag?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q5" value="a"><span class="option-dot"></span><span class="option-label">System.out.println()</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q5" value="b"><span class="option-dot"></span><span class="option-label">ObjectInputStream.readObject() on untrusted data without type filtering</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q5" value="c"><span class="option-dot"></span><span class="option-label">String.valueOf()</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q5" value="d"><span class="option-dot"></span><span class="option-label">Arrays.sort()</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q6">
+                <div class="question-header">
+                    <span class="question-number">Q06</span>
+                    <span class="question-text">Your automation pipeline runs subfinder, httpx, and nuclei on new targets daily. What is the most important addition to reduce false positives?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q6" value="a"><span class="option-dot"></span><span class="option-label">Run the pipeline more frequently</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q6" value="b"><span class="option-dot"></span><span class="option-label">Add more Nuclei templates to increase coverage</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q6" value="c"><span class="option-dot"></span><span class="option-label">Add a validation step that manually verifies each finding with a targeted follow-up request before alerting</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q6" value="d"><span class="option-dot"></span><span class="option-label">Remove httpx to reduce processing time</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q7">
+                <div class="question-header">
+                    <span class="question-number">Q07</span>
+                    <span class="question-text">You find a Python function that uses eval() on user-supplied mathematical expressions. The developer added a check: if "import" not in expr. Is this sufficient?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q7" value="a"><span class="option-dot"></span><span class="option-label">No - eval() can be exploited without "import" using __builtins__, __class__.__mro__, or encoded strings to achieve code execution</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q7" value="b"><span class="option-dot"></span><span class="option-label">Yes, blocking "import" prevents all code execution</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q7" value="c"><span class="option-dot"></span><span class="option-label">eval() in Python is safe for mathematical expressions</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q7" value="d"><span class="option-dot"></span><span class="option-label">The check is sufficient if you also block "exec"</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q8">
+                <div class="question-header">
+                    <span class="question-number">Q08</span>
+                    <span class="question-text">In the Log4Shell (CVE-2021-44228) case study, what made this vulnerability so devastating compared to other Java deserialization bugs?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q8" value="a"><span class="option-dot"></span><span class="option-label">It only affected a single application</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q8" value="b"><span class="option-dot"></span><span class="option-label">It required physical access to exploit</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q8" value="c"><span class="option-dot"></span><span class="option-label">It was already patched before public disclosure</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q8" value="d"><span class="option-dot"></span><span class="option-label">Log4j was ubiquitous across millions of applications, the attack string could appear in any logged field (headers, user agents, form data), and exploitation was trivial with a single JNDI lookup string</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q9">
+                <div class="question-header">
+                    <span class="question-number">Q09</span>
+                    <span class="question-text">You want to chain an open redirect with an OAuth flow. The OAuth provider validates redirect_uri against a whitelist of "*.example.com". How could the open redirect help?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q9" value="a"><span class="option-dot"></span><span class="option-label">The open redirect is irrelevant to OAuth flows</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q9" value="b"><span class="option-dot"></span><span class="option-label">Use the open redirect on an in-scope *.example.com page as the redirect_uri, which passes validation, then the redirect bounces the OAuth code/token to your attacker-controlled server</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q9" value="c"><span class="option-dot"></span><span class="option-label">Bypass the whitelist by using URL encoding</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q9" value="d"><span class="option-dot"></span><span class="option-label">Replace the redirect_uri with an attacker domain directly</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q10">
+                <div class="question-header">
+                    <span class="question-number">Q10</span>
+                    <span class="question-text">What is the primary advantage of using Semgrep over traditional regex-based grep for source code security review?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q10" value="a"><span class="option-dot"></span><span class="option-label">Semgrep is faster than grep</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q10" value="b"><span class="option-dot"></span><span class="option-label">Semgrep only works on Python code</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q10" value="c"><span class="option-dot"></span><span class="option-label">Semgrep understands code structure (AST-based), so it can match patterns regardless of formatting, variable names, or comment placement - reducing false positives</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q10" value="d"><span class="option-dot"></span><span class="option-label">Semgrep automatically fixes vulnerabilities it finds</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q11">
+                <div class="question-header">
+                    <span class="question-number">Q11</span>
+                    <span class="question-text">You are building a continuous recon pipeline. What data should you diff between runs to detect new attack surface?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q11" value="a"><span class="option-dot"></span><span class="option-label">New subdomains, changed HTTP response hashes, new open ports, new technologies detected, and new JavaScript files</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q11" value="b"><span class="option-dot"></span><span class="option-label">Only new subdomains</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q11" value="c"><span class="option-dot"></span><span class="option-label">Only DNS record changes</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q11" value="d"><span class="option-dot"></span><span class="option-label">Only Nuclei scan results</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q12">
+                <div class="question-header">
+                    <span class="question-number">Q12</span>
+                    <span class="question-text">A Go application uses html/template for rendering. A developer switches one field to text/template for "flexibility." What vulnerability does this introduce?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q12" value="a"><span class="option-dot"></span><span class="option-label">Buffer overflow in the template engine</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q12" value="b"><span class="option-dot"></span><span class="option-label">SQL injection through template variables</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q12" value="c"><span class="option-dot"></span><span class="option-label">Memory leak from unclosed template handles</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q12" value="d"><span class="option-dot"></span><span class="option-label">XSS - text/template does not auto-escape HTML, unlike html/template which contextually escapes output</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q13">
+                <div class="question-header">
+                    <span class="question-number">Q13</span>
+                    <span class="question-text">Which resource is most valuable for staying current on newly disclosed vulnerabilities and their real-world exploitation?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q13" value="a"><span class="option-dot"></span><span class="option-label">Vendor marketing whitepapers</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q13" value="b"><span class="option-dot"></span><span class="option-label">Following disclosed HackerOne/Bugcrowd reports, security researcher blogs, and CVE databases with proof-of-concept references</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q13" value="c"><span class="option-dot"></span><span class="option-label">General technology news sites</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q13" value="d"><span class="option-dot"></span><span class="option-label">Social media influencer posts about hacking</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q14">
+                <div class="question-header">
+                    <span class="question-number">Q14</span>
+                    <span class="question-text">You find an SSRF that can only reach internal HTTP services. You chain it with an internal Jenkins instance that has no authentication. What is the maximum achievable impact?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q14" value="a"><span class="option-dot"></span><span class="option-label">Information disclosure of Jenkins version</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q14" value="b"><span class="option-dot"></span><span class="option-label">Denial of service against Jenkins</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q14" value="c"><span class="option-dot"></span><span class="option-label">Remote code execution on the Jenkins server via the Script Console, potentially pivoting to the entire internal network and CI/CD pipeline</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q14" value="d"><span class="option-dot"></span><span class="option-label">Reading Jenkins build logs only</span></li>
+                </ul>
+            </div>
+
+            <div class="quiz-question" data-q="q15">
+                <div class="question-header">
+                    <span class="question-number">Q15</span>
+                    <span class="question-text">What is the most effective strategy for a researcher who wants to consistently earn from bug bounties long-term?</span>
+                </div>
+                <ul class="options-list">
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q15" value="a"><span class="option-dot"></span><span class="option-label">Specialize deeply in 2-3 vulnerability classes, build custom tooling and automation for continuous recon, and focus on fewer programs with deep understanding rather than surface-level scanning of many targets</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q15" value="b"><span class="option-dot"></span><span class="option-label">Run automated scanners against as many programs as possible</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q15" value="c"><span class="option-dot"></span><span class="option-label">Only hunt on programs with the highest bounty amounts</span></li>
+                    <li class="quiz-option" onclick="selectOption(this)"><input type="radio" name="q15" value="d"><span class="option-dot"></span><span class="option-label">Submit as many low-severity reports as possible to increase volume</span></li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div class="submit-area">
+            <button type="button" class="submit-btn" id="submitBtn" onclick="submitQuiz()">
+                <span>&#9654;</span> Submit Answers
+            </button>
+        </div>
+    </form>
+
+    <div class="quiz-result" id="quizResult">
+        <div class="result-icon" id="resultIcon"></div>
+        <div class="result-score" id="resultScore"></div>
+        <div class="result-percent" id="resultPercent"></div>
+        <div class="result-message" id="resultMessage"></div>
+    </div>
+</main>
+
+<script>
+    async function _sha256(str) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    const correctHashes = {
+        q1:  'de5bd8bd9e3b0d559e6cdbbbf78b05eb70c4c73ee748cea18869abb29986e490',
+        q2:  '751c8ea895fd8bcd1ff0bb11bb721d89adf2e12790abd98f00adbd3ce685a3d0',
+        q3:  '6bfe40d993db6cd74fd75b410a8ae68af80c0095117aeeae6720e592e04411e2',
+        q4:  'fec3ebd5cbc8050fd2690aecf4a47c8783287305de38e3bd151d16c8d903fd36',
+        q5:  'f49d1fd4e53bdf9ec79fc2958e85cd29d4d3adc62363adea250d4ed2d3703375',
+        q6:  '9d762ee23a4bcb03525085197bc3bb7d398f18a1e1c8a6465b74bd9e787d5b71',
+        q7:  '5d04fda517a486f692974cc4c5614ed6ed77738d066a4c9d939f6158f3f541b8',
+        q8:  'a1d40e0b432c516757a674c5da71de414eceb63a811900c1ad9ebc1ce10bf137',
+        q9:  '27b837c5c50b4918cb6f2623c3d2824f6bdbf4daedba01ba807e0b970738b8a3',
+        q10: '3f7be01351ff10058a870e19d557746c3d8ffebc116c7c32c366911992ac49a2',
+        q11: 'eb7aa1aba71f84af1089bfbd5120e526d5b6ed84a466e2c2fe04d5c951c4a1e3',
+        q12: 'd8e27f560cbb14a7b0c897646c7d083350987323412f54d4deee494cf5db6bf4',
+        q13: '8aa77500174ec78a4a071c5eca54337b30683009c0ad95aff6da7b7b07b31134',
+        q14: '03feef6d127dc51f1e5b87ce95a9e8c742c5c88df87190fd9b7c5c609ffc38e6',
+        q15: '9c22d6b20f216537e38ad4d1a80b2d5785a3292525085d45ab64514a0158932f'
+    };
+
+    const TOTAL = 15;
+    const PASS_THRESHOLD = 12;
+
+    function selectOption(optionEl) {
+        if (document.getElementById('quizForm').classList.contains('quiz-submitted')) return;
+        const radio = optionEl.querySelector('input[type="radio"]');
+        if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); }
+    }
+
+    async function submitQuiz() {
+        const form = document.getElementById('quizForm');
+        const btn = document.getElementById('submitBtn');
+        const answers = {};
+        for (let i = 1; i <= TOTAL; i++) {
+            const key = 'q' + i;
+            const selected = form.querySelector('input[name="' + key + '"]:checked');
+            answers[key] = selected ? selected.value : null;
+        }
+        const unanswered = Object.keys(answers).filter(k => answers[k] === null);
+        if (unanswered.length > 0) {
+            const first = document.querySelector('[data-q="' + unanswered[0] + '"]');
+            if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); first.style.borderColor = 'rgba(239, 68, 68, 0.6)'; setTimeout(() => { first.style.borderColor = ''; }, 2000); }
+            return;
+        }
+        btn.disabled = true; btn.textContent = 'Checking...'; form.classList.add('quiz-submitted');
+        let score = 0;
+        for (let i = 1; i <= TOTAL; i++) {
+            const key = 'q' + i;
+            const h = await _sha256(key + ':' + answers[key]);
+            if (h === correctHashes[key]) score++;
+        }
+        const passed = score >= PASS_THRESHOLD;
+        const percent = Math.round((score / TOTAL) * 100);
+        const resultEl = document.getElementById('quizResult');
+        document.getElementById('resultIcon').textContent = passed ? '\u2713' : '\u2717';
+        document.getElementById('resultScore').textContent = score + ' / ' + TOTAL;
+        document.getElementById('resultPercent').textContent = percent + '%';
+        document.getElementById('resultMessage').textContent = passed
+            ? 'Well done. You have demonstrated mastery of advanced bug hunting techniques.'
+            : 'Review modules 18\u201322 and try again. You need 12/15 to pass.';
+        resultEl.classList.add('visible', passed ? 'pass' : 'fail');
+        resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-quiz-mastery', { score: score, total: TOTAL, passed: passed });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

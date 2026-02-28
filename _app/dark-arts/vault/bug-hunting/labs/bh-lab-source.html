@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: requires dark-arts enrollment -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress tracking and achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- Terminal engine -->
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 14: Source Code Review - Bug Hunting | The Vault</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128269;</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0508;
+            color: #c4b5d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(147, 51, 234, 0.08) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(59, 7, 100, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(147, 51, 234, 0.25);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; }
+
+        .back-link {
+            color: #7a5a8a; text-decoration: none; font-size: 0.78rem;
+            letter-spacing: 0.08em; padding: 5px 12px;
+            border: 1px solid rgba(147, 51, 234, 0.15); border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .back-link:hover { color: #a855f7; border-color: rgba(147, 51, 234, 0.35); background: rgba(147, 51, 234, 0.1); }
+
+        .header-badge {
+            background: rgba(245, 158, 11, 0.12); color: #f59e0b;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            font-family: 'Courier New', monospace;
+        }
+
+        .header h1 { font-size: 1.1rem; color: #a855f7; font-weight: 600; letter-spacing: 0.02em; }
+
+        .header-score {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.85rem; color: #6a4a7a;
+        }
+        .score-value {
+            color: #a855f7; font-weight: 700; font-size: 1.1rem;
+            font-variant-numeric: tabular-nums; font-family: 'Courier New', monospace;
+        }
+
+        /* Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Terminal Panel */
+        .terminal-panel {
+            display: flex; flex-direction: column;
+            border-right: 1px solid rgba(147, 51, 234, 0.2);
+            overflow: hidden;
+        }
+
+        .task-prompt {
+            background: rgba(10, 5, 16, 0.9);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            flex-shrink: 0;
+        }
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .task-number {
+            background: #9333ea; color: #fff; width: 26px; height: 26px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 0.8rem;
+        }
+        .task-number.done { background: #22c55e; }
+        .task-question { font-size: 0.92rem; color: #e2d9f0; line-height: 1.5; }
+        .task-question code {
+            background: rgba(147, 51, 234, 0.2); padding: 2px 7px; border-radius: 4px;
+            font-family: 'Courier New', monospace; color: #c084fc; font-size: 0.85rem;
+        }
+
+        .terminal-container { flex: 1; min-height: 0; }
+
+        .feedback-bar {
+            background: rgba(10, 5, 16, 0.95);
+            padding: 10px 24px;
+            border-top: 1px solid rgba(147, 51, 234, 0.15);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+        .feedback-message { font-size: 0.82rem; color: #6a4a7a; }
+        .feedback-message.success { color: #22c55e; }
+        .feedback-message.info { color: #a855f7; }
+
+        .bar-actions { display: flex; gap: 8px; }
+
+        .hint-btn, .skip-btn {
+            background: transparent; border: 1px solid rgba(147, 51, 234, 0.15);
+            padding: 6px 14px; border-radius: 5px; font-size: 0.78rem;
+            cursor: pointer; transition: all 0.2s; font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .hint-btn { color: #7a5a8a; }
+        .hint-btn:hover { background: rgba(147, 51, 234, 0.1); border-color: rgba(147, 51, 234, 0.3); color: #a855f7; }
+        .skip-btn { color: #4a3a5a; }
+        .skip-btn:hover { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.25); color: #f59e0b; }
+
+        /* Sidebar */
+        .sidebar {
+            background: rgba(10, 5, 16, 0.95);
+            display: flex; flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(147, 51, 234, 0.15) transparent;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.15); border-radius: 2px; }
+
+        .sidebar-section {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.1);
+        }
+
+        .sidebar-title {
+            font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+            color: #3d2850; font-family: 'Courier New', monospace; margin-bottom: 12px;
+        }
+
+        .mission-text { font-size: 0.8rem; color: #7a5a8a; line-height: 1.5; }
+        .mission-text strong { color: #c4a0d8; }
+
+        /* File Tree */
+        .file-tree { font-family: 'Courier New', monospace; font-size: 0.72rem; color: #6a4a7a; line-height: 1.7; }
+        .file-tree .dir { color: #a855f7; }
+        .file-tree .vuln { color: #ef4444; }
+
+        /* Progress */
+        .progress-bar-bg {
+            height: 4px; background: rgba(60, 30, 80, 0.3);
+            border-radius: 2px; overflow: hidden; margin-bottom: 6px;
+        }
+        .progress-bar-fill {
+            height: 100%; background: linear-gradient(90deg, #7c3aed, #a855f7);
+            border-radius: 2px; transition: width 0.6s; width: 0%;
+        }
+        .progress-meta {
+            font-size: 0.65rem; font-family: 'Courier New', monospace;
+            color: #3d2850; display: flex; justify-content: space-between;
+        }
+        .progress-meta .pct { color: #a855f7; }
+
+        /* Objectives List */
+        .obj-list { list-style: none; }
+        .obj-item {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: 6px 0; font-size: 0.75rem; color: #5a3a6a; transition: color 0.3s;
+        }
+        .obj-item.active { color: #c4a0d8; }
+        .obj-item.done { color: #22c55e; }
+        .obj-check {
+            width: 16px; height: 16px; border-radius: 50%;
+            border: 1px solid #3d2850; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 0.55rem; flex-shrink: 0; margin-top: 1px;
+            transition: all 0.3s; font-family: 'Courier New', monospace;
+        }
+        .obj-item.active .obj-check { border-color: #9333ea; color: #a855f7; }
+        .obj-item.done .obj-check { background: #22c55e; border-color: #22c55e; color: #000; }
+
+        /* Score Widget */
+        .score-widget { padding: 14px 20px; border-top: 1px solid rgba(147, 51, 234, 0.1); margin-top: auto; }
+        .score-row {
+            display: flex; justify-content: space-between; font-size: 0.72rem;
+            color: #5a3a6a; padding: 3px 0;
+        }
+        .score-row .val { font-family: 'Courier New', monospace; }
+        .score-row.total { color: #a855f7; font-weight: bold; border-top: 1px solid rgba(147, 51, 234, 0.15); padding-top: 6px; margin-top: 4px; }
+
+        /* Completion Modal */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(4, 2, 8, 0.94); z-index: 500;
+            justify-content: center; align-items: center; backdrop-filter: blur(6px);
+        }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(145deg, #0d0618, #13082a);
+            border: 1px solid rgba(147, 51, 234, 0.35); border-radius: 14px;
+            padding: 44px 48px; text-align: center; max-width: 480px; width: 90%;
+            box-shadow: 0 0 80px rgba(147, 51, 234, 0.18);
+            animation: modalIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalIn {
+            from { transform: scale(0.88) translateY(20px); opacity: 0; }
+            to   { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .modal-icon { font-size: 3rem; margin-bottom: 16px; }
+        .modal h2 { font-size: 1.5rem; color: #e2d9f0; font-weight: normal; margin-bottom: 8px; }
+        .modal p { font-size: 0.82rem; color: #6a4a7a; margin-bottom: 20px; }
+
+        .modal-stats { display: flex; justify-content: center; gap: 28px; margin-bottom: 28px; }
+        .modal-stat { text-align: center; }
+        .modal-stat-value { font-size: 1.6rem; font-family: 'Courier New', monospace; color: #e2d9f0; }
+        .modal-stat-value.good { color: #22c55e; }
+        .modal-stat-value.pts { color: #a855f7; }
+        .modal-stat-label { font-size: 0.6rem; color: #3d2850; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 4px; }
+
+        .modal-btns { display: flex; gap: 12px; justify-content: center; }
+        .modal-btn {
+            padding: 12px 28px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; transition: all 0.3s; text-decoration: none; display: inline-block;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #7c3aed, #9333ea); color: #f3e8ff;
+        }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(147, 51, 234, 0.4); }
+        .modal-btn.secondary {
+            background: rgba(60, 30, 80, 0.3); color: #9a7aaa;
+            border: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        @media (max-width: 900px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&#8592; Back to Course</a>
+            <span class="header-badge">Lab // BH-14</span>
+            <h1>Source Code Review</h1>
+        </div>
+        <div class="header-score">
+            <span>Score</span>
+            <span class="score-value" id="scoreDisplay">100</span>
+            <span>/100</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Left: Terminal Panel -->
+        <section class="terminal-panel">
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div class="task-number" id="taskNumber">1</div>
+                    <span style="font-size:0.7rem;color:#3d2850;font-family:'Courier New',monospace;" id="taskCounter">1 / 8</span>
+                </div>
+                <div class="task-question" id="taskQuestion">Loading...</div>
+            </div>
+
+            <div class="terminal-container" id="terminal"></div>
+
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">
+                    Navigate to <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">~/audit</code> and begin reviewing source files.
+                </div>
+                <div class="bar-actions">
+                    <button class="hint-btn" id="hintBtn" onclick="showHint()">Hint (-5 pts)</button>
+                    <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right: Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Mission Brief</div>
+                <div class="mission-text">
+                    You have been given read access to the source code of <strong>AuditApp</strong>,
+                    a Python web application. Your mission is to review each file for security
+                    vulnerabilities. Use <code>cat</code>, <code>grep</code>, and other commands
+                    to identify hardcoded credentials, injection flaws, broken access controls,
+                    and weak cryptography.
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">File Structure</div>
+                <div class="file-tree">
+                    <span class="dir">~/audit/</span><br>
+                    &nbsp;&nbsp;<span class="dir">app/</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">controllers/</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="vuln">auth.py</span> <span style="color:#ef4444;font-size:0.6rem;">SQL injection</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="vuln">users.py</span> <span style="color:#f97316;font-size:0.6rem;">IDOR</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="vuln">upload.py</span> <span style="color:#f97316;font-size:0.6rem;">file upload</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">models/</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="vuln">database.py</span> <span style="color:#eab308;font-size:0.6rem;">hardcoded creds</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">utils/</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="vuln">crypto.py</span> <span style="color:#eab308;font-size:0.6rem;">weak crypto</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="vuln">sanitize.py</span> <span style="color:#f97316;font-size:0.6rem;">XSS bypass</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span class="vuln">config.py</span> <span style="color:#eab308;font-size:0.6rem;">debug mode</span><br>
+                    &nbsp;&nbsp;requirements.txt<br>
+                    &nbsp;&nbsp;README.md
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Progress</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-meta">
+                    <span><span id="completedCount">0</span> / 8 objectives</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Objectives</div>
+                <ul class="obj-list" id="objList"></ul>
+            </div>
+
+            <div class="score-widget">
+                <div class="sidebar-title" style="margin-bottom:8px;">Score Breakdown</div>
+                <div class="score-row"><span>Base</span><span class="val">100 pts</span></div>
+                <div class="score-row"><span>Hints used</span><span class="val" id="hintDeduct">-0 pts</span></div>
+                <div class="score-row"><span>Skipped</span><span class="val" id="skipDeduct">-0 pts</span></div>
+                <div class="score-row total"><span>Total</span><span class="val" id="scoreFinal">100</span></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <div class="modal-icon">&#128269;</div>
+            <h2>Code Review Complete</h2>
+            <p>All vulnerabilities identified in the AuditApp codebase.</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value good" id="modalCompleted">0</div>
+                    <div class="modal-stat-label">Found</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value" id="modalSkipped" style="color:#f59e0b;">0</div>
+                    <div class="modal-stat-label">Skipped</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value pts" id="modalScore">100</div>
+                    <div class="modal-stat-label">Points</div>
+                </div>
+            </div>
+            <div class="modal-btns">
+                <button class="modal-btn primary" onclick="finishLab()">Complete Lab</button>
+                <a href="../index.html" class="modal-btn secondary">Back to Course</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ================================================================
+    // Bug Hunting Lab 14: Source Code Review
+    // LinuxTerminal-based lab with vulnerable Python source files
+    // ================================================================
+
+    // -- Vulnerable Source Files --
+
+    var SRC_AUTH = [
+        '#!/usr/bin/env python3',
+        '"""Authentication controller for AuditApp."""',
+        '',
+        'from flask import Flask, request, jsonify, session',
+        'from models.database import get_db_connection',
+        '',
+        '',
+        'def login():',
+        '    """Handle user login."""',
+        '    username = request.form.get("username")',
+        '    password = request.form.get("password")',
+        '',
+        '    if not username or not password:',
+        '        return jsonify({"error": "Missing credentials"}), 400',
+        '',
+        '    db = get_db_connection()',
+        '    cursor = db.cursor()',
+        '',
+        '    # VULNERABLE: SQL Injection - user input concatenated into query',
+        '    query = "SELECT * FROM users WHERE username = \'" + username + "\' AND password = \'" + password + "\'"',
+        '    cursor.execute(query)',
+        '',
+        '    user = cursor.fetchone()',
+        '    if user:',
+        '        session["user_id"] = user["id"]',
+        '        session["role"] = user["role"]',
+        '        return jsonify({"message": "Login successful"}), 200',
+        '    else:',
+        '        return jsonify({"error": "Invalid credentials"}), 401',
+        '',
+        '',
+        'def logout():',
+        '    """Handle user logout."""',
+        '    session.clear()',
+        '    return jsonify({"message": "Logged out"}), 200',
+        '',
+        '',
+        'def reset_password():',
+        '    """Password reset endpoint."""',
+        '    email = request.form.get("email")',
+        '    # TODO: implement password reset via email',
+        '    return jsonify({"message": "If account exists, reset link sent"}), 200'
+    ].join('\n');
+
+    var SRC_USERS = [
+        '#!/usr/bin/env python3',
+        '"""User management controller."""',
+        '',
+        'from flask import request, jsonify, session',
+        'from models.database import get_db_connection',
+        '',
+        '',
+        'def get_user(user_id):',
+        '    """Retrieve user profile by ID."""',
+        '    # VULNERABLE: IDOR - No authorization check',
+        '    # Any authenticated user can access any other user\'s data',
+        '    db = get_db_connection()',
+        '    cursor = db.cursor()',
+        '    cursor.execute("SELECT id, username, email, role, address, phone FROM users WHERE id = %s", (user_id,))',
+        '    user = cursor.fetchone()',
+        '',
+        '    if user:',
+        '        return jsonify(user), 200',
+        '    return jsonify({"error": "User not found"}), 404',
+        '',
+        '',
+        'def update_user(user_id):',
+        '    """Update user profile."""',
+        '    # VULNERABLE: No check that session user_id matches the target user_id',
+        '    data = request.get_json()',
+        '    db = get_db_connection()',
+        '    cursor = db.cursor()',
+        '    cursor.execute(',
+        '        "UPDATE users SET email = %s, address = %s, phone = %s WHERE id = %s",',
+        '        (data.get("email"), data.get("address"), data.get("phone"), user_id)',
+        '    )',
+        '    db.commit()',
+        '    return jsonify({"message": "Profile updated"}), 200',
+        '',
+        '',
+        'def list_users():',
+        '    """List all users (admin only)."""',
+        '    if session.get("role") != "admin":',
+        '        return jsonify({"error": "Forbidden"}), 403',
+        '    db = get_db_connection()',
+        '    cursor = db.cursor()',
+        '    cursor.execute("SELECT id, username, email, role FROM users")',
+        '    return jsonify(cursor.fetchall()), 200'
+    ].join('\n');
+
+    var SRC_UPLOAD = [
+        '#!/usr/bin/env python3',
+        '"""File upload controller."""',
+        '',
+        'import os',
+        'from flask import request, jsonify',
+        '',
+        'UPLOAD_DIR = "/var/www/uploads"',
+        '',
+        '',
+        'def upload_file():',
+        '    """Handle file upload."""',
+        '    if "file" not in request.files:',
+        '        return jsonify({"error": "No file provided"}), 400',
+        '',
+        '    uploaded = request.files["file"]',
+        '',
+        '    # VULNERABLE: No file type validation',
+        '    # Accepts any file extension including .py, .php, .sh, .exe',
+        '    filename = uploaded.filename',
+        '',
+        '    # VULNERABLE: Path traversal via filename',
+        '    # An attacker can use ../../../etc/cron.d/backdoor as filename',
+        '    save_path = os.path.join(UPLOAD_DIR, filename)',
+        '',
+        '    uploaded.save(save_path)',
+        '',
+        '    return jsonify({',
+        '        "message": "File uploaded",',
+        '        "path": save_path,',
+        '        "size": os.path.getsize(save_path)',
+        '    }), 200',
+        '',
+        '',
+        'def delete_file():',
+        '    """Delete an uploaded file."""',
+        '    filename = request.args.get("filename")',
+        '    # VULNERABLE: Same path traversal issue',
+        '    filepath = os.path.join(UPLOAD_DIR, filename)',
+        '    if os.path.exists(filepath):',
+        '        os.remove(filepath)',
+        '        return jsonify({"message": "File deleted"}), 200',
+        '    return jsonify({"error": "File not found"}), 404'
+    ].join('\n');
+
+    var SRC_DATABASE = [
+        '#!/usr/bin/env python3',
+        '"""Database connection manager."""',
+        '',
+        'import mysql.connector',
+        '',
+        '# VULNERABLE: Hardcoded database credentials',
+        'DB_HOST = "localhost"',
+        'DB_USER = "auditapp_admin"',
+        'DB_PASS = "Sup3rS3cret!2024"',
+        'DB_NAME = "auditapp_prod"',
+        'DB_PORT = 3306',
+        '',
+        '',
+        'def get_db_connection():',
+        '    """Return a database connection."""',
+        '    return mysql.connector.connect(',
+        '        host=DB_HOST,',
+        '        user=DB_USER,',
+        '        password=DB_PASS,',
+        '        database=DB_NAME,',
+        '        port=DB_PORT',
+        '    )',
+        '',
+        '',
+        'def init_db():',
+        '    """Initialize database tables."""',
+        '    conn = get_db_connection()',
+        '    cursor = conn.cursor()',
+        '    cursor.execute("""',
+        '        CREATE TABLE IF NOT EXISTS users (',
+        '            id INT AUTO_INCREMENT PRIMARY KEY,',
+        '            username VARCHAR(50) UNIQUE NOT NULL,',
+        '            password VARCHAR(255) NOT NULL,',
+        '            email VARCHAR(100),',
+        '            role VARCHAR(20) DEFAULT \'user\',',
+        '            address TEXT,',
+        '            phone VARCHAR(20)',
+        '        )',
+        '    """)',
+        '    conn.commit()',
+        '    conn.close()'
+    ].join('\n');
+
+    var SRC_CRYPTO = [
+        '#!/usr/bin/env python3',
+        '"""Cryptographic utilities."""',
+        '',
+        'import hashlib',
+        'import base64',
+        '',
+        '',
+        'def hash_password(password):',
+        '    """Hash a password for storage."""',
+        '    # VULNERABLE: MD5 is cryptographically broken for password hashing',
+        '    # No salt, no iterations, trivially reversible via rainbow tables',
+        '    return hashlib.md5(password.encode()).hexdigest()',
+        '',
+        '',
+        'def verify_password(password, stored_hash):',
+        '    """Verify a password against its hash."""',
+        '    return hash_password(password) == stored_hash',
+        '',
+        '',
+        'def encrypt_token(data):',
+        '    """Create an authentication token."""',
+        '    # VULNERABLE: base64 is encoding, NOT encryption',
+        '    # Tokens are trivially decodable by any party',
+        '    return base64.b64encode(data.encode()).decode()',
+        '',
+        '',
+        'def decrypt_token(token):',
+        '    """Decode an authentication token."""',
+        '    return base64.b64decode(token.encode()).decode()',
+        '',
+        '',
+        'def generate_session_id():',
+        '    """Generate a session identifier."""',
+        '    # VULNERABLE: Predictable session IDs',
+        '    import time',
+        '    return hashlib.md5(str(time.time()).encode()).hexdigest()'
+    ].join('\n');
+
+    var SRC_SANITIZE = [
+        '#!/usr/bin/env python3',
+        '"""Input sanitization utilities."""',
+        '',
+        'import re',
+        '',
+        '',
+        'def sanitize_html(user_input):',
+        '    """Remove dangerous HTML tags from user input."""',
+        '    # VULNERABLE: Incomplete XSS filter',
+        '    # Only blocks <script> tags but misses event handlers,',
+        '    # <img onerror=>, <svg onload=>, <iframe>, etc.',
+        '    cleaned = re.sub(r\'<script[^>]*>.*?</script>\', \'\', user_input, flags=re.IGNORECASE | re.DOTALL)',
+        '    return cleaned',
+        '',
+        '',
+        'def sanitize_sql(user_input):',
+        '    """Attempt to prevent SQL injection."""',
+        '    # VULNERABLE: Blacklist approach is fundamentally flawed',
+        '    # Easily bypassed with: UNION/**/SELECT, double encoding, etc.',
+        '    blocked = ["DROP", "DELETE", "INSERT", "UPDATE", "--", ";"]',
+        '    for keyword in blocked:',
+        '        if keyword.upper() in user_input.upper():',
+        '            return ""',
+        '    return user_input',
+        '',
+        '',
+        'def validate_email(email):',
+        '    """Basic email validation."""',
+        '    pattern = r\'^[\\w.+-]+@[\\w-]+\\.[\\w.]+$\'',
+        '    return bool(re.match(pattern, email))',
+        '',
+        '',
+        'def sanitize_filename(filename):',
+        '    """Sanitize uploaded filename."""',
+        '    # VULNERABLE: Only removes null bytes, not path traversal sequences',
+        '    return filename.replace("\\x00", "")'
+    ].join('\n');
+
+    var SRC_CONFIG = [
+        '#!/usr/bin/env python3',
+        '"""Application configuration."""',
+        '',
+        'import os',
+        '',
+        '',
+        'class Config:',
+        '    """Base configuration."""',
+        '',
+        '    # VULNERABLE: Debug mode enabled in production',
+        '    DEBUG = True',
+        '    TESTING = False',
+        '',
+        '    # VULNERABLE: Hardcoded secret key (used for session signing)',
+        '    SECRET_KEY = "auditapp-secret-key-change-me-2024"',
+        '',
+        '    # Database',
+        '    SQLALCHEMY_DATABASE_URI = "mysql://auditapp_admin:Sup3rS3cret!2024@localhost/auditapp_prod"',
+        '',
+        '    # VULNERABLE: CORS misconfiguration',
+        '    CORS_ORIGINS = "*"',
+        '',
+        '    # Session settings',
+        '    SESSION_COOKIE_HTTPONLY = False  # VULNERABLE: allows JS access to cookies',
+        '    SESSION_COOKIE_SECURE = False   # VULNERABLE: cookies sent over HTTP',
+        '    SESSION_COOKIE_SAMESITE = None  # VULNERABLE: no SameSite protection',
+        '',
+        '    # Upload settings',
+        '    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB - VULNERABLE: excessively large',
+        '    UPLOAD_FOLDER = "/var/www/uploads"',
+        '',
+        '',
+        'class ProductionConfig(Config):',
+        '    """Production configuration (should override but doesn\'t)."""',
+        '    # TODO: Override DEBUG and SECRET_KEY for production',
+        '    pass'
+    ].join('\n');
+
+    var SRC_REQUIREMENTS = [
+        'flask==2.2.5',
+        'mysql-connector-python==8.0.33',
+        'gunicorn==21.2.0',
+        'flask-cors==4.0.0',
+        'python-dotenv==1.0.0'
+    ].join('\n');
+
+    var SRC_README = [
+        '# AuditApp',
+        '',
+        'Internal web application for user management and file handling.',
+        '',
+        '## Setup',
+        '1. Install dependencies: pip install -r requirements.txt',
+        '2. Initialize database: python -c "from models.database import init_db; init_db()"',
+        '3. Run: flask run --host=0.0.0.0 --port=5000',
+        '',
+        '## API Endpoints',
+        '- POST /login - User authentication',
+        '- POST /logout - End session',
+        '- GET /users/<id> - Get user profile',
+        '- PUT /users/<id> - Update user profile',
+        '- GET /users - List all users (admin only)',
+        '- POST /upload - Upload file',
+        '- DELETE /upload - Delete file',
+        '',
+        '## Notes',
+        '- Default admin credentials: admin / admin123',
+        '- Debug mode is enabled for development'
+    ].join('\n');
+
+    // -- Task Definitions --
+
+    var TASKS = [
+        {
+            id: 1,
+            question: 'Find the SQL injection vulnerability in <code>auth.py</code>. Use <code>grep -n "execute\\|query" app/controllers/auth.py</code> to locate unsafe query construction.',
+            hint: 'Look for string concatenation with user input in a SQL query. The login function builds the query by joining username and password directly into the SQL string.',
+            validate: function(cmd) {
+                return (cmd.indexOf('auth.py') !== -1) && (cmd.indexOf('grep') !== -1 || cmd.indexOf('cat') !== -1);
+            },
+            check: function(cmd) {
+                return (cmd.indexOf('grep') !== -1 && cmd.indexOf('auth.py') !== -1) || (cmd.indexOf('cat') !== -1 && cmd.indexOf('auth.py') !== -1);
+            },
+            successMsg: 'SQL Injection found: Line 20 concatenates user input directly into the query string. An attacker can bypass authentication with: \' OR 1=1 --'
+        },
+        {
+            id: 2,
+            question: 'Identify the IDOR vulnerability in <code>users.py</code>. Use <code>cat app/controllers/users.py</code> to review the access control logic.',
+            hint: 'Look at the get_user() and update_user() functions. Neither verifies that the requesting user has permission to access the target user_id.',
+            validate: function(cmd) {
+                return cmd.indexOf('users.py') !== -1 && (cmd.indexOf('cat') !== -1 || cmd.indexOf('grep') !== -1);
+            },
+            check: function(cmd) {
+                return cmd.indexOf('cat') !== -1 && cmd.indexOf('users.py') !== -1;
+            },
+            successMsg: 'IDOR confirmed: get_user() and update_user() accept any user_id without verifying authorization. Any authenticated user can read or modify other users\' profiles.'
+        },
+        {
+            id: 3,
+            question: 'Find the file upload vulnerabilities in <code>upload.py</code>. Use <code>grep -n "upload\\|save\\|filename" app/controllers/upload.py</code>.',
+            hint: 'The upload handler accepts any file extension and uses os.path.join without sanitizing the filename. An attacker can upload malicious files or use ../../../ traversal.',
+            validate: function(cmd) {
+                return cmd.indexOf('upload.py') !== -1 && (cmd.indexOf('grep') !== -1 || cmd.indexOf('cat') !== -1);
+            },
+            check: function(cmd) {
+                return (cmd.indexOf('grep') !== -1 || cmd.indexOf('cat') !== -1) && cmd.indexOf('upload.py') !== -1;
+            },
+            successMsg: 'Two upload vulnerabilities found: (1) No file type validation -- accepts .py, .php, .exe. (2) Path traversal via filename -- ../../etc/cron.d/backdoor can write outside the upload directory.'
+        },
+        {
+            id: 4,
+            question: 'Discover hardcoded credentials across the codebase. Use <code>grep -rn "password\\|secret\\|key" app/</code> to find all instances.',
+            hint: 'Search recursively for password, secret, and key. database.py has DB credentials, config.py has the Flask secret key, and the README contains default admin credentials.',
+            validate: function(cmd) {
+                return cmd.indexOf('grep') !== -1 && (cmd.indexOf('-r') !== -1 || cmd.indexOf('-R') !== -1) && (cmd.indexOf('password') !== -1 || cmd.indexOf('secret') !== -1 || cmd.indexOf('key') !== -1);
+            },
+            check: function(cmd) {
+                return cmd.indexOf('grep') !== -1 && (cmd.indexOf('-r') !== -1 || cmd.indexOf('-R') !== -1) && cmd.indexOf('app') !== -1;
+            },
+            successMsg: 'Hardcoded credentials found: database.py (DB_PASS = "Sup3rS3cret!2024"), config.py (SECRET_KEY exposed, DB URI with password), README.md (admin / admin123).'
+        },
+        {
+            id: 5,
+            question: 'Find the weak cryptography in <code>crypto.py</code>. Use <code>cat app/utils/crypto.py</code> to review the hashing and token functions.',
+            hint: 'crypto.py uses MD5 without salt for password hashing, base64 encoding instead of encryption for tokens, and time-based predictable session IDs.',
+            validate: function(cmd) {
+                return cmd.indexOf('crypto.py') !== -1 && (cmd.indexOf('cat') !== -1 || cmd.indexOf('grep') !== -1);
+            },
+            check: function(cmd) {
+                return cmd.indexOf('cat') !== -1 && cmd.indexOf('crypto.py') !== -1;
+            },
+            successMsg: 'Three crypto weaknesses: (1) MD5 password hashing with no salt -- rainbow table attack trivial. (2) base64 "encryption" for tokens -- decodable by anyone. (3) Predictable session IDs based on time.time().'
+        },
+        {
+            id: 6,
+            question: 'Identify the incomplete XSS sanitizer in <code>sanitize.py</code>. Use <code>cat app/utils/sanitize.py</code>.',
+            hint: 'sanitize_html() only removes <script> tags but misses <img onerror=>, <svg onload=>, and other XSS vectors. sanitize_sql() uses a blacklist approach that is easily bypassed.',
+            validate: function(cmd) {
+                return cmd.indexOf('sanitize.py') !== -1 && (cmd.indexOf('cat') !== -1 || cmd.indexOf('grep') !== -1);
+            },
+            check: function(cmd) {
+                return cmd.indexOf('cat') !== -1 && cmd.indexOf('sanitize.py') !== -1;
+            },
+            successMsg: 'Sanitization bypass confirmed: sanitize_html() only strips <script> -- bypassed with <img onerror=alert(1)>. sanitize_sql() blacklist bypassed with UNION/**/SELECT or case variation. sanitize_filename() only strips null bytes, not path traversal.'
+        },
+        {
+            id: 7,
+            question: 'Check for debug mode and exposed secrets in <code>config.py</code>. Use <code>cat app/config.py</code>.',
+            hint: 'config.py has DEBUG = True, a hardcoded SECRET_KEY, CORS wildcard (*), and insecure session cookie settings (HttpOnly=False, Secure=False, SameSite=None).',
+            validate: function(cmd) {
+                return cmd.indexOf('config.py') !== -1 && (cmd.indexOf('cat') !== -1 || cmd.indexOf('grep') !== -1);
+            },
+            check: function(cmd) {
+                return cmd.indexOf('cat') !== -1 && cmd.indexOf('config.py') !== -1;
+            },
+            successMsg: 'Configuration issues: DEBUG=True exposes stack traces and debugger. SECRET_KEY is hardcoded and guessable. CORS_ORIGINS="*" allows any origin. Session cookies lack HttpOnly, Secure, and SameSite flags. 50MB upload limit enables DoS.'
+        },
+        {
+            id: 8,
+            question: 'Create a findings summary. Use <code>report</code> to generate your code review report.',
+            hint: 'Type the report command to compile your findings into a structured summary. This aggregates all vulnerabilities discovered during the review.',
+            validate: function(cmd) {
+                return cmd.indexOf('report') !== -1;
+            },
+            check: function(cmd) {
+                return cmd === 'report' || cmd.indexOf('report') !== -1;
+            },
+            successMsg: 'Code review complete. 7 vulnerability classes identified across 7 files: SQL injection, IDOR, unrestricted upload, path traversal, hardcoded credentials, weak crypto, incomplete sanitization, and insecure configuration.'
+        }
+    ];
+
+    // -- Lab State --
+
+    var state = {
+        currentTask: 0,
+        results: {},
+        score: 100,
+        hintsUsed: 0,
+        skipped: 0
+    };
+
+    // -- Initialize --
+
+    function init() {
+        LinuxTerminal.init('BH-LAB-14', '#terminal', {
+            user: 'hunter',
+            hostname: 'audit-vm',
+            startDir: '/home/hunter/audit',
+            height: '100%',
+            onCommand: handleCommand,
+            objectives: TASKS.map(function(t) {
+                return { id: 'obj' + t.id, desc: t.question.replace(/<[^>]+>/g, '').substring(0, 55) };
+            })
+        });
+
+        // Build virtual filesystem
+        LinuxTerminal.addFilesystem({
+            '/home/hunter': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                children: ['audit', '.bashrc']
+            },
+            '/home/hunter/.bashrc': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 128, content: '# ~/.bashrc\nexport PS1="\\u@\\h:\\w$ "\nalias ll="ls -la"'
+            },
+            '/home/hunter/audit': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                children: ['app', 'requirements.txt', 'README.md']
+            },
+            '/home/hunter/audit/app': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                children: ['controllers', 'models', 'utils', 'config.py', '__init__.py']
+            },
+            '/home/hunter/audit/app/__init__.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 0, content: ''
+            },
+            '/home/hunter/audit/app/controllers': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                children: ['auth.py', 'users.py', 'upload.py', '__init__.py']
+            },
+            '/home/hunter/audit/app/controllers/__init__.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 0, content: ''
+            },
+            '/home/hunter/audit/app/controllers/auth.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 1248, content: SRC_AUTH
+            },
+            '/home/hunter/audit/app/controllers/users.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 1456, content: SRC_USERS
+            },
+            '/home/hunter/audit/app/controllers/upload.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 1120, content: SRC_UPLOAD
+            },
+            '/home/hunter/audit/app/models': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                children: ['database.py', '__init__.py']
+            },
+            '/home/hunter/audit/app/models/__init__.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 0, content: ''
+            },
+            '/home/hunter/audit/app/models/database.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 980, content: SRC_DATABASE
+            },
+            '/home/hunter/audit/app/utils': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                children: ['crypto.py', 'sanitize.py', '__init__.py']
+            },
+            '/home/hunter/audit/app/utils/__init__.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 0, content: ''
+            },
+            '/home/hunter/audit/app/utils/crypto.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 1056, content: SRC_CRYPTO
+            },
+            '/home/hunter/audit/app/utils/sanitize.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 1180, content: SRC_SANITIZE
+            },
+            '/home/hunter/audit/app/config.py': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 940, content: SRC_CONFIG
+            },
+            '/home/hunter/audit/requirements.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 128, content: SRC_REQUIREMENTS
+            },
+            '/home/hunter/audit/README.md': {
+                type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter',
+                size: 640, content: SRC_README
+            }
+        });
+
+        buildObjList();
+        showTask(0);
+
+        LinuxTerminal.print('<span style="color:#a855f7;">[ Bug Hunting Lab 14: Source Code Review ]</span>');
+        LinuxTerminal.print('<span style="color:#6a4a7a;">Target: AuditApp -- Python Flask web application</span>');
+        LinuxTerminal.print('<span style="color:#6a4a7a;">Working directory: ~/audit</span>');
+        LinuxTerminal.print('<span style="color:#6a4a7a;">Type <span style="color:#c084fc;">help</span> for commands or <span style="color:#c084fc;">ls</span> to explore the codebase.\n</span>');
+    }
+
+    // -- Command Handler --
+
+    function handleCommand(cmd) {
+        var trimmed = cmd.trim().toLowerCase();
+        var task = TASKS[state.currentTask];
+        if (!task) return;
+
+        // Special 'report' command
+        if (trimmed === 'report' || trimmed.indexOf('report') !== -1) {
+            if (state.currentTask === 7) {
+                LinuxTerminal.print(generateReport());
+                completeTask();
+                return true;
+            }
+        }
+
+        // Check if command matches current task
+        if (task.check(trimmed)) {
+            completeTask();
+        }
+    }
+
+    function generateReport() {
+        var completedCount = Object.keys(state.results).filter(function(k) { return state.results[k] === 'done'; }).length;
+        return [
+            '',
+            '<span style="color:#a855f7;">========================================</span>',
+            '<span style="color:#a855f7;">  SOURCE CODE REVIEW FINDINGS REPORT</span>',
+            '<span style="color:#a855f7;">  Target: AuditApp (Python/Flask)</span>',
+            '<span style="color:#a855f7;">========================================</span>',
+            '',
+            '<span style="color:#ef4444;">[CRITICAL] SQL Injection in auth.py:20</span>',
+            '<span style="color:#6a4a7a;">  String concatenation of user input into SQL query.</span>',
+            '<span style="color:#6a4a7a;">  Impact: Authentication bypass, data exfiltration.</span>',
+            '',
+            '<span style="color:#f97316;">[HIGH] IDOR in users.py:8,22</span>',
+            '<span style="color:#6a4a7a;">  No authorization check on user endpoints.</span>',
+            '<span style="color:#6a4a7a;">  Impact: Any user can read/modify other users\' data.</span>',
+            '',
+            '<span style="color:#f97316;">[HIGH] Unrestricted File Upload in upload.py:19</span>',
+            '<span style="color:#6a4a7a;">  No file type validation + path traversal via filename.</span>',
+            '<span style="color:#6a4a7a;">  Impact: Remote code execution via uploaded webshell.</span>',
+            '',
+            '<span style="color:#eab308;">[MEDIUM] Hardcoded Credentials in database.py:7-9</span>',
+            '<span style="color:#6a4a7a;">  DB password, Flask SECRET_KEY, default admin password.</span>',
+            '<span style="color:#6a4a7a;">  Impact: Full database access if source code leaks.</span>',
+            '',
+            '<span style="color:#eab308;">[MEDIUM] Weak Cryptography in crypto.py:12</span>',
+            '<span style="color:#6a4a7a;">  MD5 without salt, base64 "encryption", predictable IDs.</span>',
+            '<span style="color:#6a4a7a;">  Impact: Password cracking, token forgery.</span>',
+            '',
+            '<span style="color:#f97316;">[HIGH] Incomplete Sanitization in sanitize.py:12</span>',
+            '<span style="color:#6a4a7a;">  XSS filter only blocks <script>, SQL blacklist bypassable.</span>',
+            '<span style="color:#6a4a7a;">  Impact: Stored XSS, SQL injection via filter bypass.</span>',
+            '',
+            '<span style="color:#eab308;">[MEDIUM] Insecure Configuration in config.py</span>',
+            '<span style="color:#6a4a7a;">  Debug mode, CORS wildcard, insecure session cookies.</span>',
+            '<span style="color:#6a4a7a;">  Impact: Information disclosure, CSRF, session hijacking.</span>',
+            '',
+            '<span style="color:#a855f7;">  Findings: 7 | Critical: 1 | High: 3 | Medium: 3</span>',
+            '<span style="color:#a855f7;">  Reviewed: ' + completedCount + '/8 objectives completed</span>',
+            '<span style="color:#a855f7;">========================================</span>',
+            ''
+        ].join('\n');
+    }
+
+    // -- Task Management --
+
+    function showTask(idx) {
+        if (idx >= TASKS.length) return;
+        state.currentTask = idx;
+        var task = TASKS[idx];
+
+        document.getElementById('taskNumber').textContent = task.id;
+        document.getElementById('taskNumber').className = state.results[idx] === 'done' ? 'task-number done' : 'task-number';
+        document.getElementById('taskCounter').textContent = (idx + 1) + ' / ' + TASKS.length;
+        document.getElementById('taskQuestion').innerHTML = task.question;
+
+        updateObjList();
+    }
+
+    function completeTask() {
+        var idx = state.currentTask;
+        if (state.results[idx] === 'done') return;
+
+        state.results[idx] = 'done';
+        var task = TASKS[idx];
+
+        document.getElementById('taskNumber').className = 'task-number done';
+
+        // Show success feedback
+        var fb = document.getElementById('feedbackMessage');
+        fb.innerHTML = task.successMsg;
+        fb.className = 'feedback-message success';
+
+        LinuxTerminal.completeObjective('obj' + task.id);
+        updateProgress();
+        updateObjList();
+
+        // Auto-advance after delay
+        setTimeout(function() {
+            if (state.currentTask < TASKS.length - 1) {
+                showTask(state.currentTask + 1);
+                fb.innerHTML = 'Continue reviewing the next file.';
+                fb.className = 'feedback-message info';
+            } else {
+                checkCompletion();
+            }
+        }, 2500);
+    }
+
+    function skipTask() {
+        var idx = state.currentTask;
+        if (state.results[idx] === 'done') return;
+
+        state.results[idx] = 'skipped';
+        state.skipped++;
+        state.score = Math.max(0, state.score - 8);
+        updateScore();
+        updateProgress();
+        updateObjList();
+
+        if (state.currentTask < TASKS.length - 1) {
+            showTask(state.currentTask + 1);
+        } else {
+            checkCompletion();
+        }
+    }
+
+    function showHint() {
+        state.hintsUsed++;
+        state.score = Math.max(0, state.score - 5);
+        updateScore();
+
+        var task = TASKS[state.currentTask];
+        var fb = document.getElementById('feedbackMessage');
+        fb.innerHTML = task.hint;
+        fb.className = 'feedback-message info';
+    }
+
+    // -- UI Updates --
+
+    function buildObjList() {
+        var list = document.getElementById('objList');
+        list.innerHTML = TASKS.map(function(t, i) {
+            return '<li class="obj-item' + (i === 0 ? ' active' : '') + '" id="obj-item-' + i + '">' +
+                '<div class="obj-check">' + (i + 1) + '</div>' +
+                '<span>' + t.question.replace(/<[^>]+>/g, '').substring(0, 50) + (t.question.replace(/<[^>]+>/g, '').length > 50 ? '...' : '') + '</span>' +
+                '</li>';
+        }).join('');
+    }
+
+    function updateObjList() {
+        TASKS.forEach(function(t, i) {
+            var el = document.getElementById('obj-item-' + i);
+            if (!el) return;
+            el.className = 'obj-item';
+            if (state.results[i] === 'done') el.className += ' done';
+            else if (i === state.currentTask) el.className += ' active';
+
+            var check = el.querySelector('.obj-check');
+            if (state.results[i] === 'done') check.innerHTML = '&#10003;';
+        });
+    }
+
+    function updateProgress() {
+        var done = Object.keys(state.results).filter(function(k) { return state.results[k] === 'done'; }).length;
+        var total = TASKS.length;
+        var pct = Math.round((done / total) * 100);
+
+        document.getElementById('completedCount').textContent = done;
+        document.getElementById('progressPct').textContent = pct + '%';
+        document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function updateScore() {
+        document.getElementById('scoreDisplay').textContent = state.score;
+        document.getElementById('hintDeduct').textContent = '-' + (state.hintsUsed * 5) + ' pts';
+        document.getElementById('skipDeduct').textContent = '-' + (state.skipped * 8) + ' pts';
+        document.getElementById('scoreFinal').textContent = state.score;
+    }
+
+    function checkCompletion() {
+        var done = Object.keys(state.results).filter(function(k) { return state.results[k] === 'done'; }).length;
+        var allHandled = Object.keys(state.results).length === TASKS.length;
+
+        if (allHandled || done === TASKS.length) {
+            setTimeout(function() {
+                document.getElementById('modalCompleted').textContent = done;
+                document.getElementById('modalSkipped').textContent = state.skipped;
+                document.getElementById('modalScore').textContent = state.score;
+                document.getElementById('completionModal').classList.add('show');
+            }, 800);
+        }
+    }
+
+    function finishLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-lab-source', {
+                returnUrl: '../index.html'
+            });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    // -- Boot --
+    window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

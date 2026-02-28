@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 12: Network &amp; Infrastructure - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; } .code-block .str { color: #86efac; } .code-block .comment { color: #6a4a7a; font-style: italic; } .code-block .flag { color: #fbbf24; } .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li::before { content: none; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-item::before { content: none; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        .inline-code { font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(40, 20, 60, 0.3); padding: 1px 6px; border-radius: 3px; font-size: 0.88rem; }
+        blockquote { border-left: 3px solid rgba(147, 51, 234, 0.4); padding: 16px 24px; margin: 24px 0; background: rgba(15, 8, 20, 0.5); border-radius: 0 8px 8px 0; font-style: italic; color: #9a7aaa; font-size: 0.95rem; line-height: 1.7; }
+        blockquote cite { display: block; margin-top: 10px; font-style: normal; font-size: 0.78rem; color: #6a4a7a; letter-spacing: 0.1em; }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 12</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#127760;</div>
+        <h1 class="intro-title">Network &amp; Infrastructure</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 12 &bull; Infrastructure Attack Surface</div>
+        <p class="intro-subtitle">
+            While the majority of bug bounty submissions target web application vulnerabilities,
+            the network and infrastructure layer represents an enormous and underexplored attack
+            surface. Exposed management interfaces, misconfigured VPN appliances, dangling DNS
+            records, and protocol-level weaknesses often lead to critical findings that bypass
+            application-level security entirely. A single exposed Jenkins instance or a Fortinet
+            VPN running a known CVE can provide initial access that dwarfs any SQL injection in
+            a web form. This module covers the methodology for identifying, validating, and
+            reporting network-layer vulnerabilities within the bounds of a bug bounty program.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">ASN Discovery</div>
+            <div class="stat-pill">VPN Misconfigurations</div>
+            <div class="stat-pill">Exposed Interfaces</div>
+            <div class="stat-pill">DNS Attacks</div>
+            <div class="stat-pill">Protocol Exploitation</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Network Attack Surface in Bug Bounty -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128506;</span>
+            Network Attack Surface in Bug Bounty
+        </h2>
+        <div class="section-body">
+            <p>
+                Network-level bug bounty hunting operates in a different paradigm than web application
+                testing. Instead of targeting a single web application with complex business logic,
+                you are surveying a potentially vast IP space looking for misconfigured services,
+                forgotten infrastructure, and exposed management planes. The findings tend to be
+                binary &mdash; a service is either exposed or it is not, a default credential works
+                or it does not &mdash; but their impact is often critical because they bypass every
+                application-layer defense the organization has built.
+            </p>
+
+            <h3>Why Network Targets Matter</h3>
+
+            <p>
+                Organizations invest heavily in securing their web applications through WAFs, input
+                validation, CSP headers, and security reviews. That same organization may have a
+                Kubernetes dashboard exposed to the internet with no authentication, a Kibana
+                instance accessible on port 5601, or a Spring Boot Actuator endpoint leaking heap
+                dumps with session tokens. These are not theoretical scenarios &mdash; they are
+                among the most commonly reported critical findings in enterprise bug bounty programs.
+            </p>
+
+            <h3>IP Range and ASN Discovery</h3>
+
+            <p>
+                Before you can test network infrastructure, you need to map it. ASN (Autonomous
+                System Number) discovery reveals the IP ranges an organization owns or controls.
+                This goes beyond subdomain enumeration to identify the entire network footprint,
+                including ranges that may not have any DNS records pointing to them.
+            </p>
+
+            <div class="code-block"><span class="comment"># Find ASNs associated with an organization</span>
+<span class="cmd">amass</span> intel <span class="flag">-org</span> <span class="str">"Target Corporation"</span>
+
+<span class="comment"># Query BGP data for ASN details</span>
+<span class="cmd">whois</span> <span class="flag">-h</span> <span class="str">whois.radb.net</span> -- <span class="str">'-i origin AS12345'</span>
+
+<span class="comment"># Use bgp.he.net for visual ASN mapping</span>
+<span class="comment"># https://bgp.he.net/AS12345</span>
+
+<span class="comment"># Query Shodan for an organization's ranges</span>
+<span class="cmd">shodan</span> search <span class="str">"org:'Target Corporation'"</span>
+
+<span class="comment"># ARIN WHOIS for IP range ownership</span>
+<span class="cmd">whois</span> <span class="flag">-h</span> <span class="str">whois.arin.net</span> <span class="str">"n Target Corporation"</span></div>
+
+            <h3>Scope: What Is Usually In and Out</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Typically In Scope</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> IP ranges owned by the organization</li>
+                        <li><span class="li-marker">&#8250;</span> Subdomains resolving to organization IPs</li>
+                        <li><span class="li-marker">&#8250;</span> Cloud infrastructure (AWS, GCP, Azure) they manage</li>
+                        <li><span class="li-marker">&#8250;</span> VPN portals and remote access gateways</li>
+                        <li><span class="li-marker">&#8250;</span> API endpoints and microservices</li>
+                        <li><span class="li-marker">&#8250;</span> Mail servers (for header analysis only)</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Typically Out of Scope</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> Third-party hosted services (Cloudflare, Akamai CDN)</li>
+                        <li><span class="li-marker">&#8250;</span> Shared hosting environments</li>
+                        <li><span class="li-marker">&#8250;</span> Denial-of-service testing of any kind</li>
+                        <li><span class="li-marker">&#8250;</span> Active exploitation (running exploits, spawning shells)</li>
+                        <li><span class="li-marker">&#8250;</span> Social engineering of employees</li>
+                        <li><span class="li-marker">&#8250;</span> Physically accessing data centers</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Critical Scope Rule</div>
+                    <div class="callout-text">
+                        Network testing in bug bounty requires extreme care with scope boundaries.
+                        Port scanning an IP range that does not belong to the target organization
+                        is unauthorized access to a third-party system, regardless of your intentions.
+                        Always verify IP ownership through WHOIS, ASN data, and reverse DNS before
+                        scanning. If a program specifies only domain-based scope (e.g., <span class="inline-code">*.target.com</span>),
+                        you must resolve each hostname and confirm the IP belongs to the target before
+                        performing any network-level testing against it. Shared hosting makes this
+                        especially treacherous &mdash; ten different organizations may share the same IP.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: VPN & Remote Access Misconfigurations -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128272;</span>
+            VPN &amp; Remote Access Misconfigurations
+        </h2>
+        <div class="section-body">
+            <p>
+                VPN and remote access gateways are by definition internet-facing, high-privilege
+                infrastructure. They provide authenticated users with direct network access to
+                internal resources. When these systems are misconfigured or running vulnerable
+                firmware, they become the most impactful targets in any bug bounty program.
+                The wave of critical VPN vulnerabilities discovered between 2019 and 2024 &mdash;
+                in Fortinet, Pulse Secure, Citrix, and Palo Alto products &mdash; demonstrated
+                that these appliances are rich targets for both researchers and adversaries.
+            </p>
+
+            <h3>Identifying VPN Infrastructure</h3>
+
+            <div class="code-block"><span class="comment"># Search Shodan for Fortinet SSL VPN</span>
+<span class="cmd">shodan</span> search <span class="str">"http.title:'FortiGate' org:'Target Corp'"</span>
+
+<span class="comment"># Search for Pulse Secure / Ivanti</span>
+<span class="cmd">shodan</span> search <span class="str">"http.html:'Pulse Secure' org:'Target Corp'"</span>
+
+<span class="comment"># Search for Citrix Gateway / NetScaler</span>
+<span class="cmd">shodan</span> search <span class="str">"http.title:'Citrix Gateway' org:'Target Corp'"</span>
+
+<span class="comment"># Search for GlobalProtect (Palo Alto)</span>
+<span class="cmd">shodan</span> search <span class="str">"http.html:'GlobalProtect' org:'Target Corp'"</span>
+
+<span class="comment"># Generic VPN portal detection via nmap</span>
+<span class="cmd">nmap</span> <span class="flag">-sV -p 443,8443,10443</span> <span class="str">target-vpn.example.com</span></div>
+
+            <h3>Known CVEs in VPN Appliances</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>CVE</th>
+                        <th>Product</th>
+                        <th>Vulnerability</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">CVE-2018-13379</td>
+                        <td>Fortinet FortiOS</td>
+                        <td>Path traversal allowing unauthenticated credential theft from sslvpn_websession</td>
+                        <td><span class="badge badge-legacy">Critical</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CVE-2019-11510</td>
+                        <td>Pulse Secure</td>
+                        <td>Arbitrary file read (pre-auth) exposing session tokens and cached credentials</td>
+                        <td><span class="badge badge-legacy">Critical</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CVE-2019-19781</td>
+                        <td>Citrix ADC / Gateway</td>
+                        <td>Directory traversal enabling remote code execution without authentication</td>
+                        <td><span class="badge badge-legacy">Critical</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CVE-2021-22893</td>
+                        <td>Pulse Connect Secure</td>
+                        <td>Authentication bypass allowing remote code execution, actively exploited by APTs</td>
+                        <td><span class="badge badge-legacy">Critical</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CVE-2024-3400</td>
+                        <td>Palo Alto PAN-OS</td>
+                        <td>Command injection in GlobalProtect gateway feature, pre-auth RCE</td>
+                        <td><span class="badge badge-latest">Critical</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Testing Boundaries</div>
+                    <div class="callout-text">
+                        In a bug bounty context, you should identify the VPN product and version
+                        through banner grabbing and fingerprinting, then check whether that version
+                        is affected by known CVEs. You should <strong>not</strong> actually exploit
+                        the vulnerability &mdash; running a path traversal to read session files or
+                        executing code on a VPN appliance crosses the line from vulnerability
+                        identification to active exploitation. Report the vulnerable version with
+                        the CVE reference and a proof-of-concept that demonstrates version detection,
+                        not data extraction.
+                    </div>
+                </div>
+            </div>
+
+            <h3>VPN Configuration Leaks</h3>
+
+            <p>
+                Beyond CVEs, VPN infrastructure frequently leaks information through configuration
+                files, error messages, and default pages. Fortinet devices expose version information
+                at predictable paths. Citrix Gateway login pages often reveal internal hostname
+                conventions. VPN client configuration files (<span class="inline-code">.ovpn</span>,
+                <span class="inline-code">.pcf</span>) shared on internal wikis sometimes end up
+                indexed by search engines, revealing internal network topology, DNS servers, and
+                split-tunnel configurations.
+            </p>
+
+            <div class="code-block"><span class="comment"># Check for Fortinet version disclosure</span>
+<span class="cmd">curl</span> <span class="flag">-sk</span> <span class="str">https://vpn.target.com/remote/info</span>
+
+<span class="comment"># Check for exposed VPN client download pages</span>
+<span class="cmd">curl</span> <span class="flag">-sk</span> <span class="str">https://vpn.target.com/sslvpn/portal.html</span>
+
+<span class="comment"># Google dork for VPN config files</span>
+<span class="comment"># site:target.com filetype:ovpn OR filetype:pcf</span>
+<span class="comment"># site:target.com "VPN" "configuration" filetype:pdf</span>
+
+<span class="comment"># Check for pre-auth endpoints on Citrix</span>
+<span class="cmd">curl</span> <span class="flag">-sk</span> <span class="str">https://vpn.target.com/vpn/index.html</span></div>
+        </div>
+    </div>
+
+    <!-- Section 3: Exposed Management Interfaces -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128421;</span>
+            Exposed Management Interfaces
+        </h2>
+        <div class="section-body">
+            <p>
+                Management interfaces are designed for internal use by administrators. When they
+                are accidentally exposed to the internet &mdash; through misconfigured firewall
+                rules, forgotten cloud security groups, or deployment to public-facing infrastructure
+                &mdash; they become trivially exploitable. Many of these interfaces have default
+                credentials, no authentication at all, or known vulnerabilities that are only
+                considered low-risk when the interface is internal-only.
+            </p>
+
+            <h3>Common Exposed Interfaces</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Default Port</th>
+                        <th>Risk When Exposed</th>
+                        <th>Detection</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Jenkins</td>
+                        <td>8080</td>
+                        <td>Unauthenticated script console allows RCE. Even read-only access leaks build logs with credentials.</td>
+                        <td><span class="inline-code">http.title:"Dashboard [Jenkins]"</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Kibana</td>
+                        <td>5601</td>
+                        <td>Unauthenticated access to log data, often containing credentials, API keys, and internal URLs.</td>
+                        <td><span class="inline-code">http.title:"Kibana" port:5601</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Grafana</td>
+                        <td>3000</td>
+                        <td>Default admin/admin credentials. Dashboard data leaks internal metrics, hostnames, and architecture.</td>
+                        <td><span class="inline-code">http.title:"Grafana"</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Kubernetes Dashboard</td>
+                        <td>8443, 6443</td>
+                        <td>Unauthenticated or token-based access to cluster management. Full compromise of container orchestration.</td>
+                        <td><span class="inline-code">http.title:"Kubernetes Dashboard"</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Spring Boot Actuator</td>
+                        <td>8080</td>
+                        <td>Endpoints like /actuator/env, /actuator/heapdump expose configuration, secrets, and memory dumps.</td>
+                        <td><span class="inline-code">http.html:"/actuator/health"</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Elasticsearch</td>
+                        <td>9200</td>
+                        <td>Unauthenticated access to indexed data. Query /_cat/indices to list all available data stores.</td>
+                        <td><span class="inline-code">port:9200 "cluster_name"</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">phpMyAdmin</td>
+                        <td>80, 443</td>
+                        <td>Database management interface. Default or weak credentials allow full database access.</td>
+                        <td><span class="inline-code">http.title:"phpMyAdmin"</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">RabbitMQ Management</td>
+                        <td>15672</td>
+                        <td>Default guest/guest credentials. Message queue access, potentially containing sensitive business data.</td>
+                        <td><span class="inline-code">http.title:"RabbitMQ Management"</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-block"><span class="comment"># Scan for common management ports</span>
+<span class="cmd">nmap</span> <span class="flag">-sV -p 8080,8443,3000,5601,9200,9300,15672,6443,2375,2376</span> <span class="str">target-range/24</span>
+
+<span class="comment"># Check for Spring Boot Actuator endpoints</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">https://target.com/actuator</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">https://target.com/actuator/env</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">https://target.com/actuator/heapdump</span> <span class="flag">-o</span> <span class="str">heapdump.hprof</span>
+
+<span class="comment"># Check Elasticsearch for unauthenticated access</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">http://target:9200/</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">http://target:9200/_cat/indices?v"</span>
+
+<span class="comment"># Check Jenkins for unauthenticated access</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">http://target:8080/script</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">http://target:8080/api/json"</span></div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10004;</span>
+                <div>
+                    <div class="callout-title">High-Value Actuator Endpoints</div>
+                    <div class="callout-text">
+                        Spring Boot Actuator is one of the most frequently reported and highest-severity
+                        infrastructure findings. The <span class="inline-code">/actuator/env</span>
+                        endpoint exposes environment variables including database passwords, API keys,
+                        and cloud credentials. The <span class="inline-code">/actuator/heapdump</span>
+                        endpoint provides a JVM memory dump that can be analyzed with
+                        <span class="inline-code">jhat</span> or Eclipse MAT to extract session
+                        tokens, passwords, and encryption keys from memory. Even
+                        <span class="inline-code">/actuator/mappings</span> reveals the entire API
+                        route map of the application, exposing hidden admin endpoints.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Docker and Container Exposure</h3>
+
+            <p>
+                Exposed Docker daemon APIs on port 2375 (HTTP) or 2376 (HTTPS) are among the most
+                critical infrastructure findings possible. An unauthenticated Docker API allows an
+                attacker to create containers with host filesystem mounts, effectively granting root
+                access to the underlying server. Similarly, exposed Kubernetes API servers (port
+                6443) with permissive RBAC policies allow full cluster compromise.
+            </p>
+
+            <div class="code-block"><span class="comment"># Check for exposed Docker daemon</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">http://target:2375/version</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">http://target:2375/containers/json</span>
+
+<span class="comment"># Check for exposed Kubernetes API</span>
+<span class="cmd">curl</span> <span class="flag">-sk</span> <span class="str">https://target:6443/api</span>
+<span class="cmd">curl</span> <span class="flag">-sk</span> <span class="str">https://target:6443/api/v1/namespaces</span>
+
+<span class="comment"># Shodan queries for container exposure</span>
+<span class="comment"># "Docker" port:2375 org:"Target Corp"</span>
+<span class="comment"># "kube-apiserver" port:6443 org:"Target Corp"</span></div>
+        </div>
+    </div>
+
+    <!-- Section 4: DNS Attacks -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127899;</span>
+            DNS Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                DNS is the foundation of internet infrastructure, and its misconfigurations create
+                vulnerabilities that exist at a different layer than traditional web application
+                bugs. DNS-related findings in bug bounty programs range from informational (zone
+                transfers revealing internal hostnames) to critical (subdomain takeovers enabling
+                full domain impersonation). Understanding DNS attack vectors is essential for
+                any researcher who works at the infrastructure level.
+            </p>
+
+            <h3>Zone Transfer Testing</h3>
+
+            <p>
+                A DNS zone transfer (AXFR) is intended to replicate DNS records between authoritative
+                nameservers. When a nameserver is misconfigured to allow zone transfers from any
+                source, an attacker can retrieve the complete list of DNS records for a domain,
+                revealing internal hostnames, IP addresses, and infrastructure layout that would
+                otherwise require extensive enumeration.
+            </p>
+
+            <div class="code-block"><span class="comment"># Identify authoritative nameservers</span>
+<span class="cmd">dig</span> <span class="flag">NS</span> <span class="str">target.com</span>
+
+<span class="comment"># Attempt zone transfer against each nameserver</span>
+<span class="cmd">dig</span> <span class="flag">AXFR</span> <span class="str">target.com</span> <span class="flag">@ns1.target.com</span>
+<span class="cmd">dig</span> <span class="flag">AXFR</span> <span class="str">target.com</span> <span class="flag">@ns2.target.com</span>
+
+<span class="comment"># Using host command as alternative</span>
+<span class="cmd">host</span> <span class="flag">-t axfr</span> <span class="str">target.com</span> <span class="str">ns1.target.com</span></div>
+
+            <h3>Subdomain Takeover via DNS</h3>
+
+            <p>
+                Subdomain takeover occurs when a DNS record points to a resource that no longer
+                exists, and an attacker can claim that resource. The classic scenario involves
+                a CNAME record pointing to a cloud service (S3 bucket, Heroku app, Azure website,
+                GitHub Pages) that has been deprovisioned. The DNS record remains, creating a
+                dangling reference that anyone can claim by creating a new resource with the same
+                name on the cloud platform.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9729;</div>
+                    <div class="concept-card-title">Cloud Service Takeover</div>
+                    <div class="concept-card-body">
+                        CNAME to <span class="inline-code">app.herokuapp.com</span>,
+                        <span class="inline-code">bucket.s3.amazonaws.com</span>, or
+                        <span class="inline-code">app.azurewebsites.net</span> where the service
+                        no longer exists. Attacker creates a new resource with the same name.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128220;</div>
+                    <div class="concept-card-title">Dangling NS Records</div>
+                    <div class="concept-card-body">
+                        NS delegation to a nameserver that has been released. The attacker registers
+                        the expired nameserver domain and gains full control over all DNS resolution
+                        for the delegated zone. This is a critical severity finding.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128231;</div>
+                    <div class="concept-card-title">MX Record Takeover</div>
+                    <div class="concept-card-body">
+                        MX records pointing to deprovisioned mail services. An attacker who claims
+                        the mail endpoint can receive email intended for the organization, including
+                        password reset emails that enable account takeover.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">Expired Domain in CNAME</div>
+                    <div class="concept-card-body">
+                        CNAME pointing to a third-party domain that has expired. The attacker
+                        registers the expired domain and serves arbitrary content on the target's
+                        subdomain, inheriting cookie scope and CORS trust.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment"># Check for dangling CNAME records</span>
+<span class="cmd">dig</span> <span class="flag">CNAME</span> <span class="str">staging.target.com</span>
+<span class="comment"># If CNAME points to something.herokuapp.com and the page shows</span>
+<span class="comment"># "No such app" — potential takeover</span>
+
+<span class="comment"># Automated detection with subjack</span>
+<span class="cmd">subjack</span> <span class="flag">-w</span> <span class="str">subdomains.txt</span> <span class="flag">-t 100 -timeout 30 -ssl -v</span>
+
+<span class="comment"># Check fingerprints for common takeover indicators</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">http://staging.target.com</span> | <span class="cmd">grep</span> <span class="flag">-i</span> <span class="str">"no such app\|bucket does not exist\|NoSuchBucket\|There isn't a GitHub Pages"</span></div>
+
+            <h3>DNS Rebinding</h3>
+
+            <p>
+                DNS rebinding attacks exploit the gap between DNS resolution and the browser's
+                same-origin policy enforcement. An attacker configures a domain with a short TTL
+                DNS record that initially resolves to the attacker's server, then changes to
+                resolve to an internal IP address (like <span class="inline-code">127.0.0.1</span>
+                or <span class="inline-code">169.254.169.254</span>). The browser, having already
+                established the origin, allows JavaScript running from the attacker's domain to
+                make requests to the internal address. This technique is particularly effective
+                for accessing cloud metadata services and internal web applications.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">Dangling DNS Records</div>
+                    <div class="callout-text">
+                        Dangling DNS records are not just a takeover risk. CNAME records pointing to
+                        decommissioned internal hostnames reveal the organization's naming conventions
+                        and internal infrastructure layout. A record like
+                        <span class="inline-code">api-staging.target.com CNAME internal-api-01.corp.target.local</span>
+                        tells you about their environment naming patterns, internal domain structure,
+                        and the existence of internal API infrastructure &mdash; all valuable
+                        reconnaissance data even if the record cannot be taken over.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Protocol-Level Attacks -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128260;</span>
+            Protocol-Level Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                Below the HTTP layer, organizations run dozens of network protocols that were
+                designed for trusted internal networks but frequently end up exposed to the
+                internet. SNMP with default community strings, Redis without authentication,
+                MongoDB with no access controls, and SMTP servers accepting relay &mdash; these
+                are all common findings in infrastructure-focused bug bounty research. The
+                impact ranges from information disclosure to full data access.
+            </p>
+
+            <h3>SNMP Enumeration</h3>
+
+            <p>
+                Simple Network Management Protocol remains widely deployed for monitoring network
+                devices. SNMP v1 and v2c use community strings as their sole authentication
+                mechanism &mdash; essentially plaintext passwords. The default community strings
+                <span class="inline-code">public</span> (read) and <span class="inline-code">private</span>
+                (read/write) are left unchanged on a surprising number of internet-facing devices.
+            </p>
+
+            <div class="code-block"><span class="comment"># Test for default SNMP community strings</span>
+<span class="cmd">snmpwalk</span> <span class="flag">-v 2c -c</span> <span class="str">public</span> <span class="str">target-ip</span> <span class="flag">1.3.6.1.2.1.1</span>
+
+<span class="comment"># Enumerate system information</span>
+<span class="cmd">snmpwalk</span> <span class="flag">-v 2c -c</span> <span class="str">public</span> <span class="str">target-ip</span> <span class="flag">system</span>
+
+<span class="comment"># Brute-force community strings</span>
+<span class="cmd">onesixtyone</span> <span class="flag">-c</span> <span class="str">community-strings.txt</span> <span class="str">target-ip</span>
+
+<span class="comment"># Full SNMP enumeration with snmp-check</span>
+<span class="cmd">snmp-check</span> <span class="str">target-ip</span> <span class="flag">-c</span> <span class="str">public</span></div>
+
+            <h3>Exposed Database Services</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Port</th>
+                        <th>No-Auth Check</th>
+                        <th>Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Redis</td>
+                        <td>6379</td>
+                        <td><span class="inline-code">redis-cli -h target INFO</span></td>
+                        <td>Full data access, potential RCE via Lua scripting or module loading</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">MongoDB</td>
+                        <td>27017</td>
+                        <td><span class="inline-code">mongosh --host target --eval "db.adminCommand('listDatabases')"</span></td>
+                        <td>Full database read/write, common in ransomware campaigns</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Memcached</td>
+                        <td>11211</td>
+                        <td><span class="inline-code">echo "stats" | nc target 11211</span></td>
+                        <td>Cache data leakage (session tokens, cached queries), DDoS amplification</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CouchDB</td>
+                        <td>5984</td>
+                        <td><span class="inline-code">curl http://target:5984/_all_dbs</span></td>
+                        <td>Full database enumeration and data access without authentication</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Cassandra</td>
+                        <td>9042</td>
+                        <td><span class="inline-code">cqlsh target 9042</span></td>
+                        <td>Full data access, cluster compromise through inter-node trust</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>SMTP and Mail Protocol Issues</h3>
+
+            <p>
+                Mail servers expose several testing vectors in bug bounty contexts. Open relay
+                testing determines whether a mail server will forward email from unauthenticated
+                senders to external recipients &mdash; a critical finding that enables phishing
+                campaigns from the target's own mail infrastructure. SMTP header injection and
+                email spoofing through missing SPF/DKIM/DMARC records are also commonly reported.
+            </p>
+
+            <div class="code-block"><span class="comment"># Test for open relay (do NOT send actual spam)</span>
+<span class="cmd">nmap</span> <span class="flag">--script smtp-open-relay -p 25</span> <span class="str">mail.target.com</span>
+
+<span class="comment"># Check SPF record</span>
+<span class="cmd">dig</span> <span class="flag">TXT</span> <span class="str">target.com</span> | <span class="cmd">grep</span> <span class="str">"v=spf1"</span>
+
+<span class="comment"># Check DMARC record</span>
+<span class="cmd">dig</span> <span class="flag">TXT</span> <span class="str">_dmarc.target.com</span>
+
+<span class="comment"># Check DKIM records (requires knowing the selector)</span>
+<span class="cmd">dig</span> <span class="flag">TXT</span> <span class="str">google._domainkey.target.com</span>
+<span class="cmd">dig</span> <span class="flag">TXT</span> <span class="str">default._domainkey.target.com</span></div>
+
+            <h3>FTP and Legacy Protocols</h3>
+
+            <p>
+                FTP servers with anonymous login enabled, Telnet services running on network
+                equipment, and TFTP servers accessible from the internet are all findings that
+                appear regularly in infrastructure-focused bounty programs. While these may seem
+                like relics of a previous era, they persist in enterprise environments due to
+                legacy integrations, firmware update mechanisms, and configuration management
+                systems that were never migrated to modern protocols.
+            </p>
+
+            <div class="code-block"><span class="comment"># Test FTP anonymous login</span>
+<span class="cmd">nmap</span> <span class="flag">--script ftp-anon -p 21</span> <span class="str">target-ip</span>
+
+<span class="comment"># Check for writable FTP directories</span>
+<span class="cmd">ftp</span> <span class="str">target-ip</span>
+<span class="comment"># Login: anonymous / anonymous@</span>
+<span class="comment"># Try: put testfile.txt</span>
+
+<span class="comment"># Scan for Telnet (informational but shows legacy risk)</span>
+<span class="cmd">nmap</span> <span class="flag">-sV -p 23</span> <span class="str">target-range/24</span></div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Protocol Testing Ethics</div>
+                    <div class="callout-text">
+                        When testing database services and protocols, limit your actions to
+                        confirming that unauthenticated access is possible. Connect, verify the
+                        service responds, and document the finding. Do not enumerate customer data,
+                        do not download database contents, and do not modify any data. Your report
+                        should demonstrate that the service is accessible without authentication
+                        and explain the potential impact &mdash; not prove it by actually accessing
+                        sensitive data.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Internal Pivoting from External -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128295;</span>
+            Internal Pivoting from External
+        </h2>
+        <div class="section-body">
+            <p>
+                Some of the most impactful bug bounty findings occur when an external vulnerability
+                provides a window into internal infrastructure. SSRF (Server-Side Request Forgery)
+                is the most common bridge between external and internal attack surfaces. A single
+                SSRF vulnerability can transform a web application finding into a full infrastructure
+                compromise by allowing the researcher to reach internal services, cloud metadata
+                endpoints, and administrative interfaces that are not directly accessible from the
+                internet.
+            </p>
+
+            <h3>SSRF as an Infrastructure Pivot</h3>
+
+            <p>
+                When you discover an SSRF vulnerability, the immediate instinct is to test for
+                file read or code execution. But in the context of network infrastructure, SSRF
+                becomes a port scanner and service enumerator for the internal network. By
+                varying the target IP and port in your SSRF payload, you can map internal services
+                that would be invisible from an external perspective.
+            </p>
+
+            <div class="code-block"><span class="comment"># SSRF to access cloud metadata (AWS)</span>
+<span class="comment"># http://169.254.169.254/latest/meta-data/</span>
+<span class="comment"># http://169.254.169.254/latest/meta-data/iam/security-credentials/</span>
+
+<span class="comment"># SSRF to access cloud metadata (GCP)</span>
+<span class="comment"># http://metadata.google.internal/computeMetadata/v1/</span>
+<span class="comment"># Requires header: Metadata-Flavor: Google</span>
+
+<span class="comment"># SSRF to access cloud metadata (Azure)</span>
+<span class="comment"># http://169.254.169.254/metadata/instance?api-version=2021-02-01</span>
+<span class="comment"># Requires header: Metadata: true</span>
+
+<span class="comment"># SSRF port scanning (test internal services)</span>
+<span class="comment"># http://10.0.0.1:8080 (internal Jenkins)</span>
+<span class="comment"># http://10.0.0.1:9200 (internal Elasticsearch)</span>
+<span class="comment"># http://10.0.0.1:6379 (internal Redis)</span></div>
+
+            <h3>Cloud Metadata Exploitation</h3>
+
+            <p>
+                The cloud metadata service at <span class="inline-code">169.254.169.254</span>
+                is the single highest-value SSRF target. On AWS, accessing the
+                <span class="inline-code">/latest/meta-data/iam/security-credentials/</span>
+                endpoint returns temporary AWS credentials for the instance's IAM role. These
+                credentials can be used to access S3 buckets, DynamoDB tables, Lambda functions,
+                and other AWS services &mdash; all from outside the network. This escalation
+                path transforms a medium-severity SSRF into a critical finding.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9729;</div>
+                    <div class="concept-card-title">AWS IMDSv1 vs IMDSv2</div>
+                    <div class="concept-card-body">
+                        IMDSv1 responds to simple GET requests, making it trivially accessible via
+                        SSRF. IMDSv2 requires a PUT request to obtain a token first, which blocks
+                        most basic SSRF payloads. Always check which version is enabled &mdash;
+                        many organizations have not migrated to IMDSv2.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128273;</div>
+                    <div class="concept-card-title">Service Account Tokens</div>
+                    <div class="concept-card-body">
+                        On GCP, the metadata service provides OAuth tokens for the instance's
+                        service account. On Kubernetes, service account tokens mounted at
+                        <span class="inline-code">/var/run/secrets/</span> can be read via SSRF
+                        or file-read vulnerabilities.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128194;</div>
+                    <div class="concept-card-title">Internal Service Discovery</div>
+                    <div class="concept-card-body">
+                        Use SSRF to enumerate internal IP ranges. Response time differences and
+                        error messages reveal which internal IPs have listening services. Map the
+                        internal network topology without direct access.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Chaining External to Internal Findings</h3>
+
+            <p>
+                The most impactful bug bounty reports chain multiple findings together to
+                demonstrate a realistic attack path. An exposed Spring Boot Actuator endpoint
+                might reveal database credentials. Those credentials might work on a database
+                service accessible via SSRF. Or a subdomain takeover might inherit the cookie
+                scope of the main domain, enabling session theft. Each finding alone might be
+                medium severity, but the chain demonstrates critical impact.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Example Attack Chain: External to Internal</div>
+                            <div class="detail-header-subtitle">How multiple medium findings combine into a critical report</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <ol class="numbered-list">
+                        <li><strong style="color:#c4a0d8;">Reconnaissance:</strong> ASN discovery reveals IP range 203.0.113.0/24 belonging to the target. Shodan scan of this range identifies a Spring Boot application on port 8080.</li>
+                        <li><strong style="color:#c4a0d8;">Information Disclosure:</strong> The <span class="inline-code">/actuator/env</span> endpoint is accessible without authentication, revealing AWS access keys stored as environment variables.</li>
+                        <li><strong style="color:#c4a0d8;">Cloud Enumeration:</strong> Using the leaked AWS keys, enumerate S3 buckets and discover a bucket containing database backups.</li>
+                        <li><strong style="color:#c4a0d8;">Impact Demonstration:</strong> Document the chain with screenshots at each step, demonstrating that unauthenticated access to a management interface leads to credential theft and cloud resource access.</li>
+                        <li><strong style="color:#c4a0d8;">Reporting:</strong> Submit as a single chained report with clear impact: unauthenticated access to production database backups containing customer PII via exposed Actuator endpoint and leaked cloud credentials.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Network Bug Bounty Strategy -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127919;</span>
+            Network Bug Bounty Strategy
+        </h2>
+        <div class="section-body">
+            <p>
+                Reporting network and infrastructure findings requires a different approach than
+                web application vulnerabilities. Network findings are often simpler to reproduce
+                but harder to contextualize for triage teams who are accustomed to web-focused
+                reports. Proving impact is critical &mdash; a finding that says "Elasticsearch is
+                exposed on port 9200" is informational without context, but demonstrating that
+                the exposed instance contains production logs with authentication tokens transforms
+                it into a critical severity finding.
+            </p>
+
+            <h3>Proving Impact for Network Findings</h3>
+
+            <p>
+                The key to getting network findings accepted and well-compensated is demonstrating
+                realistic impact without overstepping ethical boundaries. For each finding type,
+                there is a line between "proving the vulnerability exists" and "exploiting the
+                vulnerability to access sensitive data." Your report should approach that line
+                without crossing it.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Acceptable Impact Proof</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> Screenshot of Elasticsearch responding with cluster info</li>
+                        <li><span class="li-marker">&#8250;</span> Listing index names (which reveal data types stored)</li>
+                        <li><span class="li-marker">&#8250;</span> Showing a single sanitized record as proof of access</li>
+                        <li><span class="li-marker">&#8250;</span> Demonstrating that default credentials work on a login page</li>
+                        <li><span class="li-marker">&#8250;</span> Showing the version number of a known-vulnerable service</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Crossing the Line</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> Dumping entire database contents</li>
+                        <li><span class="li-marker">&#8250;</span> Accessing or downloading customer PII</li>
+                        <li><span class="li-marker">&#8250;</span> Executing commands on exposed Jenkins/Docker</li>
+                        <li><span class="li-marker">&#8250;</span> Modifying data or configurations</li>
+                        <li><span class="li-marker">&#8250;</span> Using leaked credentials to access other systems</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Severity Assessment for Network Findings</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Examples</th>
+                        <th>Typical Bounty Range</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Critical</td>
+                        <td>Exposed Docker API, unauthenticated Kubernetes dashboard, VPN RCE (known CVE), leaked cloud credentials via Actuator</td>
+                        <td>$5,000 &ndash; $50,000+</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">High</td>
+                        <td>Unauthenticated Elasticsearch with production data, exposed Jenkins with build secrets, open MongoDB with customer data</td>
+                        <td>$2,000 &ndash; $15,000</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Medium</td>
+                        <td>Subdomain takeover, exposed Grafana with default creds, SNMP with public community string, zone transfer</td>
+                        <td>$500 &ndash; $5,000</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Low / Info</td>
+                        <td>Version disclosure, banner grabbing results, missing DMARC, exposed status pages, open FTP with no sensitive data</td>
+                        <td>$100 &ndash; $500</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Tools Summary</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">nmap</div>
+                    <div class="tool-role">Port Scanner &amp; Service Detection</div>
+                    <div class="tool-desc">The standard network scanner. Service version detection, NSE scripts for vulnerability checks, OS fingerprinting.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">masscan</div>
+                    <div class="tool-role">High-Speed Port Scanner</div>
+                    <div class="tool-desc">Scans entire IP ranges at extreme speed. Use for initial discovery, then follow up with nmap for detailed service detection.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Shodan</div>
+                    <div class="tool-role">Internet-Wide Scanner</div>
+                    <div class="tool-desc">Passive scanning database. Search for exposed services without sending any packets to the target. Essential for initial reconnaissance.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Censys</div>
+                    <div class="tool-role">Certificate &amp; Host Intelligence</div>
+                    <div class="tool-desc">Internet scan data with strong TLS certificate analysis. Discovers services through certificate transparency logs and active scanning.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">nuclei</div>
+                    <div class="tool-role">Template-Based Scanner</div>
+                    <div class="tool-desc">Runs community-maintained vulnerability templates against discovered services. Excellent for checking known CVEs across infrastructure.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">subjack / can-i-take-over-xyz</div>
+                    <div class="tool-role">Subdomain Takeover Detection</div>
+                    <div class="tool-desc">Automated tools for detecting dangling DNS records and subdomain takeover opportunities across cloud providers.</div>
+                </div>
+            </div>
+
+            <h3>Reporting Network Vulnerabilities</h3>
+
+            <p>
+                Network vulnerability reports should follow a clear structure that makes the
+                finding easy to understand, reproduce, and assess:
+            </p>
+
+            <ol class="numbered-list">
+                <li><strong style="color:#c4a0d8;">Title:</strong> Include the service name, vulnerability type, and target. Example: "Unauthenticated Elasticsearch instance exposing production logs on 203.0.113.50:9200"</li>
+                <li><strong style="color:#c4a0d8;">Affected Asset:</strong> IP address, hostname, port number, and how you confirmed ownership (ASN, reverse DNS, WHOIS).</li>
+                <li><strong style="color:#c4a0d8;">Vulnerability Description:</strong> What the service is, why it should not be exposed, and what access it provides.</li>
+                <li><strong style="color:#c4a0d8;">Reproduction Steps:</strong> The exact commands used to discover and verify the finding. Include curl commands, nmap output, or Shodan screenshots.</li>
+                <li><strong style="color:#c4a0d8;">Impact:</strong> What an attacker could do with this access. Reference specific data types visible (index names, database names, log categories) without including actual sensitive data.</li>
+                <li><strong style="color:#c4a0d8;">Remediation:</strong> Specific steps to fix the issue &mdash; firewall rules, authentication configuration, service binding to internal interfaces.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    You discover an exposed Elasticsearch instance during a bug bounty engagement. The instance is accessible without authentication and contains indexes named "production-logs-2024", "user-events", and "payment-transactions." How do you prove the severity of this finding without accessing any actual user data? What evidence do you include in your report, and what do you intentionally exclude?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    A program's scope lists IP ranges but explicitly excludes "infrastructure not owned by [Company]." You discover that one of their IP addresses is an AWS EC2 instance running a Spring Boot Actuator that leaks AWS credentials. Those credentials have S3 read access. Is the S3 bucket in scope? How far along the attack chain should you go before reporting?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Compare the ROI of network-level bug bounty research versus web application testing. Network findings require different tools, are often simpler to reproduce, but may face pushback from triage teams unfamiliar with infrastructure vulnerabilities. What strategies would you use to ensure your network findings are taken seriously and fairly compensated?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the network attack surface in bug bounty programs, IP range and
+                ASN discovery, VPN and remote access misconfiguration identification, exposed
+                management interface detection, DNS attack vectors including subdomain takeover
+                and zone transfers, protocol-level vulnerabilities across SNMP, databases, and
+                mail, internal pivoting via SSRF and cloud metadata, and network-specific reporting
+                and severity assessment strategies.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 12
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-network', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

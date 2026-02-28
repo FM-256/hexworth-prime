@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 03: Advanced Recon &amp; Automation - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .section-body h3 { color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px; }
+
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li::before { content: none; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-item::before { content: none; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+
+        .takeaway-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; }
+        .takeaway-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; text-align: center; }
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+
+        .numbered-list { list-style: none; padding-left: 0; margin-bottom: 16px; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; position: relative; padding-left: 36px; margin-bottom: 12px; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 0; color: #9333ea; font-family: 'Courier New', monospace; font-size: 0.8rem; font-weight: bold; }
+        .inline-code { font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(40, 20, 60, 0.3); padding: 1px 6px; border-radius: 3px; font-size: 0.88rem; }
+
+        blockquote { border-left: 3px solid rgba(147, 51, 234, 0.4); padding: 16px 24px; margin: 24px 0; background: rgba(15, 8, 20, 0.5); border-radius: 0 8px 8px 0; font-style: italic; color: #9a7aaa; font-size: 0.95rem; line-height: 1.7; }
+        blockquote cite { display: block; margin-top: 10px; font-style: normal; font-size: 0.78rem; color: #6a4a7a; letter-spacing: 0.1em; }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .tool-grid { grid-template-columns: 1fr; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 03</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9881;</div>
+        <h1 class="intro-title">Advanced Recon &amp; Automation</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 03 &bull; Scaling Your Intelligence</div>
+        <p class="intro-subtitle">
+            Module 02 taught you the fundamentals of reconnaissance. This module takes those foundations
+            and pushes them into territory that separates professional bug bounty hunters from
+            hobbyists. You will learn to bypass CDN protections to find origin servers, extract
+            hidden endpoints from JavaScript bundles, set up continuous monitoring pipelines that
+            alert you to new attack surface the moment it appears, and scale your entire recon
+            workflow across distributed infrastructure. The hunters pulling consistent five-figure
+            bounties are not running tools manually &mdash; they have built machines that do the
+            finding for them while they sleep.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">CDN Bypass</div>
+            <div class="stat-pill">JS Analysis</div>
+            <div class="stat-pill">Continuous Monitoring</div>
+            <div class="stat-pill">GitHub Dorking</div>
+            <div class="stat-pill">Distributed Recon</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: CDN Bypass & Origin IP Discovery -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128737;</span>
+            CDN Bypass &amp; Origin IP Discovery
+        </h2>
+        <div class="section-body">
+            <p>
+                Cloudflare, Akamai, Fastly, and AWS CloudFront sit in front of the vast majority of
+                production web applications. These CDNs provide DDoS protection, WAF filtering, and
+                rate limiting that make direct vulnerability testing painful or impossible. But behind
+                every CDN proxy is an origin server &mdash; and if you can discover its real IP address,
+                you can bypass all of those protections and interact with the application directly.
+            </p>
+
+            <p>
+                Origin IP discovery is one of the highest-value recon techniques in bug bounty. A
+                WAF-protected application that blocks every XSS payload through Cloudflare may accept
+                that same payload without filtering when you hit the origin IP directly. The origin
+                server often lacks the hardening that the CDN provides, because the development team
+                assumes nobody will find it.
+            </p>
+
+            <h3>DNS History &mdash; The Most Reliable Method</h3>
+
+            <p>
+                Before an organization moved behind a CDN, their DNS records pointed directly to the
+                origin IP. Historical DNS databases preserve those old records. If the origin server
+                has not changed IPs since the migration, you have a direct path around the CDN.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># SecurityTrails &mdash; historical DNS records (free tier available)</span>
+<span class="comment"># Navigate to securitytrails.com/domain/target.com/history/a</span>
+<span class="comment"># Look for A records that changed when CDN was adopted</span>
+
+<span class="comment"># ViewDNS.info &mdash; IP history lookup</span>
+<span class="comment"># viewdns.info/iphistory/?domain=target.com</span>
+
+<span class="comment"># completedns.com &mdash; historical zone file analysis</span>
+<span class="comment"># completedns.com/dns-history/</span>
+</div>
+
+            <h3>Certificate-Based Discovery</h3>
+
+            <p>
+                When the origin server serves its own TLS certificate, Censys and Shodan index that
+                certificate along with the IP address. Searching for the target's certificate fingerprint
+                or organization name reveals IPs serving that cert &mdash; including origin servers
+                behind CDNs.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Censys search for certificates matching the target domain</span>
+<span class="comment"># This finds ALL IPs serving a cert for target.com, including origins</span>
+<span class="kw">censys search</span> <span class="str">"services.tls.certificates.leaf.names: target.com"</span>
+
+<span class="comment"># Shodan &mdash; find hosts serving the target's SSL certificate</span>
+<span class="kw">ssl.cert.subject.cn:</span><span class="str">target.com</span>
+<span class="kw">ssl.cert.subject.cn:</span><span class="str">"Target Inc"</span>
+
+<span class="comment"># Compare the IPs returned against known CDN IP ranges</span>
+<span class="comment"># Cloudflare ranges: cloudflare.com/ips/</span>
+<span class="comment"># Any IP NOT in CDN ranges is likely the origin</span>
+</div>
+
+            <h3>Additional Origin Discovery Techniques</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128231;</div>
+                    <div class="concept-card-title">Email Headers</div>
+                    <div class="concept-card-body">
+                        Trigger a password reset or signup confirmation email from the target. The
+                        <span class="inline-code">Received:</span> headers in the email often contain
+                        the origin server's real IP, since mail is sent from the application server,
+                        not through the CDN.
+                    </div>
+                    <span class="concept-tag">Passive</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">XML/RSS Feeds</div>
+                    <div class="concept-card-body">
+                        RSS feeds, sitemaps, and XML endpoints sometimes include absolute URLs with
+                        the origin IP or internal hostname instead of the public domain. Check
+                        <span class="inline-code">/feed</span>, <span class="inline-code">/sitemap.xml</span>,
+                        and <span class="inline-code">/robots.txt</span>.
+                    </div>
+                    <span class="concept-tag">Quick Check</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127760;</div>
+                    <div class="concept-card-title">Subdomain Leaks</div>
+                    <div class="concept-card-body">
+                        The main domain goes through Cloudflare, but
+                        <span class="inline-code">staging.target.com</span> or
+                        <span class="inline-code">direct.target.com</span> might point directly to the
+                        origin. If they share the same server, you have your bypass.
+                    </div>
+                    <span class="concept-tag">Common</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128204;</div>
+                    <div class="concept-card-title">Favicon Hashing</div>
+                    <div class="concept-card-body">
+                        Hash the target's favicon with MurmurHash and search Shodan:
+                        <span class="inline-code">http.favicon.hash:HASH</span>. This finds every
+                        server hosting the same favicon, including unprotected origins.
+                    </div>
+                    <span class="concept-tag">Shodan</span>
+                </div>
+            </div>
+
+            <h3>Verifying Origin IPs</h3>
+
+            <div class="code-block">
+<span class="comment"># Once you have a candidate origin IP, verify it serves the target</span>
+$ <span class="kw">curl</span> <span class="flag">-sk</span> <span class="str">"https://CANDIDATE_IP"</span> <span class="flag">-H</span> <span class="str">"Host: target.com"</span> | <span class="kw">head</span> <span class="flag">-20</span>
+
+<span class="comment"># If the response matches the CDN-proxied site, you found the origin</span>
+<span class="comment"># Add to /etc/hosts to browse the origin directly:</span>
+<span class="str">203.0.113.42  target.com</span>
+
+<span class="comment"># Check if the origin has WAF/rate limiting (it usually doesn't)</span>
+$ <span class="kw">curl</span> <span class="flag">-sk</span> <span class="str">"https://CANDIDATE_IP/nonexistent-path-test"</span> <span class="flag">-H</span> <span class="str">"Host: target.com"</span>
+</div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">CDN Bypass and Scope</div>
+                    <div class="callout-text">
+                        Some bug bounty programs explicitly prohibit testing against origin IPs or
+                        consider CDN bypass itself a valid finding worth reporting. Always check the
+                        program's rules of engagement. If origin IP access is not explicitly permitted,
+                        report the CDN bypass as a vulnerability rather than using it to test further.
+                        The fact that the origin is accessible at all is often a misconfiguration worth
+                        a bounty.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: JavaScript Endpoint Extraction -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128220;</span>
+            JavaScript Endpoint Extraction
+        </h2>
+        <div class="section-body">
+            <p>
+                Modern web applications ship their routing logic, API calls, and internal endpoints
+                directly to the browser inside JavaScript bundles. These bundles are a goldmine for
+                reconnaissance &mdash; they contain API endpoint paths, internal service URLs,
+                authentication flows, and sometimes hardcoded credentials that developers never
+                intended to be visible. Systematic JS analysis routinely reveals endpoints that are
+                not linked anywhere in the visible UI but are fully functional and often less protected.
+            </p>
+
+            <h3>LinkFinder &mdash; Automated Endpoint Extraction</h3>
+
+            <p>
+                LinkFinder uses regex-based analysis to parse JavaScript files and extract all
+                relative and absolute URLs. It catches API paths, internal routes, and hardcoded
+                URLs that manual review would miss across thousands of lines of minified code.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Extract endpoints from a single JS file</span>
+$ <span class="kw">python3 linkfinder.py</span> <span class="flag">-i</span> <span class="str">https://target.com/static/app.js</span> <span class="flag">-o</span> cli
+
+<span class="comment"># Extract from all JS files on a page</span>
+$ <span class="kw">python3 linkfinder.py</span> <span class="flag">-i</span> <span class="str">https://target.com</span> <span class="flag">-d</span> <span class="flag">-o</span> results.html
+
+<span class="comment"># Pipe with subdomains for bulk extraction</span>
+$ <span class="kw">cat</span> live-hosts.txt | <span class="kw">while read</span> url; do
+    <span class="kw">python3 linkfinder.py</span> <span class="flag">-i</span> <span class="str">"$url"</span> <span class="flag">-o</span> cli
+  done | <span class="kw">sort</span> <span class="flag">-u</span> &gt; all-endpoints.txt
+</div>
+
+            <h3>relative-url-extractor &amp; Manual Regex</h3>
+
+            <div class="code-block">
+<span class="comment"># Tomnomnom's relative-url-extractor</span>
+$ <span class="kw">cat</span> app.js | <span class="kw">relative-url-extractor</span> | <span class="kw">sort</span> <span class="flag">-u</span>
+
+<span class="comment"># Manual regex for API endpoints in JS files</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">https://target.com/static/app.js</span> | \
+  <span class="kw">grep</span> <span class="flag">-oP</span> <span class="str">'["'"'"'](/[a-zA-Z0-9_/\-\.]+)["'"'"']'</span> | <span class="kw">sort</span> <span class="flag">-u</span>
+
+<span class="comment"># Example finds:</span>
+<span class="str">/api/v1/users</span>
+<span class="str">/api/v2/admin/settings</span>
+<span class="str">/internal/debug/health</span>
+<span class="str">/graphql</span>
+<span class="str">/api/v1/export/csv</span>
+</div>
+
+            <h3>Webpack Bundle Analysis</h3>
+
+            <p>
+                Webpack-bundled applications often contain the entire application routing table,
+                component names, and lazy-loaded module paths inside the bundle manifest. The chunk
+                loading configuration reveals routes the developer intended to be hidden behind
+                authentication or feature flags.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Look for webpack chunk manifests</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">https://target.com</span> | <span class="kw">grep</span> <span class="flag">-oP</span> <span class="str">'src="(/static/js/[^"]+)"'</span>
+
+<span class="comment"># Download and analyze the main bundle</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">https://target.com/static/js/main.chunk.js</span> | \
+  <span class="kw">grep</span> <span class="flag">-oP</span> <span class="str">'path:\s*"([^"]+)"'</span>
+
+<span class="comment"># Common patterns that reveal routes:</span>
+<span class="str">path: "/admin/users"</span>
+<span class="str">path: "/internal/metrics"</span>
+<span class="str">path: "/api/v2/debug"</span>
+<span class="str">component: "AdminDashboard"</span>
+</div>
+
+            <h3>JavaScript Source Map Leakage</h3>
+
+            <p>
+                Source maps (<span class="inline-code">.js.map</span> files) are intended for debugging
+                and contain the complete original source code before minification &mdash; variable names,
+                comments, internal documentation, and full application logic. If a production server
+                serves source maps, you effectively have the application's source code. This is a
+                finding in itself and enables white-box analysis of a black-box target.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Check if source maps are exposed</span>
+$ <span class="kw">curl</span> <span class="flag">-sI</span> <span class="str">https://target.com/static/js/main.js.map</span>
+<span class="comment"># HTTP 200 = source maps are exposed (finding!)</span>
+<span class="comment"># HTTP 403/404 = properly restricted</span>
+
+<span class="comment"># Check the JS file itself for a sourceMappingURL directive</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">https://target.com/static/js/main.js</span> | <span class="kw">tail</span> <span class="flag">-5</span>
+<span class="str">//# sourceMappingURL=main.js.map</span>
+
+<span class="comment"># Download and reconstruct original source</span>
+$ <span class="kw">npm install</span> <span class="flag">-g</span> <span class="str">shuji</span>
+$ <span class="kw">shuji</span> main.js.map <span class="flag">-o</span> ./reconstructed-source/
+</div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">What to Look For in JS Files</div>
+                    <div class="callout-text">
+                        Beyond endpoints, JavaScript files can contain API keys, AWS credentials,
+                        internal service hostnames, debug flags
+                        (<span class="inline-code">DEBUG=true</span>, <span class="inline-code">isAdmin</span>),
+                        hardcoded tokens, and comments describing authentication bypass mechanisms.
+                        Search for patterns like <span class="inline-code">apiKey</span>,
+                        <span class="inline-code">secret</span>, <span class="inline-code">token</span>,
+                        <span class="inline-code">password</span>, <span class="inline-code">Authorization</span>,
+                        and <span class="inline-code">Bearer</span>. Every string is intelligence.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Continuous Monitoring -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128225;</span>
+            Continuous Monitoring
+        </h2>
+        <div class="section-body">
+            <p>
+                One-time reconnaissance gives you a snapshot. Continuous monitoring gives you a
+                competitive edge. New subdomains, new services, and new certificates appear on targets
+                constantly &mdash; each representing a freshly deployed asset with minimal security
+                hardening. The hunter who detects a new subdomain within hours of its creation has
+                a window of opportunity before anyone else notices it.
+            </p>
+
+            <h3>findomain Webhooks</h3>
+
+            <p>
+                findomain supports real-time monitoring with webhook integration. Set it up on a
+                VPS and it will continuously query sources for new subdomains, alerting you the
+                moment one appears.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># findomain monitoring mode with Discord webhook</span>
+$ <span class="kw">findomain</span> <span class="flag">-t</span> target.com <span class="flag">--monitoring-flag</span> \
+  <span class="flag">--discord-webhook</span> <span class="str">"https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"</span>
+
+<span class="comment"># Slack webhook integration</span>
+$ <span class="kw">findomain</span> <span class="flag">-t</span> target.com <span class="flag">--monitoring-flag</span> \
+  <span class="flag">--slack-webhook</span> <span class="str">"https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"</span>
+
+<span class="comment"># Telegram bot integration</span>
+$ <span class="kw">findomain</span> <span class="flag">-t</span> target.com <span class="flag">--monitoring-flag</span> \
+  <span class="flag">--telegram-bot-token</span> <span class="str">"BOT_TOKEN"</span> \
+  <span class="flag">--telegram-chat-id</span> <span class="str">"CHAT_ID"</span>
+</div>
+
+            <h3>Diffing Subdomain Lists with anew</h3>
+
+            <p>
+                <span class="inline-code">anew</span> appends only new, previously unseen lines to a
+                file. Combined with a cron job running subdomain enumeration, it builds an
+                ever-growing master list while outputting only new discoveries &mdash; perfect for
+                triggering alerts on fresh subdomains.
+            </p>
+
+            <div class="code-block">
+<span class="comment">#!/bin/bash</span>
+<span class="comment"># monitor.sh &mdash; run via cron every 6 hours</span>
+<span class="kw">DOMAIN</span>=<span class="str">"target.com"</span>
+<span class="kw">MASTER</span>=<span class="str">"$HOME/recon/$DOMAIN/all-subs.txt"</span>
+
+<span class="comment"># Run enumeration</span>
+<span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">"$DOMAIN"</span> <span class="flag">-silent</span> | <span class="kw">anew</span> <span class="str">"$MASTER"</span> &gt; new-subs.txt
+
+<span class="comment"># If new subdomains found, probe and alert</span>
+if [ <span class="flag">-s</span> new-subs.txt ]; then
+    <span class="kw">cat</span> new-subs.txt | <span class="kw">httpx</span> <span class="flag">-silent</span> <span class="flag">-status-code</span> <span class="flag">-title</span> &gt; new-live.txt
+    <span class="comment"># Send to Slack/Discord/Telegram via webhook</span>
+    <span class="kw">curl</span> <span class="flag">-X POST</span> <span class="str">"$SLACK_WEBHOOK"</span> \
+      <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+      <span class="flag">-d</span> <span class="str">"{\"text\": \"New subdomains for $DOMAIN:\n$(cat new-live.txt)\"}"</span>
+fi
+</div>
+
+            <h3>Certificate Transparency Monitoring</h3>
+
+            <p>
+                Certificate Transparency logs are public and real-time. Every time a CA issues a new
+                certificate for your target's domain, it appears in CT logs within minutes. Monitoring
+                these logs catches new subdomains the moment they get a certificate &mdash; often before
+                DNS propagation completes.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># certspotter &mdash; monitors CT logs for new certificates</span>
+$ <span class="kw">curl</span> <span class="flag">-s</span> <span class="str">"https://api.certspotter.com/v1/issuances?domain=target.com&amp;include_subdomains=true&amp;expand=dns_names"</span> | \
+  <span class="kw">jq</span> <span class="flag">-r</span> <span class="str">'.[].dns_names[]'</span> | <span class="kw">sort</span> <span class="flag">-u</span>
+
+<span class="comment"># sublert &mdash; automated CT log monitoring with notifications</span>
+$ <span class="kw">python3 sublert.py</span> <span class="flag">-u</span> target.com
+</div>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128276; What to Monitor</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>New subdomains (subdomain enumeration diff)</li>
+                        <li><span class="li-marker">&#9656;</span>New certificates (CT log watchers)</li>
+                        <li><span class="li-marker">&#9656;</span>DNS record changes (A, CNAME, MX)</li>
+                        <li><span class="li-marker">&#9656;</span>New open ports on known IPs</li>
+                        <li><span class="li-marker">&#9656;</span>HTTP response changes (title, status, tech)</li>
+                        <li><span class="li-marker">&#9656;</span>New JavaScript files and endpoints</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#9201; Monitoring Cadence</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Subdomain enumeration: every 4-6 hours</li>
+                        <li><span class="li-marker">&#9656;</span>CT log checks: real-time or every hour</li>
+                        <li><span class="li-marker">&#9656;</span>Port scans: weekly (avoid rate limits)</li>
+                        <li><span class="li-marker">&#9656;</span>JS file diffing: daily</li>
+                        <li><span class="li-marker">&#9656;</span>GitHub dorking: daily or on-demand</li>
+                        <li><span class="li-marker">&#9656;</span>Full recon refresh: weekly</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">The First-Mover Advantage</div>
+                    <div class="callout-text">
+                        A new subdomain appearing on a target is often a deployment in progress. The
+                        service may be partially configured, running with default credentials, or
+                        exposing debug endpoints that will be locked down within days. Continuous
+                        monitoring gives you hours or days of exclusive access to these fresh attack
+                        surfaces before other hunters discover them through their next manual recon run.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Advanced Subdomain Techniques -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128300;</span>
+            Advanced Subdomain Techniques
+        </h2>
+        <div class="section-body">
+            <p>
+                Standard subdomain enumeration tools query known data sources. Advanced techniques
+                go further &mdash; generating subdomains that have never been indexed, testing for
+                virtual hosts that share IP addresses, and attempting zone transfers that dump entire
+                DNS zones. These methods discover assets that no passive source will ever find because
+                they were never publicly referenced.
+            </p>
+
+            <h3>Permutation Scanning with alterx &amp; gotator</h3>
+
+            <p>
+                Permutation scanning takes known subdomains and generates variations based on common
+                naming patterns. If you discover <span class="inline-code">staging.target.com</span>,
+                permutation tools generate <span class="inline-code">staging2.target.com</span>,
+                <span class="inline-code">staging-new.target.com</span>,
+                <span class="inline-code">staging-api.target.com</span>, and hundreds more. Many of
+                these resolve to real assets that were never in any public data source.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># alterx &mdash; ProjectDiscovery's permutation generator</span>
+$ <span class="kw">cat</span> known-subs.txt | <span class="kw">alterx</span> | <span class="kw">dnsx</span> <span class="flag">-silent</span> &gt; permutation-results.txt
+
+<span class="comment"># alterx with custom patterns</span>
+$ <span class="kw">cat</span> known-subs.txt | <span class="kw">alterx</span> <span class="flag">-p</span> <span class="str">"{{word}}-{{sub}}"</span> \
+  <span class="flag">-w</span> words.txt | <span class="kw">dnsx</span> <span class="flag">-silent</span>
+
+<span class="comment"># gotator &mdash; smart permutation with depth control</span>
+$ <span class="kw">gotator</span> <span class="flag">-sub</span> known-subs.txt <span class="flag">-perm</span> permutations.txt \
+  <span class="flag">-depth</span> 2 <span class="flag">-numbers</span> 3 | <span class="kw">dnsx</span> <span class="flag">-silent</span> &gt; gotator-results.txt
+
+<span class="comment"># Example: from "api.target.com" gotator generates:</span>
+<span class="str">api-v2.target.com</span>
+<span class="str">api-staging.target.com</span>
+<span class="str">api-internal.target.com</span>
+<span class="str">api-dev.target.com</span>
+<span class="str">api2.target.com</span>
+<span class="str">api-test.target.com</span>
+</div>
+
+            <h3>DNS Zone Transfer Attempts</h3>
+
+            <p>
+                A zone transfer (AXFR) requests the complete DNS zone file from a nameserver. Properly
+                configured servers refuse this, but misconfigured nameservers will dump every DNS record
+                in the zone &mdash; every subdomain, every IP, every internal hostname. This is rare on
+                modern infrastructure, but it still happens and the payoff is enormous.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Step 1: Identify the authoritative nameservers</span>
+$ <span class="kw">dig</span> target.com <span class="flag">NS +short</span>
+<span class="str">ns1.target.com.</span>
+<span class="str">ns2.target.com.</span>
+
+<span class="comment"># Step 2: Attempt zone transfer against each nameserver</span>
+$ <span class="kw">dig</span> <span class="flag">axfr</span> target.com <span class="flag">@ns1.target.com</span>
+$ <span class="kw">dig</span> <span class="flag">axfr</span> target.com <span class="flag">@ns2.target.com</span>
+
+<span class="comment"># dnsrecon &mdash; automated zone transfer + enumeration</span>
+$ <span class="kw">dnsrecon</span> <span class="flag">-d</span> target.com <span class="flag">-t</span> axfr
+
+<span class="comment"># If successful, you get the complete zone:</span>
+<span class="str">target.com.    IN  SOA  ns1.target.com. admin.target.com. ...</span>
+<span class="str">admin.target.com.      IN  A  10.0.1.5</span>
+<span class="str">jenkins.target.com.    IN  A  10.0.1.12</span>
+<span class="str">staging-db.target.com. IN  A  10.0.2.30</span>
+</div>
+
+            <h3>Virtual Host (vhost) Brute-Forcing</h3>
+
+            <p>
+                Multiple websites can share a single IP address, differentiated only by the
+                <span class="inline-code">Host</span> header. vhost brute-forcing sends HTTP requests
+                to a known IP with different <span class="inline-code">Host</span> header values,
+                looking for responses that differ from the default &mdash; indicating a hidden virtual
+                host. This discovers applications that have no DNS record at all.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># gobuster vhost mode</span>
+$ <span class="kw">gobuster vhost</span> <span class="flag">-u</span> <span class="str">https://target.com</span> \
+  <span class="flag">-w</span> /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-5000.txt \
+  <span class="flag">--append-domain</span>
+
+<span class="comment"># ffuf for vhost discovery with response filtering</span>
+$ <span class="kw">ffuf</span> <span class="flag">-u</span> <span class="str">https://TARGET_IP</span> \
+  <span class="flag">-H</span> <span class="str">"Host: FUZZ.target.com"</span> \
+  <span class="flag">-w</span> wordlist.txt \
+  <span class="flag">-fs</span> DEFAULT_RESPONSE_SIZE
+
+<span class="comment"># The -fs flag filters out responses matching the default page size</span>
+<span class="comment"># Any response with a DIFFERENT size is likely a valid vhost</span>
+</div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Combining Techniques for Maximum Coverage</div>
+                    <div class="callout-text">
+                        The most effective approach layers all three techniques. Start with standard
+                        passive enumeration, feed those results into permutation scanning to generate
+                        candidates, resolve the permutations with dnsx, and then run vhost brute-forcing
+                        against discovered IPs. Each layer discovers assets invisible to the others.
+                        A comprehensive methodology combining passive, permutation, and vhost techniques
+                        typically discovers 40-60% more subdomains than passive enumeration alone.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Shodan & Censys Query Mastery -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128752;</span>
+            Shodan &amp; Censys Query Mastery
+        </h2>
+        <div class="section-body">
+            <p>
+                Module 02 introduced Shodan and Censys at a basic level. This section goes deeper
+                into advanced query construction, specialized dorks for cloud services, and API
+                integration for automated reconnaissance. Mastering these query languages turns
+                internet-wide scan data into a precision targeting tool.
+            </p>
+
+            <h3>Advanced Shodan Dorks</h3>
+
+            <div class="code-block">
+<span class="comment"># Find exposed Kubernetes dashboards</span>
+<span class="kw">http.title:</span><span class="str">"Kubernetes Dashboard"</span> <span class="kw">hostname:</span><span class="str">target.com</span>
+
+<span class="comment"># Exposed Docker APIs (unauthenticated container access)</span>
+<span class="kw">port:</span><span class="str">2375</span> <span class="kw">product:</span><span class="str">"Docker"</span> <span class="kw">org:</span><span class="str">"Target Inc"</span>
+
+<span class="comment"># Jenkins instances (often misconfigured)</span>
+<span class="kw">http.title:</span><span class="str">"Dashboard [Jenkins]"</span> <span class="kw">hostname:</span><span class="str">target.com</span>
+
+<span class="comment"># Exposed Elasticsearch clusters</span>
+<span class="kw">port:</span><span class="str">9200</span> <span class="kw">http.title:</span><span class="str">"elastic"</span> <span class="kw">org:</span><span class="str">"Target Inc"</span>
+
+<span class="comment"># Spring Boot Actuator endpoints (sensitive info disclosure)</span>
+<span class="kw">http.favicon.hash:</span><span class="str">116323821</span> <span class="kw">hostname:</span><span class="str">target.com</span>
+
+<span class="comment"># Exposed .env files via HTTP</span>
+<span class="kw">http.html:</span><span class="str">"DB_PASSWORD"</span> <span class="kw">hostname:</span><span class="str">target.com</span>
+
+<span class="comment"># Grafana dashboards (metrics and internal data)</span>
+<span class="kw">http.title:</span><span class="str">"Grafana"</span> <span class="kw">org:</span><span class="str">"Target Inc"</span>
+</div>
+
+            <h3>Cloud-Specific Shodan Queries</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Cloud Service</th>
+                        <th>Shodan Query</th>
+                        <th>What It Finds</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">AWS S3</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">http.title:"Index of" hostname:s3.amazonaws.com</td>
+                        <td>Misconfigured S3 buckets with directory listing enabled</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">AWS EC2</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">org:"Amazon" ssl.cert.subject.cn:target.com</td>
+                        <td>Target's EC2 instances identified by SSL certificates</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Azure</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">hostname:azurewebsites.net ssl.cert.subject.cn:target</td>
+                        <td>Target's Azure App Service deployments</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">GCP</td>
+                        <td style="font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem;">org:"Google Cloud" ssl.cert.subject.cn:target.com</td>
+                        <td>Target's Google Cloud Platform instances</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Censys API Integration</h3>
+
+            <div class="code-block">
+<span class="comment"># Censys CLI search for hosts</span>
+$ <span class="kw">censys search</span> <span class="str">"services.tls.certificates.leaf.names: target.com"</span> \
+  <span class="flag">--index-type hosts</span>
+
+<span class="comment"># Censys Python API for programmatic access</span>
+$ <span class="kw">pip install</span> censys
+
+<span class="comment"># Python script for certificate search</span>
+<span class="kw">from</span> censys.search <span class="kw">import</span> CensysHosts
+h = CensysHosts()
+<span class="kw">for</span> host <span class="kw">in</span> h.search(<span class="str">"services.tls.certificates.leaf.names: target.com"</span>):
+    <span class="kw">print</span>(host[<span class="str">"ip"</span>], host.get(<span class="str">"services"</span>, []))
+
+<span class="comment"># CensysQL &mdash; SQL-like queries for advanced filtering</span>
+<span class="str">services.port: 443 AND services.tls.certificates.leaf.subject.organization: "Target Inc"</span>
+<span class="str">services.http.response.headers.server: "Apache" AND autonomous_system.name: "TARGET-AS"</span>
+</div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Shodan Monitor</div>
+                    <div class="callout-text">
+                        Shodan Monitor (paid feature) lets you register IP ranges and receive
+                        notifications when new ports open, services change, or vulnerabilities are
+                        detected. Combined with your subdomain monitoring, this provides continuous
+                        visibility into your target's evolving attack surface without running a single
+                        scan yourself. Shodan does the scanning; you get the alerts.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: GitHub Dorking -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128193;</span>
+            GitHub Dorking
+        </h2>
+        <div class="section-body">
+            <p>
+                Developers accidentally commit secrets to public repositories every day &mdash; API
+                keys, database credentials, internal URLs, cloud access tokens, and
+                <span class="inline-code">.env</span> files. GitHub's code search indexes billions
+                of files across millions of public repositories, making it one of the most productive
+                reconnaissance surfaces for discovering leaked credentials and internal configuration
+                details. A single leaked AWS key can compromise an entire cloud infrastructure.
+            </p>
+
+            <h3>Essential GitHub Search Queries</h3>
+
+            <div class="code-block">
+<span class="comment"># Search for the target's domain in code</span>
+<span class="str">"target.com"</span> <span class="kw">filename:</span>.env
+<span class="str">"target.com"</span> <span class="kw">filename:</span>config
+<span class="str">"target.com"</span> <span class="kw">filename:</span>.yml
+
+<span class="comment"># API keys and secrets</span>
+<span class="str">"target.com"</span> <span class="kw">password</span>
+<span class="str">"target.com"</span> <span class="kw">api_key</span>
+<span class="str">"target.com"</span> <span class="kw">apikey</span>
+<span class="str">"target.com"</span> <span class="kw">secret_key</span>
+<span class="str">"target.com"</span> <span class="kw">access_token</span>
+
+<span class="comment"># Cloud credentials</span>
+<span class="str">"target.com"</span> <span class="kw">AWS_SECRET_ACCESS_KEY</span>
+<span class="str">"target.com"</span> <span class="kw">AZURE_CLIENT_SECRET</span>
+<span class="str">"target.com"</span> <span class="kw">GOOGLE_APPLICATION_CREDENTIALS</span>
+
+<span class="comment"># Internal infrastructure</span>
+<span class="str">"target.com"</span> <span class="kw">internal</span>
+<span class="str">"target.com"</span> <span class="kw">staging</span>
+<span class="str">"target.com"</span> <span class="kw">vpn</span>
+<span class="str">"target.com"</span> <span class="kw">intranet</span>
+
+<span class="comment"># Database connection strings</span>
+<span class="str">"target.com"</span> <span class="kw">jdbc:</span>
+<span class="str">"target.com"</span> <span class="kw">mongodb+srv://</span>
+<span class="str">"target.com"</span> <span class="kw">postgres://</span>
+</div>
+
+            <h3>Where Secrets Hide</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">.env Files</div>
+                    <div class="concept-card-body">
+                        Environment configuration files containing database URLs, API keys, SMTP
+                        credentials, and cloud tokens. Developers commit these accidentally when
+                        <span class="inline-code">.gitignore</span> is missing or misconfigured.
+                    </div>
+                    <span class="concept-tag">Most Common</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128221;</div>
+                    <div class="concept-card-title">Git History</div>
+                    <div class="concept-card-body">
+                        A developer commits a secret, realizes the mistake, and removes it in the
+                        next commit. The secret is gone from the current tree but preserved forever
+                        in git history. Tools like trufflehog scan the full commit history.
+                    </div>
+                    <span class="concept-tag">Overlooked</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128230;</div>
+                    <div class="concept-card-title">CI/CD Configs</div>
+                    <div class="concept-card-body">
+                        <span class="inline-code">.github/workflows/</span>,
+                        <span class="inline-code">.gitlab-ci.yml</span>,
+                        <span class="inline-code">Jenkinsfile</span> &mdash; build pipelines often
+                        reference internal URLs, registries, and deployment targets.
+                    </div>
+                    <span class="concept-tag">Infrastructure</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128736;</div>
+                    <div class="concept-card-title">Docker/K8s Configs</div>
+                    <div class="concept-card-body">
+                        <span class="inline-code">docker-compose.yml</span>,
+                        <span class="inline-code">Dockerfile</span>, and Kubernetes manifests
+                        contain service names, ports, environment variables, and sometimes
+                        embedded credentials.
+                    </div>
+                    <span class="concept-tag">DevOps</span>
+                </div>
+            </div>
+
+            <h3>Automated Secret Scanning Tools</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">trufflehog</div>
+                    <div class="tool-role">TruffleHog Inc &bull; Git History Scanner</div>
+                    <div class="tool-desc">Scans entire git history for high-entropy strings and known credential patterns. Verifies found credentials against live APIs. Supports GitHub, GitLab, S3, and filesystem scanning.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">gitleaks</div>
+                    <div class="tool-role">Open Source &bull; SAST for Git</div>
+                    <div class="tool-desc">Regex-based secret detection with 150+ predefined rules. Fast scanning with pre-commit hook support. Outputs JSON for pipeline integration.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">gitdorker</div>
+                    <div class="tool-role">Python &bull; GitHub Dork Automation</div>
+                    <div class="tool-desc">Automates GitHub dorking with curated dork lists. Runs hundreds of search queries against a target organization and collates results.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">gitrob</div>
+                    <div class="tool-role">Go &bull; Organization Scanner</div>
+                    <div class="tool-desc">Clones all repositories belonging to a GitHub organization and scans for sensitive files. Presents findings in a web-based interface for triage.</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># trufflehog &mdash; scan a GitHub organization</span>
+$ <span class="kw">trufflehog</span> github <span class="flag">--org</span> target-org <span class="flag">--only-verified</span>
+
+<span class="comment"># trufflehog &mdash; scan a specific repository including history</span>
+$ <span class="kw">trufflehog</span> git <span class="str">https://github.com/target-org/target-repo.git</span>
+
+<span class="comment"># gitleaks &mdash; scan a cloned repository</span>
+$ <span class="kw">gitleaks detect</span> <span class="flag">-s</span> ./target-repo <span class="flag">--report-format</span> json <span class="flag">-r</span> gitleaks-report.json
+
+<span class="comment"># gitleaks &mdash; scan all commits in history</span>
+$ <span class="kw">gitleaks detect</span> <span class="flag">-s</span> ./target-repo <span class="flag">--log-opts</span> <span class="str">"--all"</span>
+</div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Responsible Disclosure of Leaked Secrets</div>
+                    <div class="callout-text">
+                        If you discover valid credentials in a public repository, do not use them to
+                        access systems beyond verifying they are live. Report the finding immediately
+                        through the bug bounty program. Include the repository URL, file path, commit
+                        hash, and the type of credential found. Never exfiltrate data using discovered
+                        credentials &mdash; your report should demonstrate the exposure, not exploit it.
+                        Using leaked credentials to access unauthorized systems crosses from research
+                        into unauthorized access.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Automated Recon Pipelines -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128295;</span>
+            Automated Recon Pipelines
+        </h2>
+        <div class="section-body">
+            <p>
+                Module 02 introduced the concept of chaining tools together. This section builds
+                production-grade automation &mdash; bash scripts that run on schedules, handle errors
+                gracefully, and integrate with notification systems. The goal is a system you deploy
+                once and maintain, not a script you run manually every time.
+            </p>
+
+            <h3>Bash Scripting for Recon</h3>
+
+            <div class="code-block">
+<span class="comment">#!/bin/bash</span>
+<span class="comment"># advanced-recon.sh &mdash; Production recon pipeline</span>
+<span class="comment"># Usage: ./advanced-recon.sh target.com</span>
+
+set <span class="flag">-euo pipefail</span>
+
+<span class="kw">DOMAIN</span>=<span class="str">"${1:?Usage: $0 domain.com}"</span>
+<span class="kw">TIMESTAMP</span>=<span class="str">$(date +%Y%m%d_%H%M%S)</span>
+<span class="kw">OUT</span>=<span class="str">"$HOME/recon/$DOMAIN/$TIMESTAMP"</span>
+<span class="kw">MASTER</span>=<span class="str">"$HOME/recon/$DOMAIN/master-subs.txt"</span>
+<span class="kw">mkdir</span> <span class="flag">-p</span> <span class="str">"$OUT"</span>
+
+log() { <span class="kw">echo</span> <span class="str">"[$(date +%H:%M:%S)] $*"</span>; }
+
+<span class="comment"># Phase 1: Passive enumeration (parallel)</span>
+log <span class="str">"Phase 1: Passive enumeration"</span>
+<span class="kw">subfinder</span> <span class="flag">-d</span> <span class="str">"$DOMAIN"</span> <span class="flag">-silent</span> &gt; <span class="str">"$OUT/subfinder.txt"</span> &amp;
+<span class="kw">assetfinder</span> <span class="flag">--subs-only</span> <span class="str">"$DOMAIN"</span> &gt; <span class="str">"$OUT/assetfinder.txt"</span> &amp;
+<span class="kw">amass enum</span> <span class="flag">-passive</span> <span class="flag">-d</span> <span class="str">"$DOMAIN"</span> <span class="flag">-o</span> <span class="str">"$OUT/amass.txt"</span> &amp;
+<span class="kw">findomain</span> <span class="flag">-t</span> <span class="str">"$DOMAIN"</span> <span class="flag">-q</span> &gt; <span class="str">"$OUT/findomain.txt"</span> &amp;
+wait
+
+<span class="comment"># Merge, dedup, diff against master list</span>
+<span class="kw">cat</span> <span class="str">"$OUT"</span>/*.txt | <span class="kw">sort</span> <span class="flag">-u</span> &gt; <span class="str">"$OUT/all-subs.txt"</span>
+<span class="kw">cat</span> <span class="str">"$OUT/all-subs.txt"</span> | <span class="kw">anew</span> <span class="str">"$MASTER"</span> &gt; <span class="str">"$OUT/new-subs.txt"</span>
+log <span class="str">"Found $(wc -l &lt; "$OUT/all-subs.txt") total, $(wc -l &lt; "$OUT/new-subs.txt") new"</span>
+
+<span class="comment"># Phase 2: DNS resolution + HTTP probing</span>
+log <span class="str">"Phase 2: Probing"</span>
+<span class="kw">cat</span> <span class="str">"$OUT/all-subs.txt"</span> | <span class="kw">httpx</span> <span class="flag">-silent</span> \
+  <span class="flag">-status-code</span> <span class="flag">-title</span> <span class="flag">-tech-detect</span> <span class="flag">-json</span> \
+  <span class="flag">-o</span> <span class="str">"$OUT/httpx.json"</span>
+
+<span class="comment"># Phase 3: Notify on new discoveries</span>
+if [ <span class="flag">-s</span> <span class="str">"$OUT/new-subs.txt"</span> ]; then
+    log <span class="str">"Sending notifications for new subdomains"</span>
+    <span class="kw">cat</span> <span class="str">"$OUT/new-subs.txt"</span> | <span class="kw">notify</span> <span class="flag">-silent</span>
+fi
+
+log <span class="str">"Complete. Results: $OUT/"</span>
+</div>
+
+            <h3>Cron Scheduling</h3>
+
+            <div class="code-block">
+<span class="comment"># Edit crontab</span>
+$ <span class="kw">crontab</span> <span class="flag">-e</span>
+
+<span class="comment"># Run recon every 6 hours</span>
+<span class="str">0 */6 * * * /home/hunter/scripts/advanced-recon.sh target.com &gt;&gt; /var/log/recon.log 2&gt;&amp;1</span>
+
+<span class="comment"># Run GitHub dorking daily at 3am</span>
+<span class="str">0 3 * * * /home/hunter/scripts/github-dork.sh target.com &gt;&gt; /var/log/github-dork.log 2&gt;&amp;1</span>
+
+<span class="comment"># Weekly full port scan on Sundays</span>
+<span class="str">0 2 * * 0 /home/hunter/scripts/portscan.sh target.com &gt;&gt; /var/log/portscan.log 2&gt;&amp;1</span>
+</div>
+
+            <h3>ProjectDiscovery Chaos Integration</h3>
+
+            <p>
+                ProjectDiscovery's Chaos service provides pre-collected subdomain data from their
+                continuous scanning infrastructure. Instead of running your own enumeration against
+                well-known targets, pull from Chaos and focus your compute on the tools only you
+                are running &mdash; permutation scanning, vhost brute-forcing, and JS analysis.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># chaos &mdash; pull subdomains from ProjectDiscovery's dataset</span>
+$ <span class="kw">chaos</span> <span class="flag">-d</span> target.com <span class="flag">-silent</span> <span class="flag">-o</span> chaos-subs.txt
+
+<span class="comment"># Merge chaos data with your own enumeration</span>
+$ <span class="kw">cat</span> chaos-subs.txt your-subs.txt | <span class="kw">sort</span> <span class="flag">-u</span> | \
+  <span class="kw">anew</span> master-subs.txt &gt; new-from-chaos.txt
+
+<span class="comment"># Check available programs on Chaos</span>
+$ <span class="kw">chaos</span> <span class="flag">-ls</span>
+</div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Error Handling Matters</div>
+                    <div class="callout-text">
+                        Production recon scripts must handle failures gracefully. Tools crash,
+                        APIs rate-limit, DNS resolvers time out. Use <span class="inline-code">set -euo pipefail</span>
+                        for strict error handling, wrap individual tool calls in functions with
+                        timeouts, and log everything. A pipeline that runs for 4 hours and dies
+                        silently at step 3 wastes your time and produces incomplete data. Build
+                        scripts that report what worked, what failed, and why.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 8: Recon at Scale -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9729;</span>
+            Recon Automation at Scale
+        </h2>
+        <div class="section-body">
+            <p>
+                When you are hunting across multiple programs simultaneously, a single VPS running
+                sequential scans is no longer sufficient. Distributed scanning infrastructure lets
+                you parallelize recon across dozens of cloud instances, process results centrally,
+                and scale your hunting operation to cover more targets with less wall-clock time.
+            </p>
+
+            <h3>notify &mdash; Centralized Alerting</h3>
+
+            <p>
+                ProjectDiscovery's <span class="inline-code">notify</span> tool provides a unified
+                notification layer that pipes tool output to Slack, Discord, Telegram, email, or
+                custom webhooks. Any tool that outputs to stdout can feed into notify for real-time
+                alerts.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Configure notify providers (~/.config/notify/provider-config.yaml)</span>
+<span class="str">slack:</span>
+  <span class="str">- id: "recon-alerts"</span>
+    <span class="str">slack_webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"</span>
+    <span class="str">slack_channel: "#recon"</span>
+<span class="str">discord:</span>
+  <span class="str">- id: "findings"</span>
+    <span class="str">discord_webhook_url: "https://discord.com/api/webhooks/..."</span>
+
+<span class="comment"># Pipe any tool output to notify</span>
+$ <span class="kw">subfinder</span> <span class="flag">-d</span> target.com <span class="flag">-silent</span> | <span class="kw">anew</span> subs.txt | <span class="kw">notify</span> <span class="flag">-silent</span>
+
+<span class="comment"># Notify on new live hosts with tech details</span>
+$ <span class="kw">cat</span> new-subs.txt | <span class="kw">httpx</span> <span class="flag">-silent</span> <span class="flag">-status-code</span> <span class="flag">-title</span> | <span class="kw">notify</span>
+
+<span class="comment"># Custom message formatting</span>
+$ <span class="kw">echo</span> <span class="str">"New subdomain found: staging-api.target.com [200] [Staging API]"</span> | \
+  <span class="kw">notify</span> <span class="flag">-id</span> recon-alerts
+</div>
+
+            <h3>axiom &mdash; Distributed Scanning Infrastructure</h3>
+
+            <p>
+                axiom is a dynamic infrastructure framework that spins up fleets of cloud instances,
+                distributes scanning workloads across them, and collects results. Instead of running
+                a 10-hour scan from one machine, axiom splits it across 50 instances and finishes
+                in 12 minutes. It supports DigitalOcean, AWS, Azure, GCP, and Linode.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Initialize axiom fleet (50 instances on DigitalOcean)</span>
+$ <span class="kw">axiom-fleet</span> recon <span class="flag">-i</span> 50
+
+<span class="comment"># Distribute subdomain enumeration across the fleet</span>
+$ <span class="kw">axiom-scan</span> targets.txt <span class="flag">-m</span> subfinder <span class="flag">-o</span> all-subs.txt
+
+<span class="comment"># Distributed HTTP probing</span>
+$ <span class="kw">axiom-scan</span> all-subs.txt <span class="flag">-m</span> httpx <span class="flag">-o</span> live-hosts.txt
+
+<span class="comment"># Distributed nuclei vulnerability scanning</span>
+$ <span class="kw">axiom-scan</span> live-hosts.txt <span class="flag">-m</span> nuclei <span class="flag">-o</span> vulns.txt
+
+<span class="comment"># Tear down the fleet when done</span>
+$ <span class="kw">axiom-fleet</span> recon <span class="flag">-i</span> 0
+</div>
+
+            <h3>Cloud-Based Recon Architecture</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128187; Infrastructure Components</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Central VPS for orchestration, scheduling, and data storage</li>
+                        <li><span class="li-marker">&#9656;</span>axiom fleet for distributed scanning (spin up/down as needed)</li>
+                        <li><span class="li-marker">&#9656;</span>Object storage (S3/Spaces) for result archives</li>
+                        <li><span class="li-marker">&#9656;</span>Notification pipeline (notify to Slack/Discord)</li>
+                        <li><span class="li-marker">&#9656;</span>Git repository for scripts and configuration</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128200; Cost Optimization</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Use spot/preemptible instances (70-90% cheaper)</li>
+                        <li><span class="li-marker">&#9656;</span>Spin up fleet only during active scans, destroy after</li>
+                        <li><span class="li-marker">&#9656;</span>Central VPS on cheapest tier ($5-10/month)</li>
+                        <li><span class="li-marker">&#9656;</span>50-instance fleet for 1 hour costs $2-5</li>
+                        <li><span class="li-marker">&#9656;</span>Monthly cost for serious hunting: $20-50</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Scaling Across Multiple Programs</h3>
+
+            <div class="code-block">
+<span class="comment">#!/bin/bash</span>
+<span class="comment"># multi-target-recon.sh &mdash; Run recon across all active programs</span>
+
+<span class="kw">TARGETS</span>=<span class="str">"$HOME/hunting/active-targets.txt"</span>
+
+<span class="comment"># active-targets.txt contains one domain per line:</span>
+<span class="comment"># target1.com</span>
+<span class="comment"># target2.com</span>
+<span class="comment"># target3.com</span>
+
+<span class="kw">while IFS= read</span> <span class="flag">-r</span> domain; do
+    log <span class="str">"Starting recon: $domain"</span>
+    ./advanced-recon.sh <span class="str">"$domain"</span> &amp;
+    <span class="comment"># Limit parallel jobs to avoid resource exhaustion</span>
+    [ $(<span class="kw">jobs</span> <span class="flag">-r</span> | <span class="kw">wc</span> <span class="flag">-l</span>) <span class="flag">-ge</span> 5 ] &amp;&amp; <span class="kw">wait</span> <span class="flag">-n</span>
+done &lt; <span class="str">"$TARGETS"</span>
+<span class="kw">wait</span>
+log <span class="str">"All targets complete"</span>
+</div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Distributed Scanning Ethics</div>
+                    <div class="callout-text">
+                        Distributed scanning dramatically increases the volume of traffic you send
+                        to targets. Fifty instances running masscan simultaneously can resemble a
+                        DDoS attack. Always use rate limiting, respect program policies on scan
+                        intensity, and coordinate with program operators if you plan to run large-scale
+                        active scans. Passive tools (subfinder, assetfinder) are safe to distribute
+                        because they query third-party data sources, not the target directly. Reserve
+                        distributed active scanning for targets that explicitly permit it.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    You discover a target's origin IP behind Cloudflare. The bug bounty program does not explicitly mention CDN bypass in its rules. How do you proceed? What factors influence whether you test the origin directly versus reporting the bypass as a finding? How does the severity of a CDN bypass compare to vulnerabilities found through the bypass?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    A developer at your target organization accidentally committed AWS root credentials to a public GitHub repository three months ago. The commit has since been reverted, but the credentials are still in git history. Walk through your responsible disclosure process, including what you verify, what you avoid doing, and how you structure the report.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Design a continuous monitoring pipeline for a target you hunt regularly. What do you monitor, how often, and how do you filter signal from noise? Consider the tradeoffs between monitoring frequency, resource cost, and the risk of generating excessive false-positive alerts that cause you to ignore real findings.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered CDN bypass and origin IP discovery, JavaScript endpoint extraction
+                and source map analysis, continuous monitoring with webhooks and diffing, advanced
+                subdomain techniques including permutation scanning and vhost brute-forcing, advanced
+                Shodan and Censys query construction, GitHub dorking and automated secret scanning,
+                production-grade recon pipeline scripting, and distributed scanning infrastructure
+                with axiom and notify.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 03
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates both the fixed top bar and the mini bar in the header
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — adds 'visible' class when section enters viewport
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Module completion — delegates to ModuleProgress if available, falls back gracefully
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-recon-adv', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

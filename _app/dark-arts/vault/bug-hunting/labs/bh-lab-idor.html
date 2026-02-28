@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: Dark Arts vault requires all 5 gates -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievement tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDOR &amp; Access Control Lab -- Bug Hunting // Dark Arts</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x2623;</text></svg>">
+    <style>
+        /* --- Reset & Base --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-base:       #0a0508;
+            --bg-panel:      #0f0812;
+            --bg-card:       #120a18;
+            --bg-input:      #0d0710;
+            --border-dim:    rgba(100, 60, 130, 0.15);
+            --border-mid:    rgba(147, 51, 234, 0.25);
+            --border-bright: rgba(147, 51, 234, 0.5);
+            --accent:        #9333ea;
+            --accent-light:  #a855f7;
+            --accent-glow:   rgba(147, 51, 234, 0.3);
+            --text-bright:   #c4a0d8;
+            --text-mid:      #9a7aaa;
+            --text-dim:      #6a4a7a;
+            --text-faint:    #3a2a4a;
+            --green:         #22c55e;
+            --green-dim:     rgba(34, 197, 94, 0.15);
+            --red:           #ef4444;
+            --red-dim:       rgba(239, 68, 68, 0.12);
+            --amber:         #f59e0b;
+            --amber-dim:     rgba(245, 158, 11, 0.12);
+            --mono:          'Courier New', 'Consolas', monospace;
+            --term-bg:       #050308;
+            --term-green:    #39ff14;
+            --term-dim:      #22aa0e;
+            --term-prompt:   #a855f7;
+        }
+
+        body {
+            height: 100vh;
+            background: var(--bg-base);
+            font-family: var(--mono);
+            color: #a080b0;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 10%, rgba(80, 30, 120, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 100, 0.05) 0%, transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* --- Header --- */
+        .header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 50px;
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-link {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            color: #9333ea;
+            border-color: rgba(147, 51, 234, 0.4);
+        }
+
+        .header-badge {
+            font-size: 0.65rem;
+            color: #6a4a7a;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .header-title {
+            font-size: 0.85rem;
+            color: var(--text-bright);
+            letter-spacing: 0.04em;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.7rem;
+        }
+
+        .score-display { color: #a855f7; }
+        .obj-display { color: var(--text-dim); }
+        .obj-display span { color: var(--green); font-weight: 700; }
+
+        /* --- Ethics Banner --- */
+        .ethics-banner {
+            position: fixed;
+            top: 50px; left: 0; right: 0;
+            background: linear-gradient(90deg, rgba(239,68,68,0.10), rgba(239,68,68,0.05));
+            border-bottom: 1px solid rgba(239,68,68,0.2);
+            padding: 6px 20px;
+            font-size: 0.68rem;
+            color: #fca5a5;
+            letter-spacing: 0.04em;
+            z-index: 99;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ethics-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: blink 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* --- Main Layout --- */
+        .lab-body {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            height: calc(100vh - 50px - 28px);
+            margin-top: 78px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- Left Panel: Terminal --- */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-dim);
+            overflow: hidden;
+            background: var(--term-bg);
+        }
+
+        /* Terminal chrome */
+        .terminal-chrome {
+            background: #120a18;
+            border-bottom: 1px solid var(--border-dim);
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .terminal-chrome-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .term-dots { display: flex; gap: 5px; }
+        .term-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .term-dot.r { background: #ef4444; }
+        .term-dot.y { background: #eab308; }
+        .term-dot.g { background: #22c55e; }
+
+        .term-title {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+        }
+
+        .term-session {
+            font-size: 0.62rem;
+            color: var(--text-faint);
+            letter-spacing: 0.08em;
+        }
+
+        /* Terminal output area */
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            line-height: 1.65;
+            color: #b8a0c8;
+        }
+
+        .term-line { margin-bottom: 2px; word-break: break-all; }
+        .term-line.cmd { color: var(--term-prompt); }
+        .term-line.info { color: var(--text-dim); }
+        .term-line.success { color: var(--green); }
+        .term-line.warn { color: var(--amber); }
+        .term-line.error { color: var(--red); }
+
+        /* HTTP response styling within terminal */
+        .term-http-header { color: #60a5fa; }
+        .term-http-status { font-weight: 700; }
+        .term-http-status.s200 { color: var(--green); }
+        .term-http-status.s201 { color: var(--green); }
+        .term-http-status.s403 { color: var(--red); }
+        .term-http-status.s404 { color: var(--amber); }
+
+        .term-json { color: #b8a0c8; }
+        .term-json-key { color: #a855f7; }
+        .term-json-str { color: #86efac; }
+        .term-json-num { color: #fbbf24; }
+        .term-json-bool { color: #60a5fa; }
+        .term-json-null { color: #9ca3af; }
+        .term-json-sens { color: #f87171; font-weight: 600; }
+
+        /* Terminal input */
+        .terminal-input-row {
+            display: flex;
+            align-items: center;
+            border-top: 1px solid var(--border-dim);
+            background: rgba(5, 3, 8, 0.9);
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-text {
+            padding: 10px 4px 10px 14px;
+            color: var(--term-prompt);
+            font-size: 0.76rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #d4c0e8;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            padding: 10px 14px 10px 6px;
+            caret-color: var(--accent-light);
+        }
+
+        .term-input::placeholder { color: var(--text-faint); }
+
+        /* --- Right Panel: Sidebar --- */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: var(--bg-panel);
+            gap: 0;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .sidebar-header {
+            padding: 8px 14px;
+            background: rgba(147,51,234,0.08);
+            border-bottom: 1px solid var(--border-dim);
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .sidebar-body {
+            padding: 10px 14px;
+            font-size: 0.73rem;
+            line-height: 1.7;
+            color: var(--text-mid);
+        }
+
+        /* Context card */
+        .ctx-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(100,60,130,0.06);
+        }
+
+        .ctx-row:last-child { border-bottom: none; }
+        .ctx-key { color: var(--text-dim); }
+        .ctx-val { color: var(--text-bright); font-weight: 600; }
+
+        /* Objectives */
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(100,60,130,0.08);
+        }
+
+        .obj-item:last-child { border-bottom: none; }
+
+        .obj-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            margin-top: 4px;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+
+        .obj-item.done .obj-dot { background: var(--green); }
+        .obj-item.done { color: var(--green); }
+
+        /* Endpoint reference */
+        .endpoint-item {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(100,60,130,0.06);
+        }
+
+        .endpoint-item:last-child { border-bottom: none; }
+
+        .ep-method {
+            display: inline-block;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin-right: 4px;
+            letter-spacing: 0.05em;
+        }
+
+        .ep-method.get { background: rgba(34,197,94,0.15); color: var(--green); }
+        .ep-method.put { background: rgba(245,158,11,0.15); color: var(--amber); }
+        .ep-method.post { background: rgba(96,165,250,0.15); color: #60a5fa; }
+        .ep-method.delete { background: rgba(239,68,68,0.15); color: var(--red); }
+
+        .ep-path {
+            font-size: 0.7rem;
+            color: var(--text-bright);
+        }
+
+        .ep-desc {
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            margin-top: 1px;
+            padding-left: 4px;
+        }
+
+        /* Hint buttons */
+        .hint-btn {
+            background: rgba(147,51,234,0.1);
+            border: 1px solid var(--border-mid);
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 4px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .hint-btn:hover { color: var(--accent-light); border-color: var(--border-bright); }
+        .hint-btn.revealed { background: var(--amber-dim); border-color: rgba(245,158,11,0.3); color: var(--amber); cursor: default; }
+
+        .hint-text {
+            display: none;
+            padding: 6px 0 2px;
+            font-size: 0.7rem;
+            color: var(--amber);
+            line-height: 1.5;
+        }
+
+        .hint-text.show { display: block; }
+
+        /* --- Completion Overlay --- */
+        .completion-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 5, 15, 0.92);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .completion-overlay.show { display: flex; }
+
+        .completion-card {
+            background: linear-gradient(135deg, #0f0818, #150a25);
+            border: 1px solid rgba(147,51,234,0.4);
+            border-radius: 12px;
+            padding: 40px 50px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 0 60px rgba(147,51,234,0.2), 0 0 120px rgba(147,51,234,0.1);
+            animation: completionPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes completionPop {
+            from { transform: scale(0.7); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+
+        .completion-title { font-size: 1.5rem; color: var(--accent-light); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 8px; }
+        .completion-subtitle { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 24px; line-height: 1.5; }
+
+        .completion-score-box {
+            background: rgba(147,51,234,0.1);
+            border: 1px solid var(--border-mid);
+            border-radius: 8px;
+            padding: 14px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .score-big { font-family: var(--mono); font-size: 2.5rem; font-weight: 700; color: var(--accent-light); }
+        .score-meta { text-align: left; }
+        .score-meta .label { font-size: 0.65rem; letter-spacing: 0.15em; color: var(--text-faint); text-transform: uppercase; }
+        .score-meta .rank { font-size: 0.88rem; color: var(--text-bright); font-weight: 600; }
+
+        .completion-btn {
+            display: inline-block;
+            padding: 11px 32px;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .completion-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(147,51,234,0.4); }
+
+        /* Flash notification */
+        .obj-flash {
+            position: fixed;
+            bottom: 24px; right: 24px;
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.4);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.78rem;
+            color: var(--green);
+            font-weight: 600;
+            z-index: 500;
+            animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.5s forwards;
+            max-width: 320px;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(10px); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(147,51,234,0.5); }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; Bug Hunting</a>
+            <span class="header-badge">Lab 06</span>
+            <span class="header-title">IDOR &amp; Access Control Lab</span>
+        </div>
+        <div class="header-right">
+            <div class="obj-display">Objectives: <span id="obj-count">0</span>/6</div>
+            <div class="score-display">Score: <span id="score-display">100</span></div>
+        </div>
+    </div>
+
+    <!-- Ethics Banner -->
+    <div class="ethics-banner">
+        <div class="ethics-dot"></div>
+        <strong>AUTHORIZED TRAINING ENVIRONMENT</strong>
+        &mdash; All targets are simulated. Unauthorized access to real systems is illegal. Educational purposes only.
+    </div>
+
+    <!-- Main Layout -->
+    <div class="lab-body">
+        <!-- Left: Terminal -->
+        <div class="terminal-panel">
+            <div class="terminal-chrome">
+                <div class="terminal-chrome-left">
+                    <div class="term-dots">
+                        <div class="term-dot r"></div>
+                        <div class="term-dot y"></div>
+                        <div class="term-dot g"></div>
+                    </div>
+                    <span class="term-title">API Testing Terminal</span>
+                </div>
+                <span class="term-session">Session: alice@targetapp</span>
+            </div>
+
+            <div class="terminal-output" id="terminal-output"></div>
+
+            <div class="terminal-input-row">
+                <span class="term-prompt-text">alice@api $</span>
+                <input type="text" class="term-input" id="term-input" placeholder="Enter curl command..." autofocus spellcheck="false" autocomplete="off">
+            </div>
+        </div>
+
+        <!-- Right: Sidebar -->
+        <div class="sidebar">
+            <!-- Session Context -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Session Context</div>
+                <div class="sidebar-body">
+                    <div class="ctx-row"><span class="ctx-key">Authenticated as:</span><span class="ctx-val">alice (id: 1001)</span></div>
+                    <div class="ctx-row"><span class="ctx-key">Role:</span><span class="ctx-val">user</span></div>
+                    <div class="ctx-row"><span class="ctx-key">Token:</span><span class="ctx-val" style="font-size:0.65rem;">tok_alice_xxx</span></div>
+                    <div class="ctx-row"><span class="ctx-key">API Base:</span><span class="ctx-val" style="font-size:0.65rem;">api.targetapp.com/v1</span></div>
+                </div>
+            </div>
+
+            <!-- Objectives -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Objectives</div>
+                <div class="sidebar-body">
+                    <div class="obj-item" id="obj-1"><span class="obj-dot"></span>1. View your own profile (alice)</div>
+                    <div class="obj-item" id="obj-2"><span class="obj-dot"></span>2. Access Bob's profile (IDOR)</div>
+                    <div class="obj-item" id="obj-3"><span class="obj-dot"></span>3. List all users (broken auth)</div>
+                    <div class="obj-item" id="obj-4"><span class="obj-dot"></span>4. Access admin dashboard</div>
+                    <div class="obj-item" id="obj-5"><span class="obj-dot"></span>5. Modify Bob's email (write IDOR)</div>
+                    <div class="obj-item" id="obj-6"><span class="obj-dot"></span>6. Escalate to admin role</div>
+                </div>
+            </div>
+
+            <!-- API Endpoints -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Known API Endpoints</div>
+                <div class="sidebar-body">
+                    <div class="endpoint-item">
+                        <span class="ep-method get">GET</span>
+                        <span class="ep-path">/v1/users/{id}</span>
+                        <div class="ep-desc">Get user profile by ID</div>
+                    </div>
+                    <div class="endpoint-item">
+                        <span class="ep-method get">GET</span>
+                        <span class="ep-path">/v1/users</span>
+                        <div class="ep-desc">List all users (should require admin)</div>
+                    </div>
+                    <div class="endpoint-item">
+                        <span class="ep-method put">PUT</span>
+                        <span class="ep-path">/v1/users/{id}</span>
+                        <div class="ep-desc">Update user profile</div>
+                    </div>
+                    <div class="endpoint-item">
+                        <span class="ep-method get">GET</span>
+                        <span class="ep-path">/v1/admin/dashboard</span>
+                        <div class="ep-desc">Admin dashboard (should require admin role)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hints -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">Hints (-5 pts each)</div>
+                <div class="sidebar-body">
+                    <button class="hint-btn" data-hint="1" onclick="IDORLab.revealHint(1)">Hint for Obj 1-2</button>
+                    <div class="hint-text" id="hint-1">curl https://api.targetapp.com/v1/users/1001 for your profile. Then try /users/1002 for Bob's -- the API does not check ownership.</div>
+                    <button class="hint-btn" data-hint="2" onclick="IDORLab.revealHint(2)">Hint for Obj 3-4</button>
+                    <div class="hint-text" id="hint-2">curl https://api.targetapp.com/v1/users to list all users. curl https://api.targetapp.com/v1/admin/dashboard for the admin panel -- neither checks your role.</div>
+                    <button class="hint-btn" data-hint="3" onclick="IDORLab.revealHint(3)">Hint for Obj 5-6</button>
+                    <div class="hint-text" id="hint-3">curl -X PUT https://api.targetapp.com/v1/users/1002 -d '{"email":"hacker@evil.com"}' to modify Bob's profile. Then PUT to /users/1001 with {"role":"admin"} for mass assignment.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Overlay -->
+    <div class="completion-overlay" id="completion-overlay">
+        <div class="completion-card">
+            <div class="completion-title">Lab Complete</div>
+            <div class="completion-subtitle">You have successfully exploited IDOR, broken function-level authorization, write-based IDOR, and mass assignment vulnerabilities in the target API.</div>
+            <div class="completion-score-box">
+                <div class="score-big" id="final-score">100</div>
+                <div class="score-meta">
+                    <div class="label">Final Score</div>
+                    <div class="rank" id="final-rank">Expert</div>
+                </div>
+            </div>
+            <button class="completion-btn" onclick="IDORLab.completeModule()">Mark Complete &amp; Return</button>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * IDORLab -- IDOR & Access Control Lab Simulation Engine
+     *
+     * Custom terminal that simulates curl commands against a fake REST API.
+     * Parses curl syntax, matches URL patterns, returns realistic JSON responses.
+     *
+     * 6 objectives covering:
+     * 1. Own profile access (baseline)
+     * 2. Horizontal privilege escalation (IDOR)
+     * 3. Broken function-level authorization
+     * 4. Missing role verification
+     * 5. Write-based IDOR
+     * 6. Mass assignment / vertical escalation
+     */
+    const IDORLab = (function() {
+        'use strict';
+
+        // --- State ---
+        var state = {
+            score: 100,
+            completed: { 1:false, 2:false, 3:false, 4:false, 5:false, 6:false },
+            hintsUsed: new Set(),
+            commandHistory: [],
+            historyIndex: -1,
+            currentToken: 'tok_alice_xxx',
+            currentUserId: 1001,
+            // Mutable user data (for write operations)
+            userData: null
+        };
+
+        // --- Simulated API Data ---
+        var BASE_DATA = {
+            users: {
+                1001: { id: 1001, name: 'alice', email: 'alice@company.com', role: 'user', department: 'Engineering', created: '2025-03-15T08:30:00Z' },
+                1002: { id: 1002, name: 'bob', email: 'bob@company.com', role: 'user', department: 'Marketing', created: '2025-04-02T14:22:00Z' },
+                1003: { id: 1003, name: 'admin', email: 'admin@targetapp.com', role: 'admin', department: 'IT', created: '2024-01-10T09:00:00Z' }
+            },
+            tokens: {
+                'tok_alice_xxx': 1001,
+                'tok_bob_xxx': 1002,
+                'tok_admin_xxx': 1003
+            },
+            adminDashboard: {
+                status: 'operational',
+                totalUsers: 847,
+                activeAdmins: 3,
+                pendingAlerts: 7,
+                lastBackup: '2026-02-28T03:00:00Z',
+                systemHealth: { cpu: '23%', memory: '61%', disk: '44%' },
+                recentActions: [
+                    { action: 'user_created', target: 'jdoe', timestamp: '2026-02-27T16:40:00Z' },
+                    { action: 'role_modified', target: 'schen', timestamp: '2026-02-27T14:12:00Z' },
+                    { action: 'password_reset', target: 'mlopez', timestamp: '2026-02-26T09:30:00Z' }
+                ]
+            }
+        };
+
+        function initUserData() {
+            state.userData = JSON.parse(JSON.stringify(BASE_DATA.users));
+        }
+
+        // --- Helpers ---
+
+        function esc(str) {
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function adjustScore(delta) {
+            state.score = Math.max(0, state.score + delta);
+            document.getElementById('score-display').textContent = state.score;
+        }
+
+        function showFlash(msg) {
+            var el = document.createElement('div');
+            el.className = 'obj-flash';
+            el.textContent = 'Objective complete: ' + msg;
+            document.body.appendChild(el);
+            setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3000);
+        }
+
+        function completeObjective(num, label) {
+            if (state.completed[num]) return;
+            state.completed[num] = true;
+            document.getElementById('obj-' + num).classList.add('done');
+            var done = Object.values(state.completed).filter(Boolean).length;
+            document.getElementById('obj-count').textContent = done;
+            showFlash(label);
+            if (done === 6) {
+                setTimeout(showCompletion, 800);
+            }
+        }
+
+        // --- Terminal output ---
+
+        var outputEl;
+
+        function appendLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = text;
+            outputEl.appendChild(div);
+        }
+
+        function appendBlank() {
+            appendLine('&nbsp;');
+        }
+
+        function scrollToBottom() {
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        // --- JSON formatter for terminal display ---
+
+        function formatJSON(obj, indent) {
+            indent = indent || 0;
+            var pad = '  '.repeat(indent);
+            var pad1 = '  '.repeat(indent + 1);
+            var lines = [];
+
+            if (Array.isArray(obj)) {
+                if (obj.length === 0) return '<span class="term-json">[</span><span class="term-json">]</span>';
+                lines.push('<span class="term-json">[</span>');
+                obj.forEach(function(item, i) {
+                    var comma = i < obj.length - 1 ? ',' : '';
+                    if (typeof item === 'object' && item !== null) {
+                        lines.push(pad1 + formatJSON(item, indent + 1) + comma);
+                    } else {
+                        lines.push(pad1 + formatValue(item) + comma);
+                    }
+                });
+                lines.push(pad + '<span class="term-json">]</span>');
+                return lines.join('\n');
+            }
+
+            if (typeof obj === 'object' && obj !== null) {
+                var keys = Object.keys(obj);
+                if (keys.length === 0) return '<span class="term-json">{</span><span class="term-json">}</span>';
+                lines.push('<span class="term-json">{</span>');
+                keys.forEach(function(key, i) {
+                    var comma = i < keys.length - 1 ? ',' : '';
+                    var val = obj[key];
+                    var isSensitive = key === 'role' || key === 'email' || key === 'token';
+                    var keySpan = '<span class="term-json-key">"' + esc(key) + '"</span>';
+
+                    if (typeof val === 'object' && val !== null) {
+                        lines.push(pad1 + keySpan + ': ' + formatJSON(val, indent + 1) + comma);
+                    } else {
+                        var valSpan = isSensitive ? formatSensitiveValue(val) : formatValue(val);
+                        lines.push(pad1 + keySpan + ': ' + valSpan + comma);
+                    }
+                });
+                lines.push(pad + '<span class="term-json">}</span>');
+                return lines.join('\n');
+            }
+
+            return formatValue(obj);
+        }
+
+        function formatValue(val) {
+            if (val === null) return '<span class="term-json-null">null</span>';
+            if (typeof val === 'boolean') return '<span class="term-json-bool">' + val + '</span>';
+            if (typeof val === 'number') return '<span class="term-json-num">' + val + '</span>';
+            return '<span class="term-json-str">"' + esc(String(val)) + '"</span>';
+        }
+
+        function formatSensitiveValue(val) {
+            return '<span class="term-json-sens">"' + esc(String(val)) + '"</span>';
+        }
+
+        // --- HTTP response rendering ---
+
+        function renderHTTPResponse(statusCode, statusText, headers, body) {
+            // Status line
+            var statusCls = statusCode >= 200 && statusCode < 300 ? 's200'
+                          : statusCode === 403 ? 's403'
+                          : statusCode === 404 ? 's404'
+                          : 's200';
+            appendLine('<span class="term-http-status ' + statusCls + '">HTTP/1.1 ' + statusCode + ' ' + esc(statusText) + '</span>');
+
+            // Headers
+            headers.forEach(function(h) {
+                appendLine('<span class="term-http-header">' + esc(h) + '</span>');
+            });
+
+            appendBlank();
+
+            // Body (JSON)
+            if (body !== null && body !== undefined) {
+                var formatted = formatJSON(body);
+                formatted.split('\n').forEach(function(line) {
+                    appendLine(line);
+                });
+            }
+
+            appendBlank();
+        }
+
+        // --- Curl command parser ---
+
+        function parseCurl(cmd) {
+            var result = {
+                method: 'GET',
+                url: '',
+                data: null,
+                headers: {}
+            };
+
+            // Remove 'curl' prefix
+            var args = cmd.replace(/^curl\s+/i, '').trim();
+
+            // Extract method
+            var methodMatch = args.match(/-X\s+(GET|POST|PUT|DELETE|PATCH)/i);
+            if (methodMatch) {
+                result.method = methodMatch[1].toUpperCase();
+                args = args.replace(/-X\s+(GET|POST|PUT|DELETE|PATCH)/i, '').trim();
+            }
+
+            // Extract data
+            var dataMatch = args.match(/-d\s+'([^']*)'/i) || args.match(/-d\s+"([^"]*)"/i) || args.match(/--data\s+'([^']*)'/i) || args.match(/--data\s+"([^"]*)"/i);
+            if (dataMatch) {
+                try {
+                    result.data = JSON.parse(dataMatch[1]);
+                } catch (e) {
+                    result.data = dataMatch[1];
+                }
+                args = args.replace(/-d\s+'[^']*'/i, '').replace(/-d\s+"[^"]*"/i, '').replace(/--data\s+'[^']*'/i, '').replace(/--data\s+"[^"]*"/i, '').trim();
+            }
+
+            // Extract headers
+            var headerRegex = /-H\s+'([^']*)'/gi;
+            var hMatch;
+            while ((hMatch = headerRegex.exec(args)) !== null) {
+                var parts = hMatch[1].split(':');
+                if (parts.length >= 2) {
+                    result.headers[parts[0].trim().toLowerCase()] = parts.slice(1).join(':').trim();
+                }
+            }
+            args = args.replace(/-H\s+'[^']*'/gi, '').trim();
+
+            // Remaining should be the URL
+            var urlMatch = args.match(/(https?:\/\/[^\s]+)/i);
+            if (urlMatch) {
+                result.url = urlMatch[1].replace(/['";]+$/, '');
+            }
+
+            return result;
+        }
+
+        // --- API Route handler ---
+
+        function handleAPIRequest(parsed) {
+            var url = parsed.url;
+            var method = parsed.method;
+            var data = parsed.data;
+
+            // Normalize URL
+            url = url.replace(/\/+$/, '');
+
+            var baseHeaders = [
+                'Content-Type: application/json',
+                'X-Request-Id: ' + Math.random().toString(36).substr(2, 8),
+                'X-Auth-User: alice (tok_alice_xxx)',
+                'Date: ' + new Date().toUTCString()
+            ];
+
+            // --- Route: GET /v1/users/{id} ---
+            var userIdMatch = url.match(/\/v1\/users\/(\d+)$/);
+            if (userIdMatch && method === 'GET') {
+                var id = parseInt(userIdMatch[1]);
+                var user = state.userData[id];
+
+                if (!user) {
+                    renderHTTPResponse(404, 'Not Found', baseHeaders, {
+                        error: 'User not found',
+                        message: 'No user with id ' + id + ' exists.',
+                        status: 404
+                    });
+                    return;
+                }
+
+                var responseUser = JSON.parse(JSON.stringify(user));
+                responseUser.token = id === 1001 ? 'tok_alice_xxx' : id === 1002 ? 'tok_bob_xxx' : 'tok_admin_xxx';
+
+                renderHTTPResponse(200, 'OK', baseHeaders, responseUser);
+
+                if (id === 1001) {
+                    completeObjective(1, 'View own profile');
+                } else if (id === 1002) {
+                    completeObjective(2, 'Access Bob\'s profile (IDOR)');
+                    appendLine('<span class="term-json-sens">[!] IDOR: You accessed another user\'s profile without ownership verification.</span>', 'warn');
+                    appendLine('<span class="term-json-sens">    The API only checks if you are authenticated, not if you own this resource.</span>', 'warn');
+                    appendBlank();
+                } else if (id === 1003) {
+                    appendLine('<span class="term-json-sens">[!] You accessed the admin account profile via direct object reference.</span>', 'warn');
+                    appendBlank();
+                }
+                return;
+            }
+
+            // --- Route: PUT /v1/users/{id} ---
+            if (userIdMatch && method === 'PUT') {
+                var id = parseInt(userIdMatch[1]);
+                var user = state.userData[id];
+
+                if (!user) {
+                    renderHTTPResponse(404, 'Not Found', baseHeaders, {
+                        error: 'User not found',
+                        message: 'No user with id ' + id + ' exists.',
+                        status: 404
+                    });
+                    return;
+                }
+
+                if (!data || typeof data !== 'object') {
+                    renderHTTPResponse(400, 'Bad Request', baseHeaders, {
+                        error: 'Invalid request body',
+                        message: 'Request body must be valid JSON. Use -d \'{"key":"value"}\'',
+                        status: 400
+                    });
+                    return;
+                }
+
+                // Apply updates (no authorization check -- vulnerable)
+                var updated = {};
+                Object.keys(data).forEach(function(key) {
+                    if (user.hasOwnProperty(key) || key === 'role' || key === 'email' || key === 'name' || key === 'department') {
+                        state.userData[id][key] = data[key];
+                        updated[key] = data[key];
+                    }
+                });
+
+                var responseUser = JSON.parse(JSON.stringify(state.userData[id]));
+
+                renderHTTPResponse(200, 'OK', baseHeaders, {
+                    message: 'User updated successfully',
+                    updated_fields: updated,
+                    user: responseUser
+                });
+
+                // Check objectives
+                if (id === 1002 && data.email) {
+                    completeObjective(5, 'Modified Bob\'s email (write IDOR)');
+                    appendLine('<span class="term-json-sens">[!] WRITE IDOR: You modified another user\'s data without ownership check.</span>', 'warn');
+                    appendLine('<span class="term-json-sens">    The API accepted your PUT request for a resource you do not own.</span>', 'warn');
+                    appendBlank();
+                }
+
+                if (id === 1001 && data.role && data.role.toLowerCase() === 'admin') {
+                    completeObjective(6, 'Escalated to admin role (mass assignment)');
+                    appendLine('<span class="term-json-sens">[!] MASS ASSIGNMENT: You escalated your own privileges to admin.</span>', 'warn');
+                    appendLine('<span class="term-json-sens">    The API blindly accepts and applies all fields including "role".</span>', 'warn');
+                    appendLine('<span class="term-json-sens">    This is vertical privilege escalation via mass assignment.</span>', 'warn');
+                    appendBlank();
+                }
+
+                if (id === 1002 && data.role) {
+                    appendLine('<span class="term-json-sens">[!] You modified another user\'s role. This combines IDOR with mass assignment.</span>', 'warn');
+                    appendBlank();
+                }
+
+                return;
+            }
+
+            // --- Route: GET /v1/users (list all) ---
+            var usersListMatch = url.match(/\/v1\/users\/?$/);
+            if (usersListMatch && method === 'GET') {
+                var allUsers = Object.values(state.userData).map(function(u) {
+                    return { id: u.id, name: u.name, email: u.email, role: u.role, department: u.department };
+                });
+
+                renderHTTPResponse(200, 'OK', baseHeaders, {
+                    total: allUsers.length,
+                    users: allUsers
+                });
+
+                completeObjective(3, 'Listed all users (broken function-level auth)');
+                appendLine('<span class="term-json-sens">[!] BROKEN FUNCTION-LEVEL AUTHORIZATION: User listing endpoint lacks role check.</span>', 'warn');
+                appendLine('<span class="term-json-sens">    A regular user can enumerate all accounts including admin users.</span>', 'warn');
+                appendBlank();
+                return;
+            }
+
+            // --- Route: GET /v1/admin/dashboard ---
+            var adminDashMatch = url.match(/\/v1\/admin\/dashboard\/?$/);
+            if (adminDashMatch && method === 'GET') {
+                renderHTTPResponse(200, 'OK', baseHeaders, BASE_DATA.adminDashboard);
+
+                completeObjective(4, 'Accessed admin dashboard');
+                appendLine('<span class="term-json-sens">[!] MISSING ROLE VERIFICATION: Admin endpoint returned data to a non-admin user.</span>', 'warn');
+                appendLine('<span class="term-json-sens">    The /admin/ path prefix suggests restricted access, but no role check is enforced.</span>', 'warn');
+                appendBlank();
+                return;
+            }
+
+            // --- Route: GET /v1/admin/* (other admin routes) ---
+            if (url.match(/\/v1\/admin\//)) {
+                renderHTTPResponse(200, 'OK', baseHeaders, {
+                    message: 'Admin endpoint accessible',
+                    path: url.replace(/.*\/v1/, '/v1'),
+                    note: 'No role verification performed'
+                });
+                return;
+            }
+
+            // --- Unknown route ---
+            renderHTTPResponse(404, 'Not Found', baseHeaders, {
+                error: 'Endpoint not found',
+                message: 'The requested API endpoint does not exist.',
+                available_endpoints: [
+                    'GET /v1/users',
+                    'GET /v1/users/{id}',
+                    'PUT /v1/users/{id}',
+                    'GET /v1/admin/dashboard'
+                ],
+                status: 404
+            });
+        }
+
+        // --- Command processing ---
+
+        function processCommand(cmd) {
+            cmd = cmd.trim();
+            if (!cmd) return;
+
+            // Record in history
+            state.commandHistory.push(cmd);
+            state.historyIndex = state.commandHistory.length;
+
+            // Echo command
+            appendLine('<span style="color:var(--term-prompt);">alice@api $</span> ' + esc(cmd), 'cmd');
+
+            // Handle built-in commands
+            var lower = cmd.toLowerCase().trim();
+
+            if (lower === 'clear') {
+                outputEl.innerHTML = '';
+                printWelcome();
+                return;
+            }
+
+            if (lower === 'help') {
+                appendBlank();
+                appendLine('Available commands:', 'info');
+                appendLine('  curl [options] URL    Send an HTTP request', 'info');
+                appendLine('  clear                 Clear terminal', 'info');
+                appendLine('  help                  Show this help', 'info');
+                appendLine('  whoami                Show current session', 'info');
+                appendLine('  history               Show command history', 'info');
+                appendBlank();
+                appendLine('Curl options:', 'info');
+                appendLine('  -X METHOD             HTTP method (GET, PUT, POST, DELETE)', 'info');
+                appendLine('  -d \'{"key":"val"}\'    Request body (JSON)', 'info');
+                appendLine('  -H \'Header: val\'      Custom header', 'info');
+                appendBlank();
+                return;
+            }
+
+            if (lower === 'whoami') {
+                appendBlank();
+                appendLine('User:  alice', 'info');
+                appendLine('ID:    1001', 'info');
+                appendLine('Role:  ' + (state.userData[1001].role || 'user'), 'info');
+                appendLine('Token: tok_alice_xxx', 'info');
+                appendBlank();
+                return;
+            }
+
+            if (lower === 'history') {
+                appendBlank();
+                state.commandHistory.forEach(function(c, i) {
+                    appendLine('  ' + (i + 1) + '  ' + esc(c), 'info');
+                });
+                appendBlank();
+                return;
+            }
+
+            // Must be a curl command
+            if (!lower.startsWith('curl ') && lower !== 'curl') {
+                appendLine('Unknown command: ' + esc(cmd), 'error');
+                appendLine('Type "help" for available commands or use "curl" to make API requests.', 'info');
+                appendBlank();
+                return;
+            }
+
+            if (lower === 'curl' || cmd.trim() === 'curl') {
+                appendLine('Usage: curl [options] URL', 'error');
+                appendLine('Example: curl https://api.targetapp.com/v1/users/1001', 'info');
+                appendBlank();
+                return;
+            }
+
+            // Parse and handle curl
+            var parsed = parseCurl(cmd);
+
+            if (!parsed.url) {
+                appendLine('Error: No URL provided.', 'error');
+                appendLine('Usage: curl https://api.targetapp.com/v1/users/1001', 'info');
+                appendBlank();
+                return;
+            }
+
+            // Validate domain
+            if (!parsed.url.match(/api\.targetapp\.com/i)) {
+                appendLine('Error: Connection refused. Only api.targetapp.com is reachable in this lab.', 'error');
+                appendBlank();
+                return;
+            }
+
+            appendBlank();
+            handleAPIRequest(parsed);
+            scrollToBottom();
+        }
+
+        // --- Hints ---
+
+        function revealHint(num) {
+            if (state.hintsUsed.has(num)) return;
+            state.hintsUsed.add(num);
+            var btn = document.querySelector('.hint-btn[data-hint="' + num + '"]');
+            var text = document.getElementById('hint-' + num);
+            if (btn) { btn.classList.add('revealed'); btn.textContent = 'Hint ' + num + ' revealed (-5 pts)'; }
+            if (text) text.classList.add('show');
+            adjustScore(-5);
+        }
+
+        // --- Completion ---
+
+        function showCompletion() {
+            document.getElementById('final-score').textContent = state.score;
+            var rank = state.score >= 90 ? 'Elite -- Access Control Expert'
+                     : state.score >= 75 ? 'Proficient -- Skilled Hunter'
+                     : state.score >= 60 ? 'Competent -- Attacks Successful'
+                     : 'Novice -- Completed with Guidance';
+            document.getElementById('final-rank').textContent = rank;
+            document.getElementById('completion-overlay').classList.add('show');
+        }
+
+        function completeModule() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'bh-lab-idor', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        // --- Welcome message ---
+
+        function printWelcome() {
+            appendLine('--------------------------------------------------', 'info');
+            appendLine('  IDOR & Access Control Testing Lab', 'info');
+            appendLine('  Target: api.targetapp.com/v1', 'info');
+            appendLine('  Session: alice (id: 1001, role: user)', 'info');
+            appendLine('  Token: tok_alice_xxx (auto-included)', 'info');
+            appendLine('--------------------------------------------------', 'info');
+            appendBlank();
+            appendLine('You are authenticated as <span style="color:var(--accent-light);">alice</span>. Your bearer token is', 'info');
+            appendLine('automatically included in all requests.', 'info');
+            appendBlank();
+            appendLine('Start by viewing your own profile:', 'info');
+            appendLine('  curl https://api.targetapp.com/v1/users/1001', 'success');
+            appendBlank();
+            appendLine('Type <span style="color:var(--accent-light);">help</span> for available commands.', 'info');
+            appendBlank();
+        }
+
+        // --- Init ---
+
+        function init() {
+            outputEl = document.getElementById('terminal-output');
+            var inputEl = document.getElementById('term-input');
+
+            initUserData();
+            printWelcome();
+
+            // Input handling
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    processCommand(cmd);
+                    scrollToBottom();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (state.historyIndex > 0) {
+                        state.historyIndex--;
+                        inputEl.value = state.commandHistory[state.historyIndex];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (state.historyIndex < state.commandHistory.length - 1) {
+                        state.historyIndex++;
+                        inputEl.value = state.commandHistory[state.historyIndex];
+                    } else {
+                        state.historyIndex = state.commandHistory.length;
+                        inputEl.value = '';
+                    }
+                }
+            });
+
+            // Keep focus on input
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.sidebar') && !e.target.closest('.header') && !e.target.closest('.completion-overlay')) {
+                    inputEl.focus();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+
+        return {
+            revealHint: revealHint,
+            completeModule: completeModule
+        };
+    })();
+    </script>
+</body>
+</html>

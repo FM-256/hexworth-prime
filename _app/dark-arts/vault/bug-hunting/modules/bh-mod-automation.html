@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 20: Automation &amp; Custom Tooling - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; } .code-block .str { color: #86efac; } .code-block .comment { color: #6a4a7a; font-style: italic; } .code-block .flag { color: #fbbf24; } .code-block .cmd { color: #c4a0d8; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+        .numbered-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; padding: 12px 18px 12px 50px; margin-bottom: 8px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 16px; top: 12px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #9333ea; font-weight: bold; }
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+        .detail-section { border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+        .detail-header { padding: 16px 20px; background: rgba(15, 8, 20, 0.6); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease; user-select: none; }
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+        .detail-body { display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4); border-top: 1px solid rgba(100, 60, 130, 0.1); color: #9a7aaa; font-size: 0.9rem; line-height: 1.7; }
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+        @media (max-width: 768px) { .module-header { padding: 15px 20px; } .module-content { padding: 20px; } .two-col { grid-template-columns: 1fr; } .concept-grid { grid-template-columns: 1fr; } .tool-grid { grid-template-columns: 1fr; } .intro-title { font-size: 1.8rem; } .section-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Module 20</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#9881;</div>
+        <h1 class="intro-title">Automation &amp; Custom Tooling</h1>
+        <div class="intro-meta">Bug Hunting &bull; Module 20 &bull; Mastery Track</div>
+        <p class="intro-subtitle">
+            The researchers earning six figures from bug bounties are not finding bugs faster with
+            their eyes &mdash; they are finding bugs faster with their tools. Automation handles the
+            repetitive, scalable, and time-intensive work of reconnaissance, scanning, and monitoring,
+            freeing you to focus on the creative, manual analysis that produces critical findings.
+            This module covers building the automation pipeline that turns bug hunting from a hobby
+            into a scalable operation.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Nuclei Templates</div>
+            <div class="stat-pill">Burp Extensions</div>
+            <div class="stat-pill">Python Scripting</div>
+            <div class="stat-pill">Go Tooling</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: The Automation Mindset -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128161;</span>
+            The Automation Mindset
+        </h2>
+        <div class="section-body">
+            <p>
+                Automation in bug bounty is not about replacing manual testing &mdash; it is about
+                eliminating the parts of your workflow that are repetitive, predictable, and
+                time-consuming so you can spend more hours on the parts that require human creativity.
+                Subdomain enumeration, port scanning, content discovery, and known-CVE checking can all
+                be automated. Identifying business logic flaws, crafting exploitation chains, and
+                understanding application context cannot.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">What to Automate vs What Stays Manual</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Automate</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Subdomain enumeration and DNS resolution</li>
+                        <li><span class="li-marker">&#8226;</span> HTTP probing for live hosts</li>
+                        <li><span class="li-marker">&#8226;</span> Port scanning across large IP ranges</li>
+                        <li><span class="li-marker">&#8226;</span> Content discovery (directory brute-forcing)</li>
+                        <li><span class="li-marker">&#8226;</span> Known CVE and misconfiguration scanning</li>
+                        <li><span class="li-marker">&#8226;</span> Screenshot capture across subdomains</li>
+                        <li><span class="li-marker">&#8226;</span> Asset monitoring for new targets</li>
+                        <li><span class="li-marker">&#8226;</span> Certificate transparency log monitoring</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3><span class="li-marker">&#9654;</span> Keep Manual</h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Business logic vulnerability discovery</li>
+                        <li><span class="li-marker">&#8226;</span> Authentication and authorization testing</li>
+                        <li><span class="li-marker">&#8226;</span> Chain building and impact analysis</li>
+                        <li><span class="li-marker">&#8226;</span> Report writing and communication</li>
+                        <li><span class="li-marker">&#8226;</span> Creative exploitation of novel vulns</li>
+                        <li><span class="li-marker">&#8226;</span> Context-dependent parameter fuzzing</li>
+                        <li><span class="li-marker">&#8226;</span> Application-specific logic testing</li>
+                        <li><span class="li-marker">&#8226;</span> Triager negotiation and follow-up</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">ROI Calculation for Tool Building</h3>
+
+            <p>
+                Before investing time in building a custom tool, calculate whether it is worth it.
+                The formula is straightforward: if the tool saves you X hours per week and you value
+                your time at Y dollars per hour, the tool pays for itself after
+                (development hours * Y) / (X * Y) = development hours / X weeks.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Manual Time</th>
+                        <th>Automated Time</th>
+                        <th>Weekly Savings</th>
+                        <th>Build Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Subdomain enum + probing</td>
+                        <td>45 min per target</td>
+                        <td>5 min (unattended)</td>
+                        <td class="std-name">~3 hours</td>
+                        <td>4 hours (one-time)</td>
+                    </tr>
+                    <tr>
+                        <td>New program asset monitoring</td>
+                        <td>1 hour daily (manual check)</td>
+                        <td>0 min (cron + alerts)</td>
+                        <td class="std-name">~7 hours</td>
+                        <td>6 hours (one-time)</td>
+                    </tr>
+                    <tr>
+                        <td>Nuclei scan on new targets</td>
+                        <td>30 min (manual run + review)</td>
+                        <td>10 min (automated pipeline)</td>
+                        <td class="std-name">~1.5 hours</td>
+                        <td>3 hours (one-time)</td>
+                    </tr>
+                    <tr>
+                        <td>Custom parameter fuzzing</td>
+                        <td>2 hours per endpoint</td>
+                        <td>20 min per endpoint</td>
+                        <td class="std-name">~5 hours</td>
+                        <td>8 hours (one-time)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">The 80/20 Rule for Automation</h3>
+
+            <p>
+                Twenty percent of your automation will produce eighty percent of your results. A simple
+                bash script that chains subfinder, httpx, and nuclei covers more ground than a complex
+                custom framework with dozens of modules. Start with the simplest automation that solves
+                your biggest time sink. Add complexity only when you hit limitations that simpler
+                approaches cannot address.
+            </p>
+
+            <div class="code-block"><span class="comment">#!/bin/bash</span>
+<span class="comment"># The 80/20 recon pipeline: 20 lines, covers 80% of automated recon needs</span>
+<span class="kw">TARGET</span>=<span class="str">"$1"</span>
+<span class="kw">OUT</span>=<span class="str">"results/$TARGET"</span>
+mkdir -p <span class="str">"$OUT"</span>
+
+<span class="comment"># Step 1: Subdomain enumeration (passive)</span>
+<span class="cmd">subfinder</span> <span class="flag">-d</span> <span class="str">"$TARGET"</span> <span class="flag">-silent</span> | sort -u > <span class="str">"$OUT/subs.txt"</span>
+
+<span class="comment"># Step 2: Probe for live HTTP servers</span>
+<span class="cmd">httpx</span> <span class="flag">-l</span> <span class="str">"$OUT/subs.txt"</span> <span class="flag">-silent -title -status-code -tech-detect</span> \
+    -o <span class="str">"$OUT/live.txt"</span>
+
+<span class="comment"># Step 3: Screenshot live hosts</span>
+<span class="cmd">gowitness</span> file <span class="flag">-f</span> <span class="str">"$OUT/live.txt"</span> <span class="flag">-P</span> <span class="str">"$OUT/screenshots/"</span>
+
+<span class="comment"># Step 4: Scan for known vulns</span>
+<span class="cmd">nuclei</span> <span class="flag">-l</span> <span class="str">"$OUT/live.txt"</span> <span class="flag">-severity medium,high,critical</span> \
+    -o <span class="str">"$OUT/nuclei.txt"</span>
+
+<span class="comment"># Step 5: Notify results</span>
+<span class="cmd">notify</span> <span class="flag">-data</span> <span class="str">"$OUT/nuclei.txt"</span> <span class="flag">-provider-config</span> <span class="str">~/.config/notify/config.yaml</span>
+
+echo <span class="str">"[+] Recon complete for $TARGET: $(wc -l < $OUT/subs.txt) subdomains, $(wc -l < $OUT/live.txt) live hosts"</span></div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Automate What Bores You</div>
+                    <div class="callout-text">
+                        If you find yourself doing the same sequence of commands every time you start
+                        testing a new target, that sequence is a candidate for automation. The motivation
+                        to build tools comes from eliminating tedium, not from theoretical efficiency
+                        gains. Automate the workflow you actually use, not the workflow you think you
+                        should use.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Nuclei Template Writing -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9762;</span>
+            Nuclei Template Writing
+        </h2>
+        <div class="section-body">
+            <p>
+                Nuclei is ProjectDiscovery's template-based vulnerability scanner, and it has become
+                the standard scanning tool in the bug bounty community. Its power comes from YAML
+                templates that define exactly what to send and what to look for in the response. The
+                community maintains thousands of templates for known CVEs, misconfigurations, and
+                exposed panels. But the real advantage comes from writing your own templates for
+                patterns specific to your hunting methodology.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Template Structure</h3>
+
+            <p>
+                Every Nuclei template has the same basic structure: metadata (id, info block),
+                request definitions (what to send), and matchers (what indicates a finding). The
+                simplest templates send a single HTTP request and match on the response status code
+                or body content.
+            </p>
+
+            <div class="code-block"><span class="kw">id</span>: <span class="str">exposed-git-config</span>
+
+<span class="kw">info</span>:
+  <span class="kw">name</span>: <span class="str">Exposed .git/config</span>
+  <span class="kw">author</span>: <span class="str">your-handle</span>
+  <span class="kw">severity</span>: <span class="flag">medium</span>
+  <span class="kw">description</span>: <span class="str">Detects exposed .git/config files that reveal repository URLs and branches</span>
+  <span class="kw">tags</span>: <span class="str">exposure,git,config</span>
+
+<span class="kw">http</span>:
+  - <span class="kw">method</span>: <span class="str">GET</span>
+    <span class="kw">path</span>:
+      - <span class="str">"{{BaseURL}}/.git/config"</span>
+
+    <span class="kw">matchers-condition</span>: <span class="str">and</span>
+    <span class="kw">matchers</span>:
+      - <span class="kw">type</span>: <span class="str">word</span>
+        <span class="kw">words</span>:
+          - <span class="str">"[core]"</span>
+          - <span class="str">"repositoryformatversion"</span>
+        <span class="kw">condition</span>: <span class="str">and</span>
+
+      - <span class="kw">type</span>: <span class="str">status</span>
+        <span class="kw">status</span>:
+          - <span class="flag">200</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Detection vs Exploitation Templates</h3>
+
+            <p>
+                Detection templates confirm the existence of a vulnerability without exploiting it.
+                Exploitation templates go further, demonstrating impact. For bug bounty, you want both:
+                detection templates to scan at scale, and exploitation templates to generate proof of
+                concept evidence for your reports.
+            </p>
+
+            <div class="code-block"><span class="comment"># Detection template: checks if Spring actuator endpoints are exposed</span>
+<span class="kw">id</span>: <span class="str">spring-actuator-env</span>
+
+<span class="kw">info</span>:
+  <span class="kw">name</span>: <span class="str">Spring Actuator Environment Endpoint</span>
+  <span class="kw">severity</span>: <span class="flag">high</span>
+  <span class="kw">tags</span>: <span class="str">spring,actuator,exposure</span>
+
+<span class="kw">http</span>:
+  - <span class="kw">method</span>: <span class="str">GET</span>
+    <span class="kw">path</span>:
+      - <span class="str">"{{BaseURL}}/actuator/env"</span>
+      - <span class="str">"{{BaseURL}}/actuator/configprops"</span>
+      - <span class="str">"{{BaseURL}}/actuator/heapdump"</span>
+
+    <span class="kw">stop-at-first-match</span>: <span class="flag">true</span>
+
+    <span class="kw">matchers-condition</span>: <span class="str">and</span>
+    <span class="kw">matchers</span>:
+      - <span class="kw">type</span>: <span class="str">word</span>
+        <span class="kw">words</span>:
+          - <span class="str">"activeProfiles"</span>
+          - <span class="str">"propertySources"</span>
+          - <span class="str">"java.runtime"</span>
+        <span class="kw">condition</span>: <span class="str">or</span>
+
+      - <span class="kw">type</span>: <span class="str">status</span>
+        <span class="kw">status</span>:
+          - <span class="flag">200</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Running Nuclei at Scale</h3>
+
+            <div class="code-block"><span class="comment"># Run with community templates, medium+ severity</span>
+<span class="cmd">nuclei</span> <span class="flag">-l</span> <span class="str">targets.txt</span> <span class="flag">-severity medium,high,critical</span> <span class="flag">-o</span> <span class="str">results.txt</span>
+
+<span class="comment"># Run with custom templates directory</span>
+<span class="cmd">nuclei</span> <span class="flag">-l</span> <span class="str">targets.txt</span> <span class="flag">-t</span> <span class="str">~/nuclei-custom-templates/</span> <span class="flag">-o</span> <span class="str">custom-results.txt</span>
+
+<span class="comment"># Rate limiting (essential for bug bounty -- respect the target)</span>
+<span class="cmd">nuclei</span> <span class="flag">-l</span> <span class="str">targets.txt</span> <span class="flag">-rl 50</span> <span class="flag">-c 10</span> <span class="flag">-severity high,critical</span>
+<span class="comment"># -rl 50: max 50 requests/second</span>
+<span class="comment"># -c 10: max 10 concurrent templates</span>
+
+<span class="comment"># Run only specific tags</span>
+<span class="cmd">nuclei</span> <span class="flag">-l</span> <span class="str">targets.txt</span> <span class="flag">-tags cve,exposure,misconfig</span>
+
+<span class="comment"># Exclude noisy templates</span>
+<span class="cmd">nuclei</span> <span class="flag">-l</span> <span class="str">targets.txt</span> <span class="flag">-exclude-tags dos,fuzz</span></div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Rate Limiting Is Not Optional</div>
+                    <div class="callout-text">
+                        Running Nuclei at full speed against a bug bounty target will get you banned
+                        from the program. Always configure rate limits (<code style="color:#86efac;">-rl</code>)
+                        and concurrency (<code style="color:#86efac;">-c</code>) to stay within the program's
+                        acceptable testing thresholds. A typical safe starting point is 50 requests per
+                        second with 10 concurrent templates. Read the program's policy for specific
+                        guidance on automated scanning limits.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Custom Burp Extensions -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128295;</span>
+            Custom Burp Extensions
+        </h2>
+        <div class="section-body">
+            <p>
+                Burp Suite's Extender API allows you to write custom extensions in Java, Python
+                (via Jython), or Ruby (via JRuby). Extensions can intercept and modify requests,
+                add custom scan checks, create new tabs, and process traffic in ways that the base
+                tool does not support. For bug bounty hunters, custom extensions automate the
+                detection of application-specific patterns that generic tools miss.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Extension Architecture</h3>
+
+            <p>
+                Every Burp extension implements one or more callback interfaces. The most useful
+                for bug bounty work are:
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Interface</th>
+                        <th>Purpose</th>
+                        <th>Use Case</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">IHttpListener</td>
+                        <td>Process every HTTP request/response</td>
+                        <td>Passive detection, logging, token extraction</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">IScannerCheck</td>
+                        <td>Add custom active/passive scan checks</td>
+                        <td>Custom vulnerability detection during scanning</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">IIntruderPayloadGenerator</td>
+                        <td>Generate custom payloads for Intruder</td>
+                        <td>Application-specific fuzzing payloads</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">IContextMenuFactory</td>
+                        <td>Add items to right-click menus</td>
+                        <td>Quick actions on selected requests</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">IMessageEditorTabFactory</td>
+                        <td>Add custom tabs to request/response viewers</td>
+                        <td>Decode/display custom formats (JWT, protobuf)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Python Extension Example</h3>
+
+            <div class="code-block"><span class="comment"># Passive scanner: detect API keys in HTTP responses</span>
+<span class="kw">from</span> burp <span class="kw">import</span> IBurpExtender, IScannerCheck, IScanIssue
+<span class="kw">import</span> re
+
+<span class="kw">class</span> BurpExtender(IBurpExtender, IScannerCheck):
+
+    <span class="kw">def</span> registerExtenderCallbacks(self, callbacks):
+        self._callbacks = callbacks
+        self._helpers = callbacks.getHelpers()
+        callbacks.setExtensionName(<span class="str">"API Key Detector"</span>)
+        callbacks.registerScannerCheck(self)
+
+    <span class="kw">def</span> doPassiveScan(self, baseRequestResponse):
+        response = self._helpers.bytesToString(
+            baseRequestResponse.getResponse())
+
+        <span class="comment"># Patterns for common API keys</span>
+        patterns = {
+            <span class="str">"AWS Access Key"</span>: r<span class="str">"AKIA[0-9A-Z]{16}"</span>,
+            <span class="str">"Slack Token"</span>: r<span class="str">"xox[baprs]-[0-9a-zA-Z-]+"</span>,
+            <span class="str">"GitHub Token"</span>: r<span class="str">"gh[ps]_[A-Za-z0-9_]{36}"</span>,
+            <span class="str">"Google API Key"</span>: r<span class="str">"AIza[0-9A-Za-z\\-_]{35}"</span>,
+            <span class="str">"Stripe Key"</span>: r<span class="str">"sk_live_[0-9a-zA-Z]{24}"</span>,
+        }
+
+        issues = []
+        <span class="kw">for</span> name, pattern <span class="kw">in</span> patterns.items():
+            <span class="kw">if</span> re.search(pattern, response):
+                issues.append(CustomScanIssue(
+                    baseRequestResponse, name,
+                    <span class="str">"Exposed API key detected in response"</span>))
+        <span class="kw">return</span> issues <span class="kw">if</span> issues <span class="kw">else</span> None
+
+    <span class="kw">def</span> doActiveScan(self, baseRequestResponse, insertionPoint):
+        <span class="kw">return</span> None  <span class="comment"># Passive only</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Essential BApp Store Extensions</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">Logger++</div>
+                    <div class="tool-role">Advanced Traffic Logging</div>
+                    <div class="tool-desc">
+                        Enhanced HTTP history with regex filtering, column customization, and export.
+                        Invaluable for finding patterns across hundreds of requests. Filter for
+                        specific response codes, content types, or body content.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Autorize</div>
+                    <div class="tool-role">Authorization Testing</div>
+                    <div class="tool-desc">
+                        Automatically replays every request with a different user's session token.
+                        Detects IDOR and broken access control by comparing responses between
+                        authorized and unauthorized sessions.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Param Miner</div>
+                    <div class="tool-role">Hidden Parameter Discovery</div>
+                    <div class="tool-desc">
+                        Discovers hidden and unlinked parameters by guessing common names and
+                        observing response differences. Essential for finding web cache poisoning
+                        and hidden functionality.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">Turbo Intruder</div>
+                    <div class="tool-role">High-Speed Fuzzing</div>
+                    <div class="tool-desc">
+                        Python-scriptable request engine for Burp that handles race conditions,
+                        high-speed fuzzing, and complex multi-step attacks. Supports thousands
+                        of requests per second with full scripting control.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Montoya API (Modern Burp Extensions)</div>
+                    <div class="callout-text">
+                        Burp Suite has introduced the Montoya API as the modern replacement for the
+                        legacy Extender API. New extensions should use Montoya for better Java
+                        integration, improved type safety, and access to newer Burp features. The
+                        legacy API still works but will eventually be deprecated. If you are writing
+                        extensions for long-term use, invest in learning Montoya.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Python Scripting for Hunters -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128013;</span>
+            Python Scripting for Hunters
+        </h2>
+        <div class="section-body">
+            <p>
+                Python is the default scripting language for bug bounty automation. Its massive
+                library ecosystem, readable syntax, and rapid prototyping speed make it ideal for
+                building recon scripts, API testers, custom fuzzers, and data processing pipelines.
+                You do not need to be a software engineer &mdash; you need to be proficient enough
+                to turn a manual testing process into a repeatable script.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Building a Recon Script</h3>
+
+            <div class="code-block"><span class="comment"># recon.py: Automated target reconnaissance</span>
+<span class="kw">import</span> requests
+<span class="kw">import</span> json
+<span class="kw">import</span> sys
+<span class="kw">from</span> concurrent.futures <span class="kw">import</span> ThreadPoolExecutor
+
+<span class="kw">def</span> check_technologies(url):
+    <span class="str">"""Probe a URL and identify technologies from headers."""</span>
+    <span class="kw">try</span>:
+        resp = requests.get(url, timeout=<span class="flag">10</span>, allow_redirects=<span class="flag">True</span>)
+        tech = []
+        headers = resp.headers
+
+        <span class="kw">if</span> <span class="str">'X-Powered-By'</span> <span class="kw">in</span> headers:
+            tech.append(headers[<span class="str">'X-Powered-By'</span>])
+        <span class="kw">if</span> <span class="str">'Server'</span> <span class="kw">in</span> headers:
+            tech.append(headers[<span class="str">'Server'</span>])
+        <span class="kw">if</span> <span class="str">'X-AspNet-Version'</span> <span class="kw">in</span> headers:
+            tech.append(<span class="str">f"ASP.NET {headers['X-AspNet-Version']}"</span>)
+
+        <span class="kw">return</span> {
+            <span class="str">"url"</span>: url,
+            <span class="str">"status"</span>: resp.status_code,
+            <span class="str">"tech"</span>: tech,
+            <span class="str">"title"</span>: extract_title(resp.text),
+            <span class="str">"content_length"</span>: len(resp.content)
+        }
+    <span class="kw">except</span>:
+        <span class="kw">return</span> None
+
+<span class="kw">def</span> extract_title(html):
+    <span class="kw">import</span> re
+    match = re.search(r<span class="str">"&lt;title&gt;(.*?)&lt;/title&gt;"</span>, html, re.IGNORECASE)
+    <span class="kw">return</span> match.group(<span class="flag">1</span>).strip() <span class="kw">if</span> match <span class="kw">else</span> <span class="str">"No title"</span>
+
+<span class="comment"># Concurrent probing</span>
+targets = open(sys.argv[<span class="flag">1</span>]).read().splitlines()
+<span class="kw">with</span> ThreadPoolExecutor(max_workers=<span class="flag">20</span>) <span class="kw">as</span> pool:
+    results = list(pool.map(check_technologies, targets))
+
+<span class="kw">for</span> r <span class="kw">in</span> filter(None, results):
+    print(<span class="str">f"[{r['status']}] {r['url']} | {r['title']} | {', '.join(r['tech'])}"</span>)</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Automating API Testing</h3>
+
+            <div class="code-block"><span class="comment"># api_tester.py: Automated IDOR and auth testing on REST APIs</span>
+<span class="kw">import</span> requests
+
+BASE = <span class="str">"https://api.target.com/v2"</span>
+USER_A_TOKEN = <span class="str">"Bearer eyJ..."</span>  <span class="comment"># Your test account</span>
+USER_B_TOKEN = <span class="str">"Bearer eyJ..."</span>  <span class="comment"># Second test account</span>
+
+<span class="comment"># Endpoints that should be user-scoped</span>
+endpoints = [
+    <span class="str">"/users/{id}/profile"</span>,
+    <span class="str">"/users/{id}/settings"</span>,
+    <span class="str">"/users/{id}/invoices"</span>,
+    <span class="str">"/users/{id}/api-keys"</span>,
+]
+
+<span class="kw">def</span> test_idor(endpoint, user_a_id, user_b_id):
+    <span class="str">"""Test if User A can access User B's resources."""</span>
+    url = BASE + endpoint.replace(<span class="str">"{id}"</span>, str(user_b_id))
+    resp = requests.get(url, headers={<span class="str">"Authorization"</span>: USER_A_TOKEN})
+
+    <span class="kw">if</span> resp.status_code == <span class="flag">200</span>:
+        print(<span class="str">f"[VULN] IDOR: {endpoint} - User A accessed User B's data"</span>)
+        print(<span class="str">f"       Response: {resp.text[:200]}"</span>)
+    <span class="kw">elif</span> resp.status_code == <span class="flag">403</span>:
+        print(<span class="str">f"[SAFE] {endpoint} - Access denied"</span>)
+    <span class="kw">else</span>:
+        print(<span class="str">f"[???]  {endpoint} - Status: {resp.status_code}"</span>)
+
+<span class="kw">for</span> ep <span class="kw">in</span> endpoints:
+    test_idor(ep, user_a_id=<span class="flag">12345</span>, user_b_id=<span class="flag">12346</span>)</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Integrating with External APIs</h3>
+
+            <div class="code-block"><span class="comment"># shodan_enum.py: Enrich target data with Shodan</span>
+<span class="kw">import</span> shodan
+
+api = shodan.Shodan(<span class="str">"YOUR_API_KEY"</span>)
+
+<span class="kw">def</span> enrich_target(domain):
+    <span class="str">"""Pull Shodan data for a domain's IPs."""</span>
+    <span class="kw">try</span>:
+        results = api.search(<span class="str">f"hostname:{domain}"</span>)
+        <span class="kw">for</span> result <span class="kw">in</span> results[<span class="str">'matches'</span>]:
+            print(<span class="str">f"IP: {result['ip_str']}"</span>)
+            print(<span class="str">f"  Port: {result['port']}"</span>)
+            print(<span class="str">f"  Org: {result.get('org', 'N/A')}"</span>)
+            print(<span class="str">f"  OS: {result.get('os', 'N/A')}"</span>)
+            <span class="kw">if</span> <span class="str">'vulns'</span> <span class="kw">in</span> result:
+                print(<span class="str">f"  CVEs: {', '.join(result['vulns'])}"</span>)
+    <span class="kw">except</span> shodan.APIError <span class="kw">as</span> e:
+        print(<span class="str">f"Shodan error: {e}"</span>)
+
+enrich_target(<span class="str">"target.com"</span>)</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Essential Python Libraries</h3>
+
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">requests</div>
+                    <div class="tool-role">HTTP Client</div>
+                    <div class="tool-desc">
+                        The standard HTTP library. Session support, cookie handling, proxy configuration,
+                        and response parsing. The foundation of every Python security script.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">beautifulsoup4</div>
+                    <div class="tool-role">HTML Parsing</div>
+                    <div class="tool-desc">
+                        Parse and extract data from HTML responses. Find forms, extract hidden fields,
+                        follow links, and scrape content for analysis.
+                    </div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">pwntools</div>
+                    <div class="tool-role">Exploit Development</div>
+                    <div class="tool-desc">
+                        CTF and exploit framework with socket handling, binary packing, shellcode
+                        generation, and process interaction. Useful for binary and network-level
+                        exploitation.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Go Tools for Performance -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Go Tools for Performance
+        </h2>
+        <div class="section-body">
+            <p>
+                The most popular security tools of the last five years &mdash; subfinder, httpx, nuclei,
+                ffuf, feroxbuster, katana, naabu &mdash; are all written in Go. There is a reason: Go
+                compiles to a single static binary (no dependency hell), has built-in concurrency
+                primitives (goroutines), excellent standard library networking support, and produces
+                executables that are fast enough for high-volume scanning while remaining readable
+                enough for security researchers to write and maintain.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Why Go for Security Tooling</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Single Binary Distribution</div>
+                    <div class="concept-card-body">
+                        <code style="color:#86efac;">go build</code> produces one executable with zero runtime
+                        dependencies. Share your tool with others by sending a single file. No Python
+                        version conflicts, no npm install, no virtual environments. Cross-compile for
+                        Linux, macOS, and Windows from any platform.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Built-in Concurrency</div>
+                    <div class="concept-card-body">
+                        Goroutines are lightweight threads managed by the Go runtime. Launching 10,000
+                        concurrent HTTP requests is trivial with goroutines and channels. Python's
+                        asyncio and threading cannot match Go's concurrency performance for I/O-bound
+                        network scanning.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">Standard Library Power</div>
+                    <div class="concept-card-body">
+                        Go's <code style="color:#86efac;">net/http</code>, <code style="color:#86efac;">crypto/tls</code>,
+                        <code style="color:#86efac;">encoding/json</code>, and <code style="color:#86efac;">bufio</code>
+                        packages cover most security tool needs without third-party dependencies. DNS
+                        resolution, HTTP clients, TLS inspection, and line-by-line input processing
+                        are all in the standard library.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Building a Concurrent Scanner</h3>
+
+            <div class="code-block"><span class="comment">// port_scanner.go: concurrent TCP port scanner</span>
+<span class="kw">package</span> main
+
+<span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"net"</span>
+    <span class="str">"sync"</span>
+    <span class="str">"time"</span>
+)
+
+<span class="kw">func</span> scanPort(host <span class="cmd">string</span>, port <span class="cmd">int</span>, wg *sync.WaitGroup, results <span class="cmd">chan</span> <span class="cmd">string</span>) {
+    <span class="kw">defer</span> wg.Done()
+    addr := fmt.Sprintf(<span class="str">"%s:%d"</span>, host, port)
+    conn, err := net.DialTimeout(<span class="str">"tcp"</span>, addr, <span class="flag">2</span>*time.Second)
+    <span class="kw">if</span> err == <span class="flag">nil</span> {
+        conn.Close()
+        results &lt;- fmt.Sprintf(<span class="str">"[OPEN] %s:%d"</span>, host, port)
+    }
+}
+
+<span class="kw">func</span> main() {
+    host := <span class="str">"target.com"</span>
+    ports := []<span class="cmd">int</span>{<span class="flag">80, 443, 8080, 8443, 3000, 5000, 9090, 8000</span>}
+
+    <span class="kw">var</span> wg sync.WaitGroup
+    results := <span class="kw">make</span>(<span class="cmd">chan</span> <span class="cmd">string</span>, len(ports))
+
+    <span class="kw">for</span> _, port := <span class="kw">range</span> ports {
+        wg.Add(<span class="flag">1</span>)
+        <span class="kw">go</span> scanPort(host, port, &amp;wg, results)
+    }
+
+    <span class="kw">go</span> <span class="kw">func</span>() { wg.Wait(); close(results) }()
+
+    <span class="kw">for</span> r := <span class="kw">range</span> results {
+        fmt.Println(r)
+    }
+}</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Building a Custom Web Crawler</h3>
+
+            <div class="code-block"><span class="comment">// crawler.go: extract links and form actions from a target</span>
+<span class="kw">package</span> main
+
+<span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"net/http"</span>
+    <span class="str">"golang.org/x/net/html"</span>
+    <span class="str">"strings"</span>
+)
+
+<span class="kw">func</span> extractLinks(url <span class="cmd">string</span>) ([]<span class="cmd">string</span>, <span class="cmd">error</span>) {
+    resp, err := http.Get(url)
+    <span class="kw">if</span> err != <span class="flag">nil</span> { <span class="kw">return</span> <span class="flag">nil</span>, err }
+    <span class="kw">defer</span> resp.Body.Close()
+
+    <span class="kw">var</span> links []<span class="cmd">string</span>
+    tokenizer := html.NewTokenizer(resp.Body)
+
+    <span class="kw">for</span> {
+        tt := tokenizer.Next()
+        <span class="kw">if</span> tt == html.ErrorToken { <span class="kw">break</span> }
+        <span class="kw">if</span> tt == html.StartTagToken {
+            t := tokenizer.Token()
+            <span class="kw">for</span> _, attr := <span class="kw">range</span> t.Attr {
+                <span class="kw">if</span> attr.Key == <span class="str">"href"</span> || attr.Key == <span class="str">"action"</span> || attr.Key == <span class="str">"src"</span> {
+                    <span class="kw">if</span> strings.HasPrefix(attr.Val, <span class="str">"http"</span>) || strings.HasPrefix(attr.Val, <span class="str">"/"</span>) {
+                        links = append(links, attr.Val)
+                    }
+                }
+            }
+        }
+    }
+    <span class="kw">return</span> links, <span class="flag">nil</span>
+}
+
+<span class="kw">func</span> main() {
+    links, _ := extractLinks(<span class="str">"https://target.com"</span>)
+    <span class="kw">for</span> _, link := <span class="kw">range</span> links {
+        fmt.Println(link)
+    }
+}</div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Start with Python, Graduate to Go</div>
+                    <div class="callout-text">
+                        Prototype your tools in Python first. Python's rapid iteration cycle is ideal
+                        for testing ideas and building proof-of-concept scripts. When a Python tool
+                        becomes part of your daily workflow and performance becomes a bottleneck
+                        (scanning thousands of hosts, processing millions of lines), rewrite the
+                        critical path in Go. Most researchers maintain a mix: Python for quick scripts
+                        and data processing, Go for high-performance scanners and tools they distribute.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Notification & Monitoring Pipelines -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128276;</span>
+            Notification &amp; Monitoring Pipelines
+        </h2>
+        <div class="section-body">
+            <p>
+                The best bugs are found when a new asset appears before other researchers notice it.
+                Continuous monitoring for new subdomains, changed DNS records, new ports, and fresh
+                JavaScript files gives you a first-mover advantage. When a company deploys a new
+                staging server at 2 AM, your monitoring pipeline can alert you by 2:05 AM &mdash;
+                hours before anyone else starts testing.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Setting Up Discord/Slack Alerts</h3>
+
+            <div class="code-block"><span class="comment"># notify_discord.py: send scan results to Discord webhook</span>
+<span class="kw">import</span> requests
+<span class="kw">import</span> sys
+
+WEBHOOK_URL = <span class="str">"https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_TOKEN"</span>
+
+<span class="kw">def</span> notify(message, severity=<span class="str">"info"</span>):
+    colors = {<span class="str">"info"</span>: <span class="flag">3447003</span>, <span class="str">"warning"</span>: <span class="flag">16776960</span>, <span class="str">"critical"</span>: <span class="flag">15158332</span>}
+    payload = {
+        <span class="str">"embeds"</span>: [{
+            <span class="str">"title"</span>: <span class="str">f"Bug Bounty Alert [{severity.upper()}]"</span>,
+            <span class="str">"description"</span>: message,
+            <span class="str">"color"</span>: colors.get(severity, <span class="flag">3447003</span>)
+        }]
+    }
+    requests.post(WEBHOOK_URL, json=payload)
+
+<span class="comment"># Read results from stdin (pipe from nuclei, etc.)</span>
+<span class="kw">for</span> line <span class="kw">in</span> sys.stdin:
+    line = line.strip()
+    <span class="kw">if</span> <span class="str">"critical"</span> <span class="kw">in</span> line.lower():
+        notify(line, <span class="str">"critical"</span>)
+    <span class="kw">elif</span> <span class="str">"high"</span> <span class="kw">in</span> line.lower():
+        notify(line, <span class="str">"warning"</span>)
+    <span class="kw">else</span>:
+        notify(line, <span class="str">"info"</span>)</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Cron-Based Continuous Recon</h3>
+
+            <div class="code-block"><span class="comment"># monitor.sh: continuous asset monitoring (run via cron every 6 hours)</span>
+<span class="comment"># Crontab entry: 0 */6 * * * /home/user/tools/monitor.sh target.com</span>
+
+<span class="kw">TARGET</span>=<span class="str">"$1"</span>
+<span class="kw">DATA_DIR</span>=<span class="str">"$HOME/recon/$TARGET"</span>
+<span class="kw">OLD</span>=<span class="str">"$DATA_DIR/subs_old.txt"</span>
+<span class="kw">NEW</span>=<span class="str">"$DATA_DIR/subs_new.txt"</span>
+
+<span class="comment"># Rotate files</span>
+[ -f <span class="str">"$NEW"</span> ] && mv <span class="str">"$NEW"</span> <span class="str">"$OLD"</span>
+
+<span class="comment"># Fresh enumeration</span>
+<span class="cmd">subfinder</span> <span class="flag">-d</span> <span class="str">"$TARGET"</span> <span class="flag">-silent</span> | sort -u > <span class="str">"$NEW"</span>
+
+<span class="comment"># Diff for new subdomains</span>
+<span class="kw">if</span> [ -f <span class="str">"$OLD"</span> ]; <span class="kw">then</span>
+    DIFF=$(comm -13 <span class="str">"$OLD"</span> <span class="str">"$NEW"</span>)
+    <span class="kw">if</span> [ -n <span class="str">"$DIFF"</span> ]; <span class="kw">then</span>
+        echo <span class="str">"$DIFF"</span> | <span class="cmd">httpx</span> <span class="flag">-silent</span> | <span class="cmd">nuclei</span> <span class="flag">-severity high,critical</span> | \
+            python3 <span class="str">notify_discord.py</span>
+        echo <span class="str">"[$(date)] New subdomains for $TARGET:"</span> >> <span class="str">"$DATA_DIR/changes.log"</span>
+        echo <span class="str">"$DIFF"</span> >> <span class="str">"$DATA_DIR/changes.log"</span>
+    <span class="kw">fi</span>
+<span class="kw">fi</span></div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Monitoring Strategies</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-title">Certificate Transparency</div>
+                    <div class="concept-card-body">
+                        Monitor CT logs for new certificates issued to your target's domain. New
+                        certificates often indicate new subdomains or services being deployed.
+                        Tools: <code style="color:#86efac;">certstream</code> for real-time monitoring,
+                        <code style="color:#86efac;">crt.sh</code> API for batch queries. Run a daemon
+                        that watches for your target's domain and alerts immediately.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">JavaScript File Changes</div>
+                    <div class="concept-card-body">
+                        Hash JavaScript files on each scan. When a hash changes, diff the old and new
+                        versions. New API endpoints, authentication changes, and feature flags often
+                        appear in JavaScript updates before they are documented. Tools:
+                        <code style="color:#86efac;">getJS</code> to extract JS URLs,
+                        <code style="color:#86efac;">LinkFinder</code> to extract endpoints from JS.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">DNS Record Changes</div>
+                    <div class="concept-card-body">
+                        Monitor for DNS record changes that indicate infrastructure modifications: new
+                        A records (new servers), CNAME changes (provider migrations), and dangling
+                        CNAMEs (subdomain takeover opportunities). Run periodic DNS resolution and
+                        diff against previous results.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-title">GitHub Monitoring</div>
+                    <div class="concept-card-body">
+                        Watch for new repositories, commits, and issues related to your target. Developers
+                        occasionally push credentials, internal documentation, or vulnerability details
+                        to public repositories. Tools: <code style="color:#86efac;">gitGraber</code>,
+                        <code style="color:#86efac;">trufflehog</code>, GitHub search alerts.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Monitor Responsibly</div>
+                    <div class="callout-text">
+                        Continuous monitoring means continuous requests to the target. Keep your
+                        monitoring lightweight: use passive data sources (CT logs, DNS records, Shodan)
+                        whenever possible, and limit active probing to reasonable intervals (every
+                        6-24 hours, not every minute). Programs that detect aggressive automated
+                        scanning may ban your IP or revoke your account. The goal is awareness, not
+                        denial of service.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Building Your Personal Framework -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128736;</span>
+            Building Your Personal Framework
+        </h2>
+        <div class="section-body">
+            <p>
+                After building individual scripts and tools, the natural next step is organizing them
+                into a cohesive framework &mdash; a personal toolkit that you can deploy against any
+                new target with a single command. The best frameworks are not monolithic applications
+                but modular pipelines where each component can be used independently or chained together.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Module Architecture</h3>
+
+            <p>
+                Design your framework as a collection of independent modules connected by standard
+                interfaces (usually text files or JSON). Each module takes input in a defined format
+                and produces output that the next module can consume:
+            </p>
+
+            <div class="code-block"><span class="comment">Framework Architecture:</span>
+
+<span class="cmd">[Config]</span> --> <span class="str">config.yaml (target, scope, options)</span>
+    |
+    v
+<span class="cmd">[Recon Module]</span>
+    |-- subfinder --> subs.txt
+    |-- amass    --> subs.txt (merged, deduplicated)
+    |-- crt.sh   --> subs.txt
+    v
+<span class="cmd">[Probing Module]</span>
+    |-- httpx     --> live_hosts.json (URL, status, tech, title)
+    |-- naabu     --> open_ports.txt
+    v
+<span class="cmd">[Discovery Module]</span>
+    |-- ffuf       --> directories.txt
+    |-- katana     --> urls.txt (crawled endpoints)
+    |-- getJS      --> js_files.txt
+    v
+<span class="cmd">[Scanning Module]</span>
+    |-- nuclei     --> vulns.json
+    |-- custom     --> findings.json
+    v
+<span class="cmd">[Reporting Module]</span>
+    |-- notify     --> Discord/Slack alerts
+    |-- report.py  --> HTML/Markdown report
+    v
+<span class="cmd">[Storage]</span> --> SQLite database + flat files per target</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Configuration Management</h3>
+
+            <div class="code-block"><span class="comment"># config.yaml: framework configuration per target</span>
+<span class="kw">target</span>:
+  <span class="kw">name</span>: <span class="str">"example-corp"</span>
+  <span class="kw">domains</span>:
+    - <span class="str">"example.com"</span>
+    - <span class="str">"example.io"</span>
+  <span class="kw">scope</span>:
+    <span class="kw">include</span>:
+      - <span class="str">"*.example.com"</span>
+      - <span class="str">"*.example.io"</span>
+    <span class="kw">exclude</span>:
+      - <span class="str">"blog.example.com"</span>
+      - <span class="str">"status.example.com"</span>
+
+<span class="kw">modules</span>:
+  <span class="kw">recon</span>:
+    <span class="kw">enabled</span>: <span class="flag">true</span>
+    <span class="kw">tools</span>: [<span class="str">"subfinder"</span>, <span class="str">"amass"</span>]
+  <span class="kw">probing</span>:
+    <span class="kw">enabled</span>: <span class="flag">true</span>
+    <span class="kw">ports</span>: [<span class="flag">80, 443, 8080, 8443</span>]
+  <span class="kw">scanning</span>:
+    <span class="kw">enabled</span>: <span class="flag">true</span>
+    <span class="kw">rate_limit</span>: <span class="flag">50</span>
+    <span class="kw">severity</span>: [<span class="str">"medium"</span>, <span class="str">"high"</span>, <span class="str">"critical"</span>]
+
+<span class="kw">notifications</span>:
+  <span class="kw">discord_webhook</span>: <span class="str">"https://discord.com/api/webhooks/..."</span>
+  <span class="kw">notify_on</span>: [<span class="str">"new_subdomain"</span>, <span class="str">"vulnerability"</span>, <span class="str">"new_port"</span>]</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Data Storage</h3>
+
+            <p>
+                For most researchers, a SQLite database combined with flat files is the ideal storage
+                solution. SQLite requires no server setup, works on any platform, and supports SQL
+                queries for data analysis. Flat files (one subdomain per line, one URL per line) are
+                compatible with every tool in the ecosystem.
+            </p>
+
+            <div class="code-block"><span class="comment"># db.py: SQLite storage for recon data</span>
+<span class="kw">import</span> sqlite3
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+<span class="kw">def</span> init_db(target):
+    conn = sqlite3.connect(<span class="str">f"data/{target}.db"</span>)
+    conn.executescript(<span class="str">"""
+        CREATE TABLE IF NOT EXISTS subdomains (
+            domain TEXT PRIMARY KEY,
+            first_seen TEXT,
+            last_seen TEXT,
+            status_code INTEGER,
+            title TEXT,
+            technologies TEXT
+        );
+        CREATE TABLE IF NOT EXISTS vulnerabilities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT,
+            template_id TEXT,
+            severity TEXT,
+            found_at TEXT,
+            reported BOOLEAN DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS scan_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scan_type TEXT,
+            started_at TEXT,
+            completed_at TEXT,
+            results_count INTEGER
+        );
+    """</span>)
+    <span class="kw">return</span> conn
+
+<span class="kw">def</span> add_subdomain(conn, domain, status=None, title=None, tech=None):
+    now = datetime.utcnow().isoformat()
+    conn.execute(<span class="str">"""
+        INSERT INTO subdomains (domain, first_seen, last_seen, status_code, title, technologies)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(domain) DO UPDATE SET
+            last_seen = ?, status_code = ?, title = ?, technologies = ?
+    """</span>, (domain, now, now, status, title, tech, now, status, title, tech))
+    conn.commit()</div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:24px 0 12px; font-weight:400;">Continuous Improvement Cycle</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color:#c4a0d8;">Track what works.</strong> When you find a bug, document which part of your automation contributed. Did the subdomain monitor catch a new asset? Did a custom Nuclei template flag a vulnerability? This data tells you where to invest more development time.</li>
+                <li><strong style="color:#c4a0d8;">Eliminate false positives.</strong> Every false positive in your pipeline wastes time. When a scanner reports something that turns out to be benign, update your templates or add exclusion rules. A clean pipeline with zero false positives is worth more than a noisy pipeline with comprehensive coverage.</li>
+                <li><strong style="color:#c4a0d8;">Add templates from findings.</strong> Every vulnerability you find manually is a candidate for a detection template. If you find a misconfiguration on one target, build a Nuclei template so you automatically detect it on every future target.</li>
+                <li><strong style="color:#c4a0d8;">Benchmark regularly.</strong> Run your pipeline against intentionally vulnerable applications (HackTheBox, PortSwigger labs) to verify that your tools are detecting what they should. If a tool misses a known vulnerability, investigate and fix the gap.</li>
+                <li><strong style="color:#c4a0d8;">Version control everything.</strong> Your framework is an investment. Keep it in a private Git repository with commit messages that document changes. When a tool update breaks your pipeline, you can revert to the last working version instantly.</li>
+            </ol>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Your Framework Is Your Competitive Advantage</div>
+                    <div class="callout-text">
+                        Every researcher has access to the same open-source tools. Your competitive
+                        advantage is not the tools themselves but how you combine, configure, and extend
+                        them. A custom Nuclei template that detects a pattern you discovered manually,
+                        a monitoring script that alerts you to new assets before anyone else, a Python
+                        script that automates a specific testing technique &mdash; these are the
+                        differentiators between researchers who find the same bugs as everyone else and
+                        researchers who consistently find bugs first.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    How do you balance the time spent building tools versus the time spent actually hunting? A researcher who spends 80% of their time building an elaborate framework and 20% hunting will likely find fewer bugs than one who spends 80% hunting with basic scripts. Where is the optimal balance, and how does it change as your career progresses?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    Automated scanning can overwhelm a target's servers if not carefully rate-limited. Some bug bounty programs explicitly ban automated tools. How do you approach automation ethically, and what responsibility do you have to minimize your impact on the target's infrastructure and users?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Many top researchers keep their custom tools private. Others open-source everything. What are the arguments for each approach? Does open-sourcing security tools help or harm the bug bounty ecosystem?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    As automation becomes more sophisticated and AI-assisted vulnerability detection improves, what happens to the value of manual testing? Will bug bounty programs need to adapt their rules around automated testing? What skills will remain uniquely human in the future of bug hunting?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You now have the foundation for building an automation pipeline that scales your bug
+                hunting practice: writing Nuclei templates for custom detection, building Burp
+                extensions for application-specific analysis, scripting in Python for rapid
+                prototyping, leveraging Go for high-performance tooling, setting up monitoring
+                pipelines for first-mover advantage, and designing a personal framework that grows
+                with your skills. Automation does not replace the hunter &mdash; it amplifies them.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 20
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-automation', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

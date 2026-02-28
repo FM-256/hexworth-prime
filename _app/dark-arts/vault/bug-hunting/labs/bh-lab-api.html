@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Endpoint Hunting - Bug Hunting Lab 07 | Hexworth Prime</title>
+    <!-- Access control must fire before any content renders -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0508;
+            color: #c4b5d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 20%, rgba(147, 51, 234, 0.13) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 80%, rgba(168, 85, 247, 0.09) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(88, 28, 135, 0.05) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .header {
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(147, 51, 234, 0.25);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .back-link {
+            color: #7c3aed;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .back-link:hover {
+            background: rgba(147, 51, 234, 0.12);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+
+        .header-badge {
+            background: rgba(147, 51, 234, 0.2);
+            color: #c084fc;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        .header h1 {
+            font-size: 1.15rem;
+            color: #a855f7;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .header-score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+        .score-value {
+            color: #a855f7;
+            font-weight: 700;
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Layout: Terminal + Sidebar ───────────────────────────── */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 370px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Left: Terminal Panel ─────────────────────────────────── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(147, 51, 234, 0.2);
+            overflow: hidden;
+        }
+
+        .ethical-warning-banner {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.18), rgba(153, 27, 27, 0.12));
+            border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .warning-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .warning-text {
+            font-size: 0.78rem;
+            color: #fca5a5;
+            line-height: 1.4;
+        }
+        .warning-text strong {
+            color: #ef4444;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .task-prompt {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            flex-shrink: 0;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .task-number {
+            background: #9333ea;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .task-number.completed { background: #22c55e; }
+        .task-number.skipped   { background: #f59e0b; }
+
+        .task-meta {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        .task-meta span {
+            color: #9ca3af;
+        }
+
+        .task-question {
+            font-size: 0.97rem;
+            color: #e5e7eb;
+            line-height: 1.55;
+        }
+        .task-question code {
+            background: rgba(147, 51, 234, 0.2);
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #c084fc;
+            font-size: 0.9em;
+        }
+
+        .task-hint {
+            font-size: 0.82rem;
+            color: #6b7280;
+            margin-top: 6px;
+            font-style: italic;
+            display: none;
+        }
+        .task-hint.show {
+            display: block;
+            color: #f59e0b;
+        }
+        .task-hint::before {
+            content: 'Hint: ';
+            font-weight: 600;
+        }
+
+        /* ── Custom Terminal ──────────────────────────────────────── */
+        .terminal-container {
+            flex: 1;
+            min-height: 0;
+            background: #0c0c0c;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.55;
+            color: #c4b5d4;
+        }
+
+        .terminal-output .line { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; }
+        .terminal-output .prompt-line { color: #a855f7; }
+        .terminal-output .response { color: #9ca3af; }
+        .terminal-output .success { color: #22c55e; }
+        .terminal-output .error { color: #ef4444; }
+        .terminal-output .info { color: #6b7280; }
+        .terminal-output .highlight { color: #c084fc; }
+        .terminal-output .warning { color: #f59e0b; }
+        .terminal-output .header-text { color: #3b82f6; }
+        .terminal-output .status-code { color: #22c55e; font-weight: 700; }
+        .terminal-output .status-error { color: #ef4444; font-weight: 700; }
+
+        .terminal-input-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 20px 12px;
+            border-top: 1px solid rgba(147, 51, 234, 0.15);
+            background: rgba(0, 0, 0, 0.3);
+            flex-shrink: 0;
+        }
+
+        .terminal-prompt {
+            color: #a855f7;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #e5e7eb;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            outline: none;
+            caret-color: #a855f7;
+        }
+
+        .feedback-bar {
+            background: rgba(0, 0, 0, 0.45);
+            padding: 11px 24px;
+            border-top: 1px solid rgba(147, 51, 234, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .feedback-message {
+            font-size: 0.85rem;
+            color: #6b7280;
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .feedback-message.success { color: #22c55e; }
+        .feedback-message.error   { color: #ef4444; }
+
+        .bar-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .hint-btn, .skip-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hint-btn { color: #6b7280; }
+        .hint-btn:hover {
+            background: rgba(147, 51, 234, 0.1);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+        .skip-btn { color: #6b7280; }
+        .skip-btn:hover {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #f59e0b;
+        }
+        .hint-btn:disabled, .skip-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ── Right: Sidebar ───────────────────────────────────────── */
+        .sidebar {
+            background: rgba(8, 4, 14, 0.97);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #7c3aed;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        .mission-brief {
+            background: rgba(147, 51, 234, 0.07);
+            border-left: 3px solid #9333ea;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+        }
+        .mission-brief p {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            line-height: 1.55;
+        }
+        .mission-brief strong {
+            color: #c084fc;
+        }
+
+        .sidebar-warning {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(153, 27, 27, 0.08));
+            border: 1px solid rgba(220, 38, 38, 0.35);
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+        .sidebar-warning-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ef4444;
+            margin-bottom: 5px;
+        }
+        .sidebar-warning-text {
+            font-size: 0.77rem;
+            color: #fca5a5;
+            line-height: 1.45;
+        }
+
+        .progress-section {}
+        .progress-bar-track {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            height: 7px;
+            overflow: hidden;
+            margin: 10px 0 7px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 14px;
+        }
+        .progress-stats .pct { color: #a855f7; font-weight: 600; }
+
+        .objectives-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 8px 10px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid #1f2937;
+            font-size: 0.77rem;
+            color: #6b7280;
+            transition: all 0.25s ease;
+            line-height: 1.4;
+        }
+        .obj-item.active {
+            border-left-color: #9333ea;
+            background: rgba(147, 51, 234, 0.1);
+            color: #e5e7eb;
+        }
+        .obj-item.completed {
+            border-left-color: #22c55e;
+            color: #4ade80;
+        }
+        .obj-item.skipped {
+            border-left-color: #f59e0b;
+            color: #f59e0b;
+            opacity: 0.65;
+        }
+
+        .obj-check {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #1f2937;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.58rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .obj-item.active    .obj-check { border-color: #9333ea; }
+        .obj-item.completed .obj-check { border-color: #22c55e; background: #22c55e; color: #000; }
+        .obj-item.skipped   .obj-check { border-color: #f59e0b; background: #f59e0b; color: #000; }
+
+        .defender-box {
+            background: rgba(59, 130, 246, 0.07);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px;
+            padding: 10px 13px;
+            display: none;
+        }
+        .defender-box.show { display: block; }
+        .defender-box-title {
+            font-size: 0.67rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+        .defender-box-text {
+            font-size: 0.77rem;
+            color: #93c5fd;
+            line-height: 1.45;
+        }
+
+        .score-widget {
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6b7280;
+            padding: 3px 0;
+        }
+        .score-row .val { color: #c4b5d4; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .score-row.total {
+            border-top: 1px solid rgba(147, 51, 234, 0.2);
+            margin-top: 6px;
+            padding-top: 8px;
+            color: #a855f7;
+            font-weight: 700;
+        }
+        .score-row.total .val { color: #a855f7; font-size: 1.05rem; }
+
+        /* ── Completion Modal ──────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(145deg, #0d0814, #150b20);
+            border: 2px solid #9333ea;
+            border-radius: 18px;
+            padding: 44px 48px;
+            text-align: center;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 0 60px rgba(147, 51, 234, 0.3);
+            animation: modalIn 0.35s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92) translateY(16px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal.perfect { border-color: #22c55e; box-shadow: 0 0 60px rgba(34, 197, 94, 0.25); }
+
+        .modal-icon { font-size: 3.6rem; margin-bottom: 14px; }
+        .modal h2 { color: #a855f7; font-size: 1.65rem; margin-bottom: 8px; }
+        .modal.perfect h2 { color: #22c55e; }
+        .modal p { color: #6b7280; font-size: 0.9rem; margin-bottom: 22px; line-height: 1.5; }
+
+        .modal-stats {
+            display: flex;
+            justify-content: center;
+            gap: 36px;
+            margin-bottom: 28px;
+        }
+        .modal-stat { text-align: center; }
+        .modal-stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+        .modal-stat-value.good  { color: #22c55e; }
+        .modal-stat-value.warn  { color: #f59e0b; }
+        .modal-stat-value.pts   { color: #a855f7; }
+        .modal-stat-label { font-size: 0.82rem; color: #6b7280; margin-top: 4px; }
+
+        .modal-btns {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+        }
+        .modal-btn {
+            padding: 11px 26px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #9333ea, #a855f7);
+            color: #fff;
+        }
+        .modal-btn.primary:hover { opacity: 0.88; }
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.07);
+            color: #c4b5d4;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .modal-btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
+
+        @media (max-width: 960px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; Bug Hunting Hub</a>
+            <span class="header-badge">Lab 07</span>
+            <h1>API Endpoint Hunting</h1>
+        </div>
+        <div class="header-score">
+            Score: <span class="score-value" id="headerScore">100</span>
+        </div>
+    </header>
+
+    <!-- ── Main layout ─────────────────────────────────────────────── -->
+    <div class="main-container">
+
+        <!-- ── Left: Terminal Panel ──────────────────────────────── -->
+        <section class="terminal-panel">
+
+            <div class="ethical-warning-banner">
+                <span class="warning-icon">&#9888;</span>
+                <p class="warning-text">
+                    <strong>Authorized Testing Only.</strong>
+                    API endpoint enumeration, mass assignment, and GraphQL introspection against production systems without written authorization violates the CFAA (18 U.S.C. 1030). This simulation targets the authorized ShopZone test API only.
+                </p>
+            </div>
+
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="task-number" id="taskNumber">1</div>
+                        <div class="task-question" id="taskQuestion">Loading...</div>
+                    </div>
+                    <span class="task-meta">Objective <span id="currentTaskNum">1</span> of <span id="totalTasks">8</span></span>
+                </div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+
+            <!-- Custom curl terminal -->
+            <div class="terminal-container" id="terminal">
+                <div class="terminal-output" id="termOutput"></div>
+                <div class="terminal-input-row">
+                    <span class="terminal-prompt" id="termPrompt">researcher@apihunt:~$</span>
+                    <input type="text" class="terminal-input" id="termInput" autocomplete="off" spellcheck="false" autofocus>
+                </div>
+            </div>
+
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type a curl command to begin. Try <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">help</code> for usage.</div>
+                <div class="bar-actions">
+                    <button class="hint-btn" id="hintBtn" onclick="showHint()">Hint (-5 pts)</button>
+                    <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Right: Sidebar ────────────────────────────────────── -->
+        <aside class="sidebar">
+
+            <div>
+                <div class="sidebar-section-title">Mission Brief</div>
+                <div class="mission-brief">
+                    <p>
+                        You are conducting an authorized API security assessment for
+                        <strong>ShopZone</strong>, an e-commerce platform. Their REST and GraphQL
+                        APIs at <strong>https://api.shopzone.io</strong> are in scope. Enumerate
+                        endpoints, discover undocumented APIs, exploit mass assignment, and
+                        extract data via GraphQL introspection.
+                    </p>
+                </div>
+            </div>
+
+            <div class="sidebar-warning">
+                <div class="sidebar-warning-label">Legal Warning</div>
+                <div class="sidebar-warning-text">
+                    Unauthorized API testing violates the CFAA and equivalent laws worldwide.
+                    Mass assignment, IDOR, and GraphQL introspection attacks against production
+                    systems require explicit written authorization. This lab environment is
+                    fully simulated.
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="sidebar-section-title">Progress</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-stats">
+                    <span><span id="completedCount">0</span> / 8 objectives</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+            </div>
+
+            <div>
+                <div class="sidebar-section-title">Objectives</div>
+                <ul class="objectives-list" id="objList"></ul>
+            </div>
+
+            <div class="score-widget">
+                <div class="sidebar-section-title" style="margin-bottom:8px;">Score</div>
+                <div class="score-row"><span>Base</span><span class="val">100 pts</span></div>
+                <div class="score-row"><span>Hints used</span><span class="val" id="scoreHintDeduct">-0 pts</span></div>
+                <div class="score-row total"><span>Total</span><span class="val" id="scoreFinal">100</span></div>
+            </div>
+
+            <div class="defender-box" id="defenderBox">
+                <div class="defender-box-title">Defender's Perspective</div>
+                <div class="defender-box-text" id="defenderText"></div>
+            </div>
+
+        </aside>
+    </div>
+
+    <!-- ── Completion Modal ──────────────────────────────────────────── -->
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="modal-icon" id="modalIcon">&#127942;</div>
+            <h2 id="modalTitle">Lab Complete!</h2>
+            <p id="modalMessage">Full API attack surface enumerated.</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value good" id="modalCompleted">0</div>
+                    <div class="modal-stat-label">Completed</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value warn" id="modalSkipped">0</div>
+                    <div class="modal-stat-label">Skipped</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value pts" id="modalScore">100</div>
+                    <div class="modal-stat-label">Points</div>
+                </div>
+            </div>
+            <div class="modal-btns">
+                <button class="modal-btn primary" onclick="restartLab()">Restart Lab</button>
+                <a href="../index.html" class="modal-btn secondary">Back to Bug Hunting Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* =================================================================
+       Bug Hunting Lab 07 -- API Endpoint Hunting
+       Target: https://api.shopzone.io (simulated e-commerce API)
+       Custom terminal with curl command parsing
+    ================================================================= */
+
+    /* ── Simulated API data ─────────────────────────────────────── */
+    const API_HOST = 'https://api.shopzone.io';
+    const LEAKED_API_KEY = 'sk_live_FAKE_EXAMPLE_KEY_00000000';
+
+    const PRODUCTS = [
+        { id: 1, name: 'Wireless Mouse', price: 29.99, category: 'electronics', stock: 142 },
+        { id: 2, name: 'USB-C Hub', price: 49.99, category: 'electronics', stock: 87 },
+        { id: 3, name: 'Mechanical Keyboard', price: 89.99, category: 'electronics', stock: 63 },
+        { id: 4, name: 'Monitor Stand', price: 34.99, category: 'accessories', stock: 201 },
+        { id: 5, name: 'Webcam HD', price: 59.99, category: 'electronics', stock: 44 }
+    ];
+
+    const PRODUCTS_V2 = PRODUCTS.map(p => ({
+        ...p,
+        supplier: 'TechDist Inc.',
+        cost_price: (p.price * 0.45).toFixed(2),
+        margin_pct: '55%',
+        warehouse: 'WH-EAST-03',
+        internal_sku: 'INT-' + p.id + '-' + p.category.substring(0, 3).toUpperCase()
+    }));
+
+    const USER_PROFILE = {
+        id: 1042,
+        email: 'testuser@shopzone.io',
+        name: 'Test User',
+        role: 'customer',
+        created_at: '2025-08-14T10:22:00Z',
+        phone: '+1-555-0142'
+    };
+
+    const ADMIN_ORDERS = [
+        { order_id: 'ORD-9841', customer: 'alice@example.com', total: 129.97, status: 'shipped', payment_method: 'visa_4242' },
+        { order_id: 'ORD-9842', customer: 'bob@corp.net', total: 89.99, status: 'processing', payment_method: 'mc_5555' },
+        { order_id: 'ORD-9843', customer: 'carol@test.io', total: 244.97, status: 'delivered', payment_method: 'amex_3782' },
+        { order_id: 'ORD-9844', customer: 'dave@shop.com', total: 34.99, status: 'pending', payment_method: 'visa_1234' },
+        { order_id: 'ORD-9845', customer: 'eve@secure.org', total: 179.98, status: 'shipped', payment_method: 'paypal_eve' }
+    ];
+
+    const GRAPHQL_SCHEMA = {
+        types: [
+            { name: 'Query', fields: ['products', 'product(id: Int)', 'users', 'user(id: Int)', 'orders', 'order(id: String)', 'internalConfig'] },
+            { name: 'Product', fields: ['id: Int', 'name: String', 'price: Float', 'category: String', 'stock: Int', 'supplier: String', 'cost_price: Float'] },
+            { name: 'User', fields: ['id: Int', 'email: String', 'name: String', 'role: String', 'password_hash: String', 'api_key: String', 'ssn: String'] },
+            { name: 'Order', fields: ['order_id: String', 'customer: String', 'total: Float', 'status: String', 'payment_method: String', 'shipping_address: String'] },
+            { name: 'InternalConfig', fields: ['db_host: String', 'db_password: String', 'jwt_secret: String', 'stripe_key: String'] },
+            { name: 'Mutation', fields: ['createUser(input: UserInput)', 'updateUser(id: Int, input: UserInput)', 'deleteUser(id: Int)', 'createOrder(input: OrderInput)'] }
+        ]
+    };
+
+    const GRAPHQL_USERS = [
+        { id: 1, email: 'admin@shopzone.io', name: 'Admin User', role: 'admin', password_hash: '$2b$12$LJ3m...redacted', api_key: LEAKED_API_KEY, ssn: '***-**-1234' },
+        { id: 2, email: 'jane@shopzone.io', name: 'Jane Doe', role: 'manager', password_hash: '$2b$12$Xk9f...redacted', api_key: 'sk_live_7bR92kMnP...', ssn: '***-**-5678' },
+        { id: 1042, email: 'testuser@shopzone.io', name: 'Test User', role: 'customer', password_hash: '$2b$12$pQ2a...redacted', api_key: null, ssn: '***-**-9012' }
+    ];
+
+    const SWAGGER_SPEC = {
+        openapi: '3.0.1',
+        info: { title: 'ShopZone API', version: '1.0.0', description: 'E-commerce platform API' },
+        servers: [{ url: 'https://api.shopzone.io' }],
+        paths: {
+            '/api/v1/products': { get: { summary: 'List products', tags: ['Products'] } },
+            '/api/v1/products/{id}': { get: { summary: 'Get product by ID', tags: ['Products'] } },
+            '/api/v1/users': { post: { summary: 'Register user', tags: ['Users'] } },
+            '/api/v1/users/me': { get: { summary: 'Get current user' }, put: { summary: 'Update current user' } },
+            '/api/v1/orders': { get: { summary: 'List user orders', tags: ['Orders'] } },
+            '/api/graphql': { post: { summary: 'GraphQL endpoint', tags: ['GraphQL'] } },
+            '/api/v1/admin/orders': { get: { summary: 'Admin: list all orders (INTERNAL)', tags: ['Admin'], 'x-internal': true } },
+            '/api/v1/admin/users': { get: { summary: 'Admin: list all users (INTERNAL)', tags: ['Admin'], 'x-internal': true } },
+            '/api/v1/admin/config': { get: { summary: 'Admin: system config (INTERNAL)', tags: ['Admin'], 'x-internal': true } }
+        },
+        'x-api-key': LEAKED_API_KEY,
+        'x-internal-note': 'API key above is the production Stripe key. Remove before publishing.'
+    };
+
+    /* ── Score state ─────────────────────────────────────────────── */
+    const score = { base: 100, hints: 0 };
+
+    /* ── Task definitions ────────────────────────────────────────── */
+    const TASKS = [
+        {
+            id: 1,
+            question: 'Discover the API documentation endpoint by requesting <code>curl https://api.shopzone.io/api/docs</code>',
+            hint: 'curl https://api.shopzone.io/api/docs',
+            validate: c => c.includes('/api/docs'),
+            successMessage: 'Swagger/OpenAPI documentation found at /api/docs. The spec exposes internal endpoints (/api/v1/admin/*) and leaks an API key in the x-api-key field. Never expose API documentation in production without authentication.',
+            defender: 'API documentation endpoints like /api/docs, /swagger.json, /openapi.yaml should never be publicly accessible. Use authentication middleware and restrict access to authorized developer accounts only. Scan for exposed documentation endpoints in your CI/CD pipeline.'
+        },
+        {
+            id: 2,
+            question: 'Find the undocumented v2 API endpoint with <code>curl https://api.shopzone.io/api/v2/products</code>',
+            hint: 'curl https://api.shopzone.io/api/v2/products',
+            validate: c => c.includes('/api/v2/products'),
+            successMessage: 'Undocumented /api/v2/products endpoint discovered. The v2 response includes internal data: supplier names, cost prices, profit margins, warehouse locations, and internal SKU codes. This data was never intended for external consumers.',
+            defender: 'Undocumented API versions are a common finding in bug bounty programs. Implement API versioning with explicit routing and ensure deprecated or internal versions are not accessible from public-facing load balancers. Use API gateway policies to block unregistered routes.'
+        },
+        {
+            id: 3,
+            question: 'Send a GraphQL introspection query with <code>curl -X POST https://api.shopzone.io/api/graphql -H "Content-Type: application/json" -d \'{"query":"{__schema{types{name fields{name}}}}"}\'</code>',
+            hint: 'curl -X POST https://api.shopzone.io/api/graphql -H "Content-Type: application/json" -d \'{"query":"{__schema{types{name fields{name}}}}"}\'',
+            validate: c => c.includes('/api/graphql') && c.includes('__schema'),
+            successMessage: 'GraphQL introspection successful. The full schema is exposed including sensitive types: User (with password_hash, api_key, ssn fields), InternalConfig (db_host, db_password, jwt_secret), and all available queries and mutations. Introspection should be disabled in production.',
+            defender: 'Disable GraphQL introspection in production environments. In Apollo Server use introspection: false. Implement query depth limiting, query cost analysis, and field-level authorization. Never expose internal types like InternalConfig through the same schema served to external clients.'
+        },
+        {
+            id: 4,
+            question: 'Extract user data via GraphQL query with <code>curl -X POST https://api.shopzone.io/api/graphql -H "Content-Type: application/json" -d \'{"query":"{users{id email name role}}"}\'</code>',
+            hint: 'curl -X POST https://api.shopzone.io/api/graphql -H "Content-Type: application/json" -d \'{"query":"{users{id email name role}}"}\'',
+            validate: c => c.includes('/api/graphql') && c.includes('"query"') && c.includes('users') && !c.includes('__schema'),
+            successMessage: 'User data extracted via GraphQL. The query returned all user records including admin accounts, email addresses, roles, and password hashes. No authorization check was performed on the users query -- any authenticated or unauthenticated request can enumerate the full user database.',
+            defender: 'Implement field-level authorization in your GraphQL resolvers. Use middleware like graphql-shield to enforce role-based access control per field. Sensitive fields (password_hash, ssn, api_key) should never be queryable by external clients regardless of authentication level.'
+        },
+        {
+            id: 5,
+            question: 'Discover the unprotected admin orders endpoint with <code>curl https://api.shopzone.io/api/v1/admin/orders</code>',
+            hint: 'curl https://api.shopzone.io/api/v1/admin/orders',
+            validate: c => c.includes('/api/v1/admin/orders'),
+            successMessage: 'Admin orders endpoint returns all orders with customer PII, payment method details, and shipping addresses -- with no authentication required. This is a broken access control vulnerability (OWASP A01:2021). The endpoint was marked x-internal in the Swagger spec but no auth middleware was applied.',
+            defender: 'Never rely on obscurity for access control. Every admin endpoint must enforce authentication and authorization middleware. Implement role-based access control checks at the route level, not just at the UI level. Regularly audit your route table for endpoints missing auth middleware.'
+        },
+        {
+            id: 6,
+            question: 'Exploit mass assignment to escalate privileges with <code>curl -X PUT https://api.shopzone.io/api/v1/users/me -H "Content-Type: application/json" -H "Authorization: Bearer token123" -d \'{"role":"admin"}\'</code>',
+            hint: 'curl -X PUT https://api.shopzone.io/api/v1/users/me -H "Content-Type: application/json" -H "Authorization: Bearer token123" -d \'{"role":"admin"}\'',
+            validate: c => c.includes('/api/v1/users/me') && (c.includes('PUT') || c.includes('-X PUT')) && c.includes('role') && c.includes('admin'),
+            successMessage: 'Mass assignment privilege escalation successful. The PUT /api/v1/users/me endpoint accepted the role field in the request body without validation, promoting the test user from customer to admin. This grants full access to all admin endpoints.',
+            defender: 'Implement allowlists for writable fields in update endpoints. Never bind request bodies directly to database models without explicit field filtering. Use DTOs (Data Transfer Objects) that only include fields the user is permitted to modify. The role field should only be settable via an admin-only endpoint.'
+        },
+        {
+            id: 7,
+            question: 'Use GraphQL batching to extract multiple records with <code>curl -X POST https://api.shopzone.io/api/graphql -H "Content-Type: application/json" -d \'[{"query":"{user(id:1){email role api_key}}"},{"query":"{user(id:2){email role api_key}}"}]\'</code>',
+            hint: 'curl -X POST https://api.shopzone.io/api/graphql -H "Content-Type: application/json" -d \'[{"query":"{user(id:1){email role api_key}}"},{"query":"{user(id:2){email role api_key}}"}]\'',
+            validate: c => c.includes('/api/graphql') && c.includes('[') && c.includes('user(id:'),
+            successMessage: 'GraphQL batching attack successful. Two queries executed in a single request, extracting individual user records with API keys. Batching bypasses per-request rate limiting and enables efficient data exfiltration. The admin api_key was extracted: ' + LEAKED_API_KEY,
+            defender: 'Limit GraphQL batch query sizes (maximum 2-5 queries per request). Implement per-query rate limiting, not just per-request. Use query cost analysis to prevent expensive nested queries. Monitor for unusual batch patterns and set alerts on bulk user data extraction.'
+        },
+        {
+            id: 8,
+            question: 'Find the API key leaked in the Swagger documentation by reviewing the /api/docs response. Run <code>curl https://api.shopzone.io/api/docs | grep api-key</code>',
+            hint: 'curl https://api.shopzone.io/api/docs | grep api-key',
+            validate: c => c.includes('/api/docs') && (c.includes('grep') || c.includes('api-key') || c.includes('api_key') || c.includes(LEAKED_API_KEY)),
+            successMessage: 'Production API key found in Swagger spec: ' + LEAKED_API_KEY + '. The x-api-key field contains a live Stripe secret key that was left in the documentation. An internal note reads: "Remove before publishing." This key grants full payment processing access.',
+            defender: 'Never embed secrets in API documentation, configuration files, or source code. Use environment variables and secret management services (AWS Secrets Manager, HashiCorp Vault). Implement pre-commit hooks that scan for API key patterns. Rotate any key found in public documentation immediately.'
+        }
+    ];
+
+    /* ── Lab state ───────────────────────────────────────────────── */
+    const state = {
+        currentTask: 0,
+        results: {},
+        attempts: {},
+        history: [],
+        historyIndex: -1
+    };
+
+    /* ── Terminal rendering helpers ──────────────────────────────── */
+    const outputEl = () => document.getElementById('termOutput');
+    const inputEl = () => document.getElementById('termInput');
+
+    function printLine(text, cls) {
+        const div = document.createElement('div');
+        div.className = 'line' + (cls ? ' ' + cls : '');
+        div.innerHTML = text;
+        outputEl().appendChild(div);
+        outputEl().scrollTop = outputEl().scrollHeight;
+    }
+
+    function printJSON(obj, statusCode) {
+        const statusCls = statusCode >= 400 ? 'status-error' : 'status-code';
+        printLine(`<span class="${statusCls}">HTTP/1.1 ${statusCode} ${statusCode >= 400 ? (statusCode === 401 ? 'Unauthorized' : statusCode === 403 ? 'Forbidden' : statusCode === 404 ? 'Not Found' : 'Error') : 'OK'}</span>`, 'response');
+        printLine('<span class="info">Content-Type: application/json</span>', 'response');
+        printLine('', 'response');
+        const formatted = JSON.stringify(obj, null, 2);
+        formatted.split('\n').forEach(line => {
+            const highlighted = line
+                .replace(/"([^"]+)":/g, '<span class="highlight">"$1"</span>:')
+                .replace(/: "(sk_live[^"]+)"/g, ': "<span class="warning">$1</span>"')
+                .replace(/: "(\$2b\$[^"]+)"/g, ': "<span class="error">$1</span>"');
+            printLine(highlighted, 'response');
+        });
+    }
+
+    /* ── Curl command parser ────────────────────────────────────── */
+    function parseCurl(cmdLine) {
+        const result = { method: 'GET', url: '', headers: {}, data: null, raw: cmdLine };
+
+        /* Extract -X method */
+        const methodMatch = cmdLine.match(/-X\s+(GET|POST|PUT|PATCH|DELETE)/i);
+        if (methodMatch) result.method = methodMatch[1].toUpperCase();
+
+        /* Extract headers -H */
+        const headerRegex = /-H\s+["']([^"']+)["']/g;
+        let hm;
+        while ((hm = headerRegex.exec(cmdLine)) !== null) {
+            const parts = hm[1].split(':');
+            if (parts.length >= 2) {
+                result.headers[parts[0].trim().toLowerCase()] = parts.slice(1).join(':').trim();
+            }
+        }
+
+        /* Extract data -d */
+        const dataMatch = cmdLine.match(/-d\s+["'](.+?)["'](?:\s|$)/s);
+        if (dataMatch) {
+            result.data = dataMatch[1];
+            if (!methodMatch) result.method = 'POST';
+        }
+
+        /* Extract URL */
+        const urlMatch = cmdLine.match(/(?:curl\s+)?(https?:\/\/[^\s"']+)/);
+        if (!urlMatch) {
+            const bareUrlMatch = cmdLine.match(/(\/api\/[^\s"']+)/);
+            if (bareUrlMatch) result.url = API_HOST + bareUrlMatch[1];
+        } else {
+            result.url = urlMatch[1];
+        }
+
+        /* Check for pipe grep */
+        const grepMatch = cmdLine.match(/\|\s*grep\s+["']?([^\s"']+)["']?/);
+        if (grepMatch) result.grep = grepMatch[1];
+
+        return result;
+    }
+
+    /* ── API endpoint router ─────────────────────────────────────── */
+    function routeRequest(parsed) {
+        const path = parsed.url.replace(API_HOST, '').replace(/\/$/, '') || '/';
+        const method = parsed.method;
+
+        /* GET /api/docs */
+        if (path === '/api/docs' || path === '/api/docs/') {
+            return { status: 200, body: SWAGGER_SPEC };
+        }
+
+        /* GET /api/v1/products */
+        if (path === '/api/v1/products' && method === 'GET') {
+            return { status: 200, body: { products: PRODUCTS, count: PRODUCTS.length } };
+        }
+
+        /* GET /api/v1/products/:id */
+        const productMatch = path.match(/^\/api\/v1\/products\/(\d+)$/);
+        if (productMatch && method === 'GET') {
+            const p = PRODUCTS.find(x => x.id === parseInt(productMatch[1]));
+            if (p) return { status: 200, body: p };
+            return { status: 404, body: { error: 'Product not found' } };
+        }
+
+        /* GET /api/v2/products */
+        if (path === '/api/v2/products' && method === 'GET') {
+            return { status: 200, body: { products: PRODUCTS_V2, count: PRODUCTS_V2.length, api_version: 'v2-internal', warning: 'This endpoint is not publicly documented' } };
+        }
+
+        /* POST /api/v1/users (registration) */
+        if (path === '/api/v1/users' && method === 'POST') {
+            let body = {};
+            try { body = JSON.parse(parsed.data || '{}'); } catch (e) {}
+            const resp = {
+                id: 1043,
+                email: body.email || 'newuser@example.com',
+                name: body.name || 'New User',
+                role: body.role || 'customer',
+                created_at: new Date().toISOString()
+            };
+            if (body.role && body.role !== 'customer') {
+                resp._warning = 'Mass assignment: role field accepted without validation';
+            }
+            return { status: 201, body: resp };
+        }
+
+        /* GET /api/v1/users/me */
+        if (path === '/api/v1/users/me' && method === 'GET') {
+            if (!parsed.headers['authorization']) {
+                return { status: 401, body: { error: 'Authentication required', message: 'Include Authorization: Bearer <token> header' } };
+            }
+            return { status: 200, body: USER_PROFILE };
+        }
+
+        /* PUT /api/v1/users/me */
+        if (path === '/api/v1/users/me' && method === 'PUT') {
+            if (!parsed.headers['authorization']) {
+                return { status: 401, body: { error: 'Authentication required' } };
+            }
+            let body = {};
+            try { body = JSON.parse(parsed.data || '{}'); } catch (e) {}
+            const updated = { ...USER_PROFILE, ...body };
+            if (body.role === 'admin') {
+                updated._vulnerability = 'MASS ASSIGNMENT: role escalated from customer to admin';
+                updated._impact = 'User now has admin privileges across all endpoints';
+            }
+            return { status: 200, body: { message: 'Profile updated', user: updated } };
+        }
+
+        /* GET /api/v1/admin/orders */
+        if (path === '/api/v1/admin/orders' && method === 'GET') {
+            return { status: 200, body: { orders: ADMIN_ORDERS, total: ADMIN_ORDERS.length, _warning: 'No authentication check performed on admin endpoint' } };
+        }
+
+        /* GET /api/graphql */
+        if (path === '/api/graphql' && method === 'GET') {
+            return { status: 200, body: { message: 'GraphQL endpoint active. Send POST requests with query in JSON body.', playground: '/api/graphql/playground' } };
+        }
+
+        /* POST /api/graphql */
+        if (path === '/api/graphql' && method === 'POST') {
+            let body;
+            try { body = JSON.parse(parsed.data || '{}'); } catch (e) {
+                return { status: 400, body: { error: 'Invalid JSON in request body' } };
+            }
+
+            /* Handle batched queries (array) */
+            if (Array.isArray(body)) {
+                const results = body.map(q => processGraphQLQuery(q.query || ''));
+                return { status: 200, body: results };
+            }
+
+            const query = body.query || '';
+            return { status: 200, body: { data: processGraphQLQuery(query) } };
+        }
+
+        /* GET /api/v1/admin/users */
+        if (path === '/api/v1/admin/users') {
+            return { status: 200, body: { users: GRAPHQL_USERS } };
+        }
+
+        /* Fallback */
+        return { status: 404, body: { error: 'Not Found', path: path, method: method, hint: 'Try /api/v1/products, /api/docs, or /api/graphql' } };
+    }
+
+    function processGraphQLQuery(query) {
+        /* Introspection */
+        if (query.includes('__schema')) {
+            return {
+                __schema: {
+                    types: GRAPHQL_SCHEMA.types.map(t => ({
+                        name: t.name,
+                        fields: t.fields.map(f => ({ name: f.split(':')[0].split('(')[0].trim() }))
+                    }))
+                }
+            };
+        }
+
+        /* users query */
+        if (query.includes('users') && !query.includes('user(id:')) {
+            const fields = extractFields(query, 'users');
+            return { users: GRAPHQL_USERS.map(u => filterFields(u, fields)) };
+        }
+
+        /* user(id:N) query */
+        const userIdMatch = query.match(/user\(id:\s*(\d+)\)/);
+        if (userIdMatch) {
+            const user = GRAPHQL_USERS.find(u => u.id === parseInt(userIdMatch[1]));
+            if (!user) return { user: null };
+            const fields = extractFields(query, 'user');
+            return { user: filterFields(user, fields) };
+        }
+
+        /* products query */
+        if (query.includes('products')) {
+            return { products: PRODUCTS };
+        }
+
+        /* orders query */
+        if (query.includes('orders')) {
+            return { orders: ADMIN_ORDERS };
+        }
+
+        return { error: 'Unknown query' };
+    }
+
+    function extractFields(query, rootField) {
+        const regex = new RegExp(rootField + '(?:\\([^)]*\\))?\\s*\\{([^}]+)\\}');
+        const m = query.match(regex);
+        if (!m) return null;
+        return m[1].trim().split(/\s+/).filter(f => f.length > 0);
+    }
+
+    function filterFields(obj, fields) {
+        if (!fields || fields.length === 0) return obj;
+        const result = {};
+        fields.forEach(f => {
+            if (obj.hasOwnProperty(f)) result[f] = obj[f];
+        });
+        return result;
+    }
+
+    /* ── Command handler ──────────────────────────────────────────── */
+    function handleCommand(cmdLine) {
+        const c = cmdLine.trim();
+        if (!c) return;
+
+        printLine(`<span class="prompt-line">researcher@apihunt:~$ ${c.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`);
+
+        state.history.push(c);
+        state.historyIndex = state.history.length;
+
+        /* Built-in commands */
+        if (c === 'clear') {
+            outputEl().innerHTML = '';
+            return;
+        }
+
+        if (c === 'help') {
+            printLine('<span class="highlight">API Endpoint Hunting Lab -- Available Commands:</span>');
+            printLine('<span class="info">  curl [options] URL     Send HTTP requests to the target API</span>');
+            printLine('<span class="info">    -X METHOD            Specify request method (GET, POST, PUT)</span>');
+            printLine('<span class="info">    -H "Header: value"   Add request header</span>');
+            printLine('<span class="info">    -d \'{"key":"val"}\'   Send JSON request body</span>');
+            printLine('<span class="info">    | grep pattern       Filter response for pattern</span>');
+            printLine('<span class="info">  objectives              List all lab objectives</span>');
+            printLine('<span class="info">  clear                   Clear terminal output</span>');
+            printLine('<span class="info">  help                    Show this help message</span>');
+            printLine('');
+            printLine('<span class="info">  Target: https://api.shopzone.io</span>');
+            return;
+        }
+
+        if (c === 'objectives') {
+            printLine('<span class="highlight">Lab Objectives:</span>');
+            TASKS.forEach((t, i) => {
+                const status = state.results[i] === 'correct' ? '<span class="success">[DONE]</span>' :
+                               state.results[i] === 'skipped' ? '<span class="warning">[SKIP]</span>' :
+                               i === state.currentTask ? '<span class="highlight">[CURR]</span>' :
+                               '<span class="info">[ -- ]</span>';
+                printLine(`  ${status} ${i + 1}. ${t.question.replace(/<[^>]+>/g, '').substring(0, 65)}`);
+            });
+            return;
+        }
+
+        /* Must start with curl */
+        if (!c.startsWith('curl')) {
+            printLine('<span class="error">Unknown command. This terminal simulates curl requests. Type help for usage.</span>');
+            return;
+        }
+
+        /* Parse and route */
+        const parsed = parseCurl(c);
+        if (!parsed.url) {
+            printLine('<span class="error">curl: no URL specified. Usage: curl https://api.shopzone.io/api/v1/products</span>');
+            return;
+        }
+
+        if (!parsed.url.startsWith(API_HOST)) {
+            printLine('<span class="error">curl: (6) Could not resolve host. Only https://api.shopzone.io is reachable in this lab.</span>');
+            return;
+        }
+
+        /* Show request info */
+        printLine(`<span class="info">> ${parsed.method} ${parsed.url.replace(API_HOST, '')}</span>`);
+        Object.entries(parsed.headers).forEach(([k, v]) => {
+            printLine(`<span class="info">> ${k}: ${v}</span>`);
+        });
+        if (parsed.data) {
+            printLine(`<span class="info">> Body: ${parsed.data.substring(0, 120)}${parsed.data.length > 120 ? '...' : ''}</span>`);
+        }
+        printLine('');
+
+        const response = routeRequest(parsed);
+
+        /* Apply grep filter if present */
+        if (parsed.grep) {
+            const jsonStr = JSON.stringify(response.body, null, 2);
+            const lines = jsonStr.split('\n').filter(l => l.toLowerCase().includes(parsed.grep.toLowerCase()));
+            if (lines.length > 0) {
+                printLine(`<span class="status-code">HTTP/1.1 ${response.status} OK</span>`, 'response');
+                printLine('<span class="info">Filtered output (grep: ' + parsed.grep + '):</span>');
+                lines.forEach(l => {
+                    const highlighted = l.replace(new RegExp('(' + parsed.grep.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'gi'), '<span class="warning">$1</span>');
+                    printLine(highlighted, 'response');
+                });
+            } else {
+                printLine('<span class="info">No matches found for: ' + parsed.grep + '</span>');
+            }
+        } else {
+            printJSON(response.body, response.status);
+        }
+
+        /* Validate against current task */
+        state.attempts[state.currentTask] = (state.attempts[state.currentTask] || 0) + 1;
+        const t = TASKS[state.currentTask];
+
+        if (t.validate(c)) {
+            printLine('');
+            printLine(`<span class="success">[OBJECTIVE COMPLETE] ${t.successMessage}</span>`);
+            printLine(`<span class="header-text">[DEFENDER] ${t.defender}</span>`);
+
+            document.getElementById('feedbackMessage').textContent = t.successMessage.substring(0, 72) + '...';
+            document.getElementById('feedbackMessage').className = 'feedback-message success';
+            state.results[state.currentTask] = 'correct';
+            markObjItem(state.currentTask, 'completed');
+            document.getElementById('taskNumber').classList.add('completed');
+            document.getElementById('skipBtn').disabled = true;
+            document.getElementById('hintBtn').disabled = true;
+
+            document.getElementById('defenderBox').classList.add('show');
+            document.getElementById('defenderText').textContent = t.defender;
+
+            updateProgress();
+            setTimeout(() => advanceTask(), 2400);
+        } else if (state.attempts[state.currentTask] >= 3) {
+            document.getElementById('taskHint').classList.add('show');
+        }
+    }
+
+    /* ── UI management functions ──────────────────────────────────── */
+    function buildObjList() {
+        document.getElementById('objList').innerHTML = TASKS.map((t, i) => {
+            const label = t.question.replace(/<[^>]+>/g, '');
+            const truncated = label.length > 55 ? label.substring(0, 55) + '...' : label;
+            return `<li class="obj-item${i === 0 ? ' active' : ''}" id="obj-item-${i}">
+                <div class="obj-check" id="obj-check-${i}">${i + 1}</div>
+                <span>${truncated}</span>
+            </li>`;
+        }).join('');
+    }
+
+    function showTask(i) {
+        const t = TASKS[i];
+        state.currentTask = i;
+        state.attempts[i] = state.attempts[i] || 0;
+
+        document.getElementById('taskNumber').textContent = i + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = i + 1;
+        document.getElementById('taskQuestion').innerHTML = t.question;
+        document.getElementById('taskHint').textContent = t.hint;
+        document.getElementById('taskHint').classList.remove('show');
+        document.getElementById('feedbackMessage').textContent = 'Enter your command...';
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.getElementById('hintBtn').disabled = false;
+
+        document.querySelectorAll('.obj-item').forEach((el, j) => {
+            el.classList.remove('active');
+            if (j === i && !state.results[j]) el.classList.add('active');
+        });
+
+        printLine(`\n<span class="highlight">--- Objective ${i + 1} of ${TASKS.length} ---</span>`);
+    }
+
+    function showHint() {
+        if (document.getElementById('hintBtn').disabled) return;
+        score.hints += 5;
+        document.getElementById('taskHint').classList.add('show');
+        document.getElementById('hintBtn').disabled = true;
+        updateScoreDisplay();
+        printLine(`<span class="warning">[HINT -5 pts] ${TASKS[state.currentTask].hint}</span>`);
+    }
+
+    function skipTask() {
+        if (document.getElementById('skipBtn').disabled) return;
+        const hint = TASKS[state.currentTask].hint;
+        state.results[state.currentTask] = 'skipped';
+        markObjItem(state.currentTask, 'skipped');
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('hintBtn').disabled = true;
+        document.getElementById('feedbackMessage').innerHTML =
+            `<strong>Skipped.</strong> Answer: <code style="background:rgba(147,51,234,0.2);padding:1px 6px;border-radius:4px;color:#c084fc;">${hint.substring(0, 60)}...</code>`;
+        printLine(`<span class="warning">[SKIPPED] Answer was: ${hint}</span>`);
+        updateProgress();
+        setTimeout(() => advanceTask(), 900);
+    }
+
+    function advanceTask() {
+        if (state.currentTask >= TASKS.length - 1) {
+            showResults();
+            return;
+        }
+        showTask(state.currentTask + 1);
+    }
+
+    function markObjItem(i, status) {
+        const el = document.getElementById(`obj-item-${i}`);
+        const ch = document.getElementById(`obj-check-${i}`);
+        if (!el || !ch) return;
+        el.classList.remove('active', 'completed', 'skipped');
+        el.classList.add(status);
+        ch.innerHTML = status === 'completed' ? '&#10003;' : '&#8212;';
+    }
+
+    function updateProgress() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const total = Object.keys(state.results).length;
+        const pct = Math.round((total / TASKS.length) * 100);
+
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completed;
+        document.getElementById('progressPct').textContent = pct + '%';
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        const current = Math.max(0, score.base - score.hints);
+        document.getElementById('scoreFinal').textContent = current;
+        document.getElementById('headerScore').textContent = current;
+        document.getElementById('scoreHintDeduct').textContent = `-${score.hints} pts`;
+    }
+
+    function showResults() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const skipped = Object.values(state.results).filter(r => r === 'skipped').length;
+        const finalPts = Math.max(0, score.base - score.hints);
+
+        document.getElementById('modalCompleted').textContent = completed;
+        document.getElementById('modalSkipped').textContent = skipped;
+        document.getElementById('modalScore').textContent = finalPts;
+
+        const modal = document.getElementById('modalContent');
+        modal.classList.remove('perfect');
+
+        if (completed === TASKS.length) {
+            modal.classList.add('perfect');
+            document.getElementById('modalIcon').innerHTML = '&#128293;';
+            document.getElementById('modalTitle').textContent = 'Full Compromise!';
+            document.getElementById('modalMessage').textContent =
+                'Complete API attack surface enumerated: documentation leak, undocumented endpoints, GraphQL introspection, mass assignment, broken access control. Perfect run.';
+        } else {
+            document.getElementById('modalIcon').innerHTML = '&#128270;';
+            document.getElementById('modalTitle').textContent = 'Lab Complete';
+            document.getElementById('modalMessage').textContent =
+                `${completed}/${TASKS.length} objectives completed. Review skipped steps to master API endpoint enumeration.`;
+        }
+
+        document.getElementById('resultsModal').classList.add('show');
+
+        try {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'bh-lab-api', { returnUrl: '../index.html' });
+            }
+        } catch (e) {}
+
+        try {
+            if (typeof AchievementManager !== 'undefined') {
+                if (completed === TASKS.length && score.hints === 0) {
+                    AchievementManager.unlock('api_hunter');
+                }
+                if (completed >= 6) {
+                    AchievementManager.unlock('endpoint_enumerator');
+                }
+            }
+        } catch (e) {}
+    }
+
+    function restartLab() {
+        document.getElementById('resultsModal').classList.remove('show');
+        document.getElementById('defenderBox').classList.remove('show');
+        outputEl().innerHTML = '';
+        score.hints = 0;
+        state.currentTask = 0;
+        state.results = {};
+        state.attempts = {};
+        state.history = [];
+        state.historyIndex = -1;
+        updateScoreDisplay();
+        init();
+    }
+
+    /* ── Initialization ───────────────────────────────────────────── */
+    function init() {
+        buildObjList();
+        document.getElementById('totalTasks').textContent = TASKS.length;
+        showTask(0);
+
+        printLine('<span class="highlight">[ Bug Hunting Lab 07: API Endpoint Hunting ]</span>');
+        printLine('<span class="info">Target: https://api.shopzone.io (ShopZone e-commerce API)</span>');
+        printLine('<span class="info">Scope: REST API (v1, v2), GraphQL, admin endpoints</span>');
+        printLine('<span class="info">Type help for commands or objectives to list tasks.</span>');
+        printLine('');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        init();
+
+        const input = inputEl();
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = input.value;
+                input.value = '';
+                handleCommand(cmd);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (state.historyIndex > 0) {
+                    state.historyIndex--;
+                    input.value = state.history[state.historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (state.historyIndex < state.history.length - 1) {
+                    state.historyIndex++;
+                    input.value = state.history[state.historyIndex];
+                } else {
+                    state.historyIndex = state.history.length;
+                    input.value = '';
+                }
+            }
+        });
+
+        /* Click anywhere on terminal to focus input */
+        document.getElementById('terminal').addEventListener('click', () => input.focus());
+    });
+    </script>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>
