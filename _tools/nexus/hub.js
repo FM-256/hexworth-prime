@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const https = require('https');
 const { execSync } = require('child_process');
 
 // --- Constants ---
@@ -403,6 +404,72 @@ function pipeHedToGithub(adapter, pipeConfig, options) {
     return { created, skipped, noData: false, threshold };
 }
 
+// --- Pull ---
+
+function pullHed(config, options) {
+    const pullConfig = (config.pull && config.pull.hed) || {};
+    const url = pullConfig.url;
+    if (!url) {
+        return Promise.resolve({ success: false, reason: 'No pull.hed.url in config' });
+    }
+
+    // Resolve API key: env var → .hed-key file → none
+    let apiKey = process.env.NEXUS_HED_KEY || null;
+    if (!apiKey) {
+        const keyFile = path.join(__dirname, '.hed-key');
+        if (fs.existsSync(keyFile)) {
+            apiKey = fs.readFileSync(keyFile, 'utf8').trim();
+        }
+    }
+
+    const outPath = path.join(__dirname, 'hed-export.json');
+
+    return new Promise((resolve) => {
+        const parsedUrl = new URL(url);
+        const reqOptions = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || 443,
+            path: parsedUrl.pathname + parsedUrl.search,
+            method: 'GET',
+            headers: {},
+            timeout: 15000,
+        };
+        if (apiKey) {
+            reqOptions.headers['x-api-key'] = apiKey;
+        }
+
+        const req = https.request(reqOptions, (res) => {
+            let body = '';
+            res.on('data', chunk => { body += chunk; });
+            res.on('end', () => {
+                if (res.statusCode !== 200) {
+                    resolve({ success: false, reason: `HTTP ${res.statusCode}: ${body.slice(0, 200)}` });
+                    return;
+                }
+                try {
+                    const data = JSON.parse(body);
+                    const entries = Array.isArray(data) ? data : [];
+                    fs.writeFileSync(outPath, JSON.stringify(entries, null, 2) + '\n');
+                    resolve({ success: true, count: entries.length, path: outPath });
+                } catch (err) {
+                    resolve({ success: false, reason: `JSON parse error: ${err.message}` });
+                }
+            });
+        });
+
+        req.on('error', (err) => {
+            resolve({ success: false, reason: err.message });
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            resolve({ success: false, reason: 'Request timed out' });
+        });
+
+        req.end();
+    });
+}
+
 // --- Exports ---
 
 module.exports = {
@@ -424,9 +491,10 @@ module.exports = {
     dedupKey,
     computeStats,
 
-    // Gate & Pipes
+    // Gate, Pipes & Pull
     runGate,
     pipeHedToGithub,
+    pullHed,
 
     // Formatters
     C,

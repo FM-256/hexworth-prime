@@ -540,7 +540,47 @@ function cmdPipe(args, flags) {
     }
 }
 
-function cmdFull(args, flags) {
+async function cmdPull(args, flags) {
+    const source = args[0];
+
+    if (!source) {
+        console.log('');
+        console.log(`${C.bold}NEXUS PULL${C.reset}`);
+        console.log(`${C.dim}${'─'.repeat(68)}${C.reset}`);
+        console.log('');
+        console.log(`  ${C.dim}Available sources:${C.reset}`);
+        console.log(`    ${C.cyan}hed${C.reset}    Pull HED errors from Cloud Function`);
+        console.log('');
+        console.log(`  ${C.dim}Usage: nexus pull <source>${C.reset}`);
+        console.log('');
+        return;
+    }
+
+    if (source === 'hed') {
+        console.log('');
+        console.log(`${C.bold}NEXUS PULL${C.reset}  ${C.cyan}hed${C.reset}`);
+        console.log(`${C.dim}${'─'.repeat(68)}${C.reset}`);
+        console.log('');
+
+        const config = hub.loadConfig();
+        console.log(`  ${C.dim}Fetching HED errors from Cloud Function...${C.reset}`);
+
+        const result = await hub.pullHed(config);
+
+        if (result.success) {
+            console.log(`  ${C.green}Pulled ${result.count} error${result.count !== 1 ? 's' : ''}${C.reset}  ${C.dim}→ ${result.path}${C.reset}`);
+        } else {
+            console.log(`  ${C.red}Pull failed:${C.reset} ${C.dim}${result.reason}${C.reset}`);
+        }
+        console.log('');
+    } else {
+        console.error(`\n  ${C.red}Unknown pull source: ${source}${C.reset}`);
+        console.error(`  ${C.dim}Available: hed${C.reset}\n`);
+        process.exit(1);
+    }
+}
+
+async function cmdFull(args, flags) {
     const strict = flags.strict || false;
     const config = hub.loadConfig();
     const projectRoot = hub.getProjectRoot();
@@ -554,7 +594,7 @@ function cmdFull(args, flags) {
 
     // Step 1: Scan
     console.log('');
-    console.log(`  ${C.bold}[1/4]${C.reset} ${C.cyan}Running EduScan...${C.reset}`);
+    console.log(`  ${C.bold}[1/5]${C.reset} ${C.cyan}Running EduScan...${C.reset}`);
     console.log('');
 
     try {
@@ -570,9 +610,24 @@ function cmdFull(args, flags) {
         }
     }
 
-    // Step 2: Sync all spokes (with prune)
+    // Step 2: Pull HED data (silent skip on failure)
     console.log('');
-    console.log(`  ${C.bold}[2/4]${C.reset} ${C.cyan}Syncing all spokes...${C.reset}`);
+    console.log(`  ${C.bold}[2/5]${C.reset} ${C.cyan}Pulling HED data...${C.reset}`);
+
+    try {
+        const pullResult = await hub.pullHed(config);
+        if (pullResult.success) {
+            console.log(`  ${C.green}hed${C.reset}  ${C.bold}${pullResult.count}${C.reset} ${C.dim}error${pullResult.count !== 1 ? 's' : ''} pulled${C.reset}`);
+        } else {
+            console.log(`  ${C.dim}hed  skipped (${pullResult.reason})${C.reset}`);
+        }
+    } catch (err) {
+        console.log(`  ${C.dim}hed  skipped (${err.message})${C.reset}`);
+    }
+
+    // Step 3: Sync all spokes (with prune)
+    console.log('');
+    console.log(`  ${C.bold}[3/5]${C.reset} ${C.cyan}Syncing all spokes...${C.reset}`);
     console.log('');
 
     const spokes = hub.loadSpokes(config);
@@ -596,9 +651,9 @@ function cmdFull(args, flags) {
     hub.saveFindings(store);
     console.log(`\n  ${C.dim}Findings store: ${store.findings.length} total${C.reset}`);
 
-    // Step 3: Gate
+    // Step 4: Gate
     console.log('');
-    console.log(`  ${C.bold}[3/4]${C.reset} ${C.cyan}Running deploy gate...${C.reset}`);
+    console.log(`  ${C.bold}[4/5]${C.reset} ${C.cyan}Running deploy gate...${C.reset}`);
     console.log('');
 
     const gateResult = hub.runGate(config, spokes, { strict });
@@ -626,9 +681,9 @@ function cmdFull(args, flags) {
         console.log(`\n  ${C.red}${C.bold}GATE FAILED${C.reset}  ${C.red}${gateResult.blocking.length} blocking finding${gateResult.blocking.length !== 1 ? 's' : ''}${C.reset}`);
     }
 
-    // Step 4: Status summary
+    // Step 5: Status summary
     console.log('');
-    console.log(`  ${C.bold}[4/4]${C.reset} ${C.cyan}Status summary${C.reset}`);
+    console.log(`  ${C.bold}[5/5]${C.reset} ${C.cyan}Status summary${C.reset}`);
     console.log('');
 
     let connectedSpokes = 0;
@@ -671,9 +726,10 @@ ${C.bold}nexus${C.reset} — Hexworth Prime Hub & Spoke Tool Orchestrator
 
 ${C.bold}COMMANDS${C.reset}
 
-  ${C.cyan}full${C.reset}                    Full pipeline: scan → sync → gate → status
+  ${C.cyan}full${C.reset}                    Full pipeline: scan → pull → sync → gate → status
   ${C.cyan}status${C.reset}                  Unified dashboard — live data from all spokes
   ${C.cyan}scan${C.reset}                    Run EduScan + sync findings into store
+  ${C.cyan}pull${C.reset} <source>           Pull data from cloud (e.g. hed)
   ${C.cyan}sync${C.reset} [spoke]            Sync all spokes (or one named spoke)
   ${C.cyan}triage${C.reset}                  Auto-create Sprint Master items from findings
   ${C.cyan}gate${C.reset}                    Deploy gate — block on critical findings
@@ -693,8 +749,9 @@ ${C.bold}FLAGS${C.reset}
 
 ${C.bold}EXAMPLES${C.reset}
 
-  nexus full                Full pipeline (scan + sync + gate + status)
+  nexus full                Full pipeline (scan + pull + sync + gate + status)
   nexus full --strict       Full pipeline, gate blocks on critical + high
+  nexus pull hed            Pull HED errors from Cloud Function
   nexus status              Show combined status from all tools
   nexus scan                Run EduScan and sync results
   nexus sync                Sync all spokes into findings store
@@ -780,6 +837,9 @@ switch (command) {
         break;
     case 'pipe':
         cmdPipe(positional, flags);
+        break;
+    case 'pull':
+        cmdPull(positional, flags);
         break;
     default:
         console.error(`  ${C.red}Unknown command: ${command}${C.reset}`);

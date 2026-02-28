@@ -1,10 +1,10 @@
 /**
- * Hexworth Prime — Cloud Functions
+ * Hexworth Prime — Cloud Functions (Node 22)
  *
  * QC-4: Server-side access control (admin claims, gate verification)
  * AR-11: Server-side flag validation (per-session salted flags)
  */
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -763,6 +763,58 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         xp: mergedXP,
         streak: mergedStreak
     };
+});
+
+// ─── HED Export Endpoint ─────────────────────────────────────────
+
+/**
+ * getHedExport — HTTP GET endpoint for Nexus CLI.
+ * Reads hed_reports collection, flattens error arrays, strips PII.
+ * Optional API key auth via HED_EXPORT_KEY env var.
+ */
+exports.getHedExport = onRequest({ region: 'us-central1' }, async (req, res) => {
+    if (req.method !== 'GET') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+
+    // Optional API key check
+    const requiredKey = process.env.HED_EXPORT_KEY;
+    if (requiredKey) {
+        const provided = req.headers['x-api-key'] || req.query.key;
+        if (provided !== requiredKey) {
+            res.status(403).json({ error: 'Invalid or missing API key' });
+            return;
+        }
+    }
+
+    try {
+        const snapshot = await db.collection('hed_reports')
+            .orderBy('reportedAt', 'desc')
+            .limit(200)
+            .get();
+
+        const errors = [];
+        snapshot.forEach(doc => {
+            const report = doc.data();
+            const entries = report.errors || [];
+            for (const entry of entries) {
+                errors.push({
+                    code: entry.code || 'HED-UNKNOWN',
+                    message: entry.message || '',
+                    url: entry.url || null,
+                    source: entry.source || null,
+                    timestamp: entry.timestamp || (report.reportedAt ? report.reportedAt.toDate().toISOString() : null),
+                    count: entry.count || 1,
+                });
+            }
+        });
+
+        res.json(errors);
+    } catch (err) {
+        console.error('getHedExport error:', err);
+        res.status(500).json({ error: 'Internal error' });
+    }
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────
