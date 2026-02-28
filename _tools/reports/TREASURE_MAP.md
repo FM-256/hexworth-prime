@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-27 9:45:15 AM
+                    Scanned: 2026-02-28 7:45:57 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1890 |
-| Directories | 531 |
-| Content Files | 1890 |
-| Scan Duration | 393ms |
+| Files Scanned | 1891 |
+| Directories | 532 |
+| Content Files | 1891 |
+| Scan Duration | 224ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
 | presentation | 764 |
-| html | 546 |
+| html | 547 |
 | lab | 313 |
 | quiz | 232 |
 | applet | 35 |
@@ -44,7 +44,7 @@
 | Suspect | 2 |
 | Warning | 140 |
 | Info | 51 |
-| **Total** | **7673** |
+| **Total** | **7625** |
 
 ### Sync Status
 
@@ -52,7 +52,7 @@
 |--------|-------|
 | Ready | 1343 |
 | Not Ready | 1 |
-| Unknown | 546 |
+| Unknown | 547 |
 
 
 ## FILE HIERARCHY
@@ -1422,6 +1422,8 @@
 │   │       ├── 📄 key-kdf.tool.html
 │   │       ├── 📄 key-lifecycle.tool.html
 │   │       └── 📄 key-pqc.tool.html
+│   ├── 🏠 matrix [house:matrix]
+│   │   └── 📍 index.html
 │   ├── 🏠 script [house:script]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📍 index.html

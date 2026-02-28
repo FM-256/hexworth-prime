@@ -20,6 +20,7 @@
 | AD-009 | Centralized User Profile (`users/{uid}`) | Feb 5, 2026 | Single identity source, Blackboard export, profile gate |
 | AD-010 | Two-Layer Progress Architecture | Feb 8, 2026 | Separate academic tracking (Layer 1) from gamification (Layer 2) |
 | AD-011 | Hub & Spoke Tool Integration (Nexus) | Feb 27, 2026 | Connect 6 dev tools via orchestrator, not merge |
+| AD-012 | Domain Hub Architecture (Cross-House Specialization) | Feb 27, 2026 | Each house owns one domain hub; other houses reference, not rebuild |
 
 ---
 
@@ -644,6 +645,155 @@ See:
 - `_tools/nexus/README.md` — Tool documentation and command reference
 - `_tools/NEXUS_DESIGN.md` — Design document (problem, solution, integration scenarios)
 - `_planning/NEXUS_HUB_ARCHITECTURE.md` — Architecture deep-dive (adapters, pipes, storage)
+
+### Date
+February 27, 2026
+
+---
+
+## AD-012: Domain Hub Architecture (Cross-House Specialization)
+
+### The Problem
+Houses currently operate as silos. When a student in Shield needs to understand cryptography, Shield either builds its own watered-down crypto module or hopes the student already knows it. When Code needs to teach deployment, it rebuilds a lesser version of what Cloud already has. This creates:
+
+1. **Content duplication** — multiple houses teaching the same topic at different quality levels
+2. **Maintenance burden** — when TLS 1.3 changes, every house that mentions it needs updating
+3. **Inconsistent depth** — Shield's crypto overview contradicts Key's detailed explanation
+4. **Wasted effort** — building a "good enough" version of content that already exists elsewhere
+
+### The Decision
+Each house owns one **Domain Hub** — the authoritative, deep-dive content for its specialty. Other houses **reference** that hub as prerequisites or supplementary material. No house rebuilds what another house already owns.
+
+### The Model
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     DOMAIN HUB ECOSYSTEM                        │
+│                                                                 │
+│   Every house is both a PRODUCER and a CONSUMER.                │
+│   Each house owns one domain. Other houses link to it.          │
+│                                                                 │
+│   ┌─────────┐   references   ┌─────────┐   references          │
+│   │  SHIELD  │ ◄──────────── │  CODE   │ ──────────► ┌───────┐ │
+│   │ Security │               │ FullDev │             │ CLOUD │ │
+│   │  domain  │               │ domain  │             │ Infra │ │
+│   └────┬─────┘               └────┬────┘             │domain │ │
+│        │                          │                   └───┬───┘ │
+│        │ references               │ references            │     │
+│        ▼                          ▼                       │     │
+│   ┌─────────┐               ┌─────────┐                  │     │
+│   │   KEY   │               │ SCRIPT  │ ◄────────────────┘     │
+│   │ Crypto  │               │CLI/Auto │                        │
+│   │ domain  │               │ domain  │                        │
+│   └─────────┘               └─────────┘                        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Domain Hub Map
+
+| House | Domain Hub | Consumers |
+|-------|-----------|-----------|
+| **Web** | Networking & Protocols | Shield, Eye, Cloud, Dark Arts |
+| **Shield** | Security Principles & Frameworks | Every house |
+| **Cloud** | Infrastructure & Deployment | Code, Forge, Script |
+| **Forge** | Hardware & OS Internals | Script, Web, Shield |
+| **Script** | CLI, Automation & Linux | Dark Arts, Eye, Code, Cloud |
+| **Code** | Full Stack Development & DevOps | Cloud, Script, Shield |
+| **Key** | Cryptography | Shield, Dark Arts, Web |
+| **Eye** | Monitoring, SIEM & Analysis | Shield, Dark Arts, Script |
+| **Dark Arts** | Offensive Security | Shield, Eye, Key |
+| **Machine** | AI & Intelligent Automation | Eye, Shield, Script |
+
+### How It Works
+
+**Producer side:** Each house maintains its domain hub — a curated set of deep-dive modules flagged as `domainHub: true` in ContentCatalog. These are the authoritative modules for that topic. The house is responsible for keeping them current.
+
+**Consumer side:** When a learning path in another house needs a prerequisite from a different domain, it references the producer's domain hub module directly. The UI renders it with a cross-house badge (e.g., "Visit House of the Key") so the student knows they're leaving their current house for authoritative content.
+
+**Example flow:**
+```
+Student in Shield → "Web Application Security" module
+  → Prerequisite: "TLS & Certificate Chains" (domain: Key)
+  → UI shows: "🔑 This module is from House of the Key"
+  → Student completes it, returns to Shield path
+  → Progress counts for both houses
+```
+
+### Rules
+
+1. **One owner per domain.** Cryptography belongs to Key. Period. Shield does not build its own crypto modules — it links to Key's.
+2. **Depth lives in the owner.** The domain hub goes deep (15-30 modules). Consumers only need 2-3 of those modules as prerequisites.
+3. **Shared foundations, branching tracks.** Some domains (like networking, security principles) are consumed by almost every house. These hubs must be well-structured with clear entry points.
+4. **Cross-house progress counts.** Completing a Key module while on a Shield learning path awards progress to both houses. The student shouldn't be penalized for following a cross-house link.
+5. **No rebuilding.** If you're writing a module and another house already covers that topic, link to theirs. The question is always: "Does another house own this domain?"
+
+### Implementation
+
+**Phase 1 — Metadata (no UI changes):**
+- Add `domainHub: true` flag to qualifying modules in ContentCatalog
+- Add `prerequisites: [{ moduleId, house }]` to learning path definitions
+- No visual changes yet — just data modeling
+
+**Phase 2 — Cross-House Links:**
+- Learning path UI shows prerequisite modules from other houses with house badge
+- "Visit House of X" navigation that returns the student to their path after completion
+- Progress tracking counts completion toward both source and destination houses
+
+**Phase 3 — Domain Hub Pages:**
+- Each house gets a dedicated "Domain Hub" section (like Arctic/Vault)
+- Curated entry point for external visitors ("You're here from Shield? Start with these 3 modules")
+- Hub overview page shows which houses reference it and why
+
+### Content Strategy: Full Stack Development (First Domain Hub)
+
+The first domain hub to be built under this architecture is **Full Stack Development** inside House of the Code. Structure follows the Arctic/Linux subsection model:
+
+```
+Full Stack Development
+├── Foundations (shared prerequisite layer)
+│   ├── HTML & CSS
+│   ├── JavaScript Core
+│   ├── HTTP & APIs
+│   ├── Git & Version Control
+│   └── Databases (SQL + NoSQL)
+│
+├── Frontend Tracks (parallel, pick one)
+│   ├── React Track
+│   ├── Vue Track (future)
+│   └── Vanilla JS / Web Components (future)
+│
+├── Backend Tracks (parallel, pick one)
+│   ├── Node + Express Track
+│   ├── Spring Boot Track (future)
+│   └── Python + Django/Flask Track (future)
+│
+├── Tooling & Ecosystem
+│   ├── npm / Package Management
+│   ├── Build Tools (Webpack, Vite)
+│   ├── Testing (Jest, Cypress)
+│   └── Docker for Devs (cross-link to existing Code content)
+│
+└── Capstone Projects
+    ├── Full Stack App (frontend + backend + db)
+    ├── API-First Project
+    └── Deploy to Cloud (cross-link to Cloud house)
+```
+
+**Content sourcing:** Reference material scraped from W3Schools (foundations structure), GeeksForGeeks (framework examples), and MDN (deep-dive reference). Scraped content provides skeleton/structure; interactive applets and labs are built original.
+
+### Rationale
+
+- **Eliminates duplication.** One authoritative source per topic. No more five houses teaching mediocre versions of the same concept.
+- **Scales with the platform.** Adding a new house means mapping its domain and its dependencies — not rebuilding content from scratch.
+- **Creates gravity.** Each house has a reason to exist beyond its own learning paths. Key isn't just "the crypto house" — it's the crypto authority that Shield, Dark Arts, and Web all depend on.
+- **Matches real-world specialization.** In industry, security teams consult crypto experts, not build their own crypto. The platform should model this.
+
+### Trade-offs
+
+- **Cross-house navigation complexity.** Students may feel lost jumping between houses. Mitigated by "return to your path" breadcrumb UI.
+- **House coupling.** If Key's crypto hub is broken or incomplete, Shield's learning path is blocked. Mitigated by Phase 1 metadata — links are optional until the hub is ready.
+- **Ownership disputes.** Some topics span houses (e.g., "network security" — Web or Shield?). Rule of thumb: the house whose cert covers the topic most deeply owns it.
+- **Prerequisite chains.** Long chains (Code → Script → Cloud) can feel heavy. Keep prerequisites to 1-2 modules, not entire tracks.
 
 ### Date
 February 27, 2026
