@@ -2,7 +2,7 @@
 
 **Created:** February 27, 2026
 **Purpose:** Architecture deep-dive for the Nexus tool orchestrator
-**Status:** DESIGN PHASE
+**Status:** COMPLETE (all 5 phases shipped)
 
 ---
 
@@ -537,76 +537,84 @@ nexus status
 
 ## Directory Structure
 
+**Planned (from design phase):**
 ```
 _tools/nexus/
-├── README.md               # Tool documentation
-├── nexus.js                # CLI entry point
-├── hub.js                  # Hub core (registry, router, store)
-├── nexus.config.json       # Spoke + pipe configuration
-├── findings.json           # Aggregated findings (gitignored)
 ├── adapters/
-│   ├── eduscan.js          # EduScan spoke adapter
-│   ├── sprint-master.js    # Sprint Master spoke adapter
-│   ├── hed.js              # HED spoke adapter
-│   ├── audit-tool.js       # Audit Tool spoke adapter
-│   ├── spellbook.js        # Spellbook spoke adapter
-│   └── todo.js             # ToDo CLI spoke adapter
+│   ├── eduscan.js, sprint-master.js, hed.js, audit-tool.js, spellbook.js, todo.js
 ├── pipes/
-│   ├── eduscan-to-sprint.js    # Triage pipe
-│   ├── hed-to-github.js        # Issue creation pipe
-│   ├── audit-to-eduscan.js     # Signature feed pipe
-│   ├── eduscan-to-gate.js      # Deploy gate pipe
-│   └── hed-to-audit.js         # Runtime feedback pipe
+│   ├── eduscan-to-sprint.js, hed-to-github.js, etc.
 └── reporters/
-    ├── console.js          # Terminal dashboard
-    ├── json.js             # JSON output
-    └── markdown.js         # Markdown report
+    ├── console.js, json.js, markdown.js
 ```
+
+**Actual (shipped implementation):**
+```
+_tools/nexus/
+├── README.md               # Tool documentation + inner workings
+├── nexus.js                # CLI entry point — commands, flag parsing, rendering
+├── hub.js                  # Hub core — config, store, sync, gate, pipes, formatters
+├── nexus.config.json       # Spoke config + gate policy + pipe settings
+├── findings.json           # Aggregated findings store (created on first sync)
+├── hed-export.json         # HED export target (created by user via HED panel)
+└── adapters/
+    ├── eduscan.js          # EduScan spoke adapter (read-only)
+    ├── sprint-master.js    # Sprint Master spoke adapter (read-write)
+    ├── hed.js              # HED spoke adapter (read-only, reads export JSON)
+    ├── audit.js            # Audit spoke adapter (read-only, JSON/HTML fallback)
+    ├── spellbook.js        # Spellbook spoke adapter (read-only, parses spell MD)
+    └── todo.js             # ToDo CLI spoke adapter (read-only, reads ~/.todo-data.json)
+```
+
+**Key difference from plan:** Pipes and reporters were consolidated into `hub.js` and `nexus.js` instead of separate modules. The triage pipe is `hub.triageToSpoke()`, the HED-GitHub pipe is `hub.pipeHedToGithub()`, and report formatting is inline in `nexus.js`. This kept the codebase at 2 core files + 6 adapters instead of 15+ modules.
 
 ---
 
 ## Phase Roadmap
 
-### Phase 1: Documentation + Shared Format (Current)
+### Phase 1: Documentation + Shared Format
 
 - [x] README.md — tool documentation
 - [x] NEXUS_DESIGN.md — design document
 - [x] NEXUS_HUB_ARCHITECTURE.md — this document
 - [x] AD-011 — architecture decision record
 - [x] TOOL_INVENTORY.md — updated with Nexus entry
-- [ ] Shared findings format finalized (pending review)
+- [x] Shared findings format finalized
 
 ### Phase 2: CLI Hub + Status Command
 
-- [ ] `nexus.js` CLI scaffolding
-- [ ] `hub.js` core (spoke registry, findings store)
-- [ ] EduScan adapter (first source)
-- [ ] Sprint Master adapter (first sink)
-- [ ] `nexus status` command
-- [ ] `nexus scan` command (wraps EduScan)
+- [x] `nexus.js` CLI scaffolding
+- [x] `hub.js` core (spoke registry, findings store)
+- [x] EduScan adapter (first source)
+- [x] Sprint Master adapter (first sink)
+- [x] `nexus status` command
+- [x] `nexus scan` command (wraps EduScan)
 
-### Phase 3: Auto-Triage Pipe
+### Phase 3: Auto-Triage + Report
 
-- [ ] Pipe router implementation
-- [ ] `nexus triage` command
-- [ ] `nexus sync` command
-- [ ] Remaining adapters (HED, Audit, Spellbook, ToDo)
-- [ ] Deduplication logic
+- [x] Triage routing (`hub.triageToSpoke()`, `nexus triage --apply`)
+- [x] `nexus sync` command with `--prune` for stale finding removal
+- [x] `nexus report` command (markdown + JSON output)
+- [x] Deduplication logic (`source::code::file` key, nexusKey for sprint items)
 
-### Phase 4: Deploy Gate
+### Phase 4: Deploy Gate + All Adapters
 
-- [ ] `nexus gate` command
-- [ ] deploy.sh integration
-- [ ] Gate policy configuration
-- [ ] Cross-tool severity aggregation
+- [x] `nexus gate` command with `--strict` and `--json` flags
+- [x] Gate policy in nexus.config.json (`failOn`, `sources`)
+- [x] Cross-tool severity aggregation
+- [x] HED adapter (reads exported JSON, dedup by code|message)
+- [x] Audit adapter (JSON-first, HTML-fallback, graceful empty)
+- [x] Spellbook adapter (YAML/legacy markdown parsing, SCRIBED/CAST)
+- [x] ToDo adapter (reads ~/.todo-data.json with tilde expansion)
+- [x] Generic spoke display in status/report (any spoke renders automatically)
 
-### Phase 5: GitHub Issue Automation
+### Phase 5: GitHub Pipe + Deploy Integration
 
-- [ ] `nexus report --github` command
-- [ ] HED → GitHub pipe
-- [ ] Issue deduplication via title hash
-- [ ] Label management
+- [x] `nexus pipe hed-github` command with `--dry-run` and `--threshold`
+- [x] Issue deduplication via `gh issue list --search` for `[HED-001]` signature
+- [x] Label management (`bug`, `hed-auto` from config)
+- [x] deploy.sh rewritten: 60-line inline EduScan check → single `nexus gate` call
 
 ---
 
-*This document defines the full architecture of the Nexus hub & spoke system. Revisit here when implementing adapters or pipes.*
+*This document defines the full architecture of the Nexus hub & spoke system. All phases are shipped. Revisit here for architectural context when extending adapters or adding new pipes.*

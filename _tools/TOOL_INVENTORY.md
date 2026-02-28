@@ -167,20 +167,33 @@ Admin-only browser tool for content validation and structural auditing. Accessib
 |---|---|
 | **Type** | CLI (Node.js) |
 | **Location** | `_tools/nexus/` |
-| **Data** | `_tools/nexus/findings.json` (aggregated findings) |
+| **Data** | `_tools/nexus/findings.json` (aggregated findings), `nexus.config.json` (spoke + gate + pipe config) |
 | **Run** | `node _tools/nexus/nexus.js <command>` |
 
 Hub & Spoke orchestrator that connects the other six tools through spoke adapters and a shared findings format. Automates the manual handoffs between detection, tracking, and reporting.
 
-**Spoke adapters:** EduScan (source), Sprint Master (sink), Spellbook (sink), ToDo (sink), HED (source), Audit Tool (bidirectional)
+**Spoke adapters (6):**
+- `eduscan.js` — reads TREASURE_MAP.json (read-only source)
+- `sprint-master.js` — reads/writes sprints.json (read-write sink, accepts triaged findings)
+- `hed.js` — reads exported JSON from HED panel (read-only source)
+- `audit.js` — reads audit JSON or HTML report (read-only source, JSON-first with HTML fallback)
+- `spellbook.js` — reads spell markdown files (read-only, YAML/legacy format parsing)
+- `todo.js` — reads ~/.todo-data.json (read-only source)
 
-**Planned commands:** `nexus status`, `nexus scan`, `nexus triage`, `nexus report`, `nexus gate`, `nexus sync`
+**Commands:**
+- `nexus status` — unified dashboard with live counts from all 6 spokes
+- `nexus scan` — run EduScan + sync findings
+- `nexus sync [spoke] [--prune]` — pull latest from all spokes, optionally prune stale
+- `nexus triage [--apply] [--severity X]` — auto-create Sprint Master items from findings
+- `nexus gate [--strict] [--json]` — deploy gate, blocks on critical (or critical+high with --strict)
+- `nexus pipe hed-github [--dry-run] [--threshold N]` — auto-create GitHub issues from HED errors
+- `nexus report [--json]` — cross-tool summary (markdown or JSON)
 
-**Shared interface:** Each spoke adapter implements `getFindings()`, `getStatus()`, `acceptFinding()`
+**Architecture:** 2 core files (`hub.js` engine + `nexus.js` CLI) + 6 adapters. Gate policy and pipe config in `nexus.config.json`. Adapters return gracefully empty when their data source doesn't exist (no false blocks, no crashes).
 
-**Status:** Phase 1 — Documentation complete. No code yet.
+**Status:** Complete — all 5 phases shipped. `deploy.sh` uses `nexus gate` as its pre-deploy check.
 
-**Outputs:** Unified findings store (JSON), terminal status dashboard, deploy gate pass/fail
+**Outputs:** Unified findings store (JSON), terminal status dashboard, deploy gate pass/fail, GitHub issues via pipe
 
 ---
 

@@ -1,7 +1,7 @@
 # Nexus - Design Document
 
 **Created:** February 27, 2026
-**Status:** DESIGN PHASE
+**Status:** COMPLETE (all 5 phases shipped)
 **Author:** Hexworth Prime Development Team
 **Version:** 1.0.0-draft
 
@@ -257,15 +257,79 @@ NEXUS STATUS — 2026-02-27 14:30
 
 ## Phase Roadmap
 
-| Phase | Scope | Deliverables |
-|-------|-------|-------------|
-| **1** | Documentation + shared format | README, design doc, architecture doc, AD-011 |
-| **2** | CLI hub + status command | `nexus status`, EduScan adapter, Sprint Master adapter |
-| **3** | Auto-triage pipe + sync | `nexus triage`, `nexus sync`, remaining adapters |
-| **4** | Deploy gate (cross-tool) | `nexus gate`, deploy.sh integration |
-| **5** | GitHub issue automation | `nexus report --github`, HED → GitHub pipe |
+| Phase | Scope | Deliverables | Status |
+|-------|-------|-------------|--------|
+| **1** | Documentation + shared format | README, design doc, architecture doc, AD-011 | **Shipped** |
+| **2** | CLI hub + status command | `nexus status`, EduScan adapter, Sprint Master adapter, `scan`, `sync` | **Shipped** |
+| **3** | Auto-triage + report | `nexus triage`, `nexus report`, stale pruning (`sync --prune`) | **Shipped** |
+| **4** | Deploy gate + all adapters | `nexus gate`, HED/Audit/Spellbook/ToDo adapters, generic spoke display | **Shipped** |
+| **5** | GitHub pipe + deploy.sh | `nexus pipe hed-github`, deploy.sh integration | **Shipped** |
 
-Each phase is independently deployable. Phase 1 (this document) has no code dependencies.
+Each phase was independently deployable. All phases are now complete.
+
+---
+
+## How It Actually Works (Implementation Notes)
+
+This section documents the inner workings of the shipped implementation.
+
+### The Three Layers
+
+**Layer 1: Adapters (the translators)** — Each tool gets a small JS module in `adapters/`. Every adapter is a factory function that returns an object with `getFindings()`, `getStatus()`, `acceptFinding()`, and `name`. The adapter's job is to read the tool's native data and normalize it into the shared findings format.
+
+Six adapters exist:
+- `eduscan.js` — reads `TREASURE_MAP.json`, maps severity levels, carries EduScan metadata through
+- `sprint-master.js` — reads `sprints.json`, maps priority to severity, **accepts** findings (creates backlog items with nexusKey for dedup)
+- `hed.js` — reads exported JSON from browser HED panel, dedup by `code|message`, HED-001/002 → high, HED-003/004 → medium
+- `audit.js` — tier 1: structured JSON (`audit-latest.json`), tier 2: regex-parse HTML report (`audit-report-latest.html`), tier 3: empty
+- `spellbook.js` — reads `SPELL-*.md` files, parses YAML front-matter or legacy markdown headers, only surfaces SCRIBED/CAST spells
+- `todo.js` — reads `~/.todo-data.json` (tilde expanded by hub), pending items as low-severity findings
+
+Read-only spokes return `{ accepted: false, reason: 'read-only spoke' }` from `acceptFinding()`. Only Sprint Master actually writes.
+
+**Layer 2: Hub (`hub.js` — the engine)** — Five jobs:
+1. **Config** — reads `nexus.config.json`, handles tilde expansion for data paths
+2. **Spoke loading** — iterates config, `require()`s each adapter factory, passes data path and project root; skips failures gracefully
+3. **Sync** — calls `adapter.getFindings()`, dedup-merges into `findings.json` by key `source::code::file`; with `--prune`, removes stale findings
+4. **Gate** — polls configured source spokes, collects findings, filters by `failOn` severity list; skips unavailable spokes (no false blocks)
+5. **Pipe** — takes findings from one spoke and pushes to external system (`pipeHedToGithub` uses `gh` CLI with title-based dedup)
+
+**Layer 3: CLI (`nexus.js` — the interface)** — Pure routing. Parses `process.argv`, matches command, calls corresponding function. Status/report have hardcoded renderers for eduscan and sprint (unique shapes), then a generic fallback renderer for any other spoke.
+
+### Data Flow: What Happens When You Run `nexus sync`
+
+```
+1. nexus.js parses "sync" → calls cmdSync()
+2. hub.loadConfig() reads nexus.config.json (6 spoke entries)
+3. hub.loadSpokes() loops over entries:
+   - require('./adapters/eduscan.js') → factory({name, dataPath, projectRoot})
+   - require('./adapters/sprint-master.js') → factory(...)
+   - ... (hed, audit, spellbook, todo — same pattern)
+4. hub.loadFindings() reads findings.json (or creates empty store)
+5. For each spoke:
+   - adapter.getFindings() reads native file → returns normalized array
+   - hub.syncFromSpoke() dedup-merges into store (add new, refresh existing)
+6. hub.saveFindings() writes findings.json with updated timestamps + stats
+```
+
+### Data Flow: What Happens When You Run `nexus gate`
+
+```
+1. deploy.sh calls: node _tools/nexus/nexus.js gate [--strict]
+2. hub.runGate() reads gate config: { failOn: ["critical"], sources: ["eduscan", "hed", "audit"] }
+3. For each source spoke:
+   - Check if adapter loaded → if not, skip (not block)
+   - Check adapter.getStatus().available → if not, skip
+   - Call adapter.getFindings()
+   - Any finding matching failOn severities → added to blocking list
+4. Return { passed: blocking.length === 0 }
+5. nexus.js prints result, exits 0 (pass) or 1 (fail)
+6. deploy.sh checks exit code → proceeds to firebase deploy or aborts
+```
+
+### "Connected But Empty" Design
+
+HED, Audit, and Spellbook show "(no data)" currently. The adapters check for their data sources and return gracefully empty when absent. The gate skips them. The moment any data source appears (HED export, audit report, spell files), the adapter lights up automatically — no code changes needed.
 
 ---
 
