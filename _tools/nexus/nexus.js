@@ -540,6 +540,129 @@ function cmdPipe(args, flags) {
     }
 }
 
+function cmdFull(args, flags) {
+    const strict = flags.strict || false;
+    const config = hub.loadConfig();
+    const projectRoot = hub.getProjectRoot();
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    console.log('');
+    console.log(`${C.bold}NEXUS FULL${C.reset}${strict ? `  ${C.yellow}(strict)${C.reset}` : ''}${' '.repeat(strict ? 43 - dateStr.length : 52 - dateStr.length)}${C.dim}${dateStr}${C.reset}`);
+    console.log(`${C.dim}${'═'.repeat(68)}${C.reset}`);
+
+    // Step 1: Scan
+    console.log('');
+    console.log(`  ${C.bold}[1/4]${C.reset} ${C.cyan}Running EduScan...${C.reset}`);
+    console.log('');
+
+    try {
+        execSync('node _tools/eduscan/cli.js', {
+            cwd: projectRoot,
+            stdio: 'inherit',
+            timeout: 120000,
+        });
+    } catch (err) {
+        if (!err.status && err.status !== 1) {
+            console.error(`\n  ${C.red}EduScan failed to run: ${err.message}${C.reset}`);
+            process.exit(1);
+        }
+    }
+
+    // Step 2: Sync all spokes (with prune)
+    console.log('');
+    console.log(`  ${C.bold}[2/4]${C.reset} ${C.cyan}Syncing all spokes...${C.reset}`);
+    console.log('');
+
+    const spokes = hub.loadSpokes(config);
+    const store = hub.loadFindings();
+
+    for (const name of Object.keys(spokes)) {
+        const adapter = spokes[name];
+        try {
+            const result = hub.syncFromSpoke(adapter, store, { prune: true });
+            let line = `  ${C.green}${name}${C.reset}  ${C.bold}+${result.added}${C.reset} new  ${C.dim}~${result.refreshed} refreshed${C.reset}`;
+            if (result.pruned > 0) {
+                line += `  ${C.red}-${result.pruned} pruned${C.reset}`;
+            }
+            line += `  ${C.dim}=${result.total} total${C.reset}`;
+            console.log(line);
+        } catch (err) {
+            console.log(`  ${C.red}${name}${C.reset}  ${C.dim}error: ${err.message}${C.reset}`);
+        }
+    }
+
+    hub.saveFindings(store);
+    console.log(`\n  ${C.dim}Findings store: ${store.findings.length} total${C.reset}`);
+
+    // Step 3: Gate
+    console.log('');
+    console.log(`  ${C.bold}[3/4]${C.reset} ${C.cyan}Running deploy gate...${C.reset}`);
+    console.log('');
+
+    const gateResult = hub.runGate(config, spokes, { strict });
+
+    if (gateResult.polled.length) {
+        console.log(`  ${C.dim}Polled:  ${gateResult.polled.join(', ')}${C.reset}`);
+    }
+    if (gateResult.skipped.length) {
+        console.log(`  ${C.dim}Skipped: ${gateResult.skipped.join(', ')} (no data)${C.reset}`);
+    }
+
+    const sevLine = SEVERITY_ORDER
+        .filter(s => gateResult.bySeverity[s])
+        .map(s => `${severityColor(s)}${gateResult.bySeverity[s]} ${s}${C.reset}`)
+        .join('  ');
+    if (sevLine) {
+        console.log(`\n  ${sevLine}`);
+    }
+
+    console.log(`\n  ${C.dim}Blocking on: ${gateResult.failOn.join(', ')}${C.reset}`);
+
+    if (gateResult.passed) {
+        console.log(`\n  ${C.green}${C.bold}GATE PASSED${C.reset}`);
+    } else {
+        console.log(`\n  ${C.red}${C.bold}GATE FAILED${C.reset}  ${C.red}${gateResult.blocking.length} blocking finding${gateResult.blocking.length !== 1 ? 's' : ''}${C.reset}`);
+    }
+
+    // Step 4: Status summary
+    console.log('');
+    console.log(`  ${C.bold}[4/4]${C.reset} ${C.cyan}Status summary${C.reset}`);
+    console.log('');
+
+    let connectedSpokes = 0;
+    for (const name of Object.keys(spokes)) {
+        const status = hub.getSpokeStatus(spokes[name]);
+        if (status.available) connectedSpokes++;
+
+        const displayName = (status.name || name).toUpperCase();
+        const label = padRight(`  ${C.bold}${displayName}${C.reset}`, 26);
+
+        if (!status.available) {
+            console.log(`${label}${C.dim}(no data)${C.reset}`);
+        } else if (status.bySeverity && Object.keys(status.bySeverity).length > 0) {
+            const parts = SEVERITY_ORDER
+                .filter(s => status.bySeverity[s])
+                .map(s => `${severityColor(s)}${status.bySeverity[s]} ${s}${C.reset}`);
+            console.log(`${label}${parts.join('  ')}`);
+        } else if (status.counts && Object.keys(status.counts).length > 0) {
+            const parts = Object.entries(status.counts).map(([k, v]) => `${C.dim}${v} ${k}${C.reset}`);
+            console.log(`${label}${parts.join('  ')}`);
+        } else {
+            const total = status.totalItems || status.totalFindings || status.totalSpells || 0;
+            console.log(`${label}${C.dim}${total} items${C.reset}`);
+        }
+    }
+
+    console.log('');
+    console.log(`${C.dim}${'═'.repeat(68)}${C.reset}`);
+    console.log(`  ${C.dim}${connectedSpokes} spoke${connectedSpokes !== 1 ? 's' : ''} connected · ${store.findings.length} findings synced · gate: ${gateResult.passed ? `${C.green}PASS${C.dim}` : `${C.red}FAIL${C.dim}`}${C.reset}`);
+    console.log('');
+
+    process.exit(gateResult.passed ? 0 : 1);
+}
+
 // --- Help ---
 
 function showHelp() {
@@ -548,6 +671,7 @@ ${C.bold}nexus${C.reset} — Hexworth Prime Hub & Spoke Tool Orchestrator
 
 ${C.bold}COMMANDS${C.reset}
 
+  ${C.cyan}full${C.reset}                    Full pipeline: scan → sync → gate → status
   ${C.cyan}status${C.reset}                  Unified dashboard — live data from all spokes
   ${C.cyan}scan${C.reset}                    Run EduScan + sync findings into store
   ${C.cyan}sync${C.reset} [spoke]            Sync all spokes (or one named spoke)
@@ -569,6 +693,8 @@ ${C.bold}FLAGS${C.reset}
 
 ${C.bold}EXAMPLES${C.reset}
 
+  nexus full                Full pipeline (scan + sync + gate + status)
+  nexus full --strict       Full pipeline, gate blocks on critical + high
   nexus status              Show combined status from all tools
   nexus scan                Run EduScan and sync results
   nexus sync                Sync all spokes into findings store
@@ -630,6 +756,9 @@ if (!command || command === 'help' || command === '--help' || command === '-h') 
 const { flags, positional } = parseFlags(cmdArgs);
 
 switch (command) {
+    case 'full':
+        cmdFull(positional, flags);
+        break;
     case 'status':
     case 'st':
         cmdStatus();
