@@ -681,6 +681,12 @@ class UpdateManager {
 
         document.body.appendChild(this.modal);
 
+        // Force position to current viewport (scroll-aware)
+        const scrollTop = window.scrollY || document.documentElement.scrollTop;
+        this.modal.style.position = 'absolute';
+        this.modal.style.top = scrollTop + 'px';
+        this.modal.style.height = window.innerHeight + 'px';
+
         requestAnimationFrame(() => {
             this.modal.classList.add('visible');
         });
