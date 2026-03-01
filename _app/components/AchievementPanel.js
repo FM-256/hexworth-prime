@@ -282,8 +282,8 @@ const AchievementPanel = (function() {
             /* Grid */
             .ap-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-                gap: 10px;
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 12px;
                 overflow-y: auto;
                 flex: 1;
                 padding-bottom: 10px;
@@ -293,15 +293,67 @@ const AchievementPanel = (function() {
                 background: rgba(255,255,255,0.03);
                 border: 1px solid #333;
                 border-radius: 10px;
-                padding: 12px 8px;
+                padding: 14px 10px;
                 text-align: center;
                 transition: all 0.2s;
                 cursor: default;
+                position: relative;
             }
 
             .ap-card.unlocked {
                 border-color: var(--house-primary, #60a5fa);
                 background: rgba(var(--house-primary-rgb, 100,100,255), 0.08);
+            }
+
+            /* Rarity tier borders (unlocked only) */
+            .ap-card.rarity-uncommon.unlocked {
+                border-color: #4ade80;
+                box-shadow: 0 0 8px rgba(74,222,128,0.15);
+            }
+            .ap-card.rarity-rare.unlocked {
+                border-color: #60a5fa;
+                box-shadow: 0 0 10px rgba(96,165,250,0.2);
+            }
+            .ap-card.rarity-epic.unlocked {
+                border-color: #a78bfa;
+                box-shadow: 0 0 12px rgba(167,139,250,0.25);
+            }
+            .ap-card.rarity-epic.unlocked::after {
+                content: '';
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                border-radius: 10px;
+                background: linear-gradient(135deg, transparent 40%, rgba(167,139,250,0.08) 50%, transparent 60%);
+                background-size: 200% 200%;
+                animation: apShimmer 3s ease-in-out infinite;
+                pointer-events: none;
+            }
+
+            @keyframes apShimmer {
+                0% { background-position: 200% 200%; }
+                100% { background-position: -200% -200%; }
+            }
+
+            /* NEW badge for recently unlocked */
+            .ap-new-badge {
+                position: absolute;
+                top: -6px;
+                right: -6px;
+                background: linear-gradient(135deg, #ffd700, #ffaa00);
+                color: #000;
+                font-size: 0.5rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                padding: 2px 6px;
+                border-radius: 8px;
+                animation: apNewPulse 2s ease-in-out infinite;
+                z-index: 1;
+                box-shadow: 0 2px 8px rgba(255,215,0,0.4);
+            }
+
+            @keyframes apNewPulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.8; transform: scale(1.05); }
             }
 
             .ap-card.locked {
@@ -338,6 +390,83 @@ const AchievementPanel = (function() {
 
             .ap-card.unlocked .ap-badge-img {
                 box-shadow: 0 2px 12px rgba(var(--house-primary-rgb, 100,100,255), 0.4);
+            }
+
+            /* ── ANIMATED BADGE EFFECTS ── */
+
+            /* Legendary badges: slow prismatic glow */
+            .ap-card.legendary.unlocked .ap-badge-img,
+            .ap-card.rarity-legendary.unlocked .ap-badge-img {
+                animation: apBadgePrismatic 4s ease-in-out infinite;
+            }
+
+            @keyframes apBadgePrismatic {
+                0%, 100% { box-shadow: 0 0 12px rgba(255,215,0,0.5), 0 0 24px rgba(255,107,0,0.2); }
+                33% { box-shadow: 0 0 12px rgba(255,0,255,0.5), 0 0 24px rgba(139,92,246,0.2); }
+                66% { box-shadow: 0 0 12px rgba(0,255,255,0.5), 0 0 24px rgba(96,165,250,0.2); }
+            }
+
+            /* Cosmic badges: slow orbit ring */
+            .ap-card.cosmic.unlocked .ap-badge-img {
+                animation: apBadgeCosmic 6s linear infinite;
+                box-shadow: 0 0 16px rgba(139,92,246,0.5);
+            }
+
+            @keyframes apBadgeCosmic {
+                0% { box-shadow: 0 0 16px rgba(139,92,246,0.5), 4px 0 8px rgba(167,139,250,0.3); }
+                25% { box-shadow: 0 0 16px rgba(139,92,246,0.5), 0 4px 8px rgba(167,139,250,0.3); }
+                50% { box-shadow: 0 0 16px rgba(139,92,246,0.5), -4px 0 8px rgba(167,139,250,0.3); }
+                75% { box-shadow: 0 0 16px rgba(139,92,246,0.5), 0 -4px 8px rgba(167,139,250,0.3); }
+                100% { box-shadow: 0 0 16px rgba(139,92,246,0.5), 4px 0 8px rgba(167,139,250,0.3); }
+            }
+
+            /* Glitch badges: subtle distortion flicker */
+            .ap-card.glitch.unlocked .ap-badge-img {
+                animation: apBadgeGlitch 3s ease-in-out infinite;
+            }
+
+            @keyframes apBadgeGlitch {
+                0%, 90%, 100% { transform: none; filter: none; }
+                92% { transform: translate(-2px, 1px); filter: hue-rotate(90deg); }
+                94% { transform: translate(2px, -1px); filter: hue-rotate(180deg); }
+                96% { transform: translate(-1px, -1px); filter: hue-rotate(270deg); }
+                98% { transform: none; filter: none; }
+            }
+
+            /* Golden badges: warm pulse */
+            .ap-card.golden.unlocked .ap-badge-img {
+                animation: apBadgeGolden 3s ease-in-out infinite;
+            }
+
+            @keyframes apBadgeGolden {
+                0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.4); }
+                50% { box-shadow: 0 0 20px rgba(255,215,0,0.7), 0 0 30px rgba(255,165,0,0.3); }
+            }
+
+            /* Retro badges: CRT scanline effect */
+            .ap-card.retro.unlocked .ap-badge-img {
+                animation: apBadgeRetro 0.1s steps(2) infinite;
+            }
+
+            @keyframes apBadgeRetro {
+                0% { filter: brightness(1); }
+                50% { filter: brightness(0.97); }
+            }
+
+            /* Epic rarity: subtle float */
+            .ap-card.rarity-epic.unlocked .ap-badge-img {
+                animation: apBadgeFloat 3s ease-in-out infinite;
+            }
+
+            @keyframes apBadgeFloat {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-3px); }
+            }
+
+            /* Hover animation override: spin for any unlocked */
+            .ap-card.unlocked:hover .ap-badge-img {
+                animation: none;
+                transform: scale(1.15) rotate(5deg);
             }
 
             .ap-badge-emoji {
@@ -489,6 +618,49 @@ const AchievementPanel = (function() {
                 box-shadow: 0 2px 12px rgba(255, 215, 0, 0.4);
             }
 
+            /* Notification particle burst container */
+            .ap-notif-particles {
+                position: absolute;
+                top: 50%;
+                left: 30px;
+                width: 0;
+                height: 0;
+                pointer-events: none;
+            }
+
+            .ap-particle {
+                position: absolute;
+                width: 4px;
+                height: 4px;
+                border-radius: 50%;
+                background: #ffd700;
+                animation: apParticleBurst 0.8s ease-out forwards;
+            }
+
+            .ap-particle:nth-child(2) { animation-delay: 0.05s; background: #ffaa00; }
+            .ap-particle:nth-child(3) { animation-delay: 0.1s; background: #ff6b00; }
+            .ap-particle:nth-child(4) { animation-delay: 0.05s; background: #ffd700; }
+            .ap-particle:nth-child(5) { animation-delay: 0.1s; background: #ffaa00; }
+            .ap-particle:nth-child(6) { animation-delay: 0.15s; background: #ff6b00; }
+            .ap-particle:nth-child(7) { animation-delay: 0.08s; background: #ffd700; }
+            .ap-particle:nth-child(8) { animation-delay: 0.12s; background: #ffaa00; }
+
+            @keyframes apParticleBurst {
+                0% { transform: translate(0,0) scale(1); opacity: 1; }
+                100% { transform: translate(var(--ptx, 30px), var(--pty, 0px)) scale(0); opacity: 0; }
+            }
+
+            /* Badge scale-pop on notification */
+            .ap-notif-pop .achievement-notif-icon {
+                animation: apBadgePop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s;
+            }
+
+            @keyframes apBadgePop {
+                0% { transform: scale(0.5); opacity: 0.5; }
+                60% { transform: scale(1.25); }
+                100% { transform: scale(1); opacity: 1; }
+            }
+
             /* Responsive: stack sidebar on narrow screens */
             @media (max-width: 600px) {
                 .ap-layout {
@@ -513,7 +685,7 @@ const AchievementPanel = (function() {
                     display: none;
                 }
                 .ap-grid {
-                    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
                 }
             }
         `;
@@ -622,6 +794,11 @@ const AchievementPanel = (function() {
         const pageItems = allFiltered.slice(_state.page * PAGE_SIZE, (_state.page + 1) * PAGE_SIZE);
 
         // Build grid HTML
+        const now = Date.now();
+        const NEW_THRESHOLD = 48 * 60 * 60 * 1000; // 48 hours
+        let v2Cache = null;
+        try { v2Cache = JSON.parse(localStorage.getItem('hexworth_achievements_v2') || '{}'); } catch {}
+
         const gridHTML = pageItems.length > 0 ? pageItems.map(ach => {
             const isUnlocked = unlockedSet.has(ach.id);
             const isSecret = ach.secret;
@@ -634,16 +811,23 @@ const AchievementPanel = (function() {
             classes.push(isUnlocked ? 'unlocked' : 'locked');
             if (isSecret) classes.push('secret');
             if (isUnlocked && ach.style) classes.push(ach.style);
+            // Add rarity class for unlocked cards (unless style already overrides)
+            if (isUnlocked && !ach.style) {
+                const rc = getRarityClass(ach.points, ach.style);
+                if (rc) classes.push(rc);
+            }
 
             let dateHTML = '';
+            let newBadgeHTML = '';
             if (isUnlocked) {
-                try {
-                    const v2 = JSON.parse(localStorage.getItem('hexworth_achievements_v2') || '{}');
-                    const ts = v2?.unlocked?.[ach.id]?.unlockedAt;
-                    if (ts) {
-                        dateHTML = `<div class="ap-card-date">${new Date(ts).toLocaleDateString()}</div>`;
+                const ts = v2Cache?.unlocked?.[ach.id]?.unlockedAt;
+                if (ts) {
+                    dateHTML = `<div class="ap-card-date">${new Date(ts).toLocaleDateString()}</div>`;
+                    // Show NEW badge if unlocked within threshold
+                    if (now - ts < NEW_THRESHOLD) {
+                        newBadgeHTML = '<span class="ap-new-badge">NEW</span>';
                     }
-                } catch {}
+                }
             }
 
             const iconContent = showBadgeId
@@ -652,6 +836,7 @@ const AchievementPanel = (function() {
 
             return `
                 <div class="${classes.join(' ')}" title="${isUnlocked ? ach.description : ''}">
+                    ${newBadgeHTML}
                     <div class="ap-card-icon">${iconContent}</div>
                     <div class="ap-card-name">${displayName}</div>
                     <div class="ap-card-desc">${displayDesc}</div>
@@ -799,6 +984,29 @@ const AchievementPanel = (function() {
     // NOTIFICATION SYSTEM (unified)
     // ═══════════════════════════════════════════════════════════════════
 
+    // ═══════════════════════════════════════════════════════════════════
+    // RARITY HELPERS
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Determine rarity tier from points and style
+     * Common: <50, Uncommon: 50-99, Rare: 100-199, Epic: 200-499, Legendary: 500+ or style=legendary/cosmic
+     */
+    function getRarityClass(points, style) {
+        if (style === 'legendary' || style === 'cosmic' || points >= 500) return 'rarity-legendary';
+        if (points >= 200) return 'rarity-epic';
+        if (points >= 100) return 'rarity-rare';
+        if (points >= 50) return 'rarity-uncommon';
+        return '';
+    }
+
+    function getRarityLabel(points, style) {
+        if (style === 'legendary' || style === 'cosmic' || points >= 500) return 'LEGENDARY';
+        if (points >= 200) return 'EPIC';
+        if (points >= 100) return 'RARE';
+        return '';
+    }
+
     let _notificationQueue = [];
     let _isShowingNotification = false;
 
@@ -827,24 +1035,54 @@ const AchievementPanel = (function() {
 
         const notif = document.createElement('div');
         notif.id = 'ap-notification';
-        notif.className = `achievement-notification ${ach.style || ''}`;
+        notif.className = `achievement-notification ap-notif-pop ${ach.style || ''}`;
         const notifIcon = ach.id ? notifBadgeHTML(ach.id, ach.icon, ach.name) : ach.icon;
+
+        // Generate particle burst HTML (8 particles radiating outward)
+        const particleAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+        const particleHTML = particleAngles.map((angle, i) => {
+            const rad = angle * Math.PI / 180;
+            const dist = 30 + Math.random() * 20;
+            const tx = Math.cos(rad) * dist;
+            const ty = Math.sin(rad) * dist;
+            return '<div class="ap-particle" style="animation-name:apParticleBurst;--ptx:' + tx + 'px;--pty:' + ty + 'px;"></div>';
+        }).join('');
+
+        // Rarity label
+        const rarityLabel = getRarityLabel(ach.points || 0, ach.style);
+
         notif.innerHTML = `
+            <div class="ap-notif-particles">${particleHTML}</div>
             <div class="achievement-notif-icon">${notifIcon}</div>
             <div class="achievement-notif-content">
                 <div class="achievement-notif-label">ACHIEVEMENT UNLOCKED</div>
                 <div class="achievement-notif-name">${ach.name}</div>
-                <div class="achievement-notif-points">+${ach.points} pts</div>
+                <div class="achievement-notif-points">+${ach.points} pts${rarityLabel ? ' &middot; ' + rarityLabel : ''}</div>
             </div>
         `;
 
         document.body.appendChild(notif);
+
+        // Set particle trajectories via inline style
+        notif.querySelectorAll('.ap-particle').forEach((p, i) => {
+            const angle = particleAngles[i] * Math.PI / 180;
+            const dist = 30 + Math.random() * 20;
+            p.style.setProperty('--ptx', (Math.cos(angle) * dist) + 'px');
+            p.style.setProperty('--pty', (Math.sin(angle) * dist) + 'px');
+        });
 
         // Play sound if available
         try {
             if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
                 playUnlockSound(ach.style);
             }
+        } catch {}
+
+        // Dispatch event for live dashboard counter update
+        try {
+            window.dispatchEvent(new CustomEvent('hexworth:achievementUnlocked', {
+                detail: { id: ach.id, name: ach.name, points: ach.points }
+            }));
         } catch {}
 
         // Auto-remove and show next
@@ -887,6 +1125,33 @@ const AchievementPanel = (function() {
     // ═══════════════════════════════════════════════════════════════════
     // PUBLIC API
     // ═══════════════════════════════════════════════════════════════════
+
+    // ═══════════════════════════════════════════════════════════════════
+    // LIVE DASHBOARD COUNTER UPDATE
+    // ═══════════════════════════════════════════════════════════════════
+
+    window.addEventListener('hexworth:achievementUnlocked', function() {
+        // Update dashboard stat counter
+        const el = document.getElementById('achievementsEarned');
+        if (el) {
+            const current = parseInt(el.textContent, 10) || 0;
+            el.textContent = current + 1;
+            // Brief highlight flash
+            el.style.transition = 'color 0.3s';
+            el.style.color = '#ffd700';
+            setTimeout(() => { el.style.color = ''; }, 1500);
+        }
+        // Update achievement panel counter if visible
+        const achCount = document.getElementById('achievementCount');
+        if (achCount && typeof AchievementRegistry !== 'undefined') {
+            const stats = AchievementRegistry.getStats();
+            achCount.textContent = stats.unlocked + '/' + stats.total;
+        }
+        // Re-render panel if it's currently visible
+        if (_container && _container.offsetParent !== null) {
+            render(_container);
+        }
+    });
 
     return {
         render,
