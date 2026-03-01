@@ -1,4 +1,4 @@
-# EduScan v2.0.0
+# EduScan v2.1.0
 
 > **Content integrity, topology enforcement, and runtime validation for large static educational platforms.**
 
@@ -15,7 +15,7 @@ npm run scan
 # Quick issue check (quiet mode)
 npm run scan:quick
 
-# Signature test suite (13 fixture tests + 15 global/positive detection tests)
+# Signature test suite (17 fixture tests + 18 global/positive detection tests)
 npm run scan:test
 
 # Headless browser validation (runtime errors + smoke tests)
@@ -74,7 +74,7 @@ Requires Puppeteer (`npm install` to install).
 
 | Script | Description |
 |--------|-------------|
-| `npm run scan:test` | Signature test suite — 28 tests (13 fixture + 15 global/positive detection) |
+| `npm run scan:test` | Signature test suite — 35 tests (17 fixture + 18 global/positive detection) |
 
 ### Deploy
 
@@ -99,7 +99,13 @@ Requires Puppeteer (`npm install` to install).
 | **Naming** | `naming.js` | Enforces `{house}-{name}.{type}.html` naming convention |
 | **Heuristics** | `heuristics.js` | Anomaly detection — excessive inline scripts, TODO markers, console.log, duplicate includes, unguarded parseInt, localStorage coercion |
 | **Dependency** | `dependency-check.js` | "Wired but not plugged in" — code calls ProgressManager/GameTracker but never loads the script |
-| **Navigation** | `navigation.js` | Back navigation checks — missing back buttons, dashboard links, and back links that skip course home |
+| **Navigation** | `navigation.js` | Back navigation checks — missing back buttons, dashboard links, back links that skip course home, and path cards without hrefs |
+| **Emoji** | `emoji.js` | Detects emoji usage in JS icon props, badge elements, and UI containers (platform uses WebP icons instead) |
+| **Palette** | `palette.js` | Validates house index pages define required CSS custom properties and match expected color values |
+| **ContentBlob** | `content-blob.js` | Flags oversized inline content — large style blocks, innerHTML templates, base64 data URIs, long script blocks |
+| **Semantic** | `semantic.js` | Heading hierarchy, duplicate/missing h1, missing `<main>` landmark, unsemantic nav link lists |
+| **UX** | `ux.js` | Dynamic visual element (canvas/video/iframe) inserted into DOM without `scrollIntoView` |
+| **Turtle** | `turtle.js` | Skulpt canvas rendering issues — opaque canvas backgrounds, textarea code with template indentation |
 
 ### Static Validation (Global)
 
@@ -111,6 +117,9 @@ Requires Puppeteer (`npm install` to install).
 | **RendererLinks** | `heuristics.js` | Scans shared JS renderers for hardcoded relative hrefs (fragile back links) |
 | **MissingIndexes** | `index.js` | Flags content directories with 3+ HTML files but no `index.html` |
 | **CSP** | `csp.js` | Cross-references external domains in code against `firebase.json` Content-Security-Policy |
+| **Emoji (Global)** | `emoji.js` | Scans shared JS config/component files for emoji usage (icon props, badge elements) |
+| **Palette** | `palette.js` | Validates all house index pages define required CSS variables with correct color values |
+| **FixedOverlays** | `heuristics.js` | Scans component JS files for `position:fixed` in dynamic elements (breaks under `body.style.filter`) |
 
 ### Functional Validation (Headless Browser)
 
@@ -248,6 +257,8 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | HEUR-004 | suspect | `console.log` in inline scripts (production hygiene) |
 | HEUR-005 | suspect | Duplicate script includes (same `src` on multiple tags) |
 | HEUR-006 | medium | Hardcoded relative href in shared JS renderer (fragile back links) |
+| HEUR-007 | medium | Monospace font class missing `white-space: pre-wrap` — multi-line code renders as single paragraph |
+| HEUR-008 | suspect | `position:fixed` in dynamically created element — breaks when body/ancestor has CSS transform or filter |
 | MATH-001 | suspect | Unguarded `parseInt()` in arithmetic — NaN will propagate if input is invalid |
 | DATA-001 | suspect | `localStorage.getItem()` in `+=` or arithmetic without `Number()` coercion |
 
@@ -310,6 +321,56 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | NAV-001 | medium | Content page has no back/return navigation |
 | NAV-002 | medium | House/course index page has no dashboard link |
 | NAV-003 | high | Content page inside course subdirectory has returnUrl or back button href that skips course home |
+| NAV-004 | high | Path card in house index has no `href` but hub directory exists — clicking the card will 404 |
+
+### Emoji Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| EMOJI-001 | low | Emoji in JS icon/category property — replace with WebP image path |
+| EMOJI-002 | low | Emoji in badge/icon HTML element — replace with `<img>` tag |
+| EMOJI-003 | warning | Emoji in UI container — replace with image or CSS icon |
+| EMOJI-004 | medium | Emoji in hero/emblem container — replace with `<img src="/assets/images/emblems/...">` |
+
+### Palette Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| PALETTE-001 | high | CSS variable value mismatch — house page defines a color that doesn't match the expected palette |
+| PALETTE-002 | medium | Missing CSS variable — house page lacks a required `:root` custom property |
+| PALETTE-003 | high | House page missing `:root` color block entirely |
+
+### ContentBlob Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| BLOB-001 | medium | Oversized inline `<style>` block — consider externalizing to a CSS file |
+| BLOB-002 | low | Large `innerHTML` template literal — consider extracting to a template function |
+| BLOB-003 | low | Base64 data URI detected — consider using an external file |
+| BLOB-004 | low | Oversized inline `<script>` block — consider externalizing |
+
+### Semantic Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| SEM-001 | high | Heading hierarchy skip (e.g., h2 → h4, missing h3) |
+| SEM-002 | medium | Multiple `<h1>` elements — page should have exactly one |
+| SEM-003 | medium | Missing `<h1>` element — every page should have a main heading |
+| SEM-004 | low | Missing `<main>` landmark element |
+| SEM-005 | low | Navigation contains links without semantic list structure |
+
+### UX Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| UX-001 | suspect | Dynamic visual element (canvas/video/iframe) inserted into DOM without `scrollIntoView` — content may appear off-screen |
+
+### Turtle Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| TURTLE-001 | high | Opaque `background` on `.turtle-canvas-container canvas` — hides Skulpt drawing layer behind sprite layer |
+| TURTLE-002 | medium | Textarea turtle code has common leading indent from HTML template — may cause Python syntax errors |
 
 ### Legacy / Registry Codes
 
@@ -403,7 +464,12 @@ The test runner (`tests/run.js`) loads fixture files from `tests/fixtures/`, run
 | `js-strict-issues.html` | Strict JS checks | JS-003, 004, SCOPE-001 |
 | `path-strict-issues.html` | Strict path checks | PATH-004, 005 |
 | `naming-full-issues.html` | Full naming checks | NAME-003, 004 |
-| `heuristic-issues.html` | Anomaly detection | HEUR-001, 002, 003, 004, 005, MATH-001, DATA-001 |
+| `heuristic-issues.html` | Anomaly detection | HEUR-001, 002, 003, 004, 005, 007, MATH-001, DATA-001 |
+| `nav-issues.html` | Navigation issues | NAV-001 |
+| `emoji-issues.html` | Emoji usage | EMOJI-001, 002, 003, 004 |
+| `semantic-issues.html` | Semantic structure | SEM-001, 002 |
+| `ux-issues.html` | UX heuristics | UX-001 |
+| `turtle-issues.html` | Turtle canvas issues | TURTLE-001, 002 |
 
 ### Global Regression Tests
 
@@ -414,6 +480,9 @@ Beyond fixture tests, the suite also runs:
 - **LearningPaths valid codes**: Confirms all emitted LP issues use recognized LP codes
 - **LearningPaths positive detection**: Fixture-based tests for LP-004, LP-005, LP-006, LP-008, LP-009
 - **NAV-003 positive detection**: Simulates a course subdirectory file with bad back button href
+- **NAV-004 positive detection**: Simulates a house index with missing path card href where hub directory exists
+- **AutoFixer dry-run**: Validates dry-run produces correct fix/skip counts without modifying files
+- **AutoFixer live mode**: Validates live mode correctly modifies files
 
 ---
 
@@ -557,23 +626,34 @@ _tools/eduscan/
 │   ├── presentation.js
 │   └── quiz.js
 ├── validators/
-│   ├── index.js                    # Syntax validator orchestrator
+│   ├── index.js                    # Validator orchestrator
 │   ├── coverage.js                 # Coverage analysis
 │   ├── orphans.js                  # Orphan detection
+│   ├── flow-validator.js           # FLOW-001 — unchained content detection
 │   ├── syntax/                     # Static validators (per-file + global)
-│   │   ├── index.js                # Orchestrator (12 sub-validators)
+│   │   ├── index.js                # Orchestrator (18 sub-validators)
 │   │   ├── html.js                 # HTML-001 through HTML-010
 │   │   ├── js.js                   # JS-001 through JS-006, SCOPE-001
 │   │   ├── engine.js               # ENG-001 through ENG-003
 │   │   ├── paths.js                # PATH-001 through PATH-IDX-001
 │   │   ├── naming.js               # NAME-001 through NAME-004
-│   │   ├── heuristics.js           # HEUR-001 through HEUR-006, MATH-001, DATA-001
+│   │   ├── heuristics.js           # HEUR-001 through HEUR-008, MATH-001, DATA-001
 │   │   ├── csp.js                  # CSP-001
 │   │   ├── content-catalog.js      # CAT-001 through CAT-005
 │   │   ├── learning-paths.js       # LP-001 through LP-010
-│   │   ├── navigation.js           # NAV-001 through NAV-003
+│   │   ├── navigation.js           # NAV-001 through NAV-004
 │   │   ├── assignment-links.js     # ASGN-001 through ASGN-006
-│   │   └── dependency-check.js     # DEP-001 through DEP-005
+│   │   ├── dependency-check.js     # DEP-001 through DEP-005
+│   │   ├── emoji.js                # EMOJI-001 through EMOJI-004
+│   │   ├── palette.js              # PALETTE-001 through PALETTE-003
+│   │   ├── content-blob.js         # BLOB-001 through BLOB-004
+│   │   ├── semantic.js             # SEM-001 through SEM-005
+│   │   ├── ux.js                   # UX-001
+│   │   └── turtle.js               # TURTLE-001, TURTLE-002
+│   ├── impact/                     # Impact analysis validators
+│   │   ├── index.js
+│   │   ├── contract-validator.js
+│   │   └── dependency-map.js
 │   └── functional/                 # Headless browser validators
 │       ├── index.js                # Functional orchestrator
 │       ├── browser.js              # Puppeteer browser pool
@@ -581,14 +661,21 @@ _tools/eduscan/
 │       └── smoke.js                # FUNC-010 through FUNC-017
 ├── fixers/                         # Auto-fix tools
 │   ├── index.js
+│   ├── auto-fixer.js               # Generic auto-fixer (ID-001, TRACK-001, etc.)
 │   ├── learning-paths-fixer.js
+│   ├── link-fixer.js
+│   ├── games-href-fixer.js
 │   ├── rename-mapper.js
 │   ├── rename-applier.js
 │   ├── rename-undo.js
 │   ├── reorg-mapper.js
 │   ├── reorg-applier.js
 │   ├── reorg-undo.js
-│   └── naming-fixer.js
+│   ├── naming-fixer.js
+│   ├── tutorial-gen.js
+│   └── unbarricade.js
+├── generators/                     # Code generators
+│   └── registry-generator.js
 ├── registry/                       # Module registry
 │   ├── index.js
 │   └── module-registry.js
@@ -597,9 +684,9 @@ _tools/eduscan/
 │   ├── json.js
 │   └── markdown.js
 ├── tests/                          # Signature test suite
-│   ├── run.js                      # Test runner (13 fixtures + global)
+│   ├── run.js                      # Test runner (17 fixtures + 18 global)
 │   ├── expectations.js             # Expected codes per fixture
-│   └── fixtures/                   # 16 test HTML files
+│   └── fixtures/                   # 22 test files
 │       ├── clean.html
 │       ├── html-issues.html
 │       ├── html-strict-issues.html
@@ -612,9 +699,16 @@ _tools/eduscan/
 │       ├── naming-issues.html
 │       ├── naming-full-issues.html
 │       ├── heuristic-issues.html
+│       ├── nav-issues.html
+│       ├── emoji-issues.html
+│       ├── semantic-issues.html
+│       ├── ux-issues.html
+│       ├── turtle-issues.html
+│       ├── lp-issues.learningpaths.js
 │       ├── functional-issues.html
 │       ├── smoke-guard.html
-│       └── smoke-harness.html
+│       ├── smoke-harness.html
+│       └── smoke-sync.html
 └── utils/                          # Utilities
     ├── patterns.js
     ├── drift.js
@@ -705,6 +799,7 @@ module.exports = MyFixer;
 
 ## Version History
 
+- **v2.1.0** - 6 new validators (Emoji, Palette, ContentBlob, Semantic, UX, Turtle), HEUR-007/008, NAV-004, AutoFixer, FlowValidator, impact analysis, 35 tests (17 fixture + 18 global)
 - **v2.0.0** - Functional validation (Puppeteer), smoke tests, CI/CD pipeline, deploy gate, dependency checker, content catalog validator, heuristics engine, assignment link validator, test suite
 - **v1.4.0** - Auto-healing system (rename, reorganize, undo)
 - **v1.3.0** - LearningPaths validator and fixer
