@@ -24,6 +24,7 @@ const EmojiValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/emoji')
 const SemanticValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/semantic'));
 const UXValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/ux'));
 const TurtleValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/turtle'));
+const FlexOverflowValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/flex-overflow'));
 
 // ── Import expectations ──────────────────────────────────────────────
 const expectations = require('./expectations');
@@ -52,7 +53,8 @@ const validators = [
     new EmojiValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new SemanticValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new UXValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
-    new TurtleValidator({ rootPath: ROOT_PATH, profile: 'strict' })
+    new TurtleValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
+    new FlexOverflowValidator({ rootPath: ROOT_PATH, profile: 'strict' })
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────

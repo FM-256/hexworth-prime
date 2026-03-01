@@ -3144,6 +3144,7 @@ ${footer}
                 display: flex;
                 flex-direction: column;
                 border-right: 1px solid #333;
+                min-height: 0;
             }
 
             .clh-terminal-header {

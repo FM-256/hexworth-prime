@@ -25,6 +25,7 @@ const ContentBlobValidator = require('./content-blob');
 const SemanticValidator = require('./semantic');
 const UXValidator = require('./ux');
 const TurtleValidator = require('./turtle');
+const FlexOverflowValidator = require('./flex-overflow');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -113,6 +114,11 @@ class SyntaxValidator {
             rootPath: this.rootPath,
             profile: this.profile
         });
+        this.flexOverflowValidator = new FlexOverflowValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
     }
 
     /**
@@ -145,6 +151,7 @@ class SyntaxValidator {
                 semanticErrors: 0,
                 uxErrors: 0,
                 turtleErrors: 0,
+                flexOverflowErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -268,6 +275,7 @@ class SyntaxValidator {
             const semanticIssues = this.semanticValidator.validate(fileWithContent);
             const uxIssues = this.uxValidator.validate(fileWithContent);
             const turtleIssues = this.turtleValidator.validate(fileWithContent);
+            const flexOverflowIssues = this.flexOverflowValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -283,6 +291,7 @@ class SyntaxValidator {
             results.issues.push(...semanticIssues);
             results.issues.push(...uxIssues);
             results.issues.push(...turtleIssues);
+            results.issues.push(...flexOverflowIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -298,6 +307,7 @@ class SyntaxValidator {
             results.summary.semanticErrors += semanticIssues.length;
             results.summary.uxErrors += uxIssues.length;
             results.summary.turtleErrors += turtleIssues.length;
+            results.summary.flexOverflowErrors += flexOverflowIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html
