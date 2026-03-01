@@ -264,7 +264,7 @@ const ActivityFeed = (function() {
                     </div>
                 </div>
 
-                ${typeof DailyDirectives !== 'undefined' ? DailyDirectives.renderPinned() : ''}
+                ${(() => { try { return typeof DailyDirectives !== 'undefined' ? DailyDirectives.renderPinned() : ''; } catch(e) { console.warn('[ActivityFeed] DailyDirectives render error:', e); return ''; } })()}
 
                 <div class="activity-feed-terminal">
                     ${displayEvents.length === 0 ? `
