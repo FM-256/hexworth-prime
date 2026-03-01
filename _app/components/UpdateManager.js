@@ -602,6 +602,9 @@ class UpdateManager {
      * Show What's New modal for new version
      */
     async showWhatsNew(options = {}) {
+        // Close any existing modal first
+        if (this.modal) this.closeModal();
+
         this.injectStyles();
 
         // Ensure local version is loaded
@@ -617,14 +620,15 @@ class UpdateManager {
         this.modal = document.createElement('div');
         this.modal.className = 'update-modal-overlay whatsnew-modal';
         this.modal.innerHTML = `
-            <div class="update-modal">
-                <div class="whatsnew-header">
+            <div class="update-modal" style="max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
+                <div class="whatsnew-header" style="flex-shrink:0;position:relative;">
+                    <button class="update-modal-close" id="whatsNewClose" title="Close" style="position:absolute;top:10px;right:10px;">&times;</button>
                     <div class="whatsnew-celebration">🎉</div>
                     <div class="whatsnew-title">Welcome to ${version}</div>
                     ${codename ? `<div class="whatsnew-codename">"${codename}"</div>` : ''}
                 </div>
 
-                <div class="update-modal-body">
+                <div class="update-modal-body" style="flex:1;min-height:0;overflow-y:auto;">
                     <div class="whatsnew-intro">
                         ${isAuto ? "Thanks for updating! Here's what's new:" : "Here's what's in this version:"}
                     </div>
@@ -645,7 +649,7 @@ class UpdateManager {
                     </div>
                 </div>
 
-                <div class="update-modal-footer">
+                <div class="update-modal-footer" style="flex-shrink:0;">
                     <button class="update-btn update-btn-primary" id="whatsNewContinue">
                         ${isAuto ? "Let's Go! 🚀" : 'Close'}
                     </button>
@@ -657,6 +661,10 @@ class UpdateManager {
             if (isAuto) {
                 localStorage.setItem(this.options.storageKeys.seenWhatsNew, version);
             }
+            this.closeModal();
+        });
+
+        this.modal.querySelector('#whatsNewClose').addEventListener('click', () => {
             this.closeModal();
         });
 
