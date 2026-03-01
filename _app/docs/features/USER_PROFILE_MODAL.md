@@ -44,9 +44,10 @@ Click any entry on the global or house leaderboard. A modal overlay appears with
 
 All stat icons are real webp images from `/assets/images/icons/`, not emoji.
 
-**CTF Stats row** (only shown if user has CTF activity):
+**CTF + Games Stats row** (3 columns):
 - Boxes Pwned (skull icon) — count of completed CTF arena boxes
 - Flags Captured (footprint icon) — total flags found across all boxes
+- Games (joystick icon) — unique arcade games played with recorded activity, synced from `GameTracker.getAggregate().gamesPlayed`
 
 CTF stats are synced to Firestore on box completion via `BoxEngine._reportCompletion()`, which aggregates all `hexworth_ctf_*` localStorage keys and writes `ctfBoxesPwned` and `ctfFlagsCaptured` to the user profile.
 

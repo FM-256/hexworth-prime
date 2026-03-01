@@ -197,6 +197,7 @@
         const streak = p.streak || 0;
         const boxesPwned = p.ctfBoxesPwned || 0;
         const flagsCaptured = p.ctfFlagsCaptured || 0;
+        const gamesPlayed = p.gamesPlayed || 0;
         const callsign = esc(p.callsign || p.displayName || 'Anonymous');
 
         const currentUser = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser();
@@ -285,7 +286,7 @@
                     </div>
                 </div>
 
-                <!-- CTF Stats -->
+                <!-- CTF + Games Stats -->
                 <div class="upm-stats upm-stats-ctf">
                     <div class="upm-stat">
                         <img src="/assets/images/icons/icon-skull.webp" alt="" class="upm-stat-icon-img">
@@ -296,6 +297,11 @@
                         <img src="/assets/images/icons/icon-footprint.webp" alt="" class="upm-stat-icon-img">
                         <span class="upm-stat-val">${flagsCaptured}</span>
                         <span class="upm-stat-label">Flags</span>
+                    </div>
+                    <div class="upm-stat">
+                        <img src="/assets/images/icons/icon-joystick.webp" alt="" class="upm-stat-icon-img">
+                        <span class="upm-stat-val">${gamesPlayed}</span>
+                        <span class="upm-stat-label">Games</span>
                     </div>
                 </div>
 
@@ -540,7 +546,7 @@
                 margin: 20px 24px 0;
             }
             .upm-stats-ctf {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(3, 1fr);
                 margin-top: 8px;
             }
             .upm-stat {
