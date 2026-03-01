@@ -5713,38 +5713,19 @@
             // NOTE: Leaderboard is now handled by initLeaderboard() - don't render here
             // (initLeaderboard handles both Firestore and phantom fallback)
 
-            // Defer activity feed render — let auth resolve first so signed-in
-            // users get the real Handler Comms instead of phantom simulation.
-            // The firebaseAuthStateChanged handler re-renders with real feed.
-            setTimeout(() => {
-                if (!FirebaseAuth.isSignedIn()) {
-                    // Render fake activity feed for non-signed-in users
-                    houseMembers.renderActivityFeed(
-                        document.getElementById('houseActivity')
-                    );
-
-                    const rankChange = houseMembers.checkRankChange(userXP);
-                    if (rankChange.changed) {
-                        setTimeout(() => showRankToast(rankChange), 1500);
-                    }
-
-                    setupLeaderboardSimulation(houseMembers, userXP);
-                } else {
-                    // Render real ActivityFeed for signed-in users
-                    const activityPanel = document.getElementById('houseActivity');
-                    if (activityPanel && typeof ActivityFeed !== 'undefined') {
-                        ActivityFeed.render(activityPanel);
-                        if (typeof HandlerDirectives !== 'undefined') {
-                            HandlerDirectives.inject();
-                            HandlerDirectives.injectIntel();
-                            HandlerDirectives.snapshotSession();
-                        }
-                        if (typeof DailyDirectives !== 'undefined') {
-                            DailyDirectives.inject();
-                        }
-                    }
+            // Render real ActivityFeed for all users (no more phantom simulation)
+            const activityPanel = document.getElementById('houseActivity');
+            if (activityPanel && typeof ActivityFeed !== 'undefined') {
+                ActivityFeed.render(activityPanel);
+                if (typeof HandlerDirectives !== 'undefined') {
+                    HandlerDirectives.inject();
+                    HandlerDirectives.injectIntel();
+                    HandlerDirectives.snapshotSession();
                 }
-            }, 1500);
+                if (typeof DailyDirectives !== 'undefined') {
+                    DailyDirectives.inject();
+                }
+            }
 
             // Store globally
             window.houseMembers = houseMembers;
@@ -5861,63 +5842,6 @@
                 toast.classList.remove('visible');
                 setTimeout(() => toast.remove(), 400);
             }, 8000);
-        }
-
-        function setupLeaderboardSimulation(houseMembers, userXP) {
-            // Periodically show "member activity" notifications
-            // This creates urgency and makes the leaderboard feel alive
-
-            let simulationCount = 0;
-            const maxSimulations = 3; // Limit per session
-
-            const simulate = () => {
-                if (simulationCount >= maxSimulations) return;
-
-                const info = houseMembers.getUserRankInfo(userXP);
-
-                // Only show warning if someone is close behind
-                if (info.memberBehind && info.memberBehind.gap <= 40) {
-                    simulationCount++;
-
-                    // Show a "catching up" notification
-                    showCatchUpNotification(info.memberBehind.name, info.memberBehind.gap);
-                }
-            };
-
-            // Run after 30-60 seconds, then again after 2-3 minutes
-            setTimeout(simulate, 30000 + Math.random() * 30000);
-            setTimeout(simulate, 120000 + Math.random() * 60000);
-        }
-
-        function showCatchUpNotification(memberName, gap) {
-            // Remove existing toast first
-            const existing = document.querySelector('.rank-toast');
-            if (existing) existing.remove();
-
-            const toast = document.createElement('div');
-            toast.className = 'rank-toast dropped';
-
-            toast.innerHTML = `
-                <button class="rank-toast-close" onclick="this.parentElement.remove()">&times;</button>
-                <div class="rank-toast-header">
-                    <span class="rank-toast-icon">⚡</span>
-                    <span class="rank-toast-title">${memberName} is catching up!</span>
-                </div>
-                <div class="rank-toast-body">
-                    They're only <strong>${gap} XP</strong> behind you. Complete a module to stay ahead!
-                </div>
-            `;
-
-            document.body.appendChild(toast);
-
-            requestAnimationFrame(() => {
-                toast.classList.add('visible');
-            });
-
-            setTimeout(() => {
-                toast.classList.remove('visible');
-                setTimeout(() => toast.remove(), 400);
-            }, 6000);
         }
 
         // ─────────────────────────────────────────────────────────────
