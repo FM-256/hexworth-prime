@@ -414,6 +414,12 @@ class UpdateManager {
             }
         });
 
+        // Escape key to close
+        this._escHandler = (e) => {
+            if (e.key === 'Escape') this.closeModal();
+        };
+        document.addEventListener('keydown', this._escHandler);
+
         document.body.appendChild(this.modal);
 
         // Animate in
@@ -654,6 +660,17 @@ class UpdateManager {
             this.closeModal();
         });
 
+        // Click outside modal to close
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) this.closeModal();
+        });
+
+        // Escape key to close
+        this._escHandler = (e) => {
+            if (e.key === 'Escape') this.closeModal();
+        };
+        document.addEventListener('keydown', this._escHandler);
+
         document.body.appendChild(this.modal);
 
         requestAnimationFrame(() => {
@@ -769,6 +786,11 @@ class UpdateManager {
 
         this.modal.classList.remove('visible');
         document.body.style.overflow = '';
+
+        if (this._escHandler) {
+            document.removeEventListener('keydown', this._escHandler);
+            this._escHandler = null;
+        }
 
         setTimeout(() => {
             this.modal?.remove();
@@ -963,7 +985,7 @@ class UpdateManager {
                 max-width: 520px;
                 width: 100%;
                 max-height: 85vh;
-                overflow: hidden;
+                overflow-y: auto;
                 display: flex;
                 flex-direction: column;
                 box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
