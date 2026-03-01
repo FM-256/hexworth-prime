@@ -1,4 +1,4 @@
-# EduScan v2.1.0
+# EduScan v2.2.0
 
 > **Content integrity, topology enforcement, and runtime validation for large static educational platforms.**
 
@@ -15,7 +15,7 @@ npm run scan
 # Quick issue check (quiet mode)
 npm run scan:quick
 
-# Signature test suite (17 fixture tests + 18 global/positive detection tests)
+# Signature test suite (18 fixture tests + 18 global/positive detection tests)
 npm run scan:test
 
 # Headless browser validation (runtime errors + smoke tests)
@@ -74,7 +74,7 @@ Requires Puppeteer (`npm install` to install).
 
 | Script | Description |
 |--------|-------------|
-| `npm run scan:test` | Signature test suite — 35 tests (17 fixture + 18 global/positive detection) |
+| `npm run scan:test` | Signature test suite — 36 tests (18 fixture + 18 global/positive detection) |
 
 ### Deploy
 
@@ -106,6 +106,7 @@ Requires Puppeteer (`npm install` to install).
 | **Semantic** | `semantic.js` | Heading hierarchy, duplicate/missing h1, missing `<main>` landmark, unsemantic nav link lists |
 | **UX** | `ux.js` | Dynamic visual element (canvas/video/iframe) inserted into DOM without `scrollIntoView` |
 | **Turtle** | `turtle.js` | Skulpt canvas rendering issues — opaque canvas backgrounds, textarea code with template indentation |
+| **FlexOverflow** | `flex-overflow.js` | Flex column containers with `flex:1` missing `min-height:0` — causes page expansion instead of internal scroll |
 
 ### Static Validation (Global)
 
@@ -372,6 +373,12 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | TURTLE-001 | high | Opaque `background` on `.turtle-canvas-container canvas` — hides Skulpt drawing layer behind sprite layer |
 | TURTLE-002 | medium | Textarea turtle code has common leading indent from HTML template — may cause Python syntax errors |
 
+### Flex Overflow Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| FLEX-001 | medium | Flex column container with `flex:1` missing `min-height:0` — children with `overflow-y:auto` expand the page instead of scrolling |
+
 ### Legacy / Registry Codes
 
 | Code | Severity | Description |
@@ -470,6 +477,7 @@ The test runner (`tests/run.js`) loads fixture files from `tests/fixtures/`, run
 | `semantic-issues.html` | Semantic structure | SEM-001, 002 |
 | `ux-issues.html` | UX heuristics | UX-001 |
 | `turtle-issues.html` | Turtle canvas issues | TURTLE-001, 002 |
+| `flex-overflow-issues.html` | Flex column overflow | FLEX-001 |
 
 ### Global Regression Tests
 
@@ -631,7 +639,7 @@ _tools/eduscan/
 │   ├── orphans.js                  # Orphan detection
 │   ├── flow-validator.js           # FLOW-001 — unchained content detection
 │   ├── syntax/                     # Static validators (per-file + global)
-│   │   ├── index.js                # Orchestrator (18 sub-validators)
+│   │   ├── index.js                # Orchestrator (19 sub-validators)
 │   │   ├── html.js                 # HTML-001 through HTML-010
 │   │   ├── js.js                   # JS-001 through JS-006, SCOPE-001
 │   │   ├── engine.js               # ENG-001 through ENG-003
@@ -649,7 +657,8 @@ _tools/eduscan/
 │   │   ├── content-blob.js         # BLOB-001 through BLOB-004
 │   │   ├── semantic.js             # SEM-001 through SEM-005
 │   │   ├── ux.js                   # UX-001
-│   │   └── turtle.js               # TURTLE-001, TURTLE-002
+│   │   ├── turtle.js               # TURTLE-001, TURTLE-002
+│   │   └── flex-overflow.js        # FLEX-001
 │   ├── impact/                     # Impact analysis validators
 │   │   ├── index.js
 │   │   ├── contract-validator.js
@@ -684,9 +693,9 @@ _tools/eduscan/
 │   ├── json.js
 │   └── markdown.js
 ├── tests/                          # Signature test suite
-│   ├── run.js                      # Test runner (17 fixtures + 18 global)
+│   ├── run.js                      # Test runner (18 fixtures + 18 global)
 │   ├── expectations.js             # Expected codes per fixture
-│   └── fixtures/                   # 22 test files
+│   └── fixtures/                   # 23 test files
 │       ├── clean.html
 │       ├── html-issues.html
 │       ├── html-strict-issues.html
@@ -704,6 +713,7 @@ _tools/eduscan/
 │       ├── semantic-issues.html
 │       ├── ux-issues.html
 │       ├── turtle-issues.html
+│       ├── flex-overflow-issues.html
 │       ├── lp-issues.learningpaths.js
 │       ├── functional-issues.html
 │       ├── smoke-guard.html
@@ -799,6 +809,7 @@ module.exports = MyFixer;
 
 ## Version History
 
+- **v2.2.0** - Flex Overflow validator (FLEX-001), 36 tests (18 fixture + 18 global)
 - **v2.1.0** - 6 new validators (Emoji, Palette, ContentBlob, Semantic, UX, Turtle), HEUR-007/008, NAV-004, AutoFixer, FlowValidator, impact analysis, 35 tests (17 fixture + 18 global)
 - **v2.0.0** - Functional validation (Puppeteer), smoke tests, CI/CD pipeline, deploy gate, dependency checker, content catalog validator, heuristics engine, assignment link validator, test suite
 - **v1.4.0** - Auto-healing system (rename, reorganize, undo)
