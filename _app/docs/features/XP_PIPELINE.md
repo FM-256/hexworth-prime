@@ -152,6 +152,67 @@ However, the current bug means the client CAN deflate XP below what the server h
 | User Profile Modal | Firestore | `FirestoreManager.getUserProfile(uid)` → reads `p.xp`, `p.level` |
 | Leaderboard | Firestore | Queries users sorted by `xp` field |
 
+## Investigation History (2026-03-01)
+
+### How We Found the Problem
+
+The XP discrepancy surfaced during User Profile Modal development. The profile displays stats from Firestore — 115 modules, 47 labs, 19 quizzes — but the XP shown (10,600) didn't match what those completions should produce (30,000+).
+
+### Initial Misdiagnosis
+
+The first investigation stopped at XPCalculator.js and concluded XP was "just a local function" that only read localStorage. The proposed fix was to patch `_categorizeCompletions()` to scan more localStorage formats — the same pattern used to fix the profile stats backfill.
+
+This was wrong. XP is NOT just a local function. The system has three layers:
+1. **Cloud Functions** (`recordProgress`, `addXP`) award XP server-side on completion
+2. **`syncBidirectional()`** orchestrates merge between Firestore and localStorage
+3. **`XPCalculator.recalculate()`** is a deterministic re-derivation used as a correction step
+
+The initial fix would have only patched layer 3 while ignoring layers 1 and 2. Worse, making hasty changes to the XP engine without understanding all layers risked breaking the sync guarantees that multiple iterations of sync architecture had built.
+
+### The Real Issue: Dual Authority
+
+The platform must always maintain two sources of truth:
+1. **Firestore** — the cross-device canonical record
+2. **localStorage** — the current session, which may have completions not yet synced
+
+This is inherent to the platform's architecture. Multiple devices, spotty sync, and the platform's history of overlapping storage formats mean neither side can be trusted alone. Past attempts to solve sync include multiple bidirectional sync implementations, culminating in StateFederation.js (federated roaming profiles).
+
+The XP bug is a symptom of this dual-authority conflict: `syncBidirectional()` step 9 recalculates XP from incomplete localStorage data and overwrites the correct server value.
+
+### The Plan: Master XP Ledger (QC-9 → QC-10)
+
+Rather than patching the existing calculation to scan more formats, the correct long-term approach is:
+
+**Create a master XP ledger** — a living document/data structure that lists every XP-granting item in Hexworth Prime with its canonical XP value.
+
+**Core principle:** Every item is binary — completed (1) or not (0). `XP = SUM(value WHERE completed = 1)`.
+
+**Why this works:**
+- There is a finite amount of awardable XP based on existing content (presentations, labs, quizzes, modules, courses, houses, gates, achievements)
+- Each item type has an XP value that correlates with effort/difficulty: presentations (50) < tools (50) < quizzes (100-200) < labs (500) < gates (500) < courses (10,000)
+- The platform is growing — new content means more items that award XP — so the ledger must be a living document that grows with the content
+
+**The static scaffolding** (what the ledger covers first):
+- Presentations, labs, quizzes, modules, courses, houses, gates, achievements
+- These are deterministic — known items, known values, binary completion
+
+**What it doesn't cover yet** (phase 2):
+- Games — dynamic awards from the global scoreboard (unique games played × 100 XP)
+- Daily logins — streak-based, capped at 365 days × 25 XP
+- These will be layered on after the static foundation is solid
+
+**Dependency chain:**
+1. **QC-9: Master XP Ledger** — requires a true asset/content inventory of all XP-granting items, plus an audit tool that verifies the ledger against actual content on disk (like EduScan but for XP). This is the blocker.
+2. **QC-10: XP Improvement Plan v4** — rewire XP calculation to derive from the master ledger instead of scanning overlapping localStorage formats. Blocked by QC-9.
+3. **F-49: Global Scoreboard** — separate track to verify the game scoreboard works and add "Games Played" stat to the profile. Feeds into the dynamic XP layer later.
+
+### Lessons Learned
+
+1. **Read all layers before proposing changes.** The XP system has Cloud Functions, client orchestration, and local calculation — stopping at the first function found gives an incomplete picture.
+2. **Don't patch symptoms.** Fixing XPCalculator to scan more localStorage formats treats a symptom. The root cause is the dual-authority conflict and the lack of a canonical item inventory.
+3. **Sync is an architectural problem, not a bug.** Multiple iterations of sync code exist because this is genuinely hard. Any fix must respect both truths (Firestore and localStorage) without one trampling the other.
+4. **Plan before coding.** The XP engine touches leveling, leaderboards, profile display, and cross-device sync. Changes must be planned and approved, not applied reactively.
+
 ## Related Docs
 
 - [User Profile Modal](USER_PROFILE_MODAL.md) — Stats display, backfill pipeline, storage formats
