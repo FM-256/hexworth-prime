@@ -14,8 +14,8 @@ const HandlerDirectives = (function() {
     'use strict';
 
     const MAX_DIRECTIVES = 3;
-    const SHOWN_KEY = 'hexworth_directives_shown';
-    const INTEL_SHOWN_KEY = 'hexworth_intel_shown';
+    const SHOWN_KEY = 'hexworth_directives_shown_v2';
+    const INTEL_SHOWN_KEY = 'hexworth_intel_shown_v2';
     const SESSION_KEY = 'hexworth_session_stats';
 
     // ═══════════════════════════════════════════════════════════════
@@ -91,7 +91,9 @@ const HandlerDirectives = (function() {
         const names = {
             shield: 'Shield House', forge: 'The Forge', web: 'Web House',
             script: 'Script House', cloud: 'Cloud House', code: 'Code House',
-            key: 'Key House', machine: 'House of the Machine', matrix: 'Matrix House'
+            key: 'Key House', eye: 'Eye House', 'dark-arts': 'The Dark Arts',
+            machine: 'House of the Machine', matrix: 'Matrix House',
+            divergent: 'The Factionless'
         };
         return names[id] || id;
     }
@@ -381,17 +383,34 @@ const HandlerDirectives = (function() {
      */
     function intelOverallStatus() {
         const progress = getProgress();
-        const { level } = getXPData();
+        const { xp, level } = getXPData();
         const streak = parseInt(localStorage.getItem('hexworth_streak') || '0');
 
+        // Count modules from multiple sources (flat format + structured)
         let totalModules = 0;
         if (Array.isArray(progress.completedModules)) {
             totalModules = progress.completedModules.length;
         }
+        // Also count from houses structure
+        if (progress.houses) {
+            let houseCount = 0;
+            for (const house of Object.values(progress.houses)) {
+                if (house && Array.isArray(house.modulesCompleted)) {
+                    houseCount += house.modulesCompleted.length;
+                }
+            }
+            totalModules = Math.max(totalModules, houseCount);
+        }
+        // Also check the standalone counter
+        const lsCount = parseInt(localStorage.getItem('hexworth_modules_completed') || '0');
+        totalModules = Math.max(totalModules, lsCount);
 
-        if (totalModules === 0 && level <= 1) return null;
+        if (totalModules === 0 && level <= 1 && xp === 0) return null;
 
-        const parts = [`${totalModules} modules complete`, `Level ${level}`];
+        const parts = [];
+        if (totalModules > 0) parts.push(`${totalModules} modules complete`);
+        parts.push(`Level ${level}`);
+        if (xp > 0) parts.push(`${xp.toLocaleString()} XP`);
         if (streak > 1) parts.push(`${streak}-day streak`);
 
         return { message: parts.join('. ') + '.' };

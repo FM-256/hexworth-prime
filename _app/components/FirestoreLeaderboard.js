@@ -269,7 +269,7 @@ const FirestoreLeaderboard = (function() {
         const houseColor = houseColors[entry.house] || '#888';
 
         return `
-            <div class="fsl-entry ${isCurrentUser ? 'fsl-current-user' : ''} ${rank <= 3 ? `fsl-rank-${rank}` : ''}">
+            <div class="fsl-entry ${isCurrentUser ? 'fsl-current-user' : ''} ${rank <= 3 ? `fsl-rank-${rank}` : ''}" onclick="if(typeof viewUserProfile==='function')viewUserProfile('${entry.id}')" style="cursor:pointer">
                 <div class="fsl-rank">${rankDisplay}</div>
                 <div class="fsl-avatar" style="border-color: ${houseColor}">
                     ${entry.photoURL
@@ -304,7 +304,7 @@ const FirestoreLeaderboard = (function() {
         const tier = tierBadges[rankData.tier] || tierBadges.free;
 
         return `
-            <div class="fsl-entry fsl-current-user fsl-below-fold">
+            <div class="fsl-entry fsl-current-user fsl-below-fold" onclick="if(typeof viewUserProfile==='function')viewUserProfile('${currentUser.uid}')" style="cursor:pointer">
                 <div class="fsl-rank">#${rankData.rank}</div>
                 <div class="fsl-avatar" style="border-color: ${houseColor}">
                     ${currentUser.photoURL

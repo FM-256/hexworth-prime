@@ -183,6 +183,16 @@ class SyntaxValidator {
             }
         }
 
+        // Run Heuristic fixed-position overlay validation (global, scans .js files)
+        const fixedOverlayResults = this.heuristicsValidator.validateFixedPositionOverlays();
+        if (fixedOverlayResults.length > 0) {
+            results.issues.push(...fixedOverlayResults);
+            results.summary.heuristicErrors += fixedOverlayResults.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] FixedOverlays: ${fixedOverlayResults.length} issues`);
+            }
+        }
+
         // Run CSP validation (global, cross-references firebase.json)
         const cspResults = this.cspValidator.validate();
         if (cspResults.issues.length > 0) {

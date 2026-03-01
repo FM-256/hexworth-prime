@@ -3521,6 +3521,9 @@
         </div>
     </div>
 
+    <!-- User Profile Modal (populated dynamically by UserProfileModal.js) -->
+    <div class="modal-overlay" id="userProfileModal" role="dialog" aria-modal="true"></div>
+
     <!-- Path Action Modal -->
     <div class="modal-overlay" id="pathActionModal" role="dialog" aria-modal="true" aria-labelledby="pathActionTitle">
         <div class="modal-content" style="max-width: 450px;">
@@ -3621,6 +3624,7 @@
     <script src="components/GistSync.js"></script>
     <script src="components/LeaderboardManager.js"></script>
     <script src="components/FirestoreLeaderboard.js"></script>
+    <script src="components/UserProfileModal.js"></script>
     <script src="components/AchievementManager.js"></script>
     <script src="components/AchievementRegistry.js"></script>
     <script src="components/AchievementPanel.js"></script>
@@ -7626,9 +7630,14 @@
                 const activityPanel = document.getElementById('houseActivity');
                 if (activityPanel && typeof ActivityFeed !== 'undefined') {
                     ActivityFeed.render(activityPanel);
-                    // Record login activity
+                    // Record login activity (once per day)
                     const streak = parseInt(localStorage.getItem('hexworth_streak') || '0');
-                    ActivityFeed.login(streak);
+                    const loginKey = 'hexworth_login_logged';
+                    const today = new Date().toDateString();
+                    if (localStorage.getItem(loginKey) !== today) {
+                        ActivityFeed.login(streak);
+                        localStorage.setItem(loginKey, today);
+                    }
                     // Inject handler directives, intel reports, and daily missions
                     if (typeof HandlerDirectives !== 'undefined') {
                         HandlerDirectives.inject();
@@ -7639,6 +7648,131 @@
                         DailyDirectives.inject();
                     }
                 }
+
+                // Backfill profile stats to Firestore from localStorage
+                try {
+                    if (typeof FirestoreManager !== 'undefined') {
+                        const uid = e.detail.user.uid;
+                        const profilePatch = {};
+
+                        // Load progress object once for labs + quizzes
+                        const prog = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                        const houseIds = ['web','shield','forge','script','cloud','code','key','eye','dark-arts','matrix','divergent','arena'];
+
+                        // Labs — merge standalone key + structured arrays + CTF boxes
+                        try {
+                            const allLabs = new Set();
+                            // Standalone key
+                            const labArr = JSON.parse(localStorage.getItem('hexworth_lab_progress') || '[]');
+                            if (Array.isArray(labArr)) labArr.forEach(l => allLabs.add(l));
+                            // Progress object — top-level + per-house structured arrays
+                            if (Array.isArray(prog.labsCompleted)) prog.labsCompleted.forEach(l => allLabs.add(l));
+                            if (prog.houses) {
+                                for (const h of Object.values(prog.houses)) {
+                                    if (h && Array.isArray(h.labsCompleted)) h.labsCompleted.forEach(l => allLabs.add(l));
+                                }
+                            }
+                            // Flat-format: progress[houseId][moduleId] entries with lab-like IDs
+                            for (const hid of houseIds) {
+                                const hd = prog[hid];
+                                if (!hd || typeof hd !== 'object' || Array.isArray(hd)) continue;
+                                for (const [key, val] of Object.entries(hd)) {
+                                    if (val && typeof val === 'object' && !Array.isArray(val) && val.completed) {
+                                        // Labs have no score, or have arena/lab/tool in the ID
+                                        if (val.score == null || /lab|arena|tool|ctf/i.test(key)) {
+                                            allLabs.add(key);
+                                        }
+                                    }
+                                }
+                            }
+                            // CTF boxes are labs — use CTF keys as source of truth
+                            const ctfPrefixes = ['a','b','c','d','e'];
+                            for (const cp of ctfPrefixes) {
+                                for (let ci = 1; ci <= 20; ci++) {
+                                    try {
+                                        const cd = JSON.parse(localStorage.getItem(`hexworth_ctf_${cp}${ci}`) || 'null');
+                                        if (cd && cd.completed) allLabs.add(`arena-${cp}${ci}`);
+                                    } catch(e2) {}
+                                }
+                            }
+                            if (allLabs.size > 0) profilePatch.labsCompleted = [...allLabs];
+                        } catch(e) {}
+
+                        // Quizzes — merge standalone + structured + flat-format + course keys
+                        try {
+                            const allQuizzes = {};
+                            // Standalone key
+                            const qScores = JSON.parse(localStorage.getItem('hexworth_quiz_scores') || '{}');
+                            Object.assign(allQuizzes, qScores);
+                            // Per-house structured arrays
+                            if (prog.houses) {
+                                for (const [houseId, house] of Object.entries(prog.houses)) {
+                                    if (!house || typeof house !== 'object') continue;
+                                    if (Array.isArray(house.quizzesPassed)) {
+                                        house.quizzesPassed.forEach(qId => {
+                                            if (!allQuizzes[qId]) allQuizzes[qId] = { passed: true };
+                                        });
+                                    }
+                                }
+                            }
+                            // quizHistory array
+                            if (Array.isArray(prog.quizHistory)) {
+                                prog.quizHistory.forEach(q => {
+                                    if (q && q.moduleId && q.score >= 70) {
+                                        allQuizzes[q.moduleId] = { passed: true, score: q.score };
+                                    }
+                                });
+                            }
+                            // Flat-format: progress[houseId][moduleId] entries with a score
+                            for (const hid of houseIds) {
+                                const hd = prog[hid];
+                                if (!hd || typeof hd !== 'object' || Array.isArray(hd)) continue;
+                                for (const [key, val] of Object.entries(hd)) {
+                                    if (val && typeof val === 'object' && !Array.isArray(val) && val.completed && val.score != null) {
+                                        if (!allQuizzes[key]) allQuizzes[key] = { passed: true, score: val.score };
+                                    }
+                                }
+                            }
+                            // Course-specific keys (core1/core2 chapter quizzes)
+                            for (let ch = 1; ch <= 24; ch++) {
+                                const chKey = `core2-ch${String(ch).padStart(2,'0')}-quiz`;
+                                const chData = localStorage.getItem(chKey);
+                                if (chData) {
+                                    try {
+                                        const parsed = JSON.parse(chData);
+                                        if (parsed && (parsed.passed || parsed.score >= 70)) {
+                                            allQuizzes[chKey] = { passed: true, score: parsed.score || 0 };
+                                        }
+                                    } catch(e2) {}
+                                }
+                            }
+                            if (Object.keys(allQuizzes).length > 0) profilePatch.quizzes = allQuizzes;
+                        } catch(e) {}
+
+                        // CTF stats from hexworth_ctf_* keys
+                        let boxesPwned = 0, flagsCaptured = 0;
+                        const prefixes = ['a', 'b', 'c', 'd', 'e'];
+                        for (const p of prefixes) {
+                            for (let i = 1; i <= 20; i++) {
+                                try {
+                                    const d = JSON.parse(localStorage.getItem(`hexworth_ctf_${p}${i}`) || 'null');
+                                    if (!d) continue;
+                                    if (d.completed) boxesPwned++;
+                                    if (Array.isArray(d.flagsFound)) flagsCaptured += d.flagsFound.length;
+                                    else { if (d.userFlag) flagsCaptured++; if (d.rootFlag) flagsCaptured++; }
+                                } catch(e) {}
+                            }
+                        }
+                        if (boxesPwned > 0 || flagsCaptured > 0) {
+                            profilePatch.ctfBoxesPwned = boxesPwned;
+                            profilePatch.ctfFlagsCaptured = flagsCaptured;
+                        }
+
+                        if (Object.keys(profilePatch).length > 0) {
+                            FirestoreManager.setUserProfile(uid, profilePatch);
+                        }
+                    }
+                } catch(e) { console.warn('[Dashboard] Profile stats backfill error:', e); }
             }
 
             // Reload page to apply access changes

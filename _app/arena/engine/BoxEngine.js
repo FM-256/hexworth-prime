@@ -1866,7 +1866,48 @@ const BoxEngine = {
             }
         } catch (e) { console.error('[ARENA] AssignmentManager error:', e); }
 
+        // Sync aggregate CTF stats to Firestore user profile
+        try {
+            if (typeof FirestoreManager !== 'undefined' && typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                const user = FirebaseAuth.getUser();
+                if (user) {
+                    const ctfStats = this._aggregateCTFStats();
+                    FirestoreManager.setUserProfile(user.uid, {
+                        ctfBoxesPwned: ctfStats.boxesPwned,
+                        ctfFlagsCaptured: ctfStats.flagsCaptured
+                    });
+                }
+            }
+        } catch (e) { console.error('[ARENA] CTF stats sync error:', e); }
+
         console.log(`%c[ARENA] Assessment reported: ${boxId} (${s.score} pts, ${elapsed}s, ${events.length} events)`, 'color: #9b59b6');
+    },
+
+    /**
+     * Aggregate CTF stats from all localStorage box keys.
+     * Reads hexworth_ctf_a1..a20 (and b/c/d/e series) to compute totals.
+     */
+    _aggregateCTFStats() {
+        let boxesPwned = 0;
+        let flagsCaptured = 0;
+        const prefixes = ['a', 'b', 'c', 'd', 'e'];
+        for (const prefix of prefixes) {
+            for (let i = 1; i <= 20; i++) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(`hexworth_ctf_${prefix}${i}`) || 'null');
+                    if (!data) continue;
+                    if (data.completed) boxesPwned++;
+                    if (Array.isArray(data.flagsFound)) {
+                        flagsCaptured += data.flagsFound.length;
+                    } else {
+                        // Workshop format: boolean flags
+                        if (data.userFlag) flagsCaptured++;
+                        if (data.rootFlag) flagsCaptured++;
+                    }
+                } catch (e) { /* skip corrupt keys */ }
+            }
+        }
+        return { boxesPwned, flagsCaptured };
     },
 
     /**

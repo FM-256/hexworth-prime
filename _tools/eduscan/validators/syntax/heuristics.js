@@ -13,6 +13,7 @@
  * - HEUR-005: Duplicate script includes (same src on multiple <script> tags)
  * - HEUR-006: Hardcoded relative href in shared JS renderer (fragile back links)
  * - HEUR-007: Code block CSS missing white-space: pre/pre-wrap (commands render as paragraph)
+ * - HEUR-008: position:fixed in dynamically created overlay (breaks when body has filter/transform)
  */
 
 const fs = require('fs');
@@ -532,6 +533,81 @@ class HeuristicsValidator {
                     file: file.path,
                     line,
                     fix: `Add 'white-space: pre-wrap;' to the .${className} CSS rule`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-008: position:fixed in dynamically created overlay
+     *
+     * Scans component JS files for CSS strings containing position: fixed
+     * inside dynamically created elements (createElement + appendChild).
+     * position:fixed breaks when any ancestor (including body) has a CSS
+     * transform, filter, or will-change property — the element becomes
+     * positioned relative to that ancestor instead of the viewport.
+     *
+     * On dashboards with easter-egg effects that set body.style.filter,
+     * this causes modals to appear at the top of the document instead of
+     * the viewport, making them invisible when the user is scrolled down.
+     *
+     * Fix: use position:absolute with JS-calculated top (window.scrollY)
+     * and height (window.innerHeight), or use a static DOM element that
+     * already exists in the HTML.
+     */
+    validateFixedPositionOverlays() {
+        const issues = [];
+        const componentsDir = path.resolve(this.rootPath, 'components');
+
+        let jsFiles;
+        try {
+            jsFiles = fs.readdirSync(componentsDir).filter(f => f.endsWith('.js'));
+        } catch (err) {
+            return issues;
+        }
+
+        for (const filename of jsFiles) {
+            const filePath = path.join(componentsDir, filename);
+            let content;
+            try {
+                content = fs.readFileSync(filePath, 'utf8');
+            } catch (err) {
+                continue;
+            }
+
+            // Only flag files that dynamically create elements (not static HTML)
+            const createsElements = /createElement|\.innerHTML\s*=|\.className\s*=/.test(content);
+            if (!createsElements) continue;
+
+            // Look for position: fixed in CSS strings or template literals
+            const fixedPattern = /position\s*:\s*fixed/gi;
+            let match;
+
+            while ((match = fixedPattern.exec(content)) !== null) {
+                const line = this.getLineNumber(content, match.index);
+
+                // Skip if in a JS comment (// or /* */)
+                const lineStart = content.lastIndexOf('\n', match.index) + 1;
+                const lineText = content.substring(lineStart, content.indexOf('\n', match.index));
+                const trimmedLine = lineText.trim();
+                if (trimmedLine.startsWith('//') || trimmedLine.startsWith('*') || trimmedLine.startsWith('/*')) {
+                    continue;
+                }
+
+                if (this.isAllowlisted(`components/${filename}`, 'HEUR-008')) {
+                    continue;
+                }
+
+                issues.push({
+                    code: 'HEUR-008',
+                    severity: 'suspect',
+                    category: 'heuristic',
+                    message: `position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)`,
+                    file: `components/${filename}`,
+                    line,
+                    fix: `Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML`
                 });
             }
         }

@@ -108,6 +108,53 @@ const ActivityFeed = (function() {
      */
     function init() {
         loadFromStorage();
+        deduplicateLogins();
+    }
+
+    /**
+     * Clean up event history:
+     * - Deduplicate login events (keep only most recent CONNECTION per day)
+     * - Keep only the 3 most recent login events total (old logins aren't useful)
+     * - Sort all events by timestamp
+     */
+    function deduplicateLogins() {
+        if (events.length === 0) return;
+        const original = events.length;
+
+        // 1. Dedup logins: keep only latest per day
+        const seenDays = new Set();
+        const cleaned = [];
+        for (let i = events.length - 1; i >= 0; i--) {
+            const evt = events[i];
+            if (evt.type === 'login') {
+                const day = new Date(evt.timestamp).toDateString();
+                if (seenDays.has(day)) continue;
+                seenDays.add(day);
+            }
+            cleaned.push(evt);
+        }
+        cleaned.reverse();
+
+        // 2. Keep only the 3 most recent login events — old ones are noise
+        let loginCount = 0;
+        const trimmed = [];
+        for (let i = cleaned.length - 1; i >= 0; i--) {
+            const evt = cleaned[i];
+            if (evt.type === 'login') {
+                loginCount++;
+                if (loginCount > 3) continue;
+            }
+            trimmed.push(evt);
+        }
+        trimmed.reverse();
+
+        // 3. Sort by timestamp
+        trimmed.sort((a, b) => a.timestamp - b.timestamp);
+
+        if (trimmed.length < original) {
+            events = trimmed;
+            saveToStorage();
+        }
     }
 
     /**
@@ -264,7 +311,7 @@ const ActivityFeed = (function() {
                     </div>
                 </div>
 
-                ${(() => { try { return typeof DailyDirectives !== 'undefined' ? DailyDirectives.renderPinned() : ''; } catch(e) { console.warn('[ActivityFeed] DailyDirectives render error:', e); return ''; } })()}
+                ${(() => { try { return typeof DailyDirectives !== 'undefined' ? DailyDirectives.renderPinned() : ''; } catch(e) { console.error('[ActivityFeed] DailyDirectives render error:', e); return ''; } })()}
 
                 <div class="activity-feed-terminal">
                     ${displayEvents.length === 0 ? `

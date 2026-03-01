@@ -9,9 +9,16 @@
  * - Skill tree unlocks (divergent paths)
  * - Firestore sync for instructor analytics (v3.11.0+)
  *
- * Storage:
- *   - Primary: localStorage with 'hexworth_' prefix
+ * Storage (4 overlapping formats — all must be checked when counting):
+ *   - Structured: hexworth_progress with houses.{id}.modulesCompleted[], labsCompleted[], quizzesPassed[]
+ *   - Flat: hexworth_progress[houseId][moduleId] = {completed, score, completedAt}
+ *   - Standalone: hexworth_quiz_scores, hexworth_lab_progress, hexworth_modules_completed
+ *   - Course-specific: core2-ch{NN}-quiz, hexworth_progress_core1, hexworth_progress_core2
  *   - Sync: Firestore classes/{classId}/progress and activity subcollections
+ *
+ * _reconcileCounts() uses Math.max() across structured, flat, and standalone sources.
+ * The dashboard auth backfill (dashboard.html) mirrors this to sync labs/quizzes to Firestore.
+ * CTF box keys (hexworth_ctf_*) are also counted as labs since per-box keys survive resets.
  *
  * Dependencies (for Firestore sync):
  *   - FirebaseAuth (components/FirebaseAuth.js)

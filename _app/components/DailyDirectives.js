@@ -123,7 +123,7 @@ const DailyDirectives = (function() {
         for (const houseId of Object.keys(progress)) {
             if (houseId === 'houses' || houseId === 'completedModules' || houseId === 'xp' || houseId === 'level') continue;
             const house = progress[houseId];
-            if (typeof house !== 'object') continue;
+            if (!house || typeof house !== 'object') continue;
             for (const mod of Object.values(house)) {
                 if (mod.completed && mod.date && new Date(mod.date).toDateString() === today) {
                     count++;
@@ -146,7 +146,7 @@ const DailyDirectives = (function() {
         for (const houseId of Object.keys(progress)) {
             if (houseId === 'houses' || houseId === 'completedModules' || houseId === 'xp' || houseId === 'level') continue;
             const house = progress[houseId];
-            if (typeof house !== 'object') continue;
+            if (!house || typeof house !== 'object') continue;
             for (const mod of Object.values(house)) {
                 if (mod.completed && mod.date && new Date(mod.date) >= weekStart) {
                     modules++;
@@ -167,7 +167,7 @@ const DailyDirectives = (function() {
         for (const houseId of Object.keys(progress)) {
             if (houseId === 'houses' || houseId === 'completedModules') continue;
             const house = progress[houseId];
-            if (typeof house !== 'object') continue;
+            if (!house || typeof house !== 'object') continue;
             for (const mod of Object.values(house)) {
                 if (mod.completed && mod.score >= 80 && mod.date && new Date(mod.date).toDateString() === today) {
                     return true;
@@ -221,7 +221,8 @@ const DailyDirectives = (function() {
 
     function checkProgress(mission) {
         if (!mission || !mission.check) return false;
-        return mission.check();
+        try { return mission.check(); }
+        catch (e) { console.warn('[DailyDirectives] check() error:', e); return false; }
     }
 
     function claim(missionType) {
@@ -294,19 +295,30 @@ const DailyDirectives = (function() {
     }
 
     function renderPinned() {
-        const daily = getToday();
-        const weekly = getWeekly();
+        try {
+            const daily = getToday();
+            const weekly = getWeekly();
 
-        return `
-            <div class="daily-directives-pinned">
-                <div class="daily-directives-header">
-                    <span class="daily-directives-icon">◈</span>
-                    ACTIVE MISSIONS
+            let dailyRow, weeklyRow;
+            try { dailyRow = renderMissionRow(daily, 'DAILY'); }
+            catch (e) { console.error('[DailyDirectives] Daily mission render error:', e); dailyRow = ''; }
+            try { weeklyRow = renderMissionRow(weekly, 'WEEKLY'); }
+            catch (e) { console.error('[DailyDirectives] Weekly mission render error:', e); weeklyRow = ''; }
+
+            return `
+                <div class="daily-directives-pinned">
+                    <div class="daily-directives-header">
+                        <span class="daily-directives-icon">◈</span>
+                        ACTIVE MISSIONS
+                    </div>
+                    ${dailyRow}
+                    ${weeklyRow}
                 </div>
-                ${renderMissionRow(daily, 'DAILY')}
-                ${renderMissionRow(weekly, 'WEEKLY')}
-            </div>
-        `;
+            `;
+        } catch (e) {
+            console.error('[DailyDirectives] renderPinned error:', e);
+            return '';
+        }
     }
 
     /**
