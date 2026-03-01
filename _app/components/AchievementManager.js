@@ -1172,7 +1172,15 @@ const AchievementManager = (function() {
         console.log(`%c🏆 Achievement Unlocked: ${achievement.name} (+${achievement.points} pts)`,
             'color: #ffd700; font-size: 14px; font-weight: bold;');
 
-        // Record in Activity Feed
+        // Queue activity event for dashboard feed (always available)
+        try {
+            const key = 'hexworth_activity_queue';
+            const queue = JSON.parse(localStorage.getItem(key) || '[]');
+            queue.push({ type: 'achievement_unlock', data: { achievementId, title: achievement.name }, timestamp: Date.now() });
+            if (queue.length > 50) queue.splice(0, queue.length - 50);
+            localStorage.setItem(key, JSON.stringify(queue));
+        } catch (e) { /* silent */ }
+        // Also fire live if ActivityFeed is loaded (dashboard context)
         if (typeof ActivityFeed !== 'undefined') {
             ActivityFeed.achievementUnlock(achievementId, achievement.name);
         }

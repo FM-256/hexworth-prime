@@ -27,6 +27,24 @@ const ModuleProgress = (function() {
     let firestoreSyncReady = null; // Promise that resolves when deps are loaded
 
     /**
+     * Queue an activity event for the dashboard ActivityFeed.
+     * Module pages don't load ActivityFeed.js, so we write to a
+     * localStorage queue that gets drained on dashboard load.
+     */
+    function queueActivityEvent(type, data) {
+        try {
+            const key = 'hexworth_activity_queue';
+            const queue = JSON.parse(localStorage.getItem(key) || '[]');
+            queue.push({ type, data, timestamp: Date.now() });
+            // Cap queue at 50 to prevent unbounded growth
+            if (queue.length > 50) queue.splice(0, queue.length - 50);
+            localStorage.setItem(key, JSON.stringify(queue));
+        } catch (e) {
+            // Silent fail — activity logging is non-critical
+        }
+    }
+
+    /**
      * Lazy-load Firebase/Firestore dependencies and sync to instructor dashboard.
      * Loads scripts once, caches the result, fails silently if offline or unauthenticated.
      */
@@ -305,9 +323,12 @@ const ModuleProgress = (function() {
 
         console.log(`📚 Module completed: ${houseId}/${moduleId}`);
 
-        // Record in Activity Feed
+        // Queue activity event for dashboard feed (always available)
+        const prettyTitle = moduleId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        queueActivityEvent('module_complete', { moduleId, title: prettyTitle });
+        // Also fire live if ActivityFeed is loaded (dashboard context)
         if (typeof ActivityFeed !== 'undefined') {
-            ActivityFeed.moduleComplete(moduleId, moduleId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+            ActivityFeed.moduleComplete(moduleId, prettyTitle);
         }
 
         // Return to destination — wait for Firestore sync first (max 8s timeout)
@@ -391,6 +412,12 @@ const ModuleProgress = (function() {
         }
 
         console.log(`📝 Quiz completed: ${houseId}/${quizId} - Score: ${score}% (${passed ? 'PASS' : 'FAIL'})`);
+
+        // Queue activity event for dashboard feed
+        if (passed) {
+            const quizTitle = quizId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            queueActivityEvent('module_complete', { moduleId: quizId, title: `${quizTitle} (${score}%)` });
+        }
 
         // Return to destination if passed — wait for Firestore sync first (max 8s timeout)
         if ((returnToDashboard || returnUrl) && passed) {

@@ -72,6 +72,24 @@ const ActivityFeed = (function() {
             template: (data) => `Now #${data.rank} on ${data.board || 'leaderboard'}`,
             color: '#8b5cf6'
         },
+        directive: {
+            icon: '⚐',
+            prefix: 'DIRECTIVE',
+            template: (data) => data.message,
+            color: '#f59e0b'
+        },
+        intel: {
+            icon: '◈',
+            prefix: 'INTEL REPORT',
+            template: (data) => data.message,
+            color: '#38bdf8'
+        },
+        directive_complete: {
+            icon: '✦',
+            prefix: 'MISSION COMPLETE',
+            template: (data) => data.message,
+            color: '#4ade80'
+        },
         system: {
             icon: '⚡',
             prefix: 'HANDLER',
@@ -126,8 +144,9 @@ const ActivityFeed = (function() {
      * Record a new activity event
      * @param {string} type - Event type (module_complete, achievement_unlock, etc.)
      * @param {object} data - Event-specific data
+     * @param {number} [timestamp] - Optional timestamp (for queued events)
      */
-    function record(type, data = {}) {
+    function record(type, data = {}, timestamp) {
         const eventType = EVENT_TYPES[type];
         if (!eventType) {
             console.warn('[ActivityFeed] Unknown event type:', type);
@@ -138,7 +157,7 @@ const ActivityFeed = (function() {
             id: generateId(),
             type,
             data,
-            timestamp: Date.now()
+            timestamp: timestamp || Date.now()
         };
 
         events.push(event);
@@ -194,12 +213,31 @@ const ActivityFeed = (function() {
     }
 
     /**
+     * Drain queued activity events written by module pages.
+     * Module pages can't load ActivityFeed.js so they write to a
+     * localStorage queue. This drains it on dashboard load.
+     */
+    function drainQueue() {
+        const key = 'hexworth_activity_queue';
+        try {
+            const queue = JSON.parse(localStorage.getItem(key) || '[]');
+            if (queue.length === 0) return;
+            queue.forEach(evt => record(evt.type, evt.data, evt.timestamp));
+            localStorage.removeItem(key);
+        } catch (e) {
+            console.warn('[ActivityFeed] Failed to drain queue:', e);
+            localStorage.removeItem(key);
+        }
+    }
+
+    /**
      * Render the activity feed into a container
      * @param {HTMLElement} container - Container element
      * @param {object} options - Render options
      */
     function render(container, options = {}) {
         containerEl = container;
+        drainQueue();
         renderFeed(container, options);
     }
 
@@ -225,6 +263,8 @@ const ActivityFeed = (function() {
                         LIVE
                     </div>
                 </div>
+
+                ${typeof DailyDirectives !== 'undefined' ? DailyDirectives.renderPinned() : ''}
 
                 <div class="activity-feed-terminal">
                     ${displayEvents.length === 0 ? `
