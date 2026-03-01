@@ -966,12 +966,13 @@ class UpdateManager {
                 background: rgba(0, 0, 0, 0.8);
                 backdrop-filter: blur(8px);
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
                 justify-content: center;
                 z-index: ${this.options.zIndex + 1};
                 opacity: 0;
                 transition: opacity 0.3s ease;
-                padding: 20px;
+                padding: 40px 20px;
+                overflow-y: auto;
             }
 
             .update-modal-overlay.visible {
@@ -984,8 +985,8 @@ class UpdateManager {
                 border-radius: 16px;
                 max-width: 520px;
                 width: 100%;
-                max-height: 85vh;
-                overflow-y: auto;
+                max-height: none;
+                overflow: visible;
                 display: flex;
                 flex-direction: column;
                 box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
