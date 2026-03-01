@@ -966,13 +966,12 @@ class UpdateManager {
                 background: rgba(0, 0, 0, 0.8);
                 backdrop-filter: blur(8px);
                 display: flex;
-                align-items: flex-start;
+                align-items: center;
                 justify-content: center;
                 z-index: ${this.options.zIndex + 1};
                 opacity: 0;
                 transition: opacity 0.3s ease;
-                padding: 40px 20px;
-                overflow-y: auto;
+                padding: 20px;
             }
 
             .update-modal-overlay.visible {
@@ -985,8 +984,8 @@ class UpdateManager {
                 border-radius: 16px;
                 max-width: 520px;
                 width: 100%;
-                max-height: none;
-                overflow: visible;
+                max-height: 85vh;
+                overflow: hidden;
                 display: flex;
                 flex-direction: column;
                 box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
@@ -1088,6 +1087,7 @@ class UpdateManager {
 
             .update-modal-body {
                 flex: 1;
+                min-height: 0;
                 overflow-y: auto;
                 padding: 20px;
             }
@@ -1186,6 +1186,7 @@ class UpdateManager {
                 padding: 20px;
                 border-top: 1px solid rgba(159, 122, 234, 0.1);
                 justify-content: flex-end;
+                flex-shrink: 0;
             }
 
             .update-btn-secondary {
@@ -1320,6 +1321,7 @@ class UpdateManager {
             .whatsnew-header {
                 padding: 40px 20px 30px;
                 background: linear-gradient(180deg, rgba(159, 122, 234, 0.15) 0%, transparent 100%);
+                flex-shrink: 0;
             }
 
             .whatsnew-celebration {
