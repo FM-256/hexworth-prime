@@ -41,9 +41,9 @@
 
         #muteBtn {
             position: absolute;
-            top: 14px;
-            right: 20px;
-            z-index: 200;
+            top: 10px;
+            right: 10px;
+            z-index: 60;
             background: rgba(0,255,204,0.1);
             border: 1px solid #00ffcc;
             color: #00ffcc;
@@ -324,13 +324,13 @@
             z-index: 15;
         }
 
+        #overlay { pointer-events: none; cursor: pointer; }
         #overlay.hidden { display: none; }
     </style>
 </head>
 <body>
 
 <a class="back-link" onclick="history.back()">← BACK</a>
-<button id="muteBtn">MUTE</button>
 
 <div id="gameWrapper">
     <!-- LORE PANEL -->
@@ -432,6 +432,7 @@
     <!-- GAME CONTAINER -->
     <div id="gameContainer">
         <canvas id="gameCanvas" width="900" height="650"></canvas>
+        <button id="muteBtn">MUTE</button>
         <div id="crosshair"></div>
         <div id="damageFlash"></div>
         <div id="bfgFlash"></div>
@@ -2102,30 +2103,51 @@ function triggerVictory() {
     document.exitPointerLock && document.exitPointerLock();
 }
 
-// ─── TITLE SCREEN RENDERER ───────────────────────────────────────────────────
-function renderTitleScreen() {
-    ctx.fillStyle = '#0a0a14';
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+// ─── DEMO / ATTRACT MODE ─────────────────────────────────────────────────────
+let demoInited = false;
+const demoCamera = { x: 0, y: 0, angle: 0 };
 
-    // Grid lines
-    ctx.strokeStyle = 'rgba(0,255,204,0.05)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < CANVAS_W; x += 40) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, CANVAS_H);
-        ctx.stroke();
-    }
-    for (let y = 0; y < CANVAS_H; y += 40) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(CANVAS_W, y);
-        ctx.stroke();
-    }
+function initDemo() {
+    if (demoInited) return;
+    demoInited = true;
+    // Load level 0 geometry without touching game state
+    currentLevel = 0;
+    const m = MAPS[0];
+    demoCamera.x = m.spawnX;
+    demoCamera.y = m.spawnY;
+    demoCamera.angle = m.spawnAngle;
+    // Spawn enemies so they appear in the demo
+    enemies = [];
+    for (const ed of m.enemies) spawnEnemy(ed.type, ed.x, ed.y);
+}
+
+function renderTitleScreen() {
+    initDemo();
+
+    // Slowly rotate the camera in place
+    demoCamera.angle += 0.004;
+
+    // Temporarily set player position to demo camera for render3D/renderSprites
+    const savedX = player.x, savedY = player.y, savedAngle = player.angle;
+    player.x = demoCamera.x;
+    player.y = demoCamera.y;
+    player.angle = demoCamera.angle;
+
+    render3D();
+    renderSprites();
+
+    // Restore player state
+    player.x = savedX;
+    player.y = savedY;
+    player.angle = savedAngle;
+
+    // Darken overlay so title text remains readable
+    ctx.fillStyle = 'rgba(10, 10, 20, 0.45)';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     // Scanline effect
     for (let y = 0; y < CANVAS_H; y += 4) {
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
         ctx.fillRect(0, y, CANVAS_W, 2);
     }
 }
@@ -2261,6 +2283,7 @@ function startGame() {
     shotsFired = 0;
     shotsHit = 0;
     levelCompleteTriggered = false;
+    demoInited = false;
 
     initLevel(0);
     gameState = 'playing';
