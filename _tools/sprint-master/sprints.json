@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "lastUpdated": "2026-03-01T08:28:29.754Z",
+    "lastUpdated": "2026-03-01T08:53:10.949Z",
     "migratedFrom": "SPRINT_BACKLOG.md",
     "migratedAt": "2026-02-21T16:29:10.805Z"
   },
@@ -5762,9 +5762,9 @@
     },
     {
       "id": "F-20",
-      "title": "Favorites System — Mark, Filter & Quick-Access Modules",
+      "title": "Favorites System — Color Highlight, Favorites Array & House Search Integration",
       "series": "F",
-      "status": "backlog",
+      "status": "open",
       "priority": "medium",
       "houses": [
         "multi"
@@ -5772,8 +5772,8 @@
       "created": "2026-02-25",
       "depends": [],
       "commits": [],
-      "notes": "Platform-wide favorites feature. Users can mark any module/card as a favorite via a star/bookmark toggle. Favorited items get a gold badge overlay (top-right, #f59e0b) visible across all card types. Storage: hexworth_favorites array in localStorage with Firestore sync. Add 'Favorites' filter chip to ContentDiscovery.js search. Add 'My Favorites' quick-access row on dashboard.html. Toggle from card surface and from inside module pages. Touches: HouseRenderer cards, vault index cards, ContentDiscovery.js, dashboard.html, SyncUtils/FirestoreManager for cloud sync.",
-      "updated": "2026-02-25"
+      "notes": "Users can mark any module, game, lab, quiz, or card as a favorite. Favorited items get a color highlight in the house palette color (not a star — the highlight is more visually distinct and thematic). This creates a favorites array that is searchable via the per-house search feature (every house now has search via ContentDiscovery.js).\n\nMotivation:\n1. Growing catalog makes finding frequently-used content harder\n2. Navigational friction between houses — favorites provide quick cross-house access\n3. Visual distinction — highlighted cards are instantly scannable\n\nRequirements:\n- Toggle favorite from card surface (click/tap a highlight toggle)\n- Favorited cards get house palette color highlight (border glow or background tint)\n- Favorites stored in hexworth_favorites array (localStorage + Firestore sync via favorites field in user profile — already in firestore.rules whitelist)\n- Per-house search filters can find favorited items (add Favorites filter chip to ContentDiscovery.js)\n- Works across all card types: modules, labs, quizzes, games, tools, presentations\n\nTouches: HouseRenderer cards, vault index cards, ContentDiscovery.js, dashboard.html, SyncUtils/FirestoreManager for cloud sync.",
+      "updated": "2026-03-01"
     },
     {
       "id": "F-21",
@@ -5807,18 +5807,18 @@
     },
     {
       "id": "F-23",
-      "title": "User Messaging System — Direct Messages & Notifications",
+      "title": "User Messaging System — DMs, Inbox, Purge Rules & Moderation",
       "series": "F",
-      "status": "backlog",
-      "priority": "medium",
+      "status": "open",
+      "priority": "high",
       "houses": [
         "multi"
       ],
       "created": "2026-02-25",
       "depends": [],
       "commits": [],
-      "notes": "Explore and implement a user-to-user messaging system. Features to consider: direct messages between users, message inbox/outbox UI, read/unread status, notification badges on dashboard, message history, ability to message from user profile (ties into F-21 Public Profiles). Storage: Firestore messages collection with sender/receiver UIDs, timestamp, read status. Privacy: users can disable incoming messages, block users. UI: message icon in nav/header with unread count badge, inbox modal or dedicated page, compose with user search/autocomplete. Consider: real-time via Firestore onSnapshot listeners, message retention policy, rate limiting to prevent spam.",
-      "updated": "2026-02-25"
+      "notes": "Platform-wide user-to-user messaging system. This is the parent epic — see F-23A through F-23F for sub-tasks.\n\nArchitecture: Firestore conversation threads pattern. conversations/{convoId} doc (participants[], lastMessage, updatedAt, unreadCount per user) with messages subcollection (sender, text, timestamp, read). This avoids flat message collection query costs and scales well for inbox rendering.\n\nPurge policy: TTL-based (messages auto-delete after 90 days) + cap-based (max 100 messages per conversation, oldest trimmed). Scheduled Cloud Function runs daily purge.\n\nModeration: This is a B2B educational platform with students. Messaging must have safeguards — handler/instructor visibility option per class, report button, ability to disable messaging per account. This is a policy decision that must be resolved before launch.\n\nIntegration points: UserProfileModal (Send Message button), dashboard header (unread badge), FirestoreManager (new methods), firestore.rules (new collections).\n\nEstimate: 3-5x effort of UserProfileModal. Largest feature build to date.",
+      "updated": "2026-03-01"
     },
     {
       "id": "HD-5",
@@ -6976,6 +6976,114 @@
       ],
       "commits": [],
       "notes": "Rewire XP calculation to derive from the Master XP Ledger (QC-9) instead of scanning multiple overlapping localStorage formats. Solves the dual-authority problem: Firestore completions vs localStorage completions. Current bug: syncBidirectional step 9 overwrites correct server XP with undercounted XPCalculator result. Fix must: (1) union completions from both Firestore and localStorage, (2) never lower XP below server value, (3) use master ledger as canonical rate source. Related: QC-6 (Progress Architecture Refactor), F-39 (Mastery XP System). See _app/docs/features/XP_PIPELINE.md.",
+      "updated": "2026-03-01"
+    },
+    {
+      "id": "F-23A",
+      "title": "Messaging — Firestore Data Model & Security Rules",
+      "series": "F",
+      "status": "blocked",
+      "priority": "high",
+      "houses": [
+        "multi"
+      ],
+      "created": "2026-03-01",
+      "completed": null,
+      "depends": [
+        "F-23"
+      ],
+      "commits": [],
+      "notes": "Design and implement the Firestore data model for messaging.\n\nCollections:\n- conversations/{convoId} — participants[] (2 UIDs), lastMessage (preview text), lastMessageAt (timestamp), unreadCount (map: {uid1: N, uid2: N}), createdAt\n- conversations/{convoId}/messages/{msgId} — sender (UID), text (string), timestamp, read (boolean)\n\nSecurity rules:\n- Users can only read/write conversations where their UID is in participants[]\n- Messages: sender must match auth.uid on create\n- No client delete (only Cloud Functions can purge)\n- Rate limit: Cloud Function validates max N messages per hour per user\n\nIndexes:\n- conversations: composite index on participants + lastMessageAt (for inbox query)\n- messages: timestamp ascending (for chronological thread view)\n\nThis is the foundation — all other sub-tasks depend on it.",
+      "updated": "2026-03-01"
+    },
+    {
+      "id": "F-23B",
+      "title": "Messaging — Cloud Functions (send, purge, rate-limit)",
+      "series": "F",
+      "status": "blocked",
+      "priority": "high",
+      "houses": [
+        "multi"
+      ],
+      "created": "2026-03-01",
+      "completed": null,
+      "depends": [
+        "F-23A"
+      ],
+      "commits": [],
+      "notes": "Server-side messaging logic in functions/index.js.\n\nFunctions:\n1. sendMessage(recipientUid, text) — validates auth, checks rate limit, sanitizes text (XSS), creates/finds conversation doc, writes message to subcollection, updates lastMessage + unreadCount on conversation doc. Returns convoId.\n2. purgeExpiredMessages() — scheduled (daily cron). Deletes messages older than 90 days. Trims conversations over 100 messages (keeps newest). Deletes empty conversations.\n3. Rate limiting: max 30 messages per hour per user. Track in users/{uid}/message_rate_limits subcollection (same pattern as flag_attempts).\n\nConsiderations:\n- Text sanitization (no HTML, max 1000 chars)\n- Block list check (if sender is blocked by recipient, reject)\n- Notification trigger (could integrate with handler dashboard for class-enrolled students)",
+      "updated": "2026-03-01"
+    },
+    {
+      "id": "F-23C",
+      "title": "Messaging — Client Service (MessagingManager.js)",
+      "series": "F",
+      "status": "blocked",
+      "priority": "high",
+      "houses": [
+        "multi"
+      ],
+      "created": "2026-03-01",
+      "completed": null,
+      "depends": [
+        "F-23B"
+      ],
+      "commits": [],
+      "notes": "New component: _app/components/MessagingManager.js\n\nAPI:\n- MessagingManager.sendMessage(recipientUid, text) — calls sendMessage Cloud Function\n- MessagingManager.getInbox() — queries conversations where current user is participant, ordered by lastMessageAt desc\n- MessagingManager.getThread(convoId) — onSnapshot listener on messages subcollection, ordered by timestamp asc\n- MessagingManager.markRead(convoId) — resets unreadCount for current user\n- MessagingManager.getUnreadCount() — returns total unread across all conversations (for badge)\n- MessagingManager.blockUser(uid) / unblockUser(uid) — writes to user profile blockedUsers[]\n\nReal-time: Use Firestore onSnapshot on conversations collection (filtered by participant) for live unread badge updates. Detach listener on page unload.\n\nLoad order: after FirestoreManager, before UI components.",
+      "updated": "2026-03-01"
+    },
+    {
+      "id": "F-23D",
+      "title": "Messaging — Inbox & Conversation UI",
+      "series": "F",
+      "status": "blocked",
+      "priority": "high",
+      "houses": [
+        "multi"
+      ],
+      "created": "2026-03-01",
+      "completed": null,
+      "depends": [
+        "F-23C"
+      ],
+      "commits": [],
+      "notes": "UI for messaging — modal-based or dedicated page.\n\nInbox view:\n- List of conversations sorted by lastMessageAt\n- Each row: recipient avatar + callsign, message preview (truncated), timestamp, unread indicator (dot or bold)\n- Empty state: \"No messages yet — visit an agent's profile to start a conversation\"\n\nConversation view:\n- Chronological message thread (sender left-aligned, own messages right-aligned)\n- Timestamps between message groups\n- Text input + send button at bottom\n- Back arrow to return to inbox\n\nCompose:\n- Triggered from UserProfileModal \"Send Message\" button or inbox \"New Message\"\n- User search/autocomplete if composing from inbox (search by callsign)\n\nStyling: Dark theme matching dashboard aesthetic. All classes prefixed upm- or msg- to avoid collisions. Responsive.",
+      "updated": "2026-03-01"
+    },
+    {
+      "id": "F-23E",
+      "title": "Messaging — Dashboard Integration (badge, profile button)",
+      "series": "F",
+      "status": "blocked",
+      "priority": "medium",
+      "houses": [
+        "multi"
+      ],
+      "created": "2026-03-01",
+      "completed": null,
+      "depends": [
+        "F-23D"
+      ],
+      "commits": [],
+      "notes": "Wire messaging into existing dashboard UI.\n\n1. Unread badge: message icon in dashboard header/nav with red unread count bubble. Uses MessagingManager.getUnreadCount() with onSnapshot for real-time updates.\n2. UserProfileModal: Add \"Send Message\" button below the stats grid. Opens compose view pre-filled with that user's UID. Guard: don't show on own profile.\n3. Settings: Add messaging toggle in user settings (enable/disable incoming messages). Stored in user profile settings.messagingEnabled (default true).\n4. Script load order: MessagingManager.js after FirestoreManager, inbox UI component after MessagingManager.",
+      "updated": "2026-03-01"
+    },
+    {
+      "id": "F-23F",
+      "title": "Messaging — Moderation, Reporting & Handler Visibility",
+      "series": "F",
+      "status": "blocked",
+      "priority": "high",
+      "houses": [
+        "multi"
+      ],
+      "created": "2026-03-01",
+      "completed": null,
+      "depends": [
+        "F-23A"
+      ],
+      "commits": [],
+      "notes": "Moderation layer for student safety on an educational platform.\n\nRequirements:\n1. Report button on any message — creates a hed_reports doc (same pattern as existing HED reports) with message content, sender, reporter, conversation context\n2. Block user — prevents future messages from that user. Stored in user profile blockedUsers[] array. Cloud Function checks block list before delivering.\n3. Handler visibility (configurable per class) — if enabled, handlers can view message activity for their enrolled students. NOT message content by default — just metadata (sent N messages, flagged reports). Full content access only on reported messages.\n4. Disable messaging per account — admin can flip a flag to prevent a user from sending messages (abuse response).\n5. Content filtering — optional profanity/threat keyword filter on sendMessage Cloud Function. Can be a simple blocklist initially.\n\nPolicy decisions needed before implementation:\n- Is messaging opt-in or opt-out by default?\n- Can handlers see message content or only metadata?\n- Age-appropriate messaging restrictions (if platform has minors)?\n- Data retention: 90-day TTL adequate for compliance?",
       "updated": "2026-03-01"
     }
   ]
