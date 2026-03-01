@@ -271,31 +271,25 @@ Commands return simulated output (not live PowerShell).
 
 ---
 
-## QC Issues Found
+## QC Issues Found & Resolved
 
-### 1. Documentation Validation Gap (Medium)
+### 1. Documentation Validation Gap (Medium) — FIXED
 
-**Issue:** Root Cause section (d3) briefing says "must mention the failure type" but no keyword detection exists in code. Students can submit any 100+ character string.
+**Issue:** Root Cause section (d3) briefing says "must mention the failure type" but no keyword detection existed in code. Students could submit any 100+ character string.
 
-**Impact:** Students could pass without demonstrating root cause understanding.
+**Fix applied:** Added keyword validation to `saveAllDocSections()`. Section d3 now requires at least one match from: `raid`, `disk`, `controller`, `hardware`, `drive`, `storage`, `failure`, `fault`, `crash`. Displays actionable error: "Must identify the hardware failure type (e.g., RAID, disk, controller)".
 
-**Recommendation:** Add keyword validation — require at least one of: `RAID`, `disk`, `controller`, `hardware`, `failure`.
+### 2. Rubric vs. Implementation Mismatch (Low) — FIXED
 
-### 2. Rubric vs. Implementation Mismatch (Low)
+**Issue:** Briefing displayed a 5-component weighted rubric (15%/35%/20%/15%/15%) but actual scoring is binary pass/fail on 44/44 objectives. No weighted scoring exists.
 
-**Issue:** Briefing displays a 5-component weighted rubric (15%/35%/20%/15%/15%) but actual scoring is binary pass/fail on 44/44 objectives. No weighted scoring exists.
+**Fix applied:** Replaced weighted rubric table with phase-based completion table showing objective counts per phase group and what each requires. Updated critical success factors to clearly state "All 44 objectives must be completed — no partial credit."
 
-**Impact:** Misleading for students who may expect partial credit.
-
-**Recommendation:** Either implement weighted scoring or remove/clarify the rubric on the briefing page.
-
-### 3. Most Objectives Are Button-Click Only (Low)
+### 3. Most Objectives Are Button-Click Only (Low) — Accepted for v1
 
 **Issue:** 36 of 44 objectives complete on button click with no input validation. Only b2 (backup rationale), b4 (server config), and d1-d4 (documentation) require student input.
 
-**Impact:** Students can click through phases without demonstrating understanding.
-
-**Recommendation:** Acceptable for v1 — the simulation teaches process flow. Consider adding command-based validation in future iterations.
+**Status:** Acceptable for v1. The button-click objectives switch to the terminal tab and display realistic command output (dcdiag results, repadmin summaries, FSMO queries), teaching students the correct tools and what to look for. The simulation teaches process flow and sequencing. Consider adding command-based validation in v2.
 
 ---
 
@@ -305,6 +299,8 @@ Commands return simulated output (not live PowerShell).
 - [ ] Backup rationale validates correct/incorrect answers (b2)
 - [ ] Server config validates all 4 fields correctly (b4)
 - [ ] Documentation minimum lengths enforced (d1-d4)
+- [ ] Root cause (d3) rejects text without hardware failure keywords
+- [ ] Root cause (d3) accepts text mentioning RAID/disk/controller/hardware/etc.
 - [ ] Completion overlay shows elapsed time correctly
 - [ ] Resume modal appears with saved progress
 - [ ] Terminal responds to all documented commands
