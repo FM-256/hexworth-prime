@@ -592,6 +592,31 @@ const ENEMY_CFG = {
     [ET.ROOTKIT]:   { color:'#ff00ff', hp:10,speed:1.6, size:0.85, damage:20, score:1000,label:'ROOTKIT' },
 };
 
+// ─── ENEMY SPRITE IMAGES ─────────────────────────────────────────────────────
+const SPRITE_PATH = '../../../assets/images/sprites/';
+const enemySprites = {};
+const SPRITE_NAMES = {
+    [ET.BUFFER]: 'enemy-buffer.webp',
+    [ET.TROJAN]: 'enemy-trojan.webp',
+    [ET.WORM]: 'enemy-worm.webp',
+    [ET.RANSOMWARE]: 'enemy-ransomware.webp',
+    [ET.ZERODAY]: 'enemy-zeroday.webp',
+    [ET.LEAK]: 'enemy-leak.webp',
+    [ET.ROOTKIT]: 'enemy-rootkit.webp',
+};
+let spritesLoaded = false;
+(function preloadSprites() {
+    let loaded = 0;
+    const total = Object.keys(SPRITE_NAMES).length;
+    for (const [type, file] of Object.entries(SPRITE_NAMES)) {
+        const img = new Image();
+        img.onload = () => { loaded++; if (loaded >= total) spritesLoaded = true; };
+        img.onerror = () => { loaded++; if (loaded >= total) spritesLoaded = true; };
+        img.src = SPRITE_PATH + file;
+        enemySprites[type] = img;
+    }
+})();
+
 // ─── MAP DEFINITIONS ─────────────────────────────────────────────────────────
 // 0=empty, 1=wall, 2=exit door (passable when cleared), 3=wall B
 const MAPS = [
@@ -1104,97 +1129,55 @@ function renderEnemySprite(c, en, drawX, drawY, sprW, sprH, dist) {
     // Zero-day: invisible unless sniffer active or very close
     if (en.type === ET.ZERODAY && !player.snifferActive && dist > 2.5) return;
 
-    // Trojan: color changes based on distance
-    let color = cfg.color;
-    if (en.type === ET.TROJAN) {
-        color = dist < 4 ? '#ff3333' : '#22cc44';
-    }
-
     c.save();
 
-    // Pulsing for ransomware
+    // Alpha effects
     let alpha = 1;
-    if (en.type === ET.RANSOMWARE) {
-        alpha = 0.7 + 0.3 * Math.sin(Date.now() / 200);
-    }
-    if (en.type === ET.ZERODAY) {
-        alpha = 0.5 + 0.3 * Math.sin(Date.now() / 150);
-    }
+    if (en.type === ET.RANSOMWARE) alpha = 0.7 + 0.3 * Math.sin(Date.now() / 200);
+    if (en.type === ET.ZERODAY) alpha = 0.5 + 0.3 * Math.sin(Date.now() / 150);
     c.globalAlpha = alpha;
 
     const cx = drawX + sprW / 2;
     const cy = drawY + sprH / 2;
-    const r = sprW / 2;
 
-    // Outer glow (larger, brighter)
-    const grd = c.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 1.6);
-    grd.addColorStop(0, color);
-    grd.addColorStop(0.4, color + 'cc');
-    grd.addColorStop(0.7, color + '44');
-    grd.addColorStop(1, color + '00');
-    c.fillStyle = grd;
-    c.beginPath();
-    c.arc(cx, cy, r * 1.6, 0, Math.PI * 2);
-    c.fill();
-
-    // Body — solid, fills most of the sprite
-    c.fillStyle = color;
-    c.beginPath();
-    if (en.type === ET.BUFFER || en.type === ET.ROOTKIT) {
-        // Square-ish
-        c.fillRect(drawX + sprW * 0.05, drawY + sprH * 0.05, sprW * 0.9, sprH * 0.9);
-        // Bright outline
-        c.strokeStyle = color;
-        c.lineWidth = Math.max(2, sprW * 0.06);
-        c.strokeRect(drawX + sprW * 0.05, drawY + sprH * 0.05, sprW * 0.9, sprH * 0.9);
-    } else if (en.type === ET.RANSOMWARE) {
-        // Diamond
-        c.moveTo(cx, drawY + sprH * 0.05);
-        c.lineTo(drawX + sprW * 0.95, cy);
-        c.lineTo(cx, drawY + sprH * 0.95);
-        c.lineTo(drawX + sprW * 0.05, cy);
-        c.closePath();
+    // Draw sprite image if loaded, else fall back to colored circle
+    const sprImg = enemySprites[en.type];
+    if (sprImg && sprImg.complete && sprImg.naturalWidth > 0) {
+        // Distance-based darkening
+        const shade = Math.min(1, 2.5 / (dist * 0.5 + 0.3));
+        // Subtle glow behind the sprite
+        const grd = c.createRadialGradient(cx, cy, sprW * 0.2, cx, cy, sprW * 0.7);
+        grd.addColorStop(0, cfg.color + '44');
+        grd.addColorStop(1, cfg.color + '00');
+        c.fillStyle = grd;
+        c.beginPath();
+        c.arc(cx, cy, sprW * 0.7, 0, Math.PI * 2);
         c.fill();
-        c.strokeStyle = '#ffffff66';
-        c.lineWidth = Math.max(2, sprW * 0.05);
-        c.stroke();
+
+        // Draw the actual image
+        c.globalAlpha = alpha * shade;
+        c.drawImage(sprImg, drawX, drawY, sprW, sprH);
+        c.globalAlpha = alpha;
     } else {
-        // Circle — nearly full radius
-        c.arc(cx, cy, r * 0.85, 0, Math.PI * 2);
-        c.fill();
-        // Bright ring
-        c.strokeStyle = '#ffffffaa';
-        c.lineWidth = Math.max(2, sprW * 0.05);
-        c.stroke();
-    }
-
-    // Eyes — two bright dots
-    if (sprW > 10) {
-        const eyeR = Math.max(2, r * 0.15);
-        const eyeSpread = r * 0.3;
-        const eyeY = cy - r * 0.1;
-        c.fillStyle = '#ffffff';
+        // Fallback: colored circle
+        c.fillStyle = cfg.color;
         c.beginPath();
-        c.arc(cx - eyeSpread, eyeY, eyeR, 0, Math.PI * 2);
-        c.arc(cx + eyeSpread, eyeY, eyeR, 0, Math.PI * 2);
-        c.fill();
-        // Pupils
-        c.fillStyle = '#000000';
-        c.beginPath();
-        c.arc(cx - eyeSpread, eyeY, eyeR * 0.5, 0, Math.PI * 2);
-        c.arc(cx + eyeSpread, eyeY, eyeR * 0.5, 0, Math.PI * 2);
+        c.arc(cx, cy, sprW * 0.4, 0, Math.PI * 2);
         c.fill();
     }
 
-    // Label text under the sprite (visible at reasonable distance)
+    // Label text under the sprite
     if (sprW > 20) {
-        c.fillStyle = color;
+        c.fillStyle = cfg.color;
         c.font = `bold ${Math.max(9, Math.min(14, sprH * 0.15))}px Courier New`;
         c.textAlign = 'center';
+        c.shadowColor = '#000';
+        c.shadowBlur = 4;
         c.fillText(cfg.label, cx, drawY + sprH + Math.max(10, sprH * 0.12));
+        c.shadowBlur = 0;
     }
 
-    // HP bar (always visible, colored border)
+    // HP bar
     if (en.hp < cfg.hp) {
         const barW = sprW * 1.1;
         const barH = Math.max(4, sprH * 0.1);
@@ -1209,12 +1192,15 @@ function renderEnemySprite(c, en, drawX, drawY, sprW, sprH, dist) {
         c.strokeRect(barX, barY, barW, barH);
     }
 
-    // Rootkit crown
+    // Rootkit boss label
     if (en.type === ET.ROOTKIT) {
         c.fillStyle = '#ff00ff';
-        c.font = `bold ${Math.max(10, sprH * 0.3)}px Courier New`;
+        c.font = `bold ${Math.max(10, sprH * 0.25)}px Courier New`;
         c.textAlign = 'center';
-        c.fillText('ROOTKIT', cx, drawY - 8);
+        c.shadowColor = '#ff00ff';
+        c.shadowBlur = 8;
+        c.fillText('[ ROOTKIT ]', cx, drawY - 8);
+        c.shadowBlur = 0;
     }
 
     c.restore();
