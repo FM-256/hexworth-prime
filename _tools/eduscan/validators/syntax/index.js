@@ -23,6 +23,8 @@ const EmojiValidator = require('./emoji');
 const PaletteValidator = require('./palette');
 const ContentBlobValidator = require('./content-blob');
 const SemanticValidator = require('./semantic');
+const UXValidator = require('./ux');
+const TurtleValidator = require('./turtle');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -101,6 +103,16 @@ class SyntaxValidator {
             rootPath: this.rootPath,
             profile: this.profile
         });
+        this.uxValidator = new UXValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
+        this.turtleValidator = new TurtleValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
     }
 
     /**
@@ -131,6 +143,8 @@ class SyntaxValidator {
                 paletteErrors: 0,
                 blobErrors: 0,
                 semanticErrors: 0,
+                uxErrors: 0,
+                turtleErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -252,6 +266,8 @@ class SyntaxValidator {
             const emojiIssues = this.emojiValidator.validate(fileWithContent);
             const blobIssues = this.contentBlobValidator.validate(fileWithContent);
             const semanticIssues = this.semanticValidator.validate(fileWithContent);
+            const uxIssues = this.uxValidator.validate(fileWithContent);
+            const turtleIssues = this.turtleValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -265,6 +281,8 @@ class SyntaxValidator {
             results.issues.push(...emojiIssues);
             results.issues.push(...blobIssues);
             results.issues.push(...semanticIssues);
+            results.issues.push(...uxIssues);
+            results.issues.push(...turtleIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -278,6 +296,8 @@ class SyntaxValidator {
             results.summary.emojiErrors += emojiIssues.length;
             results.summary.blobErrors += blobIssues.length;
             results.summary.semanticErrors += semanticIssues.length;
+            results.summary.uxErrors += uxIssues.length;
+            results.summary.turtleErrors += turtleIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html

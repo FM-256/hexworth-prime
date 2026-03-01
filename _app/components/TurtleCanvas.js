@@ -50,7 +50,10 @@ const TurtleCanvas = (function () {
         let fillPath  = [];          // [[canvasX, canvasY], ...]
         let bgColor   = '#0a0e1a';
         let visible   = true;
-        let speedVal  = 0;           // 0 = instant
+        let speedVal  = 3;           // default: slow (visible animation)
+        let animationId = 0;         // generation counter to cancel animations
+        let recordingQueue = null;   // non-null = recording commands, not executing
+        let _skulptActive  = false;  // true when Skulpt rendered last frame
 
         // Offscreen buffer stores all drawn strokes so we can redraw after
         // clearing the turtle indicator between frames.
@@ -237,6 +240,22 @@ const TurtleCanvas = (function () {
             speedVal = Number(s);
         }
 
+        /** Map speedVal to ms delay per drawing command (matches Python turtle). */
+        function getDelay() {
+            if (speedVal === 0) return 0;
+            if (speedVal >= 10) return 10;
+            if (speedVal >= 6) return 30;
+            if (speedVal >= 3) return 60;
+            if (speedVal >= 2) return 80;
+            return 100; // speed 1 = slowest
+        }
+
+        /** Commands that produce visible drawing and get animation delays. */
+        const DRAWING_CMDS = new Set([
+            'forward', 'fd', 'backward', 'bk', 'back',
+            'goto', 'setpos', 'setposition', 'circle'
+        ]);
+
         function setFillColor(c) {
             if (c == null) return;
             fillColor = String(c);
@@ -301,6 +320,124 @@ const TurtleCanvas = (function () {
         function showturtle() { visible = true;  composite(); }
 
         // ----------------------------------------------------------------
+        // Skulpt integration (advanced Python support)
+        // ----------------------------------------------------------------
+
+        /** Keywords that require a full Python interpreter. */
+        const _ADVANCED_RE = /^\s*(?:def |if |elif |else:|while |class |return |try:|except|raise |with |lambda )/m;
+
+        /** Does the code need Skulpt? Returns false for simple turtle-only scripts. */
+        function _needsSkulpt(code) {
+            return _ADVANCED_RE.test(code);
+        }
+
+        /** Promise that resolves when SkulptRunner.js is loaded. */
+        let _skulptRunnerLoading = null;
+
+        /** Lazy-load SkulptRunner.js (once). */
+        function _ensureSkulptRunner() {
+            if (window.SkulptRunner) return Promise.resolve();
+            if (_skulptRunnerLoading) return _skulptRunnerLoading;
+
+            // Resolve path relative to TurtleCanvas.js script tag
+            var base = '_app/components/';
+            var scripts = document.querySelectorAll('script[src*="TurtleCanvas"]');
+            if (scripts.length) {
+                var src = scripts[scripts.length - 1].getAttribute('src');
+                base = src.substring(0, src.lastIndexOf('/') + 1);
+            }
+
+            _skulptRunnerLoading = new Promise(function (resolve, reject) {
+                var s = document.createElement('script');
+                s.src = base + 'SkulptRunner.js';
+                s.onload  = function () { _skulptRunnerLoading = null; resolve(); };
+                s.onerror = function () { _skulptRunnerLoading = null; reject(new Error('Failed to load SkulptRunner.js')); };
+                document.head.appendChild(s);
+            });
+            return _skulptRunnerLoading;
+        }
+
+        /** Get or create the sibling Skulpt div for this canvas. */
+        function _getSkulptDiv() {
+            var divId = canvasId + '-skulpt';
+            var div = document.getElementById(divId);
+            if (!div) {
+                div = document.createElement('div');
+                div.id = divId;
+                div.style.background = '#0a0e1a';
+                div.style.width  = width + 'px';
+                div.style.height = height + 'px';
+                div.style.overflow = 'hidden';
+                canvas.parentNode.insertBefore(div, canvas.nextSibling);
+            }
+            return div;
+        }
+
+        /** Strip common leading whitespace (like Python textwrap.dedent). */
+        function _dedent(code) {
+            var lines = code.split('\n');
+            var minIndent = Infinity;
+            for (var i = 0; i < lines.length; i++) {
+                if (lines[i].trim() === '') continue;
+                var m = lines[i].match(/^(\s*)/);
+                if (m && m[1].length < minIndent) minIndent = m[1].length;
+            }
+            // If first line has no indent but rest do, recalculate from line 2+
+            if (minIndent === 0) {
+                minIndent = Infinity;
+                for (var i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+                    var m = lines[i].match(/^(\s*)/);
+                    if (m && m[1].length < minIndent) minIndent = m[1].length;
+                }
+            }
+            if (minIndent === 0 || minIndent === Infinity) return code;
+            // Only strip from lines that actually have enough leading whitespace
+            return lines.map(function(l) {
+                if (l.trim() === '') return '';
+                var indent = l.match(/^(\s*)/)[1].length;
+                return indent >= minIndent ? l.substring(minIndent) : l;
+            }).join('\n');
+        }
+
+        /** Ensure Skulpt's internal canvases stay transparent (page CSS may set opaque backgrounds). */
+        function _ensureSkulptCanvasCSS() {
+            if (document.getElementById('skulpt-canvas-fix')) return;
+            var style = document.createElement('style');
+            style.id = 'skulpt-canvas-fix';
+            style.textContent = '[id$="-skulpt"] canvas { background: transparent !important; }';
+            document.head.appendChild(style);
+        }
+
+        /** Run code through Skulpt with canvas/div swap. */
+        function _runWithSkulpt(code) {
+            code = _dedent(code);
+            _ensureSkulptCanvasCSS();
+            var div = _getSkulptDiv();
+
+            // Swap: hide canvas, show Skulpt div
+            canvas.style.display = 'none';
+            div.style.display = 'block';
+            div.innerHTML = '';
+            _skulptActive = true;
+
+            return _ensureSkulptRunner()
+                .then(function () {
+                    return SkulptRunner.run(code, div.id, { width: width, height: height });
+                })
+                .catch(function (err) {
+                    // Show error in the Skulpt div
+                    var msg = err.toString();
+                    if (err.traceback) {
+                        msg = err.args && err.args.v && err.args.v[0] ? err.args.v[0].v : msg;
+                        msg = 'Error on line ' + err.traceback[0].lineno + ': ' + msg;
+                    }
+                    div.innerHTML = '<pre style="color:#ef4444;font-family:monospace;padding:16px;margin:0;white-space:pre-wrap;font-size:13px;">' +
+                        msg.replace(/</g, '&lt;') + '</pre>';
+                });
+        }
+
+        // ----------------------------------------------------------------
         // Canvas operations
         // ----------------------------------------------------------------
         function setBgColor(c) {
@@ -310,6 +447,7 @@ const TurtleCanvas = (function () {
         }
 
         function clear() {
+            animationId++;
             x         = 0;
             y         = 0;
             angle     = 90;
@@ -320,6 +458,14 @@ const TurtleCanvas = (function () {
             filling   = false;
             fillPath  = [];
             visible   = true;
+
+            // Restore canvas if Skulpt was active
+            if (_skulptActive) {
+                _skulptActive = false;
+                canvas.style.display = '';
+                var div = document.getElementById(canvasId + '-skulpt');
+                if (div) { div.style.display = 'none'; div.innerHTML = ''; }
+            }
 
             // Wipe the offscreen buffer
             ensureBuffer();
@@ -334,13 +480,12 @@ const TurtleCanvas = (function () {
         // ----------------------------------------------------------------
 
         /**
-         * Parse and execute Python-like turtle code.
-         * Supports single-level `for i in range(N):` loops and the 15+
-         * core turtle commands.  Silently skips unrecognised lines.
+         * Internal: parse Python-like turtle code and either execute or record
+         * commands.  When recordingQueue is non-null, commands are pushed to
+         * the queue instead of being executed (used for animated playback).
          */
-        function runCode(pythonCode) {
-            clear();
-
+        function _parsePythonLines(pythonCode) {
+            vars = {};
             if (!pythonCode) return;
 
             const lines = pythonCode.split('\n');
@@ -433,11 +578,82 @@ const TurtleCanvas = (function () {
                 execTurtleLine(line, vars);
             }
 
-            drawTurtle();
         }
 
         // Shared variable store for runCode sessions
         let vars = {};
+
+        /**
+         * Record all turtle commands from Python code into a flat queue.
+         * Does not draw — used by runCode() for animated playback.
+         */
+        function parseCommands(pythonCode) {
+            recordingQueue = [];
+            _parsePythonLines(pythonCode);
+            const queue = recordingQueue;
+            recordingQueue = null;
+            return queue;
+        }
+
+        /**
+         * Parse and execute Python-like turtle code with visible animation.
+         * Drawing commands play with delays so students see each step.
+         * Returns a Promise that resolves when animation completes.
+         * speed(0) = instant (no animation). Default speed = 3 (slow).
+         */
+        function runCode(pythonCode) {
+            clear();
+            if (!pythonCode) return Promise.resolve();
+
+            // Auto-scroll the canvas into view so the student doesn't miss
+            // the animation.  Uses 'smooth' for a natural feel and 'center'
+            // to keep surrounding context (editor, buttons) partially visible.
+            canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Delegate to Skulpt for advanced Python (def, if, while, etc.)
+            if (_needsSkulpt(pythonCode)) {
+                return _runWithSkulpt(pythonCode);
+            }
+
+            const queue = parseCommands(pythonCode);
+            if (queue.length === 0) { drawTurtle(); return Promise.resolve(); }
+
+            const myId = animationId;
+
+            return new Promise(function (resolve) {
+                let idx = 0;
+
+                function step() {
+                    while (idx < queue.length) {
+                        if (myId !== animationId) { resolve(); return; }
+
+                        var entry = queue[idx++];
+                        commandMap[entry.cmd](entry.args);
+
+                        if (DRAWING_CMDS.has(entry.cmd) && getDelay() > 0) {
+                            setTimeout(step, getDelay());
+                            return;
+                        }
+                    }
+                    if (myId !== animationId) { resolve(); return; }
+                    drawTurtle();
+                    resolve();
+                }
+
+                step();
+            });
+        }
+
+        /**
+         * Synchronous (instant) code execution — preserves old runCode behavior.
+         * Use when animation is not needed (e.g., grading checks).
+         */
+        function runCodeInstant(pythonCode) {
+            clear();
+            if (!pythonCode) return;
+            _parsePythonLines(pythonCode);
+            drawTurtle();
+        }
 
         /**
          * Evaluate a simple expression — numbers, variable references,
@@ -569,7 +785,13 @@ const TurtleCanvas = (function () {
                 : [];
 
             const handler = commandMap[cmd];
-            if (handler) handler(args);
+            if (!handler) return;
+
+            if (recordingQueue !== null) {
+                recordingQueue.push({ cmd: cmd, args: args });
+            } else {
+                handler(args);
+            }
         }
 
         /**
@@ -666,6 +888,7 @@ const TurtleCanvas = (function () {
 
             // Code runner
             runCode,
+            runCodeInstant,
 
             // Introspection
             getState: function () {

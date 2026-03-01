@@ -22,5 +22,7 @@ module.exports = {
     'heuristic-issues.html':   ['HEUR-001', 'HEUR-002', 'HEUR-003', 'HEUR-004', 'HEUR-005', 'HEUR-007', 'MATH-001', 'DATA-001'],
     'nav-issues.html':          ['NAV-001'],
     'emoji-issues.html':         ['EMOJI-001', 'EMOJI-002', 'EMOJI-003', 'EMOJI-004'],
-    'semantic-issues.html':       ['SEM-001', 'SEM-002']
+    'semantic-issues.html':       ['SEM-001', 'SEM-002'],
+    'ux-issues.html':             ['UX-001'],
+    'turtle-issues.html':          ['TURTLE-001', 'TURTLE-002']
 };
