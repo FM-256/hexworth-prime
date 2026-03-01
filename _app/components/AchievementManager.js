@@ -816,6 +816,15 @@ const AchievementManager = (function() {
             category: 'regular',
             title: null
         },
+        {
+            id: 'game_debugger',
+            icon: '🐛',
+            name: 'System Cleaner',
+            desc: 'Purge all malware in Debugger FPS',
+            points: 100,
+            category: 'regular',
+            title: 'the Debugger'
+        },
         // Text Adventures
         {
             id: 'game_sudo',
