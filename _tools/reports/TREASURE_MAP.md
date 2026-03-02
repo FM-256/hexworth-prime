@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-28 7:45:57 PM
+                    Scanned: 2026-03-01 9:03:55 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1891 |
-| Directories | 532 |
-| Content Files | 1891 |
-| Scan Duration | 224ms |
+| Files Scanned | 1997 |
+| Directories | 543 |
+| Content Files | 1997 |
+| Scan Duration | 407ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 764 |
-| html | 547 |
-| lab | 313 |
+| presentation | 829 |
+| html | 558 |
+| lab | 340 |
 | quiz | 232 |
-| applet | 35 |
+| applet | 38 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1653 |
-| Available | 1641 |
+| Total Modules | 1677 |
+| Available | 1665 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 0 |
+| Undeclared Files (CAT-002) | 3 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 2 |
-| Warning | 140 |
-| Info | 51 |
-| **Total** | **7625** |
+| Suspect | 58 |
+| Warning | 226 |
+| Info | 54 |
+| **Total** | **7972** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1343 |
+| Ready | 1438 |
 | Not Ready | 1 |
-| Unknown | 547 |
+| Unknown | 558 |
 
 
 ## FILE HIERARCHY
@@ -150,6 +150,60 @@
 │   └── 📁 vault
 │       ├── 📊 botnet-architecture.presentation.html
 │       ├── 🔬 buffer-overflow-lab.html
+│       ├── 📁 bug-hunting
+│       │   ├── 📍 index.html
+│       │   ├── 📁 labs [labs]
+│       │   │   ├── 🔬 bh-lab-ai-exploit.html
+│       │   │   ├── 🔬 bh-lab-api.html
+│       │   │   ├── 🔬 bh-lab-chaining.html
+│       │   │   ├── 🔬 bh-lab-cloud.html
+│       │   │   ├── 🔬 bh-lab-full-scope.html
+│       │   │   ├── 🔬 bh-lab-idor.html
+│       │   │   ├── 🔬 bh-lab-mobile.html
+│       │   │   ├── 🔬 bh-lab-network.html
+│       │   │   ├── 🔬 bh-lab-osint.html
+│       │   │   ├── 🔬 bh-lab-recon.html
+│       │   │   ├── 🔬 bh-lab-report.html
+│       │   │   ├── 🔬 bh-lab-source.html
+│       │   │   ├── 🔬 bh-lab-sqli.html
+│       │   │   ├── 🔬 bh-lab-subdomain.html
+│       │   │   └── 🔬 bh-lab-xss.html
+│       │   ├── 📁 modules [modules]
+│       │   │   ├── 📄 bh-mod-advanced-web.html
+│       │   │   ├── 📄 bh-mod-ai-exploit.html
+│       │   │   ├── 📄 bh-mod-ai-hunting.html
+│       │   │   ├── 📄 bh-mod-api-security.html
+│       │   │   ├── 📄 bh-mod-auth-access.html
+│       │   │   ├── 📄 bh-mod-automation.html
+│       │   │   ├── 📄 bh-mod-blockchain.html
+│       │   │   ├── 📄 bh-mod-case-studies.html
+│       │   │   ├── 📄 bh-mod-chaining.html
+│       │   │   ├── 📄 bh-mod-cloud.html
+│       │   │   ├── 📄 bh-mod-fundamentals.html
+│       │   │   ├── 📄 bh-mod-injection.html
+│       │   │   ├── 📄 bh-mod-iot.html
+│       │   │   ├── 📄 bh-mod-mobile.html
+│       │   │   ├── 📄 bh-mod-network.html
+│       │   │   ├── 📄 bh-mod-recon-adv.html
+│       │   │   ├── 📄 bh-mod-recon.html
+│       │   │   ├── 📄 bh-mod-reporting.html
+│       │   │   ├── 📄 bh-mod-resources.html
+│       │   │   ├── 📄 bh-mod-source-review.html
+│       │   │   ├── 📄 bh-mod-supply-chain.html
+│       │   │   └── 📄 bh-mod-web-vulns.html
+│       │   ├── 📁 quizzes [quizzes]
+│       │   │   ├── ❓ bh-quiz-ai.html
+│       │   │   ├── ❓ bh-quiz-final.html
+│       │   │   ├── ❓ bh-quiz-fundamentals.html
+│       │   │   ├── ❓ bh-quiz-mastery.html
+│       │   │   ├── ❓ bh-quiz-platform.html
+│       │   │   ├── ❓ bh-quiz-practical.html
+│       │   │   └── ❓ bh-quiz-web.html
+│       │   └── 📁 tools
+│       │       ├── 📄 bh-tool-ai.html
+│       │       ├── 📄 bh-tool-methodology.html
+│       │       ├── 📄 bh-tool-mobile.html
+│       │       └── 📄 bh-tool-reference.html
 │       ├── 📄 ceh-attack-reference.html
 │       ├── 🔬 cloud-hacking-lab.html
 │       ├── 🔬 csrf-attack-lab.html
@@ -332,6 +386,7 @@
 │   ├── 📁 interactions
 │   └── 📁 meta
 ├── 📁 docs
+│   └── 📁 features
 ├── 📄 faq.html
 ├── 📄 games.html
 ├── 📄 handler-dashboard.html
@@ -684,11 +739,72 @@
 │   │   │   ├── 🔬 code-terraform.lab.html
 │   │   │   └── 🔬 code-unit-testing.lab.html
 │   │   ├── 📁 modules [modules]
-│   │   │   └── 📁 python-engineering [modules]
-│   │   │       ├── 📄 code-pye-chapter01.module.html
-│   │   │       ├── 📄 code-pye-chapter02.module.html
-│   │   │       ├── 📄 code-pye-chapter03.module.html
-│   │   │       └── 📍 index.html
+│   │   │   ├── 📁 python-engineering [modules]
+│   │   │   │   ├── 📄 code-pye-capstone.module.html
+│   │   │   │   ├── 📄 code-pye-chapter01.module.html
+│   │   │   │   ├── 📄 code-pye-chapter02.module.html
+│   │   │   │   ├── 📄 code-pye-chapter03.module.html
+│   │   │   │   ├── 📄 code-pye-chapter04.module.html
+│   │   │   │   ├── 📄 code-pye-chapter05.module.html
+│   │   │   │   ├── 📄 code-pye-chapter06.module.html
+│   │   │   │   ├── 📄 code-pye-chapter07.module.html
+│   │   │   │   ├── 📄 code-pye-chapter08.module.html
+│   │   │   │   ├── 📄 code-pye-chapter09.module.html
+│   │   │   │   ├── 📄 code-pye-chapter10.module.html
+│   │   │   │   ├── 📄 code-pye-midterm.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   └── 📁 python-hub [modules]
+│   │   │       ├── 📍 index.html
+│   │   │       ├── 📁 labs [labs]
+│   │   │       │   ├── 🔬 pyh-lab-graphics-01.html
+│   │   │       │   ├── 🔬 pyh-lab-graphics-02.html
+│   │   │       │   ├── 🔬 pyh-lab-graphics-03.html
+│   │   │       │   ├── 🔬 pyh-lab-graphics-04.html
+│   │   │       │   ├── 🔬 pyh-lab-graphics-05.html
+│   │   │       │   ├── 🔬 pyh-lab-graphics-06.html
+│   │   │       │   ├── 🔬 pyh-lab-graphics-07.html
+│   │   │       │   ├── 🔬 pyh-lab-graphics-08.html
+│   │   │       │   ├── 🔬 pyh-lab-stdlib-01.html
+│   │   │       │   ├── 🔬 pyh-lab-stdlib-02.html
+│   │   │       │   ├── 🔬 pyh-lab-stdlib-03.html
+│   │   │       │   ├── 🔬 pyh-lab-stdlib-04.html
+│   │   │       │   ├── 🔬 pyh-lab-stdlib-05.html
+│   │   │       │   ├── 🔬 pyh-lab-stdlib-06.html
+│   │   │       │   ├── 🔬 pyh-lab-stdlib-07.html
+│   │   │       │   └── 🔬 pyh-lab-stdlib-08.html
+│   │   │       ├── 📁 modules [modules]
+│   │   │       │   ├── 📄 pyh-graphics-01.module.html
+│   │   │       │   ├── 📄 pyh-graphics-02.module.html
+│   │   │       │   ├── 📄 pyh-graphics-03.module.html
+│   │   │       │   ├── 📄 pyh-graphics-04.module.html
+│   │   │       │   ├── 📄 pyh-graphics-05.module.html
+│   │   │       │   ├── 📄 pyh-graphics-06.module.html
+│   │   │       │   ├── 📄 pyh-graphics-07.module.html
+│   │   │       │   ├── 📄 pyh-graphics-08.module.html
+│   │   │       │   ├── 📄 pyh-project-01.module.html
+│   │   │       │   ├── 📄 pyh-project-02.module.html
+│   │   │       │   ├── 📄 pyh-project-03.module.html
+│   │   │       │   ├── 📄 pyh-project-04.module.html
+│   │   │       │   ├── 📄 pyh-project-05.module.html
+│   │   │       │   ├── 📄 pyh-project-06.module.html
+│   │   │       │   ├── 📄 pyh-stdlib-01.module.html
+│   │   │       │   ├── 📄 pyh-stdlib-02.module.html
+│   │   │       │   ├── 📄 pyh-stdlib-03.module.html
+│   │   │       │   ├── 📄 pyh-stdlib-04.module.html
+│   │   │       │   ├── 📄 pyh-stdlib-05.module.html
+│   │   │       │   ├── 📄 pyh-stdlib-06.module.html
+│   │   │       │   ├── 📄 pyh-stdlib-07.module.html
+│   │   │       │   └── 📄 pyh-stdlib-08.module.html
+│   │   │       ├── 📁 quizzes [quizzes]
+│   │   │       │   ├── ❓ pyh-quiz-graphics-final.html
+│   │   │       │   ├── ❓ pyh-quiz-graphics-visual.html
+│   │   │       │   ├── ❓ pyh-quiz-portfolio.html
+│   │   │       │   ├── ❓ pyh-quiz-stdlib-final.html
+│   │   │       │   ├── ❓ pyh-quiz-stdlib-foundations.html
+│   │   │       │   └── ❓ pyh-quiz-stdlib-systems.html
+│   │   │       └── 📁 tools [modules]
+│   │   │           ├── 📄 pyh-tool-graphics-reference.html
+│   │   │           └── 📄 pyh-tool-stdlib-reference.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 code-agile-sdlc.presentation.html
 │   │   │   ├── 📊 code-automation.presentation.html
@@ -2217,6 +2333,7 @@
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-eh-exam-1-a.exam.html
 │   │   ├── 📁 games
+│   │   │   ├── 📄 shield-debugger.applet.html
 │   │   │   ├── 📄 shield-dont-get-phished.html
 │   │   │   ├── 📄 shield-dr-malware.applet.html
 │   │   │   ├── 📄 shield-exploit-flap.html
@@ -2700,6 +2817,51 @@
 | code-terraform.lab | presentation | ✓ | 0 |
 | code-unit-testing.lab | presentation | ✓ | 0 |
 | code-pye-chapter01.module | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
+| pyh-lab-graphics-01 | lab | ✓ | 0 |
+| pyh-lab-graphics-02 | lab | ✓ | 0 |
+| pyh-lab-graphics-03 | lab | ✓ | 0 |
+| pyh-lab-graphics-04 | lab | ✓ | 0 |
+| pyh-lab-graphics-05 | lab | ✓ | 0 |
+| pyh-lab-graphics-06 | lab | ✓ | 0 |
+| pyh-lab-graphics-07 | lab | ✓ | 0 |
+| pyh-lab-graphics-08 | lab | ✓ | 0 |
+| pyh-lab-stdlib-01 | lab | ✓ | 0 |
+| pyh-lab-stdlib-02 | lab | ✓ | 0 |
+| pyh-lab-stdlib-03 | lab | ✓ | 0 |
+| pyh-lab-stdlib-04 | lab | ✓ | 0 |
+| pyh-lab-stdlib-05 | lab | ✓ | 0 |
+| pyh-lab-stdlib-06 | lab | ✓ | 0 |
+| pyh-lab-stdlib-07 | lab | ✓ | 0 |
+| pyh-lab-stdlib-08 | lab | ✓ | 0 |
+| pyh-graphics-01.module | presentation | ✓ | 0 |
+| pyh-graphics-02.module | presentation | ✓ | 0 |
+| pyh-graphics-03.module | presentation | ✓ | 0 |
+| pyh-graphics-04.module | presentation | ✓ | 0 |
+| pyh-graphics-05.module | presentation | ✓ | 0 |
+| pyh-graphics-06.module | presentation | ✓ | 0 |
+| pyh-graphics-07.module | presentation | ✓ | 0 |
+| pyh-graphics-08.module | presentation | ✓ | 0 |
+| pyh-project-01.module | presentation | ✓ | 0 |
+| pyh-project-02.module | presentation | ✓ | 0 |
+| pyh-project-03.module | presentation | ✓ | 0 |
+| pyh-project-04.module | presentation | ✓ | 0 |
+| pyh-project-05.module | presentation | ✓ | 0 |
+| pyh-project-06.module | presentation | ✓ | 0 |
+| pyh-stdlib-01.module | presentation | ✓ | 0 |
+| pyh-stdlib-02.module | presentation | ✓ | 0 |
+| pyh-stdlib-03.module | presentation | ✓ | 0 |
+| pyh-stdlib-04.module | presentation | ✓ | 0 |
+| pyh-stdlib-05.module | presentation | ✓ | 0 |
+| pyh-stdlib-06.module | presentation | ✓ | 0 |
+| pyh-stdlib-07.module | presentation | ✓ | 0 |
+| pyh-stdlib-08.module | presentation | ✓ | 0 |
+| pyh-quiz-graphics-final | presentation | ✓ | 0 |
+| pyh-quiz-graphics-visual | presentation | ✓ | 0 |
+| pyh-quiz-portfolio | presentation | ✓ | 0 |
+| pyh-quiz-stdlib-final | presentation | ✓ | 0 |
+| pyh-quiz-stdlib-foundations | presentation | ✓ | 0 |
+| pyh-quiz-stdlib-systems | presentation | ✓ | 0 |
 | code-agile-sdlc.presentation | presentation | ✓ | 0 |
 | code-automation.presentation | presentation | ✓ | 0 |
 | code-cicd-fundamentals.presentation | presentation | ✓ | 0 |
@@ -3562,6 +3724,7 @@
 | shield-cf-mm08 | quiz | ✓ | 0 |
 | shield-cf-comprehensive-review | presentation | ✓ | 0 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
+| shield-debugger.applet | applet | ✓ | 1 |
 | shield-dr-malware.applet | applet | ✓ | 1 |
 | shield-malware-zoo.lab | lab | ✓ | 0 |
 | shield-threat-runner.applet | presentation | ✓ | 0 |
@@ -3626,6 +3789,55 @@
 | ctf-leaderboard.applet | presentation | ✓ | 0 |
 | botnet-architecture.presentation | presentation | ✓ | 0 |
 | buffer-overflow-lab | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| bh-lab-ai-exploit | presentation | ✓ | 0 |
+| bh-lab-api | lab | ✓ | 0 |
+| bh-lab-chaining | lab | ✓ | 0 |
+| bh-lab-cloud | lab | ✓ | 0 |
+| bh-lab-full-scope | lab | ✓ | 0 |
+| bh-lab-idor | lab | ✓ | 0 |
+| bh-lab-mobile | lab | ✓ | 0 |
+| bh-lab-network | lab | ✓ | 0 |
+| bh-lab-osint | lab | ✓ | 0 |
+| bh-lab-recon | lab | ✓ | 0 |
+| bh-lab-report | presentation | ✓ | 0 |
+| bh-lab-source | lab | ✓ | 0 |
+| bh-lab-sqli | presentation | ✓ | 0 |
+| bh-lab-subdomain | lab | ✓ | 0 |
+| bh-lab-xss | presentation | ✓ | 0 |
+| bh-mod-advanced-web | presentation | ✓ | 0 |
+| bh-mod-ai-exploit | presentation | ✓ | 0 |
+| bh-mod-ai-hunting | presentation | ✓ | 0 |
+| bh-mod-api-security | presentation | ✓ | 0 |
+| bh-mod-auth-access | presentation | ✓ | 0 |
+| bh-mod-automation | presentation | ✓ | 0 |
+| bh-mod-blockchain | presentation | ✓ | 0 |
+| bh-mod-case-studies | presentation | ✓ | 0 |
+| bh-mod-chaining | presentation | ✓ | 0 |
+| bh-mod-cloud | presentation | ✓ | 0 |
+| bh-mod-fundamentals | presentation | ✓ | 0 |
+| bh-mod-injection | presentation | ✓ | 0 |
+| bh-mod-iot | presentation | ✓ | 0 |
+| bh-mod-mobile | presentation | ✓ | 0 |
+| bh-mod-network | presentation | ✓ | 0 |
+| bh-mod-recon-adv | presentation | ✓ | 0 |
+| bh-mod-recon | presentation | ✓ | 0 |
+| bh-mod-reporting | presentation | ✓ | 0 |
+| bh-mod-resources | presentation | ✓ | 0 |
+| bh-mod-source-review | presentation | ✓ | 0 |
+| bh-mod-supply-chain | presentation | ✓ | 0 |
+| bh-mod-web-vulns | presentation | ✓ | 0 |
+| bh-quiz-ai | presentation | ✓ | 0 |
+| bh-quiz-final | presentation | ✓ | 0 |
+| bh-quiz-fundamentals | presentation | ✓ | 0 |
+| bh-quiz-mastery | presentation | ✓ | 0 |
+| bh-quiz-platform | presentation | ✓ | 0 |
+| bh-quiz-practical | presentation | ✓ | 0 |
+| bh-quiz-web | presentation | ✓ | 0 |
+| bh-tool-ai | presentation | ✓ | 0 |
+| bh-tool-methodology | presentation | ✓ | 0 |
+| bh-tool-mobile | presentation | ✓ | 0 |
+| bh-tool-reference | presentation | ✓ | 0 |
 | ceh-attack-reference | presentation | ✓ | 0 |
 | cloud-hacking-lab | lab | ✓ | 0 |
 | csrf-attack-lab | lab | ✓ | 0 |
@@ -3896,7 +4108,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (2) — heuristic, needs review
+### SUSPECT (58) — heuristic, needs review
 
 **[HEUR-006]** Hardcoded relative href in shared renderer: ../../dashboard.html — resolves differently depending on consumer page depth
   File: `components/CertPathRenderer.js`
@@ -3906,10 +4118,426 @@
   File: `components/HouseRenderer.js`
   Fix: Use absolute path from site root (e.g., /houses/shield/index.html) instead of relative path
 
-### WARNING (140)
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/AccessGuard.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/AccessGuard.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/AccessGuard.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/AccountFrame.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/AchievementManager.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/AchievementSystem.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/ArcadeScoreModal.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/CLHCompletionModal.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/CLHTerminal.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/CLHTerminal.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/CLHTerminal.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/CLHTerminal.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/CallsignModal.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/CertPathRenderer.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/FluxCapacitor.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/FluxCapacitor.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/FluxCapacitor.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/GameScoreboard.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/GistSync.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/GitHubAuth.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/GlobalSearch.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/HED.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/HED.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/HED.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/HouseRenderer.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/IdleDetector.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/InstructorDashboard.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/InstructorDashboard.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/ModuleProgress.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/ModuleProgress.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/ProgressManager.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/ReviewEngine.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/RingChallengeEngine.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/RingChallengeEngine.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/RingChallengeEngine.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/RingChallengeEngine.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SecretFeatures.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SecretFeatures.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SecretFeatures.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SecretFeatures.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SecretFeatures.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SecretFeatures.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SecretFeatures.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SecurityTerminal.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SoundToggle.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/TrailHunter.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/TrailHunter.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/TrailHunter.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/UpdateChecker.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/UpdateManager.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/UpdateManager.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/UpdateManager.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-003]** TODO marker in script: Line 29:  private static final boolean IS_DEBUG = true; // T
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-mobile.html`
+  Fix: Resolve or remove TODO comment
+
+**[HEUR-001]** Excessive inline scripts: 16 <script> blocks without src (threshold: 8)
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-xss.html`
+  Fix: Consider extracting inline scripts to external .js files
+
+**[HEUR-005]** Duplicate script include: "../../../../components/AchievementManager.js" loaded 2 times (lines 9, 1061)
+  File: `houses/code/modules/python-hub/index.html`
+  Fix: Remove duplicate <script src="../../../../components/AchievementManager.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 1062)
+  File: `houses/code/modules/python-hub/index.html`
+  Fix: Remove duplicate <script src="../../../../components/ModuleProgress.js"> tag
+
+### WARNING (226)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-ai-exploit.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-api.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-chaining.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-cloud.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-full-scope.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-idor.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-mobile.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-network.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-osint.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-recon.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-report.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-source.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-sqli.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-subdomain.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-xss.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-advanced-web.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-hunting.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-api-security.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-automation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-blockchain.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-case-studies.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-chaining.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-cloud.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-fundamentals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-injection.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-iot.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-mobile.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-network.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon-adv.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-resources.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-source-review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-web-vulns.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-ai.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-final.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-fundamentals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-mastery.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-platform.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-practical.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-web.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/tools/bh-tool-ai.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/tools/bh-tool-mobile.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/tools/bh-tool-reference.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4160,6 +4788,182 @@
   File: `houses/code/modules/python-engineering/code-pye-chapter01.module.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-stdlib-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-stdlib-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-stdlib-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-stdlib-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-stdlib-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-stdlib-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-stdlib-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/labs/pyh-lab-stdlib-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-01.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-02.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-03.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-04.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-05.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-06.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-07.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-08.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-project-01.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-project-02.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-project-03.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-project-04.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-project-05.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-project-06.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-stdlib-01.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-stdlib-02.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-stdlib-03.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-stdlib-04.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-stdlib-05.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-stdlib-06.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-stdlib-07.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/modules/pyh-stdlib-08.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/quizzes/pyh-quiz-graphics-final.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/quizzes/pyh-quiz-graphics-visual.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/quizzes/pyh-quiz-portfolio.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-final.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-foundations.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-systems.html`
+  Fix: Add entry to content-registry.js
+
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/dark-arts/feh/index.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
@@ -4381,6 +5185,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/shield-debugger.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -4405,34 +5213,6 @@
   Fix: Create the file before setting status to 'available', or remove the dead href
 
 **[CAT-004]** Module 'code-pod-crossing' (status: coming-soon) href 'games/pod-crossing.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'code-pye-ch04' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter04.module.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'code-pye-ch05' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter05.module.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'code-pye-ch06' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter06.module.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'code-pye-ch07' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter07.module.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'code-pye-ch08' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter08.module.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'code-pye-ch09' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter09.module.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'code-pye-ch10' (status: coming-soon) href 'modules/python-engineering/code-pye-chapter10.module.html' does not exist on disk
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
@@ -4468,7 +5248,7 @@
   File: `houses/forge/tools/forge-settings.tool.html`
   Fix: Replace with <img src="/assets/images/emblems/forge.webp">
 
-### INFO (51)
+### INFO (54)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -4476,6 +5256,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `career-quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/bug-hunting/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -4524,6 +5308,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/modules/python-engineering/code-pye-chapter01.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/modules/python-hub/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -4615,6 +5403,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-debugger.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/games/shield-dr-malware.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -4670,11 +5462,59 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (118)
+### Unregistered Content (211)
 
 | Path | Type | House |
 |------|------|-------|
 | career-quiz.html | applet | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-ai-exploit.html | presentation | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-api.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-chaining.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-cloud.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-full-scope.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-idor.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-mobile.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-network.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-osint.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-recon.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-report.html | presentation | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-source.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-sqli.html | presentation | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-subdomain.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-xss.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-advanced-web.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-ai-hunting.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-api-security.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-automation.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-blockchain.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-case-studies.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-chaining.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-cloud.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-fundamentals.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-injection.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-iot.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-mobile.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-network.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-recon-adv.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-recon.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-resources.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-source-review.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-web-vulns.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-ai.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-final.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-fundamentals.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-mastery.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-platform.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-practical.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-web.html | presentation | - |
+| dark-arts/vault/bug-hunting/tools/bh-tool-ai.html | presentation | - |
+| dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html | presentation | - |
+| dark-arts/vault/bug-hunting/tools/bh-tool-mobile.html | presentation | - |
+| dark-arts/vault/bug-hunting/tools/bh-tool-reference.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-00.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-01.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-02.html | lab | - |
@@ -4737,6 +5577,50 @@
 | houses/ai/tools/ai-tokenizer.tool.html | applet | ai |
 | houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
 | houses/code/modules/python-engineering/code-pye-chapter01.module.html | applet | code |
+| houses/code/modules/python-hub/labs/pyh-lab-graphics-01.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-graphics-02.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-graphics-03.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-graphics-04.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-graphics-05.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-graphics-06.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-graphics-07.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-graphics-08.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-stdlib-01.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-stdlib-02.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-stdlib-03.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-stdlib-04.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-stdlib-05.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-stdlib-06.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-stdlib-07.html | lab | code |
+| houses/code/modules/python-hub/labs/pyh-lab-stdlib-08.html | lab | code |
+| houses/code/modules/python-hub/modules/pyh-graphics-01.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-graphics-02.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-graphics-03.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-graphics-04.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-graphics-05.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-graphics-06.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-graphics-07.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-graphics-08.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-project-01.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-project-02.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-project-03.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-project-04.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-project-05.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-project-06.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-stdlib-01.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-stdlib-02.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-stdlib-03.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-stdlib-04.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-stdlib-05.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-stdlib-06.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-stdlib-07.module.html | presentation | code |
+| houses/code/modules/python-hub/modules/pyh-stdlib-08.module.html | presentation | code |
+| houses/code/modules/python-hub/quizzes/pyh-quiz-graphics-final.html | presentation | code |
+| houses/code/modules/python-hub/quizzes/pyh-quiz-graphics-visual.html | presentation | code |
+| houses/code/modules/python-hub/quizzes/pyh-quiz-portfolio.html | presentation | code |
+| houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-final.html | presentation | code |
+| houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-foundations.html | presentation | code |
+| houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-systems.html | presentation | code |
 | houses/dark-arts/games/dark-ids-evasion-lab.applet.html | lab | - |
 | houses/dark-arts/games/dark-m365-attack-lab.applet.html | applet | - |
 | houses/dark-arts/games/dark-malware-specimen-lab.applet.html | applet | - |
@@ -4789,6 +5673,7 @@
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
+| houses/shield/games/shield-debugger.applet.html | applet | shield |
 | houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
 | houses/web/games/web-dns-resolver-race.applet.html | presentation | web |
 | houses/web/games/web-subnet-siege.applet.html | presentation | web |

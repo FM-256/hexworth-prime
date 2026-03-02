@@ -267,9 +267,9 @@ function main() {
     console.log(`Invalid category: ${colors[totalInvalidCategory > 0 ? 'red' : 'green']}${totalInvalidCategory}${colors.reset}`);
 
     if (totalMissingCategory === 0 && totalInvalidCategory === 0) {
-        log('green', '\n✅ ALL ENTRIES HAVE VALID CATEGORIES!\n');
+        log('green', '\n<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ALL ENTRIES HAVE VALID CATEGORIES!\n');
     } else {
-        log('yellow', '\n⚠️  Issues found - see details above');
+        log('yellow', '\n<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  Issues found - see details above');
         if (!showFix) {
             log('cyan', 'Run with --fix flag to see suggested category assignments\n');
         } else {

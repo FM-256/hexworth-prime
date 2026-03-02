@@ -13,7 +13,7 @@ const OSINTLabEngine = (() => {
         {
             id: 'passive',
             title: 'Passive Reconnaissance',
-            icon: '🔍',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Gather publicly available information about MeridianTech Corp without directly interacting with their systems.',
             tools: [
                 {
@@ -47,7 +47,7 @@ const OSINTLabEngine = (() => {
         {
             id: 'social',
             title: 'Social Media OSINT',
-            icon: '👥',
+            icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Analyze social media profiles and metadata to gather intelligence about MeridianTech employees and operations.',
             tools: [
                 {
@@ -68,7 +68,7 @@ const OSINTLabEngine = (() => {
                     name: 'twitter',
                     syntax: 'search twitter "@MeridianTechHQ"',
                     description: 'Twitter/X account analysis',
-                    output: `@MeridianTechHQ — Twitter Analysis\n\nBio: "Defense contractor specializing in secure cloud solutions.\nVirginia | Est. 2019"\n\nRecent Tweets:\n━━━━━━━━━━━━━━\n• "Proud to announce our FedRAMP authorization! 🎉"\n• "Our team at AWS re:Invent was amazing! Special thanks\n   to @david_chen_mtech for the keynote."\n• "We're hiring! Check out 15 new positions on our careers\n   page. #infosec #cloudsecurity"\n• "Happy hour at The Capital Grille in Tysons Corner tonight!\n   Great team bonding. 📸"\n\nFollowing: AWS, CISA, NIST, DoD CIO, Lockheed Martin,\nNorthrop Grumman, Palo Alto Networks, CrowdStrike`,
+                    output: `@MeridianTechHQ — Twitter Analysis\n\nBio: "Defense contractor specializing in secure cloud solutions.\nVirginia | Est. 2019"\n\nRecent Tweets:\n━━━━━━━━━━━━━━\n• "Proud to announce our FedRAMP authorization! <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">"\n• "Our team at AWS re:Invent was amazing! Special thanks\n   to @david_chen_mtech for the keynote."\n• "We're hiring! Check out 15 new positions on our careers\n   page. #infosec #cloudsecurity"\n• "Happy hour at The Capital Grille in Tysons Corner tonight!\n   Great team bonding. <img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">"\n\nFollowing: AWS, CISA, NIST, DoD CIO, Lockheed Martin,\nNorthrop Grumman, Palo Alto Networks, CrowdStrike`,
                     clues: ['Defense contractor with FedRAMP authorization', 'Located near Tysons Corner, Virginia', 'Employee name format confirmed: David Chen → @david_chen_mtech', 'Following list reveals partners/vendors: Palo Alto, CrowdStrike', 'Social posts reveal employee gathering locations']
                 }
             ],
@@ -81,7 +81,7 @@ const OSINTLabEngine = (() => {
         {
             id: 'technical',
             title: 'Technical Reconnaissance',
-            icon: '🖥️',
+            icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Discover technical infrastructure, exposed services, and certificate information without active exploitation.',
             tools: [
                 {
@@ -115,7 +115,7 @@ const OSINTLabEngine = (() => {
         {
             id: 'physical',
             title: 'Physical & Environmental',
-            icon: '🏢',
+            icon: '<img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Analyze physical security through satellite imagery, public records, and environmental intelligence gathering.',
             tools: [
                 {
@@ -149,7 +149,7 @@ const OSINTLabEngine = (() => {
         {
             id: 'report',
             title: 'Intelligence Report',
-            icon: '📊',
+            icon: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Compile your findings into a structured intelligence report. Assess overall threat level and provide recommendations.',
             isReport: true,
             sections: [
@@ -267,7 +267,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .osint-clues{margin-top:1rem}
 .osint-clue-list{list-style:none;display:flex;flex-direction:column;gap:.35rem}
 .osint-clue{padding:.5rem .75rem;background:${ACCENT}06;border:1px solid ${ACCENT}22;border-radius:6px;font-size:.8rem;color:#cbd5e1;display:flex;align-items:flex-start;gap:.5rem}
-.osint-clue::before{content:'🔎';font-size:.7rem;flex-shrink:0;margin-top:2px}
+.osint-clue::before{content:'<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';font-size:.7rem;flex-shrink:0;margin-top:2px}
 .osint-clue.new{animation:clueFlash .5s ease}
 @keyframes clueFlash{0%{background:${ACCENT}22}100%{background:${ACCENT}06}}
 
@@ -321,11 +321,11 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 <a class="osint-back" href="../../../index.html">‹ Back to Shield House</a>
 
 <div class="osint-header">
-    <h1>🔍 OSINT Investigation Lab</h1>
+    <h1><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> OSINT Investigation Lab</h1>
     <div class="subtitle">Open Source Intelligence — Passive Reconnaissance Exercise</div>
     <div class="target"><strong>Target:</strong> MeridianTech Corporation — Defense contractor, Tysons Corner, VA</div>
     <div class="target"><strong>Objective:</strong> Gather intelligence using only publicly available sources. Do not interact with target systems.</div>
-    <div class="osint-clue-count" id="clueCounter">🔎 ${state.clues.length} clues collected</div>
+    <div class="osint-clue-count" id="clueCounter"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${state.clues.length} clues collected</div>
 </div>
 
 <div class="osint-stages" id="stageNav"></div>
@@ -477,7 +477,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
         renderClueList(stageIdx, state.stageProgress[stageIdx]);
 
         // Update clue counter
-        document.getElementById('clueCounter').textContent = '🔎 ' + state.clues.length + ' clues collected';
+        document.getElementById('clueCounter').textContent = '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ' + state.clues.length + ' clues collected';
 
         // Show questions if all tools used
         if (progress.toolsUsed.length >= stage.tools.length) {
@@ -513,7 +513,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
                 }
                 return `<button class="${cls}" data-qi="${qi}" data-oi="${oi}">${opt}</button>`;
             }).join('')}
-            ${answered ? `<div class="osint-q-hint show">💡 ${q.hint}</div>` : ''}
+            ${answered ? `<div class="osint-q-hint show"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${q.hint}</div>` : ''}
         </div>`;
     }
 
@@ -554,14 +554,14 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
                 <div class="osint-stage-header">
                     <h2>${stage.icon} ${stage.title}</h2>
                     <p>${stage.description}</p>
-                    <div class="osint-clue-count" style="margin-top:.75rem">🔎 ${state.clues.length} total clues collected across all stages</div>
+                    <div class="osint-clue-count" style="margin-top:.75rem"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${state.clues.length} total clues collected across all stages</div>
                 </div>
 
                 ${stage.sections.map((sec, si) => renderReportSection(sec, si, reportState)).join('')}
 
                 <div id="reportComplete" style="display:${isReportComplete(reportState) ? '' : 'none'}">
                     <div style="text-align:center;padding:2rem;background:rgba(34,211,238,.05);border:1px solid ${ACCENT}33;border-radius:12px;margin-top:1.5rem">
-                        <div style="font-size:2.5rem;margin-bottom:.5rem">🏆</div>
+                        <div style="font-size:2.5rem;margin-bottom:.5rem"><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                         <div style="font-size:1.2rem;color:#fff;font-weight:600;margin-bottom:.25rem">Investigation Complete</div>
                         <div style="color:#94a3b8;font-size:.85rem">You've completed the MeridianTech OSINT investigation. Your intelligence report has been filed.</div>
                     </div>
@@ -611,7 +611,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
                 ${sec.findings.map((f, fi) => `
                     <div class="osint-finding ${sec.topPicks.includes(fi) ? 'critical' : ''}">
                         <span style="color:${ACCENT};font-weight:600;min-width:16px">${fi + 1}.</span> ${f}
-                        ${sec.topPicks.includes(fi) ? '<span style="color:#ef4444;font-size:.7rem;margin-left:auto">★ TOP 5</span>' : ''}
+                        ${sec.topPicks.includes(fi) ? '<span style="color:#ef4444;font-size:.7rem;margin-left:auto"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> TOP 5</span>' : ''}
                     </div>
                 `).join('')}
             </div>`;

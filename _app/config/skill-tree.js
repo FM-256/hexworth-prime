@@ -16,14 +16,14 @@ const SkillTree = {
     fundamentals: {
         id: 'fundamentals',
         name: 'Fundamentals',
-        icon: '📚',
+        icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#3b82f6',
         description: 'Concepts, Theory, Know',
         folders: {
             networking: {
                 name: 'networking',
                 displayName: 'Networking',
-                icon: '🌐',
+                icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'osi_model.md', contentId: 'web-osi-model', title: 'OSI Model' },
                     { file: 'tcp_ip.md', contentId: 'web-tcpip', title: 'TCP/IP Model' },
@@ -36,7 +36,7 @@ const SkillTree = {
             security: {
                 name: 'security',
                 displayName: 'Security',
-                icon: '🛡️',
+                icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'cia_triad.md', contentId: 'shield-cia-triad', title: 'CIA Triad' },
                     { file: 'security_principles.md', contentId: 'shield-security-fundamentals', title: 'Security Fundamentals' },
@@ -50,7 +50,7 @@ const SkillTree = {
             systems: {
                 name: 'systems',
                 displayName: 'Systems',
-                icon: '⚙️',
+                icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'hardware_basics.md', contentId: 'forge-hardware-fundamentals', title: 'Hardware Fundamentals' },
                     { file: 'storage_raid.md', contentId: 'forge-storage-raid', title: 'Storage & RAID' },
@@ -64,7 +64,7 @@ const SkillTree = {
             cloud: {
                 name: 'cloud',
                 displayName: 'Cloud',
-                icon: '☁️',
+                icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'cloud_concepts.md', contentId: 'cloud-concepts', title: 'Cloud Computing Concepts' },
                     { file: 'service_models.md', contentId: 'cloud-models', title: 'Cloud Service Models' },
@@ -76,7 +76,7 @@ const SkillTree = {
             programming: {
                 name: 'programming',
                 displayName: 'Programming',
-                icon: '💻',
+                icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'python_basics.md', contentId: 'script-python-basics', title: 'Python Basics' },
                     { file: 'python_strings.md', contentId: 'script-python-strings', title: 'Python Strings' },
@@ -96,14 +96,14 @@ const SkillTree = {
     tools: {
         id: 'tools',
         name: 'Tools',
-        icon: '🔧',
+        icon: '<img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#f59e0b',
         description: 'Software, Utilities, Use',
         folders: {
             network_analysis: {
                 name: 'network_analysis',
                 displayName: 'Network Analysis',
-                icon: '📡',
+                icon: '<img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'packet_tracer.md', contentId: 'web-network-simulator', title: 'Network Simulator Lab' },
                     { file: 'troubleshooting_tools.md', contentId: 'web-troubleshooting', title: 'Network Troubleshooting' },
@@ -113,7 +113,7 @@ const SkillTree = {
             windows_admin: {
                 name: 'windows_admin',
                 displayName: 'Windows Admin',
-                icon: '🪟',
+                icon: '<img src="/assets/images/icons/icon-window.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'settings_app.md', contentId: 'forge-windows-settings', title: 'Windows Settings App' },
                     { file: 'control_panel.md', contentId: 'forge-control-panel', title: 'Control Panel' },
@@ -126,7 +126,7 @@ const SkillTree = {
             command_line: {
                 name: 'command_line',
                 displayName: 'Command Line',
-                icon: '⌨️',
+                icon: '<img src="/assets/images/icons/icon-keyboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'linux_cli.md', contentId: 'script-linux-basics', title: 'Linux Command Line' },
                     { file: 'powershell.md', contentId: 'script-powershell-basics', title: 'PowerShell Basics' },
@@ -138,7 +138,7 @@ const SkillTree = {
             development: {
                 name: 'development',
                 displayName: 'Development',
-                icon: '🔨',
+                icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 items: [
                     { file: 'git.md', contentId: 'code-git-basics', title: 'Git Fundamentals' },
                     { file: 'python_files.md', contentId: 'script-python-files', title: 'Python File Handling' }
@@ -147,7 +147,7 @@ const SkillTree = {
             cloud_platforms: {
                 name: 'cloud_platforms',
                 displayName: 'Cloud Platforms',
-                icon: '🌩️',
+                icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 items: [
                     { file: 'aws_console.md', contentId: 'cloud-aws-tools', title: 'AWS Management Tools' },
                     { file: 'aws_services.md', contentId: 'cloud-aws-services', title: 'AWS Service Explorer' },
@@ -158,7 +158,7 @@ const SkillTree = {
             security_tools: {
                 name: 'security_tools',
                 displayName: 'Security Tools',
-                icon: '🔐',
+                icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'cipher_playground.md', contentId: 'key-encryption-basics', title: 'Cipher Playground' },
                     { file: 'log_parser.md', contentId: 'eye-log-analysis', title: 'Log Parser' }
@@ -167,7 +167,7 @@ const SkillTree = {
             sysadmin: {
                 name: 'sysadmin',
                 displayName: 'SysAdmin',
-                icon: '🖥️',
+                icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'process_management.md', contentId: 'script-process-management', title: 'Process Management' },
                     { file: 'log_management.md', contentId: 'script-log-management', title: 'Log Management' },
@@ -183,14 +183,14 @@ const SkillTree = {
     skills: {
         id: 'skills',
         name: 'Skills',
-        icon: '⚔️',
+        icon: '<img src="/assets/images/icons/icon-swords.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#ef4444',
         description: 'Applied Abilities, Do',
         folders: {
             network_engineering: {
                 name: 'network_engineering',
                 displayName: 'Network Engineering',
-                icon: '🌐',
+                icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'subnetting.md', contentId: 'web-ip-addressing', title: 'IP Subnetting' },
                     { file: 'vlsm.md', contentId: 'web-vlsm', title: 'VLSM Design' },
@@ -204,7 +204,7 @@ const SkillTree = {
             system_administration: {
                 name: 'system_administration',
                 displayName: 'System Administration',
-                icon: '🖥️',
+                icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'windows_admin.md', contentId: 'forge-admin-tools', title: 'Windows Administration' },
                     { file: 'linux_admin.md', contentId: 'script-linux-basics', title: 'Linux Administration' },
@@ -216,7 +216,7 @@ const SkillTree = {
             security_operations: {
                 name: 'security_operations',
                 displayName: 'Security Operations',
-                icon: '🛡️',
+                icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'access_control.md', contentId: 'shield-access-control', title: 'Access Control' },
                     { file: 'network_security.md', contentId: 'shield-network-security', title: 'Network Security' },
@@ -227,7 +227,7 @@ const SkillTree = {
             cloud_engineering: {
                 name: 'cloud_engineering',
                 displayName: 'Cloud Engineering',
-                icon: '☁️',
+                icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'aws_compute.md', contentId: 'cloud-aws-compute', title: 'AWS Compute Services' },
                     { file: 'ec2_instances.md', contentId: 'cloud-aws-ec2', title: 'EC2 Instance Management' },
@@ -241,7 +241,7 @@ const SkillTree = {
             development: {
                 name: 'development',
                 displayName: 'Development',
-                icon: '💻',
+                icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'python_scripting.md', contentId: 'script-python-basics', title: 'Python Scripting' },
                     { file: 'bash_automation.md', contentId: 'script-bash-scripting', title: 'Bash Automation' },
@@ -252,7 +252,7 @@ const SkillTree = {
             offensive_security: {
                 name: 'offensive_security',
                 displayName: 'Offensive Security',
-                icon: '🗡️',
+                icon: '<img src="/assets/images/icons/icon-swords.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 locked: true,
                 unlockHint: 'Complete the Five Gates to unlock',
                 items: [

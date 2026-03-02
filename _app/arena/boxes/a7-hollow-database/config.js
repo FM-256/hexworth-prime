@@ -380,7 +380,7 @@ const A7Config = {
                     </div>
 
                     <div id="admin-vault" style="display:none; background:#0d1f15; border:1px solid #1a4a35; border-radius:6px; padding:20px; margin-bottom:20px;">
-                        <div style="color:#2ecc71; font-size:0.65rem; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:12px;">&#9888; ADMIN PANEL — VAULT ACCESS</div>
+                        <div style="color:#2ecc71; font-size:0.65rem; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:12px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ADMIN PANEL — VAULT ACCESS</div>
                         <div style="color:#456b63; font-size:0.72rem; margin-bottom:12px;">
                             Query the <span style="font-family:monospace; color:#1abc9c;">vault_keys</span> collection below.
                             <br>Example: <span style="font-family:monospace; color:#1a7a6a;">{"collection":"vault_keys"}</span>
@@ -443,7 +443,7 @@ const A7Config = {
                         </div>
 
                         <div style="background:#071a17; border:1px solid #1a3a20; border-radius:6px; padding:14px;">
-                            <div style="color:#f39c12; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;">&#9888; Developer Note</div>
+                            <div style="color:#f39c12; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Developer Note</div>
                             <div style="color:#456b63; font-size:0.72rem; line-height:1.6;">
                                 The auth endpoint passes the JSON body directly to <code style="color:#1abc9c;">db.citizens.findOne(body)</code> without sanitization.
                                 Supported MongoDB operators: <code style="color:#4ecdc4;">$ne, $gt, $lt, $gte, $lte, $regex, $in, $nin, $exists</code>

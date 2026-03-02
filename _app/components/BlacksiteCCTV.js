@@ -123,7 +123,7 @@ const BlacksiteCCTV = (function() {
     ║    ╚═══════════════════════╝          ║
     ║                              [WINDOW] ║
     ╚═══════════════════════════════════════╝
-              ⚠ DEVICE LOCATED ⚠`
+              <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DEVICE LOCATED <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">`
             ],
             phoenixFrames: [
 `    ╔═══════════════════════════════════════╗
@@ -153,7 +153,7 @@ const BlacksiteCCTV = (function() {
     ║    ╚═══════════════════════╝          ║
     ║                              [WINDOW] ║
     ╚═══════════════════════════════════════╝
-        ⚠ PHOENIX AT DEVICE - READY ⚠`
+        <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> PHOENIX AT DEVICE - READY <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">`
             ]
         },
 
@@ -165,7 +165,7 @@ const BlacksiteCCTV = (function() {
     ║                                       ║
     ║      ┌─────────────────────────┐      ║
     ║      │  ╔═══╗   ┌──────────┐   │      ║
-    ║      │  ║ ⏱ ║───│ C4 BLOCK │   │      ║
+    ║      │  ║ <img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ║───│ C4 BLOCK │   │      ║
     ║      │  ╚═══╝   └──────────┘   │      ║
     ║      │   ││││                  │      ║
     ║      │   ████  WIRE HARNESS    │      ║
@@ -180,7 +180,7 @@ const BlacksiteCCTV = (function() {
     ║                                       ║
     ║      ┌─────────────────────────┐      ║
     ║      │  ╔═══╗   ┌──────────┐   │      ║
-    ║      │  ║⏱⏱⏱║───│ C4 BLOCK │   │      ║
+    ║      │  ║<img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">║───│ C4 BLOCK │   │      ║
     ║      │  ╚═══╝   └──────────┘   │      ║
     ║      │   ││││       *    *     │      ║
     ║      │   ████  WIRE HARNESS    │      ║
@@ -188,7 +188,7 @@ const BlacksiteCCTV = (function() {
     ║      │  │ │ │ │ │ │            │      ║
     ║      └─────────────────────────┘      ║
     ╚═══════════════════════════════════════╝
-      TIMER: [CRITICAL]  ⚠ SPARKING ⚠`
+      TIMER: [CRITICAL]  <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> SPARKING <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">`
             ],
             phoenixFrames: [
 `    ╔═══════════════════════════════════════╗
@@ -197,12 +197,12 @@ const BlacksiteCCTV = (function() {
     ║    ┌──── PHOENIX HANDS ────┐          ║
     ║    │ ┌─────────────────────────┐      ║
     ║    ▼ │  ╔═══╗   ┌──────────┐   │      ║
-    ║  ════>║ ⏱ ║───│ C4 BLOCK │   │      ║
+    ║  ════>║ <img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ║───│ C4 BLOCK │   │      ║
     ║      │  ╚═══╝   └──────────┘   │      ║
     ║      │   ││││                  │      ║
     ║      │   ████  WIRE HARNESS    │      ║
     ║      │  R R B B G G            │      ║
-    ║  ✂───┼──│ │ │ │ │ │            │      ║
+    ║  <img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">───┼──│ │ │ │ │ │            │      ║
     ║      └─────────────────────────┘      ║
     ╚═══════════════════════════════════════╝
     PHOENIX: "Wire cutters ready. Awaiting code."`
@@ -214,7 +214,7 @@ const BlacksiteCCTV = (function() {
     ║                                       ║
     ║      ┌─────────────────────────┐      ║
     ║      │  ╔═══╗   ┌──────────┐   │      ║
-    ║      │  ║ ⏱ ║───│ C4 BLOCK │   │      ║
+    ║      │  ║ <img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ║───│ C4 BLOCK │   │      ║
     ║      │  ╚═══╝   └──────────┘   │      ║
     ║      │   ││││                  │      ║
     ║      │   ████  WIRE HARNESS    │      ║
@@ -255,7 +255,7 @@ const BlacksiteCCTV = (function() {
     ║   │     47 EXECUTIVES PRESENT       │ ║
     ║   └─────────SPEAKER PRESENTING──────┘ ║
     ╚═══════════════════════════════════════╝
-       ⚠ LIVES AT STAKE - TIME CRITICAL ⚠`
+       <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> LIVES AT STAKE - TIME CRITICAL <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">`
             ],
             safeFrames: [
 `    ╔═══════════════════════════════════════╗
@@ -291,7 +291,7 @@ const BlacksiteCCTV = (function() {
     ║▒▓░▒▒▓░▒▒░▓▒░▒▓▒░▒▓░▒▒▓░▒▒░▓▒░▒▓▒░▒▓░▒▒║
     ║▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒║
     ╚═══════════════════════════════════════╝
-          ⚠ RECONNECTING... ⚠`,
+          <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> RECONNECTING... <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">`,
 `    ╔═══════════════════════════════════════╗
     ║░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░║
     ║░▓░▒▓░▒░▓▒░▓░▒▓▒░▓░▒░▓░▒▓░▒░▓▒░▓░▒▓▒░▓░║
@@ -469,14 +469,14 @@ const BlacksiteCCTV = (function() {
                     <div class="cctv-feed-footer">
                         <div class="cctv-location">FLOOR 1 - EAST WING</div>
                         <div class="cctv-signal">
-                            <span class="cctv-signal-icon">📶</span>
+                            <span class="cctv-signal-icon"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                             <span class="cctv-signal-percent">100%</span>
                         </div>
                     </div>
 
                     <!-- Motion Alert -->
                     <div class="cctv-motion-alert">
-                        <span>⚠ MOTION DETECTED</span>
+                        <span><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> MOTION DETECTED</span>
                     </div>
 
                     <!-- Picture-in-Picture -->
@@ -514,13 +514,13 @@ const BlacksiteCCTV = (function() {
                     <!-- View Modes -->
                     <div class="cctv-view-modes">
                         <button class="cctv-mode-btn active" data-mode="normal" title="Normal View">
-                            <span>📹</span>
+                            <span><img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                         </button>
                         <button class="cctv-mode-btn" data-mode="nightvision" title="Night Vision">
-                            <span>🌙</span>
+                            <span><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                         </button>
                         <button class="cctv-mode-btn" data-mode="thermal" title="Thermal">
-                            <span>🔥</span>
+                            <span><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                         </button>
                     </div>
 
@@ -530,10 +530,10 @@ const BlacksiteCCTV = (function() {
                             <span>⧉</span> PIP
                         </button>
                         <button class="cctv-ctrl-btn" data-action="cycle" title="Auto-Cycle Cameras">
-                            <span>🔄</span> CYCLE
+                            <span><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span> CYCLE
                         </button>
                         <button class="cctv-ctrl-btn" data-action="zoom" title="Digital Zoom">
-                            <span>🔍</span> ZOOM
+                            <span><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span> ZOOM
                         </button>
                     </div>
 
@@ -553,7 +553,7 @@ const BlacksiteCCTV = (function() {
                 <!-- Radio Chatter Display (hidden if using external radio) -->
                 <div class="cctv-radio ${state.externalRadio ? 'hidden' : ''}">
                     <div class="cctv-radio-header">
-                        <span class="cctv-radio-icon">📻</span>
+                        <span class="cctv-radio-icon"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                         <span>RADIO FEED</span>
                         <span class="cctv-radio-freq">CH-7 ENCRYPTED</span>
                     </div>

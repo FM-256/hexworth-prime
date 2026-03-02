@@ -411,7 +411,7 @@ class QuizEngine {
             console.error('[QuizEngine] Fatal error in endQuiz:', e);
             this.container.innerHTML = `
                 <div style="padding: 40px; text-align: center; color: #f87171;">
-                    <h2>⚠️ Error</h2>
+                    <h2><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Error</h2>
                     <p>An error occurred showing results. Check browser console.</p>
                     <p style="font-size: 12px; color: #888;">${e.message}</p>
                     <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px;">Retry</button>
@@ -481,7 +481,7 @@ class QuizEngine {
         }
 
         const gradeClass = results.passed ? 'passed' : 'failed';
-        const gradeEmoji = results.passed ? '🎉' : '💪';
+        const gradeEmoji = results.passed ? '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' : '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
         const gradeMessage = results.passed
             ? this.getPassMessage(results.percentage)
             : this.getFailMessage(results.percentage);
@@ -527,7 +527,7 @@ class QuizEngine {
 
                     ${results.passed && xpEarned > 0 ? `
                         <div class="results-xp" role="status">
-                            <span class="xp-icon" aria-hidden="true">&#10024;</span>
+                            <span class="xp-icon" aria-hidden="true"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                             <span class="xp-earned">+${xpEarned} XP earned</span>
                             ${progressResult && progressResult.levelUp ? `<span class="level-up" role="alert">Level Up! Now Level ${progressResult.newLevel}</span>` : ''}
                         </div>

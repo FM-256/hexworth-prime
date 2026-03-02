@@ -480,7 +480,7 @@ class DigitalLife {
         this.isInitialized = true;
         this.isRunning = true;
 
-        console.log('🔮 Digital Life initialized with all behavior systems');
+        console.log('<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Digital Life initialized with all behavior systems');
 
         return this;
     }
@@ -575,7 +575,7 @@ class DigitalLife {
         // Genetics System (trait inheritance)
         if (this.config.genetics.enabled && typeof GeneticsSystem !== 'undefined') {
             this.geneticsSystem = new GeneticsSystem(this.config.genetics);
-            console.log('🧬 Genetics system initialized');
+            console.log('<img src="/assets/images/icons/icon-dna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Genetics system initialized');
 
             // Hook genetics into reproduction
             if (this.reproductionSystem) {
@@ -597,19 +597,19 @@ class DigitalLife {
         if (this.config.pheromones.enabled && typeof PheromoneSystem !== 'undefined') {
             this.pheromoneSystem = new PheromoneSystem(this.config.pheromones);
             this.pheromoneSystem.init(this.container, window.innerWidth, window.innerHeight);
-            console.log('🧪 Pheromone system initialized');
+            console.log('<img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Pheromone system initialized');
         }
 
         // Spawn initial energy wells
         if (this.config.energyWells.enabled && typeof EnergyWell !== 'undefined') {
             // Start with one energy well
             this.spawnEnergyWell();
-            console.log('⚡ Energy well system initialized');
+            console.log('<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Energy well system initialized');
         }
 
         // Predator stars spawn over time (not immediately)
         if (this.config.predatorStars.enabled && typeof PredatorStar !== 'undefined') {
-            console.log('🌟 Predator star system initialized');
+            console.log('<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Predator star system initialized');
         }
     }
 
@@ -634,10 +634,10 @@ class DigitalLife {
 
         // Set up callbacks
         well.onDepleted = (w) => {
-            console.log(`⚡ Energy well ${w.type.name} depleted`);
+            console.log(`<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Energy well ${w.type.name} depleted`);
         };
         well.onRestored = (w) => {
-            console.log(`⚡ Energy well ${w.type.name} restored`);
+            console.log(`<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Energy well ${w.type.name} restored`);
         };
 
         return well;
@@ -665,11 +665,11 @@ class DigitalLife {
             if (this.ecosystem) {
                 // Kill the caught firefly
                 this.ecosystem.handleFireflyDeath(prey);
-                console.log(`🌟 ${predator.type.name} caught firefly ${prey.id}`);
+                console.log(`<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${predator.type.name} caught firefly ${prey.id}`);
             }
         };
 
-        console.log(`🌟 Spawned ${star.type.name}`);
+        console.log(`<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Spawned ${star.type.name}`);
         return star;
     }
 
@@ -708,7 +708,7 @@ class DigitalLife {
             this.cosmicEventManager.registerEventHandler('NEBULA_DRIFT', new NebulaDriftEvent());
         }
 
-        console.log('🌌 Cosmic Event system initialized');
+        console.log('<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cosmic Event system initialized');
     }
 
     /**
@@ -722,7 +722,7 @@ class DigitalLife {
         this.predatorManager = new PredatorManager(this.config.predators);
         this.predatorManager.init(this.container, this.ecosystem);
 
-        console.log('🐍 Phase 5: Predator variety system initialized');
+        console.log('<img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Phase 5: Predator variety system initialized');
     }
 
     /**
@@ -733,24 +733,24 @@ class DigitalLife {
         if (this.config.playerTools.enabled && typeof PlayerTools !== 'undefined') {
             this.playerTools = new PlayerTools(this.config.playerTools);
             this.playerTools.init(this.container, this.ecosystem);
-            console.log('🛠️ Player tools initialized');
+            console.log('<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Player tools initialized');
         }
 
         // Portal Manager
         if (this.config.portals.enabled && typeof PortalManager !== 'undefined') {
             this.portalManager = new PortalManager(this.config.portals);
             this.portalManager.init(this.container, this.ecosystem);
-            console.log('🌀 Portal system initialized');
+            console.log('<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Portal system initialized');
         }
 
         // Sanctuary Manager
         if (this.config.sanctuaries.enabled && typeof SanctuaryManager !== 'undefined') {
             this.sanctuaryManager = new SanctuaryManager(this.config.sanctuaries);
             this.sanctuaryManager.init(this.container, this.ecosystem);
-            console.log('☮️ Sanctuary system initialized');
+            console.log('<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Sanctuary system initialized');
         }
 
-        console.log('✨ Phase 6: Player tools system initialized');
+        console.log('<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Phase 6: Player tools system initialized');
     }
 
     /**
@@ -761,27 +761,27 @@ class DigitalLife {
         if (this.config.eventLog.enabled && typeof EventLog !== 'undefined') {
             this.eventLog = new EventLog(this.config.eventLog);
             this.eventLog.init(document.body);
-            console.log('📋 Event log initialized');
+            console.log('<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Event log initialized');
         }
 
         // Statistics Display
         if (this.config.statistics.enabled && typeof StatisticsDisplay !== 'undefined') {
             this.statisticsDisplay = new StatisticsDisplay(this.config.statistics);
             this.statisticsDisplay.init(document.body);
-            console.log('📊 Statistics display initialized');
+            console.log('<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Statistics display initialized');
         }
 
         // Achievement System (Digital Life ecosystem achievements)
         if (this.config.achievements.enabled && typeof EcosystemAchievements !== 'undefined') {
             this.achievementSystem = new EcosystemAchievements(this.config.achievements);
             this.achievementSystem.init(document.body);
-            console.log('🏆 Achievement system initialized');
+            console.log('<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievement system initialized');
         }
 
         // Wire up event hooks
         this.wirePhase7Events();
 
-        console.log('📈 Phase 7: Meta systems initialized');
+        console.log('<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Phase 7: Meta systems initialized');
     }
 
     /**
@@ -888,7 +888,7 @@ class DigitalLife {
      */
     initializePhase8Systems() {
         if (!this.config.audio.enabled) {
-            console.log('🔇 Audio system disabled (enable with config.audio.enabled = true)');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Audio system disabled (enable with config.audio.enabled = true)');
             return;
         }
 
@@ -918,7 +918,7 @@ class DigitalLife {
             document.addEventListener('click', initAudio);
             document.addEventListener('keydown', initAudio);
 
-            console.log('🔊 Sound manager created (will initialize on first interaction)');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Sound manager created (will initialize on first interaction)');
         }
 
         // Event Sounds (lifecycle, collisions, cosmic events)
@@ -926,7 +926,7 @@ class DigitalLife {
             this.eventSounds = new EventSounds(this.soundManager, {
                 enabled: this.config.audio.eventsEnabled
             });
-            console.log('🎵 Event sounds initialized');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Event sounds initialized');
         }
 
         // Ambient Layer (background atmosphere)
@@ -934,13 +934,13 @@ class DigitalLife {
             this.ambientLayer = new AmbientLayer(this.soundManager, {
                 enabled: this.config.audio.ambientEnabled
             });
-            console.log('🎶 Ambient layer initialized');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Ambient layer initialized');
         }
 
         // Wire up audio to ecosystem events
         this.wirePhase8Audio();
 
-        console.log('🔊 Phase 8: Audio system initialized');
+        console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Phase 8: Audio system initialized');
     }
 
     /**
@@ -1732,76 +1732,76 @@ class DigitalLife {
         this.debugElement = document.createElement('div');
         this.debugElement.className = 'digital-life-debug';
         this.debugElement.innerHTML = `
-            <h4>🧪 Debug Controls</h4>
+            <h4><img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Debug Controls</h4>
             <div class="debug-section">
                 <span class="section-title">Celestial Events</span>
-                <button data-action="shootingStar">☄️ Shooting Star</button>
-                <button data-action="constellation">✨ Force Constellation</button>
+                <button data-action="shootingStar"><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Shooting Star</button>
+                <button data-action="constellation"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Force Constellation</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Planets</span>
-                <button data-action="planetNull">🌐 Null World (0)</button>
-                <button data-action="planetUnity">🌟 Unity Sphere (1)</button>
+                <button data-action="planetNull"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Null World (0)</button>
+                <button data-action="planetUnity"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Unity Sphere (1)</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Fireflies</span>
-                <button data-action="spawnAscended">👑 Spawn Ascended</button>
-                <button data-action="makeDesperate">💀 Make Desperate</button>
-                <button data-action="forceSwarm">🐝 Force Swarm</button>
+                <button data-action="spawnAscended"><img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Spawn Ascended</button>
+                <button data-action="makeDesperate"><img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Make Desperate</button>
+                <button data-action="forceSwarm"><img src="/assets/images/icons/icon-spider.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Force Swarm</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Rare Spawns</span>
-                <button data-action="rareGolden">🥇 Golden</button>
-                <button data-action="rareDiamond">💎 Diamond</button>
-                <button data-action="rareGlitch">⚡ Glitch</button>
-                <button data-action="rareAncient">🏛️ Ancient</button>
+                <button data-action="rareGolden"><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Golden</button>
+                <button data-action="rareDiamond"><img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Diamond</button>
+                <button data-action="rareGlitch"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Glitch</button>
+                <button data-action="rareAncient"><img src="/assets/images/icons/icon-institution.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Ancient</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Environment</span>
-                <button data-action="forceTerraform">🌍 Terraform (4 planets)</button>
-                <button data-action="toggleBlackHole">🕳️ Toggle Black Hole</button>
+                <button data-action="forceTerraform"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Terraform (4 planets)</button>
+                <button data-action="toggleBlackHole"><img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Toggle Black Hole</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Phase 2: Ecosystem</span>
-                <button data-action="spawnEnergyWell">⚡ Energy Well</button>
-                <button data-action="spawnPredator">🌟 Predator Star</button>
-                <button data-action="togglePheromones">🧪 Toggle Pheromones</button>
+                <button data-action="spawnEnergyWell"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Energy Well</button>
+                <button data-action="spawnPredator"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Predator Star</button>
+                <button data-action="togglePheromones"><img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Toggle Pheromones</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Phase 3: Cosmic Events</span>
-                <button data-action="eventSolarFlare">☀️ Solar Flare</button>
-                <button data-action="eventMeteorShower">☄️ Meteor Shower</button>
-                <button data-action="eventVoidStorm">🌀 Void Storm</button>
-                <button data-action="eventEclipse">🌑 Eclipse</button>
-                <button data-action="eventNebula">🌌 Nebula Drift</button>
+                <button data-action="eventSolarFlare"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Solar Flare</button>
+                <button data-action="eventMeteorShower"><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Meteor Shower</button>
+                <button data-action="eventVoidStorm"><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Void Storm</button>
+                <button data-action="eventEclipse"><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Eclipse</button>
+                <button data-action="eventNebula"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Nebula Drift</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Phase 5: Predators</span>
-                <button data-action="spawnShadow">👤 Shadow Firefly</button>
-                <button data-action="spawnSerpent">🐍 Void Serpent</button>
-                <button data-action="spawnParasite">🦠 Parasite</button>
+                <button data-action="spawnShadow"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Shadow Firefly</button>
+                <button data-action="spawnSerpent"><img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Void Serpent</button>
+                <button data-action="spawnParasite"><img src="/assets/images/icons/icon-virus.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Parasite</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Phase 6: Player Tools</span>
-                <button data-action="createPortals">🌀 Portal Pair</button>
-                <button data-action="createSanctuary">☮️ Sanctuary</button>
-                <button data-action="createAncientGrove">🌳 Ancient Grove</button>
+                <button data-action="createPortals"><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Portal Pair</button>
+                <button data-action="createSanctuary"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Sanctuary</button>
+                <button data-action="createAncientGrove"><img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Ancient Grove</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Phase 7: Meta Systems</span>
-                <button data-action="toggleEventLog">📋 Toggle Event Log</button>
-                <button data-action="toggleStats7">📊 Toggle Stats HUD</button>
-                <button data-action="clearAchievements">🏆 Reset Achievements</button>
-                <button data-action="testAchievement">🎉 Test Achievement</button>
+                <button data-action="toggleEventLog"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Toggle Event Log</button>
+                <button data-action="toggleStats7"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Toggle Stats HUD</button>
+                <button data-action="clearAchievements"><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Reset Achievements</button>
+                <button data-action="testAchievement"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Test Achievement</button>
             </div>
             <div class="debug-section">
                 <span class="section-title">Phase 8: Audio</span>
-                <button data-action="toggleAudio">🔊 Toggle Audio</button>
-                <button data-action="toggleAmbient">🎶 Toggle Ambient</button>
-                <button data-action="testBirthSound">✨ Birth Sound</button>
-                <button data-action="testDeathSound">💀 Death Sound</button>
-                <button data-action="testEvolutionSound">⬆️ Evolution Sound</button>
-                <button data-action="testCosmicSound">🌌 Cosmic Sound</button>
+                <button data-action="toggleAudio"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Toggle Audio</button>
+                <button data-action="toggleAmbient"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Toggle Ambient</button>
+                <button data-action="testBirthSound"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Birth Sound</button>
+                <button data-action="testDeathSound"><img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Death Sound</button>
+                <button data-action="testEvolutionSound"><img src="/assets/images/icons/icon-arrow-up.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Evolution Sound</button>
+                <button data-action="testCosmicSound"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cosmic Sound</button>
             </div>
             <button class="close-btn" data-action="close">✕</button>
         `;
@@ -2135,7 +2135,7 @@ class DigitalLife {
             this.blackHole.y
         );
         if (planet) {
-            console.log(`🌍 Spawned ${digit === 0 ? 'Null World' : 'Unity Sphere'} planet`);
+            console.log(`<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Spawned ${digit === 0 ? 'Null World' : 'Unity Sphere'} planet`);
         }
         return this;
     }
@@ -2156,7 +2156,7 @@ class DigitalLife {
             firefly.tier = Firefly.TIERS.ASCENDED;
             firefly.gravityResist = Firefly.TIERS.ASCENDED.gravityResist;
             firefly.maxAge = firefly.baseMaxAge * Firefly.TIERS.ASCENDED.lifeMultiplier;
-            console.log('👑 Spawned Ascended firefly');
+            console.log('<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Spawned Ascended firefly');
         }
         return this;
     }
@@ -2174,7 +2174,7 @@ class DigitalLife {
         target.energy = 5;
         target.age = target.maxAge * 0.9; // 90% through lifespan
 
-        console.log('💀 Made firefly desperate:', target.id);
+        console.log('<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Made firefly desperate:', target.id);
         return this;
     }
 
@@ -2203,7 +2203,7 @@ class DigitalLife {
                 this.ecosystem.createPlanet(digit, this.blackHole.x, this.blackHole.y);
             }, i * 500);
         }
-        console.log('🌍 Terraform initiated - spawning 4 planets');
+        console.log('<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Terraform initiated - spawning 4 planets');
         return this;
     }
 
@@ -2216,11 +2216,11 @@ class DigitalLife {
         if (this.blackHole.isActive) {
             this.blackHole.isActive = false;
             this.blackHole.opacity = 0.3;
-            console.log('🕳️ Black hole deactivated');
+            console.log('<img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Black hole deactivated');
         } else {
             this.blackHole.isActive = true;
             this.blackHole.opacity = 1;
-            console.log('🕳️ Black hole activated');
+            console.log('<img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Black hole activated');
         }
         this.blackHole.updateElementStyle();
         return this;
@@ -2326,7 +2326,7 @@ class DigitalLife {
                 }
             </style>
             <div class="master-key-message">
-                <div class="master-key-icon">🔑</div>
+                <div class="master-key-icon"><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                 <div class="master-key-title">MASTER KEY</div>
                 <div class="master-key-subtitle">5 MINUTES • ALL ACCESS</div>
             </div>
@@ -2365,15 +2365,15 @@ class DigitalLife {
         if (existing) existing.remove();
 
         const houses = [
-            { id: 'web', name: 'Web', icon: '🌐', color: '#3b82f6', path: 'houses/web/index.html' },
-            { id: 'shield', name: 'Shield', icon: '🛡️', color: '#10b981', path: 'houses/shield/index.html' },
-            { id: 'forge', name: 'Forge', icon: '🔨', color: '#f59e0b', path: 'houses/forge/index.html' },
-            { id: 'script', name: 'Script', icon: '📜', color: '#8b5cf6', path: 'houses/script/index.html' },
-            { id: 'cloud', name: 'Cloud', icon: '☁️', color: '#06b6d4', path: 'houses/cloud/index.html' },
-            { id: 'code', name: 'Code', icon: '💻', color: '#ec4899', path: 'houses/code/index.html' },
-            { id: 'key', name: 'Key', icon: '🔑', color: '#f59e0b', path: 'houses/key/index.html' },
-            { id: 'eye', name: 'Eye', icon: '👁️', color: '#6366f1', path: 'houses/eye/index.html' },
-            { id: 'dark-arts', name: 'Dark Arts', icon: '🌑', color: '#991b1b', path: 'dark-arts/vault/index.html' }
+            { id: 'web', name: 'Web', icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#3b82f6', path: 'houses/web/index.html' },
+            { id: 'shield', name: 'Shield', icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#10b981', path: 'houses/shield/index.html' },
+            { id: 'forge', name: 'Forge', icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#f59e0b', path: 'houses/forge/index.html' },
+            { id: 'script', name: 'Script', icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#8b5cf6', path: 'houses/script/index.html' },
+            { id: 'cloud', name: 'Cloud', icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#06b6d4', path: 'houses/cloud/index.html' },
+            { id: 'code', name: 'Code', icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#ec4899', path: 'houses/code/index.html' },
+            { id: 'key', name: 'Key', icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#f59e0b', path: 'houses/key/index.html' },
+            { id: 'eye', name: 'Eye', icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#6366f1', path: 'houses/eye/index.html' },
+            { id: 'dark-arts', name: 'Dark Arts', icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#991b1b', path: 'dark-arts/vault/index.html' }
         ];
 
         const panel = document.createElement('div');
@@ -2459,7 +2459,7 @@ class DigitalLife {
                 }
             </style>
             <button class="close-panel" onclick="this.parentElement.remove()">×</button>
-            <h2>🔑 SELECT DESTINATION</h2>
+            <h2><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> SELECT DESTINATION</h2>
             <div class="house-grid">
                 ${houses.map(h => `
                     <a href="${h.path}" class="house-btn" style="--house-color: ${h.color}">
@@ -2500,7 +2500,7 @@ class DigitalLife {
 
         const newState = !this.pheromoneSystem.config.visualize;
         this.pheromoneSystem.toggleVisualization(newState);
-        console.log(`🧪 Pheromone visualization: ${newState ? 'ON' : 'OFF'}`);
+        console.log(`<img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Pheromone visualization: ${newState ? 'ON' : 'OFF'}`);
         return this;
     }
 
@@ -2538,7 +2538,7 @@ class DigitalLife {
         }
         this.achievementSystem.reset();
         this.eventLog?.log('SYSTEM', 'Achievements reset');
-        console.log('🏆 Achievements reset');
+        console.log('<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievements reset');
         return this;
     }
 
@@ -2554,10 +2554,10 @@ class DigitalLife {
         this.achievementSystem.showToast({
             name: 'Test Achievement',
             description: 'This is a test achievement notification',
-            icon: '🎉',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             points: 100
         });
-        console.log('🎉 Test achievement triggered');
+        console.log('<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Test achievement triggered');
         return this;
     }
 
@@ -2596,17 +2596,17 @@ class DigitalLife {
             if (!this.config.audio.enabled) {
                 this.config.audio.enabled = true;
                 this.initializePhase8Systems();
-                console.log('🔊 Audio enabled');
+                console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Audio enabled');
             }
             return this;
         }
 
         if (this.soundManager.isMuted) {
             this.soundManager.unmute();
-            console.log('🔊 Audio unmuted');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Audio unmuted');
         } else {
             this.soundManager.mute();
-            console.log('🔇 Audio muted');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Audio muted');
         }
         return this;
     }
@@ -2622,10 +2622,10 @@ class DigitalLife {
 
         if (this.ambientLayer.isPlaying) {
             this.ambientLayer.stop();
-            console.log('🔇 Ambient stopped');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Ambient stopped');
         } else {
             this.ambientLayer.start();
-            console.log('🎶 Ambient started');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Ambient started');
         }
         return this;
     }
@@ -2918,7 +2918,7 @@ class DigitalLife {
     setDominantHouse(houseKey, weight = 0.6) {
         if (this.housePersonalitySystem) {
             this.housePersonalitySystem.setDominantHouse(houseKey, weight);
-            console.log(`🏠 Digital Life: Dominant house set to ${houseKey} (${weight * 100}% bias)`);
+            console.log(`<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Digital Life: Dominant house set to ${houseKey} (${weight * 100}% bias)`);
         }
         return this;
     }
@@ -2929,7 +2929,7 @@ class DigitalLife {
     clearDominantHouse() {
         if (this.housePersonalitySystem) {
             this.housePersonalitySystem.clearDominantHouse();
-            console.log('🏠 Digital Life: Dominant house cleared');
+            console.log('<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Digital Life: Dominant house cleared');
         }
         return this;
     }
@@ -3128,7 +3128,7 @@ DigitalLife.applyTheme = function(themeName) {
         });
     }
 
-    console.log(`✨ Digital Life theme applied: ${theme.name}`);
+    console.log(`<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Digital Life theme applied: ${theme.name}`);
 };
 
 /**

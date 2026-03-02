@@ -12,7 +12,7 @@ const CryptoAppletData = {
     AES: {
         key: 'AES',
         title: 'Advanced Encryption Standard (AES)',
-        icon: '🔒',
+        icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The gold standard of symmetric encryption. AES replaced DES in 2001 and is used everywhere — from HTTPS to full-disk encryption to government classified data.',
         overview: {
@@ -78,7 +78,7 @@ const CryptoAppletData = {
     BLOCK_CIPHERS: {
         key: 'BLOCK_CIPHERS',
         title: 'Block Cipher Modes of Operation',
-        icon: '🧱',
+        icon: '<img src="/assets/images/icons/icon-firewall.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'Block ciphers encrypt fixed-size blocks, but real data comes in all sizes. Modes of operation define how to chain blocks together securely.',
         overview: {
@@ -144,7 +144,7 @@ const CryptoAppletData = {
     CAESAR: {
         key: 'CAESAR',
         title: 'Caesar Cipher',
-        icon: '🏛️',
+        icon: '<img src="/assets/images/icons/icon-institution.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The original encryption — Julius Caesar shifted letters to hide military messages. Simple, elegant, and trivially broken — but it teaches the foundation of all substitution ciphers.',
         overview: {
@@ -196,7 +196,7 @@ const CryptoAppletData = {
     CRYPTO_PROTOCOLS: {
         key: 'CRYPTO_PROTOCOLS',
         title: 'Cryptographic Protocols',
-        icon: '🔗',
+        icon: '<img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'TLS, SSH, and IPsec — the protocols that use cryptographic primitives to secure real-world communications. Where theory meets practice.',
         overview: {
@@ -257,7 +257,7 @@ const CryptoAppletData = {
     DIFFIE_HELLMAN: {
         key: 'DIFFIE_HELLMAN',
         title: 'Diffie-Hellman Key Exchange',
-        icon: '🤝',
+        icon: '<img src="/assets/images/icons/icon-handshake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The breakthrough that solved the key distribution problem. Two parties can agree on a secret key over a public channel — even if an eavesdropper is watching everything.',
         overview: {
@@ -314,7 +314,7 @@ const CryptoAppletData = {
     DIGITAL_SIGNATURES: {
         key: 'DIGITAL_SIGNATURES',
         title: 'Digital Signatures',
-        icon: '✍️',
+        icon: '<img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The digital equivalent of a handwritten signature — but unforgeable and tamper-evident. Provides authentication, integrity, and non-repudiation.',
         overview: {
@@ -380,7 +380,7 @@ const CryptoAppletData = {
     HASHING: {
         key: 'HASHING',
         title: 'Cryptographic Hashing',
-        icon: '#️⃣',
+        icon: '<img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'One-way functions that compress any input into a fixed-size fingerprint. The foundation of password storage, digital signatures, blockchain, and file integrity.',
         overview: {
@@ -452,7 +452,7 @@ const CryptoAppletData = {
     HMAC: {
         key: 'HMAC',
         title: 'HMAC (Hash-based Message Authentication Code)',
-        icon: '🔏',
+        icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'Combines a hash function with a secret key to verify both integrity AND authenticity. The difference between "was this modified?" and "did the right person send this?"',
         overview: {
@@ -514,7 +514,7 @@ const CryptoAppletData = {
     KEY_EXCHANGE: {
         key: 'KEY_EXCHANGE',
         title: 'Key Exchange Mechanisms',
-        icon: '🔄',
+        icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The fundamental problem of cryptography: how do two parties establish a shared secret? From physical key exchange to Diffie-Hellman to post-quantum algorithms.',
         overview: {
@@ -580,7 +580,7 @@ const CryptoAppletData = {
     PKI: {
         key: 'PKI',
         title: 'Public Key Infrastructure (PKI)',
-        icon: '🏗️',
+        icon: '<img src="/assets/images/icons/icon-construction.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The trust framework behind HTTPS. PKI uses Certificate Authorities, digital certificates, and chain-of-trust to bind public keys to real-world identities.',
         overview: {
@@ -648,7 +648,7 @@ const CryptoAppletData = {
     RSA: {
         key: 'RSA',
         title: 'RSA Algorithm',
-        icon: '🔐',
+        icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The first practical public-key cryptosystem. RSA enables encryption and digital signatures using the mathematical difficulty of factoring large prime numbers.',
         overview: {
@@ -713,7 +713,7 @@ const CryptoAppletData = {
     STEGANOGRAPHY: {
         key: 'STEGANOGRAPHY',
         title: 'Steganography',
-        icon: '🖼️',
+        icon: '<img src="/assets/images/icons/icon-picture.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The art of hiding messages in plain sight. Unlike encryption (which makes data unreadable), steganography makes the data invisible — the observer does not even know a message exists.',
         overview: {
@@ -779,7 +779,7 @@ const CryptoAppletData = {
     STREAM_CIPHERS: {
         key: 'STREAM_CIPHERS',
         title: 'Stream Ciphers',
-        icon: '🌊',
+        icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
         color: '#a855f7',
         description: 'Encrypt data one bit (or byte) at a time by XORing with a keystream. Fast, lightweight, and essential for real-time communication — from RC4 to ChaCha20.',
         overview: {
@@ -840,7 +840,7 @@ const CryptoAppletData = {
     SYMMETRIC_VS_ASYMMETRIC: {
         key: 'SYMMETRIC_VS_ASYMMETRIC',
         title: 'Symmetric vs Asymmetric Encryption',
-        icon: '⚖️',
+        icon: '<img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'One key or two? The fundamental division in cryptography — symmetric (shared secret) vs asymmetric (public/private key pair) — and why real systems use both.',
         overview: {
@@ -927,7 +927,7 @@ const CryptoAppletData = {
     BLOCKCHAIN: {
         key: 'BLOCKCHAIN',
         title: 'Blockchain Technology',
-        icon: '⛓️',
+        icon: '<img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'A distributed, immutable ledger that solves the money transfer problem without a trusted middleman. The cryptographic backbone of cryptocurrency, smart contracts, and decentralized trust.',
         overview: {
@@ -1010,7 +1010,7 @@ const CryptoAppletData = {
     XOR_ENCRYPTION: {
         key: 'XOR_ENCRYPTION',
         title: 'XOR Encryption & Data Formatting',
-        icon: '⊕',
+        icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The simplest encryption operation — XOR. Understand how ASCII encoding, binary logic gates, and the reversibility property of XOR form the basis of every modern stream cipher.',
         overview: {
@@ -1100,7 +1100,7 @@ const CryptoAppletData = {
     PRIME_FACTORIZATION: {
         key: 'PRIME_FACTORIZATION',
         title: 'Factoring & Prime Numbers for Cryptography',
-        icon: '🔢',
+        icon: '<img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'Prime numbers are the atoms of mathematics — and the foundation of RSA encryption. Understand factoring, prime factorization, and Euler\'s Totient function (Phi) that makes public-key cryptography work.',
         overview: {
@@ -1183,7 +1183,7 @@ const CryptoAppletData = {
     CRYPTOGRAPHY_INTRO: {
         key: 'CRYPTOGRAPHY_INTRO',
         title: 'Introduction to Cryptography',
-        icon: '🗝️',
+        icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'The foundational overview of cryptography — what it is, why it matters, and how its core pillars (symmetric, asymmetric, hashing) protect every digital interaction you have.',
         overview: {
@@ -1285,7 +1285,7 @@ const CryptoAppletData = {
     ENCRYPTION: {
         key: 'ENCRYPTION',
         title: 'Encryption & Data Formatting',
-        icon: '🔐',
+        icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'How encryption transforms data across different states and contexts — symmetric vs. asymmetric, data-at-rest vs. data-in-transit, and the critical distinction between encoding, encryption, and hashing.',
         overview: {
@@ -1393,7 +1393,7 @@ const CryptoAppletData = {
     HASHING_WALKTHROUGH: {
         key: 'HASHING_WALKTHROUGH',
         title: 'Hashing: Step-by-Step Walkthrough',
-        icon: '#️⃣',
+        icon: '<img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         color: '#a855f7',
         description: 'A guided walkthrough of how cryptographic hash functions work — from input to fixed-length output, the avalanche effect, rainbow tables, salting, and modern password hashing best practices.',
         overview: {

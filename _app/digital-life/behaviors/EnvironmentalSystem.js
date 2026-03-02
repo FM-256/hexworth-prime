@@ -370,7 +370,7 @@ class EnvironmentalSystem {
                 y: y,
                 vx: (Math.random() - 0.5) * 2,
                 vy: -1 - Math.random() * 2,
-                text: '☀',
+                text: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 size: 8 + Math.random() * 6,
                 life: 2000,
                 fadeRate: 0.006,

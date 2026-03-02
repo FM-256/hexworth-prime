@@ -157,7 +157,7 @@ const BlacksiteTerminal = (function() {
                         <!-- Radio Feed (below terminal) -->
                         <div class="blacksite-radio-panel">
                             <div class="blacksite-radio-header">
-                                <span class="blacksite-radio-icon">📻</span>
+                                <span class="blacksite-radio-icon"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                                 <span class="blacksite-radio-title">ENCRYPTED RADIO - CH7</span>
                                 <span class="blacksite-radio-status">● LIVE</span>
                             </div>
@@ -204,7 +204,7 @@ const BlacksiteTerminal = (function() {
                                 <span></span><span></span><span></span><span></span><span></span>
                             </div>
                             <span>AUDIO</span>
-                            <button class="blacksite-audio-toggle">🔊</button>
+                            <button class="blacksite-audio-toggle"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></button>
                         </div>
                     </div>
                 </div>
@@ -213,7 +213,7 @@ const BlacksiteTerminal = (function() {
                 <div class="blacksite-footer">
                     <div class="blacksite-footer-controls">
                         <span>◀◀ REW</span>
-                        <span>▶▶ FF</span>
+                        <span><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> FF</span>
                         <span>▌▌ PAUSE</span>
                     </div>
                     <div class="blacksite-footer-status">SECURE FEED</div>
@@ -574,7 +574,7 @@ const BlacksiteTerminal = (function() {
         modal.className = 'blacksite-wire-modal';
         modal.innerHTML = `
             <div class="blacksite-wire-content">
-                <div class="blacksite-wire-title">⚠ CRITICAL DECISION ⚠</div>
+                <div class="blacksite-wire-title"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> CRITICAL DECISION <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                 <div class="blacksite-wire-question">${insightConfig.question}</div>
                 <div class="blacksite-wire-options">
                     ${(insightConfig.options || []).map((opt, i) => `
@@ -632,7 +632,7 @@ const BlacksiteTerminal = (function() {
 
         const muted = systems.audio.toggleMute();
         state.audioEnabled = !muted;
-        elements.audioToggle.textContent = muted ? '🔇' : '🔊';
+        elements.audioToggle.textContent = muted ? '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' : '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -773,7 +773,7 @@ const BlacksiteTerminal = (function() {
         if (state.terminal && typeof state.terminal.getCurrentObjective === 'function') {
             const obj = state.terminal.getCurrentObjective();
             if (obj && obj.hint) {
-                state.terminal.print(`<span style="color: #fbbf24;">💡 HINT: ${obj.hint}</span>`);
+                state.terminal.print(`<span style="color: #fbbf24;"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> HINT: ${obj.hint}</span>`);
             }
         }
     }

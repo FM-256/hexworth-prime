@@ -481,10 +481,10 @@ class GitHubAuth {
                     <div class="login-step step-main">
                         <p class="login-intro">Connect your GitHub account to sync progress and compete on leaderboards.</p>
                         <button class="token-login-btn primary-login-btn">
-                            <span>🔑</span> Sign in with Personal Access Token
+                            <span><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span> Sign in with Personal Access Token
                         </button>
                         <button class="oauth-login-btn disabled-btn" disabled title="Coming soon - requires backend server">
-                            <span>🔒</span> OAuth Sign-in (Coming Soon)
+                            <span><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span> OAuth Sign-in (Coming Soon)
                         </button>
                     </div>
                     <div class="login-step step-success" style="display: none;">
@@ -539,14 +539,14 @@ class GitHubAuth {
                             <li>Select scopes: <code>read:user</code> and <code>gist</code></li>
                             <li>Click <strong>"Generate token"</strong> and copy it</li>
                         </ol>
-                        <p class="scope-hint">⚠️ Save your token - you won't see it again!</p>
+                        <p class="scope-hint"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Save your token - you won't see it again!</p>
                     </div>
                     <input type="password" class="token-input" placeholder="Paste your token here (ghp_...)">
                     <button class="submit-token-btn">Sign In</button>
                     <p class="token-error" style="display: none;"></p>
                 </div>
                 <div class="modal-footer oauth-disabled-notice">
-                    <p>🔒 OAuth sign-in coming soon</p>
+                    <p><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> OAuth sign-in coming soon</p>
                 </div>
             </div>
         `;

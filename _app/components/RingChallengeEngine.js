@@ -357,7 +357,7 @@ const RingChallengeEngine = (function() {
         const streakEl = document.getElementById('streak-value');
         if (streakEl) {
             if (state.streak > 0) {
-                streakEl.textContent = `🔥 x${state.streak}`;
+                streakEl.textContent = `<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> x${state.streak}`;
                 streakEl.style.opacity = '1';
             } else {
                 streakEl.style.opacity = '0.3';
@@ -609,7 +609,7 @@ const RingChallengeEngine = (function() {
             <div id="post-challenge" style="text-align: center; padding: 60px 20px;">
                 ${isNewRecord ? `
                     <div style="margin-bottom: 40px;">
-                        <div style="font-size: 72px; margin-bottom: 20px; animation: celebrate 1s ease-out;">🏆</div>
+                        <div style="font-size: 72px; margin-bottom: 20px; animation: celebrate 1s ease-out;"><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                         <h1 style="color: #fbbf24; font-size: 48px; margin-bottom: 20px; animation: glow 1s ease-out;">
                             RING CLAIMED!
                         </h1>
@@ -651,7 +651,7 @@ const RingChallengeEngine = (function() {
                     </div>
                     <div style="padding: 20px; background: rgba(255,255,255,0.05); border-radius: 8px;">
                         <div style="color: #94a3b8; margin-bottom: 10px;">Best Streak</div>
-                        <div style="color: #fff; font-size: 24px; font-weight: bold;">🔥 ${result.bestStreak}</div>
+                        <div style="color: #fff; font-size: 24px; font-weight: bold;"><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${result.bestStreak}</div>
                     </div>
                 </div>
 
@@ -665,7 +665,7 @@ const RingChallengeEngine = (function() {
                         margin-left: auto;
                         margin-right: auto;
                     ">
-                        <div style="font-size: 28px; font-weight: bold; margin-bottom: 10px;">⚡ PERFECT RUN ⚡</div>
+                        <div style="font-size: 28px; font-weight: bold; margin-bottom: 10px;"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> PERFECT RUN <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                         <div style="font-size: 18px;">All questions answered before time expired! +500 Bonus</div>
                     </div>
                 ` : ''}
@@ -785,16 +785,16 @@ const RingChallengeEngine = (function() {
      */
     function getRingIcon(ringId) {
         const icons = {
-            shield: '🛡️',
-            web: '🌐',
-            forge: '🔨',
-            script: '📜',
-            cloud: '☁️',
-            code: '⚙️',
-            key: '🔑',
-            eye: '👁️'
+            shield: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            web: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            forge: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            script: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            cloud: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            code: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            key: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            eye: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         };
-        return icons[ringId] || '💍';
+        return icons[ringId] || '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
     }
 
     /**
@@ -805,7 +805,7 @@ const RingChallengeEngine = (function() {
         for (let i = 0; i < 50; i++) {
             setTimeout(() => {
                 const particle = document.createElement('div');
-                particle.textContent = ['⭐', '✨', '💫', '🌟'][Math.floor(Math.random() * 4)];
+                particle.textContent = ['<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'][Math.floor(Math.random() * 4)];
                 particle.style.cssText = `
                     position: fixed;
                     top: 50%;

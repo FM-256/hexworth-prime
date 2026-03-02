@@ -221,7 +221,7 @@ const GUISimulator = (function() {
         function updateToggle() {
             const isWindows = config.theme === THEMES.WINDOWS;
             toggleEl.innerHTML = `
-                <span class="gui-theme-toggle-icon">${isWindows ? '🪟' : '✨'}</span>
+                <span class="gui-theme-toggle-icon">${isWindows ? '<img src="/assets/images/icons/icon-window.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'}</span>
                 <span class="gui-theme-toggle-label">${isWindows ? 'Windows' : 'Hexworth'}</span>
             `;
         }
@@ -323,7 +323,7 @@ const GUISimulator = (function() {
      * GUISimulator.createWindow({
      *     id: 'aduc',
      *     title: 'Active Directory Users and Computers',
-     *     icon: '👥',
+     *     icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
      *     width: 900,
      *     height: 600,
      *     content: htmlString,
@@ -342,7 +342,7 @@ const GUISimulator = (function() {
         const defaults = {
             id,
             title: 'Window',
-            icon: '📁',
+            icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             width: 800,
             height: 500,
             x: null,
@@ -714,7 +714,7 @@ const GUISimulator = (function() {
      * GUISimulator.createTreeView({
      *     container: '#tree-container',
      *     data: [
-     *         { id: 'root', label: 'hexworth.local', icon: '🏰', children: [...] }
+     *         { id: 'root', label: 'hexworth.local', icon: '<img src="/assets/images/icons/icon-castle.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', children: [...] }
      *     ],
      *     onSelect: (nodeId, nodeData) => {},
      *     onContextMenu: (nodeId, event) => {}
@@ -778,8 +778,8 @@ const GUISimulator = (function() {
             itemEl.dataset.level = level;
 
             itemEl.innerHTML = `
-                <span class="gui-tree-expand">${hasChildren ? (isExpanded ? '▼' : '▶') : ''}</span>
-                <span class="gui-tree-icon">${node.icon || '📁'}</span>
+                <span class="gui-tree-expand">${hasChildren ? (isExpanded ? '▼' : '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">') : ''}</span>
+                <span class="gui-tree-icon">${node.icon || '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'}</span>
                 <span class="gui-tree-label">${node.label}</span>
                 ${node.badge ? `<span class="gui-tree-badge">${node.badge}</span>` : ''}
             `;
@@ -986,7 +986,7 @@ const GUISimulator = (function() {
                             if (col.id === 'icon') {
                                 value = listInstance.getIcon
                                     ? listInstance.getIcon(item)
-                                    : (item.icon || '📄');
+                                    : (item.icon || '<img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">');
                                 className += ' icon';
                             } else if (col.secondary) {
                                 className += ' secondary';
@@ -1090,9 +1090,9 @@ const GUISimulator = (function() {
      *     x: event.clientX,
      *     y: event.clientY,
      *     items: [
-     *         { icon: '📁', label: 'New Folder', onClick: () => {} },
+     *         { icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'New Folder', onClick: () => {} },
      *         { type: 'divider' },
-     *         { icon: '🗑️', label: 'Delete', disabled: true }
+     *         { icon: '<img src="/assets/images/icons/icon-trash.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Delete', disabled: true }
      *     ]
      * });
      */
@@ -1114,7 +1114,7 @@ const GUISimulator = (function() {
                         ${item.icon ? `<span class="gui-context-item-icon">${item.icon}</span>` : ''}
                         <span class="gui-context-item-label">${item.label}</span>
                         ${item.shortcut ? `<span class="gui-context-item-shortcut">${item.shortcut}</span>` : ''}
-                        ${item.submenu ? '<span class="gui-context-submenu-arrow">▶</span>' : ''}
+                        ${item.submenu ? '<span class="gui-context-submenu-arrow"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>' : ''}
                     </div>
                 `;
             }
@@ -1185,7 +1185,7 @@ const GUISimulator = (function() {
      * GUISimulator.showModal({
      *     id: 'new-user',
      *     title: 'New User',
-     *     icon: '👤',
+     *     icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
      *     content: formHtml,
      *     width: 450,
      *     actions: [
@@ -1310,7 +1310,7 @@ const GUISimulator = (function() {
             showModal({
                 id: 'confirm-dialog',
                 title: options.title || 'Confirm',
-                icon: options.icon || '❓',
+                icon: options.icon || '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 content: `<p>${options.message}</p>`,
                 width: 400,
                 actions: [
@@ -1336,7 +1336,7 @@ const GUISimulator = (function() {
             showModal({
                 id: 'alert-dialog',
                 title: options.title || 'Alert',
-                icon: options.icon || 'ℹ️',
+                icon: options.icon || 'ℹ',
                 content: `<p>${options.message}</p>`,
                 width: 400,
                 actions: [
@@ -1707,10 +1707,10 @@ const GUISimulator = (function() {
             const ous = Object.values(state.adOUs || {});
 
             const baseNodes = [
-                { id: 'builtin', label: 'Builtin', icon: '📁' },
-                { id: 'computers', label: 'Computers', icon: '💻' },
-                { id: 'domain-controllers', label: 'Domain Controllers', icon: '🖥️' },
-                { id: 'users', label: 'Users', icon: '👥' },
+                { id: 'builtin', label: 'Builtin', icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+                { id: 'computers', label: 'Computers', icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+                { id: 'domain-controllers', label: 'Domain Controllers', icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+                { id: 'users', label: 'Users', icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
             ];
 
             // Add custom OUs
@@ -1719,7 +1719,7 @@ const GUISimulator = (function() {
                     baseNodes.push({
                         id: `ou-${ou.Name}`,
                         label: ou.Name,
-                        icon: '📁',
+                        icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                         data: ou,
                     });
                 }
@@ -1728,7 +1728,7 @@ const GUISimulator = (function() {
             return [{
                 id: 'root',
                 label: domain,
-                icon: '🏰',
+                icon: '<img src="/assets/images/icons/icon-castle.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 children: baseNodes,
             }];
         }
@@ -1750,7 +1750,7 @@ const GUISimulator = (function() {
                         }).map(u => ({
                             ...u,
                             _type: 'User',
-                            icon: u.LockedOut ? '🔒' : '👤',
+                            icon: u.LockedOut ? '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                         })),
                         ...groups.filter(g => {
                             const dn = g.DistinguishedName || '';
@@ -1758,7 +1758,7 @@ const GUISimulator = (function() {
                         }).map(g => ({
                             ...g,
                             _type: 'Group',
-                            icon: '👥',
+                            icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                         })),
                     ];
                     break;
@@ -1770,7 +1770,7 @@ const GUISimulator = (function() {
                     }).map(c => ({
                         ...c,
                         _type: 'Computer',
-                        icon: '💻',
+                        icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     }));
                     break;
 
@@ -1781,7 +1781,7 @@ const GUISimulator = (function() {
                     }).map(c => ({
                         ...c,
                         _type: 'Domain Controller',
-                        icon: '🖥️',
+                        icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     }));
                     break;
 
@@ -1796,7 +1796,7 @@ const GUISimulator = (function() {
                             }).map(u => ({
                                 ...u,
                                 _type: 'User',
-                                icon: u.LockedOut ? '🔒' : '👤',
+                                icon: u.LockedOut ? '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                             })),
                             ...groups.filter(g => {
                                 const dn = g.DistinguishedName || '';
@@ -1804,7 +1804,7 @@ const GUISimulator = (function() {
                             }).map(g => ({
                                 ...g,
                                 _type: 'Group',
-                                icon: '👥',
+                                icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                             })),
                         ];
                     }
@@ -1833,7 +1833,7 @@ const GUISimulator = (function() {
         const win = createWindow({
             id: windowId,
             title: 'Active Directory Users and Computers',
-            icon: '👥',
+            icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             width: options.width || 950,
             height: options.height || 600,
             content,
@@ -1853,11 +1853,11 @@ const GUISimulator = (function() {
         aducState.toolbar = createToolbar({
             container: `#${windowId}-toolbar`,
             items: [
-                { id: 'new-user', icon: '👤', label: 'New User', onClick: () => showNewUserDialog() },
-                { id: 'new-group', icon: '👥', label: 'New Group', onClick: () => showNewGroupDialog() },
-                { id: 'new-ou', icon: '📁', label: 'New OU', onClick: () => showNewOUDialog() },
+                { id: 'new-user', icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'New User', onClick: () => showNewUserDialog() },
+                { id: 'new-group', icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'New Group', onClick: () => showNewGroupDialog() },
+                { id: 'new-ou', icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'New OU', onClick: () => showNewOUDialog() },
                 { type: 'separator' },
-                { id: 'refresh', icon: '🔄', label: 'Refresh', onClick: () => {
+                { id: 'refresh', icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Refresh', onClick: () => {
                     aducState.treeView.setData(buildTreeData());
                     if (aducState.selectedNode) {
                         aducState.listView.setData(getObjectsForNode(aducState.selectedNode));
@@ -1881,11 +1881,11 @@ const GUISimulator = (function() {
                     x: event.clientX,
                     y: event.clientY,
                     items: [
-                        { icon: '📁', label: 'New → Organizational Unit', onClick: () => showNewOUDialog() },
-                        { icon: '👤', label: 'New → User', onClick: () => showNewUserDialog() },
-                        { icon: '👥', label: 'New → Group', onClick: () => showNewGroupDialog() },
+                        { icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'New → Organizational Unit', onClick: () => showNewOUDialog() },
+                        { icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'New → User', onClick: () => showNewUserDialog() },
+                        { icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'New → Group', onClick: () => showNewGroupDialog() },
                         { type: 'divider' },
-                        { icon: '🔄', label: 'Refresh', onClick: () => {
+                        { icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Refresh', onClick: () => {
                             aducState.treeView.setData(buildTreeData());
                             if (aducState.selectedNode) {
                                 aducState.listView.setData(getObjectsForNode(aducState.selectedNode));
@@ -1906,7 +1906,7 @@ const GUISimulator = (function() {
                 { id: 'Description', label: 'Description' },
             ],
             data: [],
-            getIcon: (item) => item.icon || '📄',
+            getIcon: (item) => item.icon || '<img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             onSelect: (item) => {
                 aducState.selectedObject = item;
             },
@@ -1916,21 +1916,21 @@ const GUISimulator = (function() {
             },
             onContextMenu: (item, event) => {
                 const items = [
-                    { icon: '📋', label: 'Properties', onClick: () => showObjectProperties(item) },
+                    { icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Properties', onClick: () => showObjectProperties(item) },
                 ];
 
                 if (item._type === 'User') {
                     items.unshift(
-                        { icon: '🔑', label: 'Reset Password...', onClick: () => showResetPasswordDialog(item) },
-                        { icon: '👥', label: 'Add to a group...', onClick: () => showAddToGroupDialog(item) },
+                        { icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Reset Password...', onClick: () => showResetPasswordDialog(item) },
+                        { icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Add to a group...', onClick: () => showAddToGroupDialog(item) },
                         { type: 'divider' },
                     );
 
                     if (item.LockedOut) {
-                        items.unshift({ icon: '🔓', label: 'Unlock Account', onClick: () => unlockAccount(item) });
+                        items.unshift({ icon: '<img src="/assets/images/icons/icon-unlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Unlock Account', onClick: () => unlockAccount(item) });
                     }
                     if (item.Enabled) {
-                        items.unshift({ icon: '🚫', label: 'Disable Account', onClick: () => disableAccount(item) });
+                        items.unshift({ icon: '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Disable Account', onClick: () => disableAccount(item) });
                     } else {
                         items.unshift({ icon: '✓', label: 'Enable Account', onClick: () => enableAccount(item) });
                     }
@@ -1953,7 +1953,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'new-user-dialog',
                 title: 'New User',
-                icon: '👤',
+                icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 450,
                 content: `
                     <div id="new-user-form"></div>
@@ -2019,7 +2019,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'new-group-dialog',
                 title: 'New Group',
-                icon: '👥',
+                icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 450,
                 content: `
                     <div id="new-group-form"></div>
@@ -2078,7 +2078,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'new-ou-dialog',
                 title: 'New Organizational Unit',
-                icon: '📁',
+                icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 400,
                 content: `
                     <div id="new-ou-form"></div>
@@ -2131,7 +2131,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'reset-password-dialog',
                 title: 'Reset Password',
-                icon: '🔑',
+                icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 400,
                 content: `
                     <p class="gui-mb-3">Reset password for: <strong>${user.Name || user.SamAccountName}</strong></p>
@@ -2165,7 +2165,7 @@ const GUISimulator = (function() {
                     GUISimulator.alert({
                         title: 'Error',
                         message: 'Passwords do not match.',
-                        icon: '⚠️',
+                        icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     });
                     return false;
                 }
@@ -2196,7 +2196,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'add-to-group-dialog',
                 title: 'Add to Group',
-                icon: '👥',
+                icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 400,
                 content: `
                     <p class="gui-mb-3">Add <strong>${user.Name || user.SamAccountName}</strong> to group:</p>
@@ -2579,7 +2579,7 @@ const GUISimulator = (function() {
         const win = createWindow({
             id: windowId,
             title: 'Disk Management',
-            icon: '💾',
+            icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             width: options.width || 1000,
             height: options.height || 650,
             content,
@@ -2595,12 +2595,12 @@ const GUISimulator = (function() {
         const toolbar = createToolbar({
             container: `#${windowId}-toolbar`,
             items: [
-                { id: 'refresh', icon: '🔄', label: 'Rescan Disks', onClick: () => refreshViews() },
+                { id: 'refresh', icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Rescan Disks', onClick: () => refreshViews() },
                 { type: 'separator' },
-                { id: 'online', icon: '▶️', label: 'Online', onClick: () => bringDiskOnline(), disabled: true },
-                { id: 'offline', icon: '⏹️', label: 'Offline', onClick: () => takeDiskOffline(), disabled: true },
+                { id: 'online', icon: '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Online', onClick: () => bringDiskOnline(), disabled: true },
+                { id: 'offline', icon: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Offline', onClick: () => takeDiskOffline(), disabled: true },
                 { type: 'separator' },
-                { id: 'properties', icon: '📋', label: 'Properties', onClick: () => showDiskProperties(), disabled: true },
+                { id: 'properties', icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Properties', onClick: () => showDiskProperties(), disabled: true },
             ],
         });
 
@@ -2608,42 +2608,42 @@ const GUISimulator = (function() {
         const menuItems = win.element.querySelectorAll('.gui-menu-item');
         const menuData = {
             'File': [
-                { icon: '🔄', label: 'Rescan Disks', onClick: () => refreshViews() },
+                { icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Rescan Disks', onClick: () => refreshViews() },
                 { type: 'divider' },
-                { icon: '❌', label: 'Exit', onClick: () => closeWindow(windowId) },
+                { icon: '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Exit', onClick: () => closeWindow(windowId) },
             ],
             'Action': [
-                { icon: '⚙️', label: 'Initialize Disk...', onClick: () => {
+                { icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Initialize Disk...', onClick: () => {
                     if (dmState.selectedDisk?.NeedsInitialization) showInitializeDiskDialog(dmState.selectedDisk);
                 }, disabled: !dmState.selectedDisk?.NeedsInitialization },
-                { icon: '▶️', label: 'Online', onClick: () => bringDiskOnline(), disabled: dmState.selectedDisk?.OperationalStatus === 'Online' },
-                { icon: '⏹️', label: 'Offline', onClick: () => takeDiskOffline(), disabled: dmState.selectedDisk?.OperationalStatus !== 'Online' },
+                { icon: '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Online', onClick: () => bringDiskOnline(), disabled: dmState.selectedDisk?.OperationalStatus === 'Online' },
+                { icon: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Offline', onClick: () => takeDiskOffline(), disabled: dmState.selectedDisk?.OperationalStatus !== 'Online' },
                 { type: 'divider' },
-                { icon: '➕', label: 'New Simple Volume...', onClick: () => {
+                { icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'New Simple Volume...', onClick: () => {
                     if (dmState.selectedDisk) showNewVolumeWizard(dmState.selectedDisk);
                 } },
-                { icon: '📝', label: 'Format...', onClick: () => {
+                { icon: '<img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Format...', onClick: () => {
                     if (dmState.selectedVolume?.FileSystem) showFormatDialog(dmState.selectedDisk, dmState.selectedVolume);
                 } },
                 { type: 'divider' },
-                { icon: '📋', label: 'Properties', onClick: () => showDiskProperties() },
+                { icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Properties', onClick: () => showDiskProperties() },
             ],
             'View': [
-                { icon: '📊', label: 'Top - Volume List', onClick: () => {
+                { icon: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Top - Volume List', onClick: () => {
                     const pane = win.element.querySelector('.gui-dm-volume-pane');
                     if (pane) {
                         pane.style.display = pane.style.display === 'none' ? 'block' : 'none';
                     }
                 } },
-                { icon: '💾', label: 'Bottom - Graphical View', onClick: () => {
+                { icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Bottom - Graphical View', onClick: () => {
                     const pane = win.element.querySelector('.gui-dm-disk-pane');
                     if (pane) {
                         pane.style.display = pane.style.display === 'none' ? 'block' : 'none';
                     }
                 } },
                 { type: 'divider' },
-                { icon: '🔄', label: 'Refresh', onClick: () => refreshViews() },
-                { icon: '📏', label: 'All disk info', onClick: () => {
+                { icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Refresh', onClick: () => refreshViews() },
+                { icon: '<img src="/assets/images/icons/icon-ruler.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'All disk info', onClick: () => {
                     const disks = getDisks();
                     let info = 'Disk Summary:\n\n';
                     disks.forEach(d => {
@@ -2651,16 +2651,16 @@ const GUISimulator = (function() {
                         info += `  Size: ${formatSize(d.Size)} | ${d.PartitionStyle} | ${d.OperationalStatus}\n`;
                         info += `  Partitions: ${d.partitions?.length || 0}\n\n`;
                     });
-                    GUISimulator.alert({ title: 'Disk Information', icon: '📏', message: info });
+                    GUISimulator.alert({ title: 'Disk Information', icon: '<img src="/assets/images/icons/icon-ruler.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', message: info });
                 } },
             ],
             'Help': [
-                { icon: '❓', label: 'Disk Management Help', onClick: () => {
-                    GUISimulator.alert({ title: 'Help', icon: '❓', message: 'Right-click on disks or partitions to see available actions.' });
+                { icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Disk Management Help', onClick: () => {
+                    GUISimulator.alert({ title: 'Help', icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', message: 'Right-click on disks or partitions to see available actions.' });
                 } },
                 { type: 'divider' },
-                { icon: 'ℹ️', label: 'About Disk Management', onClick: () => {
-                    GUISimulator.alert({ title: 'About', icon: 'ℹ️', message: 'Disk Management Simulator\nHexworth Prime WSA Module' });
+                { icon: 'ℹ', label: 'About Disk Management', onClick: () => {
+                    GUISimulator.alert({ title: 'About', icon: 'ℹ', message: 'Disk Management Simulator\nHexworth Prime WSA Module' });
                 } },
             ],
         };
@@ -2706,7 +2706,7 @@ const GUISimulator = (function() {
                             return `
                                 <tr class="gui-dm-volume-row${selected}" data-index="${index}">
                                     <td>
-                                        <span class="gui-dm-drive-icon">💿</span>
+                                        <span class="gui-dm-drive-icon"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                                         ${vol.DriveLetter ? `(${vol.DriveLetter}:)` : ''}
                                     </td>
                                     <td>Simple</td>
@@ -2775,7 +2775,7 @@ const GUISimulator = (function() {
                     <div class="gui-dm-disk-row" data-disk="${disk.Number}">
                         <div class="gui-dm-disk-info ${statusClass}">
                             <div class="gui-dm-disk-header">
-                                <span class="gui-dm-disk-icon">💾</span>
+                                <span class="gui-dm-disk-icon"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                                 <strong>Disk ${disk.Number}</strong>
                             </div>
                             <div class="gui-dm-disk-type">${disk.PartitionStyle === 'RAW' ? 'Unknown' : disk.PartitionStyle}</div>
@@ -2917,7 +2917,7 @@ const GUISimulator = (function() {
 
             if (needsInit) {
                 items.push({
-                    icon: '⚙️',
+                    icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Initialize Disk',
                     onClick: () => showInitializeDiskDialog(disk),
                 });
@@ -2925,13 +2925,13 @@ const GUISimulator = (function() {
 
             if (isOnline) {
                 items.push({
-                    icon: '⏹️',
+                    icon: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     label: 'Offline',
                     onClick: () => takeDiskOffline(disk),
                 });
             } else {
                 items.push({
-                    icon: '▶️',
+                    icon: '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Online',
                     onClick: () => bringDiskOnline(disk),
                 });
@@ -2939,7 +2939,7 @@ const GUISimulator = (function() {
 
             items.push({ type: 'divider' });
             items.push({
-                icon: '📋',
+                icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 label: 'Properties',
                 onClick: () => showDiskProperties(disk),
             });
@@ -2955,7 +2955,7 @@ const GUISimulator = (function() {
 
             if (needsInit) {
                 items.push({
-                    icon: '⚙️',
+                    icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Initialize Disk',
                     onClick: () => showInitializeDiskDialog(disk),
                 });
@@ -2963,7 +2963,7 @@ const GUISimulator = (function() {
             }
 
             items.push({
-                icon: '➕',
+                icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 label: 'New Simple Volume...',
                 onClick: () => showNewVolumeWizard(disk),
                 disabled: needsInit,
@@ -2976,13 +2976,13 @@ const GUISimulator = (function() {
         function showPartitionContextMenu(disk, partition, event) {
             const items = [
                 {
-                    icon: '📂',
+                    icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Open',
                     onClick: () => {
                         if (partition.DriveLetter) {
                             GUISimulator.alert({
                                 title: 'Open Drive',
-                                icon: '📂',
+                                icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                                 message: `Would open ${partition.DriveLetter}:\\ in File Explorer`,
                             });
                         }
@@ -2991,42 +2991,42 @@ const GUISimulator = (function() {
                 },
                 { type: 'divider' },
                 {
-                    icon: '🔤',
+                    icon: '<img src="/assets/images/icons/icon-text.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Change Drive Letter and Paths...',
                     onClick: () => showChangeDriveLetterDialog(disk, partition),
                 },
                 {
-                    icon: '✏️',
+                    icon: '<img src="/assets/images/icons/icon-pencil.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Rename...',
                     onClick: () => showRenameVolumeDialog(disk, partition),
                     disabled: !partition.DriveLetter && !partition.FileSystem,
                 },
                 {
-                    icon: '📝',
+                    icon: '<img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Format...',
                     onClick: () => showFormatDialog(disk, partition),
                 },
                 { type: 'divider' },
                 {
-                    icon: '📊',
+                    icon: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Extend Volume...',
                     onClick: () => showExtendVolumeDialog(disk, partition),
                 },
                 {
-                    icon: '📉',
+                    icon: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Shrink Volume...',
                     onClick: () => showShrinkVolumeDialog(disk, partition),
                 },
                 { type: 'divider' },
                 {
-                    icon: '🗑️',
+                    icon: '<img src="/assets/images/icons/icon-trash.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     label: 'Delete Volume...',
                     onClick: () => confirmDeleteVolume(disk, partition),
                     disabled: partition.IsSystem || partition.IsBoot,
                 },
                 { type: 'divider' },
                 {
-                    icon: '📋',
+                    icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Properties',
                     onClick: () => showVolumeProperties({ ...partition, DiskNumber: disk.Number }),
                 },
@@ -3050,7 +3050,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'init-disk-dialog',
                 title: 'Initialize Disk',
-                icon: '💾',
+                icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 450,
                 content: `
                     <p class="gui-mb-3">You must initialize a disk before Logical Disk Manager can access it.</p>
@@ -3140,7 +3140,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'new-volume-wizard',
                 title: 'New Simple Volume Wizard',
-                icon: '💾',
+                icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 500,
                 content: `
                     <div class="gui-wizard-header gui-mb-4">
@@ -3296,11 +3296,11 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'format-dialog',
                 title: 'Format',
-                icon: '💾',
+                icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 400,
                 content: `
                     <p class="gui-mb-3 gui-text-warning">
-                        <strong>⚠️ Warning:</strong> Formatting this volume will erase all data on it.
+                        <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Warning:</strong> Formatting this volume will erase all data on it.
                     </p>
                     <div id="format-form"></div>
                     <div id="format-success" class="gui-alert success gui-hidden">
@@ -3407,7 +3407,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'change-letter-dialog',
                 title: 'Change Drive Letter and Paths',
-                icon: '🔤',
+                icon: '<img src="/assets/images/icons/icon-text.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 400,
                 content: `
                     <p class="gui-mb-3">Change drive letter for: ${partition.Label || 'Volume'}</p>
@@ -3465,7 +3465,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'rename-volume-dialog',
                 title: 'Rename Volume',
-                icon: '✏️',
+                icon: '<img src="/assets/images/icons/icon-pencil.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 400,
                 content: `
                     <p class="gui-mb-3">Rename volume: ${partition.DriveLetter ? `(${partition.DriveLetter}:)` : partition.Label || 'Volume'}</p>
@@ -3528,7 +3528,7 @@ const GUISimulator = (function() {
             if (!hasUnallocated || availableSpace === 0) {
                 GUISimulator.alert({
                     title: 'Extend Volume',
-                    icon: '⚠️',
+                    icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     message: 'There is no adjacent unallocated space to extend into.\n\nTo extend a volume, you need unallocated space immediately following the partition.',
                 });
                 return;
@@ -3538,7 +3538,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'extend-volume-dialog',
                 title: 'Extend Volume',
-                icon: '📊',
+                icon: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 450,
                 content: `
                     <div class="gui-mb-4">
@@ -3598,7 +3598,7 @@ const GUISimulator = (function() {
             if (maxShrinkMB < 1) {
                 GUISimulator.alert({
                     title: 'Shrink Volume',
-                    icon: '⚠️',
+                    icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     message: 'There is not enough free space to shrink this volume.\n\nThe volume must have free space that can be reclaimed.',
                 });
                 return;
@@ -3607,7 +3607,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'shrink-volume-dialog',
                 title: 'Shrink Volume',
-                icon: '📉',
+                icon: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 450,
                 content: `
                     <div class="gui-mb-4">
@@ -3676,7 +3676,7 @@ const GUISimulator = (function() {
         async function confirmDeleteVolume(disk, partition) {
             const confirmed = await GUISimulator.confirm({
                 title: 'Delete Volume',
-                icon: '⚠️',
+                icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 message: `Are you sure you want to delete the volume (${partition.DriveLetter || 'no drive letter'})? All data will be lost.`,
                 confirmLabel: 'Yes',
                 cancelLabel: 'No',
@@ -3720,7 +3720,7 @@ const GUISimulator = (function() {
 
             GUISimulator.alert({
                 title: `Disk ${disk.Number} Properties`,
-                icon: '💾',
+                icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 message: `
                     <strong>Disk:</strong> Disk ${disk.Number}<br>
                     <strong>Type:</strong> ${disk.PartitionStyle}<br>
@@ -3740,7 +3740,7 @@ const GUISimulator = (function() {
 
             GUISimulator.alert({
                 title: `${volume.Label || 'Volume'} (${volume.DriveLetter || 'No Letter'}:) Properties`,
-                icon: '💿',
+                icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 message: `
                     <strong>Label:</strong> ${volume.Label || '(none)'}<br>
                     <strong>File System:</strong> ${volume.FileSystem || 'N/A'}<br>
@@ -3785,7 +3785,7 @@ const GUISimulator = (function() {
             if (disk.IsSystem || disk.IsBoot) {
                 GUISimulator.alert({
                     title: 'Cannot Offline Disk',
-                    icon: '⚠️',
+                    icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     message: 'This disk contains the system or boot partition and cannot be taken offline.',
                 });
                 return;
@@ -3890,12 +3890,12 @@ const GUISimulator = (function() {
 
         // VM state icons
         const VM_STATE_ICONS = {
-            Running: '▶️',
-            Off: '⏹️',
-            Saved: '💾',
-            Paused: '⏸️',
-            Starting: '🔄',
-            Stopping: '🔄',
+            Running: '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            Off: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            Saved: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            Paused: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            Starting: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            Stopping: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         };
 
         // Hyper-V Manager state
@@ -4117,7 +4117,7 @@ const GUISimulator = (function() {
         const win = createWindow({
             id: windowId,
             title: 'Hyper-V Manager',
-            icon: '🖥️',
+            icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             width: options.width || 1050,
             height: options.height || 650,
             content,
@@ -4135,11 +4135,11 @@ const GUISimulator = (function() {
             return [{
                 id: 'host',
                 label: hostname,
-                icon: '🖥️',
+                icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 children: [
-                    { id: 'vms', label: 'Virtual Machines', icon: '📦' },
-                    { id: 'switches', label: 'Virtual Switch Manager', icon: '🔌' },
-                    { id: 'checkpoints', label: 'Checkpoints', icon: '📸' },
+                    { id: 'vms', label: 'Virtual Machines', icon: '<img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+                    { id: 'switches', label: 'Virtual Switch Manager', icon: '<img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+                    { id: 'checkpoints', label: 'Checkpoints', icon: '<img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
                 ],
             }];
         }
@@ -4148,17 +4148,17 @@ const GUISimulator = (function() {
         const toolbar = createToolbar({
             container: `#${windowId}-toolbar`,
             items: [
-                { id: 'new-vm', icon: '➕', label: 'New', onClick: () => showNewVMWizard() },
+                { id: 'new-vm', icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'New', onClick: () => showNewVMWizard() },
                 { type: 'separator' },
-                { id: 'start', icon: '▶️', label: 'Start', onClick: () => startVM(), disabled: true },
-                { id: 'stop', icon: '⏹️', label: 'Turn Off', onClick: () => stopVM(), disabled: true },
-                { id: 'save', icon: '💾', label: 'Save', onClick: () => saveVM(), disabled: true },
-                { id: 'pause', icon: '⏸️', label: 'Pause', onClick: () => pauseVM(), disabled: true },
+                { id: 'start', icon: '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Start', onClick: () => startVM(), disabled: true },
+                { id: 'stop', icon: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Turn Off', onClick: () => stopVM(), disabled: true },
+                { id: 'save', icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Save', onClick: () => saveVM(), disabled: true },
+                { id: 'pause', icon: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Pause', onClick: () => pauseVM(), disabled: true },
                 { type: 'separator' },
-                { id: 'checkpoint', icon: '📸', label: 'Checkpoint', onClick: () => createCheckpoint(), disabled: true },
+                { id: 'checkpoint', icon: '<img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Checkpoint', onClick: () => createCheckpoint(), disabled: true },
                 { type: 'separator' },
-                { id: 'settings', icon: '⚙️', label: 'Settings', onClick: () => showVMSettings(), disabled: true },
-                { id: 'connect', icon: '🖥️', label: 'Connect', onClick: () => connectVM(), disabled: true },
+                { id: 'settings', icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Settings', onClick: () => showVMSettings(), disabled: true },
+                { id: 'connect', icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Connect', onClick: () => connectVM(), disabled: true },
             ],
         });
 
@@ -4215,7 +4215,7 @@ const GUISimulator = (function() {
                     <tbody>
                         ${vms.map((vm, i) => `
                             <tr class="gui-hv-vm-row" data-index="${i}">
-                                <td class="gui-hv-vm-icon">${VM_STATE_ICONS[vm.State] || '❓'}</td>
+                                <td class="gui-hv-vm-icon">${VM_STATE_ICONS[vm.State] || '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'}</td>
                                 <td class="gui-hv-vm-name">${vm.Name}</td>
                                 <td class="gui-hv-vm-state state-${vm.State.toLowerCase()}">${vm.State}</td>
                                 <td>${vm.State === 'Running' ? vm.CPUUsage + '%' : '-'}</td>
@@ -4267,7 +4267,7 @@ const GUISimulator = (function() {
                 <table class="gui-hv-vm-table">
                     <thead>
                         <tr>
-                            <th style="width: 30px;">🔌</th>
+                            <th style="width: 30px;"><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></th>
                             <th style="width: 180px;">Name</th>
                             <th style="width: 100px;">Type</th>
                             <th>External Network Adapter</th>
@@ -4276,7 +4276,7 @@ const GUISimulator = (function() {
                     <tbody>
                         ${switches.map((sw, i) => `
                             <tr class="gui-hv-vm-row" data-index="${i}">
-                                <td class="gui-hv-vm-icon">${sw.SwitchType === 'External' ? '🌐' : sw.SwitchType === 'Internal' ? '🔗' : '🔒'}</td>
+                                <td class="gui-hv-vm-icon">${sw.SwitchType === 'External' ? '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : sw.SwitchType === 'Internal' ? '<img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'}</td>
                                 <td>${sw.Name}</td>
                                 <td>${sw.SwitchType}</td>
                                 <td>${sw.NetAdapterInterfaceDescription || '(none)'}</td>
@@ -4302,7 +4302,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'new-switch-dialog',
                 title: 'Virtual Switch Manager',
-                icon: '🔌',
+                icon: '<img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 width: 450,
                 content: `
                     <div class="gui-wizard-header gui-mb-4">
@@ -4407,7 +4407,7 @@ const GUISimulator = (function() {
                 <table class="gui-hv-vm-table">
                     <thead>
                         <tr>
-                            <th style="width: 30px;">📸</th>
+                            <th style="width: 30px;"><img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></th>
                             <th style="width: 180px;">Virtual Machine</th>
                             <th>Checkpoint Name</th>
                         </tr>
@@ -4415,7 +4415,7 @@ const GUISimulator = (function() {
                     <tbody>
                         ${allCheckpoints.length > 0 ? allCheckpoints.map((cp, i) => `
                             <tr class="gui-hv-vm-row" data-index="${i}">
-                                <td class="gui-hv-vm-icon">📸</td>
+                                <td class="gui-hv-vm-icon"><img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></td>
                                 <td>${cp.vmName}</td>
                                 <td>${cp.checkpointName}</td>
                             </tr>
@@ -4441,62 +4441,62 @@ const GUISimulator = (function() {
 
             const items = [
                 {
-                    icon: '🖥️',
+                    icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Connect...',
                     onClick: () => connectVM(vm),
                 },
                 { type: 'divider' },
                 {
-                    icon: '⚙️',
+                    icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Settings...',
                     onClick: () => showVMSettings(vm),
                 },
                 { type: 'divider' },
                 {
-                    icon: '▶️',
+                    icon: '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Start',
                     onClick: () => startVM(vm),
                     disabled: isRunning,
                 },
                 {
-                    icon: '⏹️',
+                    icon: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     label: 'Turn Off',
                     onClick: () => stopVM(vm),
                     disabled: !isRunning,
                 },
                 {
-                    icon: '🔻',
+                    icon: '<img src="/assets/images/icons/icon-arrow-up.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     label: 'Shut Down',
                     onClick: () => shutdownVM(vm),
                     disabled: !isRunning,
                 },
                 {
-                    icon: '💾',
+                    icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Save',
                     onClick: () => saveVM(vm),
                     disabled: !isRunning,
                 },
                 {
-                    icon: '⏸️',
+                    icon: '<img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     label: 'Pause',
                     onClick: () => pauseVM(vm),
                     disabled: !isRunning,
                 },
                 {
-                    icon: '🔄',
+                    icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     label: 'Reset',
                     onClick: () => resetVM(vm),
                     disabled: !isRunning,
                 },
                 { type: 'divider' },
                 {
-                    icon: '📸',
+                    icon: '<img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     label: 'Checkpoint',
                     onClick: () => createCheckpoint(vm),
                 },
                 { type: 'divider' },
                 {
-                    icon: '🗑️',
+                    icon: '<img src="/assets/images/icons/icon-trash.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     label: 'Delete...',
                     onClick: () => deleteVM(vm),
                     disabled: isRunning,
@@ -4661,7 +4661,7 @@ const GUISimulator = (function() {
 
             const confirmed = await GUISimulator.confirm({
                 title: 'Delete Virtual Machine',
-                icon: '⚠️',
+                icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 message: `Are you sure you want to delete "${vm.Name}"? This cannot be undone.`,
                 confirmLabel: 'Delete',
                 cancelLabel: 'Cancel',
@@ -4691,7 +4691,7 @@ const GUISimulator = (function() {
 
             GUISimulator.alert({
                 title: 'Virtual Machine Connection',
-                icon: '🖥️',
+                icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 message: `In a real environment, this would open the VM console for "${vm.Name}".\n\nThe VM console provides keyboard, video, and mouse access to the virtual machine.`,
             });
 
@@ -4706,7 +4706,7 @@ const GUISimulator = (function() {
 
             GUISimulator.alert({
                 title: `Settings for ${vm.Name}`,
-                icon: '⚙️',
+                icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 message: `
                     <strong>General</strong><br>
                     Name: ${vm.Name}<br>
@@ -4728,7 +4728,7 @@ const GUISimulator = (function() {
             const modal = showModal({
                 id: 'new-vm-wizard',
                 title: 'New Virtual Machine Wizard',
-                icon: '➕',
+                icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 width: 500,
                 content: `
                     <div class="gui-wizard-header gui-mb-4">

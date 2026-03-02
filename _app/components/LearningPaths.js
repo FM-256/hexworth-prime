@@ -13,7 +13,7 @@ class LearningPaths {
         shield: {
             name: 'Shield House - Security Fundamentals',
             description: 'Master the foundations of cybersecurity',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             color: '#a855f7',
             modules: [
                 {
@@ -103,7 +103,7 @@ class LearningPaths {
         web: {
             name: 'Web House - Networking',
             description: 'Build expertise in network fundamentals',
-            icon: '🌐',
+            icon: '/assets/images/icons/icon-globe.webp',
             color: '#3b82f6',
             modules: [
                 {
@@ -202,7 +202,7 @@ class LearningPaths {
         forge: {
             name: 'Forge House - Systems',
             description: 'Master operating systems and hardware',
-            icon: '🔨',
+            icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             color: '#f97316',
             modules: [
                 {
@@ -283,7 +283,7 @@ class LearningPaths {
         script: {
             name: 'Script House - Automation',
             description: 'Learn scripting and automation',
-            icon: '📜',
+            icon: '/assets/images/icons/icon-scroll.webp',
             color: '#22c55e',
             modules: [
                 {
@@ -391,7 +391,7 @@ class LearningPaths {
         cloud: {
             name: 'Cloud House - Cloud Computing',
             description: 'Explore cloud platforms and services',
-            icon: '☁️',
+            icon: '/assets/images/icons/icon-globe.webp',
             color: '#06b6d4',
             modules: [
                 {
@@ -499,7 +499,7 @@ class LearningPaths {
         code: {
             name: 'Code House - DevOps',
             description: 'Master CI/CD and infrastructure as code',
-            icon: '💻',
+            icon: '/assets/images/icons/icon-laptop.webp',
             color: '#ec4899',
             modules: [
                 {
@@ -598,7 +598,7 @@ class LearningPaths {
         'python-engineering': {
             name: 'Python Engineering - Advanced Python',
             description: 'Advanced Python for software engineers with cybersecurity use cases',
-            icon: '🐍',
+            icon: '/assets/images/icons/icon-snake.webp',
             color: '#4ade80',
             courseHref: 'houses/code/modules/python-engineering/index.html',
             modules: [
@@ -636,7 +636,7 @@ class LearningPaths {
         key: {
             name: 'Key House - Cryptography',
             description: 'Unlock the secrets of cryptography',
-            icon: '🔑',
+            icon: '/assets/images/icons/icon-key.webp',
             color: '#eab308',
             modules: [
                 {
@@ -717,7 +717,7 @@ class LearningPaths {
         eye: {
             name: 'Eye House - Monitoring & Detection',
             description: 'Master security monitoring and SOC operations',
-            icon: '👁️',
+            icon: '/assets/images/icons/icon-detective.webp',
             color: '#6366f1',
             modules: [
                 {
@@ -808,7 +808,7 @@ class LearningPaths {
         'python-fundamentals': {
             name: 'Python Programming',
             description: 'Python fundamentals — strings, flow control, functions, GUI, dictionaries, OOP',
-            icon: '🐍',
+            icon: '/assets/images/icons/icon-snake.webp',
             color: '#3b82f6',
             courseHref: 'houses/script/modules/python/index.html',
             modules: [
@@ -962,7 +962,7 @@ class LearningPaths {
         'devops-fundamentals': {
             name: 'DevOps Fundamentals',
             description: 'Master CI/CD, containerization, and infrastructure as code',
-            icon: '⚙️',
+            icon: '/assets/images/icons/icon-gear.webp',
             color: '#8b5cf6',
             courseHref: 'houses/devops-fundamentals/index.html',
             modules: [
@@ -1054,7 +1054,7 @@ class LearningPaths {
         'linux-mastery': {
             name: 'Linux Mastery',
             description: 'Master Linux from the ground up - pure skills, no pressure',
-            icon: '🐧',
+            icon: '/assets/images/icons/icon-penguin.webp',
             color: '#22c55e',
             modules: [
                 // Section 1: Getting Started
@@ -1549,7 +1549,7 @@ class LearningPaths {
         'comptia-linux': {
             name: 'CompTIA Linux+ (XK0-005)',
             description: 'Complete Linux administration certification prep covering system management, security, scripting, and troubleshooting',
-            icon: '🐧',
+            icon: '/assets/images/icons/icon-penguin.webp',
             color: '#22c55e',
             courseHref: 'houses/comptia-linux/index.html',
             modules: [
@@ -1665,7 +1665,7 @@ class LearningPaths {
         'aplus-core1': {
             name: 'CompTIA A+ Core 1 (220-1101)',
             description: 'Hardware, networking, mobile devices, virtualization, and troubleshooting',
-            icon: '🔧',
+            icon: '/assets/images/icons/icon-wrench.webp',
             color: '#f97316',
             courseHref: 'houses/forge/applets/comptia-aplus/core-1/index.html',
             modules: [
@@ -1748,7 +1748,7 @@ class LearningPaths {
         'aplus-core2': {
             name: 'CompTIA A+ Core 2 (220-1102)',
             description: 'Operating systems, security, software troubleshooting, and operational procedures',
-            icon: '🖥️',
+            icon: '/assets/images/icons/icon-desktop.webp',
             color: '#ea580c',
             courseHref: 'houses/forge/applets/comptia-aplus/core-2/index.html',
             modules: [
@@ -1831,7 +1831,7 @@ class LearningPaths {
         'md-100': {
             name: 'MD-100: Windows Client',
             description: 'Microsoft 365 Modern Desktop Administrator — installation, authentication, networking, storage, security, and troubleshooting',
-            icon: '🪟',
+            icon: '/assets/images/icons/icon-window.webp',
             color: '#ea580c',
             courseHref: 'houses/forge/md-100/index.html',
             modules: [
@@ -1974,7 +1974,7 @@ class LearningPaths {
         'openstack': {
             name: 'OpenStack Cloud Platform',
             description: 'Infrastructure-as-a-Service cloud operating system — architecture, core projects, installation, and operations',
-            icon: '☁️',
+            icon: '/assets/images/icons/icon-globe.webp',
             color: '#0ea5e9',
             courseHref: 'houses/cloud/openstack/index.html',
             modules: [
@@ -2027,7 +2027,7 @@ class LearningPaths {
         'cse': {
             name: 'EC-Council Cloud Security Engineer',
             description: 'CSE v1 — cloud fundamentals, IAM, data protection, network security, app security, monitoring, risk, compliance',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             color: '#0ea5e9',
             courseHref: 'houses/cloud/cse/index.html',
             modules: [
@@ -2054,7 +2054,7 @@ class LearningPaths {
         'cyber-framework': {
             name: 'Cyber Law & Policy Framework',
             description: 'Law and Policy of Cybersecurity — legal landscape, government roles, CFAA, regulatory frameworks, NIST CSF, encryption law, breach litigation, and international cyber law',
-            icon: '⚖️',
+            icon: '/assets/images/icons/icon-scales.webp',
             color: '#10b981',
             courseHref: 'houses/shield/cyber-framework/index.html',
             modules: [
@@ -2081,7 +2081,7 @@ class LearningPaths {
         'linux-admin': {
             name: 'Linux Administration',
             description: 'Advanced Linux administration — distributions, processes, daemons, display managers, networking, IPv4, compression, encryption, grep/pipes, and compilation',
-            icon: '🐧',
+            icon: '/assets/images/icons/icon-penguin.webp',
             color: '#22c55e',
             courseHref: 'houses/script/linux/index.html',
             modules: [
@@ -2116,7 +2116,7 @@ class LearningPaths {
         'cysa': {
             name: 'CompTIA CySA+',
             description: 'CS0-003 — SOC analyst curriculum: threat intelligence, vulnerability management, cloud security, IAM, security operations, incident response, forensics, risk management, compliance',
-            icon: '👁️',
+            icon: '/assets/images/icons/icon-detective.webp',
             color: '#a855f7',
             courseHref: 'houses/eye/cysa/index.html',
             modules: [
@@ -2159,7 +2159,7 @@ class LearningPaths {
         'wsa': {
             name: 'Windows Server Administration',
             description: 'AZ-800 Windows Server Administration: installation, AD DS, storage, virtualization, networking, and security',
-            icon: '🖥️',
+            icon: '/assets/images/icons/icon-desktop.webp',
             color: '#06b6d4',
             modules: [
                 // Phase 1: Foundation & Core Services
@@ -2352,7 +2352,7 @@ class LearningPaths {
         'security-plus': {
             name: 'CompTIA Security+ (SY0-701)',
             description: 'Complete Security+ certification prep covering general security concepts, threats, architecture, operations, and program management',
-            icon: '🔐',
+            icon: '/assets/images/icons/icon-padlock.webp',
             color: '#a855f7',
             courseHref: 'houses/security-plus/index.html',
             modules: [
@@ -2648,7 +2648,7 @@ class LearningPaths {
         'comptia-network': {
             name: 'CompTIA Network+ (N10-009)',
             description: 'Complete Network+ certification prep covering networking concepts, implementation, operations, security, and troubleshooting',
-            icon: '🌐',
+            icon: '/assets/images/icons/icon-globe.webp',
             color: '#3b82f6',
             courseHref: 'houses/comptia-network/index.html',
             modules: [
@@ -2926,7 +2926,7 @@ class LearningPaths {
         'cryptography-track': {
             name: 'Cryptography Track',
             description: 'Master cryptography from fundamentals through post-quantum: symmetric, asymmetric, hashing, PKI, digital signatures, key management, and beyond',
-            icon: '🔐',
+            icon: '/assets/images/icons/icon-padlock.webp',
             color: '#eab308',
             courseHref: 'houses/cryptography-track/index.html',
             modules: [
@@ -3262,7 +3262,7 @@ class LearningPaths {
         'security-plus-crypto': {
             name: 'Security+ Cryptography Domain',
             description: 'CompTIA Security+ SY0-701 cryptography objectives: symmetric/asymmetric encryption, hashing, PKI, digital signatures, and key exchange',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             color: '#eab308',
             courseHref: 'houses/security-plus-crypto/index.html',
             modules: [
@@ -3405,7 +3405,7 @@ class LearningPaths {
         'cysa-plus': {
             name: 'CompTIA CySA+ (CS0-003)',
             description: 'Security analyst certification prep covering threat detection, analysis, vulnerability management, incident response, and security operations',
-            icon: '🔍',
+            icon: '/assets/images/icons/icon-magnifier.webp',
             color: '#a855f7',
             courseHref: 'houses/cysa-plus/index.html',
             modules: [
@@ -3609,7 +3609,7 @@ class LearningPaths {
         'casp-plus': {
             name: 'CompTIA CASP+ (CAS-004)',
             description: 'Advanced security practitioner certification covering security architecture, operations, engineering, cryptography, and governance at the enterprise level',
-            icon: '🏛️',
+            icon: '/assets/images/icons/icon-institution.webp',
             color: '#dc2626',
             courseHref: 'houses/casp-plus/index.html',
             modules: [
@@ -3831,7 +3831,7 @@ class LearningPaths {
         'ccna': {
             name: 'Cisco CCNA (200-301)',
             description: 'CCNA certification prep covering network fundamentals, network access, IP connectivity, IP services, security fundamentals, and automation',
-            icon: '🔧',
+            icon: '/assets/images/icons/icon-wrench.webp',
             color: '#3b82f6',
             courseHref: 'houses/ccna/index.html',
             modules: [
@@ -4136,7 +4136,7 @@ class LearningPaths {
         'aws-ccp': {
             name: 'AWS Cloud Practitioner (CLF-C02)',
             description: 'AWS Certified Cloud Practitioner prep covering cloud concepts, AWS services, security, architecture, pricing, and support',
-            icon: '🟧',
+            icon: '/assets/images/icons/icon-square-filled.webp',
             color: '#f97316',
             courseHref: 'houses/aws-ccp/index.html',
             modules: [
@@ -4358,7 +4358,7 @@ class LearningPaths {
         'azure-fundamentals': {
             name: 'Azure Fundamentals (AZ-900)',
             description: 'Microsoft Azure Fundamentals certification prep covering cloud concepts, Azure services, security, privacy, compliance, and pricing',
-            icon: '🔷',
+            icon: '/assets/images/icons/icon-diamond.webp',
             color: '#0ea5e9',
             courseHref: 'houses/azure-fundamentals/index.html',
             modules: [
@@ -4508,7 +4508,7 @@ class LearningPaths {
         'aws-developer': {
             name: 'AWS Developer Associate (DVA-C02)',
             description: 'AWS Developer Associate certification prep covering development with AWS services, deployment, security, troubleshooting, and refactoring',
-            icon: '☁️',
+            icon: '/assets/images/icons/icon-globe.webp',
             color: '#ec4899',
             courseHref: 'houses/aws-developer/index.html',
             modules: [
@@ -4712,7 +4712,7 @@ class LearningPaths {
         'security-operations': {
             name: 'Security Operations (SOC Analyst)',
             description: 'SOC analyst career path covering log analysis, SIEM operations, threat detection, incident investigation, network traffic analysis, and threat hunting',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             color: '#6366f1',
             courseHref: 'houses/security-operations/index.html',
             modules: [
@@ -5009,7 +5009,7 @@ class LearningPaths {
         'ai-foundations': {
             name: 'AI Foundations',
             description: 'Agent concepts, the automation rubric, and the 3-component model',
-            icon: '🧠',
+            icon: '/assets/images/icons/icon-brain.webp',
             color: '#a855f7',
             courseHref: 'houses/ai/index.html',
             modules: [
@@ -5091,7 +5091,7 @@ class LearningPaths {
         'ai-builder': {
             name: 'Agent Builder',
             description: 'No-code platforms, prompt engineering, and building real agents',
-            icon: '🔧',
+            icon: '/assets/images/icons/icon-wrench.webp',
             color: '#a855f7',
             courseHref: 'houses/ai/index.html',
             modules: [
@@ -5218,7 +5218,7 @@ class LearningPaths {
         'ai-security': {
             name: 'Security Automation',
             description: 'SOC agents, guardrails, and responsible AI deployment',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             color: '#a855f7',
             courseHref: 'houses/ai/index.html',
             modules: [

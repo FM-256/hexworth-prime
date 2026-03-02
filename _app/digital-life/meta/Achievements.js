@@ -19,7 +19,7 @@ class EcosystemAchievements {
             id: 'first_life',
             name: 'Let There Be Light',
             description: 'First firefly appears in the ecosystem',
-            icon: '✨',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'population',
             condition: (stats) => stats.totalBirths >= 1,
             points: 10
@@ -28,7 +28,7 @@ class EcosystemAchievements {
             id: 'small_colony',
             name: 'Small Colony',
             description: 'Have 25 fireflies alive at once',
-            icon: '🏘️',
+            icon: '<img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'population',
             condition: (stats) => stats.currentPopulation >= 25,
             points: 25
@@ -37,7 +37,7 @@ class EcosystemAchievements {
             id: 'thriving',
             name: 'Thriving Ecosystem',
             description: 'Have 50 fireflies alive at once',
-            icon: '🌳',
+            icon: '<img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'population',
             condition: (stats) => stats.currentPopulation >= 50,
             points: 50
@@ -46,7 +46,7 @@ class EcosystemAchievements {
             id: 'metropolis',
             name: 'Digital Metropolis',
             description: 'Have 100 fireflies alive at once',
-            icon: '🏙️',
+            icon: '<img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'population',
             condition: (stats) => stats.currentPopulation >= 100,
             points: 100
@@ -55,7 +55,7 @@ class EcosystemAchievements {
             id: 'century',
             name: 'Century of Lives',
             description: '100 total fireflies have been born',
-            icon: '💯',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'population',
             condition: (stats) => stats.totalBirths >= 100,
             points: 50
@@ -64,7 +64,7 @@ class EcosystemAchievements {
             id: 'thousand_souls',
             name: 'Thousand Souls',
             description: '1000 total fireflies have been born',
-            icon: '🎊',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'population',
             condition: (stats) => stats.totalBirths >= 1000,
             points: 200
@@ -75,7 +75,7 @@ class EcosystemAchievements {
             id: 'first_evolution',
             name: 'Spark of Progress',
             description: 'First firefly evolves to Charged tier',
-            icon: '⚡',
+            icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'evolution',
             condition: (stats) => stats.evolutions?.charged >= 1,
             points: 25
@@ -84,7 +84,7 @@ class EcosystemAchievements {
             id: 'radiant_rise',
             name: 'Radiant Rise',
             description: 'A firefly reaches Radiant tier',
-            icon: '💎',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'evolution',
             condition: (stats) => stats.evolutions?.radiant >= 1,
             points: 50
@@ -93,7 +93,7 @@ class EcosystemAchievements {
             id: 'prismatic_power',
             name: 'Prismatic Power',
             description: 'A firefly reaches Prismatic tier',
-            icon: '🌈',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'evolution',
             condition: (stats) => stats.evolutions?.prismatic >= 1,
             points: 75
@@ -102,7 +102,7 @@ class EcosystemAchievements {
             id: 'ascension',
             name: 'Ascension',
             description: 'A firefly reaches the legendary Ascended tier',
-            icon: '👼',
+            icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'evolution',
             condition: (stats) => stats.evolutions?.ascended >= 1,
             points: 150
@@ -111,7 +111,7 @@ class EcosystemAchievements {
             id: 'evolution_master',
             name: 'Evolution Master',
             description: '10 fireflies have reached Ascended tier',
-            icon: '🏆',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'evolution',
             condition: (stats) => stats.evolutions?.ascended >= 10,
             points: 300
@@ -122,7 +122,7 @@ class EcosystemAchievements {
             id: 'golden_find',
             name: 'Golden Discovery',
             description: 'Witness the birth of a Golden firefly',
-            icon: '⭐',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'rare',
             condition: (stats) => stats.rares?.golden >= 1,
             points: 100
@@ -131,7 +131,7 @@ class EcosystemAchievements {
             id: 'diamond_find',
             name: 'Diamond in the Rough',
             description: 'Witness the birth of a Diamond firefly',
-            icon: '💠',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'rare',
             condition: (stats) => stats.rares?.diamond >= 1,
             points: 100
@@ -140,7 +140,7 @@ class EcosystemAchievements {
             id: 'glitch_find',
             name: 'System Anomaly',
             description: 'Witness the birth of a Glitch firefly',
-            icon: '🔲',
+            icon: '<img src="/assets/images/icons/icon-square-filled.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'rare',
             condition: (stats) => stats.rares?.glitch >= 1,
             points: 100
@@ -149,7 +149,7 @@ class EcosystemAchievements {
             id: 'ancient_find',
             name: 'Ancient Awakening',
             description: 'Witness the birth of an Ancient firefly',
-            icon: '📜',
+            icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'rare',
             condition: (stats) => stats.rares?.ancient >= 1,
             points: 100
@@ -158,7 +158,7 @@ class EcosystemAchievements {
             id: 'rare_collector',
             name: 'Rare Collector',
             description: 'Witness all 4 rare firefly types',
-            icon: '🎯',
+            icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'rare',
             condition: (stats) => {
                 const r = stats.rares || {};
@@ -172,7 +172,7 @@ class EcosystemAchievements {
             id: 'solar_witness',
             name: 'Solar Witness',
             description: 'Experience a Solar Flare event',
-            icon: '☀️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'cosmic',
             condition: (stats) => stats.events?.solarFlare >= 1,
             points: 30
@@ -181,7 +181,7 @@ class EcosystemAchievements {
             id: 'meteor_watcher',
             name: 'Meteor Watcher',
             description: 'Experience a Meteor Shower',
-            icon: '☄️',
+            icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'cosmic',
             condition: (stats) => stats.events?.meteorShower >= 1,
             points: 30
@@ -190,7 +190,7 @@ class EcosystemAchievements {
             id: 'void_survivor',
             name: 'Void Survivor',
             description: 'Survive a Void Storm',
-            icon: '🌀',
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'cosmic',
             condition: (stats) => stats.events?.voidStorm >= 1,
             points: 40
@@ -199,7 +199,7 @@ class EcosystemAchievements {
             id: 'eclipse_viewer',
             name: 'Eclipse Viewer',
             description: 'Witness an Eclipse',
-            icon: '🌑',
+            icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'cosmic',
             condition: (stats) => stats.events?.eclipse >= 1,
             points: 40
@@ -208,7 +208,7 @@ class EcosystemAchievements {
             id: 'nebula_drifter',
             name: 'Nebula Drifter',
             description: 'Experience a Nebula Drift',
-            icon: '🌌',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'cosmic',
             condition: (stats) => stats.events?.nebulaDrift >= 1,
             points: 30
@@ -217,7 +217,7 @@ class EcosystemAchievements {
             id: 'cosmic_veteran',
             name: 'Cosmic Veteran',
             description: 'Experience all 5 cosmic event types',
-            icon: '🌠',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'cosmic',
             condition: (stats) => {
                 const e = stats.events || {};
@@ -232,7 +232,7 @@ class EcosystemAchievements {
             id: 'elder',
             name: 'Elder',
             description: 'A firefly lives for over 3 minutes',
-            icon: '👴',
+            icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'survival',
             condition: (stats) => stats.longestLife >= 180000,
             points: 50
@@ -241,7 +241,7 @@ class EcosystemAchievements {
             id: 'ancient_one',
             name: 'The Ancient One',
             description: 'A firefly lives for over 5 minutes',
-            icon: '🧙',
+            icon: '<img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'survival',
             condition: (stats) => stats.longestLife >= 300000,
             points: 100
@@ -250,7 +250,7 @@ class EcosystemAchievements {
             id: 'immortal_legend',
             name: 'Immortal Legend',
             description: 'A firefly lives for over 10 minutes',
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'survival',
             condition: (stats) => stats.longestLife >= 600000,
             points: 250
@@ -259,7 +259,7 @@ class EcosystemAchievements {
             id: 'dynasty',
             name: 'Dynasty',
             description: 'A lineage reaches 5 generations',
-            icon: '🏰',
+            icon: '<img src="/assets/images/icons/icon-castle.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'survival',
             condition: (stats) => stats.highestGeneration >= 5,
             points: 75
@@ -268,7 +268,7 @@ class EcosystemAchievements {
             id: 'legacy',
             name: 'Eternal Legacy',
             description: 'A lineage reaches 10 generations',
-            icon: '📿',
+            icon: '<img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'survival',
             condition: (stats) => stats.highestGeneration >= 10,
             points: 150
@@ -279,7 +279,7 @@ class EcosystemAchievements {
             id: 'first_blessing',
             name: 'Divine Touch',
             description: 'Use the Energy Blessing tool',
-            icon: '🙏',
+            icon: '<img src="/assets/images/icons/icon-handshake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'interaction',
             condition: (stats) => stats.toolsUsed?.blessing >= 1,
             points: 15
@@ -288,7 +288,7 @@ class EcosystemAchievements {
             id: 'gravity_master',
             name: 'Gravity Master',
             description: 'Create 10 gravity wells',
-            icon: '🌀',
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'interaction',
             condition: (stats) => stats.toolsUsed?.gravity >= 10,
             points: 30
@@ -297,7 +297,7 @@ class EcosystemAchievements {
             id: 'protector',
             name: 'Protector',
             description: 'Deploy 5 shield bubbles',
-            icon: '🛡️',
+            icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'interaction',
             condition: (stats) => stats.toolsUsed?.shield >= 5,
             points: 40
@@ -306,7 +306,7 @@ class EcosystemAchievements {
             id: 'portal_maker',
             name: 'Portal Maker',
             description: 'Create a portal pair',
-            icon: '🌀',
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'interaction',
             condition: (stats) => stats.portalsCreated >= 1,
             points: 25
@@ -315,7 +315,7 @@ class EcosystemAchievements {
             id: 'sanctuary_builder',
             name: 'Sanctuary Builder',
             description: 'Create a sanctuary',
-            icon: '☮️',
+            icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'interaction',
             condition: (stats) => stats.sanctuariesCreated >= 1,
             points: 25
@@ -326,7 +326,7 @@ class EcosystemAchievements {
             id: 'black_hole_witness',
             name: 'Event Horizon',
             description: 'Witness the black hole consume a firefly',
-            icon: '🕳️',
+            icon: '<img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'special',
             condition: (stats) => stats.blackHoleConsumptions >= 1,
             points: 20
@@ -335,7 +335,7 @@ class EcosystemAchievements {
             id: 'planet_birth',
             name: 'World Builder',
             description: 'Witness a planet form',
-            icon: '🌍',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             category: 'special',
             condition: (stats) => stats.planetsFormed >= 1,
             points: 50
@@ -344,7 +344,7 @@ class EcosystemAchievements {
             id: 'constellation_former',
             name: 'Star Mapper',
             description: 'Fireflies form a constellation',
-            icon: '⭐',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'special',
             condition: (stats) => stats.constellationsFormed >= 1,
             points: 40
@@ -353,7 +353,7 @@ class EcosystemAchievements {
             id: 'predator_repelled',
             name: 'Swarm Defense',
             description: 'A predator is repelled by a swarm',
-            icon: '💪',
+            icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'special',
             condition: (stats) => stats.predatorsRepelled >= 1,
             points: 35
@@ -413,7 +413,7 @@ class EcosystemAchievements {
     init(container) {
         this.createToastContainer(container);
         this.injectStyles();
-        console.log('🏆 Achievement system initialized');
+        console.log('<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievement system initialized');
         return this;
     }
 
@@ -483,7 +483,7 @@ class EcosystemAchievements {
         this.unlocked.add(achievement.id);
         this.totalPoints += achievement.points;
 
-        console.log(`🏆 Achievement Unlocked: ${achievement.name}`);
+        console.log(`<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievement Unlocked: ${achievement.name}`);
 
         // Show toast
         if (this.config.showToasts) {
@@ -614,7 +614,7 @@ class EcosystemAchievements {
                 // Merge loaded stats with defaults
                 this.stats = { ...this.stats, ...data.stats };
                 this.totalPoints = data.totalPoints || 0;
-                console.log(`🏆 Loaded ${this.unlocked.size} achievements`);
+                console.log(`<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Loaded ${this.unlocked.size} achievements`);
             }
         } catch (e) {
             console.warn('Could not load achievement progress:', e);

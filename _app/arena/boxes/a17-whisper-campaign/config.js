@@ -300,7 +300,7 @@ const A17Config = {
                         <div style="display:grid; gap:16px; margin-bottom:28px;">
                             <div style="background:#f8f9fb; border:1px solid #e0e0e6; border-radius:6px; padding:14px 18px;">
                                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-                                    <span style="font-size:1.2rem;">&#128444;</span>
+                                    <span style="font-size:1.2rem;"><img src="/assets/images/icons/icon-picture.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                                     <div>
                                         <div style="font-weight:700; color:#2c3e50; font-size:0.82rem;">landscape.png</div>
                                         <div style="color:#999; font-size:0.7rem;">1920 &times; 1080 &mdash; 2.4 MB &mdash; "Morning Serenity"</div>
@@ -322,7 +322,7 @@ const A17Config = {
 
                             <div style="background:#f8f9fb; border:1px solid #e0e0e6; border-radius:6px; padding:14px 18px;">
                                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-                                    <span style="font-size:1.2rem;">&#128196;</span>
+                                    <span style="font-size:1.2rem;"><img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                                     <div>
                                         <div style="font-weight:700; color:#2c3e50; font-size:0.82rem;">historical_text.pdf</div>
                                         <div style="color:#999; font-size:0.7rem;">12 pages &mdash; 1.8 MB &mdash; "The Art of Silent Communication"</div>
@@ -333,7 +333,7 @@ const A17Config = {
 
                             <div style="background:#f8f9fb; border:1px solid #e0e0e6; border-radius:6px; padding:14px 18px;">
                                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-                                    <span style="font-size:1.2rem;">&#128230;</span>
+                                    <span style="font-size:1.2rem;"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                                     <div>
                                         <div style="font-weight:700; color:#2c3e50; font-size:0.82rem;">archive.zip</div>
                                         <div style="color:#999; font-size:0.7rem;">Encrypted &mdash; 4.7 KB &mdash; "Members Only"</div>

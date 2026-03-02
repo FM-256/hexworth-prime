@@ -36,17 +36,17 @@
     // ═══════════════════════════════════════════════════════════════
 
     const HOUSES = [
-        { id: 'web', name: 'Web', icon: '🌐', color: '#60a5fa', path: 'houses/web/index.html' },
-        { id: 'shield', name: 'Shield', icon: '🛡️', color: '#f87171', path: 'houses/shield/index.html' },
-        { id: 'cloud', name: 'Cloud', icon: '☁️', color: '#38bdf8', path: 'houses/cloud/index.html' },
-        { id: 'forge', name: 'Forge', icon: '⚒️', color: '#fbbf24', path: 'houses/forge/index.html' },
-        { id: 'script', name: 'Script', icon: '📜', color: '#a78bfa', path: 'houses/script/index.html' },
-        { id: 'code', name: 'Code', icon: '💻', color: '#4ade80', path: 'houses/code/index.html' },
-        { id: 'key', name: 'Key', icon: '🔑', color: '#f472b6', path: 'houses/key/index.html' },
-        { id: 'eye', name: 'Eye', icon: '👁️', color: '#c084fc', path: 'houses/eye/index.html' },
-        { id: 'ai', name: 'Machine', icon: '🤖', color: '#a855f7', path: 'houses/ai/index.html' },
-        { id: 'dark-arts', name: 'Dark Arts', icon: '💀', color: '#6b21a8', path: 'houses/dark-arts/index.html' },
-        { id: 'matrix', name: 'The Matrix', icon: '💊', color: '#00ff41', path: 'houses/matrix/index.html' }
+        { id: 'web', name: 'Web', icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#60a5fa', path: 'houses/web/index.html' },
+        { id: 'shield', name: 'Shield', icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#f87171', path: 'houses/shield/index.html' },
+        { id: 'cloud', name: 'Cloud', icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#38bdf8', path: 'houses/cloud/index.html' },
+        { id: 'forge', name: 'Forge', icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#fbbf24', path: 'houses/forge/index.html' },
+        { id: 'script', name: 'Script', icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#a78bfa', path: 'houses/script/index.html' },
+        { id: 'code', name: 'Code', icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#4ade80', path: 'houses/code/index.html' },
+        { id: 'key', name: 'Key', icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#f472b6', path: 'houses/key/index.html' },
+        { id: 'eye', name: 'Eye', icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#c084fc', path: 'houses/eye/index.html' },
+        { id: 'ai', name: 'Machine', icon: '<img src="/assets/images/icons/icon-robot.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#a855f7', path: 'houses/ai/index.html' },
+        { id: 'dark-arts', name: 'Dark Arts', icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#6b21a8', path: 'houses/dark-arts/index.html' },
+        { id: 'matrix', name: 'The Matrix', icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#00ff41', path: 'houses/matrix/index.html' }
     ];
 
     const EMBLEM_PATH = 'assets/images/emblems/';
@@ -220,7 +220,7 @@
         }
 
         .flux-house.current::after {
-            content: '📍';
+            content: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             position: absolute;
             top: 8px;
             right: 8px;
@@ -228,7 +228,7 @@
         }
 
         .flux-house.home::after {
-            content: '⭐';
+            content: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
             position: absolute;
             top: 8px;
             left: 8px;
@@ -246,7 +246,7 @@
         }
 
         .flux-house.locked::after {
-            content: '⚔️';
+            content: '<img src="/assets/images/icons/icon-swords.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             position: absolute;
             top: 8px;
             right: 8px;
@@ -473,7 +473,7 @@
             this.button.className = 'flux-btn';
             this.button.setAttribute('aria-label', 'Open Flux Capacitor');
             this.button.setAttribute('title', 'Flux Capacitor (Press ~)');
-            this.button.innerHTML = '<span class="flux-icon">☢️</span>';
+            this.button.innerHTML = '<span class="flux-icon"><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>';
             document.body.appendChild(this.button);
         }
 
@@ -487,7 +487,7 @@
             // Title
             const title = document.createElement('h2');
             title.className = 'flux-title';
-            title.textContent = '⚡ FLUX CAPACITOR ⚡';
+            title.textContent = '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> FLUX CAPACITOR <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             modal.appendChild(title);
 
             // Subtitle
@@ -512,7 +512,7 @@
             dashSection.className = 'flux-dashboard';
             const dashBtn = document.createElement('button');
             dashBtn.className = 'flux-dashboard-btn';
-            dashBtn.textContent = '🏠 Return to Dashboard';
+            dashBtn.textContent = '<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Return to Dashboard';
             dashBtn.addEventListener('click', () => {
                 if (this.currentHouse === 'matrix') {
                     localStorage.removeItem('hexworth_theme');

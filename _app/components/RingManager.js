@@ -33,7 +33,7 @@ const RingManager = (function() {
             house: 'shield',
             theme: 'Defense & Security',
             color: '#f87171',
-            icon: '🛡️'
+            icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         web: {
             id: 'web',
@@ -41,7 +41,7 @@ const RingManager = (function() {
             house: 'web',
             theme: 'Networking & Protocols',
             color: '#60a5fa',
-            icon: '🌐'
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         forge: {
             id: 'forge',
@@ -49,7 +49,7 @@ const RingManager = (function() {
             house: 'forge',
             theme: 'Hardware & Systems',
             color: '#fbbf24',
-            icon: '🔨'
+            icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'
         },
         script: {
             id: 'script',
@@ -57,7 +57,7 @@ const RingManager = (function() {
             house: 'script',
             theme: 'Automation & Linux',
             color: '#a78bfa',
-            icon: '📜'
+            icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         cloud: {
             id: 'cloud',
@@ -65,7 +65,7 @@ const RingManager = (function() {
             house: 'cloud',
             theme: 'Infrastructure & Architecture',
             color: '#38bdf8',
-            icon: '☁️'
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         code: {
             id: 'code',
@@ -73,7 +73,7 @@ const RingManager = (function() {
             house: 'code',
             theme: 'DevOps & CI/CD',
             color: '#4ade80',
-            icon: '⚙️'
+            icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         key: {
             id: 'key',
@@ -81,7 +81,7 @@ const RingManager = (function() {
             house: 'key',
             theme: 'Cryptography & Ciphers',
             color: '#f472b6',
-            icon: '🔑'
+            icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         eye: {
             id: 'eye',
@@ -89,7 +89,7 @@ const RingManager = (function() {
             house: 'eye',
             theme: 'Monitoring & Detection',
             color: '#c084fc',
-            icon: '👁️'
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         }
     };
 

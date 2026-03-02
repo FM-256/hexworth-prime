@@ -12,7 +12,7 @@ const SecurityFundamentalsData = {
     five_pillars: {
         id: 'five_pillars',
         name: 'The Five Pillars of Information Security',
-        icon: '\u26d1',
+        icon: '/assets/images/icons/icon-shield.webp',
         color: '#a855f7',
         subtitle: 'Confidentiality, Integrity, Availability, Authenticity & Nonrepudiation',
         description: 'The five pillars form the bedrock of every information security program. Understanding how they interrelate is critical for designing effective security architectures.',
@@ -20,35 +20,35 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: 'Confidentiality',
-                icon: '\ud83d\udd12',
+                icon: '/assets/images/icons/icon-padlock.webp',
                 content: 'Ensuring information is accessible only to those authorized to access it. Confidentiality breaches occur when data is exposed to unauthorized parties.',
                 details: ['Encryption (AES-256, RSA)', 'Access control lists (ACLs)', 'Data classification (Public, Internal, Confidential, Restricted)', 'Need-to-know principle', 'Data masking and tokenization'],
                 realWorld: 'A hospital encrypts patient records at rest and in transit, implements role-based access so nurses see care plans but not billing data, and uses DLP to prevent email exfiltration of PHI.'
             },
             {
                 title: 'Integrity',
-                icon: '\u2714\ufe0f',
+                icon: '/assets/images/icons/icon-checkbox.webp',
                 content: 'Guaranteeing accuracy and completeness of data. Integrity controls ensure information has not been altered by unauthorized parties during storage or transit.',
                 details: ['Hashing algorithms (SHA-256, SHA-3)', 'Digital signatures', 'Checksums and CRC', 'Version control systems', 'Database constraints and triggers'],
                 realWorld: 'A bank uses SHA-256 hashes on wire transfer records. Before processing, the system recomputes the hash and compares it to the stored value. Any mismatch triggers an alert and blocks the transaction.'
             },
             {
                 title: 'Availability',
-                icon: '\u26a1',
+                icon: '/assets/images/icons/icon-lightning.webp',
                 content: 'Ensuring authorized users can access information and resources when needed. Availability attacks (like DDoS) aim to deny legitimate access.',
                 details: ['Redundancy and failover', 'Load balancers', 'Backup and disaster recovery', 'SLA uptime guarantees (99.9%, 99.99%)', 'DDoS mitigation (CloudFlare, AWS Shield)'],
                 realWorld: 'An e-commerce platform uses multi-region deployment with auto-scaling, database replication with automatic failover, and CDN caching to maintain 99.99% uptime during peak sales events.'
             },
             {
                 title: 'Authenticity',
-                icon: '\ud83c\udfab',
+                icon: '/assets/images/icons/icon-token.webp',
                 content: 'Verifying that users, systems, and data are genuine. Authentication confirms identity before granting access to resources.',
                 details: ['Multi-factor authentication (MFA)', 'Certificate-based authentication', 'Biometrics (fingerprint, facial recognition)', 'Token-based systems (OAuth, SAML)', 'PKI and digital certificates'],
                 realWorld: 'A defense contractor requires CAC (Common Access Card) plus PIN to access classified systems, with certificate validation against the DoD PKI before establishing any session.'
             },
             {
                 title: 'Nonrepudiation',
-                icon: '\ud83d\udcdd',
+                icon: '/assets/images/icons/icon-notepad.webp',
                 content: 'Preventing someone from denying an action they performed. Nonrepudiation provides irrefutable evidence of who did what and when.',
                 details: ['Digital signatures with private keys', 'Audit trails and logging', 'Timestamping authorities', 'Chain of custody documentation', 'Blockchain-based proof records'],
                 realWorld: 'A legal firm uses digitally signed emails with timestamps from a trusted authority. If a client later denies sending a contract approval, the firm can produce the cryptographic proof of origin.'
@@ -86,7 +86,7 @@ const SecurityFundamentalsData = {
     the_cube: {
         id: 'the_cube',
         name: 'The McCumber Cube',
-        icon: '\ud83d\udce6',
+        icon: '/assets/images/icons/icon-package.webp',
         color: '#a855f7',
         subtitle: 'A 3D framework for information security',
         description: 'John McCumber\'s cube model provides a three-dimensional framework for thinking about information assurance. Each axis represents a different dimension of security, and every cell in the 3x3x3 cube represents a unique security consideration.',
@@ -94,28 +94,28 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: 'Dimension 1: Security Goals (CIA)',
-                icon: '\ud83c\udfaf',
+                icon: '/assets/images/icons/icon-target.webp',
                 content: 'The first axis represents the three fundamental security objectives that all information security programs must address.',
                 details: ['Confidentiality - Preventing unauthorized disclosure', 'Integrity - Preventing unauthorized modification', 'Availability - Ensuring timely, reliable access'],
                 realWorld: 'When designing a new payroll system, the architect maps each feature against all three goals: encryption for confidentiality, checksums for integrity, and redundant servers for availability.'
             },
             {
                 title: 'Dimension 2: Information States',
-                icon: '\ud83d\udcc0',
+                icon: '/assets/images/icons/icon-memory.webp',
                 content: 'The second axis represents the three states in which information can exist. Security controls must address all three states.',
                 details: ['Storage (Data at Rest) - Files on disk, databases, backups', 'Transmission (Data in Transit) - Network packets, email, file transfers', 'Processing (Data in Use) - Active computation, RAM, CPU registers'],
                 realWorld: 'A cloud provider encrypts data at rest (AES-256), in transit (TLS 1.3), and is developing confidential computing to protect data in use (Intel SGX enclaves).'
             },
             {
                 title: 'Dimension 3: Security Measures',
-                icon: '\ud83d\udee1\ufe0f',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'The third axis represents the three categories of countermeasures available to protect information.',
                 details: ['Technology - Hardware and software controls (firewalls, IDS, encryption)', 'Policy & Practices - Written rules, procedures, standards, guidelines', 'Human Factors - Training, awareness, education, culture'],
                 realWorld: 'To address insider threats, an organization deploys DLP software (technology), creates an acceptable use policy (policy), and runs quarterly security awareness training (human factors).'
             },
             {
                 title: 'How the Cube Works',
-                icon: '\ud83e\udde9',
+                icon: '/assets/images/icons/icon-square-pattern.webp',
                 content: 'Each cell at the intersection of one element from each dimension represents a specific security concern. For example: Confidentiality + Storage + Technology = disk encryption.',
                 details: ['3 x 3 x 3 = 27 unique security cells', 'Each cell should have at least one control', 'Gaps in coverage = vulnerabilities', 'Use the cube to audit your security program', 'Map existing controls to identify blind spots'],
                 realWorld: 'A CISO uses the McCumber Cube during an annual security review: "We have strong technology controls for data in transit, but our policy coverage for data in processing is weak. We need SOPs for how employees handle sensitive data in memory-intensive applications."'
@@ -152,7 +152,7 @@ const SecurityFundamentalsData = {
     cybersecurity_controls: {
         id: 'cybersecurity_controls',
         name: 'Cybersecurity Controls',
-        icon: '\ud83d\udee1\ufe0f',
+        icon: '/assets/images/icons/icon-shield.webp',
         color: '#a855f7',
         subtitle: 'Administrative, Technical & Physical controls',
         description: 'Security controls are safeguards or countermeasures designed to protect the confidentiality, integrity, and availability of information. They are categorized by type (administrative, technical, physical) and function (preventive, detective, corrective, deterrent, compensating).',
@@ -160,28 +160,28 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: 'Administrative (Managerial) Controls',
-                icon: '\ud83d\udccb',
+                icon: '/assets/images/icons/icon-clipboard.webp',
                 content: 'Policies, procedures, and organizational measures that define the rules and expectations for security behavior.',
                 details: ['Security policies and procedures', 'Risk assessments and audits', 'Security awareness training', 'Incident response plans', 'Background checks and hiring practices', 'Change management processes'],
                 realWorld: 'A company creates an Acceptable Use Policy stating that employees must not use company devices for personal crypto mining. Violation results in disciplinary action up to termination.'
             },
             {
                 title: 'Technical (Logical) Controls',
-                icon: '\u2699\ufe0f',
+                icon: '/assets/images/icons/icon-gear.webp',
                 content: 'Hardware and software mechanisms used to protect information systems and data. These are automated controls enforced by technology.',
                 details: ['Firewalls and IDS/IPS', 'Encryption (at rest and in transit)', 'Access control lists (ACLs)', 'Multi-factor authentication', 'Antivirus and endpoint protection', 'SIEM and log management'],
                 realWorld: 'A financial institution deploys a next-gen firewall with deep packet inspection, IDS alerts feeding into a SIEM, and EDR on every endpoint with automated threat response.'
             },
             {
                 title: 'Physical Controls',
-                icon: '\ud83c\udfdb\ufe0f',
+                icon: '/assets/images/icons/icon-institution.webp',
                 content: 'Tangible mechanisms that protect personnel, hardware, and the physical environment from threats.',
                 details: ['Locks, fences, and gates', 'Security guards and cameras (CCTV)', 'Badge readers and biometric scanners', 'Environmental controls (fire suppression, HVAC)', 'Cable locks and hardware enclosures', 'Mantrap/sally port entry systems'],
                 realWorld: 'A data center uses six layers of physical security: perimeter fence with razor wire, guard booth, badge + biometric at the door, mantraps, caged racks, and 24/7 CCTV with 90-day retention.'
             },
             {
                 title: 'Control Functions',
-                icon: '\ud83c\udfaf',
+                icon: '/assets/images/icons/icon-target.webp',
                 content: 'Controls are further classified by their function: what they are designed to accomplish in the security lifecycle.',
                 details: ['Preventive - Stop incidents before they occur (firewall rules, door locks)', 'Detective - Identify incidents in progress or after (IDS, audit logs, CCTV)', 'Corrective - Fix issues after detection (patching, restoring backups)', 'Deterrent - Discourage attacks (warning banners, security cameras)', 'Compensating - Alternative controls when primary controls are infeasible'],
                 realWorld: 'After a breach, an organization applies corrective controls (patches the vulnerability), enhances detective controls (adds file integrity monitoring), and implements compensating controls (network segmentation) while a full solution is developed.'
@@ -219,7 +219,7 @@ const SecurityFundamentalsData = {
     data_roles: {
         id: 'data_roles',
         name: 'Data Roles & Responsibilities',
-        icon: '\ud83d\udc65',
+        icon: '/assets/images/icons/icon-users.webp',
         color: '#a855f7',
         subtitle: 'Owner, Custodian, Processor, Controller, User',
         description: 'Data governance assigns specific roles and responsibilities to ensure information is properly managed, protected, and used throughout its lifecycle. Understanding these roles is critical for compliance with regulations like GDPR, HIPAA, and CCPA.',
@@ -227,35 +227,35 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: 'Data Owner',
-                icon: '\ud83d\udc51',
+                icon: '/assets/images/icons/icon-crown.webp',
                 content: 'The person or entity ultimately accountable for the data. The data owner determines classification, access policies, and acceptable use. Usually a senior executive or department head.',
                 details: ['Determines data classification level', 'Approves access requests', 'Defines retention and destruction policies', 'Accountable for data breaches affecting their data', 'Usually a business leader, not IT'],
                 realWorld: 'The VP of Finance is the data owner for all financial records. She approves who gets access to the ERP system, determines that financial data is classified as "Confidential," and defines the 7-year retention policy.'
             },
             {
                 title: 'Data Custodian',
-                icon: '\ud83d\udd27',
+                icon: '/assets/images/icons/icon-wrench.webp',
                 content: 'The person or team responsible for the day-to-day management and technical protection of data. They implement the policies defined by the data owner.',
                 details: ['Implements backups and recovery', 'Manages encryption and access controls', 'Performs system patching and maintenance', 'Monitors for unauthorized access', 'Typically IT staff or database administrators'],
                 realWorld: 'The DBA team implements the VP of Finance\'s policies: encrypting financial databases with AES-256, running nightly backups, configuring RBAC in the ERP system, and monitoring access logs for anomalies.'
             },
             {
                 title: 'Data Controller (GDPR)',
-                icon: '\ud83d\udccb',
+                icon: '/assets/images/icons/icon-clipboard.webp',
                 content: 'Under GDPR, the entity that determines the purposes and means of processing personal data. The controller decides WHY and HOW data is processed.',
                 details: ['Determines purpose of data collection', 'Decides what data to collect', 'Responsible for lawful basis of processing', 'Must respond to data subject requests', 'Liable for compliance violations'],
                 realWorld: 'An online retailer (controller) decides to collect customer email addresses for marketing. They determine the legal basis (consent), create the privacy notice, and are responsible if data is mishandled.'
             },
             {
                 title: 'Data Processor (GDPR)',
-                icon: '\u2699\ufe0f',
+                icon: '/assets/images/icons/icon-gear.webp',
                 content: 'Under GDPR, any entity that processes personal data on behalf of a controller. Processors follow the controller\'s instructions and have their own compliance obligations.',
                 details: ['Processes data only as instructed by controller', 'Must maintain processing records', 'Required to implement appropriate security', 'Must notify controller of breaches', 'Examples: cloud providers, payroll services, marketing platforms'],
                 realWorld: 'The retailer uses Mailchimp (processor) to send marketing emails. Mailchimp processes customer data only as the retailer instructs, maintains its own security controls, and must notify the retailer of any breach.'
             },
             {
                 title: 'Data Steward & Data User',
-                icon: '\ud83d\udcca',
+                icon: '/assets/images/icons/icon-barchart.webp',
                 content: 'Data stewards ensure data quality and governance compliance. Data users are authorized individuals who access and use data in their daily work.',
                 details: ['Steward: ensures data quality, consistency, and metadata accuracy', 'Steward: bridges business and IT understanding of data', 'User: accesses data within authorized boundaries', 'User: must follow acceptable use policies', 'Data Subject: the individual whose data is collected (GDPR term)'],
                 realWorld: 'A data steward in the marketing department ensures customer records are clean and deduplicated. A sales rep (data user) queries the CRM to contact leads, following the company\'s data handling policy.'
@@ -290,7 +290,7 @@ const SecurityFundamentalsData = {
     design_principles: {
         id: 'design_principles',
         name: 'Security Design Principles',
-        icon: '\ud83c\udfd7\ufe0f',
+        icon: '/assets/images/icons/icon-construction.webp',
         color: '#a855f7',
         subtitle: 'Foundational principles for building secure systems',
         description: 'Security design principles guide architects and developers in building systems that are secure by design. These time-tested principles, many originating from Saltzer and Schroeder (1975), remain the foundation of modern security architecture.',
@@ -298,35 +298,35 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: 'Least Privilege',
-                icon: '\ud83d\udd11',
+                icon: '/assets/images/icons/icon-key.webp',
                 content: 'Every user, process, and system should operate with the minimum set of permissions needed to perform its function. No more, no less.',
                 details: ['Users get only the access their role requires', 'Service accounts have scoped permissions', 'Temporary privilege escalation (sudo, just-in-time access)', 'Regular access reviews to remove stale permissions', 'Applies to programs, processes, and network connections too'],
                 realWorld: 'An AWS Lambda function that reads from S3 gets an IAM role with s3:GetObject on one specific bucket, not s3:* on *. If compromised, the blast radius is limited to that one bucket.'
             },
             {
                 title: 'Defense in Depth',
-                icon: '\ud83c\udff0',
+                icon: '/assets/images/icons/icon-castle.webp',
                 content: 'Multiple layers of security controls so that if one layer fails, others continue to provide protection. No single point of failure.',
                 details: ['Network: firewall + IDS + segmentation', 'Endpoint: AV + EDR + host firewall + application whitelisting', 'Data: encryption + access controls + DLP + masking', 'Physical: fence + camera + badge + mantrap', 'Administrative: policy + training + audits + incident response'],
                 realWorld: 'A bank protects its core banking system with: perimeter firewall, WAF, network segmentation, microsegmentation, host-based IDS, application-level encryption, database access controls, and quarterly pen tests.'
             },
             {
                 title: 'Fail Secure / Fail Safe',
-                icon: '\ud83d\udea8',
+                icon: '/assets/images/icons/icon-siren.webp',
                 content: 'When a system fails, it should default to a secure state rather than an open/permissive state. Failure should not bypass security controls.',
                 details: ['Fail Secure: system denies all access on failure (secure default)', 'Fail Safe: system protects human safety on failure (emergency exits unlock)', 'Firewalls should default-deny if rules cannot be loaded', 'Authentication failures should deny access, not grant it', 'Distinguish between safety-critical and security-critical systems'],
                 realWorld: 'A building access system is configured to fail secure (doors lock on power failure), but fire exits fail safe (they unlock during emergencies to protect life). Different failure modes for different priorities.'
             },
             {
                 title: 'Separation of Duties & Zero Trust',
-                icon: '\ud83e\udd1d',
+                icon: '/assets/images/icons/icon-handshake.webp',
                 content: 'No single person should have enough authority to compromise a critical process. Zero Trust takes this further: never trust, always verify.',
                 details: ['Separation: developer cannot deploy to production alone', 'Separation: two-person control for critical operations', 'Zero Trust: verify every request regardless of source', 'Zero Trust: assume breach; minimize blast radius', 'Micro-segmentation and continuous authentication'],
                 realWorld: 'A defense contractor requires two authorized personnel to launch any classified data transfer (separation of duties). Their network uses Zero Trust: even internal traffic is authenticated, encrypted, and logged at every hop.'
             },
             {
                 title: 'Additional Principles',
-                icon: '\ud83d\udcd0',
+                icon: '/assets/images/icons/icon-ruler.webp',
                 content: 'Several other principles from Saltzer & Schroeder round out the security design toolkit.',
                 details: ['Economy of Mechanism - Keep security simple; complex systems have more bugs', 'Complete Mediation - Check every access, every time (no caching of permissions)', 'Open Design - Security should not depend on secrecy of the mechanism (Kerckhoffs\' principle)', 'Least Common Mechanism - Minimize shared components between users/processes', 'Psychological Acceptability - Security should not make the system unusable'],
                 realWorld: 'AES encryption follows Open Design: the algorithm is public, but security depends on the key. This is far more trustworthy than a proprietary "secret" algorithm that could hide flaws.'
@@ -364,7 +364,7 @@ const SecurityFundamentalsData = {
     ethics_conduct: {
         id: 'ethics_conduct',
         name: 'Ethics & Professional Conduct',
-        icon: '\u2696\ufe0f',
+        icon: '/assets/images/icons/icon-scales.webp',
         color: '#a855f7',
         subtitle: 'Codes of ethics in cybersecurity professions',
         description: 'Cybersecurity professionals are entrusted with access to sensitive systems and data. Professional codes of ethics establish the behavioral standards that build trust with employers, clients, and the public.',
@@ -372,28 +372,28 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: '(ISC)\u00b2 Code of Ethics',
-                icon: '\ud83c\udfc6',
+                icon: '/assets/images/icons/icon-trophy.webp',
                 content: 'The (ISC)\u00b2 Code of Ethics applies to all CISSP, CCSP, and SSCP holders. Its four canons are ordered by priority.',
                 details: ['Canon 1: Protect society, the common good, necessary public trust, and the infrastructure', 'Canon 2: Act honorably, honestly, justly, responsibly, and legally', 'Canon 3: Provide diligent and competent service to principals', 'Canon 4: Advance and protect the profession', 'Canons are prioritized: society first, profession last'],
                 realWorld: 'A CISSP discovers a critical vulnerability in their company\'s product that endangers public safety. Canon 1 (society) takes priority: they must report it, even if Canon 3 (service to employer) conflicts.'
             },
             {
                 title: 'ISACA Code of Professional Ethics',
-                icon: '\ud83d\udcdc',
+                icon: '/assets/images/icons/icon-scroll.webp',
                 content: 'ISACA\'s code applies to CISA, CISM, CRISC, and CGEIT holders. It emphasizes governance, risk, and compliance.',
                 details: ['Support the implementation of appropriate standards and procedures for IT', 'Perform duties with objectivity, due diligence, and professional care', 'Serve the interests of stakeholders in a lawful manner', 'Maintain privacy and confidentiality of information', 'Maintain competency in respective fields and only undertake those activities within competence'],
                 realWorld: 'A CISM auditor discovers their client is not compliant with PCI-DSS. Even though reporting the finding will cost the client business, the auditor must report accurately, as objectivity and due diligence require it.'
             },
             {
                 title: 'Ethical Hacking Boundaries',
-                icon: '\ud83d\udee1\ufe0f',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'Penetration testers and ethical hackers operate under strict rules of engagement. The line between ethical and criminal hacking is authorization.',
                 details: ['ALWAYS have written authorization (scope, timeline, methods)', 'Stay within the defined scope (no scope creep)', 'Report ALL findings to the client, including accidental finds', 'Do not access, copy, or exfiltrate real data beyond what is needed to prove the finding', 'Do not cause intentional service disruption unless explicitly authorized', 'Responsible disclosure: give vendors time to patch before public disclosure'],
                 realWorld: 'A pen tester finds a way to access the HR database during an engagement scoped only to the web application. They immediately stop, document the access path, report it to the client, and do not view any HR data.'
             },
             {
                 title: 'Whistleblowing & Disclosure',
-                icon: '\ud83d\udce2',
+                icon: '/assets/images/icons/icon-signal.webp',
                 content: 'When ethical obligations conflict with employer directives, professionals must understand their legal protections and moral obligations.',
                 details: ['Legal protections vary by jurisdiction', 'Internal channels should be exhausted first (chain of command)', 'Document everything', 'Regulatory bodies (SEC, CISA, Inspector General) are external options', 'Sarbanes-Oxley, Dodd-Frank protect financial whistleblowers', 'False Claims Act protects those reporting government fraud'],
                 realWorld: 'A security analyst discovers their company is hiding a data breach that affected millions of customers. After internal reporting is ignored, they contact the relevant regulatory body under whistleblower protection laws.'
@@ -428,7 +428,7 @@ const SecurityFundamentalsData = {
     ethics_challenge: {
         id: 'ethics_challenge',
         name: 'Ethics Challenge',
-        icon: '\ud83e\udde0',
+        icon: '/assets/images/icons/icon-brain.webp',
         color: '#a855f7',
         subtitle: 'Real-world ethical dilemma scenarios',
         description: 'Test your understanding of cybersecurity ethics with challenging real-world scenarios. Each scenario presents a dilemma where multiple options may seem reasonable, but only one aligns with professional codes of conduct.',
@@ -436,21 +436,21 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: 'When Ethics Conflict',
-                icon: '\u2696\ufe0f',
+                icon: '/assets/images/icons/icon-scales.webp',
                 content: 'The hardest ethical decisions arise when two legitimate principles collide: loyalty to your employer versus public safety, client confidentiality versus legal obligations, or personal gain versus professional duty.',
                 details: ['Hierarchy of obligations: public safety > law > employer > self', 'Document everything, especially verbal instructions', 'Consult legal counsel when unsure', 'Industry codes provide a framework, not all answers', 'Good intentions do not excuse bad actions'],
                 realWorld: 'A security consultant discovers that their client\'s medical device has a vulnerability that could harm patients. The client says "it\'s a known issue, we\'ll fix it next quarter." The consultant faces a dilemma: client confidentiality vs. public safety.'
             },
             {
                 title: 'The Gray Areas',
-                icon: '\ud83c\udf2b\ufe0f',
+                icon: '/assets/images/icons/icon-globe.webp',
                 content: 'Not every situation has a clear black-and-white answer. Ethical frameworks help navigate the gray areas where reasonable people might disagree.',
                 details: ['Bug bounty scope vs. curiosity', 'Collecting threat intelligence from dark web forums', 'Using offensive tools for defensive research', 'Reporting colleague misconduct vs. loyalty', 'Competitive intelligence gathering vs. espionage'],
                 realWorld: 'A threat intelligence analyst monitors dark web forums for their company\'s stolen data. They notice another company\'s data for sale. Are they ethically obligated to notify the other company? Most codes would say yes.'
             },
             {
                 title: 'Legal vs. Ethical',
-                icon: '\ud83d\udcdc',
+                icon: '/assets/images/icons/icon-scroll.webp',
                 content: 'Legal compliance and ethical behavior are related but not identical. Something can be legal but unethical, or ethical but technically illegal.',
                 details: ['Collecting data "because we can" vs. "because we should"', 'Legal surveillance that erodes public trust', 'Selling security tools to authoritarian regimes (legal, ethical?)', 'Responsible disclosure may violate terms of service', 'CFAA (Computer Fraud and Abuse Act) has been criticized as overly broad'],
                 realWorld: 'A security researcher discovers a vulnerability in a government website while casually browsing. Reporting it could help millions of citizens, but the CFAA theoretically criminalizes the access that led to the discovery.'
@@ -484,7 +484,7 @@ const SecurityFundamentalsData = {
     physical_protection: {
         id: 'physical_protection',
         name: 'Physical & Environmental Security',
-        icon: '\ud83c\udfdb\ufe0f',
+        icon: '/assets/images/icons/icon-institution.webp',
         color: '#a855f7',
         subtitle: 'Protecting people, hardware, and facilities',
         description: 'Physical security protects personnel, hardware, software, and data from physical actions and events that could cause serious loss or damage. Environmental controls protect against natural and man-made environmental threats.',
@@ -492,28 +492,28 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: 'Perimeter & Facility Security',
-                icon: '\ud83c\udff0',
+                icon: '/assets/images/icons/icon-castle.webp',
                 content: 'The first line of physical defense. Multiple rings of security from the property boundary to the server rack.',
                 details: ['Fences (6ft minimum, 8ft with barbed wire for high security)', 'Bollards and vehicle barriers', 'Security lighting (critical around entrances and parking)', 'Guard stations and visitor management', 'Landscaping for natural surveillance (CPTED principles)'],
                 realWorld: 'A data center uses CPTED (Crime Prevention Through Environmental Design): clear sight lines, no hiding spots, motion-activated lighting, and bollards rated to stop a 15,000-lb vehicle at 50 mph.'
             },
             {
                 title: 'Physical Access Controls',
-                icon: '\ud83d\udd10',
+                icon: '/assets/images/icons/icon-padlock.webp',
                 content: 'Mechanisms that control who can enter specific areas. Layered from public areas through increasingly restricted zones.',
                 details: ['Badge readers (proximity, smart card)', 'Biometric scanners (fingerprint, iris, palm vein)', 'PIN pads and combination locks', 'Mantraps / sally ports (anti-tailgating)', 'Anti-passback systems', 'Visitor escort policies'],
                 realWorld: 'AWS data centers use a layered approach: badge + PIN at the perimeter, biometric + badge at the building, mantrap at the data floor, and two-person access for critical infrastructure. No phones, cameras, or USB devices allowed past the lobby.'
             },
             {
                 title: 'Environmental Controls',
-                icon: '\ud83c\udf21\ufe0f',
+                icon: '/assets/images/icons/icon-signal.webp',
                 content: 'Systems that protect equipment from environmental hazards including temperature, humidity, water, fire, and power issues.',
                 details: ['HVAC: Server rooms at 64-75\u00b0F (18-24\u00b0C), 40-60% humidity', 'Fire suppression: FM-200, Novec 1230, or Inergen (not water near servers)', 'Water detection: sensors under raised floors', 'UPS (Uninterruptible Power Supply) for immediate backup', 'Generator for extended outages', 'Hot/cold aisle containment for efficient cooling'],
                 realWorld: 'A Tier IV data center maintains 2N+1 redundancy on cooling (double the needed capacity plus one spare). If the primary HVAC fails, the redundant system activates within seconds. Water sensors under the raised floor trigger alerts before any equipment is damaged.'
             },
             {
                 title: 'Surveillance & Monitoring',
-                icon: '\ud83d\udcf9',
+                icon: '/assets/images/icons/icon-camera.webp',
                 content: 'Continuous monitoring of physical spaces using cameras, sensors, and security personnel.',
                 details: ['CCTV with 90+ day retention', 'Motion sensors and infrared detectors', 'Tamper-evident seals on equipment', 'Security guard patrols (random schedules)', 'Alarm systems with central monitoring', 'Environmental sensors (temperature, humidity, smoke, water)'],
                 realWorld: 'A government SCIF uses 360-degree cameras at every entry point, vibration sensors on walls and floors, RF shielding to prevent signal leakage, and tempest-rated equipment to prevent electromagnetic emanation eavesdropping.'
@@ -548,7 +548,7 @@ const SecurityFundamentalsData = {
     privacy: {
         id: 'privacy',
         name: 'Privacy Concepts & Regulations',
-        icon: '\ud83d\udd75\ufe0f',
+        icon: '/assets/images/icons/icon-detective.webp',
         color: '#a855f7',
         subtitle: 'PII, PHI, GDPR, CCPA, and privacy principles',
         description: 'Privacy is the right of individuals to control how their personal information is collected, used, and shared. Understanding privacy regulations and data protection principles is essential for every cybersecurity professional.',
@@ -556,28 +556,28 @@ const SecurityFundamentalsData = {
         sections: [
             {
                 title: 'Types of Protected Information',
-                icon: '\ud83d\udcc2',
+                icon: '/assets/images/icons/icon-folder.webp',
                 content: 'Different categories of personal data have different protection requirements. Understanding what constitutes protected information is the first step in privacy compliance.',
                 details: ['PII (Personally Identifiable Information): SSN, name, address, email, biometrics', 'PHI (Protected Health Information): medical records, prescriptions, insurance claims', 'PCI DSS data: credit card numbers, CVV, cardholder data', 'Sensitive PII: data that could cause substantial harm if disclosed (SSN, financial accounts)', 'Non-sensitive PII: publicly available data (name, address in phone book)'],
                 realWorld: 'A hospital database contains patient names (PII), medical diagnoses (PHI), and insurance billing codes (PCI data if credit cards are stored). Each category has different regulatory requirements: HIPAA for PHI, PCI-DSS for payment data, and various state laws for PII.'
             },
             {
                 title: 'GDPR (EU)',
-                icon: '\ud83c\uddea\ud83c\uddfa',
+                icon: '/assets/images/icons/icon-globe.webp',
                 content: 'The General Data Protection Regulation is the world\'s strongest privacy law. It applies to any organization that processes EU residents\' data, regardless of where the organization is located.',
                 details: ['Right to access: individuals can request their data', 'Right to erasure ("right to be forgotten")', 'Data portability: transfer data between services', 'Breach notification within 72 hours', 'Fines up to 4% of global annual revenue or 20M EUR', 'Requires Data Protection Officer (DPO) for many organizations', 'Lawful basis required for all processing (consent, contract, legal, vital, public, legitimate interest)'],
                 realWorld: 'A US-based SaaS company with EU customers must comply with GDPR. When a German user exercises their Right to Erasure, the company must delete all their personal data within 30 days and confirm deletion to the user.'
             },
             {
                 title: 'CCPA/CPRA (California)',
-                icon: '\ud83c\uddfa\ud83c\uddf8',
+                icon: '/assets/images/icons/icon-globe.webp',
                 content: 'The California Consumer Privacy Act (and its amendment CPRA) gives California residents significant control over their personal data.',
                 details: ['Right to know what data is collected', 'Right to delete personal information', 'Right to opt-out of data sales', 'Right to non-discrimination for exercising privacy rights', 'Applies to businesses meeting revenue/data thresholds', '"Do Not Sell My Personal Information" link required'],
                 realWorld: 'An e-commerce company with California customers must display a "Do Not Sell My Personal Information" link on their website and honor opt-out requests within 45 days.'
             },
             {
                 title: 'Privacy by Design',
-                icon: '\ud83c\udfd7\ufe0f',
+                icon: '/assets/images/icons/icon-construction.webp',
                 content: 'A framework that embeds privacy into the design of systems and processes from the beginning, not as an afterthought.',
                 details: ['Proactive, not reactive: anticipate privacy risks', 'Privacy as the default setting', 'Privacy embedded into design architecture', 'Full functionality: privacy and functionality, not privacy OR functionality', 'End-to-end security: full lifecycle protection', 'Visibility and transparency', 'Respect for user privacy'],
                 realWorld: 'A new app collects only the minimum data needed (data minimization), encrypts it by default, allows users to delete their account and all data, and provides a clear, readable privacy policy before any data is collected.'

@@ -26,7 +26,7 @@ class CosmicEventManager {
             cooldown: 60000,        // 1 minute between same event
             priority: 2,
             allowOverlap: ['NEBULA_DRIFT'],
-            icon: '☀️'
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'
         },
         METEOR_SHOWER: {
             name: 'Meteor Shower',
@@ -36,7 +36,7 @@ class CosmicEventManager {
             cooldown: 90000,
             priority: 1,
             allowOverlap: ['SOLAR_FLARE', 'ECLIPSE'],
-            icon: '☄️'
+            icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         VOID_STORM: {
             name: 'Void Storm',
@@ -46,7 +46,7 @@ class CosmicEventManager {
             cooldown: 120000,       // 2 minutes
             priority: 3,
             allowOverlap: [],       // No overlap - too chaotic
-            icon: '🌀'
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         ECLIPSE: {
             name: 'Eclipse',
@@ -56,7 +56,7 @@ class CosmicEventManager {
             cooldown: 180000,       // 3 minutes
             priority: 2,
             allowOverlap: ['METEOR_SHOWER'],
-            icon: '🌑'
+            icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         NEBULA_DRIFT: {
             name: 'Nebula Drift',
@@ -66,7 +66,7 @@ class CosmicEventManager {
             cooldown: 150000,
             priority: 1,
             allowOverlap: ['SOLAR_FLARE', 'METEOR_SHOWER', 'ECLIPSE'],
-            icon: '🌌'
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
         },
         COMET: {
             name: 'Comet Passage',
@@ -76,7 +76,7 @@ class CosmicEventManager {
             cooldown: 300000,       // 5 minutes
             priority: 4,            // Highest priority
             allowOverlap: ['NEBULA_DRIFT'],
-            icon: '💫'
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'
         }
     };
 
@@ -335,7 +335,7 @@ class CosmicEventManager {
             this.onEventStart(eventType, eventData);
         }
 
-        console.log(`🌌 Cosmic Event: ${eventConfig.name} started (${(duration/1000).toFixed(1)}s)`);
+        console.log(`<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cosmic Event: ${eventConfig.name} started (${(duration/1000).toFixed(1)}s)`);
     }
 
     /**
@@ -357,7 +357,7 @@ class CosmicEventManager {
             this.onEventEnd(eventType, eventData);
         }
 
-        console.log(`🌌 Cosmic Event: ${eventData.config.name} ended`);
+        console.log(`<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cosmic Event: ${eventData.config.name} ended`);
     }
 
     /**

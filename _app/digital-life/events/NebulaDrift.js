@@ -368,7 +368,7 @@ class NebulaDriftEvent {
         // Clear overlay
         manager.clearOverlay();
 
-        console.log(`🌌 Nebula Drift ended: ${eventData.data.firefliesAffected.size} fireflies affected`);
+        console.log(`<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Nebula Drift ended: ${eventData.data.firefliesAffected.size} fireflies affected`);
     }
 
     /**

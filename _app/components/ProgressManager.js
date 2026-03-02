@@ -227,17 +227,17 @@ class ProgressManager {
 
     // House definitions with colors and icons
     static HOUSES = {
-        web: { name: 'House of the Web', icon: '🕸️', color: '#60a5fa', domain: 'Networking & Connections' },
-        shield: { name: 'House of the Shield', icon: '🛡️', color: '#f87171', domain: 'Security & Defense' },
-        forge: { name: 'House of the Forge', icon: '⚒️', color: '#fbbf24', domain: 'Hardware & Systems' },
-        script: { name: 'House of the Script', icon: '📜', color: '#a78bfa', domain: 'Automation & Efficiency' },
-        cloud: { name: 'House of the Cloud', icon: '☁️', color: '#38bdf8', domain: 'Infrastructure & Scale' },
-        code: { name: 'House of the Code', icon: '💻', color: '#4ade80', domain: 'Development & Engineering' },
-        key: { name: 'House of the Key', icon: '🔑', color: '#f472b6', domain: 'Cryptography & Secrets' },
-        eye: { name: 'House of the Eye', icon: '👁️', color: '#c084fc', domain: 'Monitoring & Analysis' },
-        'dark-arts': { name: 'House of the Dark Arts', icon: '🌑', color: '#6b21a8', domain: 'Offensive Security & Research' },
-        'matrix': { name: 'House of the Matrix', icon: '💊', color: '#00ff41', domain: 'Mechanics & Operations' },
-        'divergent': { name: 'The Factionless', icon: '⚡', color: '#ff00ff', domain: 'All Domains' }
+        web: { name: 'House of the Web', icon: '<img src="/assets/images/icons/icon-spiderweb.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#60a5fa', domain: 'Networking & Connections' },
+        shield: { name: 'House of the Shield', icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#f87171', domain: 'Security & Defense' },
+        forge: { name: 'House of the Forge', icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#fbbf24', domain: 'Hardware & Systems' },
+        script: { name: 'House of the Script', icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#a78bfa', domain: 'Automation & Efficiency' },
+        cloud: { name: 'House of the Cloud', icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#38bdf8', domain: 'Infrastructure & Scale' },
+        code: { name: 'House of the Code', icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#4ade80', domain: 'Development & Engineering' },
+        key: { name: 'House of the Key', icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#f472b6', domain: 'Cryptography & Secrets' },
+        eye: { name: 'House of the Eye', icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#c084fc', domain: 'Monitoring & Analysis' },
+        'dark-arts': { name: 'House of the Dark Arts', icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#6b21a8', domain: 'Offensive Security & Research' },
+        'matrix': { name: 'House of the Matrix', icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#00ff41', domain: 'Mechanics & Operations' },
+        'divergent': { name: 'The Factionless', icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#ff00ff', domain: 'All Domains' }
     };
 
     /**
@@ -677,7 +677,7 @@ class ProgressManager {
 
         // Member since
         if (progress.createdAt) {
-            milestones.push({ icon: '🚀', label: 'Joined Hexworth', date: progress.createdAt, type: 'start' });
+            milestones.push({ icon: '<img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Joined Hexworth', date: progress.createdAt, type: 'start' });
         }
 
         // House milestones
@@ -689,37 +689,37 @@ class ProgressManager {
                 milestones.push({ icon: def.icon, label: `First ${def.name} module`, date: house.lastAccessed, type: 'house' });
             }
             if (count >= 10) {
-                milestones.push({ icon: '🏅', label: `10 ${def.name} modules`, date: house.lastAccessed, type: 'milestone' });
+                milestones.push({ icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: `10 ${def.name} modules`, date: house.lastAccessed, type: 'milestone' });
             }
         });
 
         // Level milestones — base tiers + prestige
         const level = progress.level || 1;
-        if (level >= 10)  milestones.push({ icon: '⭐', label: 'Initiate Complete (Lv 10)', type: 'level' });
-        if (level >= 20)  milestones.push({ icon: '⭐', label: 'Apprentice (Lv 20)', type: 'level' });
-        if (level >= 30)  milestones.push({ icon: '🌟', label: 'Journeyman (Lv 30)', type: 'level' });
-        if (level >= 40)  milestones.push({ icon: '🌟', label: 'Specialist (Lv 40)', type: 'level' });
-        if (level >= 50)  milestones.push({ icon: '💫', label: 'Expert (Lv 50)', type: 'level' });
-        if (level >= 60)  milestones.push({ icon: '💫', label: 'Veteran (Lv 60)', type: 'level' });
-        if (level >= 70)  milestones.push({ icon: '🏅', label: 'Master (Lv 70)', type: 'level' });
-        if (level >= 80)  milestones.push({ icon: '🏅', label: 'Grandmaster (Lv 80)', type: 'level' });
-        if (level >= 90)  milestones.push({ icon: '👑', label: 'Legend (Lv 90)', type: 'level' });
-        if (level >= 100) milestones.push({ icon: '👑', label: 'HEXWORTH PRIME (Lv 100)', type: 'level' });
-        if (level >= 150) milestones.push({ icon: '🔮', label: 'Ascendant (Lv 150)', type: 'level' });
-        if (level >= 200) milestones.push({ icon: '🔮', label: 'Transcendent (Lv 200)', type: 'level' });
-        if (level >= 300) milestones.push({ icon: '🔥', label: 'Mythic (Lv 300)', type: 'level' });
-        if (level >= 500) milestones.push({ icon: '🔥', label: 'Eternal (Lv 500)', type: 'level' });
+        if (level >= 10)  milestones.push({ icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Initiate Complete (Lv 10)', type: 'level' });
+        if (level >= 20)  milestones.push({ icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Apprentice (Lv 20)', type: 'level' });
+        if (level >= 30)  milestones.push({ icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Journeyman (Lv 30)', type: 'level' });
+        if (level >= 40)  milestones.push({ icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Specialist (Lv 40)', type: 'level' });
+        if (level >= 50)  milestones.push({ icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Expert (Lv 50)', type: 'level' });
+        if (level >= 60)  milestones.push({ icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Veteran (Lv 60)', type: 'level' });
+        if (level >= 70)  milestones.push({ icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Master (Lv 70)', type: 'level' });
+        if (level >= 80)  milestones.push({ icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Grandmaster (Lv 80)', type: 'level' });
+        if (level >= 90)  milestones.push({ icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Legend (Lv 90)', type: 'level' });
+        if (level >= 100) milestones.push({ icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'HEXWORTH PRIME (Lv 100)', type: 'level' });
+        if (level >= 150) milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Ascendant (Lv 150)', type: 'level' });
+        if (level >= 200) milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Transcendent (Lv 200)', type: 'level' });
+        if (level >= 300) milestones.push({ icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Mythic (Lv 300)', type: 'level' });
+        if (level >= 500) milestones.push({ icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Eternal (Lv 500)', type: 'level' });
 
         // XP milestones
         const xp = progress.xp || 0;
-        if (xp >= 1000)    milestones.push({ icon: '💎', label: '1,000 XP earned', type: 'xp' });
-        if (xp >= 10000)   milestones.push({ icon: '💎', label: '10,000 XP earned', type: 'xp' });
-        if (xp >= 50000)   milestones.push({ icon: '💎', label: '50,000 XP earned', type: 'xp' });
-        if (xp >= 100000)  milestones.push({ icon: '💎', label: '100,000 XP earned', type: 'xp' });
-        if (xp >= 250000)  milestones.push({ icon: '💎', label: '250,000 XP earned', type: 'xp' });
-        if (xp >= 500000)  milestones.push({ icon: '💎', label: '500,000 XP earned', type: 'xp' });
-        if (xp >= 1000000) milestones.push({ icon: '💎', label: '1,000,000 XP earned', type: 'xp' });
-        if (xp >= 5000000) milestones.push({ icon: '💎', label: '5,000,000 XP earned', type: 'xp' });
+        if (xp >= 1000)    milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: '1,000 XP earned', type: 'xp' });
+        if (xp >= 10000)   milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: '10,000 XP earned', type: 'xp' });
+        if (xp >= 50000)   milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: '50,000 XP earned', type: 'xp' });
+        if (xp >= 100000)  milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: '100,000 XP earned', type: 'xp' });
+        if (xp >= 250000)  milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: '250,000 XP earned', type: 'xp' });
+        if (xp >= 500000)  milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: '500,000 XP earned', type: 'xp' });
+        if (xp >= 1000000) milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: '1,000,000 XP earned', type: 'xp' });
+        if (xp >= 5000000) milestones.push({ icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: '5,000,000 XP earned', type: 'xp' });
 
         return milestones;
     }
@@ -1013,7 +1013,7 @@ class ProgressManager {
             progress.level = this.calculateLevel(progress.xp);
             this.saveProgress(progress);
 
-            console.log(`🏆 House ${houseId} mastery complete! +${this.HOUSE_MASTERY_XP.toLocaleString()} XP`);
+            console.log(`<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> House ${houseId} mastery complete! +${this.HOUSE_MASTERY_XP.toLocaleString()} XP`);
 
             // Unlock house mastery achievement
             if (typeof AchievementManager !== 'undefined') {
@@ -1033,7 +1033,7 @@ class ProgressManager {
 
         let content = `
             <div class="toast-header">
-                <span class="toast-icon">✨</span>
+                <span class="toast-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                 <span class="toast-title">Progress Updated!</span>
             </div>
             <div class="toast-body">
@@ -1041,11 +1041,11 @@ class ProgressManager {
         `;
 
         if (result.levelUp) {
-            content += `<div class="level-up">🎉 Level Up! Now Level ${result.newLevel}</div>`;
+            content += `<div class="level-up"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Level Up! Now Level ${result.newLevel}</div>`;
         }
 
         if (result.unlocks.length > 0) {
-            content += `<div class="unlocks">🔓 New content unlocked!</div>`;
+            content += `<div class="unlocks"><img src="/assets/images/icons/icon-unlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> New content unlocked!</div>`;
         }
 
         if (result.nextModule) {

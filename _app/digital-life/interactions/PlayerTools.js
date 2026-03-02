@@ -15,7 +15,7 @@ class PlayerTools {
     static TOOLS = {
         BLESSING: {
             name: 'Energy Blessing',
-            icon: '✨',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Click to heal and energize nearby fireflies',
             color: '#fbbf24',
             radius: 80,
@@ -27,7 +27,7 @@ class PlayerTools {
         },
         GRAVITY: {
             name: 'Gravity Brush',
-            icon: '🌀',
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Click and drag to create temporary gravity',
             color: '#8b5cf6',
             radius: 100,
@@ -39,7 +39,7 @@ class PlayerTools {
         },
         SHIELD: {
             name: 'Shield Bubble',
-            icon: '🛡️',
+            icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Create a protective zone that blocks predators',
             color: '#38bdf8',
             radius: 120,
@@ -50,7 +50,7 @@ class PlayerTools {
         },
         BEACON: {
             name: 'Spawn Beacon',
-            icon: '📡',
+            icon: '<img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Attract fireflies to this location',
             color: '#22c55e',
             radius: 150,
@@ -62,7 +62,7 @@ class PlayerTools {
         },
         CATALYST: {
             name: 'Evolution Catalyst',
-            icon: '⚗️',
+            icon: '<img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             description: 'Accelerate evolution for fireflies in range',
             color: '#ec4899',
             radius: 100,
@@ -155,7 +155,7 @@ class PlayerTools {
 
         this.injectStyles();
 
-        console.log('🛠️ Player tools initialized');
+        console.log('<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Player tools initialized');
         return this;
     }
 
@@ -218,7 +218,7 @@ class PlayerTools {
         this.updateToolbarSelection();
         this.updateCursor();
 
-        console.log(`🛠️ Selected: ${PlayerTools.TOOLS[toolKey].name}`);
+        console.log(`<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Selected: ${PlayerTools.TOOLS[toolKey].name}`);
     }
 
     /**
@@ -530,7 +530,7 @@ class PlayerTools {
             animation: shieldPulse 2s ease-in-out infinite;
             z-index: 18;
         `;
-        shield.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;">🛡️</span>`;
+        shield.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>`;
         this.container.appendChild(shield.element);
 
         this.activeEffects.push(shield);
@@ -573,7 +573,7 @@ class PlayerTools {
             animation: beaconPulse 1.5s ease-in-out infinite;
             z-index: 15;
         `;
-        beacon.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;">📡</span>`;
+        beacon.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>`;
         this.container.appendChild(beacon.element);
 
         this.activeEffects.push(beacon);
@@ -617,7 +617,7 @@ class PlayerTools {
             animation: catalystGlow 0.5s ease-in-out infinite alternate;
             z-index: 16;
         `;
-        catalyst.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;">⚗️</span>`;
+        catalyst.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;"><img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>`;
         this.container.appendChild(catalyst.element);
 
         this.activeEffects.push(catalyst);

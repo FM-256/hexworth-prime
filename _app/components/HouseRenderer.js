@@ -18,7 +18,7 @@
  * Usage:
  *   HouseRenderer.init({
  *       houseId: 'cloud',
- *       icon: '☁️',
+ *       icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
  *       title: 'Cloud',
  *       fullTitle: 'House of the Cloud',
  *       domain: 'Infrastructure & Scale',
@@ -1164,7 +1164,7 @@ const HouseRenderer = (function() {
         const topSearch = document.createElement('div');
         topSearch.className = 'hr-top-search';
         topSearch.innerHTML = `
-            <span class="hr-top-search-icon" aria-hidden="true">&#128269;</span>
+            <span class="hr-top-search-icon" aria-hidden="true"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
             <input type="text" class="hr-top-search-input" id="hrTopSearchInput"
                    placeholder="${searchPlaceholder}"
                    aria-label="Search ${config.fullTitle} modules"
@@ -1175,11 +1175,11 @@ const HouseRenderer = (function() {
 
         // Tab bar
         const tabs = [
-            { id: 'paths',      icon: '🎯', label: 'Learning Paths' },
-            { id: 'content',    icon: '⚡', label: 'House Content' },
-            { id: 'explore',    icon: '🗺️', label: 'Explore All' },
-            { id: 'profile',    icon: '👤', label: 'Profile' },
-            { id: 'instructor', icon: '📋', label: 'Instructor' }
+            { id: 'paths',      icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Learning Paths' },
+            { id: 'content',    icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'House Content' },
+            { id: 'explore',    icon: '<img src="/assets/images/icons/icon-map.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Explore All' },
+            { id: 'profile',    icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Profile' },
+            { id: 'instructor', icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Instructor' }
         ];
 
         const tabBar = document.createElement('nav');
@@ -1373,7 +1373,7 @@ const HouseRenderer = (function() {
     function renderPathsPanel() {
         const panel = document.getElementById('hr-panel-paths');
         if (!config.paths || config.paths.length === 0) {
-            panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon">🎯</div><div class="hr-profile-empty-text">No certification paths configured yet.</div></div>';
+            panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div><div class="hr-profile-empty-text">No certification paths configured yet.</div></div>';
             return;
         }
 
@@ -1444,7 +1444,7 @@ const HouseRenderer = (function() {
                 const iconSrc = catId
                     ? `/assets/images/categories/${catId}.webp`
                     : (p.icon && p.icon.includes('src=') ? p.icon.match(/src="([^"]+)"/)?.[1] || '' : '');
-                const fallback = (p.icon && !p.icon.includes('<')) ? p.icon : '📚';
+                const fallback = (p.icon && !p.icon.includes('<')) ? p.icon : '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
                 const iconHTML = iconSrc
                     ? `<img src="${iconSrc}" alt="${p.name}" onerror="this.outerHTML='${fallback}'">`
                     : fallback;
@@ -1622,14 +1622,14 @@ const HouseRenderer = (function() {
 
     function getComponentLabel(component) {
         const labels = {
-            presentation: '📊 Slides',
-            applet: '🎮 Interactive',
-            lab: '🧪 Lab',
-            quiz: '📝 Quiz',
-            game: '🕹️ Game',
-            review: '🔄 Review',
-            reference: '📖 Reference',
-            tool: '🔧 Tool'
+            presentation: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Slides',
+            applet: '<img src="/assets/images/icons/icon-joystick.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Interactive',
+            lab: '<img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Lab',
+            quiz: '<img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Quiz',
+            game: '<img src="/assets/images/icons/icon-joystick.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Game',
+            review: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Review',
+            reference: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Reference',
+            tool: '<img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Tool'
         };
         return labels[component] || component;
     }
@@ -1653,22 +1653,22 @@ const HouseRenderer = (function() {
                 <h3 class="hr-features-title">Special Features</h3>
                 <div class="hr-feature-grid" role="list">
                     <a href="/arena/index.html" class="hr-feature-card feat-arena" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/ctf.webp" alt="CTF challenges" onerror="this.outerHTML='&#9878;'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/ctf.webp" alt="CTF challenges" onerror="this.outerHTML='<img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'"></div>
                         <div class="hr-feature-name" style="color:#f87171;">The Arena</div>
                         <div class="hr-feature-desc">CTF challenges, capture-the-flag competitions, and ranked offensive security drills</div>
                     </a>
                     <a href="/hive/index.html" class="hr-feature-card feat-hive" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/games.webp" alt="Arcade games" onerror="this.outerHTML='&#9888;'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/games.webp" alt="Arcade games" onerror="this.outerHTML='<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'"></div>
                         <div class="hr-feature-name" style="color:#fbbf24;">The Hive</div>
                         <div class="hr-feature-desc">Arcade games, combat simulations, and gamified security training</div>
                     </a>
                     <a href="/arctic/index.html" class="hr-feature-card feat-arctic" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/linux.webp" alt="Linux terminal" onerror="this.outerHTML='🐧'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/linux.webp" alt="Linux terminal" onerror="this.outerHTML='<img src="/assets/images/icons/icon-penguin.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'"></div>
                         <div class="hr-feature-name" style="color:#38bdf8;">The Arctic</div>
                         <div class="hr-feature-desc">Linux terminal training, command-line mastery, and server administration</div>
                     </a>
                     <a href="https://colosseum-arena.web.app" target="_blank" rel="noopener" class="hr-feature-card feat-colosseum" role="listitem" aria-label="The Colosseum - opens in new tab">
-                        <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="The Colosseum" onerror="this.outerHTML='🏛️'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="The Colosseum" onerror="this.outerHTML='<img src="/assets/images/icons/icon-institution.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'"></div>
                         <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#555;font-weight:400;" aria-hidden="true">↗</span></div>
                         <div class="hr-feature-desc">Incident response card game — live multiplayer cybersecurity battle simulator</div>
                     </a>
@@ -1737,7 +1737,7 @@ const HouseRenderer = (function() {
     function renderEmptyProfile() {
         return `
             <div class="hr-profile-empty">
-                <div class="hr-profile-empty-icon">👤</div>
+                <div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                 <div class="hr-profile-empty-text">Start learning to track your progress</div>
                 <div class="hr-profile-empty-hint">Complete modules, quizzes, and labs to see your stats here</div>
             </div>
@@ -1765,11 +1765,11 @@ const HouseRenderer = (function() {
             if (typeof InstructorDashboard !== 'undefined') {
                 InstructorDashboard.init(panel);
             } else {
-                panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon">📋</div><div class="hr-profile-empty-text">Instructor Dashboard unavailable</div></div>';
+                panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div><div class="hr-profile-empty-text">Instructor Dashboard unavailable</div></div>';
             }
         };
         script.onerror = function() {
-            panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon">📋</div><div class="hr-profile-empty-text">Instructor Dashboard unavailable</div></div>';
+            panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div><div class="hr-profile-empty-text">Instructor Dashboard unavailable</div></div>';
         };
         document.body.appendChild(script);
     }

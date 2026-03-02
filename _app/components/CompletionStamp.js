@@ -257,7 +257,7 @@ const CompletionStamp = (function() {
         card.className = 'cs-dashboard-card';
 
         var header = '<div class="cs-header">' +
-            '<span class="cs-header-icon">' + (opts.icon || '📊') + '</span>' +
+            '<span class="cs-header-icon">' + (opts.icon || '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">') + '</span>' +
             '<span class="cs-header-title">' + (opts.label || houseId) + '</span>' +
             '<span class="cs-header-count">' + p.completed + '/' + p.total + '</span>' +
             '</div>';

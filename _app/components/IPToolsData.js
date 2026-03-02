@@ -12,7 +12,7 @@ const IPToolsData = {
     'binary-ip': {
         id: 'binary-ip',
         title: 'Binary IP Addressing',
-        icon: '🔢',
+        icon: '<img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Convert between binary and decimal representations of IP addresses. Understand how each octet maps to 8 bits.',
         color: '#3b82f6',
         learn: {
@@ -53,7 +53,7 @@ const IPToolsData = {
     'cidr-notation': {
         id: 'cidr-notation',
         title: 'CIDR Notation',
-        icon: '📐',
+        icon: '<img src="/assets/images/icons/icon-ruler.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Classless Inter-Domain Routing uses slash notation to define network boundaries. Master prefix lengths and their meaning.',
         color: '#3b82f6',
         learn: {
@@ -93,7 +93,7 @@ const IPToolsData = {
     'ipv4-classes': {
         id: 'ipv4-classes',
         title: 'IPv4 Address Classes',
-        icon: '🏷️',
+        icon: '<img src="/assets/images/icons/icon-tag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Understand the five IPv4 address classes (A-E), their ranges, default masks, and purposes in classful networking.',
         color: '#3b82f6',
         learn: {
@@ -135,7 +135,7 @@ const IPToolsData = {
     'ipv6-addressing': {
         id: 'ipv6-addressing',
         title: 'IPv6 Addressing',
-        icon: '🌐',
+        icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Learn IPv6 format, abbreviation rules, address types (unicast, multicast, anycast), and transition mechanisms.',
         color: '#3b82f6',
         learn: {
@@ -177,7 +177,7 @@ const IPToolsData = {
     'nat-pat': {
         id: 'nat-pat',
         title: 'NAT & PAT',
-        icon: '🔄',
+        icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Network Address Translation and Port Address Translation — how private networks communicate with the public internet.',
         color: '#3b82f6',
         learn: {
@@ -218,7 +218,7 @@ const IPToolsData = {
     'network-classes': {
         id: 'network-classes',
         title: 'Network Classes & Classful Addressing',
-        icon: '📊',
+        icon: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Deep dive into classful addressing: how network and host portions are divided, and why we moved to CIDR.',
         color: '#3b82f6',
         learn: {
@@ -259,7 +259,7 @@ const IPToolsData = {
     'private-public-ip': {
         id: 'private-public-ip',
         title: 'Private vs Public IP Addresses',
-        icon: '🔐',
+        icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Know which IP ranges are private (RFC 1918), which are public, and why this distinction matters for network design.',
         color: '#3b82f6',
         learn: {
@@ -301,7 +301,7 @@ const IPToolsData = {
     'subnet-calculator': {
         id: 'subnet-calculator',
         title: 'Subnet Calculator',
-        icon: '🧮',
+        icon: '<img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'A full-featured subnet calculator. Input any IP address and mask to get network address, broadcast, usable range, and more.',
         color: '#3b82f6',
         learn: {
@@ -342,7 +342,7 @@ const IPToolsData = {
     'subnet-masks': {
         id: 'subnet-masks',
         title: 'Subnet Masks',
-        icon: '🎭',
+        icon: '<img src="/assets/images/icons/icon-mask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'What subnet masks are, how they work, default masks by class, and custom subnet masks for network design.',
         color: '#3b82f6',
         learn: {
@@ -383,7 +383,7 @@ const IPToolsData = {
     'subnetting-practice': {
         id: 'subnetting-practice',
         title: 'Subnetting Practice',
-        icon: '🏋️',
+        icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Interactive drills to build speed and confidence in subnetting. Random problems with instant feedback.',
         color: '#3b82f6',
         learn: {
@@ -424,7 +424,7 @@ const IPToolsData = {
     'supernetting': {
         id: 'supernetting',
         title: 'Supernetting & Route Aggregation',
-        icon: '🔗',
+        icon: '<img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Combine multiple smaller networks into a single summary route. Reduce routing table size and improve efficiency.',
         color: '#3b82f6',
         learn: {
@@ -465,7 +465,7 @@ const IPToolsData = {
     'vlsm': {
         id: 'vlsm',
         title: 'VLSM (Variable Length Subnet Masking)',
-        icon: '📏',
+        icon: '<img src="/assets/images/icons/icon-ruler.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Use different subnet masks within the same network to allocate addresses efficiently based on actual need.',
         color: '#3b82f6',
         learn: {
@@ -506,7 +506,7 @@ const IPToolsData = {
     'wildcard-masks': {
         id: 'wildcard-masks',
         title: 'Wildcard Masks',
-        icon: '🃏',
+        icon: '<img src="/assets/images/icons/icon-wildcard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Inverse of subnet masks, used in ACLs and routing protocols (OSPF, EIGRP). Master the 255-minus calculation.',
         color: '#3b82f6',
         learn: {
@@ -547,7 +547,7 @@ const IPToolsData = {
     'mac-addressing': {
         id: 'mac-addressing',
         title: 'MAC Addressing & Layer 2',
-        icon: '🔌',
+        icon: '<img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Understand MAC addresses — the 48-bit hardware identifiers that power Layer 2 communication on every LAN.',
         color: '#3b82f6',
         learn: {
@@ -592,7 +592,7 @@ const IPToolsData = {
     'ipv6-challenge': {
         id: 'ipv6-challenge',
         title: 'IPv6 Practice Challenge',
-        icon: '🏆',
+        icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Put your IPv6 knowledge to the test. Expand, shorten, classify, and subnet IPv6 addresses under pressure.',
         color: '#3b82f6',
         learn: {

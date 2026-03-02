@@ -299,7 +299,7 @@ const A6Config = {
                 html: `
                     <div style="background:linear-gradient(135deg,#1a0a2e 0%,#2d1b4e 100%); margin:-20px -20px 20px; padding:20px 24px; border-bottom:2px solid #9b59b6;">
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:1.8rem;">&#128274;</span>
+                            <span style="font-size:1.8rem;"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                             <div>
                                 <h1 style="color:#d7b4f5; font-size:1.3rem; font-family:Georgia,serif; margin:0 0 2px;">The Cipher Vault</h1>
                                 <div style="color:#9b59b6; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;">Silent Cipher Order — Encrypted Communications Board v1.4.2</div>
@@ -387,7 +387,7 @@ const A6Config = {
                 html: `
                     <div style="background:linear-gradient(135deg,#1a0a2e 0%,#2d1b4e 100%); margin:-20px -20px 20px; padding:20px 24px; border-bottom:2px solid #9b59b6;">
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:1.8rem;">&#128272;</span>
+                            <span style="font-size:1.8rem;"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                             <div>
                                 <h1 style="color:#d7b4f5; font-size:1.3rem; font-family:Georgia,serif; margin:0 0 2px;">Admin Panel</h1>
                                 <div style="color:#9b59b6; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;">Silent Cipher Order — Restricted Access</div>
@@ -405,7 +405,7 @@ const A6Config = {
                     <div style="max-width:480px; margin:0 auto;">
                         <div style="background:#1a0a2e; border:1px solid #4a2d7a; border-radius:8px; padding:24px;">
                             <div style="text-align:center; margin-bottom:20px;">
-                                <div style="font-size:2rem; margin-bottom:8px;">&#128275;</div>
+                                <div style="font-size:2rem; margin-bottom:8px;"><img src="/assets/images/icons/icon-unlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                                 <div style="color:#d7b4f5; font-weight:700; margin-bottom:4px;">API Key Required</div>
                                 <div style="color:#777; font-size:0.75rem;">This panel requires a valid Cipher Order API key.</div>
                             </div>
@@ -429,7 +429,7 @@ const A6Config = {
                 html: `
                     <div style="background:linear-gradient(135deg,#1a0a2e 0%,#2d1b4e 100%); margin:-20px -20px 20px; padding:20px 24px; border-bottom:2px solid #9b59b6;">
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:1.8rem;">&#128220;</span>
+                            <span style="font-size:1.8rem;"><img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                             <div>
                                 <h1 style="color:#d7b4f5; font-size:1.3rem; font-family:Georgia,serif; margin:0 0 2px;">The Vault</h1>
                                 <div style="color:#9b59b6; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;">Silent Cipher Order — Sacred Archives</div>
@@ -447,7 +447,7 @@ const A6Config = {
                     <div style="max-width:480px; margin:0 auto;">
                         <div style="background:#1a0a2e; border:1px solid #4a2d7a; border-radius:8px; padding:24px;">
                             <div style="text-align:center; margin-bottom:20px;">
-                                <div style="font-size:2rem; margin-bottom:8px;">&#9888;</div>
+                                <div style="font-size:2rem; margin-bottom:8px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                                 <div style="color:#d7b4f5; font-weight:700; margin-bottom:4px;">Vault Master Key Required</div>
                                 <div style="color:#777; font-size:0.75rem;">The vault master key is stored at <code style="color:#9b59b6; background:#120820; padding:2px 6px; border-radius:3px;">/vault/master.key</code> on the server.</div>
                             </div>
@@ -599,7 +599,7 @@ const A6Config = {
 
                 <!-- Vault Key info -->
                 <div style="background:#1a0a2e; border:1px solid #4a2d7a; border-radius:6px; padding:12px; margin-bottom:12px;">
-                    <div style="color:#f39c12; font-size:0.72rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px;">&#9888; Vault Access</div>
+                    <div style="color:#f39c12; font-size:0.72rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Vault Access</div>
                     <div style="color:#c9a0e0; font-size:0.8rem; margin-bottom:6px;">The master vault key is stored at <code style="color:#9b59b6; background:#120820; padding:2px 6px; border-radius:3px;">/vault/master.key</code> on the server filesystem.</div>
                     <div style="color:#888; font-size:0.72rem;">To access the vault: navigate to <strong style="color:#9b59b6;">/cipher/vault/</strong> and enter the master key. Retrieve the master key from the server path above or from the Grand Cipher directly.</div>
                 </div>
@@ -629,7 +629,7 @@ const A6Config = {
 
         if (cleaned === A6Config._crypto.vaultMasterKey) {
             return `<div style="background:#0d1a0d; border:1px solid rgba(46,204,113,0.3); border-radius:8px; padding:16px; font-size:0.8rem;">
-                <div style="color:#2ecc71; font-weight:700; margin-bottom:14px; font-size:0.85rem;">&#128220; VAULT UNSEALED — Classified Archives Revealed</div>
+                <div style="color:#2ecc71; font-weight:700; margin-bottom:14px; font-size:0.85rem;"><img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> VAULT UNSEALED — Classified Archives Revealed</div>
 
                 <div style="background:#1a0a2e; border:1px solid #4a2d7a; border-radius:6px; padding:14px; margin-bottom:12px;">
                     <div style="color:#9b59b6; font-size:0.72rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px;">Sacred Archives — Order Communications</div>

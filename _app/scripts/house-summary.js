@@ -12,8 +12,8 @@ const path = require('path');
 const houses = ['web', 'shield', 'cloud', 'forge', 'script', 'code', 'key', 'eye'];
 const categories = ['presentations', 'applets', 'labs', 'quizzes', 'tools', 'simulators', 'games'];
 const icons = {
-    web: '🕸️', shield: '🛡️', cloud: '☁️', forge: '⚒️',
-    script: '📜', code: '💻', key: '🔑', eye: '👁️'
+    web: '<img src="/assets/images/icons/icon-spiderweb.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', shield: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', cloud: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', forge: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+    script: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', code: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', key: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', eye: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
 };
 
 const countHtmlFiles = (dir) => {
@@ -44,10 +44,10 @@ const listHtmlFiles = (dir, depth = 0) => {
         items.forEach(item => {
             const prefix = '  '.repeat(depth);
             if (item.isDirectory()) {
-                console.log(`${prefix}📁 ${item.name}/`);
+                console.log(`${prefix}<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${item.name}/`);
                 listHtmlFiles(path.join(dir, item.name), depth + 1);
             } else if (item.name.endsWith('.html')) {
-                console.log(`${prefix}📄 ${item.name}`);
+                console.log(`${prefix}<img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${item.name}`);
             }
         });
     } catch (e) {}

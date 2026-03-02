@@ -77,10 +77,10 @@ const AccessGuard = (function() {
         const current = hasGodMode();
         if (current) {
             sessionStorage.removeItem(config.storageKeys.godMode);
-            console.log('%c👁️ God Mode Deactivated', 'color: #666; font-size: 14px;');
+            console.log('%c<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> God Mode Deactivated', 'color: #666; font-size: 14px;');
         } else {
             sessionStorage.setItem(config.storageKeys.godMode, 'true');
-            console.log('%c👁️ GOD MODE ACTIVATED', 'color: #ffd700; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #ffd700;');
+            console.log('%c<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> GOD MODE ACTIVATED', 'color: #ffd700; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #ffd700;');
         }
         return !current;
     }
@@ -267,7 +267,7 @@ const AccessGuard = (function() {
             sessionStorage.setItem(`master_gate${i}_complete`, 'true');
         }
 
-        console.log('%c🔑 MASTER KEY ACTIVATED - 5 MINUTES',
+        console.log('%c<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> MASTER KEY ACTIVATED - 5 MINUTES',
             'color: #00ff00; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #00ff00;');
 
         // Create visual indicator
@@ -290,7 +290,7 @@ const AccessGuard = (function() {
         const indicator = document.getElementById('master-key-indicator');
         if (indicator) indicator.remove();
 
-        console.log('%c🔑 Master Key Expired', 'color: #666; font-size: 14px;');
+        console.log('%c<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Master Key Expired', 'color: #666; font-size: 14px;');
     }
 
     // Show floating countdown indicator
@@ -340,7 +340,7 @@ const AccessGuard = (function() {
                     font-size: 14px;
                 }
             </style>
-            <span class="key-icon">🔑</span>
+            <span class="key-icon"><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
             <span>MASTER KEY</span>
             <span class="key-time" id="master-key-countdown">5:00</span>
         `;
@@ -553,7 +553,7 @@ const AccessGuard = (function() {
                 } else if (isHouseHopper()) {
                     // House Hoppers (Divergent) can access ANY house content
                     authorized = true;
-                    console.log('%c⚡ House Hopper Access Granted', 'color: #ff00ff;');
+                    console.log('%c<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> House Hopper Access Granted', 'color: #ff00ff;');
                 } else {
                     const userHouse = getUserHouse();
                     // Allow access if user is in the specified house
@@ -641,7 +641,7 @@ const AccessGuard = (function() {
 
         const badge = document.createElement('div');
         badge.id = 'god-mode-indicator';
-        badge.innerHTML = '👁️ GOD MODE';
+        badge.innerHTML = '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> GOD MODE';
         badge.style.cssText = `
             position: fixed;
             top: 10px;

@@ -65,7 +65,7 @@ const CallsignModal = (function() {
         modal.innerHTML = `
             <div class="callsign-modal">
                 <div class="callsign-header">
-                    <div class="callsign-icon">📡</div>
+                    <div class="callsign-icon"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                     <h2>Choose Your Callsign</h2>
                     <p>This is your unique identifier across Hexworth Prime</p>
                 </div>
@@ -94,7 +94,7 @@ const CallsignModal = (function() {
                     <p>Or try one of these:</p>
                     <div class="suggestion-chips" id="suggestion-chips"></div>
                     <button class="refresh-suggestions" id="refresh-suggestions">
-                        🔄 Generate More
+                        <img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Generate More
                     </button>
                 </div>
 
@@ -105,7 +105,7 @@ const CallsignModal = (function() {
                 </div>
 
                 <div class="callsign-warning">
-                    <span>⚠️</span> Choose carefully - callsigns cannot be changed easily
+                    <span><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> Choose carefully - callsigns cannot be changed easily
                 </div>
             </div>
         `;
@@ -446,7 +446,7 @@ const CallsignModal = (function() {
         // Format validation
         if (!FirestoreManager.validateCallsign(callsign)) {
             wrapper.classList.add('invalid');
-            status.textContent = '❌';
+            status.textContent = '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             return;
         }
 
@@ -461,11 +461,11 @@ const CallsignModal = (function() {
 
         if (available) {
             wrapper.classList.add('valid');
-            status.textContent = '✅';
+            status.textContent = '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             submitBtn.disabled = false;
         } else {
             wrapper.classList.add('invalid');
-            status.textContent = '❌';
+            status.textContent = '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
         }
     }
 

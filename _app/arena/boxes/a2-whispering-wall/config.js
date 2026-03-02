@@ -338,7 +338,7 @@ const A2Config = {
                 title: 'Search — The Whispering Wall',
                 html: `
                     <div style="text-align:center; margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid #444;">
-                        <h1 style="color:#e67e22; font-size:1.4rem; font-family:Georgia,serif; margin-bottom:4px;">&#128269; Search the Wall</h1>
+                        <h1 style="color:#e67e22; font-size:1.4rem; font-family:Georgia,serif; margin-bottom:4px;"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Search the Wall</h1>
                         <div style="color:#888; font-size:0.8rem;">Find posts by keyword</div>
                     </div>
 
@@ -363,7 +363,7 @@ const A2Config = {
                 title: 'Admin — The Whispering Wall',
                 html: `
                     <div style="text-align:center; margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid #444;">
-                        <h1 style="color:#e67e22; font-size:1.4rem; font-family:Georgia,serif; margin-bottom:4px;">&#128274; Admin Panel</h1>
+                        <h1 style="color:#e67e22; font-size:1.4rem; font-family:Georgia,serif; margin-bottom:4px;"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Admin Panel</h1>
                         <div style="color:#888; font-size:0.8rem;">Obsidian Hand &mdash; Restricted Access</div>
                     </div>
 
@@ -392,7 +392,7 @@ const A2Config = {
                 title: 'Server Config — The Whispering Wall',
                 html: `
                     <div style="text-align:center; margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid #444;">
-                        <h1 style="color:#e67e22; font-size:1.4rem; font-family:Georgia,serif; margin-bottom:4px;">&#9881; Server Configuration</h1>
+                        <h1 style="color:#e67e22; font-size:1.4rem; font-family:Georgia,serif; margin-bottom:4px;"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Server Configuration</h1>
                         <div style="color:#888; font-size:0.8rem;">Obsidian Hand &mdash; Infrastructure Settings</div>
                     </div>
 
@@ -455,7 +455,7 @@ const A2Config = {
             A2Config._state.xssTriggered = true;
             postHtml += `
                 <div style="color:#e74c3c; background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:12px; margin-top:10px; font-size:0.8rem;">
-                    <div style="font-size:1rem; margin-bottom:6px;">&#9888; XSS Detected!</div>
+                    <div style="font-size:1rem; margin-bottom:6px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> XSS Detected!</div>
                     <strong>Your script executed on the server.</strong> The message board has a stored Cross-Site Scripting vulnerability.
                     Any JavaScript injected into posts will execute for every user who views the wall.
                 </div>`;
@@ -466,7 +466,7 @@ const A2Config = {
             A2Config._state.adminTokenRevealed = true;
             postHtml += `
                 <div style="color:#e74c3c; background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:12px; margin-top:10px; font-size:0.8rem;">
-                    <div style="font-size:1rem; margin-bottom:6px;">&#9888; XSS — Cookie Theft Successful!</div>
+                    <div style="font-size:1rem; margin-bottom:6px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> XSS — Cookie Theft Successful!</div>
                     <strong>Intercepted session data from admin user browsing the wall:</strong>
                     <div style="background:#0a0a0a; border:1px solid #333; border-radius:3px; padding:8px; margin-top:8px; font-family:monospace; font-size:0.8rem; color:#2ecc71; word-break:break-all;">
                         session_token=OBS-4dm1n-T0k3n-7742; user=admin; role=administrator; path=/wall/admin/
@@ -480,7 +480,7 @@ const A2Config = {
             A2Config._state.adminTokenRevealed = true;
             postHtml += `
                 <div style="color:#e74c3c; background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:12px; margin-top:10px; font-size:0.8rem;">
-                    <div style="font-size:1rem; margin-bottom:6px;">&#9888; XSS — Event Handler Triggered!</div>
+                    <div style="font-size:1rem; margin-bottom:6px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> XSS — Event Handler Triggered!</div>
                     <strong>The onerror/onload event handler executed, stealing cookies:</strong>
                     <div style="background:#0a0a0a; border:1px solid #333; border-radius:3px; padding:8px; margin-top:8px; font-family:monospace; font-size:0.8rem; color:#2ecc71; word-break:break-all;">
                         session_token=OBS-4dm1n-T0k3n-7742; user=admin; role=administrator; path=/wall/admin/
@@ -517,7 +517,7 @@ const A2Config = {
             A2Config._state.xssTriggered = true;
             html += `
                 <div style="color:#e74c3c; background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:12px; margin-top:10px; font-size:0.8rem;">
-                    <div style="font-size:1rem; margin-bottom:6px;">&#9888; Reflected XSS Detected!</div>
+                    <div style="font-size:1rem; margin-bottom:6px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Reflected XSS Detected!</div>
                     <strong>Your script was reflected back and executed.</strong> The search parameter is rendered directly into the page without sanitization.
                     This is a reflected Cross-Site Scripting vulnerability.
                 </div>`;
@@ -529,7 +529,7 @@ const A2Config = {
             A2Config._state.adminTokenRevealed = true;
             html += `
                 <div style="color:#e74c3c; background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:12px; margin-top:10px; font-size:0.8rem;">
-                    <div style="font-size:1rem; margin-bottom:6px;">&#9888; Reflected XSS — Cookie Theft!</div>
+                    <div style="font-size:1rem; margin-bottom:6px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Reflected XSS — Cookie Theft!</div>
                     <strong>The reflected payload executed and captured session data:</strong>
                     <div style="background:#0a0a0a; border:1px solid #333; border-radius:3px; padding:8px; margin-top:8px; font-family:monospace; font-size:0.8rem; color:#2ecc71; word-break:break-all;">
                         session_token=OBS-4dm1n-T0k3n-7742; user=admin; role=administrator; path=/wall/admin/
@@ -671,7 +671,7 @@ const A2Config = {
                 <!-- flag{wh1sp3r1ng_w4ll_x55_r3fl3ct3d} -->
 
                 <div style="margin-top:16px;">
-                    <a href="/wall/admin/config" style="color:#e67e22; font-size:0.8rem;">&#9881; Server Configuration</a>
+                    <a href="/wall/admin/config" style="color:#e67e22; font-size:0.8rem;"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Server Configuration</a>
                 </div>`;
         }
 

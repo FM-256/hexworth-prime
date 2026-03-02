@@ -6,7 +6,7 @@
  *
  * Categories:
  * - regular: Normal achievements, name visible when locked
- * - secret: Hidden until unlocked (shows ❓)
+ * - secret: Hidden until unlocked (shows <img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">)
  * - legendary: Rare achievements with special styling
  *
  * @author Hexworth Prime
@@ -29,7 +29,7 @@ const AchievementManager = (function() {
         // ─────────────────────────────────────────────────────────────
         {
             id: 'first_visit',
-            icon: '🌟',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'First Steps',
             desc: 'Enter the academy for the first time',
             points: 5,
@@ -38,7 +38,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'sorted',
-            icon: '🏠',
+            icon: '<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Sorted',
             desc: 'Get sorted into a house',
             points: 10,
@@ -47,7 +47,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'streak_3',
-            icon: '🔥',
+            icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Kindled',
             desc: 'Maintain a 3-day learning streak',
             points: 15,
@@ -56,7 +56,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'streak_7',
-            icon: '⚡',
+            icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Dedicated',
             desc: 'Maintain a 7-day learning streak',
             points: 25,
@@ -65,7 +65,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'streak_30',
-            icon: '💎',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Unstoppable',
             desc: 'Maintain a 30-day learning streak',
             points: 100,
@@ -74,7 +74,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'first_module',
-            icon: '📚',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Scholar',
             desc: 'Complete your first module',
             points: 10,
@@ -83,7 +83,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'first_quiz',
-            icon: '✅',
+            icon: '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Tested',
             desc: 'Pass your first quiz',
             points: 10,
@@ -92,7 +92,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'perfect_score',
-            icon: '💯',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Perfectionist',
             desc: 'Score 100% on any quiz',
             points: 25,
@@ -101,7 +101,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'quiz_master_10',
-            icon: '🎓',
+            icon: '<img src="/assets/images/icons/icon-graduation.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Quiz Master',
             desc: 'Pass 10 quizzes',
             points: 50,
@@ -110,7 +110,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'quiz_master_25',
-            icon: '📜',
+            icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Knowledge Seeker',
             desc: 'Pass 25 quizzes',
             points: 100,
@@ -119,7 +119,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'persistence',
-            icon: '🔄',
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Persistence',
             desc: 'Pass a quiz after 3+ attempts',
             points: 20,
@@ -128,7 +128,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'speed_demon',
-            icon: '⚡',
+            icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Speed Demon',
             desc: 'Pass a timed quiz with 50%+ time remaining',
             points: 30,
@@ -137,7 +137,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'explorer',
-            icon: '🗺️',
+            icon: '<img src="/assets/images/icons/icon-map.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Explorer',
             desc: 'Visit all houses',
             points: 20,
@@ -146,7 +146,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'night_owl',
-            icon: '🦉',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Night Owl',
             desc: 'Study after midnight',
             points: 10,
@@ -155,7 +155,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'early_bird',
-            icon: '🐦',
+            icon: '<img src="/assets/images/icons/icon-satellite.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Early Bird',
             desc: 'Study before 6 AM',
             points: 10,
@@ -164,7 +164,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'sound_master',
-            icon: '🔊',
+            icon: '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Attuned',
             desc: 'Enable Digital Life audio',
             points: 5,
@@ -177,7 +177,7 @@ const AchievementManager = (function() {
         // ─────────────────────────────────────────────────────────────
         {
             id: 'gate_1',
-            icon: '🔓',
+            icon: '<img src="/assets/images/icons/icon-unlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Initiate',
             desc: 'Pass the first Dark Arts gate',
             points: 25,
@@ -186,7 +186,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'gate_2',
-            icon: '🔐',
+            icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Acolyte',
             desc: 'Pass the second Dark Arts gate',
             points: 30,
@@ -195,7 +195,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'gate_3',
-            icon: '🗝️',
+            icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Adept',
             desc: 'Pass the third Dark Arts gate',
             points: 35,
@@ -204,7 +204,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'gate_4',
-            icon: '⚙️',
+            icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Practitioner',
             desc: 'Pass the fourth Dark Arts gate',
             points: 40,
@@ -213,7 +213,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'gate_5',
-            icon: '🏴',
+            icon: '<img src="/assets/images/icons/icon-flag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Shadow Master',
             desc: 'Complete all five Dark Arts gates',
             points: 50,
@@ -222,7 +222,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'dark-arts-master',
-            icon: '🌑',
+            icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Dark Arts Master',
             desc: 'Pass the Dark Arts Mastery Quiz',
             points: 75,
@@ -235,7 +235,7 @@ const AchievementManager = (function() {
         // ─────────────────────────────────────────────────────────────
         {
             id: 'divergent',
-            icon: '⚡',
+            icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Divergent',
             desc: 'The algorithm cannot contain you',
             points: 100,
@@ -245,7 +245,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'god_mode',
-            icon: '👁️',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Ascended',
             desc: 'See beyond the veil',
             points: 50,
@@ -255,7 +255,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'konami',
-            icon: '🎮',
+            icon: '<img src="/assets/images/icons/icon-joystick.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Old School',
             desc: 'Some codes never die',
             points: 30,
@@ -265,7 +265,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'storm_gates',
-            icon: '⚔️',
+            icon: '<img src="/assets/images/icons/icon-swords.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Gate Crasher',
             desc: 'Found the back door',
             points: 40,
@@ -275,7 +275,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'house_hopper',
-            icon: '🌀',
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Boundless',
             desc: 'Walls mean nothing to you',
             points: 50,
@@ -285,7 +285,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'the_answer',
-            icon: '🌌',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'The Answer',
             desc: 'Visited exactly 42 pages in one session',
             points: 42,
@@ -294,7 +294,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'world_traveler',
-            icon: '🗺️',
+            icon: '<img src="/assets/images/icons/icon-map.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'World Traveler',
             desc: 'Visited all 9 houses in a single session',
             points: 50,
@@ -303,7 +303,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'source_code',
-            icon: '📜',
+            icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Source Code',
             desc: 'Discovered the hidden credits',
             points: 30,
@@ -312,7 +312,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'secret_hunter',
-            icon: '🔮',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Secret Hunter',
             desc: 'Found 5 hidden achievements',
             points: 75,
@@ -321,7 +321,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'completionist',
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Completionist',
             desc: 'Unlock every achievement',
             points: 200,
@@ -335,7 +335,7 @@ const AchievementManager = (function() {
         // ─────────────────────────────────────────────────────────────
         {
             id: 'first_blood',
-            icon: '🩸',
+            icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'First Blood',
             desc: 'Among the first to discover a secret',
             points: 150,
@@ -345,7 +345,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'galaxy_architect',
-            icon: '🌌',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Galaxy Architect',
             desc: 'Your learning left a permanent mark',
             points: 100,
@@ -359,7 +359,7 @@ const AchievementManager = (function() {
         // ─────────────────────────────────────────────────────────────
         {
             id: 'game_brick',
-            icon: '🖥️',
+            icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Incident Commander',
             desc: 'Successfully contain a malware incident in Don\'t Brick the PC',
             points: 50,
@@ -368,7 +368,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_printer',
-            icon: '🖨️',
+            icon: '<img src="/assets/images/icons/icon-printer.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Printer Whisperer',
             desc: 'Tame the beast in Don\'t Anger the Printer',
             points: 50,
@@ -377,7 +377,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_pod',
-            icon: '🐳',
+            icon: '<img src="/assets/images/icons/icon-docker.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Pod Saver',
             desc: 'Rescue containers in Save the Pod',
             points: 50,
@@ -386,7 +386,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_jeopardy',
-            icon: '🎯',
+            icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Jeopardy Champion',
             desc: 'Complete a round of A+ Jeopardy',
             points: 50,
@@ -395,7 +395,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_scramble',
-            icon: '🔤',
+            icon: '<img src="/assets/images/icons/icon-text.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Unscrambled',
             desc: 'Complete Cyber Scramble',
             points: 30,
@@ -404,7 +404,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_hangman',
-            icon: '💀',
+            icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Hack the Hangman',
             desc: 'Complete Hacker Hangman',
             points: 30,
@@ -413,7 +413,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_hatmatch',
-            icon: '🎩',
+            icon: '<img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Hat Trick',
             desc: 'Complete Cyber Hat Match',
             points: 30,
@@ -422,7 +422,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_crime',
-            icon: '🔍',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cyber Detective',
             desc: 'Complete What\'s My Crime',
             points: 30,
@@ -431,7 +431,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_cookies',
-            icon: '🍪',
+            icon: '<img src="/assets/images/icons/icon-cookie.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cookie Monster',
             desc: 'Complete Cookie Caper',
             points: 30,
@@ -440,7 +440,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_ethcase',
-            icon: '🕵️',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Case Closed',
             desc: 'Complete the Ethical Hacking Case',
             points: 40,
@@ -449,7 +449,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_subnet',
-            icon: '🌐',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Subnet Slayer',
             desc: 'Complete Subnet Siege',
             points: 50,
@@ -458,7 +458,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_terminal',
-            icon: '⚡',
+            icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Terminal Velocity',
             desc: 'Complete Terminal Velocity',
             points: 50,
@@ -467,7 +467,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_cipher',
-            icon: '🔑',
+            icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cipher Cracker',
             desc: 'Complete Cipher Cracker',
             points: 50,
@@ -476,7 +476,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_triage',
-            icon: '👁️',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Alert Analyst',
             desc: 'Complete Alert Triage',
             points: 50,
@@ -485,7 +485,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_pipeline',
-            icon: '🔧',
+            icon: '<img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Pipeline Pro',
             desc: 'Complete Pipeline Panic',
             points: 50,
@@ -494,7 +494,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_protocol',
-            icon: '📡',
+            icon: '<img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Protocol Master',
             desc: 'Complete Protocol Stack',
             points: 50,
@@ -503,7 +503,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_dns',
-            icon: '🌍',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'DNS Resolver',
             desc: 'Complete DNS Resolver Race',
             points: 50,
@@ -512,7 +512,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_permissions',
-            icon: '🔐',
+            icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Permission Granted',
             desc: 'Complete Permission Puzzle',
             points: 50,
@@ -521,7 +521,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_regex',
-            icon: '🔍',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Pattern Matcher',
             desc: 'Complete Regex Runner',
             points: 50,
@@ -530,7 +530,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_hash',
-            icon: '🔓',
+            icon: '<img src="/assets/images/icons/icon-unlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Hash Breaker',
             desc: 'Complete Hash Cracker',
             points: 50,
@@ -539,7 +539,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_logdetective',
-            icon: '🕵️',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Log Detective',
             desc: 'Complete Log Detective',
             points: 50,
@@ -548,7 +548,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_gitbisect',
-            icon: '🔀',
+            icon: '<img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Bug Hunter',
             desc: 'Complete Git Bisect',
             points: 50,
@@ -557,7 +557,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_binary',
-            icon: '💾',
+            icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Binary Boss',
             desc: 'Complete Binary Blitz',
             points: 50,
@@ -566,7 +566,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_bill',
-            icon: '💰',
+            icon: '<img src="/assets/images/icons/icon-money.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Bill Dodger',
             desc: 'Complete Don\'t Check the Bill',
             points: 50,
@@ -575,7 +575,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_domain',
-            icon: '🏰',
+            icon: '<img src="/assets/images/icons/icon-castle.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Domain Defender',
             desc: 'Complete Don\'t Lose Your Domain',
             points: 50,
@@ -584,7 +584,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_deploy',
-            icon: '🚀',
+            icon: '<img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Friday Survivor',
             desc: 'Complete Don\'t Deploy on Friday',
             points: 50,
@@ -593,7 +593,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_troll',
-            icon: '🧌',
+            icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Troll Tamer',
             desc: 'Complete Don\'t Feed the Troll',
             points: 50,
@@ -602,7 +602,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_leak',
-            icon: '🔑',
+            icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Key Keeper',
             desc: 'Complete Don\'t Leak the Key',
             points: 50,
@@ -611,7 +611,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_server',
-            icon: '🖥️',
+            icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Server Savior',
             desc: 'Complete Don\'t Kill the Server',
             points: 50,
@@ -620,7 +620,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_phished',
-            icon: '🎣',
+            icon: '<img src="/assets/images/icons/icon-fishhook.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Phish Finder',
             desc: 'Complete Don\'t Get Phished',
             points: 50,
@@ -629,7 +629,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_packet',
-            icon: '📦',
+            icon: '<img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Packet Protector',
             desc: 'Complete Don\'t Drop the Packet',
             points: 50,
@@ -638,7 +638,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_packetsniffer',
-            icon: '🦈',
+            icon: '<img src="/assets/images/icons/icon-spider.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Packet Shark',
             desc: 'Complete Packet Sniffer',
             points: 50,
@@ -647,7 +647,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_netarchitect',
-            icon: '🏗️',
+            icon: '<img src="/assets/images/icons/icon-construction.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Network Architect',
             desc: 'Complete Network Architect',
             points: 50,
@@ -656,7 +656,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_timeline',
-            icon: '⏳',
+            icon: '<img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Timeline Tracer',
             desc: 'Complete Incident Timeline',
             points: 50,
@@ -665,7 +665,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_memforensics',
-            icon: '🧠',
+            icon: '<img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Memory Hunter',
             desc: 'Complete Memory Forensics',
             points: 50,
@@ -674,7 +674,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_firewall',
-            icon: '🧱',
+            icon: '<img src="/assets/images/icons/icon-firewall.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Firewall Master',
             desc: 'Complete Firewall Builder',
             points: 50,
@@ -683,7 +683,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_docker',
-            icon: '🐳',
+            icon: '<img src="/assets/images/icons/icon-docker.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Container Breaker',
             desc: 'Complete Docker Escape Room',
             points: 50,
@@ -692,7 +692,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_raid',
-            icon: '💽',
+            icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'RAID Master',
             desc: 'Complete RAID Calculator',
             points: 50,
@@ -701,7 +701,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_cron',
-            icon: '⏰',
+            icon: '<img src="/assets/images/icons/icon-clock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cron Commander',
             desc: 'Complete Cron Job Builder',
             points: 50,
@@ -710,7 +710,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_iam',
-            icon: '🔐',
+            icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Policy Pro',
             desc: 'Complete IAM Policy Debugger',
             points: 50,
@@ -719,7 +719,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_sqli',
-            icon: '💉',
+            icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Injection Blocker',
             desc: 'Complete SQL Injection Defense',
             points: 50,
@@ -728,7 +728,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_wireless',
-            icon: '📶',
+            icon: '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Signal Hunter',
             desc: 'Complete Wireless Warzone',
             points: 50,
@@ -737,7 +737,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_api',
-            icon: '🔌',
+            icon: '<img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'API Inspector',
             desc: 'Complete API Interceptor',
             points: 50,
@@ -746,7 +746,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_threat',
-            icon: '🎯',
+            icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Threat Modeler',
             desc: 'Complete Threat Modeler',
             points: 50,
@@ -755,7 +755,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_malware',
-            icon: '🦠',
+            icon: '<img src="/assets/images/icons/icon-virus.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Malware Wrangler',
             desc: 'Complete Malware Zoo',
             points: 50,
@@ -764,7 +764,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_adpath',
-            icon: '🏰',
+            icon: '<img src="/assets/images/icons/icon-castle.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Domain Conqueror',
             desc: 'Complete AD Attack Path',
             points: 50,
@@ -773,7 +773,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_k8s',
-            icon: '☸️',
+            icon: '<img src="/assets/images/icons/icon-kubernetes.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Pod Savior',
             desc: 'Complete Kubernetes Rescue',
             points: 50,
@@ -782,7 +782,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_backup',
-            icon: '💾',
+            icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Backup Hero',
             desc: 'Complete Backup or Bust',
             points: 50,
@@ -791,7 +791,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_patch',
-            icon: '🩹',
+            icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Patch Commander',
             desc: 'Complete Patch Tuesday',
             points: 50,
@@ -800,7 +800,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_cloudarch',
-            icon: '☁️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cloud Architect',
             desc: 'Complete Cloud Architect',
             points: 50,
@@ -809,7 +809,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_soceng',
-            icon: '🎭',
+            icon: '<img src="/assets/images/icons/icon-mask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Human Firewall',
             desc: 'Complete Social Engineer',
             points: 50,
@@ -818,7 +818,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_debugger',
-            icon: '🐛',
+            icon: '<img src="/assets/images/icons/icon-spider.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'System Cleaner',
             desc: 'Purge all malware in Debugger FPS',
             points: 100,
@@ -828,7 +828,7 @@ const AchievementManager = (function() {
         // Text Adventures
         {
             id: 'game_sudo',
-            icon: '💀',
+            icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Root Hunter',
             desc: 'Complete sudo su',
             points: 50,
@@ -837,7 +837,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_nmap',
-            icon: '🗺️',
+            icon: '<img src="/assets/images/icons/icon-map.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Network Explorer',
             desc: 'Complete nmap',
             points: 50,
@@ -846,7 +846,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_incident',
-            icon: '🚨',
+            icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'First Responder',
             desc: 'Complete --incident',
             points: 50,
@@ -855,7 +855,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_gpg',
-            icon: '🔑',
+            icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Codebreaker',
             desc: 'Complete gpg --decrypt',
             points: 50,
@@ -864,7 +864,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_grep',
-            icon: '🔎',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Digital Detective',
             desc: 'Complete grep -rn',
             points: 50,
@@ -873,7 +873,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_fsck',
-            icon: '🔧',
+            icon: '<img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Hardware Survivor',
             desc: 'Complete fsck',
             points: 50,
@@ -882,7 +882,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_gitblame',
-            icon: '👆',
+            icon: '<img src="/assets/images/icons/icon-arrow-up.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Blame Master',
             desc: 'Complete git blame',
             points: 50,
@@ -891,7 +891,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_awssts',
-            icon: '💰',
+            icon: '<img src="/assets/images/icons/icon-money.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cloud Chaser',
             desc: 'Complete aws sts',
             points: 50,
@@ -900,7 +900,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_tor',
-            icon: '🧅',
+            icon: '<img src="/assets/images/icons/icon-onion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Dark Navigator',
             desc: 'Complete tor',
             points: 50,
@@ -909,7 +909,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_kill9',
-            icon: '⚡',
+            icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Process Killer',
             desc: 'Complete kill -9',
             points: 50,
@@ -919,7 +919,7 @@ const AchievementManager = (function() {
         // Pixel Runners
         {
             id: 'game_packetrun',
-            icon: '📦',
+            icon: '<img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Packet Surfer',
             desc: 'Complete Packet Run',
             points: 50,
@@ -928,7 +928,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_bitdash',
-            icon: '🏃',
+            icon: '<img src="/assets/images/icons/icon-footprint.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Bit Dasher',
             desc: 'Complete Bit Dash',
             points: 50,
@@ -937,7 +937,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_shellsprint',
-            icon: '🐚',
+            icon: '<img src="/assets/images/icons/icon-terminal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Shell Sprinter',
             desc: 'Complete Shell Sprint',
             points: 50,
@@ -946,7 +946,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_threatrunner',
-            icon: '🛡️',
+            icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Threat Runner',
             desc: 'Complete Threat Runner',
             points: 50,
@@ -955,7 +955,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_cloudhop',
-            icon: '🌤️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cloud Hopper',
             desc: 'Complete Cloud Hop',
             points: 50,
@@ -965,7 +965,7 @@ const AchievementManager = (function() {
         // High score achievements
         {
             id: 'game_top3',
-            icon: '🥉',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Podium Finish',
             desc: 'Place in the top 3 on any game',
             points: 25,
@@ -974,7 +974,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_first_highscore',
-            icon: '🥇',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Record Setter',
             desc: 'Set your first #1 high score',
             points: 50,
@@ -983,7 +983,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_highscore_5',
-            icon: '🏅',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Score Chaser',
             desc: 'Set #1 high score in 5 different games',
             points: 150,
@@ -992,7 +992,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_highscore_10',
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Leaderboard Legend',
             desc: 'Set #1 high score in 10 different games',
             points: 300,
@@ -1001,7 +1001,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'game_master',
-            icon: '🏆',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Game Master',
             desc: 'Complete all 46 games across the platform (excludes reviews and labs)',
             points: 200,
@@ -1015,7 +1015,7 @@ const AchievementManager = (function() {
         // ─────────────────────────────────────────────────────────────
         {
             id: 'cli_ghost',
-            icon: '👻',
+            icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'CLI Ghost',
             desc: 'Complete all 30 Command Line Hacker modules',
             points: 500,
@@ -1025,7 +1025,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_recruit',
-            icon: '🎖️',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'CLI Recruit',
             desc: 'Complete CLH modules 001-003',
             points: 25,
@@ -1034,7 +1034,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_analyst',
-            icon: '🔍',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'CLI Analyst',
             desc: 'Complete CLH modules 004-006',
             points: 35,
@@ -1043,7 +1043,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_operative',
-            icon: '🎯',
+            icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'CLI Operative',
             desc: 'Complete CLH modules 007-009',
             points: 45,
@@ -1052,7 +1052,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_shadow',
-            icon: '🌑',
+            icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'CLI Shadow',
             desc: 'Complete CLH modules 010-012',
             points: 55,
@@ -1061,7 +1061,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_phantom',
-            icon: '👤',
+            icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'CLI Phantom',
             desc: 'Complete CLH modules 013-015',
             points: 65,
@@ -1070,7 +1070,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_specter',
-            icon: '🌫️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'CLI Specter',
             desc: 'Complete CLH modules 016-022',
             points: 100,
@@ -1079,7 +1079,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_wraith',
-            icon: '💀',
+            icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'CLI Wraith',
             desc: 'Complete CLH modules 023-027',
             points: 150,
@@ -1088,7 +1088,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_blackout',
-            icon: '⚫',
+            icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'BLACKOUT',
             desc: 'Complete OPERATION BLACKOUT - the ultimate test',
             points: 750,
@@ -1098,7 +1098,7 @@ const AchievementManager = (function() {
         },
         {
             id: 'cli_master',
-            icon: '🔱',
+            icon: '<img src="/assets/images/icons/icon-swords.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'CLI Grandmaster',
             desc: 'Complete all 31 Command Line Hacker challenges',
             points: 1000,
@@ -1178,7 +1178,7 @@ const AchievementManager = (function() {
             }
         }
 
-        console.log(`%c🏆 Achievement Unlocked: ${achievement.name} (+${achievement.points} pts)`,
+        console.log(`%c<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievement Unlocked: ${achievement.name} (+${achievement.points} pts)`,
             'color: #ffd700; font-size: 14px; font-weight: bold;');
 
         // Queue activity event for dashboard feed (always available)

@@ -50,7 +50,7 @@ class BrowserInstance {
 
         this.fwdBtn = document.createElement('button');
         this.fwdBtn.className = 'browser-nav-btn';
-        this.fwdBtn.innerHTML = '&#9654;';
+        this.fwdBtn.innerHTML = '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
         this.fwdBtn.title = 'Forward';
         this.fwdBtn.disabled = true;
         this.fwdBtn.addEventListener('click', () => this.goForward());

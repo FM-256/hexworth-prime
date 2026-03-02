@@ -498,8 +498,8 @@ const AchievementRegistry = (function() {
     // ═══════════════════════════════════════════════════════════════════
 
     const HOUSE_ICONS = {
-        'shield': '🛡️', 'web': '🕸️', 'forge': '⚒️', 'script': '📜',
-        'cloud': '☁️', 'code': '💻', 'key': '🔑', 'eye': '👁️', 'dark-arts': '🌑'
+        'shield': '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', 'web': '<img src="/assets/images/icons/icon-spiderweb.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', 'forge': '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', 'script': '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+        'cloud': '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', 'code': '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', 'key': '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', 'eye': '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', 'dark-arts': '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
     };
 
     /**
@@ -514,7 +514,7 @@ const AchievementRegistry = (function() {
 
         for (const mod of modules) {
             const comps = mod.components || [];
-            const houseIcon = HOUSE_ICONS[mod.house] || '📖';
+            const houseIcon = HOUSE_ICONS[mod.house] || '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
 
             // Presentation completion
             if (comps.includes('presentation')) {
@@ -522,7 +522,7 @@ const AchievementRegistry = (function() {
                     id: `complete_pres_${mod.id}`,
                     name: `${mod.title}`,
                     description: `Complete the ${mod.title} presentation`,
-                    icon: '📖',
+                    icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     category: 'house',
                     subcategory: mod.house,
                     points: 25,
@@ -540,7 +540,7 @@ const AchievementRegistry = (function() {
                     id: `pass_quiz_${mod.id}`,
                     name: `${mod.title} Quiz`,
                     description: `Pass the ${mod.title} quiz`,
-                    icon: '✅',
+                    icon: '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     category: 'auto_quiz',
                     subcategory: mod.house,
                     points: 50,
@@ -554,7 +554,7 @@ const AchievementRegistry = (function() {
                     id: `perfect_quiz_${mod.id}`,
                     name: `${mod.title} Perfect`,
                     description: `Score 100% on the ${mod.title} quiz`,
-                    icon: '💯',
+                    icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     category: 'auto_quiz',
                     subcategory: mod.house,
                     points: 100,
@@ -568,7 +568,7 @@ const AchievementRegistry = (function() {
                     id: `speed_quiz_${mod.id}`,
                     name: `${mod.title} Speedrun`,
                     description: `Pass the ${mod.title} quiz with 50%+ time remaining`,
-                    icon: '⚡',
+                    icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     category: 'auto_quiz',
                     subcategory: mod.house,
                     points: 75,
@@ -586,7 +586,7 @@ const AchievementRegistry = (function() {
                     id: `complete_lab_${mod.id}`,
                     name: `${mod.title} Lab`,
                     description: `Complete the ${mod.title} hands-on lab`,
-                    icon: '🔬',
+                    icon: '<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     category: 'auto_lab',
                     subcategory: mod.house,
                     points: 75,
@@ -600,7 +600,7 @@ const AchievementRegistry = (function() {
                     id: `speed_lab_${mod.id}`,
                     name: `${mod.title} Lab Speed`,
                     description: `Complete the ${mod.title} lab under the target time`,
-                    icon: '⏱️',
+                    icon: '<img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     category: 'auto_lab',
                     subcategory: mod.house,
                     points: 100,
@@ -620,7 +620,7 @@ const AchievementRegistry = (function() {
             const houseModules = ContentCatalog.getHouseModules(house.id);
             if (houseModules.length === 0) continue;
 
-            const icon = HOUSE_ICONS[house.id] || '🏠';
+            const icon = HOUSE_ICONS[house.id] || '<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             const milestones = [
                 { pct: 25, suffix: 'quarter', name: 'Initiate', points: 100 },
                 { pct: 50, suffix: 'half', name: 'Journeyman', points: 250 },
@@ -650,7 +650,7 @@ const AchievementRegistry = (function() {
                     id: `house_${house.id}_all_perfect`,
                     name: `${house.name} Scholar`,
                     description: `Score 100% on all ${house.name} quizzes`,
-                    icon: '💎',
+                    icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     category: 'auto_house_milestone',
                     subcategory: house.id,
                     points: 750,
@@ -666,7 +666,7 @@ const AchievementRegistry = (function() {
                 id: `house_${house.id}_speedrun`,
                 name: `${house.name} Speedrun`,
                 description: `Complete all ${house.name} content in under the target time`,
-                icon: '⚡',
+                icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 category: 'auto_house_milestone',
                 subcategory: house.id,
                 points: 500,
@@ -680,14 +680,14 @@ const AchievementRegistry = (function() {
 
         // Streak achievements
         const streakTiers = [
-            { days: 3, name: 'Kindled', icon: '🔥', points: 15 },
-            { days: 7, name: 'Dedicated', icon: '⚡', points: 25 },
-            { days: 14, name: 'Committed', icon: '💪', points: 50 },
-            { days: 30, name: 'Unstoppable', icon: '💎', points: 100 },
-            { days: 60, name: 'Relentless', icon: '🔗', points: 200 },
-            { days: 100, name: 'Centurion', icon: '🏛️', points: 500 },
-            { days: 200, name: 'Bicentennial', icon: '🌟', points: 1000 },
-            { days: 365, name: 'Year of Code', icon: '📅', points: 2500 },
+            { days: 3, name: 'Kindled', icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', points: 15 },
+            { days: 7, name: 'Dedicated', icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', points: 25 },
+            { days: 14, name: 'Committed', icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', points: 50 },
+            { days: 30, name: 'Unstoppable', icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', points: 100 },
+            { days: 60, name: 'Relentless', icon: '<img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', points: 200 },
+            { days: 100, name: 'Centurion', icon: '<img src="/assets/images/icons/icon-institution.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', points: 500 },
+            { days: 200, name: 'Bicentennial', icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', points: 1000 },
+            { days: 365, name: 'Year of Code', icon: '<img src="/assets/images/icons/icon-clock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', points: 2500 },
         ];
         for (const tier of streakTiers) {
             generated.push({
@@ -708,12 +708,12 @@ const AchievementRegistry = (function() {
 
         // XP milestones
         const xpTiers = [
-            { xp: 1000, name: 'Rising Star', icon: '⭐', points: 50 },
-            { xp: 5000, name: 'Bright Mind', icon: '🌟', points: 100 },
-            { xp: 10000, name: 'Knowledge Seeker', icon: '🔮', points: 250 },
-            { xp: 25000, name: 'Sage', icon: '🧙', points: 500 },
-            { xp: 50000, name: 'Grand Scholar', icon: '🏆', points: 1000 },
-            { xp: 100000, name: 'Transcendent', icon: '👑', points: 2500 },
+            { xp: 1000, name: 'Rising Star', icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', points: 50 },
+            { xp: 5000, name: 'Bright Mind', icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', points: 100 },
+            { xp: 10000, name: 'Knowledge Seeker', icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', points: 250 },
+            { xp: 25000, name: 'Sage', icon: '<img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', points: 500 },
+            { xp: 50000, name: 'Grand Scholar', icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', points: 1000 },
+            { xp: 100000, name: 'Transcendent', icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', points: 2500 },
         ];
         for (const tier of xpTiers) {
             generated.push({

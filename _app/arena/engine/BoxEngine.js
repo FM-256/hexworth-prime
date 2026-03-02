@@ -613,7 +613,7 @@ const BoxEngine = {
         overlay.id = 'completionOverlay';
         overlay.innerHTML = `
             <div class="completion-card">
-                <h2>&#9878; BOX PWNED</h2>
+                <h2><img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> BOX PWNED</h2>
                 <div class="box-subtitle" id="completionSubtitle"></div>
                 <div class="final-score" id="completionScore"></div>
                 <div class="score-breakdown" id="completionBreakdown"></div>
@@ -2069,13 +2069,13 @@ const BoxEngine = {
         );
 
         if (completed >= total) {
-            tracker.innerHTML = `<span class="phase-tracker-icon">&#9878;</span> <span class="phase-tracker-text">All Phases Complete</span>`;
+            tracker.innerHTML = `<span class="phase-tracker-icon"><img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> <span class="phase-tracker-text">All Phases Complete</span>`;
             tracker.classList.add('all-complete');
         } else if (currentPhase) {
-            tracker.innerHTML = `<span class="phase-tracker-icon">${currentPhase.icon || '&#9654;'}</span> <span class="phase-tracker-text">Phase ${completed + 1}/${total}: ${this._escHtml(currentPhase.name)}</span>`;
+            tracker.innerHTML = `<span class="phase-tracker-icon">${currentPhase.icon || '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'}</span> <span class="phase-tracker-text">Phase ${completed + 1}/${total}: ${this._escHtml(currentPhase.name)}</span>`;
             tracker.classList.remove('all-complete');
         } else {
-            tracker.innerHTML = `<span class="phase-tracker-icon">&#9654;</span> <span class="phase-tracker-text">Phase ${completed}/${total}</span>`;
+            tracker.innerHTML = `<span class="phase-tracker-icon"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> <span class="phase-tracker-text">Phase ${completed}/${total}</span>`;
             tracker.classList.remove('all-complete');
         }
     },
@@ -2167,7 +2167,7 @@ const BoxEngine = {
             el.className = `phase-item ${status}`;
             el.innerHTML = `
                 <div class="phase-item-header">
-                    <span class="phase-item-icon">${phase.icon || '&#9654;'}</span>
+                    <span class="phase-item-icon">${phase.icon || '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'}</span>
                     <span class="phase-item-name">${this._escHtml(phase.name)}</span>
                     <span class="phase-item-status">${statusLabel}</span>
                 </div>
@@ -2318,7 +2318,7 @@ const BoxEngine = {
             (scoring.speedBonus ? scoring.speedBonus.points : 0);
 
         header.innerHTML = `
-            <div class="report-title">&#9878; BOX COMPLETE</div>
+            <div class="report-title"><img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> BOX COMPLETE</div>
             <div class="report-box-name">${this._escHtml(config.title || 'CTF Box')}</div>
             <div class="report-summary-row">
                 <span class="report-summary-item"><strong>${elapsedMin}</strong> min</span>
@@ -2349,7 +2349,7 @@ const BoxEngine = {
                 bodyHtml += `
                     <div class="report-chain-step ${isCompleted ? 'completed' : 'incomplete'}">
                         <span class="report-chain-num">${idx + 1}.</span>
-                        <span class="report-chain-icon">${phase.icon || '&#9654;'}</span>
+                        <span class="report-chain-icon">${phase.icon || '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'}</span>
                         <span class="report-chain-name">${this._escHtml(phase.name)}</span>
                         <span class="report-chain-time">[${timeStr}]</span>
                     </div>

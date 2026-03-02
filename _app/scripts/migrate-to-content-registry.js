@@ -40,7 +40,7 @@ function extractSampleModules(houseId) {
     const indexPath = path.join(HOUSES_DIR, houseId, 'index.html');
 
     if (!fs.existsSync(indexPath)) {
-        console.log(`  ⚠️  No index.html found for ${houseId}`);
+        console.log(`  <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  No index.html found for ${houseId}`);
         return [];
     }
 
@@ -50,7 +50,7 @@ function extractSampleModules(houseId) {
     const modulesMatch = content.match(/const\s+SAMPLE_MODULES\s*=\s*\[([\s\S]*?)\];/);
 
     if (!modulesMatch) {
-        console.log(`  ⚠️  No SAMPLE_MODULES found in ${houseId}/index.html`);
+        console.log(`  <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  No SAMPLE_MODULES found in ${houseId}/index.html`);
         return [];
     }
 
@@ -117,7 +117,7 @@ function extractSampleModules(houseId) {
  */
 function extractExistingRegistry() {
     if (!fs.existsSync(REGISTRY_PATH)) {
-        console.log('⚠️  ContentRegistry.js not found');
+        console.log('<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  ContentRegistry.js not found');
         return new Set();
     }
 
@@ -313,13 +313,13 @@ function migrate() {
     console.log('═══════════════════════════════════════════════════════════\n');
 
     // Get existing registry entries
-    console.log('📖 Reading existing ContentRegistry.js...');
+    console.log('<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Reading existing ContentRegistry.js...');
     const existingIds = extractExistingRegistry();
     stats.existingRegistry = existingIds.size;
     console.log(`   Found ${existingIds.size} existing entries\n`);
 
     // Collect all SAMPLE_MODULES
-    console.log('📖 Reading SAMPLE_MODULES from all houses...');
+    console.log('<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Reading SAMPLE_MODULES from all houses...');
     const allModules = [];
 
     for (const house of HOUSES) {
@@ -333,7 +333,7 @@ function migrate() {
     console.log(`\n   Total: ${allModules.length} modules across all houses\n`);
 
     // Find missing entries
-    console.log('🔍 Identifying missing entries...');
+    console.log('<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Identifying missing entries...');
     const missingModules = allModules.filter(m => !existingIds.has(m.id));
     stats.newEntries = missingModules.length;
 
@@ -344,7 +344,7 @@ function migrate() {
     console.log(`   ${missingModules.length} modules need to be added\n`);
 
     // Show per-house breakdown
-    console.log('📊 Per-house breakdown:');
+    console.log('<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Per-house breakdown:');
     for (const house of HOUSES) {
         const h = stats.houses[house];
         const pct = h.total > 0 ? Math.round((h.new / h.total) * 100) : 0;
@@ -353,7 +353,7 @@ function migrate() {
     console.log('');
 
     // Convert to registry format
-    console.log('🔄 Converting to ContentRegistry format...');
+    console.log('<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Converting to ContentRegistry format...');
     const newEntries = missingModules.map(convertToRegistryFormat);
 
     // Group by house for organized output
@@ -406,7 +406,7 @@ const MIGRATED_ENTRIES = {
 
     // Write output file
     fs.writeFileSync(OUTPUT_PATH, outputCode);
-    console.log(`\n✅ Generated: ${OUTPUT_PATH}`);
+    console.log(`\n<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Generated: ${OUTPUT_PATH}`);
 
     // Summary
     console.log('\n═══════════════════════════════════════════════════════════');
@@ -418,7 +418,7 @@ const MIGRATED_ENTRIES = {
     console.log(`  After merge:                      ${stats.existingRegistry + stats.newEntries}`);
     console.log('═══════════════════════════════════════════════════════════\n');
 
-    console.log('📋 Next steps:');
+    console.log('<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Next steps:');
     console.log('   1. Review content-registry-migrated.js');
     console.log('   2. Merge entries into content-registry.js');
     console.log('   3. Deploy and verify on Dashboard');

@@ -79,13 +79,13 @@ class HouseMembers {
 
         // Activity templates
         this.activityTemplates = [
-            { type: 'module', text: 'completed {module}', icon: '📚' },
-            { type: 'achievement', text: 'earned {achievement}', icon: '🏆' },
-            { type: 'streak', text: 'reached a {days}-day streak', icon: '🔥' },
-            { type: 'quiz', text: 'passed {quiz} with {score}%', icon: '✅' },
-            { type: 'login', text: 'joined the session', icon: '👋' },
-            { type: 'level', text: 'reached Level {level}', icon: '⭐' },
-            { type: 'rare', text: 'discovered a {rare} firefly', icon: '✨' }
+            { type: 'module', text: 'completed {module}', icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+            { type: 'achievement', text: 'earned {achievement}', icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+            { type: 'streak', text: 'reached a {days}-day streak', icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+            { type: 'quiz', text: 'passed {quiz} with {score}%', icon: '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+            { type: 'login', text: 'joined the session', icon: '<img src="/assets/images/icons/icon-handshake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
+            { type: 'level', text: 'reached Level {level}', icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
+            { type: 'rare', text: 'discovered a {rare} firefly', icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' }
         ];
 
         // Module names by house
@@ -220,7 +220,7 @@ class HouseMembers {
      * Generate simple avatar (emoji-based)
      */
     generateAvatar(seed) {
-        const avatars = ['🧑‍💻', '👨‍💻', '👩‍💻', '🧑‍🔬', '👨‍🔬', '👩‍🔬', '🦊', '🐺', '🦉', '🐲', '🤖', '👾'];
+        const avatars = ['<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-robot.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-robot.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'];
         return this.randomFromArray(avatars, seed * 11.1);
     }
 
@@ -393,7 +393,7 @@ class HouseMembers {
                     <div class="leaderboard-divider">···</div>
                     <div class="leaderboard-row user-row">
                         <span class="rank">${userRank}</span>
-                        <span class="lb-avatar">🎯</span>
+                        <span class="lb-avatar"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                         <span class="lb-name">You</span>
                         <span class="lb-xp">${userXP} XP</span>
                     </div>
@@ -504,7 +504,7 @@ class HouseMembers {
         if (info.isFirst) {
             messages.push({
                 type: 'success',
-                icon: '👑',
+                icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 text: "You're leading the house! Keep it up!"
             });
         } else if (info.memberAhead) {
@@ -512,13 +512,13 @@ class HouseMembers {
             if (gap <= 50) {
                 messages.push({
                     type: 'close',
-                    icon: '🔥',
+                    icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     text: `Only ${gap} XP behind ${info.memberAhead.name}!`
                 });
             } else if (gap <= 150) {
                 messages.push({
                     type: 'catchup',
-                    icon: '💪',
+                    icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     text: `${gap} XP to catch ${info.memberAhead.name}`
                 });
             }
@@ -527,7 +527,7 @@ class HouseMembers {
         if (info.memberBehind && info.memberBehind.gap <= 30) {
             messages.push({
                 type: 'warning',
-                icon: '⚠️',
+                icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 text: `${info.memberBehind.name} is only ${info.memberBehind.gap} XP behind you!`
             });
         }
@@ -535,9 +535,9 @@ class HouseMembers {
         // Random encouragement
         if (messages.length === 0) {
             const encouragements = [
-                { icon: '📚', text: 'Complete a module to climb the ranks!' },
-                { icon: '🎯', text: 'Every XP counts toward your rank!' },
-                { icon: '⭐', text: 'Keep learning to rise in the leaderboard!' }
+                { icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', text: 'Complete a module to climb the ranks!' },
+                { icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', text: 'Every XP counts toward your rank!' },
+                { icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', text: 'Keep learning to rise in the leaderboard!' }
             ];
             const idx = Math.floor(this.seededRandom(userXP) * encouragements.length);
             messages.push({ type: 'encourage', ...encouragements[idx] });

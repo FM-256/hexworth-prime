@@ -10,7 +10,7 @@ const CareerExplorerEngine = (() => {
 
     const DOMAINS = [
         {
-            id: 'soc', name: 'Security Operations (SOC)', icon: '🔍', color: '#3b82f6',
+            id: 'soc', name: 'Security Operations (SOC)', icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#3b82f6',
             description: 'Monitor, detect, and respond to security threats in real-time.',
             roles: [
                 { title: 'SOC Analyst (Tier 1)', level: 'entry', salary: '$55K–$75K', description: 'Monitor SIEM alerts, triage security events, and escalate incidents. The front line of defense.', certs: ['CompTIA Security+', 'CompTIA CySA+', 'Splunk Core Certified User'], skills: ['SIEM operation', 'Log analysis', 'Ticketing systems', 'Basic networking'], dayInLife: 'Review overnight alerts, triage incoming events, update tickets, escalate suspicious patterns to Tier 2, document findings.' },
@@ -20,7 +20,7 @@ const CareerExplorerEngine = (() => {
             ]
         },
         {
-            id: 'pentest', name: 'Penetration Testing', icon: '🎯', color: '#ef4444',
+            id: 'pentest', name: 'Penetration Testing', icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#ef4444',
             description: 'Ethically hack systems to find vulnerabilities before malicious actors do.',
             roles: [
                 { title: 'Junior Penetration Tester', level: 'entry', salary: '$60K–$80K', description: 'Assist with vulnerability assessments, run scanning tools, and document findings under guidance.', certs: ['CompTIA PenTest+', 'eJPT', 'CEH'], skills: ['Nmap', 'Burp Suite', 'Basic scripting', 'Report writing'], dayInLife: 'Run vulnerability scans, test web applications, attempt exploits in controlled environments, document findings.' },
@@ -30,7 +30,7 @@ const CareerExplorerEngine = (() => {
             ]
         },
         {
-            id: 'grc', name: 'Governance, Risk & Compliance', icon: '📋', color: '#eab308',
+            id: 'grc', name: 'Governance, Risk & Compliance', icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#eab308',
             description: 'Ensure organizations meet regulatory requirements and manage security risk effectively.',
             roles: [
                 { title: 'GRC Analyst', level: 'entry', salary: '$55K–$75K', description: 'Support compliance assessments, maintain policy documentation, and track remediation efforts.', certs: ['CompTIA Security+', 'SSCP', 'ISO 27001 Lead Implementer'], skills: ['Policy writing', 'Risk registers', 'Compliance frameworks', 'Documentation'], dayInLife: 'Update compliance tracking spreadsheets, review policies, support audit preparation, schedule remediation follow-ups.' },
@@ -39,7 +39,7 @@ const CareerExplorerEngine = (() => {
             ]
         },
         {
-            id: 'cloudsec', name: 'Cloud Security', icon: '☁️', color: '#38bdf8',
+            id: 'cloudsec', name: 'Cloud Security', icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#38bdf8',
             description: 'Secure cloud infrastructure, applications, and data across AWS, Azure, and GCP.',
             roles: [
                 { title: 'Cloud Security Analyst', level: 'entry', salary: '$65K–$85K', description: 'Monitor cloud environments for misconfigurations, review IAM policies, and support cloud security tooling.', certs: ['AWS Cloud Practitioner', 'CompTIA Cloud+', 'AZ-900'], skills: ['Cloud console navigation', 'IAM basics', 'Security groups', 'Cloud monitoring'], dayInLife: 'Review CSPM alerts, check S3 bucket permissions, audit IAM policies, update cloud security documentation.' },
@@ -48,7 +48,7 @@ const CareerExplorerEngine = (() => {
             ]
         },
         {
-            id: 'forensics', name: 'Digital Forensics', icon: '🔬', color: '#a855f7',
+            id: 'forensics', name: 'Digital Forensics', icon: '<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#a855f7',
             description: 'Investigate cyber incidents, recover digital evidence, and support legal proceedings.',
             roles: [
                 { title: 'Digital Forensics Analyst', level: 'entry', salary: '$55K–$75K', description: 'Collect and preserve digital evidence, create forensic images, and assist with basic analysis.', certs: ['CompTIA Security+', 'GFCE', 'EnCE'], skills: ['Evidence collection', 'Disk imaging', 'Chain of custody', 'Basic analysis'], dayInLife: 'Image hard drives, document evidence handling, run initial forensic tools, write preliminary findings reports.' },
@@ -57,7 +57,7 @@ const CareerExplorerEngine = (() => {
             ]
         },
         {
-            id: 'architecture', name: 'Security Architecture', icon: '🏗️', color: '#f97316',
+            id: 'architecture', name: 'Security Architecture', icon: '<img src="/assets/images/icons/icon-construction.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#f97316',
             description: 'Design secure systems, networks, and applications from the ground up.',
             roles: [
                 { title: 'Security Engineer', level: 'entry', salary: '$70K–$95K', description: 'Implement security controls, configure security tools, and maintain security infrastructure.', certs: ['CompTIA Security+', 'GSEC', 'SSCP'], skills: ['Firewall management', 'IDS/IPS', 'SIEM deployment', 'Endpoint security'], dayInLife: 'Configure security tools, respond to engineering tickets, implement firewall rules, deploy endpoint agents, update security infrastructure.' },
@@ -66,7 +66,7 @@ const CareerExplorerEngine = (() => {
             ]
         },
         {
-            id: 'appsec', name: 'Application Security', icon: '💻', color: '#22c55e',
+            id: 'appsec', name: 'Application Security', icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#22c55e',
             description: 'Secure the software development lifecycle and find vulnerabilities in applications.',
             roles: [
                 { title: 'Application Security Analyst', level: 'entry', salary: '$65K–$85K', description: 'Run SAST/DAST scans, triage findings, and support developers in secure coding practices.', certs: ['CompTIA Security+', 'GWEB', 'CSSLP'], skills: ['OWASP Top 10', 'SAST/DAST tools', 'Secure coding basics', 'Bug tracking'], dayInLife: 'Run application scans, triage findings, meet with dev teams about vulnerabilities, update secure coding guidelines.' },
@@ -75,7 +75,7 @@ const CareerExplorerEngine = (() => {
             ]
         },
         {
-            id: 'management', name: 'Security Management', icon: '👔', color: '#ec4899',
+            id: 'management', name: 'Security Management', icon: '<img src="/assets/images/icons/icon-idcard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#ec4899',
             description: 'Lead security teams, programs, and organizational security strategy.',
             roles: [
                 { title: 'Security Team Lead', level: 'mid', salary: '$100K–$130K', description: 'Lead a team of security professionals, manage projects, and coordinate security initiatives.', certs: ['CISSP', 'CISM', 'PMP'], skills: ['People management', 'Project management', 'Stakeholder communication', 'Resource planning'], dayInLife: 'Team standups, 1:1s with reports, project status updates, cross-team coordination, hiring interviews, performance reviews.' },
@@ -220,7 +220,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 <a class="career-back" href="../../../index.html">‹ Back to Shield House</a>
 
 <div class="career-header">
-    <h1>🎯 Cybersecurity Career Explorer</h1>
+    <h1><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cybersecurity Career Explorer</h1>
     <p>Explore career paths, required certifications, salary ranges, and day-in-the-life descriptions for cybersecurity professionals.</p>
 </div>
 
@@ -340,7 +340,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
         const panel = document.getElementById('panel-paths');
         const tracks = [
             {
-                name: 'SOC / Blue Team Track', icon: '🔍', color: '#3b82f6',
+                name: 'SOC / Blue Team Track', icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#3b82f6',
                 nodes: [
                     { title: 'SOC Analyst (Tier 1)', years: '0–2 years', salary: '$55K–$75K' },
                     { title: 'SOC Analyst (Tier 2)', years: '2–4 years', salary: '$75K–$100K' },
@@ -349,7 +349,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
                 ]
             },
             {
-                name: 'Offensive Security Track', icon: '🎯', color: '#ef4444',
+                name: 'Offensive Security Track', icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#ef4444',
                 nodes: [
                     { title: 'Jr. Penetration Tester', years: '0–2 years', salary: '$60K–$80K' },
                     { title: 'Penetration Tester', years: '2–5 years', salary: '$90K–$130K' },
@@ -358,7 +358,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
                 ]
             },
             {
-                name: 'GRC / Leadership Track', icon: '📋', color: '#eab308',
+                name: 'GRC / Leadership Track', icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#eab308',
                 nodes: [
                     { title: 'GRC Analyst', years: '0–2 years', salary: '$55K–$75K' },
                     { title: 'GRC Manager', years: '3–5 years', salary: '$90K–$120K' },
@@ -367,7 +367,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
                 ]
             },
             {
-                name: 'Cloud Security Track', icon: '☁️', color: '#38bdf8',
+                name: 'Cloud Security Track', icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#38bdf8',
                 nodes: [
                     { title: 'Cloud Security Analyst', years: '0–2 years', salary: '$65K–$85K' },
                     { title: 'Cloud Security Engineer', years: '2–5 years', salary: '$110K–$150K' },
@@ -375,7 +375,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
                 ]
             },
             {
-                name: 'Digital Forensics Track', icon: '🔬', color: '#a855f7',
+                name: 'Digital Forensics Track', icon: '<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#a855f7',
                 nodes: [
                     { title: 'Forensics Analyst', years: '0–2 years', salary: '$55K–$75K' },
                     { title: 'Sr. Forensics Investigator', years: '3–6 years', salary: '$85K–$120K' },
@@ -383,7 +383,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
                 ]
             },
             {
-                name: 'Application Security Track', icon: '💻', color: '#22c55e',
+                name: 'Application Security Track', icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#22c55e',
                 nodes: [
                     { title: 'AppSec Analyst', years: '0–2 years', salary: '$65K–$85K' },
                     { title: 'AppSec Engineer', years: '2–5 years', salary: '$100K–$145K' },

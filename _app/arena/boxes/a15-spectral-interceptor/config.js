@@ -343,7 +343,7 @@ const A15Config = {
                             <div style="color:#1a7c1a;">&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;<span style="color:#f39c12;">&#9608;&#9608;&#9608;&#9608;</span>&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;<span style="color:#f39c12;">&#9608;&#9608;&#9608;&#9608;</span>&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;</div>
                             <div style="color:#1a5c1a;">&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;</div>
                             <div style="color:#888; margin-top:8px;">Time &darr;  |  Two distinct frequency peaks detected (~+/- 4.8 kHz deviation)</div>
-                            <div style="color:#e67e22; margin-top:4px;">&#9654; Pattern consistent with GFSK modulation</div>
+                            <div style="color:#e67e22; margin-top:4px;"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Pattern consistent with GFSK modulation</div>
                         </div>
 
                         <div style="color:#e67e22; font-size:0.78rem; font-weight:700; letter-spacing:0.1em; margin-bottom:16px; padding-bottom:6px; border-bottom:1px solid #553a1a;">QUICK ANALYSIS</div>
@@ -768,7 +768,7 @@ Scanning 430.000 - 436.000 MHz (step: 10 kHz)...
 432.000 MHz: -42.3 dB
 433.000 MHz: -41.5 dB
 433.900 MHz: -38.2 dB (slightly elevated)
-433.920 MHz: -12.4 dB ★★★ STRONG SIGNAL DETECTED
+433.920 MHz: -12.4 dB <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> STRONG SIGNAL DETECTED
 433.940 MHz: -37.9 dB (slightly elevated)
 434.000 MHz: -42.0 dB
 435.000 MHz: -41.7 dB
@@ -1000,9 +1000,9 @@ Sample rate: 2.4 MSps
 Total samples: 1,624,320
 
 Top frequency peaks:
-  433.9152 MHz (deviation: -4.8 kHz) ★ Mark frequency
+  433.9152 MHz (deviation: -4.8 kHz) <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Mark frequency
   433.9200 MHz (deviation: +0.0 kHz)   Carrier center
-  433.9248 MHz (deviation: +4.8 kHz) ★ Space frequency
+  433.9248 MHz (deviation: +4.8 kHz) <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Space frequency
 
 [+] Two symmetric peaks at ±4.8 kHz — classic binary FSK/GFSK pattern
 [+] Deviation matches 4800 baud GFSK (deviation ≈ baud rate)`;

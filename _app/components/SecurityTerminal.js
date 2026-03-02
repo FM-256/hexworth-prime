@@ -406,7 +406,7 @@ class SecurityTerminal extends LinuxTerminal {
                               target !== '127.0.0.1';
 
             if (isExternal) {
-                return `<span class="warning">⚠️ WARNING: Scanning external hosts requires authorization!</span>
+                return `<span class="warning"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> WARNING: Scanning external hosts requires authorization!</span>
 <span class="info">In this lab, you may scan the internal network (192.168.1.0/24) freely.</span>
 <span class="muted">Add --legal-ack flag to acknowledge and proceed with simulated external scan.</span>`;
             }
@@ -566,7 +566,7 @@ class SecurityTerminal extends LinuxTerminal {
 
         // Suspicious host warning (for training)
         if (host.ioc && this.securityConfig.hints) {
-            output += `\n<span class="warning">⚠️ ANALYST NOTE: Unusual services detected - recommend further investigation</span>\n`;
+            output += `\n<span class="warning"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ANALYST NOTE: Unusual services detected - recommend further investigation</span>\n`;
         }
 
         // Footer

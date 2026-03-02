@@ -14,7 +14,7 @@ const CMMCDomainData = {
         name: 'Access Control',
         nistSection: '3.1',
         color: '#dc143c',
-        icon: '🔐',
+        icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Limit system access to authorized users, processes acting on behalf of authorized users, and devices. Control the flow of CUI in accordance with approved authorizations.',
         keyConcepts: ['Least Privilege', 'Separation of Duties', 'Session Management', 'Remote Access', 'Wireless Access', 'Mobile Devices', 'CUI Flow Control'],
         practices: [
@@ -66,7 +66,7 @@ const CMMCDomainData = {
         name: 'Awareness & Training',
         nistSection: '3.2',
         color: '#f59e0b',
-        icon: '🎓',
+        icon: '<img src="/assets/images/icons/icon-graduation.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Ensure that managers, systems administrators, and users of organizational systems are made aware of the security risks associated with their activities and of the applicable policies, standards, and procedures related to the security of those systems.',
         keyConcepts: ['Security Awareness', 'Role-Based Training', 'Insider Threat Awareness', 'Social Engineering Recognition'],
         practices: [
@@ -97,7 +97,7 @@ const CMMCDomainData = {
         name: 'Audit & Accountability',
         nistSection: '3.3',
         color: '#8b5cf6',
-        icon: '📋',
+        icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Create and retain system audit logs and records to the extent needed to enable the monitoring, analysis, investigation, and reporting of unlawful or unauthorized system activity. Ensure that the actions of individual system users can be uniquely traced.',
         keyConcepts: ['Audit Logging', 'Event Correlation', 'Log Protection', 'Time Synchronization', 'Accountability', 'Non-Repudiation'],
         practices: [
@@ -135,7 +135,7 @@ const CMMCDomainData = {
         name: 'Configuration Management',
         nistSection: '3.4',
         color: '#06b6d4',
-        icon: '⚙️',
+        icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Establish and maintain baseline configurations and inventories of organizational systems throughout the respective system development life cycles. Establish and enforce security configuration settings.',
         keyConcepts: ['Baseline Configurations', 'Change Control', 'Security Settings', 'Software Restrictions', 'System Inventory', 'Least Functionality'],
         practices: [
@@ -172,7 +172,7 @@ const CMMCDomainData = {
         name: 'Identification & Authentication',
         nistSection: '3.5',
         color: '#10b981',
-        icon: '🪪',
+        icon: '<img src="/assets/images/icons/icon-idcard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Identify system users, processes acting on behalf of users, and devices. Authenticate the identities of users, processes, and devices as a prerequisite to allowing access.',
         keyConcepts: ['Multi-Factor Authentication', 'Password Management', 'Device Identification', 'Replay Attack Prevention', 'Identifier Management', 'Authenticator Feedback'],
         practices: [
@@ -212,7 +212,7 @@ const CMMCDomainData = {
         name: 'Incident Response',
         nistSection: '3.6',
         color: '#ef4444',
-        icon: '🚨',
+        icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Establish an operational incident-handling capability for organizational systems that includes preparation, detection, analysis, containment, recovery, and user response activities. Track, document, and report incidents.',
         keyConcepts: ['Incident Handling', 'Incident Reporting', 'Incident Response Testing', 'Preparation', 'Detection', 'Containment', 'Recovery'],
         practices: [
@@ -243,7 +243,7 @@ const CMMCDomainData = {
         name: 'Maintenance',
         nistSection: '3.7',
         color: '#f97316',
-        icon: '🔧',
+        icon: '<img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Perform maintenance on organizational systems. Provide controls on the tools, techniques, mechanisms, and personnel used to conduct system maintenance.',
         keyConcepts: ['Timely Maintenance', 'Maintenance Tools', 'Remote Maintenance', 'Maintenance Personnel', 'Equipment Sanitization'],
         practices: [
@@ -276,7 +276,7 @@ const CMMCDomainData = {
         name: 'Media Protection',
         nistSection: '3.8',
         color: '#ec4899',
-        icon: '💾',
+        icon: '<img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Protect system media containing CUI, both paper and digital. Limit access to CUI on system media. Sanitize or destroy system media before disposal or reuse.',
         keyConcepts: ['Media Access Control', 'Media Marking', 'Media Storage', 'Media Transport', 'Media Sanitization', 'CUI Markings'],
         practices: [
@@ -313,7 +313,7 @@ const CMMCDomainData = {
         name: 'Personnel Security',
         nistSection: '3.9',
         color: '#6366f1',
-        icon: '👤',
+        icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Screen individuals prior to authorizing access to organizational systems containing CUI. Ensure that CUI and systems containing CUI are protected during and after personnel actions such as terminations and transfers.',
         keyConcepts: ['Personnel Screening', 'Termination Procedures', 'Transfer Procedures', 'Background Investigations', 'Access Revocation'],
         practices: [
@@ -342,7 +342,7 @@ const CMMCDomainData = {
         name: 'Physical Protection',
         nistSection: '3.10',
         color: '#84cc16',
-        icon: '🏢',
+        icon: '<img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Limit physical access to organizational systems, equipment, and the respective operating environments to authorized individuals. Protect the physical plant and support infrastructure.',
         keyConcepts: ['Physical Access Control', 'Visitor Management', 'Monitoring Physical Access', 'Alternative Work Sites', 'Equipment Placement', 'Facility Security'],
         practices: [
@@ -375,7 +375,7 @@ const CMMCDomainData = {
         name: 'Risk Assessment',
         nistSection: '3.11',
         color: '#eab308',
-        icon: '⚖️',
+        icon: '<img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Periodically assess the risk to organizational operations, assets, and individuals resulting from the operation of organizational systems and the associated processing, storage, or transmission of CUI.',
         keyConcepts: ['Risk Assessment', 'Vulnerability Scanning', 'Vulnerability Remediation', 'Risk Monitoring'],
         practices: [
@@ -406,7 +406,7 @@ const CMMCDomainData = {
         name: 'Security Assessment',
         nistSection: '3.12',
         color: '#14b8a6',
-        icon: '🔍',
+        icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Periodically assess the security controls in organizational systems to determine if the controls are effective in their application. Develop and implement plans of action to correct deficiencies and reduce vulnerabilities.',
         keyConcepts: ['Control Assessment', 'Plans of Action & Milestones (POA&M)', 'Continuous Monitoring', 'System Security Plans (SSP)'],
         practices: [
@@ -438,7 +438,7 @@ const CMMCDomainData = {
         name: 'System & Communications Protection',
         nistSection: '3.13',
         color: '#3b82f6',
-        icon: '🌐',
+        icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Monitor, control, and protect communications at the external and key internal boundaries of organizational systems. Employ architectural designs, software development techniques, and systems engineering principles that promote effective information security.',
         keyConcepts: ['Boundary Protection', 'Encryption', 'Network Segmentation', 'Cryptographic Key Management', 'Collaborative Computing', 'DNS Security', 'Session Authenticity'],
         practices: [
@@ -483,7 +483,7 @@ const CMMCDomainData = {
         name: 'System & Information Integrity',
         nistSection: '3.14',
         color: '#a855f7',
-        icon: '🛡️',
+        icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
         description: 'Identify, report, and correct system flaws in a timely manner. Protect organizational systems from malicious code at designated locations. Monitor system security alerts and take action in response to those alerts.',
         keyConcepts: ['Flaw Remediation', 'Malicious Code Protection', 'Security Alerts', 'System Monitoring', 'Inbound/Outbound Traffic', 'Unauthorized Use Detection'],
         practices: [

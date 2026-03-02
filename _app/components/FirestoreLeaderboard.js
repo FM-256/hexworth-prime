@@ -35,9 +35,9 @@ const FirestoreLeaderboard = (function() {
 
     // Tier badges
     const tierBadges = {
-        founding_member: { icon: '🌟', label: 'Founder', color: '#ffd700' },
-        early_adopter: { icon: '⭐', label: 'Early', color: '#87ceeb' },
-        beta_tester: { icon: '🔬', label: 'Beta', color: '#9370db' },
+        founding_member: { icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Founder', color: '#ffd700' },
+        early_adopter: { icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', label: 'Early', color: '#87ceeb' },
+        beta_tester: { icon: '<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Beta', color: '#9370db' },
         free: { icon: '', label: '', color: '#888' }
     };
 
@@ -186,7 +186,7 @@ const FirestoreLeaderboard = (function() {
             <div class="fsl-container">
                 <div class="fsl-header">
                     <h3 class="fsl-title">
-                        ${currentMode === 'global' ? '<img src="/assets/images/icons/trophy-gold.webp" class="fsl-trophy" alt="trophy"> Global Rankings' : `🏠 ${capitalize(currentMode)} House`}
+                        ${currentMode === 'global' ? '<img src="/assets/images/icons/trophy-gold.webp" class="fsl-trophy" alt="trophy"> Global Rankings' : `<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${capitalize(currentMode)} House`}
                     </h3>
                     <div class="fsl-tabs">
                         <button class="fsl-tab ${currentMode === 'global' ? 'active' : ''}" data-mode="global">
@@ -201,7 +201,7 @@ const FirestoreLeaderboard = (function() {
                 <div class="fsl-list">
                     ${entries.length > 0 ? entries.map((entry, i) => renderEntry(entry, i + 1, currentUser)).join('') : `
                         <div class="fsl-empty">
-                            <span class="fsl-empty-icon">📊</span>
+                            <span class="fsl-empty-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                             <p>No rankings yet. Complete modules to climb the leaderboard!</p>
                         </div>
                     `}
@@ -223,7 +223,7 @@ const FirestoreLeaderboard = (function() {
                 <div class="fsl-footer">
                     <span class="fsl-updated">Updated ${formatTimeAgo(data.timestamp)}</span>
                     <button class="fsl-refresh" onclick="FirestoreLeaderboard.refresh()">
-                        🔄 Refresh
+                        <img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Refresh
                     </button>
                 </div>
             </div>
@@ -371,7 +371,7 @@ const FirestoreLeaderboard = (function() {
                     <h3 class="fsl-title"><img src="/assets/images/icons/trophy-gold.webp" class="fsl-trophy" alt="trophy"> Leaderboard</h3>
                 </div>
                 <div class="fsl-error-content">
-                    <span class="fsl-error-icon">⚠️</span>
+                    <span class="fsl-error-icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                     <p>${message || 'Could not load leaderboard'}</p>
                     <button class="fsl-retry" onclick="FirestoreLeaderboard.refresh()">
                         Try Again

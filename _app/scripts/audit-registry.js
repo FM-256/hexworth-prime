@@ -62,13 +62,13 @@ if (missing.length > 0) {
     console.log('');
     console.log('══════════════ MISSING FILES ══════════════');
     console.log('');
-    missing.forEach(p => console.log('  ❌ ' + p));
+    missing.forEach(p => console.log('  <img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ' + p));
     console.log('');
     console.log('ACTION REQUIRED: Fix content-registry.js or create missing files.');
     process.exit(1);
 } else {
     console.log('');
-    console.log('✅ ALL PATHS VERIFIED - No broken references!');
+    console.log('<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ALL PATHS VERIFIED - No broken references!');
     console.log('');
     process.exit(0);
 }

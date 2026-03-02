@@ -75,7 +75,7 @@ const CheckpointSave = (function() {
         prompt.className = 'checkpoint-resume-prompt';
         prompt.innerHTML = `
             <div class="checkpoint-resume-inner">
-                <div class="checkpoint-resume-icon">&#9654;</div>
+                <div class="checkpoint-resume-icon"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                 <div class="checkpoint-resume-text">
                     <strong>Previous progress found</strong>
                     <span>Saved ${timeAgo}</span>

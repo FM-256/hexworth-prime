@@ -18,7 +18,7 @@ class AchievementSystem {
             id: 'first_login',
             name: 'First Steps',
             description: 'Begin your journey at Hexworth Prime',
-            icon: '👣',
+            icon: '/assets/images/icons/icon-footprint.webp',
             category: 'milestone',
             points: 10,
             secret: false
@@ -27,7 +27,7 @@ class AchievementSystem {
             id: 'sorted',
             name: 'Sorted!',
             description: 'Complete the house sorting ceremony',
-            icon: '🎓',
+            icon: '/assets/images/icons/icon-graduation.webp',
             category: 'milestone',
             points: 25,
             secret: false
@@ -36,7 +36,7 @@ class AchievementSystem {
             id: 'first_module',
             name: 'Getting Started',
             description: 'Complete your first module',
-            icon: '🌟',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'milestone',
             points: 50,
             secret: false
@@ -47,7 +47,7 @@ class AchievementSystem {
             id: 'first_quiz',
             name: 'Quiz Taker',
             description: 'Pass your first quiz',
-            icon: '📝',
+            icon: '/assets/images/icons/icon-notepad.webp',
             category: 'quiz',
             points: 50,
             secret: false
@@ -56,7 +56,7 @@ class AchievementSystem {
             id: 'perfect_score',
             name: 'Perfectionist',
             description: 'Score 100% on any quiz',
-            icon: '💯',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'quiz',
             points: 100,
             secret: false
@@ -65,7 +65,7 @@ class AchievementSystem {
             id: 'quiz_master_10',
             name: 'Quiz Apprentice',
             description: 'Pass 10 quizzes',
-            icon: '📚',
+            icon: '/assets/images/icons/icon-books.webp',
             category: 'quiz',
             points: 150,
             secret: false
@@ -74,7 +74,7 @@ class AchievementSystem {
             id: 'quiz_master_25',
             name: 'Quiz Master',
             description: 'Pass 25 quizzes',
-            icon: '🏆',
+            icon: '/assets/images/icons/icon-trophy.webp',
             category: 'quiz',
             points: 300,
             secret: false
@@ -83,7 +83,7 @@ class AchievementSystem {
             id: 'persistence',
             name: 'Persistent',
             description: 'Pass a quiz after 3 or more attempts',
-            icon: '💪',
+            icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'quiz',
             points: 75,
             secret: false
@@ -92,7 +92,7 @@ class AchievementSystem {
             id: 'speed_demon',
             name: 'Speed Demon',
             description: 'Complete a timed quiz with 50%+ time remaining',
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'quiz',
             points: 100,
             secret: false
@@ -104,7 +104,7 @@ class AchievementSystem {
             id: 'shield-cia-master',
             name: 'CIA Triad Master',
             description: 'Master the fundamentals of information security',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             category: 'shield',
             points: 100,
             secret: false
@@ -113,7 +113,7 @@ class AchievementSystem {
             id: 'shield_apprentice',
             name: 'Shield Apprentice',
             description: 'Complete 5 Shield House modules',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             category: 'shield',
             points: 150,
             secret: false
@@ -122,7 +122,7 @@ class AchievementSystem {
             id: 'shield_master',
             name: 'Shield Master',
             description: 'Complete all Shield House core modules',
-            icon: '⚔️',
+            icon: '/assets/images/icons/icon-swords.webp',
             category: 'shield',
             points: 500,
             secret: false
@@ -133,7 +133,7 @@ class AchievementSystem {
             id: 'web_apprentice',
             name: 'Network Novice',
             description: 'Complete 5 Web House modules',
-            icon: '🌐',
+            icon: '/assets/images/icons/icon-globe.webp',
             category: 'web',
             points: 150,
             secret: false
@@ -142,7 +142,7 @@ class AchievementSystem {
             id: 'web_master',
             name: 'Network Master',
             description: 'Complete all Web House core modules',
-            icon: '🕸️',
+            icon: '/assets/images/icons/icon-spiderweb.webp',
             category: 'web',
             points: 500,
             secret: false
@@ -151,7 +151,7 @@ class AchievementSystem {
             id: 'subnetting_wizard',
             name: 'Subnetting Wizard',
             description: 'Score 100% on the subnetting quiz',
-            icon: '🧮',
+            icon: '/assets/images/icons/icon-numbers.webp',
             category: 'web',
             points: 200,
             secret: false
@@ -162,7 +162,7 @@ class AchievementSystem {
             id: 'forge_apprentice',
             name: 'Forge Apprentice',
             description: 'Complete 5 Forge House modules',
-            icon: '🔨',
+            icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'forge',
             points: 150,
             secret: false
@@ -171,7 +171,7 @@ class AchievementSystem {
             id: 'forge_master',
             name: 'Master Smith',
             description: 'Complete all Forge House core modules',
-            icon: '⚒️',
+            icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'forge',
             points: 500,
             secret: false
@@ -182,7 +182,7 @@ class AchievementSystem {
             id: 'script_apprentice',
             name: 'Script Kiddie',
             description: 'Complete 5 Script House modules',
-            icon: '📜',
+            icon: '/assets/images/icons/icon-scroll.webp',
             category: 'script',
             points: 150,
             secret: false
@@ -191,7 +191,7 @@ class AchievementSystem {
             id: 'script_master',
             name: 'Script Sorcerer',
             description: 'Complete all Script House core modules',
-            icon: '🧙',
+            icon: '<img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'script',
             points: 500,
             secret: false
@@ -202,7 +202,7 @@ class AchievementSystem {
             id: 'cloud_apprentice',
             name: 'Cloud Climber',
             description: 'Complete 5 Cloud House modules',
-            icon: '☁️',
+            icon: '/assets/images/icons/icon-globe.webp',
             category: 'cloud',
             points: 150,
             secret: false
@@ -211,7 +211,7 @@ class AchievementSystem {
             id: 'cloud_master',
             name: 'Cloud Architect',
             description: 'Complete all Cloud House core modules',
-            icon: '🏔️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'cloud',
             points: 500,
             secret: false
@@ -222,7 +222,7 @@ class AchievementSystem {
             id: 'code_apprentice',
             name: 'Code Cadet',
             description: 'Complete 5 Code House modules',
-            icon: '💻',
+            icon: '/assets/images/icons/icon-laptop.webp',
             category: 'code',
             points: 150,
             secret: false
@@ -231,7 +231,7 @@ class AchievementSystem {
             id: 'code_master',
             name: 'DevOps Champion',
             description: 'Complete all Code House core modules',
-            icon: '🚀',
+            icon: '/assets/images/icons/icon-rocket.webp',
             category: 'code',
             points: 500,
             secret: false
@@ -242,7 +242,7 @@ class AchievementSystem {
             id: 'key_apprentice',
             name: 'Crypto Curious',
             description: 'Complete 5 Key House modules',
-            icon: '🔑',
+            icon: '/assets/images/icons/icon-key.webp',
             category: 'key',
             points: 150,
             secret: false
@@ -251,7 +251,7 @@ class AchievementSystem {
             id: 'key_master',
             name: 'Cryptographer',
             description: 'Complete all Key House core modules',
-            icon: '🔐',
+            icon: '/assets/images/icons/icon-padlock.webp',
             category: 'key',
             points: 500,
             secret: false
@@ -262,7 +262,7 @@ class AchievementSystem {
             id: 'eye_apprentice',
             name: 'Watchful Eye',
             description: 'Complete 5 Eye House modules',
-            icon: '👁️',
+            icon: '/assets/images/icons/icon-detective.webp',
             category: 'eye',
             points: 150,
             secret: false
@@ -271,7 +271,7 @@ class AchievementSystem {
             id: 'eye_master',
             name: 'All-Seeing',
             description: 'Complete all Eye House core modules',
-            icon: '🔮',
+            icon: '/assets/images/icons/icon-diamond.webp',
             category: 'eye',
             points: 500,
             secret: false
@@ -282,7 +282,7 @@ class AchievementSystem {
             id: 'level_5',
             name: 'Rising Star',
             description: 'Reach Level 5',
-            icon: '⭐',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'level',
             points: 100,
             secret: false
@@ -291,7 +291,7 @@ class AchievementSystem {
             id: 'level_10',
             name: 'Seasoned Learner',
             description: 'Reach Level 10',
-            icon: '🌟',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'level',
             points: 250,
             secret: false
@@ -300,7 +300,7 @@ class AchievementSystem {
             id: 'level_15',
             name: 'Hexworth Master',
             description: 'Reach Level 15 (Max Level)',
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'level',
             points: 500,
             secret: false
@@ -311,7 +311,7 @@ class AchievementSystem {
             id: 'night_owl',
             name: 'Night Owl',
             description: 'Complete a module between midnight and 4 AM',
-            icon: '🦉',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'special',
             points: 50,
             secret: true
@@ -320,7 +320,7 @@ class AchievementSystem {
             id: 'early_bird',
             name: 'Early Bird',
             description: 'Complete a module between 5 AM and 7 AM',
-            icon: '🐦',
+            icon: '<img src="/assets/images/icons/icon-satellite.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'special',
             points: 50,
             secret: true
@@ -329,7 +329,7 @@ class AchievementSystem {
             id: 'weekend_warrior',
             name: 'Weekend Warrior',
             description: 'Study on both Saturday and Sunday',
-            icon: '⚔️',
+            icon: '/assets/images/icons/icon-swords.webp',
             category: 'special',
             points: 75,
             secret: true
@@ -338,7 +338,7 @@ class AchievementSystem {
             id: 'streak_7',
             name: 'Week Streak',
             description: 'Study for 7 consecutive days',
-            icon: '🔥',
+            icon: '/assets/images/icons/icon-explosion.webp',
             category: 'special',
             points: 150,
             secret: false
@@ -347,7 +347,7 @@ class AchievementSystem {
             id: 'multi_house',
             name: 'Renaissance Learner',
             description: 'Complete modules in all 8 houses',
-            icon: '🎭',
+            icon: '/assets/images/icons/icon-mask.webp',
             category: 'special',
             points: 200,
             secret: false
@@ -356,7 +356,7 @@ class AchievementSystem {
             id: 'dark_arts_gate1',
             name: 'Gate Keeper',
             description: 'Open the first gate to the Dark Arts',
-            icon: '🚪',
+            icon: '/assets/images/icons/icon-door.webp',
             category: 'dark_arts',
             points: 100,
             secret: true
@@ -365,7 +365,7 @@ class AchievementSystem {
             id: 'dark_arts_master',
             name: 'Dark Arts Master',
             description: 'Complete all five gates',
-            icon: '💀',
+            icon: '/assets/images/icons/icon-skull-crossbones.webp',
             category: 'dark_arts',
             points: 500,
             secret: true
@@ -376,7 +376,7 @@ class AchievementSystem {
             id: 'explorer',
             name: 'Explorer',
             description: 'Visit 50 different pages',
-            icon: '🗺️',
+            icon: '/assets/images/icons/icon-map.webp',
             category: 'explorer',
             points: 100,
             secret: false
@@ -385,7 +385,7 @@ class AchievementSystem {
             id: 'lab_rat',
             name: 'Lab Rat',
             description: 'Complete 10 hands-on labs',
-            icon: '🔬',
+            icon: '/assets/images/icons/icon-microscope.webp',
             category: 'explorer',
             points: 200,
             secret: false
@@ -398,7 +398,7 @@ class AchievementSystem {
             id: 'perspective_seeker',
             name: 'Perspective Seeker',
             description: 'Complete at least one item in each skill tree perspective',
-            icon: '🔀',
+            icon: '/assets/images/icons/icon-branch.webp',
             category: 'factionless',
             points: 100,
             secret: false
@@ -407,7 +407,7 @@ class AchievementSystem {
             id: 'fundamentals_scholar',
             name: 'Fundamentals Scholar',
             description: 'Complete all items in the Fundamentals perspective',
-            icon: '📚',
+            icon: '/assets/images/icons/icon-books.webp',
             category: 'factionless',
             points: 500,
             secret: false
@@ -416,7 +416,7 @@ class AchievementSystem {
             id: 'tool_wielder',
             name: 'Tool Wielder',
             description: 'Complete all items in the Tools perspective',
-            icon: '🔧',
+            icon: '/assets/images/icons/icon-wrench.webp',
             category: 'factionless',
             points: 500,
             secret: false
@@ -425,7 +425,7 @@ class AchievementSystem {
             id: 'skill_master',
             name: 'Skill Master',
             description: 'Complete all items in the Skills perspective',
-            icon: '⚔️',
+            icon: '/assets/images/icons/icon-swords.webp',
             category: 'factionless',
             points: 500,
             secret: false
@@ -434,7 +434,7 @@ class AchievementSystem {
             id: 'true_divergent',
             name: 'True Divergent',
             description: 'Complete all three skill tree perspectives at 100%',
-            icon: '🌟',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'factionless',
             points: 2000,
             secret: false
@@ -443,7 +443,7 @@ class AchievementSystem {
             id: 'domain_explorer',
             name: 'Domain Explorer',
             description: 'Complete at least one folder in each perspective',
-            icon: '🗂️',
+            icon: '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'factionless',
             points: 200,
             secret: false
@@ -452,7 +452,7 @@ class AchievementSystem {
             id: 'multi_domain',
             name: 'Multi-Domain Specialist',
             description: 'Achieve 50%+ completion in 3 or more skill domains',
-            icon: '🌐',
+            icon: '/assets/images/icons/icon-globe.webp',
             category: 'factionless',
             points: 300,
             secret: false
@@ -461,7 +461,7 @@ class AchievementSystem {
             id: 'jack_of_trades',
             name: 'Jack of All Trades',
             description: 'Complete at least one item from every folder in the skill tree',
-            icon: '🃏',
+            icon: '/assets/images/icons/icon-wildcard.webp',
             category: 'factionless',
             points: 400,
             secret: false
@@ -470,7 +470,7 @@ class AchievementSystem {
             id: 'the_polymath',
             name: 'The Polymath',
             description: 'Achieve 75%+ completion across all skill tree perspectives',
-            icon: '🧠',
+            icon: '/assets/images/icons/icon-brain.webp',
             category: 'factionless',
             points: 1000,
             secret: false
@@ -479,7 +479,7 @@ class AchievementSystem {
             id: 'path_finder',
             name: 'Path Finder',
             description: 'Discover all 3 perspectives of the Factionless skill tree',
-            icon: '🧭',
+            icon: '/assets/images/icons/icon-compass.webp',
             category: 'factionless',
             points: 50,
             secret: false
@@ -488,7 +488,7 @@ class AchievementSystem {
             id: 'terminal_explorer',
             name: 'Terminal Explorer',
             description: 'Navigate the skill tree using cd commands 50 times',
-            icon: '📂',
+            icon: '/assets/images/icons/icon-folder.webp',
             category: 'factionless',
             points: 75,
             secret: true
@@ -501,7 +501,7 @@ class AchievementSystem {
             id: 'branch_security_analyst',
             name: 'Security Analyst',
             description: 'Unlock the Security Analyst career path',
-            icon: '🔍',
+            icon: '/assets/images/icons/icon-magnifier.webp',
             category: 'career',
             points: 500,
             secret: false
@@ -510,7 +510,7 @@ class AchievementSystem {
             id: 'branch_cloud_security',
             name: 'Cloud Guardian',
             description: 'Unlock the Cloud Security Specialist path',
-            icon: '🔒',
+            icon: '/assets/images/icons/icon-padlock.webp',
             category: 'career',
             points: 600,
             secret: false
@@ -519,7 +519,7 @@ class AchievementSystem {
             id: 'branch_devops',
             name: 'DevOps Engineer',
             description: 'Unlock the DevOps Engineer career path',
-            icon: '🚀',
+            icon: '/assets/images/icons/icon-rocket.webp',
             category: 'career',
             points: 600,
             secret: false
@@ -528,7 +528,7 @@ class AchievementSystem {
             id: 'branch_network',
             name: 'Network Architect',
             description: 'Unlock the Network Engineer career path',
-            icon: '🌐',
+            icon: '/assets/images/icons/icon-globe.webp',
             category: 'career',
             points: 700,
             secret: false
@@ -537,7 +537,7 @@ class AchievementSystem {
             id: 'branch_sysadmin',
             name: 'Systems Administrator',
             description: 'Unlock the Systems Administrator path',
-            icon: '🖥️',
+            icon: '/assets/images/icons/icon-desktop.webp',
             category: 'career',
             points: 500,
             secret: false
@@ -546,7 +546,7 @@ class AchievementSystem {
             id: 'branch_crypto',
             name: 'Cryptographer',
             description: 'Unlock the Cryptographer career path',
-            icon: '🔐',
+            icon: '/assets/images/icons/icon-padlock.webp',
             category: 'career',
             points: 700,
             secret: false
@@ -555,7 +555,7 @@ class AchievementSystem {
             id: 'branch_pentester',
             name: 'Penetration Tester',
             description: 'Unlock the Penetration Tester path',
-            icon: '🎯',
+            icon: '/assets/images/icons/icon-target.webp',
             category: 'career',
             points: 800,
             secret: false
@@ -564,7 +564,7 @@ class AchievementSystem {
             id: 'branch_ir',
             name: 'Incident Responder',
             description: 'Unlock the Incident Responder path',
-            icon: '🚨',
+            icon: '/assets/images/icons/icon-siren.webp',
             category: 'career',
             points: 800,
             secret: false
@@ -573,7 +573,7 @@ class AchievementSystem {
             id: 'branch_master',
             name: 'Master Class Graduate',
             description: 'Unlock Master Class access at Level 15',
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'career',
             points: 1000,
             secret: false
@@ -582,7 +582,7 @@ class AchievementSystem {
             id: 'triple_threat',
             name: 'Triple Threat',
             description: 'Unlock 3 different career branches',
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'career',
             points: 500,
             secret: false
@@ -591,7 +591,7 @@ class AchievementSystem {
             id: 'renaissance_agent',
             name: 'Renaissance Agent',
             description: 'Unlock 5 or more career branches',
-            icon: '🎭',
+            icon: '/assets/images/icons/icon-mask.webp',
             category: 'career',
             points: 1000,
             secret: false
@@ -600,7 +600,7 @@ class AchievementSystem {
             id: 'complete_specialist',
             name: 'Complete Specialist',
             description: 'Unlock ALL career branches',
-            icon: '🏆',
+            icon: '/assets/images/icons/icon-trophy.webp',
             category: 'career',
             points: 2500,
             secret: false
@@ -613,7 +613,7 @@ class AchievementSystem {
             id: 'red_pill',
             name: 'Red Pill Taken',
             description: 'Choose to see how deep the rabbit hole goes',
-            icon: '💊',
+            icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 100,
             secret: false
@@ -622,7 +622,7 @@ class AchievementSystem {
             id: 'terminal_initiate',
             name: 'Terminal Initiate',
             description: 'Execute your first command in the Matrix',
-            icon: '⌨️',
+            icon: '/assets/images/icons/icon-keyboard.webp',
             category: 'operator',
             points: 50,
             secret: false
@@ -631,7 +631,7 @@ class AchievementSystem {
             id: 'command_warrior',
             name: 'Command Line Warrior',
             description: 'Execute 50 commands in the Matrix terminal',
-            icon: '🖥️',
+            icon: '/assets/images/icons/icon-desktop.webp',
             category: 'operator',
             points: 200,
             secret: false
@@ -640,7 +640,7 @@ class AchievementSystem {
             id: 'neo_apprentice',
             name: "Neo's Apprentice",
             description: 'Complete your first module via the terminal interface',
-            icon: '🕴️',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 150,
             secret: false
@@ -649,7 +649,7 @@ class AchievementSystem {
             id: 'the_one',
             name: 'The One',
             description: 'Reach Level 10 as an Operator',
-            icon: '☯️',
+            icon: '<img src="/assets/images/icons/icon-atom.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 500,
             secret: false
@@ -658,7 +658,7 @@ class AchievementSystem {
             id: 'no_spoon',
             name: 'There Is No Spoon',
             description: 'Complete all available Matrix training programs',
-            icon: '🥄',
+            icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 1000,
             secret: false
@@ -667,7 +667,7 @@ class AchievementSystem {
             id: 'operator_status',
             name: 'Operator Status',
             description: 'Guide 3 crew members through training (class assistance)',
-            icon: '📞',
+            icon: '<img src="/assets/images/icons/icon-phone.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 300,
             secret: false
@@ -676,7 +676,7 @@ class AchievementSystem {
             id: 'construct_master',
             name: 'Construct Master',
             description: 'Create a custom training construct (study path)',
-            icon: '🏗️',
+            icon: '/assets/images/icons/icon-construction.webp',
             category: 'operator',
             points: 200,
             secret: false
@@ -685,7 +685,7 @@ class AchievementSystem {
             id: 'white_rabbit',
             name: 'Follow the White Rabbit',
             description: 'Find the hidden Matrix easter egg',
-            icon: '🐰',
+            icon: '<img src="/assets/images/icons/icon-footprint.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 250,
             secret: true
@@ -694,7 +694,7 @@ class AchievementSystem {
             id: 'free_your_mind',
             name: 'Free Your Mind',
             description: 'Complete content from 5 different houses while in the Matrix',
-            icon: '🧠',
+            icon: '/assets/images/icons/icon-brain.webp',
             category: 'operator',
             points: 1500,
             secret: false
@@ -703,7 +703,7 @@ class AchievementSystem {
             id: 'deja_vu',
             name: 'Deja Vu',
             description: 'Complete the same module twice in the Matrix',
-            icon: '🐈',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 50,
             secret: true
@@ -712,7 +712,7 @@ class AchievementSystem {
             id: 'matrix_glitch',
             name: 'Glitch in the Matrix',
             description: 'Trigger a hidden terminal animation',
-            icon: '📺',
+            icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 100,
             secret: true
@@ -721,7 +721,7 @@ class AchievementSystem {
             id: 'morpheus_wisdom',
             name: "Morpheus' Wisdom",
             description: 'Access all terminal help documentation',
-            icon: '🎩',
+            icon: '/assets/images/icons/icon-hat.webp',
             category: 'operator',
             points: 75,
             secret: false
@@ -730,7 +730,7 @@ class AchievementSystem {
             id: 'matrix_code',
             name: 'I Know Kung Fu',
             description: 'Complete 10 modules in a single Matrix session',
-            icon: '🥋',
+            icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'operator',
             points: 300,
             secret: false
@@ -744,7 +744,7 @@ class AchievementSystem {
             id: 'shield_cia_triad',
             name: 'Triad Guardian',
             description: 'Perfect score on CIA Triad fundamentals',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             category: 'shield',
             points: 200,
             secret: false
@@ -753,7 +753,7 @@ class AchievementSystem {
             id: 'shield_threat_hunter',
             name: 'Threat Hunter',
             description: 'Complete all threat analysis modules',
-            icon: '🎯',
+            icon: '/assets/images/icons/icon-target.webp',
             category: 'shield',
             points: 300,
             secret: false
@@ -762,7 +762,7 @@ class AchievementSystem {
             id: 'shield_defender',
             name: 'First Line Defender',
             description: 'Complete network security module with perfect score',
-            icon: '🏰',
+            icon: '/assets/images/icons/icon-castle.webp',
             category: 'shield',
             points: 250,
             secret: false
@@ -771,7 +771,7 @@ class AchievementSystem {
             id: 'shield_social_engineer',
             name: 'Social Engineering Aware',
             description: 'Master social engineering defense techniques',
-            icon: '🎭',
+            icon: '/assets/images/icons/icon-mask.webp',
             category: 'shield',
             points: 200,
             secret: false
@@ -782,7 +782,7 @@ class AchievementSystem {
             id: 'web_osi_master',
             name: 'OSI Architect',
             description: 'Perfect understanding of OSI model layers',
-            icon: '📊',
+            icon: '/assets/images/icons/icon-barchart.webp',
             category: 'web',
             points: 200,
             secret: false
@@ -791,7 +791,7 @@ class AchievementSystem {
             id: 'web_vlan_virtuoso',
             name: 'VLAN Virtuoso',
             description: 'Complete all switching and VLAN modules',
-            icon: '🔌',
+            icon: '/assets/images/icons/icon-plug.webp',
             category: 'web',
             points: 250,
             secret: false
@@ -800,7 +800,7 @@ class AchievementSystem {
             id: 'web_routing_guru',
             name: 'Routing Guru',
             description: 'Master static and dynamic routing concepts',
-            icon: '🛤️',
+            icon: '/assets/images/icons/icon-redirect.webp',
             category: 'web',
             points: 300,
             secret: false
@@ -809,7 +809,7 @@ class AchievementSystem {
             id: 'web_wireless_wizard',
             name: 'Wireless Wizard',
             description: 'Complete all wireless networking content',
-            icon: '📶',
+            icon: '/assets/images/icons/icon-signal.webp',
             category: 'web',
             points: 200,
             secret: false
@@ -820,7 +820,7 @@ class AchievementSystem {
             id: 'forge_hardware_expert',
             name: 'Hardware Expert',
             description: 'Master all hardware components and troubleshooting',
-            icon: '🔩',
+            icon: '/assets/images/icons/icon-wrench.webp',
             category: 'forge',
             points: 250,
             secret: false
@@ -829,7 +829,7 @@ class AchievementSystem {
             id: 'forge_windows_whisperer',
             name: 'Windows Whisperer',
             description: 'Complete all Windows administration modules',
-            icon: '🪟',
+            icon: '/assets/images/icons/icon-window.webp',
             category: 'forge',
             points: 300,
             secret: false
@@ -838,7 +838,7 @@ class AchievementSystem {
             id: 'forge_troubleshooter',
             name: 'Master Troubleshooter',
             description: 'Complete all troubleshooting methodology modules',
-            icon: '🔧',
+            icon: '/assets/images/icons/icon-wrench.webp',
             category: 'forge',
             points: 250,
             secret: false
@@ -847,7 +847,7 @@ class AchievementSystem {
             id: 'forge_raid_master',
             name: 'RAID Master',
             description: 'Perfect score on storage and RAID concepts',
-            icon: '💾',
+            icon: '/assets/images/icons/icon-memory.webp',
             category: 'forge',
             points: 200,
             secret: false
@@ -858,7 +858,7 @@ class AchievementSystem {
             id: 'script_python_prodigy',
             name: 'Python Prodigy',
             description: 'Complete all Python fundamentals modules',
-            icon: '🐍',
+            icon: '/assets/images/icons/icon-snake.webp',
             category: 'script',
             points: 300,
             secret: false
@@ -867,7 +867,7 @@ class AchievementSystem {
             id: 'script_bash_ninja',
             name: 'Bash Ninja',
             description: 'Master bash scripting and automation',
-            icon: '🥷',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'script',
             points: 250,
             secret: false
@@ -876,7 +876,7 @@ class AchievementSystem {
             id: 'script_linux_sage',
             name: 'Linux Sage',
             description: 'Complete all Linux administration content',
-            icon: '🐧',
+            icon: '/assets/images/icons/icon-penguin.webp',
             category: 'script',
             points: 300,
             secret: false
@@ -885,7 +885,7 @@ class AchievementSystem {
             id: 'script_automator',
             name: 'The Automator',
             description: 'Master process and task automation',
-            icon: '🤖',
+            icon: '/assets/images/icons/icon-robot.webp',
             category: 'script',
             points: 250,
             secret: false
@@ -896,7 +896,7 @@ class AchievementSystem {
             id: 'cloud_aws_certified',
             name: 'AWS Explorer',
             description: 'Complete all AWS fundamentals content',
-            icon: '☁️',
+            icon: '/assets/images/icons/icon-globe.webp',
             category: 'cloud',
             points: 300,
             secret: false
@@ -905,7 +905,7 @@ class AchievementSystem {
             id: 'cloud_azure_adept',
             name: 'Azure Adept',
             description: 'Complete all Azure fundamentals content',
-            icon: '🔵',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'cloud',
             points: 300,
             secret: false
@@ -914,7 +914,7 @@ class AchievementSystem {
             id: 'cloud_multi_cloud',
             name: 'Multi-Cloud Architect',
             description: 'Complete content across multiple cloud providers',
-            icon: '🌩️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'cloud',
             points: 400,
             secret: false
@@ -923,7 +923,7 @@ class AchievementSystem {
             id: 'cloud_iam_master',
             name: 'IAM Master',
             description: 'Perfect score on identity and access management',
-            icon: '🔑',
+            icon: '/assets/images/icons/icon-key.webp',
             category: 'cloud',
             points: 250,
             secret: false
@@ -934,7 +934,7 @@ class AchievementSystem {
             id: 'code_git_guru',
             name: 'Git Guru',
             description: 'Master version control with Git',
-            icon: '📚',
+            icon: '/assets/images/icons/icon-books.webp',
             category: 'code',
             points: 250,
             secret: false
@@ -943,7 +943,7 @@ class AchievementSystem {
             id: 'code_cicd_champion',
             name: 'CI/CD Champion',
             description: 'Complete all continuous integration content',
-            icon: '♾️',
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'code',
             points: 300,
             secret: false
@@ -952,7 +952,7 @@ class AchievementSystem {
             id: 'code_container_captain',
             name: 'Container Captain',
             description: 'Master Docker and container concepts',
-            icon: '🐳',
+            icon: '/assets/images/icons/icon-docker.webp',
             category: 'code',
             points: 300,
             secret: false
@@ -961,7 +961,7 @@ class AchievementSystem {
             id: 'code_k8s_knight',
             name: 'Kubernetes Knight',
             description: 'Complete Kubernetes orchestration content',
-            icon: '☸️',
+            icon: '/assets/images/icons/icon-kubernetes.webp',
             category: 'code',
             points: 350,
             secret: false
@@ -972,7 +972,7 @@ class AchievementSystem {
             id: 'key_cipher_master',
             name: 'Cipher Master',
             description: 'Master classical and modern ciphers',
-            icon: '🔏',
+            icon: '/assets/images/icons/icon-padlock.webp',
             category: 'key',
             points: 250,
             secret: false
@@ -981,7 +981,7 @@ class AchievementSystem {
             id: 'key_hash_hunter',
             name: 'Hash Hunter',
             description: 'Understand all hashing algorithms',
-            icon: '#️⃣',
+            icon: '/assets/images/icons/icon-numbers.webp',
             category: 'key',
             points: 200,
             secret: false
@@ -990,7 +990,7 @@ class AchievementSystem {
             id: 'key_pki_professional',
             name: 'PKI Professional',
             description: 'Master public key infrastructure concepts',
-            icon: '📜',
+            icon: '/assets/images/icons/icon-scroll.webp',
             category: 'key',
             points: 300,
             secret: false
@@ -999,7 +999,7 @@ class AchievementSystem {
             id: 'key_entropy_expert',
             name: 'Entropy Expert',
             description: 'Understand randomness and key generation',
-            icon: '🎲',
+            icon: '/assets/images/icons/icon-joystick.webp',
             category: 'key',
             points: 250,
             secret: false
@@ -1010,7 +1010,7 @@ class AchievementSystem {
             id: 'eye_siem_specialist',
             name: 'SIEM Specialist',
             description: 'Master security information and event management',
-            icon: '📊',
+            icon: '/assets/images/icons/icon-barchart.webp',
             category: 'eye',
             points: 300,
             secret: false
@@ -1019,7 +1019,7 @@ class AchievementSystem {
             id: 'eye_log_detective',
             name: 'Log Detective',
             description: 'Complete all log analysis modules',
-            icon: '🔍',
+            icon: '/assets/images/icons/icon-magnifier.webp',
             category: 'eye',
             points: 250,
             secret: false
@@ -1028,7 +1028,7 @@ class AchievementSystem {
             id: 'eye_pattern_hunter',
             name: 'Pattern Hunter',
             description: 'Identify attack patterns in log data',
-            icon: '🎯',
+            icon: '/assets/images/icons/icon-target.webp',
             category: 'eye',
             points: 300,
             secret: false
@@ -1037,7 +1037,7 @@ class AchievementSystem {
             id: 'eye_alert_analyst',
             name: 'Alert Analyst',
             description: 'Master alert triage and prioritization',
-            icon: '🚨',
+            icon: '/assets/images/icons/icon-siren.webp',
             category: 'eye',
             points: 250,
             secret: false
@@ -1050,7 +1050,7 @@ class AchievementSystem {
             id: 'dark_arts_gate2',
             name: 'Second Seal',
             description: 'Pass through the second gate',
-            icon: '🔓',
+            icon: '/assets/images/icons/icon-unlock.webp',
             category: 'dark_arts',
             points: 150,
             secret: true
@@ -1059,7 +1059,7 @@ class AchievementSystem {
             id: 'dark_arts_gate3',
             name: 'Third Eye Opens',
             description: 'Pass through the third gate',
-            icon: '👁️',
+            icon: '/assets/images/icons/icon-detective.webp',
             category: 'dark_arts',
             points: 200,
             secret: true
@@ -1068,7 +1068,7 @@ class AchievementSystem {
             id: 'dark_arts_gate4',
             name: 'Frequency Walker',
             description: 'Pass through the fourth gate',
-            icon: '📻',
+            icon: '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'dark_arts',
             points: 250,
             secret: true
@@ -1077,7 +1077,7 @@ class AchievementSystem {
             id: 'dark_arts_gate5',
             name: 'Synthesis Complete',
             description: 'Pass through the final gate',
-            icon: '🗝️',
+            icon: '/assets/images/icons/icon-key.webp',
             category: 'dark_arts',
             points: 300,
             secret: true
@@ -1086,7 +1086,7 @@ class AchievementSystem {
             id: 'dark_arts_gate6',
             name: 'Analyst',
             description: 'Complete the static analysis challenge',
-            icon: '🔬',
+            icon: '/assets/images/icons/icon-microscope.webp',
             category: 'dark_arts',
             points: 400,
             secret: true
@@ -1095,7 +1095,7 @@ class AchievementSystem {
             id: 'dark_arts_gate7',
             name: 'Sentinel',
             description: 'Complete the threat intelligence challenge',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             category: 'dark_arts',
             points: 400,
             secret: true
@@ -1104,7 +1104,7 @@ class AchievementSystem {
             id: 'dark_arts_gate8',
             name: 'Master Investigator',
             description: 'Complete Operation Gone Dark',
-            icon: '🕵️',
+            icon: '/assets/images/icons/icon-detective.webp',
             category: 'dark_arts',
             points: 500,
             secret: true
@@ -1113,7 +1113,7 @@ class AchievementSystem {
             id: 'dark_arts_gate9',
             name: 'Phantom',
             description: 'Complete the reverse engineering challenge',
-            icon: '👁',
+            icon: '/assets/images/icons/icon-detective.webp',
             category: 'dark_arts',
             points: 500,
             secret: true
@@ -1122,7 +1122,7 @@ class AchievementSystem {
             id: 'dark_arts_gate10',
             name: 'Grandmaster',
             description: 'Complete the incident response capstone',
-            icon: '💀',
+            icon: '/assets/images/icons/icon-skull-crossbones.webp',
             category: 'dark_arts',
             points: 1000,
             secret: true
@@ -1131,7 +1131,7 @@ class AchievementSystem {
             id: 'dark_arts_vault',
             name: 'Vault Keeper',
             description: 'Access the Dark Arts Vault',
-            icon: '🏛️',
+            icon: '/assets/images/icons/icon-institution.webp',
             category: 'dark_arts',
             points: 500,
             secret: true
@@ -1140,7 +1140,7 @@ class AchievementSystem {
             id: 'dark_arts_yara',
             name: 'YARA Initiate',
             description: 'Complete YARA rule training',
-            icon: '📝',
+            icon: '/assets/images/icons/icon-notepad.webp',
             category: 'dark_arts',
             points: 300,
             secret: false
@@ -1149,7 +1149,7 @@ class AchievementSystem {
             id: 'dark_arts_malware_basics',
             name: 'Know Thy Enemy',
             description: 'Complete malware fundamentals',
-            icon: '🦠',
+            icon: '/assets/images/icons/icon-virus.webp',
             category: 'dark_arts',
             points: 350,
             secret: false
@@ -1158,7 +1158,7 @@ class AchievementSystem {
             id: 'dark_arts_speedrun',
             name: 'Gate Speedrunner',
             description: 'Complete all 5 gates in under 30 minutes',
-            icon: '⏱️',
+            icon: '/assets/images/icons/icon-stopwatch.webp',
             category: 'dark_arts',
             points: 500,
             secret: true
@@ -1171,7 +1171,7 @@ class AchievementSystem {
             id: 'game_domain_win',
             name: 'Domain Defender',
             description: "Neutralize the threat in Don't Lose Your Domain",
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1180,7 +1180,7 @@ class AchievementSystem {
             id: 'game_domain_by_the_book',
             name: 'AD Incident Pro',
             description: 'Disable + remove DA + reset password in one run',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1189,7 +1189,7 @@ class AchievementSystem {
             id: 'game_domain_speed',
             name: 'Rapid Response: AD',
             description: "Speed run Don't Lose Your Domain",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1198,7 +1198,7 @@ class AchievementSystem {
             id: 'game_domain_all',
             name: 'Domain Master',
             description: "Unlock all 12 achievements in Don't Lose Your Domain",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1207,7 +1207,7 @@ class AchievementSystem {
             id: 'game_brick_win',
             name: 'Endpoint Savior',
             description: "Contain the threat in Don't Brick the PC",
-            icon: '💻',
+            icon: '/assets/images/icons/icon-laptop.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1216,7 +1216,7 @@ class AchievementSystem {
             id: 'game_brick_by_the_book',
             name: 'CompTIA Methodologist',
             description: 'Follow full troubleshooting methodology in one run',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1225,7 +1225,7 @@ class AchievementSystem {
             id: 'game_brick_speed',
             name: 'Rapid Response: IR',
             description: "Speed run Don't Brick the PC",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1234,7 +1234,7 @@ class AchievementSystem {
             id: 'game_brick_all',
             name: 'Helpdesk Hero',
             description: "Unlock all 12 achievements in Don't Brick the PC",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1243,7 +1243,7 @@ class AchievementSystem {
             id: 'game_phished_win',
             name: 'Phishing Defender',
             description: "Contain the phishing campaign in Don't Get Phished",
-            icon: '🎣',
+            icon: '/assets/images/icons/icon-fishhook.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1252,7 +1252,7 @@ class AchievementSystem {
             id: 'game_phished_by_the_book',
             name: 'NIST IR Pro',
             description: 'Complete the full NIST IR lifecycle in one run',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1261,7 +1261,7 @@ class AchievementSystem {
             id: 'game_phished_speed',
             name: 'Rapid Response: SOC',
             description: "Speed run Don't Get Phished",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1270,7 +1270,7 @@ class AchievementSystem {
             id: 'game_phished_all',
             name: 'SOC Master',
             description: "Unlock all 12 achievements in Don't Get Phished",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1279,7 +1279,7 @@ class AchievementSystem {
             id: 'game_server_win',
             name: 'Server Savior',
             description: "Fix the server in Don't Kill the Server",
-            icon: '🐧',
+            icon: '/assets/images/icons/icon-penguin.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1288,7 +1288,7 @@ class AchievementSystem {
             id: 'game_server_by_the_book',
             name: 'Methodical Sysadmin',
             description: 'Follow full sysadmin methodology in one run',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1297,7 +1297,7 @@ class AchievementSystem {
             id: 'game_server_speed',
             name: 'Rapid Response: Linux',
             description: "Speed run Don't Kill the Server",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1306,7 +1306,7 @@ class AchievementSystem {
             id: 'game_server_all',
             name: 'Sysadmin Legend',
             description: "Unlock all 12 achievements in Don't Kill the Server",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1315,7 +1315,7 @@ class AchievementSystem {
             id: 'game_packet_win',
             name: 'Network Savior',
             description: "Fix the network in Don't Drop the Packet",
-            icon: '🌐',
+            icon: '/assets/images/icons/icon-globe.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1324,7 +1324,7 @@ class AchievementSystem {
             id: 'game_packet_by_the_book',
             name: 'Network Methodologist',
             description: 'Follow full Network+ troubleshooting methodology',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1333,7 +1333,7 @@ class AchievementSystem {
             id: 'game_packet_speed',
             name: 'Rapid Response: Network',
             description: "Speed run Don't Drop the Packet",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1342,7 +1342,7 @@ class AchievementSystem {
             id: 'game_packet_all',
             name: 'Network Legend',
             description: "Unlock all 12 achievements in Don't Drop the Packet",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1351,7 +1351,7 @@ class AchievementSystem {
             id: 'game_deploy_win',
             name: 'Friday Survivor',
             description: "Fix the deploy in Don't Deploy on Friday",
-            icon: '🚀',
+            icon: '/assets/images/icons/icon-rocket.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1360,7 +1360,7 @@ class AchievementSystem {
             id: 'game_deploy_by_the_book',
             name: 'CI/CD Professional',
             description: 'Follow full DevOps methodology in one run',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1369,7 +1369,7 @@ class AchievementSystem {
             id: 'game_deploy_speed',
             name: 'Rapid Response: DevOps',
             description: "Speed run Don't Deploy on Friday",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1378,7 +1378,7 @@ class AchievementSystem {
             id: 'game_deploy_all',
             name: 'DevOps Legend',
             description: "Unlock all 12 achievements in Don't Deploy on Friday",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1387,7 +1387,7 @@ class AchievementSystem {
             id: 'game_troll_win',
             name: 'Troll Tamer',
             description: "Contain the threat in Don't Feed the Troll",
-            icon: '👁️',
+            icon: '/assets/images/icons/icon-detective.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1396,7 +1396,7 @@ class AchievementSystem {
             id: 'game_troll_by_the_book',
             name: 'OSINT Professional',
             description: 'Follow full intelligence cycle in one run',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1405,7 +1405,7 @@ class AchievementSystem {
             id: 'game_troll_speed',
             name: 'Rapid Response: OSINT',
             description: "Speed run Don't Feed the Troll",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1414,7 +1414,7 @@ class AchievementSystem {
             id: 'game_troll_all',
             name: 'Intelligence Legend',
             description: "Unlock all 12 achievements in Don't Feed the Troll",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1423,7 +1423,7 @@ class AchievementSystem {
             id: 'game_key_win',
             name: 'Key Keeper',
             description: "Contain the leak in Don't Leak the Key",
-            icon: '🔑',
+            icon: '/assets/images/icons/icon-key.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1432,7 +1432,7 @@ class AchievementSystem {
             id: 'game_key_by_the_book',
             name: 'Crypto Professional',
             description: 'Follow full crypto IR methodology in one run',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1441,7 +1441,7 @@ class AchievementSystem {
             id: 'game_key_speed',
             name: 'Rapid Response: Crypto',
             description: "Speed run Don't Leak the Key",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1450,7 +1450,7 @@ class AchievementSystem {
             id: 'game_key_all',
             name: 'Crypto Legend',
             description: "Unlock all 12 achievements in Don't Leak the Key",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1459,7 +1459,7 @@ class AchievementSystem {
             id: 'game_bill_win',
             name: 'Budget Saver',
             description: "Stop the bleeding in Don't Check the Bill",
-            icon: '💰',
+            icon: '/assets/images/icons/icon-money.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1468,7 +1468,7 @@ class AchievementSystem {
             id: 'game_bill_by_the_book',
             name: 'Cloud Professional',
             description: 'Follow full cloud remediation methodology',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1477,7 +1477,7 @@ class AchievementSystem {
             id: 'game_bill_speed',
             name: 'Rapid Response: Cloud',
             description: "Speed run Don't Check the Bill",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1486,7 +1486,7 @@ class AchievementSystem {
             id: 'game_bill_all',
             name: 'Cloud Legend',
             description: "Unlock all 12 achievements in Don't Check the Bill",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1495,7 +1495,7 @@ class AchievementSystem {
             id: 'game_printer_win',
             name: 'Printer Tamer',
             description: "Fix the printer in Don't Anger the Printer",
-            icon: '🖨️',
+            icon: '/assets/images/icons/icon-printer.webp',
             category: 'games',
             points: 150,
             secret: false
@@ -1504,7 +1504,7 @@ class AchievementSystem {
             id: 'game_printer_by_the_book',
             name: 'A+ Methodologist',
             description: 'Follow full CompTIA A+ troubleshooting methodology',
-            icon: '📘',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1513,7 +1513,7 @@ class AchievementSystem {
             id: 'game_printer_speed',
             name: 'Rapid Response: Printer',
             description: "Speed run Don't Anger the Printer",
-            icon: '⚡',
+            icon: '/assets/images/icons/icon-lightning.webp',
             category: 'games',
             points: 200,
             secret: true
@@ -1522,7 +1522,7 @@ class AchievementSystem {
             id: 'game_printer_all',
             name: 'Printer Legend',
             description: "Unlock all 12 achievements in Don't Anger the Printer",
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 500,
             secret: true
@@ -1533,7 +1533,7 @@ class AchievementSystem {
             id: 'game_master_survivor',
             name: "Don't Panic",
             description: 'Win all 10 survival games. You have stared into the abyss of every IT disaster and lived.',
-            icon: '🏆',
+            icon: '/assets/images/icons/icon-trophy.webp',
             category: 'games',
             points: 2000,
             secret: true
@@ -1544,7 +1544,7 @@ class AchievementSystem {
             id: 'game_top3',
             name: 'Podium Finish',
             description: 'Place in the top 3 on any game',
-            icon: '🥉',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 25,
             secret: false
@@ -1553,7 +1553,7 @@ class AchievementSystem {
             id: 'game_first_highscore',
             name: 'Record Setter',
             description: 'Set your first #1 high score',
-            icon: '🥇',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 50,
             secret: false
@@ -1562,7 +1562,7 @@ class AchievementSystem {
             id: 'game_highscore_5',
             name: 'Score Chaser',
             description: 'Set #1 high score in 5 different games',
-            icon: '🏅',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 150,
             secret: false
@@ -1571,7 +1571,7 @@ class AchievementSystem {
             id: 'game_highscore_10',
             name: 'Leaderboard Legend',
             description: 'Set #1 high score in 10 different games',
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'games',
             points: 300,
             secret: false
@@ -1585,7 +1585,7 @@ class AchievementSystem {
             id: 'halloween_2026',
             name: 'Spooky Season 2026',
             description: 'Study during Halloween week 2026',
-            icon: '🎃',
+            icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 100,
             secret: false,
@@ -1595,7 +1595,7 @@ class AchievementSystem {
             id: 'midnight_hacker',
             name: 'Midnight Hacker',
             description: 'Complete a Dark Arts module at midnight on Halloween',
-            icon: '🦇',
+            icon: '<img src="/assets/images/icons/icon-spiderweb.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 200,
             secret: true,
@@ -1605,7 +1605,7 @@ class AchievementSystem {
             id: 'ghost_protocol',
             name: 'Ghost Protocol',
             description: 'Complete 13 modules during October',
-            icon: '👻',
+            icon: '/assets/images/icons/icon-skull.webp',
             category: 'seasonal',
             points: 150,
             secret: false,
@@ -1617,7 +1617,7 @@ class AchievementSystem {
             id: 'winter_2026',
             name: 'Winter Warrior 2026',
             description: 'Study during the winter holidays 2026',
-            icon: '❄️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 100,
             secret: false,
@@ -1627,7 +1627,7 @@ class AchievementSystem {
             id: 'new_year_resolution',
             name: 'Resolution Keeper',
             description: 'Complete a module on New Year\'s Day',
-            icon: '🎆',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 150,
             secret: false,
@@ -1637,7 +1637,7 @@ class AchievementSystem {
             id: 'snowflake_scholar',
             name: 'Snowflake Scholar',
             description: 'Maintain a 7-day streak during December',
-            icon: '☃️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 200,
             secret: false,
@@ -1647,7 +1647,7 @@ class AchievementSystem {
             id: 'holiday_grind',
             name: 'Holiday Grind',
             description: 'Complete 25 modules during December',
-            icon: '🎄',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 300,
             secret: false,
@@ -1659,7 +1659,7 @@ class AchievementSystem {
             id: 'spring_awakening',
             name: 'Spring Awakening',
             description: 'Start a new house during spring',
-            icon: '🌸',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 100,
             secret: false,
@@ -1669,7 +1669,7 @@ class AchievementSystem {
             id: 'summer_scholar',
             name: 'Summer Scholar',
             description: 'Study consistently throughout summer',
-            icon: '☀️',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 150,
             secret: false,
@@ -1679,7 +1679,7 @@ class AchievementSystem {
             id: 'back_to_school',
             name: 'Back to School',
             description: 'Resume studies in September',
-            icon: '📓',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 100,
             secret: false,
@@ -1691,7 +1691,7 @@ class AchievementSystem {
             id: 'friday_13th',
             name: 'Triskaidekaphile',
             description: 'Complete 13 modules on Friday the 13th',
-            icon: '🔮',
+            icon: '/assets/images/icons/icon-diamond.webp',
             category: 'seasonal',
             points: 250,
             secret: true
@@ -1700,7 +1700,7 @@ class AchievementSystem {
             id: 'pi_day',
             name: 'Pi Day Scholar',
             description: 'Study on March 14th (3.14)',
-            icon: '🥧',
+            icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'seasonal',
             points: 100,
             secret: true,
@@ -1710,7 +1710,7 @@ class AchievementSystem {
             id: 'cyber_monday',
             name: 'Cyber Monday',
             description: 'Complete cybersecurity content on Cyber Monday',
-            icon: '💻',
+            icon: '/assets/images/icons/icon-laptop.webp',
             category: 'seasonal',
             points: 150,
             secret: true
@@ -1723,7 +1723,7 @@ class AchievementSystem {
             id: 'ring_seeker',
             name: 'Ring Seeker',
             description: 'Attempt your first OASIS Ring challenge',
-            icon: '💍',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'oasis',
             points: 100,
             secret: false
@@ -1732,7 +1732,7 @@ class AchievementSystem {
             id: 'ring_bearer',
             name: 'Ring Bearer',
             description: 'Claim your first OASIS Ring',
-            icon: '👑',
+            icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'oasis',
             points: 500,
             secret: false
@@ -1741,7 +1741,7 @@ class AchievementSystem {
             id: 'ring_defender',
             name: 'Ring Defender',
             description: 'Successfully defend a Ring against a challenger',
-            icon: '🛡️',
+            icon: '/assets/images/icons/icon-shield.webp',
             category: 'oasis',
             points: 200,
             secret: false
@@ -1750,7 +1750,7 @@ class AchievementSystem {
             id: 'ring_collector',
             name: 'Ring Collector',
             description: 'Hold 3 OASIS Rings simultaneously',
-            icon: '💎',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'oasis',
             points: 1000,
             secret: false
@@ -1759,7 +1759,7 @@ class AchievementSystem {
             id: 'lord_of_rings',
             name: 'Lord of the Rings',
             description: 'Hold all 8 OASIS Rings simultaneously',
-            icon: '🔥',
+            icon: '/assets/images/icons/icon-explosion.webp',
             category: 'oasis',
             points: 5000,
             secret: true
@@ -1768,7 +1768,7 @@ class AchievementSystem {
             id: 'ring_dynasty',
             name: 'Ring Dynasty',
             description: 'Hold a single Ring for 30 days',
-            icon: '🏰',
+            icon: '/assets/images/icons/icon-castle.webp',
             category: 'oasis',
             points: 1000,
             secret: false
@@ -1777,7 +1777,7 @@ class AchievementSystem {
             id: 'ring_thief',
             name: 'Ring Thief',
             description: 'Claim a Ring from another house',
-            icon: '🗝️',
+            icon: '/assets/images/icons/icon-key.webp',
             category: 'oasis',
             points: 300,
             secret: false
@@ -1786,7 +1786,7 @@ class AchievementSystem {
             id: 'fellowship',
             name: 'The Fellowship',
             description: 'Attempt all 8 Ring challenges',
-            icon: '⚔️',
+            icon: '/assets/images/icons/icon-swords.webp',
             category: 'oasis',
             points: 500,
             secret: false
@@ -1795,7 +1795,7 @@ class AchievementSystem {
             id: 'perfect_challenger',
             name: 'Perfect Challenger',
             description: 'Score a perfect run on any Ring challenge',
-            icon: '✨',
+            icon: '/assets/images/icons/icon-star.webp',
             category: 'oasis',
             points: 300,
             secret: false
@@ -1808,7 +1808,7 @@ class AchievementSystem {
             id: 'hexworth_legend',
             name: 'Hexworth Legend',
             description: 'Complete every house at 100%',
-            icon: '🏛️',
+            icon: '/assets/images/icons/icon-institution.webp',
             category: 'prestige',
             points: 5000,
             secret: false
@@ -1817,7 +1817,7 @@ class AchievementSystem {
             id: 'completionist',
             name: 'The Completionist',
             description: 'Unlock 100 achievements',
-            icon: '🎖️',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'prestige',
             points: 1000,
             secret: false
@@ -1826,7 +1826,7 @@ class AchievementSystem {
             id: 'platinum_scholar',
             name: 'Platinum Scholar',
             description: 'Earn 10,000 total XP',
-            icon: '💎',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'prestige',
             points: 500,
             secret: false
@@ -1835,7 +1835,7 @@ class AchievementSystem {
             id: 'diamond_mind',
             name: 'Diamond Mind',
             description: 'Earn 25,000 total XP',
-            icon: '💠',
+            icon: '/assets/images/icons/icon-diamond.webp',
             category: 'prestige',
             points: 1000,
             secret: false
@@ -1844,7 +1844,7 @@ class AchievementSystem {
             id: 'perfect_run',
             name: 'Perfect Run',
             description: 'Score 100% on 25 different quizzes',
-            icon: '⭐',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'prestige',
             points: 1500,
             secret: false
@@ -1853,7 +1853,7 @@ class AchievementSystem {
             id: 'iron_will',
             name: 'Iron Will',
             description: 'Maintain a 30-day study streak',
-            icon: '🔗',
+            icon: '/assets/images/icons/icon-chain.webp',
             category: 'prestige',
             points: 1000,
             secret: false
@@ -1862,7 +1862,7 @@ class AchievementSystem {
             id: 'streak_master',
             name: 'Streak Master',
             description: 'Maintain a 100-day study streak',
-            icon: '🔥',
+            icon: '/assets/images/icons/icon-explosion.webp',
             category: 'prestige',
             points: 2500,
             secret: false
@@ -1871,7 +1871,7 @@ class AchievementSystem {
             id: 'quiz_legend',
             name: 'Quiz Legend',
             description: 'Pass 100 quizzes',
-            icon: '📖',
+            icon: '/assets/images/icons/icon-books.webp',
             category: 'prestige',
             points: 2000,
             secret: false
@@ -1880,7 +1880,7 @@ class AchievementSystem {
             id: 'lab_master',
             name: 'Lab Master',
             description: 'Complete 50 hands-on labs',
-            icon: '🧪',
+            icon: '/assets/images/icons/icon-flask.webp',
             category: 'prestige',
             points: 1500,
             secret: false
@@ -1889,7 +1889,7 @@ class AchievementSystem {
             id: 'dedication',
             name: 'Unwavering Dedication',
             description: 'Study for 365 total days',
-            icon: '📅',
+            icon: '/assets/images/icons/icon-clock.webp',
             category: 'prestige',
             points: 5000,
             secret: false
@@ -1902,7 +1902,7 @@ class AchievementSystem {
             id: 'konami_code',
             name: 'Up Up Down Down',
             description: 'Discover the hidden konami code',
-            icon: '🎮',
+            icon: '/assets/images/icons/icon-joystick.webp',
             category: 'easter_egg',
             points: 100,
             secret: true
@@ -1911,7 +1911,7 @@ class AchievementSystem {
             id: 'binary_reader',
             name: 'Binary Reader',
             description: 'Decode a hidden binary message',
-            icon: '0️⃣',
+            icon: '0⃣',
             category: 'easter_egg',
             points: 150,
             secret: true
@@ -1920,7 +1920,7 @@ class AchievementSystem {
             id: 'firefly_whisperer',
             name: 'Firefly Whisperer',
             description: 'Interact with 1000 digital fireflies',
-            icon: '✨',
+            icon: '/assets/images/icons/icon-star.webp',
             category: 'easter_egg',
             points: 100,
             secret: true
@@ -1929,7 +1929,7 @@ class AchievementSystem {
             id: 'digital_life',
             name: 'Digital Life Observer',
             description: 'Watch the firefly ecosystem for 10 minutes',
-            icon: '🌌',
+            icon: '/assets/images/icons/icon-globe.webp',
             category: 'easter_egg',
             points: 50,
             secret: true
@@ -1938,7 +1938,7 @@ class AchievementSystem {
             id: 'console_hacker',
             name: 'Console Hacker',
             description: 'Find the developer console easter egg',
-            icon: '👩‍💻',
+            icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'easter_egg',
             points: 150,
             secret: true
@@ -1947,7 +1947,7 @@ class AchievementSystem {
             id: 'time_traveler',
             name: 'Time Traveler',
             description: 'Access Hexworth from before 6 AM and after midnight same day',
-            icon: '⏰',
+            icon: '/assets/images/icons/icon-clock.webp',
             category: 'easter_egg',
             points: 100,
             secret: true
@@ -1956,7 +1956,7 @@ class AchievementSystem {
             id: 'founder_badge',
             name: 'Founding Member',
             description: 'Join Hexworth Prime during the founding era',
-            icon: '🏅',
+            icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             category: 'easter_egg',
             points: 500,
             secret: false,
@@ -2630,18 +2630,18 @@ class AchievementSystem {
         const unlockedIds = new Set(unlocked.map(a => a.id));
 
         const categories = {
-            milestone: { name: 'Milestones', icon: '🚀', achievements: [] },
-            quiz: { name: 'Quiz Master', icon: '📝', achievements: [] },
-            level: { name: 'Leveling Up', icon: '⬆️', achievements: [] },
-            explorer: { name: 'Explorer', icon: '🗺️', achievements: [] },
-            special: { name: 'Special', icon: '✨', achievements: [] },
-            dark_arts: { name: 'Dark Arts', icon: '💀', achievements: [] },
-            factionless: { name: 'Divergent Path', icon: '🔀', achievements: [] },
-            career: { name: 'Career Paths', icon: '💼', achievements: [] },
-            operator: { name: 'Matrix Operator', icon: '💊', achievements: [] },
-            seasonal: { name: 'Seasonal', icon: '🗓️', achievements: [] },
-            prestige: { name: 'Prestige', icon: '👑', achievements: [] },
-            easter_egg: { name: 'Hidden Secrets', icon: '🔮', achievements: [] }
+            milestone: { name: 'Milestones', icon: '/assets/images/icons/icon-rocket.webp', achievements: [] },
+            quiz: { name: 'Quiz Master', icon: '/assets/images/icons/icon-notepad.webp', achievements: [] },
+            level: { name: 'Leveling Up', icon: '/assets/images/icons/icon-arrow-up.webp', achievements: [] },
+            explorer: { name: 'Explorer', icon: '/assets/images/icons/icon-map.webp', achievements: [] },
+            special: { name: 'Special', icon: '/assets/images/icons/icon-star.webp', achievements: [] },
+            dark_arts: { name: 'Dark Arts', icon: '/assets/images/icons/icon-skull-crossbones.webp', achievements: [] },
+            factionless: { name: 'Divergent Path', icon: '/assets/images/icons/icon-branch.webp', achievements: [] },
+            career: { name: 'Career Paths', icon: '<img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', achievements: [] },
+            operator: { name: 'Matrix Operator', icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', achievements: [] },
+            seasonal: { name: 'Seasonal', icon: '<img src="/assets/images/icons/icon-clock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', achievements: [] },
+            prestige: { name: 'Prestige', icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', achievements: [] },
+            easter_egg: { name: 'Hidden Secrets', icon: '/assets/images/icons/icon-diamond.webp', achievements: [] }
         };
 
         // Add house categories
@@ -2649,7 +2649,7 @@ class AchievementSystem {
             Object.keys(ProgressManager.HOUSES).forEach(houseId => {
                 categories[houseId] = {
                     name: ProgressManager.HOUSES[houseId].name,
-                    icon: ProgressManager.HOUSES[houseId].icon || '🏠',
+                    icon: ProgressManager.HOUSES[houseId].icon || '<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     achievements: []
                 };
             });
@@ -2668,7 +2668,7 @@ class AchievementSystem {
                     ...achievement,
                     name: '???',
                     description: 'Secret achievement',
-                    icon: '❓',
+                    icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     locked: true
                 });
             } else {

@@ -321,7 +321,7 @@ const ModuleProgress = (function() {
             showCompletionNotification(houseId, moduleId);
         }
 
-        console.log(`📚 Module completed: ${houseId}/${moduleId}`);
+        console.log(`<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Module completed: ${houseId}/${moduleId}`);
 
         // Queue activity event for dashboard feed (always available)
         const prettyTitle = moduleId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -411,7 +411,7 @@ const ModuleProgress = (function() {
             showQuizNotification(passed, score);
         }
 
-        console.log(`📝 Quiz completed: ${houseId}/${quizId} - Score: ${score}% (${passed ? 'PASS' : 'FAIL'})`);
+        console.log(`<img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Quiz completed: ${houseId}/${quizId} - Score: ${score}% (${passed ? 'PASS' : 'FAIL'})`);
 
         // Queue activity event for dashboard feed
         if (passed) {

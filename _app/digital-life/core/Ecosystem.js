@@ -513,7 +513,7 @@ class Ecosystem {
 
         // If at max capacity, clean up oldest planet first
         if (this.planets.length >= this.config.maxPlanets) {
-            console.log(`🪐 Planet limit reached (${this.config.maxPlanets}). Recycling oldest planet...`);
+            console.log(`<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Planet limit reached (${this.config.maxPlanets}). Recycling oldest planet...`);
             this.recycleOldestPlanet();
         }
 
@@ -590,7 +590,7 @@ class Ecosystem {
      * Handle planet collapse - ancient planets become mini black holes
      */
     handlePlanetCollapse(planet) {
-        console.log(`🕳️ ${planet.type.name} collapsing into mini black hole at (${Math.round(planet.x)}, ${Math.round(planet.y)})`);
+        console.log(`<img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${planet.type.name} collapsing into mini black hole at (${Math.round(planet.x)}, ${Math.round(planet.y)})`);
 
         // Create visual collapse effect
         if (this.particleSystem) {
@@ -651,7 +651,7 @@ class Ecosystem {
             }
         }
 
-        console.log(`♻️ Recycling ${oldestPlanet.type.name} (age: ${Math.round(oldestAge / 1000)}s)`);
+        console.log(`<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Recycling ${oldestPlanet.type.name} (age: ${Math.round(oldestAge / 1000)}s)`);
 
         // Create a graceful death effect
         if (this.particleSystem) {
@@ -713,7 +713,7 @@ class Ecosystem {
         // PERIODIC CLEANUP - Extra safety check for planet overflow
         // ═══════════════════════════════════════════════════════════════
         if (this.planets.length > this.config.maxPlanets) {
-            console.warn(`⚠️ Planet overflow detected: ${this.planets.length}/${this.config.maxPlanets}. Cleaning up...`);
+            console.warn(`<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Planet overflow detected: ${this.planets.length}/${this.config.maxPlanets}. Cleaning up...`);
             while (this.planets.length > this.config.maxPlanets) {
                 this.recycleOldestPlanet();
             }

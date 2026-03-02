@@ -130,9 +130,9 @@ const GoneDark = {
 
     getCelestialState(gameTime) {
         if (!gameTime) gameTime = this.getInGameTime();
-        if (gameTime.isNight) return { icon: '\u263D', label: 'night', cls: 'night' };     // ☽
+        if (gameTime.isNight) return { icon: '\u263D', label: 'night', cls: 'night' };     // <img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
         if (gameTime.isDusk)  return { icon: '\u263D', label: 'dusk',  cls: 'twilight' };
-        if (gameTime.isDawn)  return { icon: '\u2600', label: 'dawn',  cls: 'twilight' };   // ☀
+        if (gameTime.isDawn)  return { icon: '\u2600', label: 'dawn',  cls: 'twilight' };   // <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
         return { icon: '\u2600', label: 'day', cls: 'day' };
     },
 
@@ -568,7 +568,7 @@ const GoneDark = {
         bar.id = 'g8-wipe-bar';
         bar.innerHTML = `
             <div class="g8-wipe-label">
-                <span class="g8-wipe-icon">&#9888;</span>
+                <span class="g8-wipe-icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                 REMOTE WIPE IN PROGRESS — PHONE DATA BEING DESTROYED
                 <span id="g8-wipe-pct">0%</span>
             </div>
@@ -656,7 +656,7 @@ const GoneDark = {
         switch(effect) {
             case 'network_spike':
                 this.showSurveillanceOverlay(
-                    '&#9888; NETWORK ANOMALY DETECTED',
+                    '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> NETWORK ANOMALY DETECTED',
                     'UNKNOWN CONNECTION: 14.221.47.' + Math.floor(Math.random()*255) + ' \u2192 LOCAL:3389\nDuration: 0.3s | Packets: ' + (Math.floor(Math.random()*900)+100) + ' | Status: TERMINATED',
                     '#e74c3c', 4000
                 );
@@ -820,7 +820,7 @@ const GoneDark = {
         const notif = document.createElement('div');
         const clsMap = { threat: 'g8-notif-threat', tip: 'g8-notif-tip', novak: 'g8-notif-novak', wipe: 'g8-notif-wipe' };
         notif.className = 'g8-notif ' + (clsMap[type] || 'g8-notif-tip');
-        const iconMap = { threat: '&#9888;', tip: '&#9993;', novak: '&#128187;', wipe: '&#9888;' };
+        const iconMap = { threat: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', tip: '&#9993;', novak: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', wipe: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' };
         notif.innerHTML = `
             <div class="g8-notif-icon">${iconMap[type] || '&#9993;'}</div>
             <div class="g8-notif-body">
@@ -1098,7 +1098,7 @@ const GoneDark = {
         nav.innerHTML = `
             <div class="g8-nav-left">
                 <a href="${base}index.html" class="g8-nav-brand">
-                    <span class="brand-icon">&#9762;</span>
+                    <span class="brand-icon"><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                     <span>GONE DARK</span>
                 </a>
                 <span class="g8-nav-sep">/</span>
@@ -1200,7 +1200,7 @@ const EVIDENCE_CATALOG = {
     'phone-credit-migros': { title: 'Credit Card: Migros Market', detail: '₺285 ($9.60), Wed, Kadıköy, Istanbul', source: 'phone', category: 'places' },
     'phone-call-unknown-long': { title: 'Call Log: Unknown 11min Call', detail: 'Mon 10:12 PM, incoming, 11 minutes — intermediary?', source: 'phone', category: 'communications' },
     'phone-call-istanbul': { title: 'Call Log: Istanbul Contact (+90)', detail: 'Wed 12:30 PM outgoing (2 min), Wed 8:40 PM incoming (1 min)', source: 'phone', category: 'communications' },
-    'phone-location-history': { title: 'Location History: Signal Lost', detail: 'Wed route: Arlington → IAH → IST → Kadıköy → ❌ SIGNAL LOST 9:02 PM', source: 'phone', category: 'places' },
+    'phone-location-history': { title: 'Location History: Signal Lost', detail: 'Wed route: Arlington → IAH → IST → Kadıköy → <img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> SIGNAL LOST 9:02 PM', source: 'phone', category: 'places' },
 
     // Phone recovered
     'phone-rec-deleted-msg': { title: '[RECOVERED] Deleted Messages: +90 Number', detail: '"Warehouse 7. East entrance. Come alone." — Wed 7:30 PM', source: 'recovered', category: 'communications' },

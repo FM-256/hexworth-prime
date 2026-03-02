@@ -165,7 +165,7 @@ class PredatorManager {
         this.shadows.push(shadow);
         this.stats.shadowsSpawned++;
 
-        console.log(`👤 Shadow Firefly spawned (${this.shadows.length}/${this.config.shadows.maxPopulation})`);
+        console.log(`<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Shadow Firefly spawned (${this.shadows.length}/${this.config.shadows.maxPopulation})`);
 
         return shadow;
     }
@@ -199,7 +199,7 @@ class PredatorManager {
         this.serpents.push(serpent);
         this.stats.serpentsSpawned++;
 
-        console.log(`🐍 Void Serpent spawned! Beware!`);
+        console.log(`<img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Void Serpent spawned! Beware!`);
 
         return serpent;
     }
@@ -236,7 +236,7 @@ class PredatorManager {
         this.parasites.push(parasite);
         this.stats.parasitesSpawned++;
 
-        console.log(`🦠 Parasite spawned (${this.parasites.length}/${this.config.parasites.maxPopulation})`);
+        console.log(`<img src="/assets/images/icons/icon-virus.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Parasite spawned (${this.parasites.length}/${this.config.parasites.maxPopulation})`);
 
         return parasite;
     }

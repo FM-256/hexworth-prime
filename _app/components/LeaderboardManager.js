@@ -117,7 +117,7 @@ class LeaderboardManager {
             id: 'current_user',
             username: username || 'You',
             displayName: username || 'You',
-            avatar: avatar || '🎯',
+            avatar: avatar || '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             xp: xp,
             house: house,
             isCurrentUser: true,
@@ -172,7 +172,7 @@ class LeaderboardManager {
             id: 'nemesis',
             username: `${theme.prefix}${theme.suffix}_X`,
             displayName: `${theme.prefix}${theme.suffix}`,
-            avatar: '👻',
+            avatar: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             xp: nemesisXP,
             house: this.options.house,
             isNemesis: true,
@@ -676,7 +676,7 @@ class LeaderboardManager {
                 <div class="player-avatar-container">
                     ${avatar}
                     ${player.isReal ? '<span class="real-badge">✓</span>' : ''}
-                    ${player.isNemesis ? '<span class="nemesis-badge">👻</span>' : ''}
+                    ${player.isNemesis ? '<span class="nemesis-badge"><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>' : ''}
                 </div>
                 <div class="player-info">
                     <span class="player-name">${player.displayName}</span>

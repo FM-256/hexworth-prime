@@ -12,7 +12,7 @@ const RiskManagementData = {
     risk_management: {
         id: 'risk_management',
         name: 'Risk Management',
-        icon: '\u2696\ufe0f',
+        icon: '/assets/images/icons/icon-scales.webp',
         color: '#a855f7',
         subtitle: 'Identify, assess, mitigate, monitor',
         description: 'Risk management is the systematic process of identifying, assessing, and controlling threats to an organization\'s assets. It forms the foundation of every security program and drives resource allocation decisions.',
@@ -20,28 +20,28 @@ const RiskManagementData = {
         sections: [
             {
                 title: 'Risk Concepts',
-                icon: '\ud83c\udfaf',
+                icon: '/assets/images/icons/icon-target.webp',
                 content: 'Understanding core risk terminology is essential before diving into the risk management process.',
                 details: ['Threat: any potential danger that could exploit a vulnerability', 'Vulnerability: a weakness that could be exploited', 'Risk: the likelihood of a threat exploiting a vulnerability AND its impact', 'Risk = Threat x Vulnerability x Impact (conceptual formula)', 'Asset: anything of value to the organization (data, systems, people, reputation)', 'Exposure: the potential loss when a threat exploits a vulnerability', 'Countermeasure / Control: a measure taken to reduce risk'],
                 realWorld: 'A company runs an unpatched web server (vulnerability) facing the internet. An APT group is targeting their industry (threat). The server hosts customer PII (asset). The risk is quantified as HIGH because a breach would cost millions in fines and reputation damage (impact).'
             },
             {
                 title: 'Risk Response Strategies',
-                icon: '\ud83d\udee1\ufe0f',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'After assessing risk, organizations must choose how to respond. There are four primary strategies for handling risk.',
                 details: ['Mitigation (Reduction): implement controls to reduce risk to acceptable level', 'Acceptance: acknowledge the risk and choose to live with it (cost of control > potential loss)', 'Transference (Sharing): shift risk to a third party (insurance, outsourcing, SLAs)', 'Avoidance: eliminate the risk by eliminating the activity or asset', 'Residual Risk: risk remaining after controls are applied (can never be zero)', 'Risk appetite/tolerance: level of risk the organization is willing to accept'],
                 realWorld: 'A company faces the risk of data breach from their aging on-premises email server. They mitigate (encrypt data, patch regularly), transfer (purchase cyber insurance), and partially avoid (migrate to Microsoft 365, eliminating the on-premises server). The residual risk from M365 is accepted as within their risk tolerance.'
             },
             {
                 title: 'Risk Assessment Methods',
-                icon: '\ud83d\udcca',
+                icon: '/assets/images/icons/icon-barchart.webp',
                 content: 'Risk assessments can be qualitative (subjective ratings), quantitative (dollar values), or a combination of both.',
                 details: ['Qualitative: uses descriptive scales (High/Medium/Low)', 'Risk matrix: plots likelihood vs. impact on a grid', 'Quantitative: assigns dollar values to risk', 'AV (Asset Value): dollar value of the asset', 'EF (Exposure Factor): percentage of asset lost in an incident (0-100%)', 'SLE (Single Loss Expectancy): AV x EF', 'ARO (Annualized Rate of Occurrence): how often per year', 'ALE (Annualized Loss Expectancy): SLE x ARO'],
                 realWorld: 'A server worth $50,000 (AV) with a 40% exposure factor (EF) has an SLE of $20,000. If the risk event occurs twice per year (ARO=2), the ALE is $40,000. A $25,000 annual control that eliminates the risk is cost-justified because $25K < $40K ALE.'
             },
             {
                 title: 'Risk Management Frameworks',
-                icon: '\ud83d\udcdc',
+                icon: '/assets/images/icons/icon-scroll.webp',
                 content: 'Industry frameworks provide structured approaches to risk management that organizations can adopt and customize.',
                 details: ['NIST RMF (800-37): Categorize, Select, Implement, Assess, Authorize, Monitor', 'NIST CSF: Identify, Protect, Detect, Respond, Recover', 'ISO 27005: risk management for information security', 'FAIR: quantitative risk analysis framework (Factor Analysis of Information Risk)', 'OCTAVE: self-directed risk assessment developed by CERT/CC', 'COBIT: governance framework linking IT to business objectives'],
                 realWorld: 'A federal agency follows NIST RMF: they categorize their systems (FIPS 199), select controls from NIST 800-53, implement the controls, assess their effectiveness through testing, authorize the system to operate (ATO), and continuously monitor for changes and new threats.'
@@ -76,7 +76,7 @@ const RiskManagementData = {
     risk_analysis: {
         id: 'risk_analysis',
         name: 'Risk Analysis',
-        icon: '\ud83d\udcca',
+        icon: '/assets/images/icons/icon-barchart.webp',
         color: '#a855f7',
         subtitle: 'Quantitative & qualitative risk assessment techniques',
         description: 'Risk analysis is the process of estimating the likelihood and impact of potential threats. Both qualitative and quantitative methods provide different but complementary views of organizational risk.',
@@ -84,28 +84,28 @@ const RiskManagementData = {
         sections: [
             {
                 title: 'Quantitative Risk Analysis',
-                icon: '\ud83d\udcb0',
+                icon: '/assets/images/icons/icon-money.webp',
                 content: 'Assigns specific dollar values to assets, threats, and losses. Provides objective, measurable data for risk-based decisions.',
                 details: ['Asset Value (AV): total value of the asset in dollars', 'Exposure Factor (EF): percentage of asset lost (0% to 100%)', 'Single Loss Expectancy (SLE) = AV x EF', 'Annualized Rate of Occurrence (ARO): expected frequency per year', 'Annualized Loss Expectancy (ALE) = SLE x ARO', 'Cost-benefit: control is justified when annual cost < (ALE_before - ALE_after)'],
                 realWorld: 'A database server (AV=$200K) faces ransomware risk. EF=60% (data loss + downtime). SLE=$120K. Ransomware hits similar companies once every two years (ARO=0.5). ALE=$60K/year. A $40K/year backup solution that reduces EF to 5% brings ALE down to $5K. Savings: $60K-$5K-$40K = $15K/year net benefit.'
             },
             {
                 title: 'Qualitative Risk Analysis',
-                icon: '\ud83c\udfaf',
+                icon: '/assets/images/icons/icon-target.webp',
                 content: 'Uses subjective rating scales and expert judgment to assess risk. Faster and easier than quantitative but less precise.',
                 details: ['Uses categories: High, Medium, Low (or 1-5 scales)', 'Risk matrix: plots Likelihood (rows) vs. Impact (columns)', 'Delphi technique: anonymous expert consensus', 'Brainstorming: open group identification of risks', 'Interviews: one-on-one expert assessment', 'Best for initial screening when quantitative data is unavailable'],
                 realWorld: 'A startup with no historical data conducts a qualitative risk assessment using a 5x5 matrix. They rate "cloud account compromise" as Likelihood=4, Impact=5, giving a risk score of 20 (Critical). This prioritizes MFA implementation even without dollar figures.'
             },
             {
                 title: 'Risk Matrix & Heat Maps',
-                icon: '\ud83d\uddfa\ufe0f',
+                icon: '/assets/images/icons/icon-map.webp',
                 content: 'Visual tools that display risk levels across multiple threats, helping leadership understand the overall risk landscape at a glance.',
                 details: ['5x5 matrix: Likelihood (1-5) x Impact (1-5) = Risk Score (1-25)', 'Color coding: Green (1-4 Low), Yellow (5-12 Medium), Orange (13-16 High), Red (17-25 Critical)', 'Heat maps show risk distribution across business units or threat categories', 'Risk register: document listing all identified risks with scores, owners, and treatment plans', 'Risk appetite line: the threshold above which risks must be treated'],
                 realWorld: 'A CISO presents a risk heat map to the board showing 3 critical risks (red), 12 high risks (orange), and 25 medium risks (yellow). The board authorizes budget for the three critical items and reviews the high-risk items quarterly.'
             },
             {
                 title: 'FAIR Framework',
-                icon: '\ud83d\udcc0',
+                icon: '/assets/images/icons/icon-memory.webp',
                 content: 'Factor Analysis of Information Risk (FAIR) is a quantitative framework that decomposes risk into measurable factors.',
                 details: ['Loss Event Frequency: how often a loss is expected', 'Threat Event Frequency: how often threats act against assets', 'Vulnerability: probability a threat succeeds', 'Loss Magnitude: the financial impact of a loss event', 'Primary Loss: direct costs (response, recovery, replacement)', 'Secondary Loss: indirect costs (fines, reputation, customer loss)', 'FAIR provides a structured decomposition for complex risk scenarios'],
                 realWorld: 'Using FAIR, an analyst estimates: Threat events against the web app occur 100 times/year. The app is vulnerable 5% of the time (patching lag). Loss events = 5/year. Average primary loss = $50K, secondary loss = $100K. Risk = 5 x $150K = $750K/year, justifying a $500K security investment.'
@@ -140,7 +140,7 @@ const RiskManagementData = {
     config_management: {
         id: 'config_management',
         name: 'Configuration Management',
-        icon: '\u2699\ufe0f',
+        icon: '/assets/images/icons/icon-gear.webp',
         color: '#a855f7',
         subtitle: 'Baselines, change control & configuration auditing',
         description: 'Configuration management ensures systems are deployed and maintained in a known, secure state. It encompasses baselines, change control, patch management, and configuration auditing.',
@@ -148,28 +148,28 @@ const RiskManagementData = {
         sections: [
             {
                 title: 'Configuration Baselines',
-                icon: '\ud83d\udccf',
+                icon: '/assets/images/icons/icon-ruler.webp',
                 content: 'A baseline is a documented, approved configuration that serves as the standard for all deployments. Any deviation from baseline indicates potential drift or compromise.',
                 details: ['Security baseline: minimum security configuration for a system type', 'CIS Benchmarks: industry-standard hardening guides for every OS/application', 'DISA STIGs: Department of Defense security technical implementation guides', 'Golden image: pre-configured, hardened OS image for rapid deployment', 'Configuration drift: gradual deviation from baseline over time', 'Automated tools detect and remediate drift (Puppet, Chef, Ansible)'],
                 realWorld: 'An organization creates a golden Windows Server image based on CIS Level 2 benchmarks. Every new server is deployed from this image. Weekly scans compare running configurations against the baseline, and any drift (like a newly enabled service) triggers an alert and automatic remediation.'
             },
             {
                 title: 'Change Management Process',
-                icon: '\ud83d\udcdd',
+                icon: '/assets/images/icons/icon-notepad.webp',
                 content: 'Formal change management ensures modifications are planned, tested, approved, and documented before implementation.',
                 details: ['RFC (Request for Change): formal proposal describing the change', 'CAB (Change Advisory Board): reviews and approves/denies changes', 'Impact analysis: what could go wrong? what systems are affected?', 'Test in staging/dev environment first', 'Rollback plan: how to undo the change if it fails', 'Post-implementation review: verify the change achieved its goal', 'Emergency changes: expedited process for critical security patches'],
                 realWorld: 'A sysadmin wants to upgrade the firewall firmware. They submit an RFC describing the change, impact analysis (30 minutes of potential connectivity loss), rollback plan (revert to current firmware), and a maintenance window. The CAB approves, and the change is implemented during the window with the rollback plan ready.'
             },
             {
                 title: 'Patch Management',
-                icon: '\ud83d\udd27',
+                icon: '/assets/images/icons/icon-wrench.webp',
                 content: 'Systematic process of identifying, testing, and applying software updates to fix vulnerabilities and bugs. One of the most critical operational security activities.',
                 details: ['Vulnerability scanning identifies missing patches', 'Prioritize by CVSS score and exploitability', 'Test patches in staging before production deployment', 'Emergency patching for actively exploited vulnerabilities (zero-day)', 'Patch Tuesday: Microsoft releases patches second Tuesday monthly', 'Track patch compliance: % of systems fully patched', 'Virtual patching: WAF/IPS rules as temporary mitigation when patching is delayed'],
                 realWorld: 'A critical zero-day CVE is published on Friday afternoon. The security team deploys virtual patches (WAF rules blocking the exploit pattern) within 2 hours. Over the weekend, they test the vendor patch in staging. Monday morning, the patch is rolled out to production with a 99.5% success rate.'
             },
             {
                 title: 'System Hardening',
-                icon: '\ud83d\udee1\ufe0f',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'Reducing the attack surface by removing unnecessary services, applying security configurations, and following the principle of least functionality.',
                 details: ['Disable unnecessary services and ports', 'Remove default accounts and change default passwords', 'Enable audit logging and monitoring', 'Apply principle of least functionality', 'Encrypt data at rest and in transit', 'Configure host-based firewall', 'Regular vulnerability assessments to verify hardening effectiveness'],
                 realWorld: 'A web server hardening checklist: disable FTP, SSH only via key auth, remove default IIS/Apache pages, configure TLS 1.2+ only, disable directory listing, set secure HTTP headers (HSTS, CSP, X-Frame-Options), enable SELinux in enforcing mode, and install EDR agent.'
@@ -204,7 +204,7 @@ const RiskManagementData = {
     pspg: {
         id: 'pspg',
         name: 'Policies, Standards, Procedures & Guidelines',
-        icon: '\ud83d\udcdc',
+        icon: '/assets/images/icons/icon-scroll.webp',
         color: '#a855f7',
         subtitle: 'The hierarchy of security governance documents',
         description: 'Security governance requires a hierarchy of documents that translate high-level business objectives into actionable security requirements. Understanding the differences between policies, standards, procedures, and guidelines is fundamental to security governance.',
@@ -212,28 +212,28 @@ const RiskManagementData = {
         sections: [
             {
                 title: 'Policies (What)',
-                icon: '\ud83c\udfe2',
+                icon: '/assets/images/icons/icon-building.webp',
                 content: 'Policies are high-level statements of management intent. They define WHAT must be done but not HOW. Approved by senior leadership, they are mandatory and enforceable.',
                 details: ['Highest level of governance documents', 'Defined by executive management / board', 'Mandatory for all employees', 'Broad scope, technology-neutral', 'Example: "All company data must be classified and protected according to its sensitivity"', 'Types: organizational, issue-specific, system-specific', 'Reviewed annually or after significant changes'],
                 realWorld: 'A company\'s Information Security Policy states: "All electronic communications containing sensitive data must be encrypted." This tells everyone WHAT to do but does not specify which encryption tool or algorithm to use.'
             },
             {
                 title: 'Standards (How specific)',
-                icon: '\ud83d\udccf',
+                icon: '/assets/images/icons/icon-ruler.webp',
                 content: 'Standards define specific, mandatory requirements for implementing policies. They specify WHICH technologies, configurations, or methods must be used.',
                 details: ['Derived from policies, more specific', 'Mandatory compliance required', 'Technology-specific: names exact products, versions, settings', 'Example: "Email encryption must use TLS 1.2 or higher with AES-256"', 'Often based on industry standards (CIS, NIST, ISO)', 'Updated when technology changes'],
                 realWorld: 'The encryption standard derived from the above policy states: "AES-256 must be used for data at rest. TLS 1.2+ for data in transit. RSA 2048+ for key exchange. All certificate must use SHA-256 signatures." This tells staff exactly which algorithms to use.'
             },
             {
                 title: 'Procedures (How step-by-step)',
-                icon: '\ud83d\uddd2\ufe0f',
+                icon: '/assets/images/icons/icon-clock.webp',
                 content: 'Procedures are detailed, step-by-step instructions for performing a specific task. They tell the operator exactly HOW to do something.',
                 details: ['Most detailed governance documents', 'Step-by-step instructions', 'Task-specific and role-specific', 'Mandatory for the roles they apply to', 'Example: "Step 1: Open GPO editor. Step 2: Navigate to... Step 3: Set encryption to AES-256..."', 'Include screenshots, commands, and expected results', 'Updated when processes or tools change'],
                 realWorld: 'The procedure for enabling BitLocker encryption: "1. Open Control Panel > BitLocker. 2. Click Turn on BitLocker. 3. Select Password + TPM. 4. Back up recovery key to AD. 5. Choose Encrypt entire drive. 6. Select XTS-AES 256-bit. 7. Click Start Encrypting. 8. Verify encryption status shows 100%."'
             },
             {
                 title: 'Guidelines (Recommendations)',
-                icon: '\ud83d\udca1',
+                icon: '/assets/images/icons/icon-lightning.webp',
                 content: 'Guidelines are recommendations and best practices. They suggest what SHOULD be done but are NOT mandatory. They provide flexibility for judgment.',
                 details: ['Advisory, not mandatory', 'Provide flexibility and recommendations', 'Example: "It is recommended to use a password manager for generating complex passwords"', 'Often provide multiple acceptable approaches', 'Help with decisions where rigid rules are impractical', 'Can become mandatory if adopted as standards'],
                 realWorld: 'A password guideline recommends: "Consider using a password manager such as 1Password, Bitwarden, or KeePass. Passphrases of 16+ characters are preferred over complex 8-character passwords. Where supported, passwordless authentication (FIDO2) is recommended." The employee chooses which method fits their workflow.'
@@ -268,7 +268,7 @@ const RiskManagementData = {
     cyber_scenario: {
         id: 'cyber_scenario',
         name: 'Cybersecurity Scenario Exercise',
-        icon: '\ud83c\udfae',
+        icon: '/assets/images/icons/icon-joystick.webp',
         color: '#a855f7',
         subtitle: 'Incident response decision-making simulation',
         description: 'Practice making critical security decisions under pressure through realistic cybersecurity scenarios. Each scenario presents a multi-step incident where your choices determine the outcome.',
@@ -276,28 +276,28 @@ const RiskManagementData = {
         sections: [
             {
                 title: 'Preparation Phase',
-                icon: '\ud83d\udcda',
+                icon: '/assets/images/icons/icon-books.webp',
                 content: 'Effective incident response starts long before an incident occurs. The preparation phase ensures your team has the tools, training, and procedures needed.',
                 details: ['Incident response plan documented and tested', 'IR team identified with clear roles and escalation paths', 'Communication plan: who to notify, in what order, through what channels', 'Forensic tools ready: write blockers, imaging software, chain of custody forms', 'Playbooks for common scenarios (ransomware, data breach, insider threat)', 'Regular tabletop exercises and simulation drills'],
                 realWorld: 'A company runs a quarterly tabletop exercise. This quarter\'s scenario: "Ransomware encrypts the finance department at 2 AM on Saturday." The exercise reveals their backup validation process had not been tested in 6 months, leading to an immediate fix.'
             },
             {
                 title: 'Detection & Analysis',
-                icon: '\ud83d\udd0d',
+                icon: '/assets/images/icons/icon-magnifier.webp',
                 content: 'Identifying that an incident is occurring, determining its scope, and making initial triage decisions. Speed and accuracy are critical.',
                 details: ['Initial detection: SIEM alert, user report, threat intelligence', 'Triage: is this a true positive? what is the severity?', 'Scope assessment: how many systems affected? what data at risk?', 'Evidence collection: preserve logs, memory dumps, disk images', 'Timeline construction: when did it start? what was the attack path?', 'IOC (Indicators of Compromise) identification and sharing'],
                 realWorld: 'The SOC receives a SIEM alert: unusual data transfer from the finance server to an external IP at 3 AM. The analyst confirms it is not a false positive, identifies 50GB of data was exfiltrated, and determines the attacker used a compromised service account that was created 2 weeks ago.'
             },
             {
                 title: 'Containment & Eradication',
-                icon: '\ud83d\udee1\ufe0f',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'Stopping the incident from spreading while preserving evidence for investigation. Containment must be balanced against operational impact.',
                 details: ['Short-term containment: isolate affected systems, block malicious IPs/domains', 'Evidence preservation: image affected systems BEFORE cleanup', 'Long-term containment: patch vulnerabilities, reset compromised credentials', 'Eradication: remove malware, close backdoors, verify clean state', 'Avoid: turning off systems (destroys volatile evidence), alerting attacker', 'Coordinate with legal before contacting law enforcement'],
                 realWorld: 'During an active breach, the IR team isolates the compromised server by moving it to a quarantine VLAN (maintaining network state for forensics rather than unplugging it). They capture a memory dump, image the disk, then block the C2 domain at the firewall. Only after evidence is preserved do they begin cleanup.'
             },
             {
                 title: 'Recovery & Lessons Learned',
-                icon: '\ud83d\udd04',
+                icon: '/assets/images/icons/icon-refresh.webp',
                 content: 'Restoring systems to normal operation and conducting a thorough post-incident review to improve future response.',
                 details: ['Restore from known-clean backups (not just "cleaning" compromised systems)', 'Monitor restored systems intensely for signs of re-compromise', 'Validate all restored data integrity', 'Post-incident review (PIR) within 1-2 weeks', 'Root cause analysis: what allowed the incident to occur?', 'Update IR plan, playbooks, and controls based on lessons learned', 'Metrics: time to detect, time to contain, time to recover'],
                 realWorld: 'After a ransomware incident, the company restores from backups but discovers the attacker had access for 3 weeks before deploying ransomware. The PIR reveals the attacker entered through a phishing email, moved laterally via unpatched SMB, and deployed ransomware from a domain admin account. The company implements email sandboxing, SMB signing, and PAM (privileged access management).'

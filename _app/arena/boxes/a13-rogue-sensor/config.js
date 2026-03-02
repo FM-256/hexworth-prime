@@ -521,7 +521,7 @@ eth1: &lt;BROADCAST,MULTICAST,UP&gt;
                         </table>
 
                         <div style="margin-top:12px; padding:8px 10px; background:#2a1a0d; border:1px solid #4a3a1a; border-radius:3px; font-size:0.65rem; color:#e8c84a;">
-                            &#9888; Warning: Data Hub connection uses no authentication. Ensure network segmentation is properly enforced.
+                            <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Warning: Data Hub connection uses no authentication. Ensure network segmentation is properly enforced.
                         </div>
 
                         <div style="margin-top:16px; padding:8px; border:1px solid #2a4a2a; font-size:0.65rem; color:#4a6a4a; text-align:center;">
@@ -657,7 +657,7 @@ eth1: &lt;BROADCAST,MULTICAST,UP&gt;
                     </div>
 
                     <div style="padding:10px; background:#1a0d0d; border:1px solid #4a2a2a; border-radius:3px; font-size:0.72rem; color:#e84a4a; margin-bottom:12px;">
-                        <strong>&#9888; SECURITY ALERT:</strong> Default credentials are in use. SSH (admin:admin) and Telnet (unauthenticated) are exposed on the monitoring LAN. DATA-HUB-01 MongoDB has NO authentication enabled.
+                        <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> SECURITY ALERT:</strong> Default credentials are in use. SSH (admin:admin) and Telnet (unauthenticated) are exposed on the monitoring LAN. DATA-HUB-01 MongoDB has NO authentication enabled.
                     </div>
 
                     <div style="padding:8px 10px; background:#0d1a2e; border:1px solid #2a3a5a; border-radius:3px; font-size:0.68rem; color:#a8c8e8;">
@@ -677,7 +677,7 @@ eth1: &lt;BROADCAST,MULTICAST,UP&gt;
 
                 <div style="max-width:360px; margin:40px auto;">
                     <div style="padding:10px; background:#2a0d0d; border:1px solid #5a2a2a; border-radius:3px; font-size:0.72rem; color:#e84a4a; margin-bottom:16px; text-align:center;">
-                        &#9888; Authentication Failed: Invalid credentials
+                        <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Authentication Failed: Invalid credentials
                     </div>
                     <div style="background:#0d1a0d; border:1px solid #2a4a2a; border-radius:4px; padding:24px;">
                         <div style="color:#4ae44a; font-size:0.78rem; font-weight:bold; letter-spacing:0.1em; margin-bottom:16px; text-align:center;">ADMIN LOGIN</div>

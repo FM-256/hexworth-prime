@@ -365,9 +365,9 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 
         // Build IOC cards by category
         const categories = [
-            { key: 'network', label: 'Network Indicators', icon: '\u{1F310}' },
-            { key: 'host', label: 'Host-Based Indicators', icon: '\u{1F5A5}' },
-            { key: 'behavioral', label: 'Behavioral Indicators', icon: '\u{1F441}' }
+            { key: 'network', label: 'Network Indicators', icon: '/assets/images/icons/icon-globe.webp' },
+            { key: 'host', label: 'Host-Based Indicators', icon: '/assets/images/icons/icon-desktop.webp' },
+            { key: 'behavioral', label: 'Behavioral Indicators', icon: '/assets/images/icons/icon-eye.webp' }
         ];
 
         const iocCards = categories.map(cat => {

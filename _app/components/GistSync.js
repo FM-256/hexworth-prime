@@ -554,7 +554,7 @@ class GistSync {
             <div class="gist-sync-modal">
                 <button class="modal-close">×</button>
                 <div class="modal-header">
-                    <h2>☁️ Cloud Sync</h2>
+                    <h2><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cloud Sync</h2>
                     <p class="sync-subtitle">Backup your progress to GitHub</p>
                 </div>
                 <div class="modal-content">
@@ -580,11 +580,11 @@ class GistSync {
                     </div>
                     <div class="sync-actions">
                         <button class="sync-btn backup-btn">
-                            <span class="btn-icon">⬆️</span>
+                            <span class="btn-icon"><img src="/assets/images/icons/icon-arrow-up.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                             <span class="btn-text">Backup Now</span>
                         </button>
                         <button class="sync-btn restore-btn">
-                            <span class="btn-icon">⬇️</span>
+                            <span class="btn-icon">⬇</span>
                             <span class="btn-text">Restore</span>
                         </button>
                     </div>

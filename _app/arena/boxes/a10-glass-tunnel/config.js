@@ -528,7 +528,7 @@ const A10Config = {
 <html>
 <head><title>Corridor Admin — Internal</title></head>
 <body>
-<h1 style="color:#c0392b;">&#9888; Internal Admin Panel &mdash; Glass Corridor</h1>
+<h1 style="color:#c0392b;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Internal Admin Panel &mdash; Glass Corridor</h1>
 <table border="1" cellpadding="4" style="border-collapse:collapse;">
   <tr><th>Field</th><th>Value</th></tr>
   <tr><td>Status</td><td style="color:green;"><b>Active</b></td></tr>

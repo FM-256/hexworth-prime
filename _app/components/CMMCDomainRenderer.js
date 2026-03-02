@@ -502,7 +502,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
                 <span class="cmmc-practice-id ${p.level===1?'l1':'l2'}">${p.id}</span>
                 <span class="cmmc-practice-title">${p.title}</span>
                 <span class="cmmc-practice-level ${p.level===1?'l1':'l2'}">L${p.level}</span>
-                <span class="cmmc-practice-toggle">▶</span>
+                <span class="cmmc-practice-toggle"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
             </div>
             <div class="cmmc-practice-body">
                 <div class="cmmc-practice-req">${p.requirement}</div>
@@ -677,7 +677,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
             <h3 style="color:#fff;font-size:1.1rem;margin-bottom:1rem">Reference Materials</h3>
             ${domain.resources.map(r => `
                 <a class="cmmc-resource" href="${r.url}" target="_blank" rel="noopener">
-                    <span class="cmmc-resource-icon">📄</span>
+                    <span class="cmmc-resource-icon"><img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                     <div>
                         <div class="cmmc-resource-title">${r.title}</div>
                         <div class="cmmc-resource-url">${r.url}</div>

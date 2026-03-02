@@ -46,24 +46,38 @@ const ContentDiscovery = (function() {
     let globalStylesInjected = false;
     let globalKeyboardBound = false;
 
+    /**
+     * Render an icon value as HTML. If it's an image path, returns <img>.
+     * Otherwise returns the raw string (fallback for any remaining text icons).
+     */
+    function iconHTML(val, size) {
+        if (!val) return '';
+        const s = size || '1.1em';
+        if (val.startsWith('/') || val.startsWith('assets/') || val.endsWith('.webp') || val.endsWith('.png')) {
+            return `<img src="${val}" alt="" style="width:${s};height:${s};vertical-align:middle;display:inline-block;object-fit:contain">`;
+        }
+        return val;
+    }
+
     // Type display config
     const TYPE_CONFIG = {
-        presentation: { icon: '📊', label: 'Slides', color: '#60a5fa' },
-        lab:          { icon: '🧪', label: 'Labs', color: '#34d399' },
-        quiz:         { icon: '📝', label: 'Quizzes', color: '#fbbf24' },
-        applet:       { icon: '🎮', label: 'Interactive', color: '#c084fc' },
-        game:         { icon: '🕹️', label: 'Games', color: '#4ade80' },
-        review:       { icon: '🔄', label: 'Reviews', color: '#fb923c' },
-        exam:         { icon: '📋', label: 'Exams', color: '#f87171' },
-        tool:         { icon: '🔧', label: 'Tools', color: '#22d3ee' },
-        guide:        { icon: '📖', label: 'Guides', color: '#a78bfa' },
-        reference:    { icon: '📚', label: 'Reference', color: '#94a3b8' },
-        module:       { icon: '📦', label: 'Modules', color: '#e879f9' }
+        presentation: { icon: '/assets/images/icons/icon-barchart.webp', label: 'Slides', color: '#60a5fa' },
+        lab:          { icon: '/assets/images/icons/icon-flask.webp', label: 'Labs', color: '#34d399' },
+        quiz:         { icon: '/assets/images/icons/icon-notepad.webp', label: 'Quizzes', color: '#fbbf24' },
+        applet:       { icon: '/assets/images/icons/icon-joystick.webp', label: 'Interactive', color: '#c084fc' },
+        game:         { icon: '/assets/images/icons/icon-joystick.webp', label: 'Games', color: '#4ade80' },
+        review:       { icon: '/assets/images/icons/icon-refresh.webp', label: 'Reviews', color: '#fb923c' },
+        exam:         { icon: '/assets/images/icons/icon-clipboard.webp', label: 'Exams', color: '#f87171' },
+        tool:         { icon: '/assets/images/icons/icon-wrench.webp', label: 'Tools', color: '#22d3ee' },
+        guide:        { icon: '/assets/images/icons/icon-books.webp', label: 'Guides', color: '#a78bfa' },
+        reference:    { icon: '/assets/images/icons/icon-books.webp', label: 'Reference', color: '#94a3b8' },
+        module:       { icon: '/assets/images/icons/icon-package.webp', label: 'Modules', color: '#e879f9' }
     };
 
     function catIconHTML(mod) {
-        if (!mod.category) return mod.icon || '📄';
-        return `<img src="/assets/images/categories/${mod.category}.webp" alt="${mod.category}" onerror="this.outerHTML='${mod.icon || '📄'}'">`;
+        const fallback = mod.icon || '/assets/images/icons/icon-document.webp';
+        if (!mod.category) return iconHTML(fallback, '18px');
+        return `<img src="/assets/images/categories/${mod.category}.webp" alt="${mod.category}" style="width:18px;height:18px;vertical-align:middle;object-fit:contain" onerror="this.outerHTML=iconHTML('${fallback}','18px')">`;
     }
 
     // ========================================
@@ -332,7 +346,7 @@ const ContentDiscovery = (function() {
                     const btn = document.createElement('button');
                     btn.className = 'cd-chip';
                     btn.dataset.type = type;
-                    btn.textContent = cfg.icon + ' ' + cfg.label;
+                    btn.innerHTML = iconHTML(cfg.icon, '16px') + ' ' + cfg.label;
                     chipsRow.appendChild(btn);
                 }
             });
@@ -346,7 +360,7 @@ const ContentDiscovery = (function() {
                 const toggle = document.createElement('button');
                 toggle.className = 'cd-chip cd-cross-house-toggle';
                 toggle.id = `${instanceId}-crosshouse`;
-                toggle.textContent = '🌐 All Houses';
+                toggle.innerHTML = iconHTML('/assets/images/icons/icon-globe.webp', '16px') + ' All Houses';
                 toggle.title = 'Search across all houses';
                 chipsRow.appendChild(toggle);
             }
@@ -420,7 +434,7 @@ const ContentDiscovery = (function() {
                     grouped[key] = {
                         house: key,
                         name: r.houseName || key,
-                        icon: r.houseIcon || '📁',
+                        icon: r.houseIcon || '/assets/images/icons/icon-folder.webp',
                         color: r.houseColor || '#666',
                         modules: []
                     };
@@ -443,7 +457,7 @@ const ContentDiscovery = (function() {
                 header.className = 'cd-house-header';
                 header.style.borderLeftColor = group.color;
                 header.innerHTML = `
-                    <span class="cd-house-icon">${group.icon}</span>
+                    <span class="cd-house-icon">${iconHTML(group.icon, '20px')}</span>
                     <span class="cd-house-name">${group.name}</span>
                     <span class="cd-house-count">${group.modules.length}</span>
                 `;
@@ -623,7 +637,7 @@ const ContentDiscovery = (function() {
                 ...mod,
                 score,
                 houseName: house ? house.name : mod.house,
-                houseIcon: house ? house.icon : '📁',
+                houseIcon: house ? house.icon : '/assets/images/icons/icon-folder.webp',
                 houseColor: house ? house.color : '#666',
                 fullHref: house ? house.basePath + mod.href : mod.href
             });
@@ -722,13 +736,13 @@ const ContentDiscovery = (function() {
         // Build type filter buttons dynamically
         const typeButtons = types
             .filter(t => TYPE_CONFIG[t])
-            .map(t => `<button class="discovery-filter-btn" data-type="${t}">${TYPE_CONFIG[t].icon} ${TYPE_CONFIG[t].label}</button>`)
+            .map(t => `<button class="discovery-filter-btn" data-type="${t}">${iconHTML(TYPE_CONFIG[t].icon, '16px')} ${TYPE_CONFIG[t].label}</button>`)
             .join('');
 
         panel.innerHTML = `
             <div class="discovery-search-row">
                 <div class="discovery-search-box">
-                    <span class="discovery-search-icon">&#128269;</span>
+                    <span class="discovery-search-icon"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:16px;height:16px;vertical-align:middle;opacity:0.7"></span>
                     <input type="text"
                            class="discovery-search-input"
                            id="discoverySearch"
@@ -746,12 +760,12 @@ const ContentDiscovery = (function() {
                 <div class="discovery-filter-group" id="categoryFilters">
                     <button class="discovery-filter-btn active" data-category="all">All Categories</button>
                     ${CATEGORIES.slice(0, 6).map(cat =>
-                        `<button class="discovery-filter-btn" data-category="${cat.id}"><img src="/assets/images/categories/${cat.id}.webp" alt="${cat.name}" style="width:18px;height:18px;border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.outerHTML='${cat.icon || '📁'} '"> ${cat.name}</button>`
+                        `<button class="discovery-filter-btn" data-category="${cat.id}"><img src="/assets/images/categories/${cat.id}.webp" alt="${cat.name}" style="width:18px;height:18px;border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.src='/assets/images/icons/icon-folder.webp';this.onerror=null"> ${cat.name}</button>`
                     ).join('')}
                 </div>
                 <div class="discovery-filter-divider"></div>
                 <button class="discovery-filter-btn cd-cross-house-chip active" id="crossHouseToggle" title="Toggle cross-house search">
-                    🌐 All Houses
+                    <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:16px;height:16px;vertical-align:middle"> All Houses
                 </button>
                 <div class="discovery-filter-divider"></div>
                 <button class="discovery-filter-btn" id="discoveryFavoritesFilter" title="Show favorites only">&#9829; Favorites</button>
@@ -1965,7 +1979,8 @@ const ContentDiscovery = (function() {
         init: init,
         search: fuzzySearch,
         detectContext: detectContext,
-        TYPE_CONFIG: TYPE_CONFIG
+        TYPE_CONFIG: TYPE_CONFIG,
+        iconHTML: iconHTML
     };
 
 })();

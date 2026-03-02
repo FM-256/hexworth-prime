@@ -511,7 +511,7 @@ const _CLHTerminalModule = (function() {
 
         container.innerHTML = `
             <div class="clh-locked">
-                <div class="clh-locked-icon">🔒</div>
+                <div class="clh-locked-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                 <h2>Module Locked</h2>
                 <p>Complete the prerequisite modules first:</p>
                 <ul>
@@ -530,7 +530,7 @@ const _CLHTerminalModule = (function() {
 
         container.innerHTML = `
             <div class="clh-error">
-                <div class="clh-error-icon">⚠️</div>
+                <div class="clh-error-icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                 <h2>Error</h2>
                 <p>${message}</p>
                 <a href="../../../houses/script/index.html" class="clh-error-back">← Back to Script House</a>
@@ -2970,7 +2970,7 @@ ${footer}
         if (allComplete && state.objectives.length > 0) {
             _print('');
             _print('<span class="clh-success">═══════════════════════════════════════════════════════════════</span>');
-            _print('<span class="clh-success">  🎉 ALL OBJECTIVES COMPLETE!</span>');
+            _print('<span class="clh-success">  <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ALL OBJECTIVES COMPLETE!</span>');
             _print('<span class="clh-success">═══════════════════════════════════════════════════════════════</span>');
             _print('');
 
@@ -16231,7 +16231,7 @@ ${seq}
 
         return `${header}
 ╔════════════════════════════════════════════════════╗
-║  ⚠  EMERGENCY BROADCAST - BURNING THIS CHANNEL  ⚠ ║
+║  <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  EMERGENCY BROADCAST - BURNING THIS CHANNEL  <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ║
 ╠════════════════════════════════════════════════════╣
 ║                                                    ║
 ║  ${solution.substring(0, 46).padEnd(46)} ║
@@ -16340,7 +16340,7 @@ ${matrix}
     _cmdLolcat(args) {
         const text = args.join(' ') || this.pipeInput || '';
         // In a real terminal this would colorize the output
-        return `🌈 ${text} 🌈
+        return `<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${text} <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
 (In a real terminal, this would be rainbow colored!)`;
     }
 
@@ -16357,7 +16357,7 @@ ${matrix}
 ║ > Downloading all the things.. OK                               ║
 ║ > Installing backdoor......... OK                               ║
 ║                                                                 ║
-║                    ★ ACCESS GRANTED ★                           ║
+║                    <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ACCESS GRANTED <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">                           ║
 ║                                                                 ║
 ║  Just kidding! This is just for fun.                            ║
 ║  Real hacking looks like reading logs and drinking coffee.       ║
@@ -16389,16 +16389,16 @@ ${matrix}
         if (this._achievements[id]) return; // Already unlocked
 
         const achievements = {
-            'first_command': { name: 'First Steps', icon: '🌱', desc: 'Run your first command' },
-            'pipeline_master': { name: 'Pipeline Master', icon: '🔗', desc: 'Use 3+ pipes in one command' },
-            'speed_demon': { name: 'Speed Demon', icon: '⚡', desc: 'Complete a module in under 2 minutes' },
-            'tab_master': { name: 'Tab Master', icon: '⌨️', desc: 'Use tab completion 50 times' },
-            'history_buff': { name: 'History Buff', icon: '📜', desc: 'Successfully use Ctrl+R search' },
-            'vim_survivor': { name: 'Vim Survivor', icon: '🏆', desc: 'Exit vim gracefully with :wq' },
-            'wildcard_wizard': { name: 'Wildcard Wizard', icon: '✨', desc: 'Use wildcards in 10 commands' },
-            'redirect_pro': { name: 'Redirect Pro', icon: '➡️', desc: 'Use >, >>, and < operators' },
-            'easter_hunter': { name: 'Easter Egg Hunter', icon: '🥚', desc: 'Discover 5 hidden commands' },
-            'job_juggler': { name: 'Job Juggler', icon: '🎪', desc: 'Use job control (Ctrl+Z, fg, bg)' }
+            'first_command': { name: 'First Steps', icon: '<img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', desc: 'Run your first command' },
+            'pipeline_master': { name: 'Pipeline Master', icon: '<img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', desc: 'Use 3+ pipes in one command' },
+            'speed_demon': { name: 'Speed Demon', icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', desc: 'Complete a module in under 2 minutes' },
+            'tab_master': { name: 'Tab Master', icon: '<img src="/assets/images/icons/icon-keyboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', desc: 'Use tab completion 50 times' },
+            'history_buff': { name: 'History Buff', icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', desc: 'Successfully use Ctrl+R search' },
+            'vim_survivor': { name: 'Vim Survivor', icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', desc: 'Exit vim gracefully with :wq' },
+            'wildcard_wizard': { name: 'Wildcard Wizard', icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', desc: 'Use wildcards in 10 commands' },
+            'redirect_pro': { name: 'Redirect Pro', icon: '<img src="/assets/images/icons/icon-redirect.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', desc: 'Use >, >>, and < operators' },
+            'easter_hunter': { name: 'Easter Egg Hunter', icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', desc: 'Discover 5 hidden commands' },
+            'job_juggler': { name: 'Job Juggler', icon: '<img src="/assets/images/icons/icon-joystick.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', desc: 'Use job control (Ctrl+Z, fg, bg)' }
         };
 
         const achievement = achievements[id];
@@ -16628,7 +16628,7 @@ ${matrix}
         const hintEl = document.createElement('div');
         hintEl.className = 'clh-smart-hint';
         hintEl.innerHTML = `
-            <span class="clh-hint-icon">${hint.type === 'typo' ? '💡' : '📚'}</span>
+            <span class="clh-hint-icon">${hint.type === 'typo' ? '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'}</span>
             <span class="clh-hint-text">${hint.hint}</span>
         `;
 

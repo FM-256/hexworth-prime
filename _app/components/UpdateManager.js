@@ -272,7 +272,7 @@ class UpdateManager {
             <div class="update-banner-content">
                 <div class="update-banner-icon">
                     <span class="update-pulse"></span>
-                    <span class="update-icon-inner">⬆️</span>
+                    <span class="update-icon-inner"><img src="/assets/images/icons/icon-arrow-up.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                 </div>
                 <div class="update-banner-text">
                     <strong>Update Available</strong>
@@ -356,15 +356,15 @@ class UpdateManager {
 
                 <div class="update-modal-body">
                     <div class="update-section">
-                        <h3>📋 What's New</h3>
+                        <h3><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> What's New</h3>
                         <div class="update-notes">${releaseNotes}</div>
                     </div>
 
                     <div class="update-section update-backup-section">
-                        <h3>💾 Backup Your Progress</h3>
+                        <h3><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Backup Your Progress</h3>
                         <p>Before updating, we recommend saving your progress data.</p>
                         <button class="update-btn update-btn-backup" id="backupBtn">
-                            <span class="btn-icon">📦</span>
+                            <span class="btn-icon"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                             <span class="btn-text">Export My Data</span>
                         </button>
                         <div class="backup-status" id="backupStatus"></div>
@@ -376,7 +376,7 @@ class UpdateManager {
                         Not Now
                     </button>
                     <button class="update-btn update-btn-primary" id="downloadBtn">
-                        <span class="btn-icon">⬇️</span>
+                        <span class="btn-icon">⬇</span>
                         <span class="btn-text">Download Update</span>
                     </button>
                 </div>
@@ -500,7 +500,7 @@ class UpdateManager {
             URL.revokeObjectURL(url);
 
             // Update UI
-            btnEl.innerHTML = '<span class="btn-icon">✅</span><span class="btn-text">Backup Saved!</span>';
+            btnEl.innerHTML = '<span class="btn-icon"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span><span class="btn-text">Backup Saved!</span>';
             btnEl.classList.add('success');
             statusEl.innerHTML = `<span class="status-success">✓ ${Object.keys(userData).length} items backed up</span>`;
 
@@ -524,7 +524,7 @@ class UpdateManager {
         // Show progress
         progressContainer.classList.add('visible');
         downloadBtn.disabled = true;
-        downloadBtn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">Downloading...</span>';
+        downloadBtn.innerHTML = '<span class="btn-icon"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span><span class="btn-text">Downloading...</span>';
 
         // Animate progress (simulated since we can't track actual download)
         let progress = 0;
@@ -552,7 +552,7 @@ class UpdateManager {
             clearInterval(interval);
             progressFill.style.width = '100%';
             progressText.textContent = 'Download started! Check your downloads folder.';
-            downloadBtn.innerHTML = '<span class="btn-icon">✅</span><span class="btn-text">Downloaded!</span>';
+            downloadBtn.innerHTML = '<span class="btn-icon"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span><span class="btn-text">Downloaded!</span>';
             downloadBtn.classList.add('success');
 
             // Show instructions
@@ -572,7 +572,7 @@ class UpdateManager {
         const instructions = document.createElement('div');
         instructions.className = 'update-section update-instructions';
         instructions.innerHTML = `
-            <h3>📖 Installation Instructions</h3>
+            <h3><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Installation Instructions</h3>
             <ol class="install-steps">
                 <li>
                     <span class="step-number">1</span>
@@ -591,7 +591,7 @@ class UpdateManager {
                     <span class="step-text">If you backed up your data, import it from Settings</span>
                 </li>
             </ol>
-            <p class="install-note">💡 Your browser may remember your progress automatically!</p>
+            <p class="install-note"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Your browser may remember your progress automatically!</p>
         `;
 
         modalBody.appendChild(instructions);
@@ -623,7 +623,7 @@ class UpdateManager {
             <div class="update-modal" style="max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
                 <div class="whatsnew-header" style="flex-shrink:0;position:relative;">
                     <button class="update-modal-close" id="whatsNewClose" title="Close" style="position:absolute;top:10px;right:10px;">&times;</button>
-                    <div class="whatsnew-celebration">🎉</div>
+                    <div class="whatsnew-celebration"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                     <div class="whatsnew-title">Welcome to ${version}</div>
                     ${codename ? `<div class="whatsnew-codename">"${codename}"</div>` : ''}
                 </div>
@@ -637,7 +637,7 @@ class UpdateManager {
                         ${Array.isArray(changelog)
                             ? changelog.map(item => `
                                 <div class="whatsnew-feature">
-                                    <span class="feature-icon">${item.icon || '✨'}</span>
+                                    <span class="feature-icon">${item.icon || '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'}</span>
                                     <div class="feature-content">
                                         <div class="feature-title">${item.title || item}</div>
                                         ${item.description ? `<div class="feature-desc">${item.description}</div>` : ''}
@@ -651,7 +651,7 @@ class UpdateManager {
 
                 <div class="update-modal-footer" style="flex-shrink:0;">
                     <button class="update-btn update-btn-primary" id="whatsNewContinue">
-                        ${isAuto ? "Let's Go! 🚀" : 'Close'}
+                        ${isAuto ? "Let's Go! <img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">" : 'Close'}
                     </button>
                 </div>
             </div>
@@ -729,7 +729,7 @@ class UpdateManager {
             };
 
             localStorage.setItem('hexworth_auto_backup', JSON.stringify(backup));
-            console.log('📦 Auto-backup created:', Object.keys(userData).length, 'items');
+            console.log('<img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Auto-backup created:', Object.keys(userData).length, 'items');
         } catch (e) {
             console.error('Auto-backup failed:', e);
         }
@@ -784,7 +784,7 @@ class UpdateManager {
             // Clear the backup after successful restore
             localStorage.removeItem('hexworth_auto_backup');
 
-            console.log('✅ Restored', restored, 'items from auto-backup');
+            console.log('<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Restored', restored, 'items from auto-backup');
             return true;
         } catch (e) {
             console.error('Restore failed:', e);
@@ -837,7 +837,7 @@ class UpdateManager {
         const toast = document.createElement('div');
         toast.className = 'update-toast';
         toast.innerHTML = `
-            <span class="toast-icon">✅</span>
+            <span class="toast-icon"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
             <span class="toast-text">You're up to date! (v${this.localVersion.version})</span>
         `;
 

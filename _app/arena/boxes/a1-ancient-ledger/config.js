@@ -290,7 +290,7 @@ const A1Config = {
                 title: 'The Ancient Ledger',
                 html: `
                     <div style="text-align:center; margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid #ddd;">
-                        <h1 style="color:#8B6914; font-size:1.6rem; font-family:Georgia,serif; margin-bottom:4px;">&#9878; The Ancient Ledger</h1>
+                        <h1 style="color:#8B6914; font-size:1.6rem; font-family:Georgia,serif; margin-bottom:4px;"><img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> The Ancient Ledger</h1>
                         <div style="color:#888; font-size:0.8rem;">Crimson Dawn Confederacy &mdash; Resource Allocation System v2.1.4</div>
                     </div>
 

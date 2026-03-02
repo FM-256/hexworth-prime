@@ -277,7 +277,7 @@ const A3Config = {
                 title: 'Iron Bastion \u2014 System Monitor',
                 html: `
                     <div style="text-align:center; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #2ecc71;">
-                        <h1 style="color:#2ecc71; font-size:1.5rem; font-family:'Courier New',monospace; margin-bottom:4px;">&#9881; Iron Bastion System Monitor</h1>
+                        <h1 style="color:#2ecc71; font-size:1.5rem; font-family:'Courier New',monospace; margin-bottom:4px;"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Iron Bastion System Monitor</h1>
                         <div style="color:#888; font-size:0.75rem; letter-spacing:0.1em;">INFRASTRUCTURE MONITORING DASHBOARD v3.2.1</div>
                     </div>
 
@@ -304,10 +304,10 @@ const A3Config = {
                         <div style="color:#888; font-size:0.7rem; letter-spacing:0.1em; margin-bottom:10px;">QUICK LINKS</div>
                         <div style="display:flex; gap:10px;">
                             <a href="/monitor/tools/" style="flex:1; display:block; padding:12px; background:#1a2332; border:1px solid #333; border-radius:6px; color:#2ecc71; text-decoration:none; text-align:center; font-size:0.85rem;">
-                                &#9881; Diagnostic Tools
+                                <img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Diagnostic Tools
                             </a>
                             <a href="/monitor/logs/" style="flex:1; display:block; padding:12px; background:#1a2332; border:1px solid #333; border-radius:6px; color:#3498db; text-decoration:none; text-align:center; font-size:0.85rem;">
-                                &#9776; Access Logs
+                                <img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Access Logs
                             </a>
                         </div>
                     </div>
@@ -324,7 +324,7 @@ const A3Config = {
                 html: `
                     <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #333;">
                         <a href="/monitor/" style="color:#2ecc71; text-decoration:none; font-size:0.75rem;">&larr; Back to Dashboard</a>
-                        <h2 style="color:#2ecc71; font-size:1.2rem; font-family:'Courier New',monospace; margin-top:8px;">&#9881; Network Diagnostic Tools</h2>
+                        <h2 style="color:#2ecc71; font-size:1.2rem; font-family:'Courier New',monospace; margin-top:8px;"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Network Diagnostic Tools</h2>
                         <div style="color:#888; font-size:0.7rem;">Run network diagnostics against remote hosts</div>
                     </div>
 
@@ -371,7 +371,7 @@ const A3Config = {
                 html: `
                     <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #333;">
                         <a href="/monitor/" style="color:#2ecc71; text-decoration:none; font-size:0.75rem;">&larr; Back to Dashboard</a>
-                        <h2 style="color:#3498db; font-size:1.2rem; font-family:'Courier New',monospace; margin-top:8px;">&#9776; Access Logs</h2>
+                        <h2 style="color:#3498db; font-size:1.2rem; font-family:'Courier New',monospace; margin-top:8px;"><img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Access Logs</h2>
                         <div style="color:#888; font-size:0.7rem;">Recent HTTP access log entries</div>
                     </div>
 

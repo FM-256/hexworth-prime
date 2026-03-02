@@ -27,7 +27,7 @@ const HexworthAdmin = {
      */
     godMode: function() {
         if (this.isGodMode) {
-            console.log('%c👁️ Already in God Mode', 'color: #a855f7; font-size: 14px;');
+            console.log('%c<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Already in God Mode', 'color: #a855f7; font-size: 14px;');
             return;
         }
 
@@ -36,7 +36,7 @@ const HexworthAdmin = {
 
         // Console announcement
         console.log('%c' + '═'.repeat(50), 'color: #a855f7;');
-        console.log('%c👁️  G O D   M O D E   A C T I V A T E D  👁️', 'color: #a855f7; font-size: 20px; font-weight: bold;');
+        console.log('%c<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">  G O D   M O D E   A C T I V A T E D  <img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', 'color: #a855f7; font-size: 20px; font-weight: bold;');
         console.log('%c' + '═'.repeat(50), 'color: #a855f7;');
         console.log('%cAll gates unlocked. All paths open.', 'color: #c084fc; font-style: italic;');
         console.log('%cTo deactivate: HexworthAdmin.mortal()', 'color: #666;');
@@ -50,7 +50,7 @@ const HexworthAdmin = {
         // Dispatch event for other systems
         window.dispatchEvent(new CustomEvent('godModeActivated'));
 
-        return '👁️ You see all. You access all.';
+        return '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> You see all. You access all.';
     },
 
     /**
@@ -59,7 +59,7 @@ const HexworthAdmin = {
      */
     mortal: function() {
         if (!this.isGodMode) {
-            console.log('%c🚫 Not in God Mode', 'color: #666;');
+            console.log('%c<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Not in God Mode', 'color: #666;');
             return;
         }
 
@@ -72,12 +72,12 @@ const HexworthAdmin = {
         // Remove visual indicator
         this.removeGodModeIndicator();
 
-        console.log('%c👤 Returned to mortal state', 'color: #666; font-style: italic;');
+        console.log('%c<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Returned to mortal state', 'color: #666; font-style: italic;');
 
         // Dispatch event
         window.dispatchEvent(new CustomEvent('godModeDeactivated'));
 
-        return '👤 You are mortal once more.';
+        return '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> You are mortal once more.';
     },
 
     /**
@@ -100,7 +100,7 @@ const HexworthAdmin = {
     spawnGodParticle: function() {
         // Check if GodParticle class exists
         if (typeof GodParticle === 'undefined') {
-            console.log('%c⚠️ GodParticle entity not loaded', 'color: #fbbf24;');
+            console.log('%c<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> GodParticle entity not loaded', 'color: #fbbf24;');
             return;
         }
 
@@ -123,7 +123,7 @@ const HexworthAdmin = {
             window.digitalLife.godParticle = this.godParticle;
         }
 
-        console.log('%c👁️ God Particle manifested', 'color: #a855f7;');
+        console.log('%c<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> God Particle manifested', 'color: #a855f7;');
     },
 
     /**
@@ -149,7 +149,7 @@ const HexworthAdmin = {
 
         const indicator = document.createElement('div');
         indicator.id = 'god-mode-indicator';
-        indicator.innerHTML = '👁️ GOD MODE';
+        indicator.innerHTML = '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> GOD MODE';
         indicator.style.cssText = `
             position: fixed;
             top: 10px;
@@ -237,7 +237,7 @@ const HexworthAdmin = {
         // Make available globally
         window.HexworthAdmin = this;
 
-        console.log('%c🔐 Admin system initialized', 'color: #666; font-size: 10px;');
+        console.log('%c<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Admin system initialized', 'color: #666; font-size: 10px;');
     }
 };
 

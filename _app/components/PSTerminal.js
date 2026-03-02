@@ -2697,7 +2697,7 @@ This is why we never run out of black budget money.
             <div class="ps-terminal">
                 <div class="ps-terminal-header">
                     <div class="ps-terminal-title">
-                        <span class="ps-terminal-icon">⚡</span>
+                        <span class="ps-terminal-icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                         Administrator: Windows PowerShell
                     </div>
                     <div class="ps-terminal-badges">
@@ -8851,7 +8851,7 @@ ifIndex  DestinationPrefix    NextHop          RouteMetric
             // Check if all complete
             const allComplete = state.objectives.every(o => state.objectivesCompleted[o.id]);
             if (allComplete && state.objectives.length > 0) {
-                _printOutput(`\n<span class="ps-success">🎉 All objectives complete!</span>`);
+                _printOutput(`\n<span class="ps-success"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> All objectives complete!</span>`);
             }
         }
     }
@@ -10075,7 +10075,7 @@ ifIndex  DestinationPrefix    NextHop          RouteMetric
             // Check if all objectives complete
             const allComplete = state.objectives.every(o => state.objectivesCompleted[o.id]);
             if (allComplete) {
-                _printOutput(`\n<span class="ps-success">🎉 All objectives complete! Great work!</span>`);
+                _printOutput(`\n<span class="ps-success"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> All objectives complete! Great work!</span>`);
             }
         }
     }

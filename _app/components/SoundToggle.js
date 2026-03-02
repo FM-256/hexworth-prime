@@ -100,9 +100,9 @@ class SoundToggle {
     getIcon() {
         if (!this.hasInteracted && this.isEnabled) {
             // User wants sound but hasn't clicked yet
-            return '🔊';
+            return '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
         }
-        return this.isEnabled ? '🔊' : '🔇';
+        return this.isEnabled ? '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
     }
 
     /**

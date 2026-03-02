@@ -8519,7 +8519,7 @@ SECURITY NOTES:
                 },
                 '/home/ghost/notes/warning.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 384,
-                    content: `⚠️  WARNING - READ BEFORE PROCEEDING ⚠️
+                    content: `<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  WARNING - READ BEFORE PROCEEDING <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
 =======================================
 
 WRAITH-7 compromised part of this mission.
@@ -8665,7 +8665,7 @@ WORKFLOW:
 Handler: SPECTER-1 @ 10.0.0.1
 Target:  /data/projects/medusa/classified/
 
-⚠️ Do NOT package Hydra or Cerberus data!
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Do NOT package Hydra or Cerberus data!
 `
                 },
                 '/home/ghost/recon': {
@@ -8740,8 +8740,8 @@ Handler at 10.0.0.1:22 is reachable.
 =====================================
 Active classified projects.
 
-⚠️  All access is logged and monitored.
-⚠️  Unauthorized access will trigger security response.
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  All access is logged and monitored.
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  Unauthorized access will trigger security response.
 
 See individual project directories for details.
 `
@@ -8762,9 +8762,9 @@ Project Type: Autonomous Systems
 Budget: $30M
 Timeline: 2024-2026
 
-⚠️  THIS DIRECTORY IS UNDER ENHANCED MONITORING
-⚠️  Previous unauthorized access logged
-⚠️  All queries forwarded to security team
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  THIS DIRECTORY IS UNDER ENHANCED MONITORING
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  Previous unauthorized access logged
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  All queries forwarded to security team
 
 Note: If you're seeing this, you may have the wrong target.
 `
@@ -8779,7 +8779,7 @@ Access logged. Security notified.
                     type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 192,
                     content: `HYDRA VERIFICATION CODE: HYDRA-3
 
-⚠️  WARNING: This is a DECOY code.
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  WARNING: This is a DECOY code.
 Using this code will trigger security review.
 `
                 },
@@ -8800,7 +8800,7 @@ Status: ACTIVE
                 },
                 '/data/projects/cerberus/secrets.txt': {
                     type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 384,
-                    content: `🚨 HONEYPOT TRIGGERED 🚨
+                    content: `<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> HONEYPOT TRIGGERED <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">
 
 This file is a security trap.
 Your access has been logged.
@@ -8932,7 +8932,7 @@ Mission Verification:    MEDUSA-9
 Handler Confirmation:    SPECTER-GAMMA
 Abort Code:             BLACKOUT-ZERO
 
-⚠️ These codes are PROJECT MEDUSA specific.
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> These codes are PROJECT MEDUSA specific.
 Do not confuse with Hydra or Cerberus codes.
 
 MEDUSA-9 is the ONLY valid mission verification code.
@@ -8986,7 +8986,7 @@ Current project codes:
 - CERBERUS-1 (Cerberus project)
 - MEDUSA-9   (Medusa project)
 
-⚠️ Phoenix codes are no longer valid for any mission.
+<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Phoenix codes are no longer valid for any mission.
 `
                 },
 
@@ -12838,7 +12838,7 @@ Agent PHOENIX needs confirmation:
     ║                                                           ║
     ║         ╔════════════════════════════════╗               ║
     ║         ║  GREEN WIRES (ANTI-TAMPER)     ║               ║
-    ║         ║  ⚠ DO NOT CUT - TRIGGERS BLAST ║               ║
+    ║         ║  <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DO NOT CUT - TRIGGERS BLAST ║               ║
     ║         ║  Count: 2                       ║               ║
     ║         ╚════════════════════════════════╝               ║
     ║                                                           ║

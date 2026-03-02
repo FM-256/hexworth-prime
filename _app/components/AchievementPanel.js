@@ -802,7 +802,7 @@ const AchievementPanel = (function() {
         const gridHTML = pageItems.length > 0 ? pageItems.map(ach => {
             const isUnlocked = unlockedSet.has(ach.id);
             const isSecret = ach.secret;
-            const displayEmoji = (isUnlocked || !isSecret) ? ach.icon : '❓';
+            const displayEmoji = (isUnlocked || !isSecret) ? ach.icon : '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
             const displayName = (isUnlocked || !isSecret) ? ach.name : '???';
             const displayDesc = isUnlocked ? ach.description : (isSecret ? '???' : ach.description);
             const showBadgeId = (isUnlocked || !isSecret) ? ach.id : null;
@@ -851,7 +851,7 @@ const AchievementPanel = (function() {
             <div class="ap-pagination">
                 <button class="ap-page-btn" data-page="prev" ${_state.page === 0 ? 'disabled' : ''}>&#9664; Prev</button>
                 <span class="ap-page-info">${_state.page + 1} / ${totalPages} (${allFiltered.length} achievements)</span>
-                <button class="ap-page-btn" data-page="next" ${_state.page >= totalPages - 1 ? 'disabled' : ''}>Next &#9654;</button>
+                <button class="ap-page-btn" data-page="next" ${_state.page >= totalPages - 1 ? 'disabled' : ''}>Next <img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></button>
             </div>
         ` : `<div class="ap-page-info" style="text-align:center;padding:5px;color:#666;font-size:0.7rem;">${allFiltered.length} achievements</div>`;
 

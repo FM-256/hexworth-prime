@@ -14,17 +14,17 @@
 
 class EventLog {
     static EVENT_TYPES = {
-        BIRTH: { icon: '✨', color: '#22c55e', label: 'Birth' },
-        DEATH: { icon: '💀', color: '#ef4444', label: 'Death' },
-        EVOLUTION: { icon: '⬆️', color: '#9f7aea', label: 'Evolution' },
-        RARE_SPAWN: { icon: '⭐', color: '#fbbf24', label: 'Rare' },
-        COSMIC_EVENT: { icon: '🌌', color: '#38bdf8', label: 'Cosmic' },
-        PLANET: { icon: '🌍', color: '#84cc16', label: 'Planet' },
-        PREDATOR: { icon: '⚠️', color: '#f97316', label: 'Predator' },
-        PLAYER_ACTION: { icon: '🛠️', color: '#ec4899', label: 'Action' },
+        BIRTH: { icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#22c55e', label: 'Birth' },
+        DEATH: { icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#ef4444', label: 'Death' },
+        EVOLUTION: { icon: '<img src="/assets/images/icons/icon-arrow-up.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#9f7aea', label: 'Evolution' },
+        RARE_SPAWN: { icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#fbbf24', label: 'Rare' },
+        COSMIC_EVENT: { icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#38bdf8', label: 'Cosmic' },
+        PLANET: { icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#84cc16', label: 'Planet' },
+        PREDATOR: { icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#f97316', label: 'Predator' },
+        PLAYER_ACTION: { icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#ec4899', label: 'Action' },
         CONSTELLATION: { icon: '✦', color: '#a78bfa', label: 'Constellation' },
-        ACHIEVEMENT: { icon: '🏆', color: '#fbbf24', label: 'Achievement' },
-        SYSTEM: { icon: '📋', color: '#888', label: 'System' }
+        ACHIEVEMENT: { icon: '<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#fbbf24', label: 'Achievement' },
+        SYSTEM: { icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#888', label: 'System' }
     };
 
     constructor(config = {}) {
@@ -70,7 +70,7 @@ class EventLog {
         // Log system start
         this.log('SYSTEM', 'Ecosystem initialized');
 
-        console.log('📋 Event log initialized');
+        console.log('<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Event log initialized');
         return this;
     }
 
@@ -82,7 +82,7 @@ class EventLog {
         this.element.className = `event-log event-log-${this.config.position}`;
         this.element.innerHTML = `
             <div class="log-header">
-                <span class="log-title">📋 Event Log</span>
+                <span class="log-title"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Event Log</span>
                 <span class="log-count">(0)</span>
                 <button class="log-toggle">${this.isExpanded ? '▼' : '▲'}</button>
             </div>

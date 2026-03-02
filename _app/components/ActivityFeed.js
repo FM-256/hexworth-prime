@@ -25,7 +25,7 @@ const ActivityFeed = (function() {
             color: '#4ade80'
         },
         achievement_unlock: {
-            icon: '★',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             prefix: 'COMMENDATION',
             template: (data) => `Unlocked: ${data.title || data.achievementId}`,
             color: '#fbbf24'
@@ -49,7 +49,7 @@ const ActivityFeed = (function() {
             color: '#22d3ee'
         },
         streak: {
-            icon: '🔥',
+            icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             prefix: 'STREAK BONUS',
             template: (data) => `${data.days}-day streak maintained`,
             color: '#f97316'
@@ -73,7 +73,7 @@ const ActivityFeed = (function() {
             color: '#8b5cf6'
         },
         directive: {
-            icon: '⚐',
+            icon: '<img src="/assets/images/icons/icon-flag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             prefix: 'DIRECTIVE',
             template: (data) => data.message,
             color: '#f59e0b'
@@ -91,7 +91,7 @@ const ActivityFeed = (function() {
             color: '#4ade80'
         },
         system: {
-            icon: '⚡',
+            icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             prefix: 'HANDLER',
             template: (data) => data.message,
             color: '#94a3b8'

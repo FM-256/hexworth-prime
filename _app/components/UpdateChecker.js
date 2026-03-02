@@ -151,7 +151,7 @@ class UpdateChecker {
         this.element.className = 'update-notification';
         this.element.innerHTML = `
             <div class="update-content">
-                <span class="update-icon">✨</span>
+                <span class="update-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                 <span class="update-message">
                     <strong>Hexworth Prime ${this.remoteVersion.version}</strong> is available
                     ${this.remoteVersion.codename ? `<span class="update-codename">"${this.remoteVersion.codename}"</span>` : ''}

@@ -2,31 +2,48 @@
  * EduScan - Emoji Validator
  *
  * Detects "orphan emoji" in UI-visible positions — emoji that should have
- * been replaced with category/emblem images but were missed. Covers JS
- * property definitions (icon:), HTML badge/icon elements, and inline UI
- * patterns like path-meta and module-duration.
+ * been replaced with icon images but were missed. Covers JS property
+ * definitions (icon:), HTML badge/icon elements, inline UI patterns,
+ * and raw emoji in any JS/HTML file across the entire codebase.
  *
  * Rule codes:
  *   EMOJI-001  (low)     Emoji in icon: JS property
  *   EMOJI-002  (low)     Emoji in HTML badge/header icon elements
  *   EMOJI-003  (warning) Emoji in inline HTML near known UI patterns
  *   EMOJI-004  (medium)  Emoji in hero/emblem container (should be <img>)
+ *   EMOJI-005  (low)     Raw emoji in JS string literal or HTML content
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// Emoji detection — covers common ranges
-const EMOJI_CHAR_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2692}-\u{2699}\u{FE00}-\u{FE0F}\u{200D}\u{2702}-\u{27B0}]/u;
-const EMOJI_CHAR_GLOBAL_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2692}-\u{2699}\u{FE00}-\u{FE0F}\u{200D}\u{2702}-\u{27B0}]/gu;
+// Emoji detection — covers common ranges (extended to catch more)
+const EMOJI_CHAR_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2692}-\u{2699}\u{FE00}-\u{FE0F}\u{200D}\u{2702}-\u{27B0}\u{1FA00}-\u{1FAFF}\u{231A}-\u{231B}\u{23E9}-\u{23FA}\u{2934}-\u{2935}]/u;
+const EMOJI_CHAR_GLOBAL_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2692}-\u{2699}\u{FE00}-\u{FE0F}\u{200D}\u{2702}-\u{27B0}\u{1FA00}-\u{1FAFF}\u{231A}-\u{231B}\u{23E9}-\u{23FA}\u{2934}-\u{2935}]/gu;
 
-// Excluded functional symbols: checkmarks (✓✗✅❌), arrows (→←↑↓), variation selectors
+// Excluded functional symbols: checkmarks, arrows, variation selectors, geometric shapes
 const EXCLUDED_CHARS = new Set([
     '\u2713', '\u2714', '\u2717', '\u2718', // ✓ ✔ ✗ ✘
     '\u2705', '\u274C', '\u274E',           // ✅ ❌ ❎
     '\u2192', '\u2190', '\u2191', '\u2193', // → ← ↑ ↓
     '\uFE0E', '\uFE0F',                     // variation selectors (text/emoji)
-    '\u200D',                                // zero-width joiner (only meaningful with other emoji)
+    '\u200D',                                // zero-width joiner
+    // Geometric shapes used as UI elements (dropdown arrows, bullets, etc.)
+    '\u25BC', '\u25B8', '\u25CB', '\u25CF', // ▼ ▸ ○ ●
+    '\u25BA', '\u25B2', '\u25AA', '\u25BE', // ► ▲ ▪ ▾
+    '\u25B9', '\u25C0', '\u25C4', '\u25B3', // ▹ ◀ ◄ △
+    '\u25C6', '\u25C7', '\u25C8', '\u25C9', // ◆ ◇ ◈ ◉
+    '\u25CE', '\u25EF', '\u25D0', '\u25C1', // ◎ ◯ ◐ ◁
+    '\u25EB', '\u25E2', '\u25FB', '\u25B6', // ◫ ◢ ◻ ▶
+    '\u25B7', '\u25BD', '\u25BF',           // ▷ ▽ ▿
+    // Stars/decorative shapes used as text
+    '\u2605', '\u2606', '\u2726', '\u2727',  // ★ ☆ ✦ ✧
+    '\u2756', '\u2734',                       // ❖ ✴
+    // Hearts used as text
+    '\u2665', '\u2661',                       // ♥ ♡
+    // Ballot/checkbox
+    '\u2610', '\u2611', '\u2612',             // ☐ ☑ ☒
+    '\u2715',                                 // ✕ (multiplication/close)
 ]);
 
 /** Test if a string contains a real (non-excluded) emoji */
@@ -43,13 +60,21 @@ const EMOJI_GLOBAL_RE = EMOJI_CHAR_GLOBAL_RE;
 // Unicode escape patterns used in JS source (surrogate pairs and \u{} syntax)
 const UNICODE_ESCAPE_RE = /\\u[Dd][89AaBb][0-9A-Fa-f]{2}|\\u\{1[Ff][0-9A-Fa-f]{3}\}/;
 
-// JS files to scan in the global pass
-const GLOBAL_JS_FILES = [
-    'config/content-registry.js',
-    'components/LearningPaths.js',
+// JS directories to scan in the global pass (all .js files found recursively)
+const GLOBAL_JS_DIRS = [
+    'components',
+    'config',
+    'utils',
+    'digital-life',
+    'workshop'
+];
+
+// Additional specific files (non-JS)
+const GLOBAL_EXTRA_FILES = [
     'dashboard.html',
-    'components/AchievementSystem.js',
-    'components/ContentDiscovery.js'
+    'games.html',
+    'terminal.html',
+    'career-quiz.html'
 ];
 
 // UI container classes that indicate visible emoji (EMOJI-003)
@@ -81,6 +106,10 @@ class EmojiValidator {
         // Load available replacement images at startup
         this.categoryImages = this.loadImageNames('assets/images/categories');
         this.emblemImages = this.loadImageNames('assets/images/emblems');
+        this.iconImages = this.loadImageNames('assets/images/icons');
+
+        // Discover all JS files to scan globally
+        this.globalJSFiles = this.discoverGlobalFiles();
     }
 
     /**
@@ -94,6 +123,46 @@ class EmojiValidator {
                 .map(f => f.replace(/\.[^.]+$/, ''));
         } catch {
             return [];
+        }
+    }
+
+    /**
+     * Discover all JS files to scan globally from configured directories
+     */
+    discoverGlobalFiles() {
+        const files = [];
+        for (const dir of GLOBAL_JS_DIRS) {
+            const absDir = path.resolve(this.rootPath, dir);
+            try {
+                this.walkDir(absDir, (filePath) => {
+                    if (filePath.endsWith('.js')) {
+                        files.push(path.relative(this.rootPath, filePath));
+                    }
+                });
+            } catch {
+                // Directory may not exist
+            }
+        }
+        for (const f of GLOBAL_EXTRA_FILES) {
+            const abs = path.resolve(this.rootPath, f);
+            if (fs.existsSync(abs)) files.push(f);
+        }
+        return files;
+    }
+
+    /**
+     * Recursively walk a directory tree
+     */
+    walkDir(dir, callback) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                if (entry.name === 'node_modules' || entry.name === '.git') continue;
+                this.walkDir(fullPath, callback);
+            } else {
+                callback(fullPath);
+            }
         }
     }
 
@@ -268,14 +337,16 @@ class EmojiValidator {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Scan key JS/HTML config files for emoji in icon properties.
+     * Scan all JS/HTML config files for emoji in icon properties and raw strings.
      * Called once by the orchestrator (not per-file).
+     * Dynamically discovers files from components/, config/, utils/, etc.
      * @returns {Array} Issues found
      */
     validateGlobal() {
         const issues = [];
+        const filesScanned = this.globalJSFiles;
 
-        for (const relPath of GLOBAL_JS_FILES) {
+        for (const relPath of filesScanned) {
             const absPath = path.resolve(this.rootPath, relPath);
             let content;
             try {
@@ -287,7 +358,7 @@ class EmojiValidator {
                 continue;
             }
 
-            // Scan for icon: 'emoji' patterns throughout the file
+            // EMOJI-001: Scan for icon: 'emoji' patterns
             const iconPropRe = /icon\s*:\s*(['"])(.*?)\1/g;
             let match;
 
@@ -302,16 +373,15 @@ class EmojiValidator {
                         code: 'EMOJI-001',
                         severity: 'low',
                         category: 'emoji',
-                        message: `Emoji icon "${emoji}" in JS property — replace with category/emblem image`,
+                        message: `Emoji icon "${emoji}" in JS property — replace with icon image path`,
                         file: relPath,
                         line,
-                        fix: this.suggestFix(relPath, value)
+                        fix: this.suggestIconFix(value)
                     });
                 }
             }
 
-            // Also check for emoji in template literals: `...emoji...`
-            // Target patterns like: <span class="...-icon">emoji</span> in template strings
+            // EMOJI-002: Check template literals for emoji in badge/icon elements
             const templateBadgeRe = /class=(?:\\?["'])[^"']*(?:badge-icon|tab-icon|path-icon|stat-icon)[^"']*(?:\\?["'])[^>]*>([^<]{0,100})/gi;
             let tmplMatch;
 
@@ -329,14 +399,56 @@ class EmojiValidator {
                         message: `Emoji "${emoji}" in badge/icon element — replace with <img> tag`,
                         file: relPath,
                         line,
-                        fix: this.suggestFix(relPath, innerText)
+                        fix: this.suggestIconFix(innerText)
                     });
                 }
+            }
+
+            // EMOJI-005: Raw emoji anywhere in JS string literals or HTML content
+            // Scan for any remaining emoji characters in the file
+            if (relPath.endsWith('.js')) {
+                issues.push(...this.checkRawEmoji(content, relPath));
             }
         }
 
         if (this.verbose && issues.length > 0) {
-            console.log(`[EMOJI] Global scan: ${issues.length} issues across ${GLOBAL_JS_FILES.length} files`);
+            console.log(`[EMOJI] Global scan: ${issues.length} issues across ${filesScanned.length} files`);
+        }
+
+        return issues;
+    }
+
+    /**
+     * EMOJI-005: Detect raw emoji anywhere in a file (broad catch-all).
+     * Scans line by line, reports first occurrence per line to avoid noise.
+     */
+    checkRawEmoji(content, filePath) {
+        const issues = [];
+        const seenLines = new Set(); // deduplicate by line number
+        const lines = content.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (hasEmoji(line)) {
+                const lineNum = i + 1;
+                if (seenLines.has(lineNum)) continue;
+                seenLines.add(lineNum);
+
+                // Skip comment-only lines
+                const trimmed = line.trim();
+                if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
+
+                const emoji = this.extractEmoji(line);
+                issues.push({
+                    code: 'EMOJI-005',
+                    severity: 'low',
+                    category: 'emoji',
+                    message: `Raw emoji "${emoji}" in JS source — replace with icon image`,
+                    file: filePath,
+                    line: lineNum,
+                    fix: this.suggestIconFix(line)
+                });
+            }
         }
 
         return issues;
@@ -393,7 +505,17 @@ class EmojiValidator {
             }
         }
 
-        return 'Replace with appropriate <img src="/assets/images/categories/..."> or emblem image';
+        return 'Replace with <img src="/assets/images/icons/icon-*.webp"> from icon library';
+    }
+
+    /**
+     * Suggest icon library replacement
+     */
+    suggestIconFix(emojiContext) {
+        if (this.iconImages.length > 0) {
+            return `Replace with path from /assets/images/icons/ (${this.iconImages.length} icons available)`;
+        }
+        return 'Replace with <img src="/assets/images/icons/icon-*.webp"> from icon library';
     }
 
     /**

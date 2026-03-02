@@ -12,7 +12,7 @@ const AccessControlData = {
     access_control: {
         id: 'access_control',
         name: 'Access Control Models',
-        icon: '\ud83d\udd10',
+        icon: '/assets/images/icons/icon-padlock.webp',
         color: '#a855f7',
         subtitle: 'DAC, MAC, RBAC, ABAC & Rule-Based',
         description: 'Access control models define how permissions are granted and enforced. Choosing the right model depends on the security requirements, organizational structure, and regulatory environment.',
@@ -20,28 +20,28 @@ const AccessControlData = {
         sections: [
             {
                 title: 'Discretionary Access Control (DAC)',
-                icon: '\ud83d\udc64',
+                icon: '/assets/images/icons/icon-users.webp',
                 content: 'The resource owner decides who gets access. DAC is flexible but relies on users to make good security decisions. Most common in consumer operating systems.',
                 details: ['Owner of the resource controls permissions', 'Common in Windows NTFS and Unix file systems', 'Flexible but prone to human error', 'No central enforcement of security policy', 'Risk: owner can share access too broadly', 'Identity-based: permissions tied to user identity'],
                 realWorld: 'On a shared Windows file server, each department manager sets permissions on their folders. The marketing manager shares a folder with "Everyone" for convenience, accidentally exposing confidential campaign data to the entire company.'
             },
             {
                 title: 'Mandatory Access Control (MAC)',
-                icon: '\ud83c\udff0',
+                icon: '/assets/images/icons/icon-castle.webp',
                 content: 'A central authority (the system) enforces access based on security labels. Users cannot override the system\'s access decisions regardless of ownership.',
                 details: ['System enforces access policy, not the user', 'Uses security labels/classifications (Top Secret, Secret, Confidential, Unclassified)', 'Bell-LaPadula: "no read up, no write down" (confidentiality)', 'Biba Model: "no read down, no write up" (integrity)', 'Used in military and government systems (SELinux, trusted OS)', 'Most restrictive but most secure model'],
                 realWorld: 'In a classified government network, a user with "Secret" clearance can read Secret and Confidential documents but cannot access Top Secret files. The system enforces this regardless of who owns the file. Even the file creator cannot share a Top Secret document with a Secret-cleared user.'
             },
             {
                 title: 'Role-Based Access Control (RBAC)',
-                icon: '\ud83c\udfad',
+                icon: '/assets/images/icons/icon-mask.webp',
                 content: 'Access permissions are assigned to roles, and users are assigned to roles based on their job function. The most widely used model in enterprise environments.',
                 details: ['Permissions assigned to roles, not individuals', 'Users are assigned one or more roles', 'Simplifies administration for large organizations', 'Supports separation of duties and least privilege', 'Role hierarchy: senior roles inherit junior role permissions', 'Examples: Active Directory groups, AWS IAM roles, database roles'],
                 realWorld: 'A hospital defines roles: Physician, Nurse, Pharmacist, Billing. Physicians can view and modify medical records. Nurses can view records but not modify prescriptions. Pharmacists can view prescriptions but not diagnoses. When Dr. Smith joins, she is assigned the Physician role and immediately gets all associated permissions.'
             },
             {
                 title: 'Attribute-Based Access Control (ABAC)',
-                icon: '\ud83c\udff7\ufe0f',
+                icon: '/assets/images/icons/icon-tag.webp',
                 content: 'Access decisions based on attributes of the user, resource, action, and environment. The most granular and flexible model, capable of expressing complex access policies.',
                 details: ['User attributes: department, clearance, role, location', 'Resource attributes: classification, owner, sensitivity', 'Action attributes: read, write, execute, delete', 'Environment attributes: time of day, IP address, device type', 'Policies evaluate combinations of attributes dynamically', 'Examples: AWS IAM policies, XACML, Azure AD Conditional Access'],
                 realWorld: 'A policy states: "Allow access to financial reports IF user.department=Finance AND user.clearance>=Confidential AND environment.time is business hours AND environment.location is corporate network." A finance manager at the office during work hours gets access; the same person at home after hours does not.'
@@ -77,7 +77,7 @@ const AccessControlData = {
     biometrics: {
         id: 'biometrics',
         name: 'Biometric Authentication',
-        icon: '\ud83d\udc41\ufe0f',
+        icon: '/assets/images/icons/icon-eye.webp',
         color: '#a855f7',
         subtitle: 'Fingerprint, iris, facial recognition & behavioral biometrics',
         description: 'Biometrics use unique physical or behavioral characteristics to verify identity. As an authentication factor ("something you are"), biometrics provide strong identity verification but raise privacy concerns and cannot be changed if compromised.',
@@ -85,28 +85,28 @@ const AccessControlData = {
         sections: [
             {
                 title: 'Biometric Types',
-                icon: '\ud83e\udec0',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'Biometrics fall into two categories: physiological (physical characteristics) and behavioral (patterns of behavior). Each type has different accuracy, cost, and user acceptance levels.',
                 details: ['Physiological: fingerprint, iris, retina, facial geometry, palm vein, hand geometry', 'Behavioral: typing patterns (keystroke dynamics), gait analysis, voice patterns, signature dynamics', 'Fingerprint: most common, low cost, well-accepted, can be spoofed with prints', 'Iris scan: highly accurate, contactless, works through glasses, expensive', 'Facial recognition: convenient, contactless, can be fooled by photos/masks in basic systems', 'Palm vein: very accurate, difficult to spoof, requires specialized scanner'],
                 realWorld: 'A data center uses palm vein scanning for entry because it is nearly impossible to spoof (veins are internal) and has one of the lowest false acceptance rates. Employees simply wave their hand over the scanner without touching anything.'
             },
             {
                 title: 'Error Rates: FAR, FRR & CER',
-                icon: '\ud83d\udcca',
+                icon: '/assets/images/icons/icon-barchart.webp',
                 content: 'The effectiveness of a biometric system is measured by its error rates. Understanding FAR, FRR, and CER is essential for choosing and tuning biometric systems.',
                 details: ['FAR (False Acceptance Rate): unauthorized person incorrectly accepted (Type II error)', 'FRR (False Rejection Rate): authorized person incorrectly rejected (Type I error)', 'CER/EER (Crossover/Equal Error Rate): point where FAR = FRR (lower is better)', 'Tightening security: decreases FAR but increases FRR (fewer false accepts, more false rejects)', 'Loosening security: decreases FRR but increases FAR (fewer false rejects, more false accepts)', 'CER is the standard metric for comparing biometric systems'],
                 realWorld: 'A high-security facility needs very low FAR (cannot let unauthorized people in), so they set the fingerprint scanner sensitivity very high. This increases FRR (authorized employees sometimes need to scan twice), but the trade-off is acceptable for security.'
             },
             {
                 title: 'Biometric Enrollment & Matching',
-                icon: '\u2699\ufe0f',
+                icon: '/assets/images/icons/icon-gear.webp',
                 content: 'During enrollment, the system captures a reference template of the biometric feature. During authentication, a new scan is compared against the stored template.',
                 details: ['Enrollment: initial capture of biometric data (multiple samples for accuracy)', 'Template: mathematical representation of the biometric (not the raw image)', 'One-to-one matching: verification (compare against one template - "Is this person who they claim?")', 'One-to-many matching: identification (compare against all templates - "Who is this person?")', 'Liveness detection: ensures a real person is present (not a photo, recording, or prosthetic)', 'Template protection: templates should be encrypted and stored securely'],
                 realWorld: 'Airport facial recognition uses one-to-many matching: a traveler\'s face is compared against a watchlist database of known threats. Corporate access uses one-to-one matching: an employee scans their badge (claims identity) then scans their fingerprint (verifies the claim).'
             },
             {
                 title: 'Privacy & Security Concerns',
-                icon: '\u26a0\ufe0f',
+                icon: '/assets/images/icons/icon-siren.webp',
                 content: 'Unlike passwords, biometrics cannot be changed if compromised. This creates unique privacy and security challenges.',
                 details: ['Cannot be reset: a compromised fingerprint is compromised forever', 'Biometric databases are high-value targets for attackers', 'Function creep: biometric data collected for one purpose used for another', 'Surveillance concerns: facial recognition in public spaces', 'Legal frameworks: BIPA (Illinois), GDPR (EU) regulate biometric data', 'Cancelable biometrics: mathematical transforms that can be revoked without losing the original biometric'],
                 realWorld: 'In 2019, a breach exposed fingerprint data for 1 million users from a biometric security platform. Unlike passwords, these users cannot change their fingerprints. This incident accelerated interest in cancelable biometrics, where a one-way transformation is applied to the biometric template so the transform can be revoked and re-issued.'
@@ -141,7 +141,7 @@ const AccessControlData = {
     kerberos: {
         id: 'kerberos',
         name: 'Kerberos Authentication',
-        icon: '\ud83c\udfab',
+        icon: '/assets/images/icons/icon-token.webp',
         color: '#a855f7',
         subtitle: 'Ticket-based network authentication protocol',
         description: 'Kerberos is a network authentication protocol that uses tickets to allow nodes to prove their identity securely over a non-secure network. It is the default authentication protocol in Active Directory environments.',
@@ -149,28 +149,28 @@ const AccessControlData = {
         sections: [
             {
                 title: 'Kerberos Architecture',
-                icon: '\ud83c\udfd7\ufe0f',
+                icon: '/assets/images/icons/icon-construction.webp',
                 content: 'Kerberos uses a trusted third party (KDC - Key Distribution Center) to authenticate users and services. The KDC has two components: the Authentication Service (AS) and the Ticket Granting Service (TGS).',
                 details: ['KDC (Key Distribution Center): trusted third party that issues tickets', 'AS (Authentication Service): verifies user identity, issues TGT', 'TGS (Ticket Granting Service): issues service tickets using TGT', 'TGT (Ticket Granting Ticket): proves user is authenticated', 'Service Ticket: grants access to a specific service', 'Realm: the Kerberos authentication domain (often matches AD domain)'],
                 realWorld: 'When you log into a Windows domain-joined computer, Active Directory\'s Kerberos implementation authenticates you. The domain controller (KDC) issues you a TGT. When you access a file share, your computer uses the TGT to get a service ticket for that specific file server, all without sending your password again.'
             },
             {
                 title: 'The Kerberos Process (6 Steps)',
-                icon: '\ud83d\udd04',
+                icon: '/assets/images/icons/icon-refresh.webp',
                 content: 'Kerberos authentication involves six messages exchanged between the client, KDC, and service server.',
                 details: ['Step 1 (AS-REQ): Client sends authentication request to AS with username', 'Step 2 (AS-REP): AS returns TGT encrypted with TGS secret key + session key encrypted with user\'s password hash', 'Step 3 (TGS-REQ): Client presents TGT to TGS, requests service ticket', 'Step 4 (TGS-REP): TGS returns service ticket encrypted with service\'s secret key', 'Step 5 (AP-REQ): Client presents service ticket to the service server', 'Step 6 (AP-REP): Service server verifies ticket and grants access (mutual auth optional)'],
                 realWorld: 'Alice opens Outlook to check email. Her workstation sends an AS-REQ to the KDC. The KDC sends back a TGT. The workstation then requests a service ticket for the Exchange server (TGS-REQ/TGS-REP). Finally, Outlook presents the service ticket to Exchange (AP-REQ) and gets access to Alice\'s mailbox.'
             },
             {
                 title: 'Kerberos Security Features',
-                icon: '\ud83d\udd12',
+                icon: '/assets/images/icons/icon-padlock.webp',
                 content: 'Kerberos provides several security guarantees including mutual authentication, replay protection, and password never traversing the network.',
                 details: ['Password never sent over the network (only password hash used locally)', 'Mutual authentication: server proves identity to client too', 'Timestamps prevent replay attacks (5-minute clock skew tolerance)', 'Tickets have expiration times (TGT typically 10 hours)', 'Symmetric encryption: shared secrets between KDC and each principal', 'Single Sign-On (SSO): authenticate once, access many services'],
                 realWorld: 'A Kerberos ticket captured by an attacker has a 10-hour lifetime. After expiration, it is useless. The 5-minute clock skew tolerance means replaying a captured ticket must happen almost immediately to succeed, and timestamps in the authenticator prevent even that.'
             },
             {
                 title: 'Kerberos Attacks',
-                icon: '\u26a0\ufe0f',
+                icon: '/assets/images/icons/icon-siren.webp',
                 content: 'Despite strong design, Kerberos implementations are targeted by sophisticated attacks, particularly in Active Directory environments.',
                 details: ['Kerberoasting: requesting service tickets and cracking them offline to reveal service account passwords', 'Golden Ticket: forging TGTs with the stolen krbtgt account hash (complete domain compromise)', 'Silver Ticket: forging service tickets with a stolen service account hash', 'Pass-the-Ticket: stealing and reusing existing tickets from memory', 'AS-REP Roasting: cracking AS-REP for accounts without pre-authentication', 'Mitigations: strong service account passwords, AES encryption, PAC validation, Credential Guard'],
                 realWorld: 'An attacker runs Mimikatz on a compromised domain controller and extracts the krbtgt hash. They create a Golden Ticket with domain admin privileges and a 10-year expiration. Even after the initial compromise is remediated, the Golden Ticket remains valid until the krbtgt password is reset TWICE.'

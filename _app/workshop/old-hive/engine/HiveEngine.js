@@ -22,29 +22,29 @@ const HiveEngine = (() => {
 
     const FLOORS = [
         { id: 'compression-vault', title: 'Compression Vault', floor: 'B-1',
-          house: 'forge', icon: '🔧', difficulty: 1, depthTier: 'pristine',
+          house: 'forge', icon: '<img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 1, depthTier: 'pristine',
           requiresCompleted: 0 },
         { id: 'cipher-break', title: 'Cipher Break', floor: 'B-2',
-          house: 'key', icon: '🔑', difficulty: 1, depthTier: 'pristine',
+          house: 'key', icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 1, depthTier: 'pristine',
           requiresCompleted: 0 },
         { id: null, title: 'Packet Panic', floor: 'B-3', house: 'shield',
-          icon: '🛡️', difficulty: 2, depthTier: 'worn', requiresCompleted: 1, comingSoon: true },
+          icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 2, depthTier: 'worn', requiresCompleted: 1, comingSoon: true },
         { id: null, title: 'Script Injection', floor: 'B-4', house: 'web',
-          icon: '🌐', difficulty: 2, depthTier: 'worn', requiresCompleted: 1, comingSoon: true },
+          icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 2, depthTier: 'worn', requiresCompleted: 1, comingSoon: true },
         { id: null, title: 'Logic Bomb', floor: 'B-5', house: 'script',
-          icon: '📜', difficulty: 2, depthTier: 'worn', requiresCompleted: 1, comingSoon: true },
+          icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 2, depthTier: 'worn', requiresCompleted: 1, comingSoon: true },
         { id: null, title: 'Cloud Breach', floor: 'B-6', house: 'cloud',
-          icon: '☁️', difficulty: 3, depthTier: 'damaged', requiresCompleted: 3, comingSoon: true },
+          icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 3, depthTier: 'damaged', requiresCompleted: 3, comingSoon: true },
         { id: null, title: 'Memory Dump', floor: 'B-7', house: 'forge',
-          icon: '🔧', difficulty: 3, depthTier: 'damaged', requiresCompleted: 3, comingSoon: true },
+          icon: '<img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 3, depthTier: 'damaged', requiresCompleted: 3, comingSoon: true },
         { id: null, title: 'Firewall Maze', floor: 'B-8', house: 'shield',
-          icon: '🛡️', difficulty: 3, depthTier: 'damaged', requiresCompleted: 3, comingSoon: true },
+          icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 3, depthTier: 'damaged', requiresCompleted: 3, comingSoon: true },
         { id: null, title: 'Zero Day', floor: 'B-9', house: 'key',
-          icon: '🔑', difficulty: 4, depthTier: 'critical', requiresCompleted: 6, comingSoon: true },
+          icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 4, depthTier: 'critical', requiresCompleted: 6, comingSoon: true },
         { id: null, title: 'Kernel Panic', floor: 'B-10', house: 'script',
-          icon: '📜', difficulty: 4, depthTier: 'critical', requiresCompleted: 6, comingSoon: true },
+          icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', difficulty: 4, depthTier: 'critical', requiresCompleted: 6, comingSoon: true },
         { id: null, title: "Queen's Chamber", floor: 'B-??', house: null,
-          icon: '🔴', difficulty: 5, depthTier: 'breach', requiresCompleted: 10, comingSoon: true }
+          icon: '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', difficulty: 5, depthTier: 'breach', requiresCompleted: 10, comingSoon: true }
     ];
 
     const HOUSE_COLORS = {
@@ -521,7 +521,7 @@ const HiveEngine = (() => {
         // Icon
         const icon = document.createElement('div');
         icon.className = 'hv-floor-icon';
-        icon.textContent = floorDef.icon || '🔴';
+        icon.textContent = floorDef.icon || '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
 
         // Info
         const info = document.createElement('div');
@@ -557,12 +557,12 @@ const HiveEngine = (() => {
             statusEl.textContent = '✓';
             statusEl.style.color = '#4caf50';
         } else if (status === 'available') {
-            statusEl.textContent = '▶';
+            statusEl.textContent = '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             statusEl.style.color = '#cc0000';
         } else if (status === 'locked') {
-            statusEl.textContent = '🔒';
+            statusEl.textContent = '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
         } else {
-            statusEl.textContent = '🔒';
+            statusEl.textContent = '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
         }
 
         // Best time for completed floors
@@ -935,7 +935,7 @@ const HiveEngine = (() => {
         const complete = document.createElement('div');
         complete.className = 'hv-complete';
         complete.innerHTML = `
-            <div class="hv-complete-icon">${perfect ? '⭐' : '✓'}</div>
+            <div class="hv-complete-icon">${perfect ? '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' : '✓'}</div>
             <div class="hv-complete-title">FLOOR CLEARED</div>
             <div class="hv-complete-sub">${_floorState.floorData.floor} — ${_floorState.floorData.title}</div>
             <div class="hv-complete-stats">
@@ -956,7 +956,7 @@ const HiveEngine = (() => {
                     <div class="hv-complete-stat-label">Wrong Answers</div>
                 </div>
             </div>
-            ${perfect ? '<div style="color:#f39c12;font-size:0.85rem;margin-bottom:20px;letter-spacing:0.08em;">★ PERFECT CLEAR — No hints, no wrong answers ★</div>' : ''}
+            ${perfect ? '<div style="color:#f39c12;font-size:0.85rem;margin-bottom:20px;letter-spacing:0.08em;"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> PERFECT CLEAR — No hints, no wrong answers <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>' : ''}
             <a href="index.html" class="hv-return-btn">← RETURN TO HUB</a>
         `;
 
@@ -994,7 +994,7 @@ const HiveEngine = (() => {
         const lockdown = document.createElement('div');
         lockdown.className = 'hv-lockdown';
         lockdown.innerHTML = `
-            <div class="hv-lockdown-icon">🔒</div>
+            <div class="hv-lockdown-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
             <div class="hv-lockdown-title">LOCKDOWN</div>
             <div class="hv-lockdown-sub">Time expired. The facility has sealed this floor.</div>
             <button class="hv-retry-btn" onclick="window.location.reload()">RETRY</button>

@@ -137,12 +137,12 @@ function formatResult(result) {
     const lines = [];
 
     if (result.valid) {
-        lines.push(`✅ VALID: ${result.filename || result.filePath}`);
+        lines.push(`<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> VALID: ${result.filename || result.filePath}`);
         if (result.lineCount) {
             lines.push(`   ${result.lineCount} lines, ${result.fileSize} bytes`);
         }
     } else {
-        lines.push(`❌ SYNTAX ERROR: ${result.filename || result.filePath}`);
+        lines.push(`<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> SYNTAX ERROR: ${result.filename || result.filePath}`);
         lines.push(`   Error: ${result.error}`);
 
         if (result.line) {

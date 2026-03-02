@@ -135,7 +135,7 @@ class ParticleSystem {
                 case 'golden':
                     style.name = 'golden';
                     style.color = '#fbbf24';
-                    style.symbol = '★';
+                    style.symbol = '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
                     style.specialSymbol = '✦';
                     style.life = 1200;
                     style.gravity = -0.01; // Float upward

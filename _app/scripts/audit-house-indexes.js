@@ -163,14 +163,14 @@ function main() {
             if (r.orphanedFiles.length > 0) {
                 log('yellow', `\nOrphaned files (exist but not in SAMPLE_MODULES):`);
                 for (const file of r.orphanedFiles) {
-                    console.log(`  📄 ${file}`);
+                    console.log(`  <img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${file}`);
                 }
             }
 
             if (r.brokenRefs.length > 0) {
                 log('red', `\nBroken references (in index but file missing):`);
                 for (const ref of r.brokenRefs) {
-                    console.log(`  ❌ ${ref}`);
+                    console.log(`  <img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${ref}`);
                 }
             }
 
@@ -187,9 +187,9 @@ function main() {
     console.log(`Total broken refs: ${colors[totalBroken > 0 ? 'red' : 'green']}${totalBroken}${colors.reset}`);
 
     if (totalOrphaned === 0 && totalBroken === 0) {
-        log('green', '\n✅ ALL HOUSES PASS AUDIT!\n');
+        log('green', '\n<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ALL HOUSES PASS AUDIT!\n');
     } else {
-        log('yellow', '\n⚠️  Issues found - see details above\n');
+        log('yellow', '\n<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">  Issues found - see details above\n');
         log('cyan', 'To fix orphaned files: Add entries to SAMPLE_MODULES in house index.html');
         log('cyan', 'To fix broken refs: Create missing files or remove invalid entries\n');
     }

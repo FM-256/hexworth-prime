@@ -116,7 +116,7 @@ class StatisticsSystem {
         // Start update loop
         this.startUpdates();
 
-        console.log('📊 Statistics system initialized');
+        console.log('<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Statistics system initialized');
         return this;
     }
 
@@ -158,9 +158,9 @@ class StatisticsSystem {
                 <span class="tier tier-ascended">${s.tiers.ascended}</span>
             </div>
             <div class="hud-row hud-small">
-                <span>🌍 ${s.planets}</span>
-                <span>🕳️ ${s.blackHoles}</span>
-                <span>⚡ ${Math.round(s.averageEnergy)}%</span>
+                <span><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${s.planets}</span>
+                <span><img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${s.blackHoles}</span>
+                <span><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${Math.round(s.averageEnergy)}%</span>
             </div>
         `;
     }
@@ -191,7 +191,7 @@ class StatisticsSystem {
         const s = this.currentStats;
         return `
             <div class="panel-header">
-                <span class="panel-title">📊 Ecosystem Statistics</span>
+                <span class="panel-title"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Ecosystem Statistics</span>
                 <button class="panel-close">✕</button>
             </div>
 
@@ -260,7 +260,7 @@ class StatisticsSystem {
                 <div class="section-title">Rare Fireflies</div>
                 <div class="rare-grid">
                     <div class="rare-item ${s.rares.golden > 0 ? 'discovered' : ''}">
-                        <span class="rare-icon">★</span>
+                        <span class="rare-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                         <span class="rare-name">Golden</span>
                         <span class="rare-count">${s.rares.golden}</span>
                     </div>
@@ -285,15 +285,15 @@ class StatisticsSystem {
             <div class="panel-section">
                 <div class="section-title">Ecosystem Entities</div>
                 <div class="entity-grid">
-                    <div class="entity-item">🌍 Planets: ${s.planets}</div>
-                    <div class="entity-item">🌙 Moons: ${s.moons}</div>
-                    <div class="entity-item">🕳️ Black Holes: ${s.blackHoles}</div>
-                    <div class="entity-item">⚡ Energy Wells: ${s.energyWells}</div>
-                    <div class="entity-item">👤 Shadows: ${s.shadows}</div>
-                    <div class="entity-item">🐍 Serpents: ${s.serpents}</div>
-                    <div class="entity-item">🦠 Parasites: ${s.parasites}</div>
-                    <div class="entity-item">🌀 Portals: ${s.portals}</div>
-                    <div class="entity-item">☮️ Sanctuaries: ${s.sanctuaries}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Planets: ${s.planets}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Moons: ${s.moons}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Black Holes: ${s.blackHoles}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Energy Wells: ${s.energyWells}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Shadows: ${s.shadows}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Serpents: ${s.serpents}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-virus.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Parasites: ${s.parasites}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Portals: ${s.portals}</div>
+                    <div class="entity-item"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Sanctuaries: ${s.sanctuaries}</div>
                 </div>
             </div>
 

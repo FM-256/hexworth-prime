@@ -20,7 +20,7 @@
         // GATE 1: White Rabbit - Hex encoding, source inspection, basics
         // ═══════════════════════════════════════════════════════════════
         rabbit: {
-            icon: '🐇',
+            icon: '<img src="/assets/images/icons/icon-footprint.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'White Rabbit',
             gate: 1,
             color: 'rgba(220, 230, 255, 0.8)',
@@ -61,7 +61,7 @@
         // Skills: Developer tools, OSINT, source code inspection
         // ═══════════════════════════════════════════════════════════════
         owl: {
-            icon: '🦉',
+            icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Shadow Owl',
             gate: 2,
             color: 'rgba(100, 100, 140, 0.8)',
@@ -101,7 +101,7 @@
         // Skills: Image analysis, hidden data extraction
         // ═══════════════════════════════════════════════════════════════
         chameleon: {
-            icon: '🦎',
+            icon: '<img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Phantom Chameleon',
             gate: 3,
             color: 'rgba(100, 180, 120, 0.8)',
@@ -136,7 +136,7 @@
         // Skills: Audio analysis, protocol analysis, signal detection
         // ═══════════════════════════════════════════════════════════════
         bat: {
-            icon: '🦇',
+            icon: '<img src="/assets/images/icons/icon-spiderweb.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             name: 'Echo Bat',
             gate: 4,
             color: 'rgba(160, 100, 180, 0.8)',
@@ -177,7 +177,7 @@
         // Skills: Advanced crypto, threat hunting, forensics, CTF mindset
         // ═══════════════════════════════════════════════════════════════
         crystal: {
-            icon: '🔮',
+            icon: '<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Mystic Crystal',
             gate: 5,
             color: 'rgba(180, 140, 220, 0.8)',
@@ -831,13 +831,13 @@
         }
 
         getHouseIcon(modulePath) {
-            if (modulePath.includes('ip-addressing') || modulePath.includes('subnet') || modulePath.includes('dns') || modulePath.includes('osi')) return '🌐';
-            if (modulePath.includes('crypto') || modulePath.includes('encrypt') || modulePath.includes('hash') || modulePath.includes('stego')) return '🔑';
-            if (modulePath.includes('packet') || modulePath.includes('wireshark') || modulePath.includes('traffic') || modulePath.includes('siem') || modulePath.includes('correlation') || modulePath.includes('hunt')) return '👁️';
-            if (modulePath.includes('cpu') || modulePath.includes('reference')) return '⚒️';
-            if (modulePath.includes('linux') || modulePath.includes('script')) return '📜';
-            if (modulePath.includes('osint') || modulePath.includes('google') || modulePath.includes('browser') || modulePath.includes('cookie') || modulePath.includes('threat') || modulePath.includes('pen_testing') || modulePath.includes('injection') || modulePath.includes('buffer')) return '🛡️';
-            return '📚';
+            if (modulePath.includes('ip-addressing') || modulePath.includes('subnet') || modulePath.includes('dns') || modulePath.includes('osi')) return '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            if (modulePath.includes('crypto') || modulePath.includes('encrypt') || modulePath.includes('hash') || modulePath.includes('stego')) return '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            if (modulePath.includes('packet') || modulePath.includes('wireshark') || modulePath.includes('traffic') || modulePath.includes('siem') || modulePath.includes('correlation') || modulePath.includes('hunt')) return '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            if (modulePath.includes('cpu') || modulePath.includes('reference')) return '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
+            if (modulePath.includes('linux') || modulePath.includes('script')) return '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            if (modulePath.includes('osint') || modulePath.includes('google') || modulePath.includes('browser') || modulePath.includes('cookie') || modulePath.includes('threat') || modulePath.includes('pen_testing') || modulePath.includes('injection') || modulePath.includes('buffer')) return '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            return '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
         }
 
         endHunt() {
@@ -1093,7 +1093,7 @@
                 trailData.found.push(modulePath);
                 huntData[this.activeTrail] = trailData;
                 this.saveHuntData(huntData);
-                console.log('[TrailHunter] ★ NEW MODULE DISCOVERED! Total:', trailData.found.length);
+                console.log('[TrailHunter] <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> NEW MODULE DISCOVERED! Total:', trailData.found.length);
 
                 // Excited patronus!
                 if (this.patronus) {

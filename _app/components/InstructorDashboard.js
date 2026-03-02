@@ -120,7 +120,7 @@ const InstructorDashboard = (function() {
                 <main class="id-main" id="idMainContent">
                     <!-- Empty State -->
                     <div class="id-empty-state" id="idEmptyState" style="display:none;">
-                        <div class="id-empty-sigil">📋</div>
+                        <div class="id-empty-sigil"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                         <div class="id-empty-title">Welcome, Instructor</div>
                         <div class="id-empty-subtitle">
                             Get started in 3 simple steps:
@@ -144,7 +144,7 @@ const InstructorDashboard = (function() {
 
                     <!-- Home State -->
                     <div class="id-home-state" id="idHomeState">
-                        <div class="id-empty-sigil">📋</div>
+                        <div class="id-empty-sigil"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                         <div class="id-empty-title">Instructor Dashboard</div>
                         <div class="id-empty-subtitle">
                             Select a class from the sidebar to view its roster, assignments, and settings.
@@ -209,7 +209,7 @@ const InstructorDashboard = (function() {
                             </div>
                             <div id="idRosterContent">
                                 <div class="id-roster-empty">
-                                    <span class="id-roster-empty-icon">👥</span>
+                                    <span class="id-roster-empty-icon"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                                     <span>No students yet. Share the class code to invite students.</span>
                                 </div>
                             </div>
@@ -440,7 +440,7 @@ const InstructorDashboard = (function() {
                 </div>
                 <div id="idCreateSuccess" style="display:none">
                     <div class="id-success-content">
-                        <div class="id-success-icon">📋</div>
+                        <div class="id-success-icon"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                         <div class="id-success-msg">Class created successfully!</div>
                         <div class="id-success-code" id="idNewClassCode"></div>
                         <button class="id-copy-btn" onclick="InstructorDashboard.copyNewCode()" id="idCopyNewCodeBtn">Copy Code</button>
@@ -682,7 +682,7 @@ const InstructorDashboard = (function() {
         if (rosterMembers.length === 0) {
             rosterEl.innerHTML = `
                 <div class="id-roster-empty">
-                    <span class="id-roster-empty-icon">👥</span>
+                    <span class="id-roster-empty-icon"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                     <span>No students yet. Share the class code to invite students.</span>
                 </div>
             `;
@@ -771,7 +771,7 @@ const InstructorDashboard = (function() {
         }
 
         listEl.innerHTML = classAssignments.map(a => {
-            const icon = a.assignmentType === 'path' ? '📚' : (a.contentType === 'ctf_box' ? '&#9878;' : '📄');
+            const icon = a.assignmentType === 'path' ? '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : (a.contentType === 'ctf_box' ? '<img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' : '<img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">');
             const badge = a.assignmentType === 'path' ? 'Learning Path' : (a.contentType === 'ctf_box' ? 'CTF Box' : (a.contentType || 'Module'));
 
             return `
@@ -832,7 +832,7 @@ const InstructorDashboard = (function() {
                     <div class="id-cb-section-title" style="margin-top:20px;">CTF Boxes</div>
                     <div class="id-cb-grid">
                         <div class="id-cb-card" onclick="InstructorDashboard.closeModal('idContentBrowser'); InstructorDashboard.openArenaAssignModal();">
-                            <span class="id-cb-icon">&#9878;</span>
+                            <span class="id-cb-icon"><img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                             <div class="id-cb-info">
                                 <div class="id-cb-name">Assign CTF Box</div>
                                 <div class="id-cb-meta">${CTF_BOXES.length} boxes available</div>
@@ -944,7 +944,7 @@ const InstructorDashboard = (function() {
             for (const [contentId, data] of Object.entries(completions)) {
                 if (data.completed && data.completedAt) {
                     events.push({
-                        icon: '✅',
+                        icon: '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                         text: `${name} completed ${data.title || contentId}`,
                         time: data.completedAt
                     });

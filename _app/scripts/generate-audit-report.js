@@ -499,7 +499,7 @@ function generateHtml(results, timestamp) {
 <body>
     <div class="container">
         <header>
-            <h1>🏰 Hexworth Prime Audit Report</h1>
+            <h1><img src="/assets/images/icons/icon-castle.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Hexworth Prime Audit Report</h1>
             <p class="timestamp">Generated: ${timestamp}</p>
         </header>
 
@@ -556,8 +556,8 @@ function generateHtml(results, timestamp) {
 
 function generateHouseSection(r) {
     const houseIcons = {
-        web: '🌐', shield: '🛡️', cloud: '☁️', forge: '⚒️',
-        script: '📜', code: '💻', key: '🔑', eye: '👁️'
+        web: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', shield: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', cloud: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', forge: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+        script: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', code: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', key: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', eye: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'
     };
 
     const totalIssues = r.issues.orphanedFiles.length + r.issues.brokenLinks.length +
@@ -569,7 +569,7 @@ function generateHouseSection(r) {
         <section class="house-section">
             <div class="house-header">
                 <div class="house-title">
-                    <span class="house-icon">${houseIcons[r.house] || '🏠'}</span>
+                    <span class="house-icon">${houseIcons[r.house] || '<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'}</span>
                     <span class="house-name">${r.house.charAt(0).toUpperCase() + r.house.slice(1)} House</span>
                 </div>
                 <div class="house-stats">
@@ -594,7 +594,7 @@ function generateIssuesPanel(issues) {
     if (issues.orphanedFiles.length > 0) {
         sections.push(`
             <div class="issues-panel">
-                <h4>⚠️ Orphaned Files (${issues.orphanedFiles.length}) - Files exist but not in index</h4>
+                <h4><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Orphaned Files (${issues.orphanedFiles.length}) - Files exist but not in index</h4>
                 <ul class="issue-list orphaned">
                     ${issues.orphanedFiles.map(f => `<li>${f}</li>`).join('')}
                 </ul>
@@ -605,7 +605,7 @@ function generateIssuesPanel(issues) {
     if (issues.brokenLinks.length > 0) {
         sections.push(`
             <div class="issues-panel">
-                <h4>❌ Broken Links (${issues.brokenLinks.length}) - Index entries with missing files</h4>
+                <h4><img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Broken Links (${issues.brokenLinks.length}) - Index entries with missing files</h4>
                 <ul class="issue-list">
                     ${issues.brokenLinks.map(m => `<li>${m.id}: ${m.href}</li>`).join('')}
                 </ul>
@@ -616,7 +616,7 @@ function generateIssuesPanel(issues) {
     if (issues.missingCategory.length > 0) {
         sections.push(`
             <div class="issues-panel">
-                <h4>🏷️ Missing Category (${issues.missingCategory.length})</h4>
+                <h4><img src="/assets/images/icons/icon-tag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Missing Category (${issues.missingCategory.length})</h4>
                 <ul class="issue-list">
                     ${issues.missingCategory.map(m => `<li>Line ${m.lineNumber}: ${m.id} - "${m.title}"</li>`).join('')}
                 </ul>
@@ -627,7 +627,7 @@ function generateIssuesPanel(issues) {
     if (issues.missingStatus.length > 0) {
         sections.push(`
             <div class="issues-panel">
-                <h4>📊 Missing Status (${issues.missingStatus.length})</h4>
+                <h4><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Missing Status (${issues.missingStatus.length})</h4>
                 <ul class="issue-list">
                     ${issues.missingStatus.map(m => `<li>Line ${m.lineNumber}: ${m.id} - "${m.title}"</li>`).join('')}
                 </ul>
@@ -636,7 +636,7 @@ function generateIssuesPanel(issues) {
     }
 
     if (sections.length === 0) {
-        return '<p style="color: var(--accent-green); margin-bottom: 20px;">✅ No issues found!</p>';
+        return '<p style="color: var(--accent-green); margin-bottom: 20px;"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> No issues found!</p>';
     }
 
     return sections.join('');
@@ -655,7 +655,7 @@ function generateModuleTable(r) {
 
         return `
             <tr>
-                <td>${m.icon || '📄'}</td>
+                <td>${m.icon || '<img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'}</td>
                 <td><strong>${m.title || m.id}</strong></td>
                 <td><span class="status-dot ${m.status || 'missing'}"></span>${m.status || 'MISSING'}</td>
                 <td>${m.category || '<span style="color: var(--accent-red)">MISSING</span>'}</td>
@@ -676,9 +676,9 @@ function generateModuleTable(r) {
                     <th>Status</th>
                     <th>Category</th>
                     <th>Path</th>
-                    <th title="File Exists">📁</th>
-                    <th title="Has Category">🏷️</th>
-                    <th title="Valid Status">📊</th>
+                    <th title="File Exists"><img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></th>
+                    <th title="Has Category"><img src="/assets/images/icons/icon-tag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></th>
+                    <th title="Valid Status"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></th>
                 </tr>
             </thead>
             <tbody>
@@ -693,7 +693,7 @@ function generateModuleTable(r) {
 // ============================================
 
 function main() {
-    console.log('\n🔍 Hexworth Prime Audit Report Generator\n');
+    console.log('\n<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Hexworth Prime Audit Report Generator\n');
     console.log('Scanning houses...\n');
 
     const results = [];
@@ -702,7 +702,7 @@ function main() {
         process.stdout.write(`  Auditing ${house}... `);
         const result = auditHouse(house);
         results.push(result);
-        console.log(result.status === 'PASS' ? '✓ PASS' : `⚠ ${result.status}`);
+        console.log(result.status === 'PASS' ? '✓ PASS' : `<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${result.status}`);
     }
 
     const timestamp = new Date().toISOString().replace('T', ' ').split('.')[0];
@@ -724,7 +724,7 @@ function main() {
     fs.writeFileSync(timestampedPath, html);
     fs.writeFileSync(latestPath, html);
 
-    console.log(`\n✅ Report generated:`);
+    console.log(`\n<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Report generated:`);
     console.log(`   ${timestampedPath}`);
     console.log(`   ${latestPath}`);
 
@@ -736,7 +736,7 @@ function main() {
                i.missingStatus.length + i.missingHref.length;
     }, 0);
 
-    console.log(`\n📊 Summary:`);
+    console.log(`\n<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Summary:`);
     console.log(`   Houses: ${results.length}`);
     console.log(`   Passing: ${results.filter(r => r.status === 'PASS').length}`);
     console.log(`   Total Issues: ${totalIssues}`);

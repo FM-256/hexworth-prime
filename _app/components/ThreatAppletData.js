@@ -12,7 +12,7 @@ const ThreatAppletData = {
     APT: {
         code: 'APT',
         title: 'Advanced Persistent Threats',
-        icon: '\u{1F3AF}',
+        icon: '/assets/images/icons/icon-target.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Prolonged, targeted cyberattacks where an intruder gains access to a network and remains undetected for an extended period to steal data.',
@@ -39,13 +39,13 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'APT Attack Lifecycle',
             steps: [
-                { phase: 'Reconnaissance', description: 'Attacker researches the target organization, identifies key personnel, maps network infrastructure, and gathers OSINT from social media, job postings, and public records.', icon: '\u{1F50D}' },
-                { phase: 'Initial Compromise', description: 'Gains first foothold via spear phishing, watering hole attacks, or exploiting public-facing vulnerabilities. Custom malware or zero-day exploits may be used.', icon: '\u{1F4E7}' },
-                { phase: 'Establish Foothold', description: 'Installs backdoors, RATs (Remote Access Trojans), and command-and-control (C2) channels. Creates persistence mechanisms to survive reboots and patches.', icon: '\u{1F3D7}' },
-                { phase: 'Privilege Escalation', description: 'Escalates from initial user account to admin/root access. Exploits misconfigurations, credential theft (pass-the-hash), or local privilege escalation vulnerabilities.', icon: '\u{2B06}' },
-                { phase: 'Lateral Movement', description: 'Moves through the network using stolen credentials, RDP, SMB, or WMI. Maps internal systems and locates high-value data stores.', icon: '\u{27A1}' },
-                { phase: 'Data Exfiltration', description: 'Slowly extracts data through encrypted C2 channels, DNS tunneling, or steganography. Data is staged and compressed to minimize detection.', icon: '\u{1F4E4}' },
-                { phase: 'Maintain Presence', description: 'Cleans logs, updates tools, and establishes multiple redundant access methods. Returns periodically for continued collection.', icon: '\u{1F504}' }
+                { phase: 'Reconnaissance', description: 'Attacker researches the target organization, identifies key personnel, maps network infrastructure, and gathers OSINT from social media, job postings, and public records.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Initial Compromise', description: 'Gains first foothold via spear phishing, watering hole attacks, or exploiting public-facing vulnerabilities. Custom malware or zero-day exploits may be used.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Establish Foothold', description: 'Installs backdoors, RATs (Remote Access Trojans), and command-and-control (C2) channels. Creates persistence mechanisms to survive reboots and patches.', icon: '/assets/images/icons/icon-construction.webp' },
+                { phase: 'Privilege Escalation', description: 'Escalates from initial user account to admin/root access. Exploits misconfigurations, credential theft (pass-the-hash), or local privilege escalation vulnerabilities.', icon: '/assets/images/icons/icon-arrow-up.webp' },
+                { phase: 'Lateral Movement', description: 'Moves through the network using stolen credentials, RDP, SMB, or WMI. Maps internal systems and locates high-value data stores.', icon: '/assets/images/icons/icon-redirect.webp' },
+                { phase: 'Data Exfiltration', description: 'Slowly extracts data through encrypted C2 channels, DNS tunneling, or steganography. Data is staged and compressed to minimize detection.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Maintain Presence', description: 'Cleans logs, updates tools, and establishes multiple redundant access methods. Returns periodically for continued collection.', icon: '/assets/images/icons/icon-refresh.webp' }
             ]
         },
         defense: {
@@ -122,7 +122,7 @@ const ThreatAppletData = {
     BOTNETS: {
         code: 'BOTNETS',
         title: 'Botnets',
-        icon: '\u{1F916}',
+        icon: '/assets/images/icons/icon-robot.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Networks of compromised computers (bots/zombies) controlled remotely by an attacker (botmaster) to perform coordinated malicious activities.',
@@ -149,12 +149,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Botnet Lifecycle',
             steps: [
-                { phase: 'Infection Vector', description: 'Malware spreads via phishing emails, drive-by downloads, exploit kits, or scanning for devices with default credentials (especially IoT).', icon: '\u{1F41B}' },
-                { phase: 'Installation & Persistence', description: 'Bot malware installs on the victim device, hides from detection, and establishes persistence through registry keys, scheduled tasks, or rootkit techniques.', icon: '\u{1F4BE}' },
-                { phase: 'C2 Registration', description: 'The infected device phones home to the C2 server, registering itself and receiving initial configuration. Modern botnets use DNS fast-flux, Tor, or P2P for resilience.', icon: '\u{1F4E1}' },
-                { phase: 'Command Reception', description: 'Bot waits for instructions from the botmaster. Commands are distributed via IRC, HTTP, P2P protocols, or social media dead drops.', icon: '\u{1F4E9}' },
-                { phase: 'Attack Execution', description: 'Bots execute coordinated attacks: DDoS floods, spam campaigns, credential stuffing, cryptomining, or spreading to additional targets.', icon: '\u{26A1}' },
-                { phase: 'Evasion & Update', description: 'Botmaster updates malware to evade new signatures, rotates C2 infrastructure, and patches vulnerabilities in the bot code to prevent rival takeovers.', icon: '\u{1F6E1}' }
+                { phase: 'Infection Vector', description: 'Malware spreads via phishing emails, drive-by downloads, exploit kits, or scanning for devices with default credentials (especially IoT).', icon: '/assets/images/icons/icon-spider.webp' },
+                { phase: 'Installation & Persistence', description: 'Bot malware installs on the victim device, hides from detection, and establishes persistence through registry keys, scheduled tasks, or rootkit techniques.', icon: '/assets/images/icons/icon-memory.webp' },
+                { phase: 'C2 Registration', description: 'The infected device phones home to the C2 server, registering itself and receiving initial configuration. Modern botnets use DNS fast-flux, Tor, or P2P for resilience.', icon: '/assets/images/icons/icon-antenna.webp' },
+                { phase: 'Command Reception', description: 'Bot waits for instructions from the botmaster. Commands are distributed via IRC, HTTP, P2P protocols, or social media dead drops.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Attack Execution', description: 'Bots execute coordinated attacks: DDoS floods, spam campaigns, credential stuffing, cryptomining, or spreading to additional targets.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Evasion & Update', description: 'Botmaster updates malware to evade new signatures, rotates C2 infrastructure, and patches vulnerabilities in the bot code to prevent rival takeovers.', icon: '/assets/images/icons/icon-shield.webp' }
             ]
         },
         defense: {
@@ -231,7 +231,7 @@ const ThreatAppletData = {
     BUFFER_OVERFLOW: {
         code: 'BUFFER_OVERFLOW',
         title: 'Buffer Overflow',
-        icon: '\u{1F4A5}',
+        icon: '/assets/images/icons/icon-explosion.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'A vulnerability where a program writes data beyond the allocated memory buffer, potentially allowing attackers to execute arbitrary code or crash the system.',
@@ -258,12 +258,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Buffer Overflow Exploitation',
             steps: [
-                { phase: 'Vulnerability Discovery', description: 'Attacker identifies a program that accepts user input without proper bounds checking. Fuzzing tools send malformed input to find crash points.', icon: '\u{1F50E}' },
-                { phase: 'Buffer Analysis', description: 'Attacker determines the buffer size, memory layout, and distance to the return address (EIP/RIP offset). Debuggers like GDB or x64dbg are used.', icon: '\u{1F4CF}' },
-                { phase: 'Payload Construction', description: 'Crafts shellcode (machine code) that performs the desired action (reverse shell, file download, privilege escalation). NOP sleds may increase reliability.', icon: '\u{1F528}' },
-                { phase: 'Exploit Delivery', description: 'Sends specially crafted input that fills the buffer, overwrites the return address, and points execution to the shellcode.', icon: '\u{1F4E8}' },
-                { phase: 'Code Execution', description: 'When the vulnerable function returns, execution jumps to the attacker\'s shellcode instead of the legitimate return address.', icon: '\u{26A1}' },
-                { phase: 'Post-Exploitation', description: 'Attacker gains code execution with the privileges of the vulnerable process. May escalate privileges, install backdoors, or pivot to other systems.', icon: '\u{1F510}' }
+                { phase: 'Vulnerability Discovery', description: 'Attacker identifies a program that accepts user input without proper bounds checking. Fuzzing tools send malformed input to find crash points.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Buffer Analysis', description: 'Attacker determines the buffer size, memory layout, and distance to the return address (EIP/RIP offset). Debuggers like GDB or x64dbg are used.', icon: '/assets/images/icons/icon-ruler.webp' },
+                { phase: 'Payload Construction', description: 'Crafts shellcode (machine code) that performs the desired action (reverse shell, file download, privilege escalation). NOP sleds may increase reliability.', icon: '/assets/images/icons/icon-tools.webp' },
+                { phase: 'Exploit Delivery', description: 'Sends specially crafted input that fills the buffer, overwrites the return address, and points execution to the shellcode.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Code Execution', description: 'When the vulnerable function returns, execution jumps to the attacker\'s shellcode instead of the legitimate return address.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Post-Exploitation', description: 'Attacker gains code execution with the privileges of the vulnerable process. May escalate privileges, install backdoors, or pivot to other systems.', icon: '/assets/images/icons/icon-padlock.webp' }
             ]
         },
         defense: {
@@ -340,7 +340,7 @@ const ThreatAppletData = {
     CRYPTOJACKING: {
         code: 'CRYPTOJACKING',
         title: 'Cryptojacking',
-        icon: '\u{26CF}',
+        icon: '/assets/images/icons/icon-tools.webp',
         severity: 'medium',
         color: '#a855f7',
         description: 'Unauthorized use of computing resources to mine cryptocurrency, often through browser-based scripts or installed malware.',
@@ -367,12 +367,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Cryptojacking Attack Flow',
             steps: [
-                { phase: 'Resource Identification', description: 'Attacker identifies targets with significant compute resources: cloud instances, servers, or high-traffic websites for browser-based mining.', icon: '\u{1F50D}' },
-                { phase: 'Injection/Installation', description: 'Deploys mining payload via: (a) injecting JavaScript into websites/ads, (b) exploiting cloud misconfigurations, or (c) installing mining malware through phishing or exploit kits.', icon: '\u{1F489}' },
-                { phase: 'Mining Configuration', description: 'Configures miner with attacker\'s wallet address, mining pool details, and throttle settings (often limiting CPU usage to avoid detection).', icon: '\u{2699}' },
-                { phase: 'Silent Mining', description: 'Mining runs in the background. Browser-based miners execute while users visit the page; host-based miners run as services or scheduled tasks.', icon: '\u{26CF}' },
-                { phase: 'Profit Collection', description: 'Mined cryptocurrency is sent to the attacker\'s wallet via mining pools. Monero\'s privacy features make transactions untraceable.', icon: '\u{1F4B0}' },
-                { phase: 'Persistence & Evasion', description: 'Miner adjusts CPU usage during business hours, uses process injection to hide, and updates wallet addresses to complicate tracking.', icon: '\u{1F4A8}' }
+                { phase: 'Resource Identification', description: 'Attacker identifies targets with significant compute resources: cloud instances, servers, or high-traffic websites for browser-based mining.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Injection/Installation', description: 'Deploys mining payload via: (a) injecting JavaScript into websites/ads, (b) exploiting cloud misconfigurations, or (c) installing mining malware through phishing or exploit kits.', icon: '/assets/images/icons/icon-syringe.webp' },
+                { phase: 'Mining Configuration', description: 'Configures miner with attacker\'s wallet address, mining pool details, and throttle settings (often limiting CPU usage to avoid detection).', icon: '/assets/images/icons/icon-gear.webp' },
+                { phase: 'Silent Mining', description: 'Mining runs in the background. Browser-based miners execute while users visit the page; host-based miners run as services or scheduled tasks.', icon: '/assets/images/icons/icon-tools.webp' },
+                { phase: 'Profit Collection', description: 'Mined cryptocurrency is sent to the attacker\'s wallet via mining pools. Monero\'s privacy features make transactions untraceable.', icon: '/assets/images/icons/icon-money.webp' },
+                { phase: 'Persistence & Evasion', description: 'Miner adjusts CPU usage during business hours, uses process injection to hide, and updates wallet addresses to complicate tracking.', icon: '/assets/images/icons/icon-explosion.webp' }
             ]
         },
         defense: {
@@ -448,7 +448,7 @@ const ThreatAppletData = {
     DDOS: {
         code: 'DDOS',
         title: 'DDoS Attacks',
-        icon: '\u{1F30A}',
+        icon: '/assets/images/icons/icon-globe.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Attacks that overwhelm a target with traffic from multiple distributed sources, making services unavailable to legitimate users.',
@@ -475,12 +475,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'DDoS Attack Flow',
             steps: [
-                { phase: 'Target Selection', description: 'Attacker identifies the target and its infrastructure — IP ranges, DNS providers, CDN usage, and hosting environment.', icon: '\u{1F3AF}' },
-                { phase: 'Botnet Assembly', description: 'Recruits attack sources: compromises IoT devices for a botnet, rents a DDoS-for-hire service, or identifies open resolvers for amplification.', icon: '\u{1F916}' },
-                { phase: 'Attack Vector Selection', description: 'Chooses attack type: volumetric (UDP flood, DNS amplification), protocol (SYN flood, Ping of Death), or application-layer (HTTP GET/POST flood, Slowloris).', icon: '\u{1F9E0}' },
-                { phase: 'Attack Launch', description: 'Coordinates all attack sources to simultaneously flood the target. Spoofed source IPs and amplification multiply the effective volume.', icon: '\u{1F680}' },
-                { phase: 'Resource Exhaustion', description: 'Target\'s bandwidth, CPU, memory, or connection tables are overwhelmed. Legitimate users receive timeouts or connection refused errors.', icon: '\u{1F4A5}' },
-                { phase: 'Sustain & Adapt', description: 'Attacker monitors the target\'s response, shifts attack vectors if mitigations activate, and may demand ransom to stop (RDDoS).', icon: '\u{1F504}' }
+                { phase: 'Target Selection', description: 'Attacker identifies the target and its infrastructure — IP ranges, DNS providers, CDN usage, and hosting environment.', icon: '/assets/images/icons/icon-target.webp' },
+                { phase: 'Botnet Assembly', description: 'Recruits attack sources: compromises IoT devices for a botnet, rents a DDoS-for-hire service, or identifies open resolvers for amplification.', icon: '/assets/images/icons/icon-robot.webp' },
+                { phase: 'Attack Vector Selection', description: 'Chooses attack type: volumetric (UDP flood, DNS amplification), protocol (SYN flood, Ping of Death), or application-layer (HTTP GET/POST flood, Slowloris).', icon: '/assets/images/icons/icon-brain.webp' },
+                { phase: 'Attack Launch', description: 'Coordinates all attack sources to simultaneously flood the target. Spoofed source IPs and amplification multiply the effective volume.', icon: '/assets/images/icons/icon-rocket.webp' },
+                { phase: 'Resource Exhaustion', description: 'Target\'s bandwidth, CPU, memory, or connection tables are overwhelmed. Legitimate users receive timeouts or connection refused errors.', icon: '/assets/images/icons/icon-explosion.webp' },
+                { phase: 'Sustain & Adapt', description: 'Attacker monitors the target\'s response, shifts attack vectors if mitigations activate, and may demand ransom to stop (RDDoS).', icon: '/assets/images/icons/icon-refresh.webp' }
             ]
         },
         defense: {
@@ -557,7 +557,7 @@ const ThreatAppletData = {
     DNS_ATTACKS: {
         code: 'DNS_ATTACKS',
         title: 'DNS Attacks',
-        icon: '\u{1F310}',
+        icon: '/assets/images/icons/icon-globe.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Attacks that exploit the Domain Name System through poisoning, tunneling, hijacking, and spoofing to redirect, intercept, or exfiltrate data.',
@@ -584,12 +584,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'DNS Attack Lifecycle (Cache Poisoning)',
             steps: [
-                { phase: 'Target Identification', description: 'Attacker identifies a DNS resolver serving many clients and the target domain to poison (e.g., a banking site).', icon: '\u{1F50D}' },
-                { phase: 'Query Trigger', description: 'Forces the target resolver to query for the victim domain by sending a request or waiting for cache expiry, causing the resolver to query authoritative servers.', icon: '\u{1F4E8}' },
-                { phase: 'Race Condition', description: 'Floods the resolver with forged DNS responses containing the malicious IP address, attempting to arrive before the legitimate response.', icon: '\u{1F3C3}' },
-                { phase: 'Cache Poisoning', description: 'If the forged response is accepted (matching transaction ID and source port), the malicious record is cached and served to all clients.', icon: '\u{2620}' },
-                { phase: 'Victim Redirection', description: 'Users querying the poisoned resolver receive the attacker\'s IP. They connect to a malicious server that mimics the real site to steal credentials.', icon: '\u{1F517}' },
-                { phase: 'Credential Harvest', description: 'Victims enter credentials on the fake site, which are captured and may be replayed against the real service.', icon: '\u{1F513}' }
+                { phase: 'Target Identification', description: 'Attacker identifies a DNS resolver serving many clients and the target domain to poison (e.g., a banking site).', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Query Trigger', description: 'Forces the target resolver to query for the victim domain by sending a request or waiting for cache expiry, causing the resolver to query authoritative servers.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Race Condition', description: 'Floods the resolver with forged DNS responses containing the malicious IP address, attempting to arrive before the legitimate response.', icon: '/assets/images/icons/icon-footprint.webp' },
+                { phase: 'Cache Poisoning', description: 'If the forged response is accepted (matching transaction ID and source port), the malicious record is cached and served to all clients.', icon: '/assets/images/icons/icon-skull-crossbones.webp' },
+                { phase: 'Victim Redirection', description: 'Users querying the poisoned resolver receive the attacker\'s IP. They connect to a malicious server that mimics the real site to steal credentials.', icon: '/assets/images/icons/icon-chain.webp' },
+                { phase: 'Credential Harvest', description: 'Victims enter credentials on the fake site, which are captured and may be replayed against the real service.', icon: '/assets/images/icons/icon-unlock.webp' }
             ]
         },
         defense: {
@@ -666,7 +666,7 @@ const ThreatAppletData = {
     INSIDER_THREATS: {
         code: 'INSIDER_THREATS',
         title: 'Insider Threats',
-        icon: '\u{1F464}',
+        icon: '/assets/images/icons/icon-users.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Security risks originating from within the organization — employees, contractors, or partners who misuse authorized access to harm the organization.',
@@ -693,12 +693,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Insider Threat Progression',
             steps: [
-                { phase: 'Trigger Event', description: 'A precipitating event motivates the insider: passed over for promotion, financial pressure, ideological shift, or recruitment by external actor. Compromised insiders may be unaware.', icon: '\u{26A0}' },
-                { phase: 'Reconnaissance', description: 'Insider explores their access boundaries, identifies valuable data assets, and maps systems they can reach. They note security controls and monitoring gaps.', icon: '\u{1F441}' },
-                { phase: 'Circumvention', description: 'Uses legitimate credentials to access data, but may escalate privileges, disable logging, or create unauthorized accounts for future access.', icon: '\u{1F511}' },
-                { phase: 'Data Collection', description: 'Gathers targeted data: downloads files, takes screenshots, copies databases, or photographs screens. May accumulate data slowly to avoid thresholds.', icon: '\u{1F4C1}' },
-                { phase: 'Exfiltration', description: 'Moves data outside the organization via USB drives, personal email, cloud storage, printed documents, or encrypted channels that bypass DLP.', icon: '\u{1F4E4}' },
-                { phase: 'Cover-up', description: 'Deletes access logs, modifies timestamps, removes evidence of file access, and may plant false trails to misdirect investigators.', icon: '\u{1F9F9}' }
+                { phase: 'Trigger Event', description: 'A precipitating event motivates the insider: passed over for promotion, financial pressure, ideological shift, or recruitment by external actor. Compromised insiders may be unaware.', icon: '/assets/images/icons/icon-siren.webp' },
+                { phase: 'Reconnaissance', description: 'Insider explores their access boundaries, identifies valuable data assets, and maps systems they can reach. They note security controls and monitoring gaps.', icon: '/assets/images/icons/icon-eye.webp' },
+                { phase: 'Circumvention', description: 'Uses legitimate credentials to access data, but may escalate privileges, disable logging, or create unauthorized accounts for future access.', icon: '/assets/images/icons/icon-key.webp' },
+                { phase: 'Data Collection', description: 'Gathers targeted data: downloads files, takes screenshots, copies databases, or photographs screens. May accumulate data slowly to avoid thresholds.', icon: '/assets/images/icons/icon-folder.webp' },
+                { phase: 'Exfiltration', description: 'Moves data outside the organization via USB drives, personal email, cloud storage, printed documents, or encrypted channels that bypass DLP.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Cover-up', description: 'Deletes access logs, modifies timestamps, removes evidence of file access, and may plant false trails to misdirect investigators.', icon: '/assets/images/icons/icon-tools.webp' }
             ]
         },
         defense: {
@@ -774,7 +774,7 @@ const ThreatAppletData = {
     IOT_THREATS: {
         code: 'IOT_THREATS',
         title: 'IoT Threats',
-        icon: '\u{1F4F1}',
+        icon: '/assets/images/icons/icon-mobile.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Security vulnerabilities and attacks targeting Internet of Things devices — smart cameras, industrial sensors, medical devices, and connected appliances.',
@@ -801,12 +801,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'IoT Attack Lifecycle',
             steps: [
-                { phase: 'Device Discovery', description: 'Attacker scans networks using Shodan, Censys, or custom scanners to find exposed IoT devices — cameras, routers, PLCs, printers, and smart appliances.', icon: '\u{1F50D}' },
-                { phase: 'Vulnerability Assessment', description: 'Tests discovered devices for default credentials, known CVEs, unencrypted protocols (Telnet, FTP, MQTT without TLS), and firmware vulnerabilities.', icon: '\u{1F4CB}' },
-                { phase: 'Initial Compromise', description: 'Gains access via default credentials (admin/admin), known exploits, or brute force. Many IoT devices have no lockout mechanism.', icon: '\u{1F513}' },
-                { phase: 'Malware Deployment', description: 'Installs lightweight malware designed for the device\'s architecture (ARM, MIPS). Mirai-variant bots are ~100KB and run on minimal Linux systems.', icon: '\u{1F41B}' },
-                { phase: 'Lateral Movement', description: 'Uses the compromised IoT device as a pivot point into the corporate network, scanning for additional devices and more valuable targets.', icon: '\u{27A1}' },
-                { phase: 'Mission Execution', description: 'Recruits device into botnet, uses it for DDoS, mines cryptocurrency, exfiltrates data from network, or (for IIoT) disrupts physical processes.', icon: '\u{1F4A3}' }
+                { phase: 'Device Discovery', description: 'Attacker scans networks using Shodan, Censys, or custom scanners to find exposed IoT devices — cameras, routers, PLCs, printers, and smart appliances.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Vulnerability Assessment', description: 'Tests discovered devices for default credentials, known CVEs, unencrypted protocols (Telnet, FTP, MQTT without TLS), and firmware vulnerabilities.', icon: '/assets/images/icons/icon-clipboard.webp' },
+                { phase: 'Initial Compromise', description: 'Gains access via default credentials (admin/admin), known exploits, or brute force. Many IoT devices have no lockout mechanism.', icon: '/assets/images/icons/icon-unlock.webp' },
+                { phase: 'Malware Deployment', description: 'Installs lightweight malware designed for the device\'s architecture (ARM, MIPS). Mirai-variant bots are ~100KB and run on minimal Linux systems.', icon: '/assets/images/icons/icon-spider.webp' },
+                { phase: 'Lateral Movement', description: 'Uses the compromised IoT device as a pivot point into the corporate network, scanning for additional devices and more valuable targets.', icon: '/assets/images/icons/icon-redirect.webp' },
+                { phase: 'Mission Execution', description: 'Recruits device into botnet, uses it for DDoS, mines cryptocurrency, exfiltrates data from network, or (for IIoT) disrupts physical processes.', icon: '/assets/images/icons/icon-explosion.webp' }
             ]
         },
         defense: {
@@ -882,7 +882,7 @@ const ThreatAppletData = {
     MITM: {
         code: 'MITM',
         title: 'Man-in-the-Middle Attacks',
-        icon: '\u{1F9B9}',
+        icon: '/assets/images/icons/icon-shield.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Attacks where an adversary secretly intercepts and potentially alters communications between two parties who believe they are communicating directly.',
@@ -909,12 +909,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'MITM Attack Flow',
             steps: [
-                { phase: 'Positioning', description: 'Attacker gains a position between the victim and the target. Methods include ARP spoofing, rogue Wi-Fi access points, DNS spoofing, or BGP hijacking.', icon: '\u{1F4CD}' },
-                { phase: 'Interception', description: 'Traffic between victim and server now flows through the attacker. For encrypted traffic, the attacker may attempt SSL stripping or use fraudulent certificates.', icon: '\u{1F50C}' },
-                { phase: 'Decryption', description: 'If HTTPS is involved, attacker may use SSL stripping (downgrade to HTTP), present a forged certificate, or exploit weak cipher suites to decrypt traffic.', icon: '\u{1F513}' },
-                { phase: 'Data Capture', description: 'Attacker captures credentials, session cookies, personal information, financial data, and other sensitive information flowing through the connection.', icon: '\u{1F4F8}' },
-                { phase: 'Modification (Optional)', description: 'Attacker may inject malicious content, modify transactions (change bank transfer amounts/recipients), or inject malware download links.', icon: '\u{270F}' },
-                { phase: 'Relay', description: 'Modified or captured traffic is forwarded to the intended recipient, maintaining the illusion of direct communication so neither party suspects compromise.', icon: '\u{27A1}' }
+                { phase: 'Positioning', description: 'Attacker gains a position between the victim and the target. Methods include ARP spoofing, rogue Wi-Fi access points, DNS spoofing, or BGP hijacking.', icon: '/assets/images/icons/icon-pin.webp' },
+                { phase: 'Interception', description: 'Traffic between victim and server now flows through the attacker. For encrypted traffic, the attacker may attempt SSL stripping or use fraudulent certificates.', icon: '/assets/images/icons/icon-plug.webp' },
+                { phase: 'Decryption', description: 'If HTTPS is involved, attacker may use SSL stripping (downgrade to HTTP), present a forged certificate, or exploit weak cipher suites to decrypt traffic.', icon: '/assets/images/icons/icon-unlock.webp' },
+                { phase: 'Data Capture', description: 'Attacker captures credentials, session cookies, personal information, financial data, and other sensitive information flowing through the connection.', icon: '/assets/images/icons/icon-camera.webp' },
+                { phase: 'Modification (Optional)', description: 'Attacker may inject malicious content, modify transactions (change bank transfer amounts/recipients), or inject malware download links.', icon: '/assets/images/icons/icon-pencil.webp' },
+                { phase: 'Relay', description: 'Modified or captured traffic is forwarded to the intended recipient, maintaining the illusion of direct communication so neither party suspects compromise.', icon: '/assets/images/icons/icon-redirect.webp' }
             ]
         },
         defense: {
@@ -991,7 +991,7 @@ const ThreatAppletData = {
     PHISHING: {
         code: 'PHISHING',
         title: 'Phishing',
-        icon: '\u{1F3A3}',
+        icon: '/assets/images/icons/icon-fishhook.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Deceptive attacks using fraudulent communications (email, SMS, voice) that appear to come from trusted sources to steal credentials, install malware, or manipulate victims.',
@@ -1018,12 +1018,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Phishing Campaign Lifecycle',
             steps: [
-                { phase: 'Target Research', description: 'Attacker identifies targets and researches them via LinkedIn, company websites, and social media. For spear phishing, they study organizational structure, vendors, and communication styles.', icon: '\u{1F50D}' },
-                { phase: 'Infrastructure Setup', description: 'Registers lookalike domains (micros0ft.com), sets up phishing pages that clone legitimate login portals, and configures email servers with SPF/DKIM to appear legitimate.', icon: '\u{1F3D7}' },
-                { phase: 'Lure Crafting', description: 'Creates convincing email content with urgency triggers: "Your account will be locked," "Invoice overdue," "Package delivery failed," or impersonates a known contact.', icon: '\u{270D}' },
-                { phase: 'Delivery', description: 'Sends phishing emails timed for maximum impact (Monday mornings, end of quarter). May use thread hijacking from compromised accounts for credibility.', icon: '\u{1F4E7}' },
-                { phase: 'Victim Interaction', description: 'Victim clicks link and enters credentials on fake login page, opens malicious attachment (Office macros, PDF exploits), or replies with sensitive information.', icon: '\u{1F5B1}' },
-                { phase: 'Exploitation', description: 'Attacker uses stolen credentials for account takeover, deploys malware for persistent access, or initiates wire transfers via BEC.', icon: '\u{1F4B8}' }
+                { phase: 'Target Research', description: 'Attacker identifies targets and researches them via LinkedIn, company websites, and social media. For spear phishing, they study organizational structure, vendors, and communication styles.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Infrastructure Setup', description: 'Registers lookalike domains (micros0ft.com), sets up phishing pages that clone legitimate login portals, and configures email servers with SPF/DKIM to appear legitimate.', icon: '/assets/images/icons/icon-construction.webp' },
+                { phase: 'Lure Crafting', description: 'Creates convincing email content with urgency triggers: "Your account will be locked," "Invoice overdue," "Package delivery failed," or impersonates a known contact.', icon: '/assets/images/icons/icon-notepad.webp' },
+                { phase: 'Delivery', description: 'Sends phishing emails timed for maximum impact (Monday mornings, end of quarter). May use thread hijacking from compromised accounts for credibility.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Victim Interaction', description: 'Victim clicks link and enters credentials on fake login page, opens malicious attachment (Office macros, PDF exploits), or replies with sensitive information.', icon: '/assets/images/icons/icon-mouse.webp' },
+                { phase: 'Exploitation', description: 'Attacker uses stolen credentials for account takeover, deploys malware for persistent access, or initiates wire transfers via BEC.', icon: '/assets/images/icons/icon-money.webp' }
             ]
         },
         defense: {
@@ -1100,7 +1100,7 @@ const ThreatAppletData = {
     PRIVILEGE_ESCALATION: {
         code: 'PRIVILEGE_ESCALATION',
         title: 'Privilege Escalation',
-        icon: '\u{1F4C8}',
+        icon: '/assets/images/icons/icon-barchart.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Exploiting vulnerabilities or misconfigurations to gain higher-level permissions than originally authorized, moving from standard user to admin or root access.',
@@ -1127,12 +1127,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Privilege Escalation Attack Flow',
             steps: [
-                { phase: 'Initial Access', description: 'Attacker obtains low-privilege access through phishing, web application exploit, or compromised credentials. They now have a foothold but limited permissions.', icon: '\u{1F511}' },
-                { phase: 'Enumeration', description: 'Systematically enumerates the system: OS version, patch level, running services, SUID binaries, scheduled tasks, installed software, and credential stores.', icon: '\u{1F4CB}' },
-                { phase: 'Vulnerability Identification', description: 'Identifies escalation paths: unpatched kernel vulnerabilities, misconfigured sudo rules, writable service binaries, unquoted service paths, or stored credentials.', icon: '\u{1F50E}' },
-                { phase: 'Exploit Execution', description: 'Executes the escalation technique: kernel exploit, DLL hijacking, service binary replacement, token impersonation, or credential harvesting.', icon: '\u{26A1}' },
-                { phase: 'Privilege Verification', description: 'Confirms elevated access (whoami, id), tests new capabilities, and may create a persistent high-privilege account or backdoor.', icon: '\u{2705}' },
-                { phase: 'Objective Execution', description: 'With elevated privileges: accesses restricted data, installs persistent backdoors, modifies security settings, or moves laterally to other systems.', icon: '\u{1F3AF}' }
+                { phase: 'Initial Access', description: 'Attacker obtains low-privilege access through phishing, web application exploit, or compromised credentials. They now have a foothold but limited permissions.', icon: '/assets/images/icons/icon-key.webp' },
+                { phase: 'Enumeration', description: 'Systematically enumerates the system: OS version, patch level, running services, SUID binaries, scheduled tasks, installed software, and credential stores.', icon: '/assets/images/icons/icon-clipboard.webp' },
+                { phase: 'Vulnerability Identification', description: 'Identifies escalation paths: unpatched kernel vulnerabilities, misconfigured sudo rules, writable service binaries, unquoted service paths, or stored credentials.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Exploit Execution', description: 'Executes the escalation technique: kernel exploit, DLL hijacking, service binary replacement, token impersonation, or credential harvesting.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Privilege Verification', description: 'Confirms elevated access (whoami, id), tests new capabilities, and may create a persistent high-privilege account or backdoor.', icon: '/assets/images/icons/icon-checkbox.webp' },
+                { phase: 'Objective Execution', description: 'With elevated privileges: accesses restricted data, installs persistent backdoors, modifies security settings, or moves laterally to other systems.', icon: '/assets/images/icons/icon-target.webp' }
             ]
         },
         defense: {
@@ -1208,7 +1208,7 @@ const ThreatAppletData = {
     RANSOMWARE: {
         code: 'RANSOMWARE',
         title: 'Ransomware',
-        icon: '\u{1F512}',
+        icon: '/assets/images/icons/icon-padlock.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Malware that encrypts victim files and demands ransom payment (usually cryptocurrency) for the decryption key, often combined with data theft for double extortion.',
@@ -1235,12 +1235,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Ransomware Attack Lifecycle',
             steps: [
-                { phase: 'Initial Access', description: 'Entry via phishing emails with malicious attachments, exploiting public-facing vulnerabilities (VPN, RDP), or purchased access from Initial Access Brokers (IABs).', icon: '\u{1F6AA}' },
-                { phase: 'Post-Exploitation', description: 'Deploys Cobalt Strike, Mimikatz, or similar tools. Escalates privileges, maps the network, and identifies Active Directory domain controllers.', icon: '\u{1F9F0}' },
-                { phase: 'Lateral Movement', description: 'Spreads across the network using stolen credentials, PsExec, WMI, or RDP. Targets file servers, databases, and backup systems specifically.', icon: '\u{27A1}' },
-                { phase: 'Data Exfiltration', description: 'Before encryption, steals sensitive data for double extortion leverage. Uses Rclone, MegaSync, or custom tools to upload data to attacker infrastructure.', icon: '\u{1F4E4}' },
-                { phase: 'Encryption', description: 'Deploys ransomware payload across all reachable systems simultaneously (often via Group Policy). Destroys shadow copies and backup catalogs before encrypting files.', icon: '\u{1F512}' },
-                { phase: 'Ransom Demand', description: 'Drops ransom notes on every encrypted system. Provides Tor-based portal for communication. Threatens data publication on leak site with countdown timer.', icon: '\u{1F4B0}' }
+                { phase: 'Initial Access', description: 'Entry via phishing emails with malicious attachments, exploiting public-facing vulnerabilities (VPN, RDP), or purchased access from Initial Access Brokers (IABs).', icon: '/assets/images/icons/icon-door.webp' },
+                { phase: 'Post-Exploitation', description: 'Deploys Cobalt Strike, Mimikatz, or similar tools. Escalates privileges, maps the network, and identifies Active Directory domain controllers.', icon: '/assets/images/icons/icon-tools.webp' },
+                { phase: 'Lateral Movement', description: 'Spreads across the network using stolen credentials, PsExec, WMI, or RDP. Targets file servers, databases, and backup systems specifically.', icon: '/assets/images/icons/icon-redirect.webp' },
+                { phase: 'Data Exfiltration', description: 'Before encryption, steals sensitive data for double extortion leverage. Uses Rclone, MegaSync, or custom tools to upload data to attacker infrastructure.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Encryption', description: 'Deploys ransomware payload across all reachable systems simultaneously (often via Group Policy). Destroys shadow copies and backup catalogs before encrypting files.', icon: '/assets/images/icons/icon-padlock.webp' },
+                { phase: 'Ransom Demand', description: 'Drops ransom notes on every encrypted system. Provides Tor-based portal for communication. Threatens data publication on leak site with countdown timer.', icon: '/assets/images/icons/icon-money.webp' }
             ]
         },
         defense: {
@@ -1317,7 +1317,7 @@ const ThreatAppletData = {
     ROOTKITS: {
         code: 'ROOTKITS',
         title: 'Rootkits',
-        icon: '\u{1F47B}',
+        icon: '/assets/images/icons/icon-skull.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Stealthy malware designed to hide deep within the operating system, providing persistent privileged access while remaining undetectable by standard security tools.',
@@ -1344,12 +1344,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Rootkit Deployment Lifecycle',
             steps: [
-                { phase: 'Initial Compromise', description: 'Attacker gains access through an exploit, phishing, or physical access. Root/admin privileges are typically required for kernel or bootkit installation.', icon: '\u{1F6AA}' },
-                { phase: 'Privilege Escalation', description: 'If initial access is unprivileged, attacker escalates to kernel/SYSTEM level using local exploits or credential theft — required for deep rootkit installation.', icon: '\u{2B06}' },
-                { phase: 'Rootkit Installation', description: 'Installs rootkit components: hooks system calls, patches kernel structures, modifies boot records, or writes to firmware depending on rootkit type.', icon: '\u{1F4BE}' },
-                { phase: 'Concealment Activation', description: 'Rootkit begins hiding: filters process lists, intercepts file system queries, masks network connections, and may cloak other malware on the system.', icon: '\u{1F47B}' },
-                { phase: 'Persistent Access', description: 'Provides ongoing hidden access to the attacker. May include keyloggers, credential harvesters, or backdoor listeners that are invisible to the OS.', icon: '\u{1F511}' },
-                { phase: 'Stealth Operations', description: 'Attacker operates with impunity: exfiltrates data, deploys additional malware, or maintains surveillance — all hidden from security tools running on the compromised OS.', icon: '\u{1F575}' }
+                { phase: 'Initial Compromise', description: 'Attacker gains access through an exploit, phishing, or physical access. Root/admin privileges are typically required for kernel or bootkit installation.', icon: '/assets/images/icons/icon-door.webp' },
+                { phase: 'Privilege Escalation', description: 'If initial access is unprivileged, attacker escalates to kernel/SYSTEM level using local exploits or credential theft — required for deep rootkit installation.', icon: '/assets/images/icons/icon-arrow-up.webp' },
+                { phase: 'Rootkit Installation', description: 'Installs rootkit components: hooks system calls, patches kernel structures, modifies boot records, or writes to firmware depending on rootkit type.', icon: '/assets/images/icons/icon-memory.webp' },
+                { phase: 'Concealment Activation', description: 'Rootkit begins hiding: filters process lists, intercepts file system queries, masks network connections, and may cloak other malware on the system.', icon: '/assets/images/icons/icon-skull.webp' },
+                { phase: 'Persistent Access', description: 'Provides ongoing hidden access to the attacker. May include keyloggers, credential harvesters, or backdoor listeners that are invisible to the OS.', icon: '/assets/images/icons/icon-key.webp' },
+                { phase: 'Stealth Operations', description: 'Attacker operates with impunity: exfiltrates data, deploys additional malware, or maintains surveillance — all hidden from security tools running on the compromised OS.', icon: '/assets/images/icons/icon-detective.webp' }
             ]
         },
         defense: {
@@ -1425,7 +1425,7 @@ const ThreatAppletData = {
     SOCIAL_ENGINEERING: {
         code: 'SOCIAL_ENGINEERING',
         title: 'Social Engineering',
-        icon: '\u{1F3AD}',
+        icon: '/assets/images/icons/icon-mask.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Psychological manipulation techniques that exploit human trust, fear, urgency, or curiosity to trick people into revealing information or performing actions that compromise security.',
@@ -1452,12 +1452,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Social Engineering Attack Lifecycle',
             steps: [
-                { phase: 'Target Research', description: 'Attacker gathers information about the target and organization: employee names, roles, relationships, communication styles, vendors, and internal processes from OSINT sources.', icon: '\u{1F50D}' },
-                { phase: 'Pretext Development', description: 'Creates a believable scenario and identity: IT support needing password verification, a vendor with an urgent delivery, a new executive requesting information.', icon: '\u{1F3AD}' },
-                { phase: 'Trust Building', description: 'Establishes rapport and credibility using insider knowledge, name-dropping colleagues, displaying authority symbols, or leveraging prior interactions.', icon: '\u{1F91D}' },
-                { phase: 'Exploitation', description: 'Triggers the desired action: victim reveals credentials, opens a door, installs software, transfers money, or provides sensitive information.', icon: '\u{26A1}' },
-                { phase: 'Execution', description: 'Attacker uses the obtained access, information, or action to achieve their objective: network access, data theft, financial fraud, or physical entry.', icon: '\u{1F3AF}' },
-                { phase: 'Exit & Cover', description: 'Ends the interaction naturally without raising suspicion. Victim may not realize they were manipulated for hours, days, or ever.', icon: '\u{1F6B6}' }
+                { phase: 'Target Research', description: 'Attacker gathers information about the target and organization: employee names, roles, relationships, communication styles, vendors, and internal processes from OSINT sources.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Pretext Development', description: 'Creates a believable scenario and identity: IT support needing password verification, a vendor with an urgent delivery, a new executive requesting information.', icon: '/assets/images/icons/icon-mask.webp' },
+                { phase: 'Trust Building', description: 'Establishes rapport and credibility using insider knowledge, name-dropping colleagues, displaying authority symbols, or leveraging prior interactions.', icon: '/assets/images/icons/icon-handshake.webp' },
+                { phase: 'Exploitation', description: 'Triggers the desired action: victim reveals credentials, opens a door, installs software, transfers money, or provides sensitive information.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Execution', description: 'Attacker uses the obtained access, information, or action to achieve their objective: network access, data theft, financial fraud, or physical entry.', icon: '/assets/images/icons/icon-target.webp' },
+                { phase: 'Exit & Cover', description: 'Ends the interaction naturally without raising suspicion. Victim may not realize they were manipulated for hours, days, or ever.', icon: '/assets/images/icons/icon-footprint.webp' }
             ]
         },
         defense: {
@@ -1534,7 +1534,7 @@ const ThreatAppletData = {
     SUPPLY_CHAIN: {
         code: 'SUPPLY_CHAIN',
         title: 'Supply Chain Attacks',
-        icon: '\u{1F517}',
+        icon: '/assets/images/icons/icon-chain.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Attacks that compromise a trusted supplier, vendor, or software update mechanism to infiltrate downstream targets through their existing trust relationships.',
@@ -1561,12 +1561,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Supply Chain Attack Lifecycle',
             steps: [
-                { phase: 'Supply Chain Mapping', description: 'Attacker identifies the target\'s vendors, software dependencies, MSPs, and update mechanisms. Maps trust relationships and finds the weakest link.', icon: '\u{1F5FA}' },
-                { phase: 'Supplier Compromise', description: 'Compromises the supplier through direct attack, social engineering of maintainers, or infiltrating the build/CI pipeline. Goal: access to software distribution.', icon: '\u{1F510}' },
-                { phase: 'Payload Insertion', description: 'Inserts malicious code into the supplier\'s product: backdoor in source code, trojanized update package, or compromised dependency. Code passes code review through sophistication or social trust.', icon: '\u{1F489}' },
-                { phase: 'Distribution', description: 'Malicious code is distributed through legitimate channels: signed software updates, package managers, or MSP management tools. Victims have no reason to distrust it.', icon: '\u{1F4E6}' },
-                { phase: 'Activation', description: 'Backdoor activates in victim environments, often with delays or conditions to avoid detection. May check the target before activating (SolarWinds checked for security tools first).', icon: '\u{26A1}' },
-                { phase: 'Exploitation', description: 'Attacker uses the trusted access to conduct espionage, deploy ransomware, steal data, or establish persistent access across thousands of compromised organizations.', icon: '\u{1F3AF}' }
+                { phase: 'Supply Chain Mapping', description: 'Attacker identifies the target\'s vendors, software dependencies, MSPs, and update mechanisms. Maps trust relationships and finds the weakest link.', icon: '/assets/images/icons/icon-map.webp' },
+                { phase: 'Supplier Compromise', description: 'Compromises the supplier through direct attack, social engineering of maintainers, or infiltrating the build/CI pipeline. Goal: access to software distribution.', icon: '/assets/images/icons/icon-padlock.webp' },
+                { phase: 'Payload Insertion', description: 'Inserts malicious code into the supplier\'s product: backdoor in source code, trojanized update package, or compromised dependency. Code passes code review through sophistication or social trust.', icon: '/assets/images/icons/icon-syringe.webp' },
+                { phase: 'Distribution', description: 'Malicious code is distributed through legitimate channels: signed software updates, package managers, or MSP management tools. Victims have no reason to distrust it.', icon: '/assets/images/icons/icon-package.webp' },
+                { phase: 'Activation', description: 'Backdoor activates in victim environments, often with delays or conditions to avoid detection. May check the target before activating (SolarWinds checked for security tools first).', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Exploitation', description: 'Attacker uses the trusted access to conduct espionage, deploy ransomware, steal data, or establish persistent access across thousands of compromised organizations.', icon: '/assets/images/icons/icon-target.webp' }
             ]
         },
         defense: {
@@ -1643,7 +1643,7 @@ const ThreatAppletData = {
     ZERO_DAY: {
         code: 'ZERO_DAY',
         title: 'Zero-Day Exploits',
-        icon: '\u{1F4A3}',
+        icon: '/assets/images/icons/icon-explosion.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Attacks exploiting previously unknown vulnerabilities for which no patch exists, giving defenders "zero days" to prepare — the most dangerous class of cyber threat.',
@@ -1670,12 +1670,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Zero-Day Exploit Lifecycle',
             steps: [
-                { phase: 'Vulnerability Discovery', description: 'Researcher, nation-state team, or criminal group discovers an unknown vulnerability through fuzzing, reverse engineering, source code analysis, or variant analysis of known bugs.', icon: '\u{1F50D}' },
-                { phase: 'Exploit Development', description: 'Develops reliable exploit code that weaponizes the vulnerability. May chain multiple vulnerabilities for full compromise (sandbox escape + privilege escalation).', icon: '\u{1F528}' },
-                { phase: 'Weaponization', description: 'Integrates exploit into a delivery mechanism: malicious document, drive-by download, watering hole website, or zero-click message exploitation.', icon: '\u{2694}' },
-                { phase: 'Deployment', description: 'Delivers the zero-day exploit against the target. Used sparingly and against high-value targets to avoid burning the exploit through premature detection.', icon: '\u{1F3AF}' },
-                { phase: 'Exploitation', description: 'Exploit executes successfully with no signatures to detect it. Payload achieves code execution, and post-exploitation begins.', icon: '\u{26A1}' },
-                { phase: 'Discovery & Disclosure', description: 'Eventually discovered through anomaly detection, incident investigation, or threat research. Vendor is notified, emergency patch is developed and released.', icon: '\u{1F6A8}' }
+                { phase: 'Vulnerability Discovery', description: 'Researcher, nation-state team, or criminal group discovers an unknown vulnerability through fuzzing, reverse engineering, source code analysis, or variant analysis of known bugs.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Exploit Development', description: 'Develops reliable exploit code that weaponizes the vulnerability. May chain multiple vulnerabilities for full compromise (sandbox escape + privilege escalation).', icon: '/assets/images/icons/icon-tools.webp' },
+                { phase: 'Weaponization', description: 'Integrates exploit into a delivery mechanism: malicious document, drive-by download, watering hole website, or zero-click message exploitation.', icon: '/assets/images/icons/icon-swords.webp' },
+                { phase: 'Deployment', description: 'Delivers the zero-day exploit against the target. Used sparingly and against high-value targets to avoid burning the exploit through premature detection.', icon: '/assets/images/icons/icon-target.webp' },
+                { phase: 'Exploitation', description: 'Exploit executes successfully with no signatures to detect it. Payload achieves code execution, and post-exploitation begins.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Discovery & Disclosure', description: 'Eventually discovered through anomaly detection, incident investigation, or threat research. Vendor is notified, emergency patch is developed and released.', icon: '/assets/images/icons/icon-siren.webp' }
             ]
         },
         defense: {
@@ -1752,7 +1752,7 @@ const ThreatAppletData = {
     HEARTBLEED: {
         code: 'HEARTBLEED',
         title: 'Heartbleed (CVE-2014-0160)',
-        icon: '\u{1F494}',
+        icon: '/assets/images/icons/icon-crossmark.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'A critical vulnerability in OpenSSL\'s TLS heartbeat extension that allowed attackers to read up to 64KB of server memory per request, exposing private keys, credentials, and session data.',
@@ -1779,12 +1779,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Heartbleed Exploitation Flow',
             steps: [
-                { phase: 'Target Identification', description: 'Attacker scans for servers running vulnerable OpenSSL versions (1.0.1 through 1.0.1f). Tools like Nmap with ssl-heartbleed script or Masscan identify targets at scale.', icon: '\u{1F50D}' },
-                { phase: 'Heartbeat Request Crafting', description: 'Attacker sends a TLS heartbeat request with a small payload (e.g., 1 byte) but claims a large length (up to 65,535 bytes). The malformed request exploits the missing bounds check.', icon: '\u{1F4DD}' },
-                { phase: 'Memory Over-Read', description: 'The vulnerable OpenSSL code allocates a response buffer based on the claimed length, copies the original payload, then reads adjacent heap memory to fill the remaining space — returning up to 64KB of server memory.', icon: '\u{1F4BE}' },
-                { phase: 'Data Harvesting', description: 'Attacker repeats the request thousands of times, each time receiving a different 64KB slice of heap memory. Over time, this reveals session cookies, credentials, private keys, and application data.', icon: '\u{1F4E5}' },
-                { phase: 'Credential Extraction', description: 'Leaked memory is parsed for high-value data: TLS private keys (allows decryption of all past/future traffic), session tokens, usernames, passwords, and API keys.', icon: '\u{1F511}' },
-                { phase: 'Silent Exploitation', description: 'Because the heartbeat response looks like normal TLS traffic and the server logs no error, the attacker operates completely undetected. No crash, no anomaly, no evidence.', icon: '\u{1F47B}' }
+                { phase: 'Target Identification', description: 'Attacker scans for servers running vulnerable OpenSSL versions (1.0.1 through 1.0.1f). Tools like Nmap with ssl-heartbleed script or Masscan identify targets at scale.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Heartbeat Request Crafting', description: 'Attacker sends a TLS heartbeat request with a small payload (e.g., 1 byte) but claims a large length (up to 65,535 bytes). The malformed request exploits the missing bounds check.', icon: '/assets/images/icons/icon-notepad.webp' },
+                { phase: 'Memory Over-Read', description: 'The vulnerable OpenSSL code allocates a response buffer based on the claimed length, copies the original payload, then reads adjacent heap memory to fill the remaining space — returning up to 64KB of server memory.', icon: '/assets/images/icons/icon-memory.webp' },
+                { phase: 'Data Harvesting', description: 'Attacker repeats the request thousands of times, each time receiving a different 64KB slice of heap memory. Over time, this reveals session cookies, credentials, private keys, and application data.', icon: '/assets/images/icons/icon-folder.webp' },
+                { phase: 'Credential Extraction', description: 'Leaked memory is parsed for high-value data: TLS private keys (allows decryption of all past/future traffic), session tokens, usernames, passwords, and API keys.', icon: '/assets/images/icons/icon-key.webp' },
+                { phase: 'Silent Exploitation', description: 'Because the heartbeat response looks like normal TLS traffic and the server logs no error, the attacker operates completely undetected. No crash, no anomaly, no evidence.', icon: '/assets/images/icons/icon-skull.webp' }
             ]
         },
         defense: {
@@ -1860,7 +1860,7 @@ const ThreatAppletData = {
     STUXNET: {
         code: 'STUXNET',
         title: 'Stuxnet',
-        icon: '\u{2622}',
+        icon: '/assets/images/icons/icon-explosion.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'The first known cyber weapon — a sophisticated worm targeting Iranian nuclear centrifuges using four zero-day exploits, PLC manipulation, and air-gap jumping via USB drives.',
@@ -1887,12 +1887,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Stuxnet Attack Chain',
             steps: [
-                { phase: 'Initial Infection (USB)', description: 'Stuxnet was introduced to the air-gapped Natanz network via infected USB drives. The LNK vulnerability (CVE-2010-2568) auto-executed the payload when the USB contents were viewed in Windows Explorer.', icon: '\u{1F4BB}' },
-                { phase: 'Network Propagation', description: 'Once inside, Stuxnet spread across the network using multiple vectors: Windows Server Service vulnerability (MS08-067), Print Spooler zero-day, network shares, WinCC database connections, and Siemens Step 7 project files.', icon: '\u{1F310}' },
-                { phase: 'Target Validation', description: 'On each infected machine, Stuxnet checked for Siemens Step 7 software and specific PLC configurations (S7-315/S7-417 with particular frequency converter setups). If the target didn\'t match, the worm remained dormant.', icon: '\u{1F50E}' },
-                { phase: 'PLC Code Injection', description: 'On matching systems, Stuxnet injected malicious code into the PLC program, intercepting commands between Step 7 and the frequency converters controlling centrifuge rotation speeds.', icon: '\u{1F489}' },
-                { phase: 'Sabotage Execution', description: 'The injected code periodically altered centrifuge speeds — ramping from normal 1,064 Hz to 1,410 Hz, then dropping to 2 Hz. This caused mechanical stress, vibration, and eventual centrifuge destruction over weeks to months.', icon: '\u{1F4A5}' },
-                { phase: 'Stealth & Deception', description: 'A rootkit component intercepted PLC status queries and replayed pre-recorded "normal" readings to the SCADA display. Operators saw healthy centrifuges while they were being destroyed. Stolen Realtek and JMicron certificates signed the drivers.', icon: '\u{1F576}' }
+                { phase: 'Initial Infection (USB)', description: 'Stuxnet was introduced to the air-gapped Natanz network via infected USB drives. The LNK vulnerability (CVE-2010-2568) auto-executed the payload when the USB contents were viewed in Windows Explorer.', icon: '/assets/images/icons/icon-laptop.webp' },
+                { phase: 'Network Propagation', description: 'Once inside, Stuxnet spread across the network using multiple vectors: Windows Server Service vulnerability (MS08-067), Print Spooler zero-day, network shares, WinCC database connections, and Siemens Step 7 project files.', icon: '/assets/images/icons/icon-globe.webp' },
+                { phase: 'Target Validation', description: 'On each infected machine, Stuxnet checked for Siemens Step 7 software and specific PLC configurations (S7-315/S7-417 with particular frequency converter setups). If the target didn\'t match, the worm remained dormant.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'PLC Code Injection', description: 'On matching systems, Stuxnet injected malicious code into the PLC program, intercepting commands between Step 7 and the frequency converters controlling centrifuge rotation speeds.', icon: '/assets/images/icons/icon-syringe.webp' },
+                { phase: 'Sabotage Execution', description: 'The injected code periodically altered centrifuge speeds — ramping from normal 1,064 Hz to 1,410 Hz, then dropping to 2 Hz. This caused mechanical stress, vibration, and eventual centrifuge destruction over weeks to months.', icon: '/assets/images/icons/icon-explosion.webp' },
+                { phase: 'Stealth & Deception', description: 'A rootkit component intercepted PLC status queries and replayed pre-recorded "normal" readings to the SCADA display. Operators saw healthy centrifuges while they were being destroyed. Stolen Realtek and JMicron certificates signed the drivers.', icon: '/assets/images/icons/icon-detective.webp' }
             ]
         },
         defense: {
@@ -1968,7 +1968,7 @@ const ThreatAppletData = {
     MELTDOWN_SPECTRE: {
         code: 'MELTDOWN_SPECTRE',
         title: 'Meltdown & Spectre',
-        icon: '\u{1F9CA}',
+        icon: '/assets/images/icons/icon-diamond.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Hardware-level CPU vulnerabilities exploiting speculative execution to leak kernel memory (Meltdown) and cross-process data (Spectre) through microarchitectural side channels.',
@@ -1995,12 +1995,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Speculative Execution Attack Flow',
             steps: [
-                { phase: 'Target Selection', description: 'Attacker identifies a target: kernel memory (Meltdown), another process\'s data (Spectre V1), or cross-VM data in cloud environments. The attack runs entirely in user space.', icon: '\u{1F3AF}' },
-                { phase: 'Speculative Trigger', description: 'For Meltdown: execute a memory read of a kernel address — the CPU speculatively completes the read before the permission check raises an exception. For Spectre: mistrain the branch predictor to speculatively execute a gadget that reads the target data.', icon: '\u{26A1}' },
-                { phase: 'Cache Loading', description: 'During speculative execution (before the CPU realizes the mistake and rolls back), the leaked data is used as an index to load a specific cache line. Although the speculation is discarded architecturally, the cache state change persists.', icon: '\u{1F4E6}' },
-                { phase: 'Side-Channel Extraction', description: 'Attacker measures memory access times using Flush+Reload or Prime+Probe techniques. The cache line that was speculatively loaded will be faster to access, revealing the value of the leaked byte.', icon: '\u{23F1}' },
-                { phase: 'Byte-by-Byte Reconstruction', description: 'The attack repeats for each byte of target memory. At approximately 500KB/s (Meltdown on vulnerable Intel CPUs), the attacker reconstructs kernel memory, encryption keys, passwords, or other sensitive data.', icon: '\u{1F9E9}' },
-                { phase: 'Data Exploitation', description: 'Extracted data may include kernel ASLR layout (defeating address randomization), cryptographic keys, credentials, or other process secrets — enabling further attacks or complete system compromise.', icon: '\u{1F4A3}' }
+                { phase: 'Target Selection', description: 'Attacker identifies a target: kernel memory (Meltdown), another process\'s data (Spectre V1), or cross-VM data in cloud environments. The attack runs entirely in user space.', icon: '/assets/images/icons/icon-target.webp' },
+                { phase: 'Speculative Trigger', description: 'For Meltdown: execute a memory read of a kernel address — the CPU speculatively completes the read before the permission check raises an exception. For Spectre: mistrain the branch predictor to speculatively execute a gadget that reads the target data.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Cache Loading', description: 'During speculative execution (before the CPU realizes the mistake and rolls back), the leaked data is used as an index to load a specific cache line. Although the speculation is discarded architecturally, the cache state change persists.', icon: '/assets/images/icons/icon-package.webp' },
+                { phase: 'Side-Channel Extraction', description: 'Attacker measures memory access times using Flush+Reload or Prime+Probe techniques. The cache line that was speculatively loaded will be faster to access, revealing the value of the leaked byte.', icon: '/assets/images/icons/icon-stopwatch.webp' },
+                { phase: 'Byte-by-Byte Reconstruction', description: 'The attack repeats for each byte of target memory. At approximately 500KB/s (Meltdown on vulnerable Intel CPUs), the attacker reconstructs kernel memory, encryption keys, passwords, or other sensitive data.', icon: '/assets/images/icons/icon-square-pattern.webp' },
+                { phase: 'Data Exploitation', description: 'Extracted data may include kernel ASLR layout (defeating address randomization), cryptographic keys, credentials, or other process secrets — enabling further attacks or complete system compromise.', icon: '/assets/images/icons/icon-explosion.webp' }
             ]
         },
         defense: {
@@ -2076,7 +2076,7 @@ const ThreatAppletData = {
     SQL_INJECTION: {
         code: 'SQL_INJECTION',
         title: 'SQL Injection',
-        icon: '\u{1F4BE}',
+        icon: '/assets/images/icons/icon-memory.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'An injection attack where malicious SQL statements are inserted into application input fields to manipulate or extract data from backend databases.',
@@ -2103,12 +2103,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'SQL Injection Attack Flow',
             steps: [
-                { phase: 'Input Discovery', description: 'Attacker identifies input fields that interact with the database: login forms, search boxes, URL parameters, cookies, HTTP headers. Single quotes (\') and SQL keywords are injected to probe for errors.', icon: '\u{1F50D}' },
-                { phase: 'Error Analysis', description: 'Database error messages reveal the SQL dialect (MySQL, MSSQL, PostgreSQL, Oracle), query structure, table names, and column types. Even generic errors confirm SQL injection vulnerability.', icon: '\u{1F4CB}' },
-                { phase: 'Query Manipulation', description: 'Attacker crafts payloads: tautology (OR 1=1) for authentication bypass, UNION SELECT for data extraction, ORDER BY for column enumeration, or stacked queries (;DROP TABLE) for modification.', icon: '\u{270F}' },
-                { phase: 'Data Extraction', description: 'Using UNION SELECT, the attacker reads database schema (information_schema), then extracts tables, columns, and data including credentials, PII, financial records, and admin accounts.', icon: '\u{1F4E4}' },
-                { phase: 'Privilege Escalation', description: 'If the database user has elevated privileges, the attacker reads/writes files (LOAD_FILE, INTO OUTFILE), executes OS commands (xp_cmdshell in MSSQL), or accesses other databases on the server.', icon: '\u{2B06}' },
-                { phase: 'Persistence & Covering Tracks', description: 'Attacker creates backdoor accounts, installs web shells via INTO OUTFILE, modifies log tables, or establishes ongoing data exfiltration through blind/out-of-band channels.', icon: '\u{1F6AA}' }
+                { phase: 'Input Discovery', description: 'Attacker identifies input fields that interact with the database: login forms, search boxes, URL parameters, cookies, HTTP headers. Single quotes (\') and SQL keywords are injected to probe for errors.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Error Analysis', description: 'Database error messages reveal the SQL dialect (MySQL, MSSQL, PostgreSQL, Oracle), query structure, table names, and column types. Even generic errors confirm SQL injection vulnerability.', icon: '/assets/images/icons/icon-clipboard.webp' },
+                { phase: 'Query Manipulation', description: 'Attacker crafts payloads: tautology (OR 1=1) for authentication bypass, UNION SELECT for data extraction, ORDER BY for column enumeration, or stacked queries (;DROP TABLE) for modification.', icon: '/assets/images/icons/icon-pencil.webp' },
+                { phase: 'Data Extraction', description: 'Using UNION SELECT, the attacker reads database schema (information_schema), then extracts tables, columns, and data including credentials, PII, financial records, and admin accounts.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Privilege Escalation', description: 'If the database user has elevated privileges, the attacker reads/writes files (LOAD_FILE, INTO OUTFILE), executes OS commands (xp_cmdshell in MSSQL), or accesses other databases on the server.', icon: '/assets/images/icons/icon-arrow-up.webp' },
+                { phase: 'Persistence & Covering Tracks', description: 'Attacker creates backdoor accounts, installs web shells via INTO OUTFILE, modifies log tables, or establishes ongoing data exfiltration through blind/out-of-band channels.', icon: '/assets/images/icons/icon-door.webp' }
             ]
         },
         defense: {
@@ -2184,7 +2184,7 @@ const ThreatAppletData = {
     XSS: {
         code: 'XSS',
         title: 'Cross-Site Scripting (XSS)',
-        icon: '\u{1F4DC}',
+        icon: '/assets/images/icons/icon-scroll.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'A web vulnerability where attackers inject malicious scripts into trusted websites, which execute in victims\' browsers to steal cookies, session tokens, or redirect users to malicious sites.',
@@ -2211,12 +2211,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'XSS Attack Flow',
             steps: [
-                { phase: 'Injection Point Discovery', description: 'Attacker identifies where user input is reflected or stored in page output: search results, comments, profile fields, URL parameters, error messages. Test payloads like <script>alert(1)</script> probe for unescaped output.', icon: '\u{1F50D}' },
-                { phase: 'Payload Crafting', description: 'Attacker develops a payload that bypasses filters: event handlers (onerror, onload), alternative tags (img, svg, iframe), encoding tricks (HTML entities, Unicode, URL encoding), or DOM manipulation.', icon: '\u{270F}' },
-                { phase: 'Delivery', description: 'For reflected XSS: crafts a URL with the payload and tricks the victim into clicking it (email, social media). For stored XSS: submits the payload through a form (comment, profile) where it is saved and served to all visitors.', icon: '\u{1F4E8}' },
-                { phase: 'Script Execution', description: 'When a victim\'s browser renders the page containing the injected payload, the script executes in the context of the trusted website with full access to cookies, session storage, and DOM.', icon: '\u{26A1}' },
-                { phase: 'Data Exfiltration', description: 'The malicious script steals session cookies (document.cookie), captures keystrokes, reads sensitive page content, or makes authenticated API requests on behalf of the victim — sending data to the attacker\'s server.', icon: '\u{1F4E4}' },
-                { phase: 'Exploitation', description: 'Attacker uses stolen session tokens to hijack accounts, stolen credentials for further access, or leverages the trusted site\'s context to deliver secondary payloads (drive-by downloads, phishing forms).', icon: '\u{1F3AF}' }
+                { phase: 'Injection Point Discovery', description: 'Attacker identifies where user input is reflected or stored in page output: search results, comments, profile fields, URL parameters, error messages. Test payloads like <script>alert(1)</script> probe for unescaped output.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Payload Crafting', description: 'Attacker develops a payload that bypasses filters: event handlers (onerror, onload), alternative tags (img, svg, iframe), encoding tricks (HTML entities, Unicode, URL encoding), or DOM manipulation.', icon: '/assets/images/icons/icon-pencil.webp' },
+                { phase: 'Delivery', description: 'For reflected XSS: crafts a URL with the payload and tricks the victim into clicking it (email, social media). For stored XSS: submits the payload through a form (comment, profile) where it is saved and served to all visitors.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Script Execution', description: 'When a victim\'s browser renders the page containing the injected payload, the script executes in the context of the trusted website with full access to cookies, session storage, and DOM.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Data Exfiltration', description: 'The malicious script steals session cookies (document.cookie), captures keystrokes, reads sensitive page content, or makes authenticated API requests on behalf of the victim — sending data to the attacker\'s server.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Exploitation', description: 'Attacker uses stolen session tokens to hijack accounts, stolen credentials for further access, or leverages the trusted site\'s context to deliver secondary payloads (drive-by downloads, phishing forms).', icon: '/assets/images/icons/icon-target.webp' }
             ]
         },
         defense: {
@@ -2292,7 +2292,7 @@ const ThreatAppletData = {
     CODE_INJECTION: {
         code: 'CODE_INJECTION',
         title: 'Code Injection',
-        icon: '\u{1F4BB}',
+        icon: '/assets/images/icons/icon-laptop.webp',
         severity: 'critical',
         color: '#a855f7',
         description: 'Attacks where malicious code is injected into an application for execution — including OS command injection, LDAP injection, XML injection, and template injection.',
@@ -2319,12 +2319,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Code Injection Attack Flow',
             steps: [
-                { phase: 'Input Identification', description: 'Attacker identifies inputs that are passed to interpreters: file paths, hostnames (ping/nslookup), search fields (LDAP), XML uploads, template fields, or any input processed by eval() or system calls.', icon: '\u{1F50D}' },
-                { phase: 'Interpreter Fingerprinting', description: 'Tests reveal which interpreter processes the input: OS shell (command separators ;, |, &&), LDAP (parentheses, wildcards), XML parser (entity references), template engine ({{, ${, <%}).', icon: '\u{1F9EA}' },
-                { phase: 'Payload Injection', description: 'Attacker crafts a payload for the identified interpreter: `; cat /etc/passwd` (OS), `)(|(password=*))` (LDAP), `<!ENTITY xxe SYSTEM "file:///etc/passwd">` (XXE), `{{config.items()}}` (SSTI).', icon: '\u{1F489}' },
-                { phase: 'Code Execution', description: 'The application passes the payload to the interpreter, which executes it with the application\'s permissions. OS commands run as the web server user; LDAP queries run with the bind account\'s access.', icon: '\u{26A1}' },
-                { phase: 'Data Extraction / Escalation', description: 'Attacker reads sensitive files (/etc/passwd, /etc/shadow, application config), enumerates the system, downloads credentials, or establishes a reverse shell for persistent access.', icon: '\u{1F4E4}' },
-                { phase: 'Persistence', description: 'Installs backdoors (cron jobs, SSH keys, web shells), creates new user accounts, or modifies application code to maintain access beyond the initial injection point.', icon: '\u{1F6AA}' }
+                { phase: 'Input Identification', description: 'Attacker identifies inputs that are passed to interpreters: file paths, hostnames (ping/nslookup), search fields (LDAP), XML uploads, template fields, or any input processed by eval() or system calls.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Interpreter Fingerprinting', description: 'Tests reveal which interpreter processes the input: OS shell (command separators ;, |, &&), LDAP (parentheses, wildcards), XML parser (entity references), template engine ({{, ${, <%}).', icon: '/assets/images/icons/icon-flask.webp' },
+                { phase: 'Payload Injection', description: 'Attacker crafts a payload for the identified interpreter: `; cat /etc/passwd` (OS), `)(|(password=*))` (LDAP), `<!ENTITY xxe SYSTEM "file:///etc/passwd">` (XXE), `{{config.items()}}` (SSTI).', icon: '/assets/images/icons/icon-syringe.webp' },
+                { phase: 'Code Execution', description: 'The application passes the payload to the interpreter, which executes it with the application\'s permissions. OS commands run as the web server user; LDAP queries run with the bind account\'s access.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Data Extraction / Escalation', description: 'Attacker reads sensitive files (/etc/passwd, /etc/shadow, application config), enumerates the system, downloads credentials, or establishes a reverse shell for persistent access.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Persistence', description: 'Installs backdoors (cron jobs, SSH keys, web shells), creates new user accounts, or modifies application code to maintain access beyond the initial injection point.', icon: '/assets/images/icons/icon-door.webp' }
             ]
         },
         defense: {
@@ -2400,7 +2400,7 @@ const ThreatAppletData = {
     GOOGLE_HACKING: {
         code: 'GOOGLE_HACKING',
         title: 'Google Hacking / Dorking',
-        icon: '\u{1F50E}',
+        icon: '/assets/images/icons/icon-magnifier.webp',
         severity: 'medium',
         color: '#a855f7',
         description: 'Using advanced search engine operators to discover exposed files, vulnerable servers, login portals, cameras, databases, and sensitive information indexed by search engines.',
@@ -2427,12 +2427,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Google Hacking Reconnaissance Flow',
             steps: [
-                { phase: 'Target Scoping', description: 'Attacker defines the target: a specific organization (site:target.com), industry sector, or technology stack. Initial broad searches map the target\'s web presence and subdomains.', icon: '\u{1F3AF}' },
-                { phase: 'Operator Crafting', description: 'Combines advanced operators to narrow results: `site:target.com filetype:sql "password"` finds SQL dumps, `site:target.com inurl:admin` finds admin panels, `site:target.com ext:log` finds log files.', icon: '\u{270F}' },
-                { phase: 'GHDB Mining', description: 'Searches the Google Hacking Database (GHDB) for proven dorks relevant to the target\'s technology stack: WordPress, Apache, Nginx, Jenkins, Docker, AWS S3, etc.', icon: '\u{1F4DA}' },
-                { phase: 'Results Analysis', description: 'Reviews discovered pages: directory listings for file enumeration, exposed configs for credentials, admin panels for brute-force targets, error pages for technology fingerprinting.', icon: '\u{1F4CB}' },
-                { phase: 'Information Harvesting', description: 'Collects credentials from .env files, database connection strings from configs, employee names from documents, internal IP ranges from error messages, and technology stack details from headers.', icon: '\u{1F4E5}' },
-                { phase: 'Attack Preparation', description: 'Harvested intelligence feeds into the next attack phases: credential stuffing with found passwords, targeting discovered admin panels, exploiting identified software versions, and social engineering with employee data.', icon: '\u{1F5FA}' }
+                { phase: 'Target Scoping', description: 'Attacker defines the target: a specific organization (site:target.com), industry sector, or technology stack. Initial broad searches map the target\'s web presence and subdomains.', icon: '/assets/images/icons/icon-target.webp' },
+                { phase: 'Operator Crafting', description: 'Combines advanced operators to narrow results: `site:target.com filetype:sql "password"` finds SQL dumps, `site:target.com inurl:admin` finds admin panels, `site:target.com ext:log` finds log files.', icon: '/assets/images/icons/icon-pencil.webp' },
+                { phase: 'GHDB Mining', description: 'Searches the Google Hacking Database (GHDB) for proven dorks relevant to the target\'s technology stack: WordPress, Apache, Nginx, Jenkins, Docker, AWS S3, etc.', icon: '/assets/images/icons/icon-books.webp' },
+                { phase: 'Results Analysis', description: 'Reviews discovered pages: directory listings for file enumeration, exposed configs for credentials, admin panels for brute-force targets, error pages for technology fingerprinting.', icon: '/assets/images/icons/icon-clipboard.webp' },
+                { phase: 'Information Harvesting', description: 'Collects credentials from .env files, database connection strings from configs, employee names from documents, internal IP ranges from error messages, and technology stack details from headers.', icon: '/assets/images/icons/icon-folder.webp' },
+                { phase: 'Attack Preparation', description: 'Harvested intelligence feeds into the next attack phases: credential stuffing with found passwords, targeting discovered admin panels, exploiting identified software versions, and social engineering with employee data.', icon: '/assets/images/icons/icon-map.webp' }
             ]
         },
         defense: {
@@ -2508,7 +2508,7 @@ const ThreatAppletData = {
     PEN_TESTING: {
         code: 'PEN_TESTING',
         title: 'Penetration Testing',
-        icon: '\u{1F9F0}',
+        icon: '/assets/images/icons/icon-tools.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'An authorized simulated cyberattack methodology following five phases — reconnaissance, scanning, exploitation, post-exploitation, and reporting — to identify vulnerabilities before real attackers do.',
@@ -2535,12 +2535,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Penetration Testing Methodology',
             steps: [
-                { phase: 'Reconnaissance (Phase 1)', description: 'Gather intelligence: OSINT (Google dorking, Shodan, social media), DNS enumeration, WHOIS, email harvesting, technology fingerprinting. Passive recon leaves no trace on the target; active recon (port scanning) does.', icon: '\u{1F50D}' },
-                { phase: 'Scanning & Enumeration (Phase 2)', description: 'Active probing: Nmap port scanning, service version detection, vulnerability scanning (Nessus, OpenVAS), web application scanning (Burp Suite, Nikto), directory brute-forcing (Gobuster, ffuf).', icon: '\u{1F4E1}' },
-                { phase: 'Exploitation (Phase 3)', description: 'Exploit discovered vulnerabilities: Metasploit modules, manual exploit development, credential attacks (spraying, brute force), web app exploitation (SQLi, XSS, SSRF), social engineering (if in scope). Document every step for the report.', icon: '\u{26A1}' },
-                { phase: 'Post-Exploitation (Phase 4)', description: 'After gaining access: privilege escalation (linPEAS, winPEAS), lateral movement, credential harvesting (Mimikatz, Responder), persistence mechanisms, pivoting to internal networks, and data access demonstration.', icon: '\u{1F510}' },
-                { phase: 'Reporting (Phase 5)', description: 'Deliver professional report: executive summary, methodology, findings ranked by severity (CVSS), evidence (screenshots, logs), exploitation steps (reproducible), and prioritized remediation recommendations.', icon: '\u{1F4DD}' },
-                { phase: 'Remediation Verification', description: 'After the client patches findings, conduct a retest to verify fixes are effective. Confirm vulnerabilities are resolved and no new issues were introduced by the patches.', icon: '\u{2705}' }
+                { phase: 'Reconnaissance (Phase 1)', description: 'Gather intelligence: OSINT (Google dorking, Shodan, social media), DNS enumeration, WHOIS, email harvesting, technology fingerprinting. Passive recon leaves no trace on the target; active recon (port scanning) does.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Scanning & Enumeration (Phase 2)', description: 'Active probing: Nmap port scanning, service version detection, vulnerability scanning (Nessus, OpenVAS), web application scanning (Burp Suite, Nikto), directory brute-forcing (Gobuster, ffuf).', icon: '/assets/images/icons/icon-antenna.webp' },
+                { phase: 'Exploitation (Phase 3)', description: 'Exploit discovered vulnerabilities: Metasploit modules, manual exploit development, credential attacks (spraying, brute force), web app exploitation (SQLi, XSS, SSRF), social engineering (if in scope). Document every step for the report.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Post-Exploitation (Phase 4)', description: 'After gaining access: privilege escalation (linPEAS, winPEAS), lateral movement, credential harvesting (Mimikatz, Responder), persistence mechanisms, pivoting to internal networks, and data access demonstration.', icon: '/assets/images/icons/icon-padlock.webp' },
+                { phase: 'Reporting (Phase 5)', description: 'Deliver professional report: executive summary, methodology, findings ranked by severity (CVSS), evidence (screenshots, logs), exploitation steps (reproducible), and prioritized remediation recommendations.', icon: '/assets/images/icons/icon-notepad.webp' },
+                { phase: 'Remediation Verification', description: 'After the client patches findings, conduct a retest to verify fixes are effective. Confirm vulnerabilities are resolved and no new issues were introduced by the patches.', icon: '/assets/images/icons/icon-checkbox.webp' }
             ]
         },
         defense: {
@@ -2616,7 +2616,7 @@ const ThreatAppletData = {
     SPOOFING: {
         code: 'SPOOFING',
         title: 'Spoofing Attacks',
-        icon: '\u{1F3AD}',
+        icon: '/assets/images/icons/icon-mask.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Attacks that falsify identity by impersonating legitimate addresses, protocols, or entities — including IP spoofing, MAC spoofing, ARP spoofing, DNS spoofing, and email spoofing.',
@@ -2643,12 +2643,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Spoofing Attack Methodology',
             steps: [
-                { phase: 'Reconnaissance', description: 'Attacker maps the target network: identifies IP ranges, MAC addresses (ARP table), DNS servers, email infrastructure (MX records, SPF/DKIM/DMARC policies), and trust relationships between systems.', icon: '\u{1F50D}' },
-                { phase: 'Identity Selection', description: 'Chooses which identity to impersonate: a trusted internal IP, the gateway\'s MAC address, an authoritative DNS server, or a legitimate email sender (executive, vendor, IT support).', icon: '\u{1F464}' },
-                { phase: 'Forgery Execution', description: 'Crafts and sends spoofed packets/messages: raw socket IP packets with forged source (Scapy), gratuitous ARP replies (Ettercap, arpspoof), DNS responses with malicious records, or SMTP messages with forged headers.', icon: '\u{270F}' },
-                { phase: 'Trust Exploitation', description: 'The victim\'s system accepts the spoofed communication as legitimate: firewall allows the "trusted" IP, switch forwards traffic to the spoofed MAC, resolver caches the poisoned DNS entry, user trusts the spoofed email.', icon: '\u{1F91D}' },
-                { phase: 'Attack Execution', description: 'Attacker achieves the objective: MITM position (ARP/DNS spoofing), reflected DDoS (IP spoofing), credential theft (DNS to fake login page), malware delivery (email spoofing), or network access (MAC spoofing past NAC).', icon: '\u{26A1}' },
-                { phase: 'Persistence & Evasion', description: 'Maintains the spoofed state: continuous ARP poisoning to stay in MITM position, TTL manipulation to keep DNS cache poisoned, or rotating spoofed source IPs to complicate DDoS mitigation.', icon: '\u{1F504}' }
+                { phase: 'Reconnaissance', description: 'Attacker maps the target network: identifies IP ranges, MAC addresses (ARP table), DNS servers, email infrastructure (MX records, SPF/DKIM/DMARC policies), and trust relationships between systems.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Identity Selection', description: 'Chooses which identity to impersonate: a trusted internal IP, the gateway\'s MAC address, an authoritative DNS server, or a legitimate email sender (executive, vendor, IT support).', icon: '/assets/images/icons/icon-users.webp' },
+                { phase: 'Forgery Execution', description: 'Crafts and sends spoofed packets/messages: raw socket IP packets with forged source (Scapy), gratuitous ARP replies (Ettercap, arpspoof), DNS responses with malicious records, or SMTP messages with forged headers.', icon: '/assets/images/icons/icon-pencil.webp' },
+                { phase: 'Trust Exploitation', description: 'The victim\'s system accepts the spoofed communication as legitimate: firewall allows the "trusted" IP, switch forwards traffic to the spoofed MAC, resolver caches the poisoned DNS entry, user trusts the spoofed email.', icon: '/assets/images/icons/icon-handshake.webp' },
+                { phase: 'Attack Execution', description: 'Attacker achieves the objective: MITM position (ARP/DNS spoofing), reflected DDoS (IP spoofing), credential theft (DNS to fake login page), malware delivery (email spoofing), or network access (MAC spoofing past NAC).', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Persistence & Evasion', description: 'Maintains the spoofed state: continuous ARP poisoning to stay in MITM position, TTL manipulation to keep DNS cache poisoned, or rotating spoofed source IPs to complicate DDoS mitigation.', icon: '/assets/images/icons/icon-refresh.webp' }
             ]
         },
         defense: {
@@ -2724,7 +2724,7 @@ const ThreatAppletData = {
     SOCIAL_ENGINEERING_TACTICS: {
         code: 'SOCIAL_ENGINEERING_TACTICS',
         title: 'Advanced Social Engineering Tactics',
-        icon: '\u{1F9E0}',
+        icon: '/assets/images/icons/icon-brain.webp',
         severity: 'high',
         color: '#a855f7',
         description: 'Advanced tactical social engineering methods — pretexting, baiting, tailgating, quid pro quo, and watering hole attacks — with operational depth beyond basic phishing awareness.',
@@ -2751,12 +2751,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Advanced Social Engineering Operation',
             steps: [
-                { phase: 'OSINT & Target Profiling', description: 'Deep reconnaissance: LinkedIn for org structure and relationships, social media for personal interests and habits, corporate website for technology stack, FOIA/public records for contracts, dark web for breached credentials. Build a comprehensive target dossier.', icon: '\u{1F50D}' },
-                { phase: 'Pretext Construction', description: 'Build a believable identity with supporting evidence: create LinkedIn/social media profiles, register a lookalike domain, obtain business cards and branded materials, set up a spoofed caller ID, and rehearse the backstory to handle unexpected questions.', icon: '\u{1F3AD}' },
-                { phase: 'Access Channel Selection', description: 'Choose the optimal attack channel based on the target profile: phone vishing (authority-responsive targets), physical tailgating (poor badge discipline), USB baiting (curious tech workers), watering hole (security-conscious groups who avoid phishing).', icon: '\u{1F4F1}' },
-                { phase: 'Trust Establishment', description: 'Initiate contact and build trust over time: initial "warm" contact establishes familiarity, follow-up interactions deepen trust, name-dropping colleagues and referencing real projects builds credibility. May span days or weeks.', icon: '\u{1F91D}' },
-                { phase: 'Exploitation Trigger', description: 'Execute the attack when trust is established and conditions are right: request credentials during a "crisis," drop USB drives before a company event, tailgate during a busy entry period, or activate the watering hole exploit when target employees visit the compromised site.', icon: '\u{26A1}' },
-                { phase: 'Operational Exit', description: 'Cleanly disengage without raising suspicion: close the pretext scenario naturally, remove or abandon the fake identity, and cover operational traces. The target may never realize they were manipulated.', icon: '\u{1F6B6}' }
+                { phase: 'OSINT & Target Profiling', description: 'Deep reconnaissance: LinkedIn for org structure and relationships, social media for personal interests and habits, corporate website for technology stack, FOIA/public records for contracts, dark web for breached credentials. Build a comprehensive target dossier.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Pretext Construction', description: 'Build a believable identity with supporting evidence: create LinkedIn/social media profiles, register a lookalike domain, obtain business cards and branded materials, set up a spoofed caller ID, and rehearse the backstory to handle unexpected questions.', icon: '/assets/images/icons/icon-mask.webp' },
+                { phase: 'Access Channel Selection', description: 'Choose the optimal attack channel based on the target profile: phone vishing (authority-responsive targets), physical tailgating (poor badge discipline), USB baiting (curious tech workers), watering hole (security-conscious groups who avoid phishing).', icon: '/assets/images/icons/icon-mobile.webp' },
+                { phase: 'Trust Establishment', description: 'Initiate contact and build trust over time: initial "warm" contact establishes familiarity, follow-up interactions deepen trust, name-dropping colleagues and referencing real projects builds credibility. May span days or weeks.', icon: '/assets/images/icons/icon-handshake.webp' },
+                { phase: 'Exploitation Trigger', description: 'Execute the attack when trust is established and conditions are right: request credentials during a "crisis," drop USB drives before a company event, tailgate during a busy entry period, or activate the watering hole exploit when target employees visit the compromised site.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Operational Exit', description: 'Cleanly disengage without raising suspicion: close the pretext scenario naturally, remove or abandon the fake identity, and cover operational traces. The target may never realize they were manipulated.', icon: '/assets/images/icons/icon-footprint.webp' }
             ]
         },
         defense: {
@@ -2832,7 +2832,7 @@ const ThreatAppletData = {
     ATTACKS_MALWARE: {
         code: 'ATTACKS_MALWARE',
         title: 'Attacks & Malware Overview',
-        icon: '\u{1F6A8}',
+        icon: '/assets/images/icons/icon-siren.webp',
         severity: 'critical',
         color: '#ef4444',
         description: 'A comprehensive taxonomy of cyber attacks and malware types — understanding the threat landscape from delivery to impact.',
@@ -2861,13 +2861,13 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Cyber Kill Chain — Attack Lifecycle',
             steps: [
-                { phase: 'Reconnaissance', description: 'Attacker gathers intelligence on the target: OSINT from social media, DNS records, job postings revealing tech stack, Shodan/Censys for exposed services, LinkedIn for employee roles and org structure. Both passive (no direct contact) and active (port scanning, vulnerability scanning) reconnaissance.', icon: '\u{1F50D}' },
-                { phase: 'Weaponization', description: 'Attacker couples a remote access trojan (RAT) with an exploit into a deliverable payload. This might be a weaponized Office document with a macro dropper, a trojanized PDF exploiting a reader vulnerability, or a custom implant compiled for the target\'s specific OS and architecture. The payload is tested against common AV engines.', icon: '\u{2692}' },
-                { phase: 'Delivery', description: 'The weaponized payload is transmitted to the target via phishing emails (spear phishing for high-value targets), compromised websites (watering holes), malicious advertisements (malvertising), supply chain injection, or physical media (USB drops). The delivery method is chosen based on reconnaissance findings.', icon: '\u{1F4E8}' },
-                { phase: 'Exploitation', description: 'The weapon triggers and exploits a vulnerability: a user opens a macro-enabled document, clicks a malicious link, or a server-side vulnerability is triggered. This could be a known CVE with a public exploit, a zero-day, or simply social engineering that convinces the user to execute malicious code willingly.', icon: '\u{1F4A5}' },
-                { phase: 'Installation', description: 'Malware installs itself and establishes persistence: registry run keys, scheduled tasks, DLL hijacking, WMI event subscriptions, bootkit installation, or service creation. Modern malware often uses fileless techniques, living entirely in memory or abusing legitimate system processes (LOLBins).', icon: '\u{1F4E5}' },
-                { phase: 'Command & Control (C2)', description: 'The implant establishes communication with attacker infrastructure: HTTPS beaconing to cloud-fronted domains, DNS tunneling, social media dead drops, or traffic hidden in legitimate protocols. C2 provides the attacker with an interactive session to issue commands, upload additional tools, and pivot deeper into the network.', icon: '\u{1F4E1}' },
-                { phase: 'Actions on Objectives', description: 'The attacker achieves their goal: data exfiltration (intellectual property, PII, credentials), ransomware deployment and encryption, destructive attacks (wipers like NotPetya), cryptocurrency mining, establishing persistent backdoors for future campaigns, or using the compromised network as a launchpad for attacks on other targets.', icon: '\u{1F3AF}' }
+                { phase: 'Reconnaissance', description: 'Attacker gathers intelligence on the target: OSINT from social media, DNS records, job postings revealing tech stack, Shodan/Censys for exposed services, LinkedIn for employee roles and org structure. Both passive (no direct contact) and active (port scanning, vulnerability scanning) reconnaissance.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Weaponization', description: 'Attacker couples a remote access trojan (RAT) with an exploit into a deliverable payload. This might be a weaponized Office document with a macro dropper, a trojanized PDF exploiting a reader vulnerability, or a custom implant compiled for the target\'s specific OS and architecture. The payload is tested against common AV engines.', icon: '/assets/images/icons/icon-tools.webp' },
+                { phase: 'Delivery', description: 'The weaponized payload is transmitted to the target via phishing emails (spear phishing for high-value targets), compromised websites (watering holes), malicious advertisements (malvertising), supply chain injection, or physical media (USB drops). The delivery method is chosen based on reconnaissance findings.', icon: '/assets/images/icons/icon-email.webp' },
+                { phase: 'Exploitation', description: 'The weapon triggers and exploits a vulnerability: a user opens a macro-enabled document, clicks a malicious link, or a server-side vulnerability is triggered. This could be a known CVE with a public exploit, a zero-day, or simply social engineering that convinces the user to execute malicious code willingly.', icon: '/assets/images/icons/icon-explosion.webp' },
+                { phase: 'Installation', description: 'Malware installs itself and establishes persistence: registry run keys, scheduled tasks, DLL hijacking, WMI event subscriptions, bootkit installation, or service creation. Modern malware often uses fileless techniques, living entirely in memory or abusing legitimate system processes (LOLBins).', icon: '/assets/images/icons/icon-folder.webp' },
+                { phase: 'Command & Control (C2)', description: 'The implant establishes communication with attacker infrastructure: HTTPS beaconing to cloud-fronted domains, DNS tunneling, social media dead drops, or traffic hidden in legitimate protocols. C2 provides the attacker with an interactive session to issue commands, upload additional tools, and pivot deeper into the network.', icon: '/assets/images/icons/icon-antenna.webp' },
+                { phase: 'Actions on Objectives', description: 'The attacker achieves their goal: data exfiltration (intellectual property, PII, credentials), ransomware deployment and encryption, destructive attacks (wipers like NotPetya), cryptocurrency mining, establishing persistent backdoors for future campaigns, or using the compromised network as a launchpad for attacks on other targets.', icon: '/assets/images/icons/icon-target.webp' }
             ]
         },
         defense: {
@@ -2944,7 +2944,7 @@ const ThreatAppletData = {
     THREAT_ACTORS: {
         code: 'THREAT_ACTORS',
         title: 'Threat Actor Taxonomy',
-        icon: '\u{1F3AD}',
+        icon: '/assets/images/icons/icon-mask.webp',
         severity: 'high',
         color: '#f59e0b',
         description: 'Classification of cyber threat actors by motivation, capability, and sophistication — from script kiddies to nation-state APT groups.',
@@ -2973,12 +2973,12 @@ const ThreatAppletData = {
         attackFlow: {
             title: 'Threat Actor Campaign Lifecycle',
             steps: [
-                { phase: 'Actor Identification', description: 'Threat intelligence teams classify the adversary based on observed TTPs (Tactics, Techniques, and Procedures), infrastructure patterns, malware families, and targeting preferences. MITRE ATT&CK groups catalog provides profiles of 130+ known threat groups with associated techniques and software.', icon: '\u{1F50D}' },
-                { phase: 'Capability Assessment', description: 'Evaluate the actor\'s technical sophistication: do they use commodity malware (low), custom tooling (medium), or zero-day exploits and firmware implants (high)? Assess operational security — do they reuse infrastructure (sloppy) or use disposable, compartmentalized operations (sophisticated)? Resource estimation: nation-states have virtually unlimited budgets; script kiddies have $0.', icon: '\u{1F4CA}' },
-                { phase: 'Intent Analysis', description: 'Determine the actor\'s motivation: espionage (data theft for strategic advantage), financial (ransomware, fraud, crypto theft), destructive (wipers, sabotage), ideological (hacktivism, information operations), or personal (insider revenge, thrill-seeking). Motivation shapes targeting and acceptable risk — a nation-state will invest months for one target; a criminal will attack thousands hoping for one payout.', icon: '\u{1F9E0}' },
-                { phase: 'Target Selection', description: 'Actors choose targets based on opportunity, value, and alignment with objectives. Nation-states target defense, government, energy, and critical infrastructure. Organized crime targets organizations with valuable data and weak security. Hacktivists target organizations opposed to their ideology. Insiders already have access to their target. Target selection reveals actor identity.', icon: '\u{1F3AF}' },
-                { phase: 'Campaign Execution', description: 'The actor deploys their capabilities against chosen targets using their preferred TTPs: spear phishing and custom implants (nation-state), phishing kits and ransomware-as-a-service (cybercrime), DDoS and defacement tools (hacktivists), or credential abuse and data download (insiders). Campaigns may be single operations or sustained over months/years.', icon: '\u{26A1}' },
-                { phase: 'Attribution Challenges', description: 'Determining who conducted an attack is extremely difficult. Sophisticated actors use false flags (planting another group\'s malware), shared tooling (open-source tools used by everyone), compromised third-party infrastructure (attacks appear to come from an innocent organization), and operational security that destroys forensic evidence. Attribution often requires signals intelligence, human intelligence, or law enforcement cooperation — not just technical analysis.', icon: '\u{2753}' }
+                { phase: 'Actor Identification', description: 'Threat intelligence teams classify the adversary based on observed TTPs (Tactics, Techniques, and Procedures), infrastructure patterns, malware families, and targeting preferences. MITRE ATT&CK groups catalog provides profiles of 130+ known threat groups with associated techniques and software.', icon: '/assets/images/icons/icon-magnifier.webp' },
+                { phase: 'Capability Assessment', description: 'Evaluate the actor\'s technical sophistication: do they use commodity malware (low), custom tooling (medium), or zero-day exploits and firmware implants (high)? Assess operational security — do they reuse infrastructure (sloppy) or use disposable, compartmentalized operations (sophisticated)? Resource estimation: nation-states have virtually unlimited budgets; script kiddies have $0.', icon: '/assets/images/icons/icon-barchart.webp' },
+                { phase: 'Intent Analysis', description: 'Determine the actor\'s motivation: espionage (data theft for strategic advantage), financial (ransomware, fraud, crypto theft), destructive (wipers, sabotage), ideological (hacktivism, information operations), or personal (insider revenge, thrill-seeking). Motivation shapes targeting and acceptable risk — a nation-state will invest months for one target; a criminal will attack thousands hoping for one payout.', icon: '/assets/images/icons/icon-brain.webp' },
+                { phase: 'Target Selection', description: 'Actors choose targets based on opportunity, value, and alignment with objectives. Nation-states target defense, government, energy, and critical infrastructure. Organized crime targets organizations with valuable data and weak security. Hacktivists target organizations opposed to their ideology. Insiders already have access to their target. Target selection reveals actor identity.', icon: '/assets/images/icons/icon-target.webp' },
+                { phase: 'Campaign Execution', description: 'The actor deploys their capabilities against chosen targets using their preferred TTPs: spear phishing and custom implants (nation-state), phishing kits and ransomware-as-a-service (cybercrime), DDoS and defacement tools (hacktivists), or credential abuse and data download (insiders). Campaigns may be single operations or sustained over months/years.', icon: '/assets/images/icons/icon-lightning.webp' },
+                { phase: 'Attribution Challenges', description: 'Determining who conducted an attack is extremely difficult. Sophisticated actors use false flags (planting another group\'s malware), shared tooling (open-source tools used by everyone), compromised third-party infrastructure (attacks appear to come from an innocent organization), and operational security that destroys forensic evidence. Attribution often requires signals intelligence, human intelligence, or law enforcement cooperation — not just technical analysis.', icon: '/assets/images/icons/icon-magnifier.webp' }
             ]
         },
         defense: {

@@ -87,7 +87,7 @@ const A12Config = {
         {
             id: 'recon',
             name: 'Reconnaissance',
-            icon: '🔭',
+            icon: '<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             description: 'Identify the target application, gather metadata, and map the attack surface. Examine the APK file, enumerate permissions, and review the network status page for intel.',
             requiredFlags: [],
             mitre: ['T1422', 'T1418'],
@@ -99,7 +99,7 @@ const A12Config = {
         {
             id: 'apk-analysis',
             name: 'APK Analysis',
-            icon: '🔬',
+            icon: '<img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Decompile the APK using apktool and jadx. Examine AndroidManifest.xml for exported components, dangerous permissions, and security misconfigurations. Review network security config.',
             requiredFlags: [],
             mitre: ['T1409', 'T1406'],
@@ -111,7 +111,7 @@ const A12Config = {
         {
             id: 'secret-extraction',
             name: 'Code Review / Secret Extraction',
-            icon: '🗝️',
+            icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Analyze decompiled Java source for hardcoded credentials, API keys, and insecure data storage patterns. Extract secrets from SharedPreferences and identify the XOR cipher weakness.',
             requiredFlags: [],
             mitre: ['T1552', 'T1417'],
@@ -123,7 +123,7 @@ const A12Config = {
         {
             id: 'backend-exploitation',
             name: 'Backend Exploitation',
-            icon: '💀',
+            icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             description: 'Use extracted API credentials to authenticate against the Digital Nomads API. Exploit the unguarded ContentProvider to dump the safehouse manifest database and retrieve the root flag.',
             requiredFlags: ['user'],
             mitre: ['T1059', 'T1190'],
@@ -718,7 +718,7 @@ public class CryptoUtil {
                 title: 'Digital Nomads — Network Status',
                 html: `
                     <div style="text-align:center; margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid #1a352e;">
-                        <div style="font-size:2rem; margin-bottom:8px;">&#127757;</div>
+                        <div style="font-size:2rem; margin-bottom:8px;"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                         <h1 style="color:#3DDC84; font-size:1.5rem; font-family:Georgia,serif; margin-bottom:4px; letter-spacing:0.05em;">Digital Nomads</h1>
                         <div style="color:#6abf8a; font-size:0.75rem; letter-spacing:0.2em; text-transform:uppercase;">Network Status &mdash; Operational Dashboard</div>
                     </div>
@@ -758,7 +758,7 @@ public class CryptoUtil {
                         </div>
 
                         <div style="background:#071a12; border:1px solid #1a3a20; border-radius:6px; padding:14px;">
-                            <div style="color:#f39c12; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;">&#9888; Internal Notice</div>
+                            <div style="color:#f39c12; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Internal Notice</div>
                             <div style="color:#456b63; font-size:0.72rem; line-height:1.6;">
                                 The Voyager APK contains <span style="color:#e74c3c;">hardcoded credentials</span> and an <span style="color:#e74c3c;">exported ContentProvider</span> without permission guards.
                                 These are scheduled for remediation in the v3.0 security sprint. Until then, the APK should be considered a <em>high-value target</em> if obtained by adversaries.
@@ -777,7 +777,7 @@ public class CryptoUtil {
                 title: 'Digital Nomads — API Documentation',
                 html: `
                     <div style="border-bottom:1px solid #1a352e; padding-bottom:16px; margin-bottom:22px;">
-                        <h2 style="color:#3DDC84; font-size:1.1rem; margin:0 0 4px; font-family:Georgia,serif;">&#127757; Nomad API Reference</h2>
+                        <h2 style="color:#3DDC84; font-size:1.1rem; margin:0 0 4px; font-family:Georgia,serif;"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Nomad API Reference</h2>
                         <div style="color:#456b63; font-size:0.7rem; letter-spacing:0.1em;">VERSION 2.4.1 &mdash; INTERNAL USE ONLY</div>
                     </div>
 
@@ -804,7 +804,7 @@ content://com.nomads.voyager.provider/safehouse/{id}</pre>
                         </div>
 
                         <div style="background:#071a12; border:1px solid #1a3a20; border-radius:6px; padding:14px;">
-                            <div style="color:#f39c12; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;">&#9888; Security Notes</div>
+                            <div style="color:#f39c12; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Security Notes</div>
                             <div style="color:#456b63; font-size:0.72rem; line-height:1.6;">
                                 &bull; API key is hardcoded in <code style="color:#3DDC84;">ApiClient.java</code> (line 12)<br>
                                 &bull; SharedPreferences uses <code style="color:#3DDC84;">MODE_WORLD_READABLE</code> (deprecated since API 17)<br>

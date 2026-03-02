@@ -384,7 +384,7 @@ class HouseProgressPanel {
         if (progressPercent >= 100) {
             nextModuleHTML = `
                 <div class="hpp-complete">
-                    <div class="hpp-complete-icon">🏆</div>
+                    <div class="hpp-complete-icon"><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div>
                     <div class="hpp-complete-text">House Mastery Complete!</div>
                     <div class="hpp-complete-subtext">You've completed all modules in ${name}</div>
                 </div>
@@ -424,11 +424,11 @@ class HouseProgressPanel {
         this.panel.innerHTML = `
             <div class="hpp-header">
                 <div class="hpp-title">
-                    <span class="hpp-title-icon">📊</span>
+                    <span class="hpp-title-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                     <span class="hpp-title-text">Your Progress</span>
                 </div>
                 <div class="hpp-level-badge">
-                    <span class="level-icon">⭐</span>
+                    <span class="level-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                     <span class="level-text">Level ${profile.level}</span>
                 </div>
             </div>
@@ -485,11 +485,11 @@ class HouseProgressPanel {
      */
     getTypeLabel(type) {
         const labels = {
-            presentation: '📊 Slides',
-            quiz: '📝 Quiz',
-            lab: '🧪 Lab',
-            applet: '🎮 Interactive',
-            tool: '🔧 Tool'
+            presentation: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Slides',
+            quiz: '<img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Quiz',
+            lab: '<img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Lab',
+            applet: '<img src="/assets/images/icons/icon-joystick.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Interactive',
+            tool: '<img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Tool'
         };
         return labels[type] || type;
     }

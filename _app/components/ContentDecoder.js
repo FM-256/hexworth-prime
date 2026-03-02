@@ -12,7 +12,7 @@
  *
  * Usage:
  *   <div class="protected-content" data-payload="[encoded]" data-salt="[salt]">
- *       <div class="content-locked">🔒 Content Protected</div>
+ *       <div class="content-locked"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Content Protected</div>
  *   </div>
  *
  *   <script>
@@ -214,7 +214,7 @@ const ContentDecoder = (function() {
             // Show decryption failed message
             element.innerHTML = `
                 <div class="decode-error">
-                    <span class="error-icon">⚠️</span>
+                    <span class="error-icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                     <span class="error-text">Content verification failed</span>
                 </div>
             `;

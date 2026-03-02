@@ -454,7 +454,7 @@ The archivists have no IDS. They have no log monitoring. They have a cron job th
             '/archive/images/': {
                 title: 'Archive Image Repository \u2014 Ashen Archive',
                 html: `<div style="font-size:0.82rem; max-width:600px; margin:0 auto;">
-                    <div style="color:#e74c3c; font-size:1rem; font-weight:bold; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #4a1a1a;">&#128247; Artifact Image Repository</div>
+                    <div style="color:#e74c3c; font-size:1rem; font-weight:bold; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #4a1a1a;"><img src="/assets/images/icons/icon-picture.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Artifact Image Repository</div>
                     <div style="background:#1a0808; border:1px solid #4a1a1a; border-radius:4px; padding:14px; margin-bottom:12px; font-size:0.78rem; color:#aaa; line-height:1.8;">
                         <div style="color:#888; font-size:0.65rem; letter-spacing:0.1em; margin-bottom:8px;">STORED IMAGES</div>
                         <div style="font-family:monospace;">banner_scroll.jpg &mdash; 84KB &mdash; 2024-01-15</div>

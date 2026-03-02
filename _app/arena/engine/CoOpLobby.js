@@ -53,12 +53,12 @@ const CoOpLobby = (function() {
                 <div class="coop-lobby-subtitle">Choose your mission type</div>
                 <div class="coop-lobby-modes">
                     <button class="coop-mode-btn" id="coopBtnSolo">
-                        <span class="coop-mode-icon">&#128373;</span>
+                        <span class="coop-mode-icon"><img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                         <span class="coop-mode-label">Solo Ops</span>
                         <span class="coop-mode-desc">Hack alone. Full credit.</span>
                     </button>
                     <button class="coop-mode-btn coop-mode-highlight" id="coopBtnCoop">
-                        <span class="coop-mode-icon">&#9876;</span>
+                        <span class="coop-mode-icon"><img src="/assets/images/icons/icon-swords.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
                         <span class="coop-mode-label">Co-Op</span>
                         <span class="coop-mode-desc">Team up. Shared mission.</span>
                     </button>

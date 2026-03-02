@@ -20,7 +20,7 @@ class SkillTreeData {
                     id: 'security_analyst',
                     name: 'Security Analyst Path',
                     description: 'Combine monitoring and security fundamentals',
-                    icon: '🔍',
+                    icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#8b5cf6',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'shield', value: 50 },
@@ -38,7 +38,7 @@ class SkillTreeData {
                     id: 'cloud_security',
                     name: 'Cloud Security Specialist',
                     description: 'Secure cloud infrastructure',
-                    icon: '🔒☁️',
+                    icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#06b6d4',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'cloud', value: 60 },
@@ -56,7 +56,7 @@ class SkillTreeData {
                     id: 'devops_engineer',
                     name: 'DevOps Engineer Path',
                     description: 'Master CI/CD and infrastructure automation',
-                    icon: '🚀',
+                    icon: '<img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#ec4899',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'code', value: 70 },
@@ -74,7 +74,7 @@ class SkillTreeData {
                     id: 'network_engineer',
                     name: 'Network Engineer Path',
                     description: 'Advanced networking and architecture',
-                    icon: '🌐',
+                    icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#3b82f6',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'web', value: 80 },
@@ -92,7 +92,7 @@ class SkillTreeData {
                     id: 'systems_admin',
                     name: 'Systems Administrator Path',
                     description: 'Enterprise systems management',
-                    icon: '🖥️',
+                    icon: '<img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#f97316',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'forge', value: 60 },
@@ -110,7 +110,7 @@ class SkillTreeData {
                     id: 'cryptographer',
                     name: 'Cryptographer Path',
                     description: 'Advanced cryptographic concepts',
-                    icon: '🔐',
+                    icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#eab308',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'key', value: 80 },
@@ -129,7 +129,7 @@ class SkillTreeData {
                     id: 'pentester',
                     name: 'Penetration Tester Path',
                     description: 'Offensive security and ethical hacking',
-                    icon: '🎯',
+                    icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#ef4444',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'shield', value: 70 },
@@ -149,7 +149,7 @@ class SkillTreeData {
                     id: 'incident_responder',
                     name: 'Incident Responder Path',
                     description: 'Handle security incidents like a pro',
-                    icon: '🚨',
+                    icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#dc2626',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'eye', value: 70 },
@@ -169,7 +169,7 @@ class SkillTreeData {
                     id: 'master_class',
                     name: 'Master Class Access',
                     description: 'Advanced topics for dedicated learners',
-                    icon: '👑',
+                    icon: '<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                     color: '#fbbf24',
                     prerequisites: [
                         { type: 'level', value: 15 }
@@ -187,7 +187,7 @@ class SkillTreeData {
                     id: 'dark_arts_initiate',
                     name: 'Dark Arts Initiate',
                     description: 'Begin the path to understanding malware',
-                    icon: '💀',
+                    icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                     color: '#1f2937',
                     prerequisites: [
                         { type: 'house_progress', houseId: 'shield', value: 80 },

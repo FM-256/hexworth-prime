@@ -269,7 +269,7 @@ window.ReviewEngine = (function () {
         // Daily Double banner
         if (isDD) {
             var ddBanner = el('div', 'review-dd-banner');
-            ddBanner.innerHTML = '&#9733; DAILY DOUBLE &#9733;';
+            ddBanner.innerHTML = '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DAILY DOUBLE <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
             modal.appendChild(ddBanner);
         }
 
@@ -398,7 +398,7 @@ window.ReviewEngine = (function () {
         var modal = el('div', 'review-modal');
 
         var title = el('div', 'review-fj-title');
-        title.innerHTML = '&#9733; FINAL JEOPARDY &#9733;';
+        title.innerHTML = '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> FINAL JEOPARDY <img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
         modal.appendChild(title);
 
         var subtitle = el('div', 'review-modal-category');

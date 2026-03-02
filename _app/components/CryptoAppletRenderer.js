@@ -346,7 +346,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
             <div class="cr-step-head">
                 <span class="cr-step-num ${isViewed ? 'viewed' : ''}">${idx + 1}</span>
                 <span class="cr-step-title">${s.title}</span>
-                <span class="cr-step-toggle">&#9654;</span>
+                <span class="cr-step-toggle"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
             </div>
             <div class="cr-step-body">
                 <div class="cr-step-desc">${s.description}</div>
@@ -836,7 +836,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         el.innerHTML = '<p style="color:#94a3b8;font-size:.85rem;margin-bottom:1rem">Click each certificate to explore its contents and follow the chain of trust.</p>' +
             certs.map((c, i) => '<div class="cr-step" style="border-left:3px solid ' + c.color + '"><div class="cr-step-head">' +
                 '<span class="cr-step-num" style="background:' + c.color + '22;color:' + c.color + '">' + (i + 1) + '</span>' +
-                '<span class="cr-step-title">' + c.level + ': ' + c.name + '</span><span class="cr-step-toggle">&#9654;</span></div>' +
+                '<span class="cr-step-title">' + c.level + ': ' + c.name + '</span><span class="cr-step-toggle"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span></div>' +
                 '<div class="cr-step-body"><div style="display:grid;gap:.5rem;margin-top:1rem">' +
                 ['Subject: ' + c.name, 'Issuer: ' + c.issuer, 'Algorithm: ' + c.algo, 'Validity: ' + c.validity,
                  'Trust: ' + (i === 0 ? 'Pre-installed in browser/OS trust store' : 'Signed by ' + certs[i - 1].name)
@@ -858,7 +858,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         el.innerHTML = '<p style="color:#94a3b8;font-size:.85rem;margin-bottom:1rem">Click each stage to walk through a TLS 1.3 handshake:</p>' +
             stages.map((s, i) => '<div class="cr-step" style="border-left:3px solid ' + s.color + '"><div class="cr-step-head">' +
                 '<span class="cr-step-num" style="background:' + s.color + '22;color:' + s.color + '">' + (i + 1) + '</span>' +
-                '<span class="cr-step-title">' + s.from + ' &rarr; ' + s.to + ': ' + s.label + '</span><span class="cr-step-toggle">&#9654;</span></div>' +
+                '<span class="cr-step-title">' + s.from + ' &rarr; ' + s.to + ': ' + s.label + '</span><span class="cr-step-toggle"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span></div>' +
                 '<div class="cr-step-body"><div class="cr-step-desc">' + s.desc + '</div></div></div>').join('') +
             '<div class="cr-sim-status" style="margin-top:1rem">Total: 1-RTT (one round trip). TLS 1.2 required 2-RTT.</div>';
         el.querySelectorAll('.cr-step-head').forEach(head => { head.addEventListener('click', () => head.parentElement.classList.toggle('open')); });

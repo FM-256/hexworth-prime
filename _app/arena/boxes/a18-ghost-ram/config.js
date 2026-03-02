@@ -114,7 +114,7 @@ const A18Config = {
         {
             id: 'phase1',
             name: 'Recon — Acquire & Profile',
-            icon: '🔍',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             order: 1,
             mitre: ['T1082'],
             objective: 'Identify the OS profile from the memory image so Volatility knows how to parse kernel structures.',
@@ -130,7 +130,7 @@ const A18Config = {
         {
             id: 'phase2',
             name: 'Process Analysis — Hunt the Ghost',
-            icon: '👻',
+            icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             order: 2,
             mitre: ['T1057', 'T1055'],
             objective: 'Enumerate all processes and identify the malicious implant by its parent PID anomaly and suspicious name.',
@@ -147,7 +147,7 @@ const A18Config = {
         {
             id: 'phase3',
             name: 'Memory Extraction — Pull the Credentials',
-            icon: '🗄️',
+            icon: '<img src="/assets/images/icons/icon-cabinet.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             order: 3,
             mitre: ['T1003.001', 'T1055'],
             objective: 'Extract injected code artifacts, network connections, and credential material from volatile memory.',
@@ -165,7 +165,7 @@ const A18Config = {
         {
             id: 'phase4',
             name: 'Evidence Correlation — Recover the Briefing',
-            icon: '📋',
+            icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             order: 4,
             mitre: ['T1005', 'T1003'],
             objective: 'Reconstruct the classified Intel Briefing from the notepad.exe process heap — the root flag lives here.',
@@ -183,7 +183,7 @@ const A18Config = {
         {
             id: 'phase5',
             name: 'Report — Reconstruct the Timeline',
-            icon: '📊',
+            icon: '<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             order: 5,
             mitre: ['T1082', 'T1057', 'T1055', 'T1003.001', 'T1005', 'T1547.001'],
             objective: 'Synthesize all findings into a complete attack timeline from initial execution to data access.',

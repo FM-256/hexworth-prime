@@ -129,7 +129,7 @@ const CoOpUI = (function() {
     function _buildToggleButton() {
         _toggleBtn = document.createElement('button');
         _toggleBtn.className = 'coop-toggle-btn';
-        _toggleBtn.innerHTML = '&#9876;'; // Crossed swords
+        _toggleBtn.innerHTML = '<img src="/assets/images/icons/icon-swords.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'; // Crossed swords
         _toggleBtn.title = 'Toggle Co-Op Panel';
         _toggleBtn.addEventListener('click', () => toggle());
 

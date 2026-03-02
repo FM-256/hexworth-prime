@@ -37,7 +37,7 @@ const FileTreeExplorer = {
             <div class="file-tree-explorer">
                 <div class="fte-header">
                     <div class="fte-title">
-                        <span class="fte-icon">⚡</span>
+                        <span class="fte-icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                         <span class="fte-name">FACTIONLESS EXPLORER</span>
                     </div>
                     <div class="fte-stats">
@@ -106,7 +106,7 @@ const FileTreeExplorer = {
             const childPrefix = isLast ? '    ' : '│   ';
 
             const folderLocked = folder.locked;
-            const folderIcon = folderLocked ? '🔒' : (isExpanded ? '📂' : '📁');
+            const folderIcon = folderLocked ? '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : (isExpanded ? '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : '<img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">');
 
             let folderHtml = `
                 <div class="fte-folder ${folderLocked ? 'locked' : ''}"
@@ -143,7 +143,7 @@ const FileTreeExplorer = {
             let statusClass = 'available';
 
             if (isLocked) {
-                statusIcon = '❓';
+                statusIcon = '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
                 statusClass = 'locked';
             } else if (isCompleted) {
                 statusIcon = '✓';
@@ -158,7 +158,7 @@ const FileTreeExplorer = {
                      data-content-id="${item.contentId || ''}"
                      ${isLocked ? 'data-locked="true"' : ''}>
                     <span class="fte-prefix">${itemPrefix}</span>
-                    <span class="fte-item-icon">📄</span>
+                    <span class="fte-item-icon"><img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
                     <span class="fte-item-name">${displayFile}</span>
                     <span class="fte-item-status">${statusIcon}</span>
                     <span class="fte-item-title">${displayTitle}</span>

@@ -352,7 +352,7 @@ const A9Config = {
                 title: 'Forge Remnants — Debug Console',
                 html: `
                     <div style="text-align:center; margin-bottom:24px; padding-bottom:18px; border-bottom:2px solid #e67e22;">
-                        <div style="font-size:1.8rem; margin-bottom:4px;">&#9881;</div>
+                        <div style="font-size:1.8rem; margin-bottom:4px;"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                         <h1 style="color:#e67e22; font-size:1.4rem; font-family:Georgia,serif; margin-bottom:4px;">Debug Console</h1>
                         <div style="background:#c0392b; color:#fff; display:inline-block; padding:2px 10px; border-radius:3px; font-size:0.7rem; font-weight:700; letter-spacing:0.1em; margin-top:4px;">ADMIN ONLY</div>
                     </div>
@@ -549,7 +549,7 @@ const A9Config = {
     _adminDashboardHtml(username) {
         return `
             <div style="background:#fef9e7; border:1px solid #f9d35e; border-radius:5px; padding:14px; margin-bottom:16px;">
-                <div style="color:#b7950b; font-weight:700; font-size:0.88rem; margin-bottom:4px;">&#9888; ADMIN SESSION ACTIVE</div>
+                <div style="color:#b7950b; font-weight:700; font-size:0.88rem; margin-bottom:4px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ADMIN SESSION ACTIVE</div>
                 <div style="font-size:0.78rem; color:#555;">
                     User: <strong>${A9Config._escHtml(username)}</strong> &nbsp;|&nbsp;
                     Role: <span style="background:#fdebd0; color:#c0722a; padding:1px 7px; border-radius:10px; font-size:0.7rem; font-weight:700; border:1px solid #e59866;">admin</span> &nbsp;|&nbsp;
@@ -599,7 +599,7 @@ const A9Config = {
             </div>
 
             <div style="background:#1a1a1a; border:1px solid #c0392b; border-radius:5px; padding:14px; margin-bottom:14px;">
-                <div style="color:#e74c3c; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px;">&#128274; Restricted — Admin Eyes Only</div>
+                <div style="color:#e74c3c; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px;"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Restricted — Admin Eyes Only</div>
                 <div style="font-family:monospace; font-size:0.8rem; color:#00ff88; background:#0d0d0d; padding:10px; border-radius:3px;">
                     <div style="color:#888; margin-bottom:4px;"># /home/www-data/user.txt</div>
                     <div style="color:#2ecc71; font-weight:700;">flag{rust3d_l0ck_d3s3r14l1z3d}</div>
@@ -773,7 +773,7 @@ const A9Config = {
 
         return `
             <div style="background:#1a1a1a; border:1px solid #2ecc71; border-radius:5px; padding:14px;">
-                <div style="color:#2ecc71; font-weight:700; font-size:0.82rem; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.08em;">&#9889; RCE — Command Executed via __wakeup()</div>
+                <div style="color:#2ecc71; font-weight:700; font-size:0.82rem; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.08em;"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> RCE — Command Executed via __wakeup()</div>
                 <div style="color:#888; font-size:0.7rem; margin-bottom:10px;">Class: RCE &nbsp;|&nbsp; Context: root &nbsp;|&nbsp; Magic method: __wakeup()</div>
                 <div style="background:#0d0d0d; border-radius:3px; padding:10px; margin-bottom:10px;">
                     <div style="color:#e67e22; font-size:0.72rem; font-family:monospace; margin-bottom:4px;">root@forge-portal:~# ${A9Config._escHtml(cmdValue)}</div>
@@ -1188,9 +1188,9 @@ Finished`;
     _alertHtml(type, message) {
         const styles = {
             error:   { bg: 'rgba(231,76,60,0.08)',    border: 'rgba(231,76,60,0.2)',    color: '#c0392b', icon: '&#10007;', label: 'Error' },
-            warning: { bg: 'rgba(230,126,34,0.08)',   border: 'rgba(230,126,34,0.3)',   color: '#e67e22', icon: '&#9888;',  label: 'Warning' },
+            warning: { bg: 'rgba(230,126,34,0.08)',   border: 'rgba(230,126,34,0.3)',   color: '#e67e22', icon: '<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',  label: 'Warning' },
             success: { bg: 'rgba(46,204,113,0.08)',   border: 'rgba(46,204,113,0.2)',   color: '#1e8449', icon: '&#10003;', label: 'Success' },
-            info:    { bg: 'rgba(52,152,219,0.08)',   border: 'rgba(52,152,219,0.2)',   color: '#2980b9', icon: '&#9432;',  label: 'Info' }
+            info:    { bg: 'rgba(52,152,219,0.08)',   border: 'rgba(52,152,219,0.2)',   color: '#2980b9', icon: '<img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',  label: 'Info' }
         };
         const s = styles[type] || styles.info;
         return `<div style="background:${s.bg}; border:1px solid ${s.border}; border-radius:4px; padding:10px 14px; font-size:0.8rem; color:${s.color};">

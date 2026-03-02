@@ -14,7 +14,7 @@ class Sanctuary {
     static TYPES = {
         STANDARD: {
             name: 'Sanctuary',
-            symbol: '☮',
+            symbol: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             color: '#22c55e',
             glowColor: 'rgba(34, 197, 94, 0.4)',
             radius: 100,
@@ -24,7 +24,7 @@ class Sanctuary {
         },
         ANCIENT: {
             name: 'Ancient Grove',
-            symbol: '🌳',
+            symbol: '<img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             color: '#84cc16',
             glowColor: 'rgba(132, 204, 22, 0.5)',
             radius: 150,
@@ -186,7 +186,7 @@ class Sanctuary {
 
         if (this.opacity >= 1) {
             this.state = 'active';
-            console.log(`☮️ ${this.type.name} is now active`);
+            console.log(`<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${this.type.name} is now active`);
         }
     }
 
@@ -485,7 +485,7 @@ class SanctuaryManager {
         this.sanctuaries.push(sanctuary);
         this.stats.sanctuariesCreated++;
 
-        console.log(`☮️ ${sanctuary.type.name} created`);
+        console.log(`<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${sanctuary.type.name} created`);
 
         return sanctuary;
     }

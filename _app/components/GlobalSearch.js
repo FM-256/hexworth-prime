@@ -17,17 +17,17 @@
     // ═══════════════════════════════════════════════════════════════
 
     const TYPE_CONFIG = {
-        presentation: { icon: '\u{1F4CA}', label: 'Slides',       color: '#60a5fa' },
-        lab:          { icon: '\u{1F9EA}', label: 'Labs',         color: '#34d399' },
-        quiz:         { icon: '\u{1F4DD}', label: 'Quizzes',      color: '#fbbf24' },
-        applet:       { icon: '\u{1F3AE}', label: 'Interactive',  color: '#c084fc' },
-        game:         { icon: '\u{1F579}', label: 'Games',        color: '#4ade80' },
-        review:       { icon: '\u{1F504}', label: 'Reviews',      color: '#fb923c' },
-        exam:         { icon: '\u{1F4CB}', label: 'Exams',        color: '#f87171' },
-        tool:         { icon: '\u{1F527}', label: 'Tools',        color: '#22d3ee' },
-        guide:        { icon: '\u{1F4D6}', label: 'Guides',       color: '#a78bfa' },
-        reference:    { icon: '\u{1F4DA}', label: 'Reference',    color: '#94a3b8' },
-        module:       { icon: '\u{1F4E6}', label: 'Modules',      color: '#e879f9' }
+        presentation: { icon: '/assets/images/icons/icon-barchart.webp', label: 'Slides',       color: '#60a5fa' },
+        lab:          { icon: '/assets/images/icons/icon-flask.webp', label: 'Labs',         color: '#34d399' },
+        quiz:         { icon: '/assets/images/icons/icon-notepad.webp', label: 'Quizzes',      color: '#fbbf24' },
+        applet:       { icon: '/assets/images/icons/icon-joystick.webp', label: 'Interactive',  color: '#c084fc' },
+        game:         { icon: '/assets/images/icons/icon-joystick.webp', label: 'Games',        color: '#4ade80' },
+        review:       { icon: '/assets/images/icons/icon-refresh.webp', label: 'Reviews',      color: '#fb923c' },
+        exam:         { icon: '/assets/images/icons/icon-clipboard.webp', label: 'Exams',        color: '#f87171' },
+        tool:         { icon: '/assets/images/icons/icon-wrench.webp', label: 'Tools',        color: '#22d3ee' },
+        guide:        { icon: '/assets/images/icons/icon-books.webp', label: 'Guides',       color: '#a78bfa' },
+        reference:    { icon: '/assets/images/icons/icon-books.webp', label: 'Reference',    color: '#94a3b8' },
+        module:       { icon: '/assets/images/icons/icon-package.webp', label: 'Modules',      color: '#e879f9' }
     };
 
     // Type filter chips shown in the UI

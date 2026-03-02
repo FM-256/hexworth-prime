@@ -24,7 +24,7 @@ class RareFireflySystem {
         this.rareTypes = {
             golden: {
                 name: 'Golden',
-                symbol: '★',
+                symbol: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
                 color: '#fbbf24',
                 glow: '#fcd34d',
                 digitRequired: 1,
@@ -506,7 +506,7 @@ class RareFireflySystem {
             // Skip the rareChecked flag so makeRare works
             firefly.rareChecked = true;
             this.makeRare(firefly, type);
-            console.log(`✨ Spawned ${typeDef.name} (${typeDef.symbol}) rare firefly:`, firefly.id);
+            console.log(`<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Spawned ${typeDef.name} (${typeDef.symbol}) rare firefly:`, firefly.id);
         } else {
             console.warn('RareFireflySystem: Failed to spawn firefly (population limit?)');
         }

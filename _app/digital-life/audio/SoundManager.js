@@ -57,7 +57,7 @@ class SoundManager {
             // Create AudioContext
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) {
-                console.warn('🔇 Web Audio API not supported');
+                console.warn('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Web Audio API not supported');
                 this.config.enabled = false;
                 return this;
             }
@@ -89,14 +89,14 @@ class SoundManager {
                 this.audioContext.resume();
             }
 
-            console.log('🔊 Sound manager initialized');
+            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Sound manager initialized');
 
             if (this.onReady) {
                 this.onReady();
             }
 
         } catch (e) {
-            console.error('🔇 Failed to initialize audio:', e);
+            console.error('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Failed to initialize audio:', e);
             this.config.enabled = false;
         }
 

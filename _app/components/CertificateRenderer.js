@@ -148,7 +148,7 @@ const CertificateRenderer = (() => {
                     <a href="${config.backUrl}" class="cert-back-btn">&larr; Back to Course</a>
                 </div>
                 <div class="cert-incomplete">
-                    <div class="cert-incomplete-icon">&#128274;</div>
+                    <div class="cert-incomplete-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
                     <h2>Certificate Locked</h2>
                     <p>Complete all ${config.unitCount} ${config.unitLabel} to earn your certificate.</p>
                     <div class="cert-incomplete-progress">

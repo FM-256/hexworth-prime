@@ -12,7 +12,7 @@ const NetworkSecurityData = {
     firewalls: {
         id: 'firewalls',
         name: 'Firewalls',
-        icon: '\ud83e\uddf1',
+        icon: '/assets/images/icons/icon-firewall.webp',
         color: '#a855f7',
         subtitle: 'Packet Filtering, Stateful Inspection, Application-Layer & NGFW',
         description: 'Firewalls are network security devices that monitor and filter incoming and outgoing traffic based on defined security rules. They form the first line of defense in network security architecture.',
@@ -20,28 +20,28 @@ const NetworkSecurityData = {
         sections: [
             {
                 title: 'Packet Filtering Firewalls',
-                icon: '\ud83d\udce6',
+                icon: '/assets/images/icons/icon-package.webp',
                 content: 'The simplest type of firewall. Examines each packet\'s header information (source/destination IP, port, protocol) and makes allow/deny decisions based on ACL rules. Operates at OSI Layer 3-4.',
                 details: ['Inspects IP addresses, ports, and protocols', 'Does NOT track connection state', 'Fast but limited security (no session awareness)', 'Vulnerable to IP spoofing and fragmentation attacks', 'Example: Linux iptables with simple rules'],
                 realWorld: 'A small office router uses packet filtering to block all inbound traffic except ports 80 and 443. However, it cannot detect that a seemingly valid HTTP packet is actually part of a SQL injection attack because it only reads headers.'
             },
             {
                 title: 'Stateful Inspection Firewalls',
-                icon: '\ud83d\udcca',
+                icon: '/assets/images/icons/icon-barchart.webp',
                 content: 'Tracks the state of active connections and makes decisions based on the context of the traffic flow, not just individual packets. Maintains a state table of all connections.',
                 details: ['Maintains a state table of active connections', 'Tracks TCP handshake completion', 'Allows return traffic for established connections', 'Drops packets that do not match a known connection', 'More secure than packet filtering, moderate performance cost', 'Example: Cisco ASA, pfSense'],
                 realWorld: 'When an internal user browses a website, the stateful firewall records the outbound connection. Return packets from the web server are automatically allowed because they match an existing state entry. Unsolicited inbound packets are dropped.'
             },
             {
                 title: 'Application-Layer (Proxy) Firewalls',
-                icon: '\ud83d\udd0d',
+                icon: '/assets/images/icons/icon-magnifier.webp',
                 content: 'Inspects traffic at OSI Layer 7 (Application layer). Acts as an intermediary between the client and server, fully examining the content of each request.',
                 details: ['Full application protocol inspection (HTTP, FTP, SMTP, DNS)', 'Can detect and block application-layer attacks', 'Terminates and re-initiates connections (breaks direct path)', 'Can perform content filtering and DLP', 'Higher latency due to deep inspection', 'Example: WAF (Web Application Firewall), Squid proxy'],
                 realWorld: 'A WAF inspects every HTTP request to a web application. It detects a SQL injection attempt in a form field (SELECT * FROM users WHERE 1=1) and blocks the request, even though the TCP connection and IP header were perfectly valid.'
             },
             {
                 title: 'Next-Generation Firewalls (NGFW)',
-                icon: '\ud83d\ude80',
+                icon: '/assets/images/icons/icon-rocket.webp',
                 content: 'Combines traditional firewall capabilities with additional features like IPS, application awareness, threat intelligence, and SSL/TLS inspection in a single platform.',
                 details: ['Deep packet inspection (DPI)', 'Integrated IPS (Intrusion Prevention)', 'Application awareness and control (identify apps regardless of port)', 'SSL/TLS decryption and inspection', 'User identity integration (Active Directory)', 'Threat intelligence feeds and sandboxing', 'Examples: Palo Alto, Fortinet FortiGate, Check Point'],
                 realWorld: 'A Palo Alto NGFW identifies that port 443 traffic is actually BitTorrent disguised as HTTPS. It blocks the session based on application identification, even though traditional firewalls would see valid port 443 traffic.'
@@ -77,7 +77,7 @@ const NetworkSecurityData = {
     ids_ips: {
         id: 'ids_ips',
         name: 'IDS & IPS',
-        icon: '\ud83d\udea8',
+        icon: '/assets/images/icons/icon-siren.webp',
         color: '#a855f7',
         subtitle: 'Intrusion Detection & Prevention Systems',
         description: 'IDS monitors network traffic for suspicious activity and generates alerts. IPS goes further by actively blocking detected threats. Both use signature-based and anomaly-based detection methods.',
@@ -85,28 +85,28 @@ const NetworkSecurityData = {
         sections: [
             {
                 title: 'IDS vs IPS',
-                icon: '\ud83d\udd0d',
+                icon: '/assets/images/icons/icon-magnifier.webp',
                 content: 'An IDS is a passive monitoring system that detects and alerts on suspicious activity. An IPS is an active system placed inline that can block threats in real-time.',
                 details: ['IDS: Passive, monitors a copy of traffic (SPAN/TAP)', 'IDS: Generates alerts but does NOT block traffic', 'IPS: Inline, sits in the traffic path', 'IPS: Can drop, reset, or quarantine malicious packets', 'IPS adds latency but provides active protection', 'Many modern systems are combined IDS/IPS'],
                 realWorld: 'A hospital deploys Suricata as an IPS inline at the network perimeter. When it detects a known exploit targeting their medical imaging system, it drops the packet and alerts the SOC, preventing the attack from reaching the vulnerable device.'
             },
             {
                 title: 'Network-Based (NIDS/NIPS)',
-                icon: '\ud83c\udf10',
+                icon: '/assets/images/icons/icon-globe.webp',
                 content: 'Monitors network traffic at strategic points. NIDS/NIPS sensors are placed at network boundaries or critical segments to inspect all passing traffic.',
                 details: ['Monitors traffic at the network level', 'Placed at perimeter, DMZ, or internal segment boundaries', 'Uses SPAN ports or network TAPs for traffic capture', 'Can inspect all traffic on a segment simultaneously', 'Cannot inspect encrypted traffic without decryption', 'Examples: Snort, Suricata, Zeek (Bro)'],
                 realWorld: 'A bank places Snort sensors at three points: between the internet and firewall (external threats), between the firewall and DMZ (web app attacks), and between the DMZ and internal network (lateral movement detection).'
             },
             {
                 title: 'Host-Based (HIDS/HIPS)',
-                icon: '\ud83d\udcbb',
+                icon: '/assets/images/icons/icon-laptop.webp',
                 content: 'Installed on individual hosts to monitor system activity. HIDS examines log files, system calls, file integrity, and registry changes on the specific host.',
                 details: ['Monitors individual system activity', 'Can detect file changes (integrity monitoring)', 'Watches log files, system calls, and registry', 'Can inspect encrypted traffic (at the endpoint after decryption)', 'Higher resource consumption on the host', 'Examples: OSSEC, Wazuh, Tripwire, CrowdStrike Falcon'],
                 realWorld: 'A defense contractor runs OSSEC on all servers. When an attacker compromises a web server and modifies the /etc/passwd file, OSSEC detects the unauthorized change, alerts the SOC, and captures forensic data about the modification.'
             },
             {
                 title: 'Detection Methods',
-                icon: '\ud83e\udde0',
+                icon: '/assets/images/icons/icon-brain.webp',
                 content: 'IDS/IPS systems use two primary methods to identify threats: signature-based detection (known threats) and anomaly-based detection (deviations from normal behavior).',
                 details: ['Signature-Based: Matches traffic against known attack patterns', 'Signature-Based: Fast, low false positives, but cannot detect unknown (zero-day) attacks', 'Anomaly-Based: Establishes a baseline of "normal" and alerts on deviations', 'Anomaly-Based: Can detect zero-day attacks but higher false positive rate', 'Heuristic/Behavioral: Combines rules with behavioral analysis', 'Machine learning approaches reduce false positives while catching novel attacks'],
                 realWorld: 'A Suricata rule (signature) detects the EternalBlue exploit by matching specific SMB packet patterns. Meanwhile, its anomaly engine notices unusual internal scanning activity that does not match any signature but deviates from the baseline, catching a new variant.'
@@ -142,7 +142,7 @@ const NetworkSecurityData = {
     vpn: {
         id: 'vpn',
         name: 'Virtual Private Networks (VPN)',
-        icon: '\ud83d\udd10',
+        icon: '/assets/images/icons/icon-padlock.webp',
         color: '#a855f7',
         subtitle: 'IPsec, SSL/TLS VPN, Site-to-Site & Remote Access',
         description: 'VPNs create encrypted tunnels over public networks, providing confidentiality, integrity, and authentication for remote connections. Understanding VPN types and protocols is essential for securing remote access.',
@@ -150,28 +150,28 @@ const NetworkSecurityData = {
         sections: [
             {
                 title: 'VPN Fundamentals',
-                icon: '\ud83d\udd12',
+                icon: '/assets/images/icons/icon-padlock.webp',
                 content: 'A VPN extends a private network across a public network, enabling secure communication. VPN tunnels encrypt data in transit, protecting it from eavesdropping.',
                 details: ['Tunneling: encapsulating packets inside encrypted packets', 'Authentication: verifying the identity of VPN endpoints', 'Encryption: AES-256 commonly used for data confidentiality', 'Integrity: HMAC ensures data is not tampered with in transit', 'Two main types: Site-to-Site and Remote Access'],
                 realWorld: 'A company with offices in New York and London uses a site-to-site VPN to connect their LANs over the internet. All traffic between offices is encrypted, appearing as if both offices are on the same private network.'
             },
             {
                 title: 'IPsec VPN',
-                icon: '\ud83d\udee1\ufe0f',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'IPsec operates at OSI Layer 3 (Network layer) and provides encryption and authentication for IP packets. It uses two modes: Transport and Tunnel.',
                 details: ['Transport Mode: encrypts only the payload (host-to-host)', 'Tunnel Mode: encrypts the entire original packet (gateway-to-gateway)', 'IKE (Internet Key Exchange): negotiates security associations', 'AH (Authentication Header): integrity and authentication only (no encryption)', 'ESP (Encapsulating Security Payload): encryption + integrity + authentication', 'IKEv2 preferred over IKEv1 (faster, more secure, supports MOBIKE)'],
                 realWorld: 'Two corporate firewalls establish an IPsec VPN in tunnel mode using IKEv2. Phase 1 negotiates the secure channel (ISAKMP SA), Phase 2 negotiates the encryption parameters for actual data traffic (IPsec SA). AES-256 encrypts all inter-office traffic.'
             },
             {
                 title: 'SSL/TLS VPN',
-                icon: '\ud83c\udf10',
+                icon: '/assets/images/icons/icon-globe.webp',
                 content: 'SSL/TLS VPNs operate at the application layer and use standard HTTPS (port 443). They are easier to deploy for remote access since they work through web browsers.',
                 details: ['Uses TLS encryption (same as HTTPS)', 'Works through port 443 (usually not blocked by firewalls)', 'No special client software needed (browser-based portal)', 'Can provide full tunnel or clientless (web portal) access', 'Easier NAT traversal than IPsec', 'Examples: OpenVPN, Cisco AnyConnect, GlobalProtect'],
                 realWorld: 'A remote employee connects to the company VPN through a web browser portal on port 443. They can access internal web apps, email, and file shares without installing any VPN client software. The hotel\'s restrictive firewall does not block the connection since it uses standard HTTPS.'
             },
             {
                 title: 'Split Tunneling & Always-On VPN',
-                icon: '\u2699\ufe0f',
+                icon: '/assets/images/icons/icon-gear.webp',
                 content: 'Split tunneling sends only corporate traffic through the VPN while allowing internet traffic to go directly. Always-On VPN ensures all traffic is always encrypted.',
                 details: ['Split Tunneling: corporate traffic via VPN, internet traffic direct', 'Advantage: reduces VPN bandwidth, faster internet for users', 'Risk: user\'s direct internet traffic is not protected by corporate security', 'Full Tunnel: ALL traffic goes through VPN (more secure, higher latency)', 'Always-On VPN: automatically connects whenever the device is online', 'Zero Trust approach: verify at every hop, regardless of VPN status'],
                 realWorld: 'A government agency mandates full-tunnel, always-on VPN for all devices. When an employee opens their laptop at a coffee shop, the VPN automatically connects before any traffic leaves the device. All traffic, even YouTube, goes through the agency\'s network where DLP and content filters apply.'
@@ -207,7 +207,7 @@ const NetworkSecurityData = {
     nat_pat: {
         id: 'nat_pat',
         name: 'NAT & PAT',
-        icon: '\ud83d\udd00',
+        icon: '/assets/images/icons/icon-branch.webp',
         color: '#a855f7',
         subtitle: 'Network Address Translation & Port Address Translation',
         description: 'NAT translates private IP addresses to public IP addresses, enabling multiple devices to share a single public IP. PAT extends this by also translating port numbers, allowing many devices to share one public IP simultaneously.',
@@ -215,28 +215,28 @@ const NetworkSecurityData = {
         sections: [
             {
                 title: 'Why NAT Exists',
-                icon: '\ud83c\udf10',
+                icon: '/assets/images/icons/icon-globe.webp',
                 content: 'IPv4 has only ~4.3 billion addresses, far fewer than the devices connected to the internet. NAT allows organizations to use private (non-routable) IP addresses internally while sharing a limited number of public IPs for internet access.',
                 details: ['RFC 1918 private ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16', 'Private IPs are not routable on the internet', 'NAT translates private to public at the network boundary', 'Also provides a layer of obscurity (internal IPs hidden)', 'IPv6 was designed to eliminate the need for NAT (but NAT66 exists)'],
                 realWorld: 'Your home has dozens of devices (phones, laptops, IoT) each with a 192.168.1.x address. Your router uses NAT to translate all of them to your single public IP (e.g., 73.45.12.88) when they access the internet.'
             },
             {
                 title: 'Types of NAT',
-                icon: '\ud83d\udccb',
+                icon: '/assets/images/icons/icon-clipboard.webp',
                 content: 'NAT comes in several forms depending on how addresses are mapped: one-to-one (static), pool-based (dynamic), or many-to-one (PAT/overload).',
                 details: ['Static NAT: One private IP maps to one public IP (permanent, 1:1)', 'Dynamic NAT: Private IPs drawn from a pool of public IPs (temporary, 1:1)', 'PAT (Port Address Translation): Many private IPs share one public IP (many:1)', 'PAT uses unique source port numbers to track connections', 'PAT is the most common form (used in virtually all home routers)'],
                 realWorld: 'A company with 500 employees uses PAT: all 500 devices share 5 public IPs. The router assigns unique source ports (e.g., 192.168.1.50:54321 becomes 73.45.12.88:54321) to track which internal device each response should go to.'
             },
             {
                 title: 'NAT Translation Table',
-                icon: '\ud83d\udcca',
+                icon: '/assets/images/icons/icon-barchart.webp',
                 content: 'The NAT device maintains a translation table mapping internal addresses/ports to external addresses/ports. This table is crucial for routing return traffic back to the correct internal device.',
                 details: ['Records: Inside Local -> Inside Global -> Outside Global', 'PAT entries include port numbers', 'Entries have timeouts (idle connections are cleared)', 'Table lookup occurs for every inbound packet', 'Port forwarding: manual table entries for inbound access'],
                 realWorld: 'When 192.168.1.10 browses Google, the NAT table records: 192.168.1.10:49152 maps to 73.45.12.88:49152 going to 142.250.80.14:443. When Google responds, the router looks up port 49152 and forwards the packet to 192.168.1.10.'
             },
             {
                 title: 'Port Forwarding & Security Implications',
-                icon: '\ud83d\udd12',
+                icon: '/assets/images/icons/icon-padlock.webp',
                 content: 'Port forwarding creates static NAT entries that allow inbound connections to reach specific internal services. NAT provides some security but is NOT a firewall.',
                 details: ['Port forwarding: maps external port to internal host:port', 'Allows hosting servers behind NAT (web server, game server)', 'NAT hides internal topology but is not a security control', 'NAT breaks end-to-end connectivity (complicates IPsec, VoIP, P2P)', 'Hairpin NAT: allows internal devices to access port-forwarded services via the public IP', 'Double NAT: two NAT devices in path (common in ISP+router setups)'],
                 realWorld: 'A small business forwards port 443 to their internal web server (192.168.1.100:443). Anyone on the internet can reach the web server, but the server\'s real IP remains hidden. However, if the web server is compromised, the attacker is already inside the network.'
@@ -271,7 +271,7 @@ const NetworkSecurityData = {
     eap: {
         id: 'eap',
         name: 'EAP Authentication',
-        icon: '\ud83d\udd11',
+        icon: '/assets/images/icons/icon-key.webp',
         color: '#a855f7',
         subtitle: 'Extensible Authentication Protocol & 802.1X',
         description: 'EAP is an authentication framework used in wireless networks and point-to-point connections. Combined with 802.1X, it provides port-based network access control. Understanding EAP types is critical for enterprise wireless security.',
@@ -279,28 +279,28 @@ const NetworkSecurityData = {
         sections: [
             {
                 title: '802.1X Framework',
-                icon: '\ud83c\udfdb\ufe0f',
+                icon: '/assets/images/icons/icon-institution.webp',
                 content: 'IEEE 802.1X is a port-based network access control standard. It involves three roles: the supplicant (client), authenticator (switch/AP), and authentication server (RADIUS).',
                 details: ['Supplicant: the device requesting network access', 'Authenticator: network device controlling the port (switch or AP)', 'Authentication Server: RADIUS server that validates credentials', 'Port starts in unauthorized state (only EAP traffic allowed)', 'After successful authentication, port is authorized for all traffic', 'Used for both wired (switch ports) and wireless (Wi-Fi) access'],
                 realWorld: 'A corporate laptop connects to Wi-Fi. The access point (authenticator) blocks all traffic except EAP. The laptop (supplicant) sends credentials via EAP to the RADIUS server. After successful authentication, the AP opens the port for full network access.'
             },
             {
                 title: 'EAP-TLS (Most Secure)',
-                icon: '\ud83d\udd12',
+                icon: '/assets/images/icons/icon-padlock.webp',
                 content: 'EAP-TLS requires BOTH the client AND server to have digital certificates. This mutual certificate authentication is the most secure EAP method.',
                 details: ['Both client and server authenticate with X.509 certificates', 'No passwords transmitted (certificate-based)', 'Mutual authentication prevents rogue AP attacks', 'Requires PKI infrastructure to issue/manage certificates', 'Most complex to deploy but highest security', 'Used in high-security environments (government, defense)'],
                 realWorld: 'A defense agency issues digital certificates to every employee device (laptops, phones) and every access point. When connecting to Wi-Fi, both the device and AP exchange certificates. No passwords are used, eliminating phishing and credential theft.'
             },
             {
                 title: 'PEAP (Protected EAP)',
-                icon: '\ud83d\udee1\ufe0f',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'PEAP uses a server certificate to create an encrypted TLS tunnel, then sends user credentials (username/password) inside this protected tunnel.',
                 details: ['Server authenticates to client with a certificate (one-way TLS)', 'Client authenticates with username/password inside the TLS tunnel', 'Developed by Microsoft, Cisco, and RSA', 'Inner method typically MS-CHAPv2', 'Easier to deploy than EAP-TLS (no client certs needed)', 'Most commonly used EAP type in enterprise Wi-Fi'],
                 realWorld: 'An enterprise deploys WPA2-Enterprise with PEAP. Employees connect using their Active Directory username and password. The RADIUS server presents its certificate; the employee\'s credentials travel inside the encrypted tunnel to the RADIUS server for validation.'
             },
             {
                 title: 'EAP-TTLS & Other Types',
-                icon: '\ud83d\udccb',
+                icon: '/assets/images/icons/icon-clipboard.webp',
                 content: 'EAP-TTLS is similar to PEAP but supports more inner authentication methods. Other EAP types serve specific use cases.',
                 details: ['EAP-TTLS: like PEAP but supports PAP, CHAP, MS-CHAPv2 inner methods', 'EAP-FAST: Cisco proprietary, uses Protected Access Credential (PAC)', 'EAP-SIM/EAP-AKA: uses SIM card for authentication (mobile networks)', 'EAP-GTC: Generic Token Card (one-time passwords)', 'LEAP: Legacy Cisco protocol, deprecated (vulnerable to dictionary attacks)'],
                 realWorld: 'A university deploys EAP-TTLS because their diverse BYOD environment includes Linux devices that support EAP-TTLS better than PEAP. Inside the TLS tunnel, they use PAP with the RADIUS server, which checks against LDAP.'
@@ -335,7 +335,7 @@ const NetworkSecurityData = {
     wireless_security: {
         id: 'wireless_security',
         name: 'Wireless Security',
-        icon: '\ud83d\udce1',
+        icon: '/assets/images/icons/icon-antenna.webp',
         color: '#a855f7',
         subtitle: 'WEP, WPA, WPA2, WPA3 & wireless threats',
         description: 'Wireless networks transmit data over radio waves, making them inherently more vulnerable to eavesdropping and attack than wired networks. Understanding wireless security protocols and threats is critical for protecting enterprise networks.',
@@ -343,28 +343,28 @@ const NetworkSecurityData = {
         sections: [
             {
                 title: 'Wireless Security Evolution',
-                icon: '\ud83d\udcc8',
+                icon: '/assets/images/icons/icon-barchart.webp',
                 content: 'Wireless security has evolved through four generations, each addressing vulnerabilities in the previous standard.',
                 details: ['WEP (1997): Broken. Uses RC4, static keys, 24-bit IV. Crackable in minutes', 'WPA (2003): Temporary fix. TKIP over RC4, dynamic keys, but still weak', 'WPA2 (2004): Current standard. AES-CCMP encryption, 802.1X support', 'WPA3 (2018): Latest. SAE handshake, 192-bit security mode, Protected Management Frames', 'Personal mode: Pre-shared key (PSK) for home/small office', 'Enterprise mode: 802.1X/RADIUS for organizations'],
                 realWorld: 'A security audit finds a corporate network still using WPA with TKIP. The auditor recommends immediate upgrade to WPA2-Enterprise with AES (minimum) or WPA3-Enterprise for maximum security.'
             },
             {
                 title: 'WPA2 & WPA3 Details',
-                icon: '\ud83d\udd12',
+                icon: '/assets/images/icons/icon-padlock.webp',
                 content: 'WPA2 uses AES-CCMP for encryption and is the current minimum standard. WPA3 introduces SAE (Simultaneous Authentication of Equals) to replace the 4-way handshake, eliminating offline dictionary attacks.',
                 details: ['WPA2-Personal: AES + PSK (Pre-Shared Key)', 'WPA2-Enterprise: AES + 802.1X/RADIUS', 'WPA3-Personal: AES + SAE (Dragonfly handshake)', 'WPA3-Enterprise: 192-bit security suite (CNSA-approved)', 'SAE provides forward secrecy (past sessions safe even if key is compromised later)', 'WPA3 requires Protected Management Frames (PMF) to prevent deauth attacks'],
                 realWorld: 'After the KRACK attack exposed WPA2 vulnerabilities, WPA3 was developed. SAE replaces the vulnerable 4-way handshake with a zero-knowledge proof that prevents offline dictionary attacks, even if the attacker captures the handshake.'
             },
             {
                 title: 'Wireless Attacks',
-                icon: '\u26a0\ufe0f',
+                icon: '/assets/images/icons/icon-siren.webp',
                 content: 'Wireless networks face unique attack vectors due to the broadcast nature of radio transmissions.',
                 details: ['Evil Twin: Rogue AP mimics legitimate network name (SSID)', 'Deauthentication Attack: Sends forged deauth frames to disconnect clients', 'WPA2 Handshake Capture: Capture 4-way handshake for offline cracking', 'Karma/MANA Attack: Rogue AP responds to any probe request', 'War Driving: Scanning for wireless networks while mobile', 'Jamming: Radio frequency interference to deny wireless service'],
                 realWorld: 'An attacker at a coffee shop sets up an evil twin AP named "FreeWiFi" identical to the legitimate network. When victims connect, all their traffic passes through the attacker\'s device, enabling credential theft and session hijacking.'
             },
             {
                 title: 'Wireless Security Best Practices',
-                icon: '\u2705',
+                icon: '/assets/images/icons/icon-checkbox.webp',
                 content: 'Securing wireless networks requires proper configuration, monitoring, and policy enforcement.',
                 details: ['Use WPA3 or WPA2-Enterprise minimum (never WEP or WPA)', 'Enterprise: 802.1X with EAP-TLS or PEAP', 'Enable Protected Management Frames (802.11w)', 'Use a WIDS/WIPS to detect rogue APs', 'Implement network segmentation (separate VLAN for Wi-Fi)', 'Disable WPS (Wi-Fi Protected Setup) — vulnerable to brute force', 'Regular wireless security audits and penetration tests'],
                 realWorld: 'A hospital deploys WPA3-Enterprise with EAP-TLS for staff devices, a separate WPA2-Personal VLAN for IoT medical devices (with strict firewall rules), and a captive portal for guest Wi-Fi on an isolated VLAN with no access to internal resources.'
@@ -399,7 +399,7 @@ const NetworkSecurityData = {
     protocol_analysis: {
         id: 'protocol_analysis',
         name: 'Protocol Analysis',
-        icon: '\ud83d\udd2c',
+        icon: '/assets/images/icons/icon-microscope.webp',
         color: '#a855f7',
         subtitle: 'Packet capture, Wireshark & traffic analysis',
         description: 'Protocol analysis is the process of capturing, decoding, and analyzing network traffic to troubleshoot issues, detect security threats, and understand network behavior. It is a core skill for both network engineers and security analysts.',
@@ -407,28 +407,28 @@ const NetworkSecurityData = {
         sections: [
             {
                 title: 'Packet Capture Fundamentals',
-                icon: '\ud83c\udfaf',
+                icon: '/assets/images/icons/icon-target.webp',
                 content: 'Packet capture (pcap) is the process of intercepting and recording network packets for analysis. This is the foundation of all protocol analysis.',
                 details: ['Promiscuous mode: NIC captures all packets on the segment, not just its own', 'Monitor mode: captures wireless frames (including management/control)', 'SPAN/mirror ports: switch copies traffic to a capture port', 'Network TAPs: hardware devices that passively copy traffic', 'pcap format: standard packet capture file format', 'Capture filters: reduce capture volume by filtering at capture time'],
                 realWorld: 'A SOC analyst captures 15 minutes of traffic from a suspected compromised workstation using a network TAP. The pcap file reveals DNS queries to known C2 domains, confirming the machine is infected with malware beaconing to its command server.'
             },
             {
                 title: 'Wireshark & tcpdump',
-                icon: '\ud83e\uddf0',
+                icon: '/assets/images/icons/icon-tools.webp',
                 content: 'Wireshark is the world\'s most popular GUI-based packet analyzer. tcpdump is the command-line equivalent for Linux/Unix systems.',
                 details: ['Wireshark: GUI, color-coded protocols, follow stream, export objects', 'tcpdump: CLI, lightweight, scriptable, ideal for servers without GUI', 'Display filters vs capture filters (different syntax)', 'Wireshark display: tcp.port == 443 and ip.addr == 10.0.0.5', 'tcpdump capture: tcpdump -i eth0 host 10.0.0.5 -w output.pcap', 'Follow TCP/UDP/HTTP streams to reconstruct conversations'],
                 realWorld: 'An analyst uses Wireshark to investigate slow application performance. By following the TCP stream, they discover excessive TCP retransmissions between the app server and database, pointing to a network congestion issue on the database VLAN.'
             },
             {
                 title: 'Common Protocol Indicators',
-                icon: '\ud83d\udea9',
+                icon: '/assets/images/icons/icon-flag.webp',
                 content: 'Knowing what normal traffic looks like helps analysts spot anomalies. Each protocol has characteristic patterns that reveal both normal operations and suspicious activity.',
                 details: ['DNS: queries to unusual TLDs, high query volume (tunneling), long subdomain names', 'HTTP: User-Agent strings, unusual methods (PUT/DELETE), encoded payloads', 'TCP: SYN floods (half-open connections), RST storms, unusual flag combinations', 'ICMP: oversized packets (tunneling), high volume (flood), redirects', 'TLS: certificate errors, outdated versions, unknown CAs', 'ARP: gratuitous ARP, duplicate IPs (ARP spoofing/poisoning)'],
                 realWorld: 'An analyst notices DNS queries with unusually long, encoded subdomain names: "dGhpcyBpcyBhIHRlc3Q.evil.com". Decoding the base64 reveals data exfiltration via DNS tunneling.'
             },
             {
                 title: 'Security Analysis Techniques',
-                icon: '\ud83d\udee1\ufe0f',
+                icon: '/assets/images/icons/icon-shield.webp',
                 content: 'Protocol analysis is a critical skill for incident response, threat hunting, and forensic investigations.',
                 details: ['Baseline analysis: compare current traffic against known-good patterns', 'Anomaly detection: unusual ports, protocols, volumes, or destinations', 'IOC matching: search captures for known malicious IPs, domains, hashes', 'Conversation analysis: who is talking to whom, how often, how much data', 'File extraction: carve files from HTTP, FTP, SMB streams', 'Encrypted traffic analysis: JA3/JA3S fingerprinting for TLS'],
                 realWorld: 'During an incident response, the team extracts a malicious executable from an HTTP stream in the pcap. The file hash matches a known RAT (Remote Access Trojan). They then pivot to find all other hosts that communicated with the same C2 IP.'
@@ -463,7 +463,7 @@ const NetworkSecurityData = {
     three_way_handshake: {
         id: 'three_way_handshake',
         name: 'TCP Three-Way Handshake',
-        icon: '\ud83e\udd1d',
+        icon: '/assets/images/icons/icon-handshake.webp',
         color: '#a855f7',
         subtitle: 'SYN, SYN-ACK, ACK — How TCP connections are established',
         description: 'The TCP three-way handshake is the process used to establish a reliable connection between two hosts. Understanding this fundamental process is essential for network troubleshooting and security analysis.',
@@ -478,21 +478,21 @@ const NetworkSecurityData = {
             },
             {
                 title: 'Sequence & Acknowledgment Numbers',
-                icon: '\ud83d\udd22',
+                icon: '/assets/images/icons/icon-numbers.webp',
                 content: 'Sequence numbers track the order of data bytes. Acknowledgment numbers tell the sender which byte the receiver expects next. Together, they enable reliable, ordered delivery.',
                 details: ['ISN (Initial Sequence Number): randomly generated starting number', 'Sequence number increments by the number of data bytes sent', 'ACK number = next expected sequence number from the other side', 'ISN randomization prevents TCP sequence prediction attacks', 'Wireshark shows "relative sequence numbers" (starting from 0) for readability'],
                 realWorld: 'In Wireshark, you see: Client SYN (Seq=0), Server SYN-ACK (Seq=0, Ack=1), Client ACK (Seq=1, Ack=1). These are relative numbers. The actual ISNs might be 3847291 and 9182736, but Wireshark normalizes them for easy reading.'
             },
             {
                 title: 'Connection Termination',
-                icon: '\ud83d\uded1',
+                icon: '/assets/images/icons/icon-crossmark.webp',
                 content: 'TCP connections are torn down gracefully with a four-way FIN handshake, or abruptly with a RST (reset) packet.',
                 details: ['Graceful: FIN -> ACK -> FIN -> ACK (four-way close)', 'Either side can initiate the close with FIN', 'Half-close: one direction closed, other still sending', 'TIME_WAIT state: socket waits 2xMSL before fully closing', 'RST (Reset): immediate, ungraceful termination', 'RST is used when something is wrong (closed port, timeout, error)'],
                 realWorld: 'A web server sends a FIN after delivering the response. The client ACKs the FIN, sends its own FIN, and the server ACKs. The client enters TIME_WAIT for 60 seconds to handle any delayed packets, then the connection fully closes.'
             },
             {
                 title: 'Security Implications',
-                icon: '\u26a0\ufe0f',
+                icon: '/assets/images/icons/icon-siren.webp',
                 content: 'The three-way handshake is targeted by several well-known attacks that exploit the connection establishment process.',
                 details: ['SYN Flood: attacker sends thousands of SYNs without completing handshake', 'Server wastes resources on half-open connections', 'SYN cookies: server defense that avoids storing state for half-open connections', 'TCP sequence prediction: guessing ISN to hijack connections', 'RST injection: forged RST packets to kill established connections', 'Port scanning: SYN scan sends SYN and analyzes the response (SYN-ACK = open, RST = closed)'],
                 realWorld: 'An attacker launches a SYN flood from spoofed IPs against a web server. Each SYN creates a half-open connection consuming server memory. The server enables SYN cookies: instead of storing state, it encodes connection info in the ISN. Legitimate clients complete the handshake; the spoofed packets have no effect.'
