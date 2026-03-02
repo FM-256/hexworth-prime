@@ -1662,9 +1662,10 @@ const ContentDiscovery = (function() {
                 right: 10px;
                 background: none;
                 border: none;
-                font-size: 1.1rem;
+                font-size: 1.2rem;
                 cursor: pointer;
-                opacity: 0.4;
+                color: #555;
+                opacity: 0.7;
                 transition: all 0.2s ease;
                 padding: 2px 4px;
                 line-height: 1;
@@ -1672,13 +1673,15 @@ const ContentDiscovery = (function() {
             }
 
             .module-favorite-btn:hover {
-                opacity: 0.8;
+                opacity: 1;
+                color: var(--house-primary, #60a5fa);
                 transform: scale(1.2);
             }
 
             .module-favorite-btn.favorited {
                 opacity: 1;
-                color: var(--house-primary, #ef4444);
+                color: var(--house-primary, #60a5fa);
+                filter: drop-shadow(0 0 6px var(--house-glow, rgba(96,165,250,0.5)));
             }
 
             /* Shift type badge left when heart is present */
