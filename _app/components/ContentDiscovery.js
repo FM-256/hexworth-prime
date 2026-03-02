@@ -159,7 +159,8 @@ const ContentDiscovery = (function() {
             viewMode: 'grid',
             currentHouse: currentHouse,
             showGlobalResults: true,
-            crossHouseEnabled: true
+            crossHouseEnabled: true,
+            favoritesOnly: false
         };
 
         // Bind event listeners
@@ -752,6 +753,8 @@ const ContentDiscovery = (function() {
                 <button class="discovery-filter-btn cd-cross-house-chip active" id="crossHouseToggle" title="Toggle cross-house search">
                     🌐 All Houses
                 </button>
+                <div class="discovery-filter-divider"></div>
+                <button class="discovery-filter-btn" id="discoveryFavoritesFilter" title="Show favorites only">&#9829; Favorites</button>
             </div>
             <div class="discovery-results-bar">
                 <div class="discovery-results-count" id="discoveryResultsCount">
@@ -815,6 +818,18 @@ const ContentDiscovery = (function() {
             });
         }
 
+        // Favorites filter
+        const favBtn = document.getElementById('discoveryFavoritesFilter');
+        if (favBtn && typeof FavoritesManager !== 'undefined') {
+            favBtn.addEventListener('click', function() {
+                window.discoveryState.favoritesOnly = !window.discoveryState.favoritesOnly;
+                this.classList.toggle('active', window.discoveryState.favoritesOnly);
+                applyHouseFilters();
+            });
+        } else if (favBtn) {
+            favBtn.style.display = 'none';
+        }
+
         // View toggle buttons
         document.querySelectorAll('.discovery-view-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -827,8 +842,8 @@ const ContentDiscovery = (function() {
     }
 
     function applyHouseFilters() {
-        const { searchQuery, typeFilter, categoryFilter, currentHouse, crossHouseEnabled } = window.discoveryState;
-        const hasActiveFilter = searchQuery || typeFilter !== 'all' || categoryFilter !== 'all';
+        const { searchQuery, typeFilter, categoryFilter, currentHouse, crossHouseEnabled, favoritesOnly } = window.discoveryState;
+        const hasActiveFilter = searchQuery || typeFilter !== 'all' || categoryFilter !== 'all' || favoritesOnly;
         const hasCatalog = typeof ContentCatalog !== 'undefined';
 
         let localResults = [];
@@ -856,6 +871,12 @@ const ContentDiscovery = (function() {
                 if (categoryFilter !== 'all' && module.category !== categoryFilter) return false;
                 return true;
             });
+        }
+
+        // Apply favorites filter
+        if (favoritesOnly && typeof FavoritesManager !== 'undefined') {
+            localResults = localResults.filter(m => FavoritesManager.isFavorite(m.id));
+            globalResults = globalResults.filter(m => FavoritesManager.isFavorite(m.id));
         }
 
         // Update results count
@@ -1006,7 +1027,8 @@ const ContentDiscovery = (function() {
             viewMode: window.discoveryState ? window.discoveryState.viewMode : 'grid',
             currentHouse: window.discoveryState ? window.discoveryState.currentHouse : null,
             showGlobalResults: true,
-            crossHouseEnabled: true
+            crossHouseEnabled: true,
+            favoritesOnly: false
         };
 
         // Reset UI
@@ -1017,6 +1039,8 @@ const ContentDiscovery = (function() {
         });
         const crossHouseBtn = document.getElementById('crossHouseToggle');
         if (crossHouseBtn) crossHouseBtn.classList.add('active');
+        const favBtn = document.getElementById('discoveryFavoritesFilter');
+        if (favBtn) favBtn.classList.remove('active');
 
         applyHouseFilters();
     };
@@ -1078,6 +1102,9 @@ const ContentDiscovery = (function() {
             if (card.querySelector('.module-favorite-btn')) return;
 
             card.style.position = 'relative';
+            if (FavoritesManager.isFavorite(module.id)) {
+                card.classList.add('favorited');
+            }
 
             const btn = document.createElement('button');
             btn.className = 'module-favorite-btn' + (FavoritesManager.isFavorite(module.id) ? ' favorited' : '');
@@ -1097,6 +1124,11 @@ const ContentDiscovery = (function() {
                 const nowFavorited = FavoritesManager.toggle(module.id, meta);
                 btn.classList.toggle('favorited', nowFavorited);
                 btn.innerHTML = nowFavorited ? '&#9829;' : '&#9825;';
+                card.classList.toggle('favorited', nowFavorited);
+                if (window._hrFavoritesFilterActive) {
+                    const fi = document.getElementById('hrFilterInput');
+                    if (fi) fi.dispatchEvent(new Event('input'));
+                }
             });
 
             card.appendChild(btn);
@@ -1541,6 +1573,12 @@ const ContentDiscovery = (function() {
                 color: #4ade80;
             }
 
+            #discoveryFavoritesFilter.active {
+                background: var(--house-glow, rgba(99,102,241,0.2));
+                border-color: var(--house-primary, #6366f1);
+                color: var(--house-primary, #6366f1);
+            }
+
             .discovery-filter-divider {
                 width: 1px;
                 height: 24px;
@@ -1640,7 +1678,7 @@ const ContentDiscovery = (function() {
 
             .module-favorite-btn.favorited {
                 opacity: 1;
-                color: #ef4444;
+                color: var(--house-primary, #ef4444);
             }
 
             /* Shift type badge left when heart is present */

@@ -602,6 +602,29 @@ const HouseRenderer = (function() {
                 white-space: nowrap;
             }
 
+            .hr-favorites-filter {
+                padding: 6px 14px;
+                background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 6px;
+                color: #666;
+                font-size: 0.8rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-family: inherit;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            .hr-favorites-filter:hover {
+                border-color: var(--house-primary);
+                color: var(--house-primary);
+            }
+            .hr-favorites-filter.active {
+                background: var(--house-glow, rgba(96,165,250,0.15));
+                border-color: var(--house-primary);
+                color: var(--house-primary);
+            }
+
             .module-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -609,6 +632,7 @@ const HouseRenderer = (function() {
             }
 
             .module-card {
+                position: relative;
                 background: rgba(15, 15, 20, 0.5);
                 border: 1px solid rgba(255, 255, 255, 0.05);
                 border-radius: 10px;
@@ -620,6 +644,15 @@ const HouseRenderer = (function() {
             .module-card:hover {
                 border-color: var(--house-border);
                 background: rgba(20, 20, 25, 0.6);
+            }
+
+            .module-card.favorited {
+                border-color: var(--house-primary, #60a5fa);
+                box-shadow: 0 0 12px var(--house-glow, rgba(96,165,250,0.2));
+            }
+
+            .module-card.favorited:hover {
+                box-shadow: 0 0 20px var(--house-glow, rgba(96,165,250,0.3));
             }
 
             .module-card.hidden { display: none; }
@@ -1438,6 +1471,7 @@ const HouseRenderer = (function() {
                        placeholder="Filter modules by title, description, or type..."
                        aria-label="Filter modules by title, description, or type"
                        autocomplete="off">
+                <button class="hr-favorites-filter" id="hrFavoritesFilter" title="Show favorites only" aria-pressed="false">&#9829; Favorites</button>
                 <span class="hr-filter-count" id="hrFilterCount">${modules.length} modules</span>
             </div>
             <div class="module-grid" id="hrModuleGrid" role="list"></div>
@@ -1466,6 +1500,10 @@ const HouseRenderer = (function() {
             card.setAttribute('tabindex', '0');
             card.dataset.idx = idx;
             card.dataset.href = mod.href || '';
+            card.dataset.moduleId = mod.id;
+            if (typeof FavoritesManager !== 'undefined' && FavoritesManager.isFavorite(mod.id)) {
+                card.classList.add('favorited');
+            }
 
             const typeBadge = getTypeBadge(mod);
             const catIcon = mod.category
@@ -1498,17 +1536,37 @@ const HouseRenderer = (function() {
 
         // Filter input
         document.getElementById('hrFilterInput').addEventListener('input', filterModules);
+
+        // Favorites filter
+        const favFilterBtn = document.getElementById('hrFavoritesFilter');
+        if (favFilterBtn && typeof FavoritesManager !== 'undefined') {
+            favFilterBtn.addEventListener('click', function() {
+                const isActive = this.classList.toggle('active');
+                this.setAttribute('aria-pressed', isActive);
+                window._hrFavoritesFilterActive = isActive;
+                filterModules();
+            });
+        } else if (favFilterBtn) {
+            favFilterBtn.style.display = 'none';
+        }
     }
 
     function filterModules() {
         const query = document.getElementById('hrFilterInput').value.toLowerCase().trim();
         const modules = config.modules || [];
         const cards = document.querySelectorAll('#hrModuleGrid .module-card');
+        const favActive = window._hrFavoritesFilterActive && typeof FavoritesManager !== 'undefined';
         let visible = 0;
 
         cards.forEach((card, idx) => {
             const mod = modules[idx];
             if (!mod) return;
+
+            // Favorites filter
+            if (favActive && !FavoritesManager.isFavorite(mod.id)) {
+                card.classList.add('hidden');
+                return;
+            }
 
             if (!query) {
                 card.classList.remove('hidden');
@@ -1534,7 +1592,7 @@ const HouseRenderer = (function() {
         const countEl = document.getElementById('hrFilterCount');
         const noResults = document.getElementById('hrNoResults');
 
-        if (query) {
+        if (query || favActive) {
             countEl.textContent = `${visible} of ${modules.length}`;
             noResults.style.display = visible === 0 ? 'block' : 'none';
         } else {
@@ -1549,7 +1607,7 @@ const HouseRenderer = (function() {
         }
         const topCount = document.getElementById('hrTopSearchCount');
         if (topCount) {
-            topCount.textContent = query ? (visible + ' of ' + modules.length) : '';
+            topCount.textContent = (query || favActive) ? (visible + ' of ' + modules.length) : '';
         }
     }
 
