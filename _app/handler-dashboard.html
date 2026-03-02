@@ -537,6 +537,17 @@
         .hd-activity-icon {
             font-size: 1rem;
             flex-shrink: 0;
+            width: 1.2em;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .hd-activity-icon.scored {
+            color: #4ade80;
+        }
+
+        .hd-activity-icon.unscored {
+            color: #60a5fa;
         }
 
         .hd-activity-content {
@@ -589,9 +600,11 @@
         }
 
         .hd-roster-empty-icon {
-            font-size: 2rem;
+            font-size: 1.2rem;
             margin-bottom: 12px;
             opacity: 0.4;
+            color: var(--hd-text-muted);
+            letter-spacing: 0.1em;
         }
 
         .hd-roster-empty-text {
@@ -2564,7 +2577,7 @@
                     <div class="hd-roster-title">Student Roster</div>
                     <div id="rosterContent">
                         <div class="hd-roster-empty">
-                            <div class="hd-roster-empty-icon">👥</div>
+                            <div class="hd-roster-empty-icon">--</div>
                             <div class="hd-roster-empty-text">
                                 No students yet.<br>
                                 Share the class code to invite students.
@@ -3432,7 +3445,11 @@
             const recentEvents = events.slice(0, 20);
 
             const filterText = filterUid ? ` (filtered)` : '';
-            countBadge.textContent = `${events.length} event${events.length !== 1 ? 's' : ''}${filterText}`;
+            if (events.length > 20) {
+                countBadge.textContent = `20 of ${events.length} events${filterText}`;
+            } else {
+                countBadge.textContent = `${events.length} event${events.length !== 1 ? 's' : ''}${filterText}`;
+            }
 
             if (recentEvents.length === 0) {
                 const emptyText = filterUid ? 'No activity for this student.' : 'No activity yet. Student progress will appear here.';
@@ -3441,13 +3458,14 @@
             }
 
             feed.innerHTML = recentEvents.map(event => {
-                const icon = event.score != null ? '✅' : '📘';
+                const iconClass = event.score != null ? 'scored' : 'unscored';
+                const iconChar = event.score != null ? '&#10003;' : '&#9679;';
                 const scoreText = event.score != null ? ` (${event.score}%)` : '';
                 const timeAgo = formatTimeAgo(event.timestamp);
 
                 return `
                     <div class="hd-activity-item">
-                        <span class="hd-activity-icon">${icon}</span>
+                        <span class="hd-activity-icon ${iconClass}">${iconChar}</span>
                         <div class="hd-activity-content">
                             <div class="hd-activity-text">
                                 <strong>${escapeHtml(event.studentName)}</strong> completed <strong>${escapeHtml(event.contentTitle)}</strong>${scoreText}
@@ -3667,17 +3685,17 @@
 
             const memberCount = rosterMembers.length || 1;
 
-            // Calculate completion rate per assignment (using smart resolution)
+            // Calculate average completion % per assignment across all students
             const assignmentData = classAssignments.map(a => {
-                let completedStudents = 0;
+                let totalPct = 0;
                 for (const sp of classProgressData) {
                     const result = resolveAssignmentProgress(a, sp.completions || {});
-                    // Consider a student as having "completed" if they finished all modules for a path
-                    if (result.pct === 100) completedStudents++;
+                    totalPct += result.pct;
                 }
+                const avgPct = memberCount > 0 ? Math.round(totalPct / memberCount) : 0;
                 return {
                     title: a.title.length > 20 ? a.title.substring(0, 18) + '...' : a.title,
-                    pct: Math.round((completedStudents / memberCount) * 100)
+                    pct: avgPct
                 };
             });
 
@@ -4832,7 +4850,7 @@
                 if (count === 0) {
                     container.innerHTML = `
                         <div class="hd-roster-empty">
-                            <div class="hd-roster-empty-icon">\uD83D\uDC65</div>
+                            <div class="hd-roster-empty-icon">--</div>
                             <div class="hd-roster-empty-text">
                                 No students yet.<br>
                                 Share the class code to invite students.
@@ -5635,24 +5653,29 @@
             // Sort by completion ascending (struggling students first)
             studentRows.sort((a, b) => a.pct - b.pct);
 
-            // Compute overall avg
+            // Compute overall avg (use per-student pct to match stat card — accounts for path expansion)
             let avgCompletion = 0;
             if (totalStudents > 0 && totalAssignments > 0) {
-                const totalCompleted = studentRows.reduce((sum, s) => sum + s.completed, 0);
-                avgCompletion = Math.round((totalCompleted / (totalStudents * totalAssignments)) * 100);
+                const avgPctSum = studentRows.reduce((sum, s) => sum + s.pct, 0);
+                avgCompletion = Math.round(avgPctSum / totalStudents);
             }
 
             // At-risk students (below 40%)
             const atRisk = studentRows.filter(s => s.total > 0 && s.pct < 40);
             const onTrack = studentRows.filter(s => s.total > 0 && s.pct >= 70);
 
-            // Assignment completion breakdown
+            // Assignment completion breakdown (using resolveAssignmentProgress for path-aware counting)
             const assignmentBreakdown = classAssignments.map(a => {
-                const count = classProgressData.filter(p =>
-                    p.completions && p.completions[a.contentId] && p.completions[a.contentId].completed
-                ).length;
-                const rate = totalStudents > 0 ? Math.round((count / totalStudents) * 100) : 0;
-                return { title: a.title, count, rate };
+                let completedStudents = 0;
+                let totalPct = 0;
+                for (const sp of classProgressData) {
+                    const result = resolveAssignmentProgress(a, sp.completions || {});
+                    if (result.pct === 100) completedStudents++;
+                    totalPct += result.pct;
+                }
+                const avgPct = totalStudents > 0 ? Math.round(totalPct / totalStudents) : 0;
+                const rate = totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
+                return { title: a.title, count: completedStudents, rate, avgPct, isPath: a.assignmentType === 'path' };
             });
 
             // Build alerts
@@ -5686,15 +5709,20 @@
 
             // Assignment breakdown table
             const assignmentTableRows = assignmentBreakdown.map(a => {
+                const displayPct = a.isPath ? a.avgPct : a.rate;
                 let tagClass;
-                if (a.rate >= 70) tagClass = 'green';
-                else if (a.rate >= 40) tagClass = 'yellow';
+                if (displayPct >= 70) tagClass = 'green';
+                else if (displayPct >= 40) tagClass = 'yellow';
                 else tagClass = 'red';
+
+                const completedCol = a.isPath
+                    ? `${a.avgPct}% avg (${a.count}/${totalStudents} complete)`
+                    : `${a.count}/${totalStudents}`;
 
                 return `<tr>
                     <td>${escapeHtml(a.title)}</td>
-                    <td>${a.count}/${totalStudents}</td>
-                    <td><span class="report-tag ${totalStudents > 0 ? tagClass : 'gray'}">${totalStudents > 0 ? a.rate + '%' : '--'}</span></td>
+                    <td>${completedCol}</td>
+                    <td><span class="report-tag ${totalStudents > 0 ? tagClass : 'gray'}">${totalStudents > 0 ? displayPct + '%' : '--'}</span></td>
                 </tr>`;
             }).join('');
 
