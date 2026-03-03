@@ -12,6 +12,7 @@
  *   EMOJI-003  (warning) Emoji in inline HTML near known UI patterns
  *   EMOJI-004  (medium)  Emoji in hero/emblem container (should be <img>)
  *   EMOJI-005  (low)     Raw emoji in JS string literal or HTML content
+ *   EMOJI-006  (medium)  Escaped Unicode emoji in HTML <script> block icon: property
  */
 
 const fs = require('fs');
@@ -189,7 +190,8 @@ class EmojiValidator {
     }
 
     /**
-     * EMOJI-001: Emoji in icon: JS property inside <script> blocks
+     * EMOJI-001: Raw emoji in icon: JS property inside <script> blocks
+     * EMOJI-006: Escaped Unicode emoji (\uXXXX or \u{XXXXX}) in icon: property
      */
     checkScriptBlocks(content, filePath) {
         const issues = [];
@@ -206,17 +208,33 @@ class EmojiValidator {
 
             while ((iconMatch = iconPropRe.exec(scriptBody)) !== null) {
                 const value = iconMatch[2];
-                if (EMOJI_RE.test(value) || UNICODE_ESCAPE_RE.test(value)) {
-                    // Skip if inside an onerror attribute
-                    if (this.isInsideOnerror(content, scriptStart + iconMatch.index)) continue;
+                const hasRawEmoji = EMOJI_RE.test(value);
+                const hasEscapedEmoji = UNICODE_ESCAPE_RE.test(value);
 
+                if (!hasRawEmoji && !hasEscapedEmoji) continue;
+                if (this.isInsideOnerror(content, scriptStart + iconMatch.index)) continue;
+
+                const line = this.getLineNumber(content, scriptStart + iconMatch.index);
+
+                if (hasEscapedEmoji) {
+                    // EMOJI-006: escaped Unicode — higher severity, harder to spot
+                    issues.push({
+                        code: 'EMOJI-006',
+                        severity: 'medium',
+                        category: 'emoji',
+                        message: `Escaped Unicode emoji in icon: property — replace with icon image path`,
+                        file: filePath,
+                        line,
+                        fix: this.suggestIconFix(value)
+                    });
+                } else {
+                    // EMOJI-001: raw emoji character
                     const emoji = this.extractEmoji(value);
-                    const line = this.getLineNumber(content, scriptStart + iconMatch.index);
                     issues.push({
                         code: 'EMOJI-001',
                         severity: 'low',
                         category: 'emoji',
-                        message: `Emoji icon "${emoji}" in JS property — replace with category/emblem image`,
+                        message: `Emoji icon "${emoji}" in JS property — replace with icon image path`,
                         file: filePath,
                         line,
                         fix: this.suggestFix(filePath, value)
