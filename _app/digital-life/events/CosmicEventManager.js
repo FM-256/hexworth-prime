@@ -335,7 +335,7 @@ class CosmicEventManager {
             this.onEventStart(eventType, eventData);
         }
 
-        console.log(`<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cosmic Event: ${eventConfig.name} started (${(duration/1000).toFixed(1)}s)`);
+        console.log(`[globe] Cosmic Event: ${eventConfig.name} started (${(duration/1000).toFixed(1)}s)`);
     }
 
     /**
@@ -357,7 +357,7 @@ class CosmicEventManager {
             this.onEventEnd(eventType, eventData);
         }
 
-        console.log(`<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cosmic Event: ${eventData.config.name} ended`);
+        console.log(`[globe] Cosmic Event: ${eventData.config.name} ended`);
     }
 
     /**
@@ -393,7 +393,7 @@ class CosmicEventManager {
      * Display announcement
      */
     announce(message) {
-        this.announcementElement.textContent = message;
+        this.announcementElement.innerHTML = message;
         this.announcementElement.classList.add('show');
 
         setTimeout(() => {
