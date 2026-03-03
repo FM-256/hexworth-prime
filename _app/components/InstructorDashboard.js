@@ -833,17 +833,37 @@ const InstructorDashboard = (function() {
                     ? rosterMembers.length
                     : 1;
                 return `
-                    <div class="id-comms-sent-item">
+                    <div class="id-comms-sent-item" data-msg-id="${msg.id}">
                         <div class="id-comms-sent-meta">
                             <span class="id-comms-sent-to">To: ${escapeHtml(recipient)}</span>
                             <span class="id-comms-sent-time">${time}</span>
                         </div>
                         <div class="id-comms-sent-text">${escapeHtml(msg.text)}</div>
-                        <div class="id-comms-sent-read">Read by ${readCount} / ${totalRecipients}</div>
+                        <div class="id-comms-sent-footer">
+                            <span class="id-comms-sent-read">Read by ${readCount} / ${totalRecipients}</span>
+                            <button class="id-comms-delete-btn" onclick="InstructorDashboard.deleteCommsMessage('${msg.id}')" title="Delete message">&times;</button>
+                        </div>
                     </div>
                 `;
             }).join('')}
         `;
+    }
+
+    async function deleteCommsMessage(msgId) {
+        if (!confirm('Delete this message? Students will no longer see it.')) return;
+        try {
+            const { doc, deleteDoc, getFirestore } = window.firebaseFirestore;
+            const { getApps } = window.firebaseApp;
+            const db = getFirestore(getApps()[0]);
+            await deleteDoc(doc(db, 'handler_messages', msgId));
+
+            sentMessages = sentMessages.filter(m => m.id !== msgId);
+            renderSentMessages();
+            showToast('Message deleted');
+        } catch (e) {
+            console.error('[InstructorDashboard] Failed to delete message:', e);
+            showToast('Failed to delete: ' + (e.message || 'Unknown error'));
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -3924,10 +3944,32 @@ const InstructorDashboard = (function() {
                 margin-bottom: 4px;
             }
 
+            .id-comms-sent-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
             .id-comms-sent-read {
                 font-size: 0.6rem;
                 color: var(--id-text-muted);
             }
+
+            .id-comms-delete-btn {
+                background: none;
+                border: 1px solid rgba(248, 113, 113, 0.3);
+                color: #f87171;
+                font-size: 0.9rem;
+                line-height: 1;
+                padding: 2px 6px;
+                border-radius: 4px;
+                cursor: pointer;
+                opacity: 0.5;
+                transition: opacity 0.15s;
+            }
+
+            .id-comms-sent-item:hover .id-comms-delete-btn { opacity: 1; }
+            .id-comms-delete-btn:hover { background: rgba(248, 113, 113, 0.15); }
 
             /* Responsive */
             @media (max-width: 1000px) {
@@ -3989,7 +4031,8 @@ const InstructorDashboard = (function() {
         showMergeModal: showMergeModal,
         previewMerge: previewMerge,
         submitMerge: submitMerge,
-        sendCommsMessage: sendCommsMessage
+        sendCommsMessage: sendCommsMessage,
+        deleteCommsMessage: deleteCommsMessage
     };
 
 })();
