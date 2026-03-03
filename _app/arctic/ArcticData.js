@@ -11,7 +11,7 @@
 
 const ArcticData = {
 
-    version: '1.0.0',
+    version: '2.0.0',
 
     // ---------------------------------------------------------------------------
     // Faction definitions — Penguin is always unlocked; Parrot and Dragon gate
@@ -30,7 +30,7 @@ const ArcticData = {
             colorAccent: '#7ac4e8',
             unlockRequirement: null,          // always unlocked
             unlockThreshold: 0,
-            districtCount: 5
+            districtCount: 6
         },
         {
             id: 'parrot',
@@ -63,7 +63,7 @@ const ArcticData = {
     ],
 
     // ---------------------------------------------------------------------------
-    // District definitions — 11 total across 3 factions.
+    // District definitions — 12 total across 3 factions.
     // Each module entry has: id, title, type, href (relative from district page).
     // type: 'module' | 'lab' | 'applet' | 'quiz' | 'tool' | 'game' | 'review'
     // ---------------------------------------------------------------------------
@@ -92,6 +92,8 @@ const ArcticData = {
                 { id: 'lm-07-listing',      title: 'Listing Files (ls)',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-07-listing-files.module.html' },
                 { id: 'lm-08-file-ops',     title: 'File Operations',          type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html' },
                 { id: 'lm-09-copy-move',    title: 'Copy, Move, Remove',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html' },
+                { id: 'lm-11-find-files',  title: 'Finding Files',            type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html' },
+                { id: 'lm-12-s2-practice', title: 'Section 2 Practice',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html' },
                 // CLH applets
                 { id: 'clh-001-applet',     title: 'CLH-001: Intro to Hacker CLI', type: 'applet', href: '../../../houses/script/applets/linux/script-clh-001-intro-to-hacker-cli.applet.html' },
                 { id: 'clh-002-applet',     title: 'CLH-002: Navigation Recon',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-002-navigation-recon.applet.html' },
@@ -235,7 +237,12 @@ const ArcticData = {
                 { id: 'tool-process-mgmt',  title: 'Process Management Tool',     type: 'tool', href: '../../../houses/script/tools/script-process-management.tool.html' },
                 { id: 'tool-package-mgr',   title: 'Package Manager Reference',   type: 'tool', href: '../../../houses/script/tools/script-package-manager.tool.html' },
                 { id: 'quiz-sysadmin',      title: 'SysAdmin Quiz',               type: 'quiz', href: '../../../houses/script/quizzes/script-sysadmin.quiz.html' },
-                { id: 'game-dont-kill',     title: "Don't Kill the Server (Game)", type: 'game', href: '../../../houses/script/games/dont-kill-the-server.html' }
+                { id: 'game-dont-kill',     title: "Don't Kill the Server (Game)", type: 'game', href: '../../../houses/script/games/dont-kill-the-server.html' },
+                { id: 'lm-27-s4-practice', title: 'Section 4 Practice',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html' },
+                { id: 'lm-34-s5-practice', title: 'Section 5 Practice',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html' },
+                { id: 'lab-warmup-nav',    title: 'Warmup: Navigation',       type: 'lab', href: '../../../houses/script/linux/labs/script-warmup-navigation.lab.html' },
+                { id: 'lab-template-warmup',title: 'Template Warmup Lab',     type: 'lab', href: '../../../houses/script/linux/labs/script-template-warmup.lab.html' },
+                { id: 'tool-quick-ref',    title: 'Quick Reference',          type: 'tool', href: '../../../houses/script/linux/script-quick.reference.html' }
             ]
         },
 
@@ -275,12 +282,77 @@ const ArcticData = {
                 { id: 'lab-disk-partition', title: 'Disk Partition Prep',          type: 'lab', href: '../../../houses/script/labs/linux/script-linux-disk-partition-prep.lab.html' },
                 { id: 'review-terminal-vel',title: 'Terminal Velocity (Game)',     type: 'review', href: '../../../houses/script/reviews/terminal-velocity.html' },
                 { id: 'review-perm-puzzle', title: 'Permission Puzzle (Game)',     type: 'review', href: '../../../houses/script/reviews/permission-puzzle.html' },
-                { id: 'review-linux-cli',   title: 'Linux CLI Review',             type: 'review', href: '../../../houses/script/reviews/linux-cli-review.html' }
+                { id: 'review-linux-cli',   title: 'Linux CLI Review',             type: 'review', href: '../../../houses/script/reviews/linux-cli-review.html' },
+                { id: 'review-la-comp',    title: 'LA Comprehensive Review',  type: 'review', href: '../../../houses/script/linux/reviews/script-la-comprehensive-review.html' }
             ]
         },
 
         // -----------------------------------------------------------------------
-        // PARROT FACTION — District 6: Log Analysis
+        // PENGUIN FACTION — District 6: Linux Administration (NEW)
+        // Full Linux Admin course — 12 chapters with presentations, quizzes, labs.
+        // -----------------------------------------------------------------------
+        {
+            id: 'linux-admin',
+            name: 'Linux Administration',
+            faction: 'penguin',
+            icon: '\u{2699}',
+            description: 'The full Linux Administration course. 12 chapters covering distros, processes, daemons, networking, encryption, and compilation — each with a presentation, quiz, and hands-on lab.',
+            lore: 'The deepest wing of the Penguin Collective. Only those who have mastered the fundamentals earn access to the full administration curriculum.',
+            difficulty: 3,
+            modules: [
+                // Chapter 01 — Introduction
+                { id: 'la-ch01-pres',  title: 'Ch01: Introduction (Presentation)',    type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch01-intro.presentation.html' },
+                { id: 'la-ch01-quiz',  title: 'Ch01: Introduction (Quiz)',            type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch01-quiz.quiz.html' },
+                { id: 'la-ch01-lab',   title: 'Ch01: Introduction (Lab)',             type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch01-intro.lab.html' },
+                // Chapter 02 — Distros
+                { id: 'la-ch02-pres',  title: 'Ch02: Distros (Presentation)',         type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch02-distros.presentation.html' },
+                { id: 'la-ch02-quiz',  title: 'Ch02: Distros (Quiz)',                 type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch02-quiz.quiz.html' },
+                { id: 'la-ch02-lab',   title: 'Ch02: Distros (Lab)',                  type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch02-distros.lab.html' },
+                // Chapter 03 — Grep & Pipes
+                { id: 'la-ch03-pres',  title: 'Ch03: Grep & Pipes (Presentation)',    type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch03-grep-pipes.presentation.html' },
+                { id: 'la-ch03-quiz',  title: 'Ch03: Grep & Pipes (Quiz)',            type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch03-quiz.quiz.html' },
+                { id: 'la-ch03-lab',   title: 'Ch03: Grep & Pipes (Lab)',             type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch03-grep-pipes.lab.html' },
+                // Chapter 04 — Processes
+                { id: 'la-ch04-pres',  title: 'Ch04: Processes (Presentation)',       type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch04-processes.presentation.html' },
+                { id: 'la-ch04-quiz',  title: 'Ch04: Processes (Quiz)',               type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch04-quiz.quiz.html' },
+                { id: 'la-ch04-lab',   title: 'Ch04: Processes (Lab)',                type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch04-processes.lab.html' },
+                // Chapter 05 — Daemons
+                { id: 'la-ch05-pres',  title: 'Ch05: Daemons (Presentation)',         type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch05-daemons.presentation.html' },
+                { id: 'la-ch05-quiz',  title: 'Ch05: Daemons (Quiz)',                 type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch05-quiz.quiz.html' },
+                { id: 'la-ch05-lab',   title: 'Ch05: Daemons (Lab)',                  type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch05-daemons.lab.html' },
+                // Chapter 06 — Init & X Windows
+                { id: 'la-ch06-pres',  title: 'Ch06: Init & X Windows (Presentation)',type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch06-init-xwindows.presentation.html' },
+                { id: 'la-ch06-quiz',  title: 'Ch06: Init & X Windows (Quiz)',        type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch06-quiz.quiz.html' },
+                { id: 'la-ch06-lab',   title: 'Ch06: Init & X Windows (Lab)',         type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch06-init-xwindows.lab.html' },
+                // Chapter 07 — Display Managers
+                { id: 'la-ch07-pres',  title: 'Ch07: Display Managers (Presentation)',type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch07-display-mgr.presentation.html' },
+                { id: 'la-ch07-quiz',  title: 'Ch07: Display Managers (Quiz)',        type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch07-quiz.quiz.html' },
+                { id: 'la-ch07-lab',   title: 'Ch07: Display Managers (Lab)',         type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch07-display-mgr.lab.html' },
+                // Chapter 08 — Network Config
+                { id: 'la-ch08-pres',  title: 'Ch08: Network Config (Presentation)',  type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch08-network.presentation.html' },
+                { id: 'la-ch08-quiz',  title: 'Ch08: Network Config (Quiz)',          type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch08-quiz.quiz.html' },
+                { id: 'la-ch08-lab',   title: 'Ch08: Network Config (Lab)',           type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch08-network.lab.html' },
+                // Chapter 09 — IPv4
+                { id: 'la-ch09-pres',  title: 'Ch09: IPv4 (Presentation)',            type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch09-ipv4.presentation.html' },
+                { id: 'la-ch09-quiz',  title: 'Ch09: IPv4 (Quiz)',                    type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch09-quiz.quiz.html' },
+                { id: 'la-ch09-lab',   title: 'Ch09: IPv4 (Lab)',                     type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch09-ipv4.lab.html' },
+                // Chapter 10 — Compression
+                { id: 'la-ch10-pres',  title: 'Ch10: Compression (Presentation)',     type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch10-compression.presentation.html' },
+                { id: 'la-ch10-quiz',  title: 'Ch10: Compression (Quiz)',             type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch10-quiz.quiz.html' },
+                { id: 'la-ch10-lab',   title: 'Ch10: Compression (Lab)',              type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch10-compression.lab.html' },
+                // Chapter 11 — Encryption
+                { id: 'la-ch11-pres',  title: 'Ch11: Encryption (Presentation)',      type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch11-encryption.presentation.html' },
+                { id: 'la-ch11-quiz',  title: 'Ch11: Encryption (Quiz)',              type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch11-quiz.quiz.html' },
+                { id: 'la-ch11-lab',   title: 'Ch11: Encryption (Lab)',               type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch11-encryption.lab.html' },
+                // Chapter 12 — Compiling
+                { id: 'la-ch12-pres',  title: 'Ch12: Compiling (Presentation)',       type: 'module', href: '../../../houses/script/linux/presentations/script-la-ch12-compile.presentation.html' },
+                { id: 'la-ch12-quiz',  title: 'Ch12: Compiling (Quiz)',               type: 'quiz',   href: '../../../houses/script/linux/quizzes/script-la-ch12-quiz.quiz.html' },
+                { id: 'la-ch12-lab',   title: 'Ch12: Compiling (Lab)',                type: 'lab',    href: '../../../houses/script/linux/labs/script-la-ch12-compile.lab.html' }
+            ]
+        },
+
+        // -----------------------------------------------------------------------
+        // PARROT FACTION — District 7 (was 6): Log Analysis
         // Log investigation, forensics, SIEM basics.
         // -----------------------------------------------------------------------
         {
@@ -303,8 +375,9 @@ const ArcticData = {
         },
 
         // -----------------------------------------------------------------------
-        // PARROT FACTION — District 7: Hardening
+        // PARROT FACTION — District 8 (was 7): Hardening
         // Security hardening, access control, firewall management.
+        // + Shield defensive labs, firewall builder applet
         // -----------------------------------------------------------------------
         {
             id: 'hardening',
@@ -323,13 +396,31 @@ const ArcticData = {
                 { id: 'tool-perms-hard',    title: 'Permissions Reference Tool',     type: 'tool', href: '../../../houses/script/tools/script-linux-permissions.tool.html' },
                 { id: 'game-sudo-flap',     title: 'Sudo Flap (Game)',               type: 'game', href: '../../../houses/script/games/sudo-flap.html' },
                 { id: 'game-sudo-su',       title: 'sudo su (Game)',                 type: 'game', href: '../../../houses/script/games/sudo-su.html' },
-                { id: 'game-chmod777',      title: 'Chmod 777 Adventure (Game)',     type: 'game', href: '../../../houses/script/games/text-adventure-chmod777.html' }
+                { id: 'game-chmod777',      title: 'Chmod 777 Adventure (Game)',     type: 'game', href: '../../../houses/script/games/text-adventure-chmod777.html' },
+                // Shield defensive labs
+                { id: 'shield-firewall',       title: 'Firewall Lab',                   type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-firewall.lab.html' },
+                { id: 'shield-firewall-drill', title: 'Firewall Drill',                 type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-firewall-drill.lab.html' },
+                { id: 'shield-audit',          title: 'Audit Lab',                      type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-audit.lab.html' },
+                { id: 'shield-audit-drill',    title: 'Audit Drill',                    type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-audit-drill.lab.html' },
+                { id: 'shield-file-integrity', title: 'File Integrity Lab',             type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-file-integrity.lab.html' },
+                { id: 'shield-hardening',      title: 'Hardening Lab',                  type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-hardening.lab.html' },
+                { id: 'shield-password-policy',title: 'Password Policy Lab',            type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-password-policy.lab.html' },
+                { id: 'shield-perms-drill',    title: 'Permissions Drill',              type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-perms-drill.lab.html' },
+                { id: 'shield-selinux',        title: 'SELinux Lab',                    type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-selinux.lab.html' },
+                { id: 'shield-ssh-drill',      title: 'SSH Drill',                      type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-drill.lab.html' },
+                { id: 'shield-ssh-hard-prep',  title: 'SSH Hardening Prep',             type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-hardening-prep.lab.html' },
+                { id: 'shield-ssh-security',   title: 'SSH Security Lab',               type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-security.lab.html' },
+                { id: 'shield-sudo',           title: 'Sudo Lab',                       type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-sudo.lab.html' },
+                { id: 'shield-sudo-policy',    title: 'Sudo Policy Prep',               type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-sudo-policy-prep.lab.html' },
+                // Shield firewall builder applet
+                { id: 'shield-fw-builder',     title: 'Firewall Builder',               type: 'applet', href: '../../../houses/shield/applets/network/shield-linux-firewall-builder.applet.html' }
             ]
         },
 
         // -----------------------------------------------------------------------
-        // PARROT FACTION — District 8: Incident Response
+        // PARROT FACTION — District 9 (was 8): Incident Response
         // IR procedures, environment forensics, capstone labs.
+        // + Anonymity labs (Tor, VPN, advanced OPSEC), process monitor
         // -----------------------------------------------------------------------
         {
             id: 'incident-response',
@@ -347,13 +438,19 @@ const ArcticData = {
                 { id: 'clh-028-ir-applet',  title: 'CLH-028: Monitoring',               type: 'applet', href: '../../../houses/script/applets/linux/script-clh-028-monitoring.applet.html' },
                 { id: 'lab-bash-log-proc',  title: 'Bash Log Processor Prep',           type: 'lab', href: '../../../houses/script/labs/linux/script-bash-log-processor-prep.lab.html' },
                 { id: 'lab-sysadmin-ref',   title: 'SysAdmin Reference Lab',            type: 'lab', href: '../../../houses/script/labs/linux/script-linux-sysadmin-reference.lab.html' },
-                { id: 'lab-file-mgmt-prep', title: 'File Management Prep',              type: 'lab', href: '../../../houses/script/labs/linux/script-linux-file-mgmt-prep.lab.html' }
+                { id: 'lab-file-mgmt-prep', title: 'File Management Prep',              type: 'lab', href: '../../../houses/script/labs/linux/script-linux-file-mgmt-prep.lab.html' },
+                // Anonymity & OPSEC labs
+                { id: 'lab-anonymity-tor',  title: 'Anonymity: Tor',                  type: 'lab', href: '../../../houses/script/linux/labs/script-anonymity-tor.lab.html' },
+                { id: 'lab-anonymity-vpn',  title: 'Anonymity: VPN',                  type: 'lab', href: '../../../houses/script/linux/labs/script-anonymity-vpn.lab.html' },
+                { id: 'lab-anonymity-adv',  title: 'Anonymity: Advanced OPSEC',       type: 'lab', href: '../../../houses/script/linux/labs/script-anonymity-advanced.lab.html' },
+                { id: 'lab-process-monitor',title: 'Process Monitor Lab',              type: 'lab', href: '../../../houses/script/linux/labs/script-process-monitor.lab.html' }
             ]
         },
 
         // -----------------------------------------------------------------------
-        // DRAGON FACTION — District 9: Offensive Tools
+        // DRAGON FACTION — District 10 (was 9): Offensive Tools
         // Kali/Parrot tools, enumeration, exploitation fundamentals.
+        // + 13 Dark Arts offensive Linux labs
         // -----------------------------------------------------------------------
         {
             id: 'offensive-tools',
@@ -370,13 +467,28 @@ const ArcticData = {
                 { id: 'lab-file-search-off',title: 'File Search Lab',                type: 'lab', href: '../../../houses/script/labs/linux/script-linux-file-search.lab.html' },
                 { id: 'lab-mission-file-search', title: 'Mission: File Search',      type: 'lab', href: '../../../houses/script/linux/labs/script-mission-file-search.lab.html' },
                 { id: 'game-shell-sprint',  title: 'Shell Sprint (Game)',            type: 'game', href: '../../../houses/script/games/shell-sprint.html' },
-                { id: 'game-pipe-snake',    title: 'Pipe Snake (Game)',              type: 'game', href: '../../../houses/script/games/pipe-snake.html' }
+                { id: 'game-pipe-snake',    title: 'Pipe Snake (Game)',              type: 'game', href: '../../../houses/script/games/pipe-snake.html' },
+                // Dark Arts offensive labs
+                { id: 'da-nmap-drill',      title: 'Nmap Drill',                     type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-nmap-drill.lab.html' },
+                { id: 'da-nmap-advanced',   title: 'Nmap Advanced',                  type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-nmap-advanced.lab.html' },
+                { id: 'da-hash-drill',      title: 'Hash Drill',                     type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hash-drill.lab.html' },
+                { id: 'da-hashcat',         title: 'Hashcat Lab',                    type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hashcat.lab.html' },
+                { id: 'da-recon-drill',     title: 'Recon Drill',                    type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-recon-drill.lab.html' },
+                { id: 'da-enumeration',     title: 'Enumeration Prep',               type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-enumeration-prep.lab.html' },
+                { id: 'da-enumscripts',     title: 'Enum Scripts Lab',               type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-enumscripts.lab.html' },
+                { id: 'da-exploitation',    title: 'Exploitation Prep',              type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-exploitation-prep.lab.html' },
+                { id: 'da-hydra',           title: 'Hydra Lab',                      type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hydra.lab.html' },
+                { id: 'da-metasploit',      title: 'Metasploit Lab',                 type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-metasploit.lab.html' },
+                { id: 'da-privesc',         title: 'Privilege Escalation Lab',       type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-privesc.lab.html' },
+                { id: 'da-reverse-shells',  title: 'Reverse Shells Lab',             type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-reverse-shells.lab.html' },
+                { id: 'da-post-exploit',    title: 'Post-Exploitation Lab',          type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html' }
             ]
         },
 
         // -----------------------------------------------------------------------
-        // DRAGON FACTION — District 10: Network Operations
+        // DRAGON FACTION — District 11 (was 10): Network Operations
         // SSH deep dive, network recon, firewall ops.
+        // + SSH basics & advanced labs
         // -----------------------------------------------------------------------
         {
             id: 'network-ops',
@@ -397,13 +509,16 @@ const ArcticData = {
                 { id: 'lm-39-ssh',          title: 'SSH Basics',                     type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html' },
                 { id: 'lm-40-s6-practice',  title: 'Section 6 Practice',            type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-40-section6-practice.module.html' },
                 { id: 'lab-ssh',            title: 'SSH Lab',                        type: 'lab', href: '../../../houses/script/labs/linux/script-linux-ssh.lab.html' },
-                { id: 'lab-network-drill',  title: 'Network Drill',                  type: 'lab', href: '../../../houses/script/labs/linux/script-linux-network-drill.lab.html' }
+                { id: 'lab-network-drill',  title: 'Network Drill',                  type: 'lab', href: '../../../houses/script/labs/linux/script-linux-network-drill.lab.html' },
+                // SSH labs
+                { id: 'lab-ssh-basics',     title: 'SSH Basics Lab',                 type: 'lab', href: '../../../houses/script/linux/labs/script-ssh-basics.lab.html' },
+                { id: 'lab-ssh-advanced',   title: 'SSH Advanced Lab',               type: 'lab', href: '../../../houses/script/linux/labs/script-ssh-advanced.lab.html' }
             ]
         },
 
         // -----------------------------------------------------------------------
-        // DRAGON FACTION — District 11: Arena
-        // CTF showcase, BoxEngine integration.
+        // DRAGON FACTION — District 12 (was 11): Arena
+        // CTF showcase, BoxEngine integration. A1-A20.
         // -----------------------------------------------------------------------
         {
             id: 'arena',
@@ -411,12 +526,29 @@ const ArcticData = {
             faction: 'dragon',
             icon: '\u{1F3DF}',
             description: 'The frozen arena at the top of the world. Full CTF boxes, exploitation challenges, and the ultimate test of everything learned in the Arctic.',
-            lore: 'Only those who have walked all 10 districts may enter the Arena. Here, the Dragon Order proves mastery.',
+            lore: 'Only those who have walked all districts may enter the Arena. Here, the Dragon Order proves mastery.',
             difficulty: 6,
             modules: [
                 { id: 'arena-a1',   title: 'A1: Ancient Ledger (SQL Injection)',   type: 'lab', href: '../../../arena/boxes/a1-ancient-ledger/index.html' },
                 { id: 'arena-a2',   title: 'A2: Whispering Wall',                  type: 'lab', href: '../../../arena/boxes/a2-whispering-wall/index.html' },
                 { id: 'arena-a3',   title: 'A3: Phantom Shell',                   type: 'lab', href: '../../../arena/boxes/a3-phantom-shell/index.html' },
+                { id: 'arena-a4',   title: 'A4: Lost Root',                      type: 'lab', href: '../../../arena/boxes/a4-lost-root/index.html' },
+                { id: 'arena-a5',   title: "A5: Custodian's Key",                type: 'lab', href: '../../../arena/boxes/a5-custodians-key/index.html' },
+                { id: 'arena-a6',   title: 'A6: Broken Cipher',                  type: 'lab', href: '../../../arena/boxes/a6-broken-cipher/index.html' },
+                { id: 'arena-a7',   title: 'A7: Hollow Database',                type: 'lab', href: '../../../arena/boxes/a7-hollow-database/index.html' },
+                { id: 'arena-a8',   title: 'A8: Forgotten Upload',               type: 'lab', href: '../../../arena/boxes/a8-forgotten-upload/index.html' },
+                { id: 'arena-a9',   title: 'A9: Rusted Lock',                    type: 'lab', href: '../../../arena/boxes/a9-rusted-lock/index.html' },
+                { id: 'arena-a10',  title: 'A10: Glass Tunnel',                  type: 'lab', href: '../../../arena/boxes/a10-glass-tunnel/index.html' },
+                { id: 'arena-a11',  title: 'A11: Dockerized Vault',              type: 'lab', href: '../../../arena/boxes/a11-dockerized-vault/index.html' },
+                { id: 'arena-a12',  title: 'A12: Mobile Scapegoat',              type: 'lab', href: '../../../arena/boxes/a12-mobile-scapegoat/index.html' },
+                { id: 'arena-a13',  title: 'A13: Rogue Sensor',                  type: 'lab', href: '../../../arena/boxes/a13-rogue-sensor/index.html' },
+                { id: 'arena-a14',  title: 'A14: Ghost Machine',                 type: 'lab', href: '../../../arena/boxes/a14-ghost-machine/index.html' },
+                { id: 'arena-a15',  title: 'A15: Spectral Interceptor',          type: 'lab', href: '../../../arena/boxes/a15-spectral-interceptor/index.html' },
+                { id: 'arena-a16',  title: 'A16: Corrupted Core',                type: 'lab', href: '../../../arena/boxes/a16-corrupted-core/index.html' },
+                { id: 'arena-a17',  title: 'A17: Whisper Campaign',              type: 'lab', href: '../../../arena/boxes/a17-whisper-campaign/index.html' },
+                { id: 'arena-a18',  title: 'A18: Ghost RAM',                     type: 'lab', href: '../../../arena/boxes/a18-ghost-ram/index.html' },
+                { id: 'arena-a19',  title: 'A19: Foundation\'s Fault',           type: 'lab', href: '../../../arena/boxes/a19-foundations-fault/index.html' },
+                { id: 'arena-a20',  title: 'A20: Project Chimera',               type: 'lab', href: '../../../arena/boxes/a20-project-chimera/index.html' },
                 { id: 'clh-030-arena',title: 'CLH-030: Chimera (Multi-Skill)',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-030-chimera.applet.html' },
                 { id: 'clh-031-arena',title: 'CLH-031: Blackout (Final Boss)',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-031-blackout.applet.html' }
             ]
