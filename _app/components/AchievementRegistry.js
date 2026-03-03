@@ -263,41 +263,44 @@ const AchievementRegistry = (function() {
     }
 
     /**
-     * Migrate from old storage format to v2
-     * Reads old key, normalizes both string IDs and full objects, deduplicates, writes v2.
-     * Old key is preserved (never deleted).
+     * Migrate/reconcile v1 storage into v2.
+     * Runs on every init — merges any v1 entries missing from v2.
+     * Content pages only write to v1 (AchievementRegistry isn't loaded there),
+     * so v2 can fall behind. This reconciliation keeps them in sync.
      */
     function migrate() {
-        // Already migrated?
         const existing = getV2Data();
-        if (existing) return existing;
+        const v2 = existing || { version: 2, unlocked: {}, migratedAt: Date.now() };
 
-        const v2 = { version: 2, unlocked: {}, migratedAt: Date.now() };
-
+        let added = 0;
         try {
             const raw = JSON.parse(localStorage.getItem(STORAGE_KEY_OLD) || '[]');
             for (const entry of raw) {
                 if (typeof entry === 'string') {
-                    // From AchievementManager — string ID only
                     if (entry && !v2.unlocked[entry]) {
                         v2.unlocked[entry] = { unlockedAt: null, source: 'manager' };
+                        added++;
                     }
                 } else if (entry && entry.id) {
-                    // From AchievementSystem — full object
                     if (!v2.unlocked[entry.id]) {
                         v2.unlocked[entry.id] = {
                             unlockedAt: entry.unlockedAt || null,
                             source: 'system'
                         };
+                        added++;
                     }
                 }
             }
         } catch (e) {
-            console.warn('AchievementRegistry: Error migrating old achievements', e);
+            console.warn('AchievementRegistry: Error reconciling achievements', e);
         }
 
-        saveV2Data(v2);
-        console.log(`AchievementRegistry: Migrated ${Object.keys(v2.unlocked).length} achievements to v2 storage`);
+        if (!existing || added > 0) {
+            saveV2Data(v2);
+            if (added > 0) {
+                console.log(`AchievementRegistry: Reconciled ${added} achievements from v1 into v2 (${Object.keys(v2.unlocked).length} total)`);
+            }
+        }
         return v2;
     }
 
@@ -405,10 +408,11 @@ const AchievementRegistry = (function() {
 
         if (v2.unlocked[id]) return false; // Already unlocked
 
+        // Store even if definition unknown — Manager/System validated the ID already.
+        // Content pages may unlock achievements before Registry has all definitions.
         const def = getDefinition(id);
         if (!def) {
-            console.warn('AchievementRegistry: Unknown achievement:', id);
-            return false;
+            console.warn('AchievementRegistry: No definition for', id, '— storing anyway');
         }
 
         v2.unlocked[id] = { unlockedAt: Date.now(), source: 'registry' };
