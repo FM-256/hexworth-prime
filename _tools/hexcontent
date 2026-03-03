@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# hexcontent — Content shuttle between cold storage and shared folder
+#
+# Cold storage:  ~/hexworth/content/   (bc1 only, not synced)
+# Shared folder: ~/hexworth/tools/     (synced to laptop via Syncthing)
+# Working area:  ~/hexworth/tools/workbench/  (active content being processed)
+#
+# Usage:
+#   hexcontent list                    List all content in cold storage
+#   hexcontent search <term>           Search cold storage by name
+#   hexcontent fetch <name>            Copy content to shared folder workbench
+#   hexcontent stash <name>            Move content from workbench back to cold storage
+#   hexcontent status                  Show what's currently in the workbench
+#   hexcontent peek <name>             Preview content (tree + file sizes) without fetching
+#   hexcontent nuke <name>             Remove content from workbench (already in cold storage)
+
+set -euo pipefail
+
+COLD="$HOME/hexworth/content"
+SHARED="$HOME/hexworth/tools/workbench"
+BLUE='\033[0;36m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+DIM='\033[2m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+mkdir -p "$COLD" "$SHARED"
+
+usage() {
+    echo -e "${BOLD}hexcontent${NC} — Content shuttle (cold storage ↔ shared folder)"
+    echo ""
+    echo -e "  ${BLUE}list${NC}                    List all content in cold storage"
+    echo -e "  ${BLUE}search${NC} <term>           Search cold storage by name"
+    echo -e "  ${BLUE}fetch${NC} <name>            Copy content to workbench (syncs to laptop)"
+    echo -e "  ${BLUE}stash${NC} <name>            Move content from workbench back to cold storage"
+    echo -e "  ${BLUE}status${NC}                  Show what's in the workbench"
+    echo -e "  ${BLUE}peek${NC} <name>             Preview content without fetching"
+    echo -e "  ${BLUE}nuke${NC} <name>             Remove from workbench (cold copy kept)"
+    echo -e "  ${BLUE}size${NC}                    Show storage usage"
+    echo ""
+    echo -e "  ${DIM}Cold storage:  ~/hexworth/content/${NC}"
+    echo -e "  ${DIM}Workbench:     ~/hexworth/tools/workbench/${NC}"
+}
+
+cmd_list() {
+    echo -e "${BOLD}COLD STORAGE${NC} — $COLD"
+    echo ""
+    local count=0
+    for d in "$COLD"/*/; do
+        [ -d "$d" ] || continue
+        local name=$(basename "$d")
+        local size=$(du -sh "$d" 2>/dev/null | cut -f1)
+        local files=$(find "$d" -type f | wc -l)
+        # Check if also in workbench
+        local tag=""
+        if [ -d "$SHARED/$name" ]; then
+            tag=" ${YELLOW}[fetched]${NC}"
+        fi
+        echo -e "  ${GREEN}$name${NC}  ${DIM}${size} / ${files} files${NC}${tag}"
+        count=$((count + 1))
+    done
+    if [ $count -eq 0 ]; then
+        echo -e "  ${DIM}(empty)${NC}"
+    fi
+    echo ""
+    echo -e "${DIM}$count items in cold storage${NC}"
+}
+
+cmd_search() {
+    local term="${1:-}"
+    if [ -z "$term" ]; then
+        echo -e "${RED}Usage: hexcontent search <term>${NC}"
+        exit 1
+    fi
+    echo -e "${BOLD}SEARCH${NC} — \"$term\""
+    echo ""
+    local count=0
+    for d in "$COLD"/*/; do
+        [ -d "$d" ] || continue
+        local name=$(basename "$d")
+        if echo "$name" | grep -qi "$term"; then
+            local size=$(du -sh "$d" 2>/dev/null | cut -f1)
+            local files=$(find "$d" -type f | wc -l)
+            echo -e "  ${GREEN}$name${NC}  ${DIM}${size} / ${files} files${NC}"
+            count=$((count + 1))
+        fi
+    done
+    if [ $count -eq 0 ]; then
+        echo -e "  ${DIM}No matches${NC}"
+    fi
+}
+
+cmd_fetch() {
+    local name="${1:-}"
+    if [ -z "$name" ]; then
+        echo -e "${RED}Usage: hexcontent fetch <name>${NC}"
+        exit 1
+    fi
+    local src="$COLD/$name"
+    local dst="$SHARED/$name"
+    if [ ! -d "$src" ]; then
+        echo -e "${RED}Not found in cold storage: $name${NC}"
+        echo -e "${DIM}Use 'hexcontent list' to see available content${NC}"
+        exit 1
+    fi
+    if [ -d "$dst" ]; then
+        echo -e "${YELLOW}Already in workbench: $name${NC}"
+        exit 0
+    fi
+    echo -e "${BLUE}Fetching${NC} $name → workbench..."
+    cp -r "$src" "$dst"
+    local size=$(du -sh "$dst" 2>/dev/null | cut -f1)
+    local files=$(find "$dst" -type f | wc -l)
+    echo -e "${GREEN}Done${NC} — $size / $files files → will sync to laptop"
+}
+
+cmd_stash() {
+    local name="${1:-}"
+    if [ -z "$name" ]; then
+        echo -e "${RED}Usage: hexcontent stash <name>${NC}"
+        exit 1
+    fi
+    local src="$SHARED/$name"
+    local dst="$COLD/$name"
+    if [ ! -d "$src" ]; then
+        echo -e "${RED}Not in workbench: $name${NC}"
+        exit 1
+    fi
+    # If cold copy exists, update it; otherwise move
+    if [ -d "$dst" ]; then
+        echo -e "${BLUE}Updating${NC} cold storage and removing from workbench..."
+        rsync -a --delete "$src/" "$dst/"
+        rm -rf "$src"
+    else
+        echo -e "${BLUE}Stashing${NC} $name → cold storage..."
+        mv "$src" "$dst"
+    fi
+    echo -e "${GREEN}Done${NC} — $name moved back to cold storage"
+}
+
+cmd_status() {
+    echo -e "${BOLD}WORKBENCH${NC} — $SHARED"
+    echo ""
+    local count=0
+    local total_size="0"
+    for d in "$SHARED"/*/; do
+        [ -d "$d" ] || continue
+        local name=$(basename "$d")
+        local size=$(du -sh "$d" 2>/dev/null | cut -f1)
+        local files=$(find "$d" -type f | wc -l)
+        # Check if it has a cold copy
+        local tag=""
+        if [ -d "$COLD/$name" ]; then
+            tag=" ${DIM}(cold copy exists)${NC}"
+        else
+            tag=" ${YELLOW}(workbench only!)${NC}"
+        fi
+        echo -e "  ${GREEN}$name${NC}  ${DIM}${size} / ${files} files${NC}${tag}"
+        count=$((count + 1))
+    done
+    if [ $count -eq 0 ]; then
+        echo -e "  ${DIM}(empty — workbench is clean)${NC}"
+    fi
+    echo ""
+    local wb_size=$(du -sh "$SHARED" 2>/dev/null | cut -f1)
+    echo -e "${DIM}$count items in workbench ($wb_size total)${NC}"
+}
+
+cmd_peek() {
+    local name="${1:-}"
+    if [ -z "$name" ]; then
+        echo -e "${RED}Usage: hexcontent peek <name>${NC}"
+        exit 1
+    fi
+    local src="$COLD/$name"
+    if [ ! -d "$src" ]; then
+        echo -e "${RED}Not found: $name${NC}"
+        exit 1
+    fi
+    echo -e "${BOLD}$name${NC} — $(du -sh "$src" | cut -f1)"
+    echo ""
+    # Use tree if available, fallback to find
+    if command -v tree &>/dev/null; then
+        tree -h --du -L 3 "$src" 2>/dev/null | head -40
+    else
+        find "$src" -type f -exec du -h {} \; | sort -rh | head -20
+    fi
+}
+
+cmd_nuke() {
+    local name="${1:-}"
+    if [ -z "$name" ]; then
+        echo -e "${RED}Usage: hexcontent nuke <name>${NC}"
+        exit 1
+    fi
+    local src="$SHARED/$name"
+    if [ ! -d "$src" ]; then
+        echo -e "${RED}Not in workbench: $name${NC}"
+        exit 1
+    fi
+    if [ ! -d "$COLD/$name" ]; then
+        echo -e "${RED}WARNING: No cold copy exists! Use 'stash' instead to preserve data.${NC}"
+        exit 1
+    fi
+    echo -e "${BLUE}Removing${NC} $name from workbench (cold copy safe)..."
+    rm -rf "$src"
+    echo -e "${GREEN}Done${NC} — workbench cleaned"
+}
+
+cmd_size() {
+    echo -e "${BOLD}STORAGE USAGE${NC}"
+    echo ""
+    local cold_size=$(du -sh "$COLD" 2>/dev/null | cut -f1)
+    local cold_count=$(find "$COLD" -mindepth 1 -maxdepth 1 -type d | wc -l)
+    local wb_size=$(du -sh "$SHARED" 2>/dev/null | cut -f1)
+    local wb_count=$(find "$SHARED" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+    echo -e "  ${BLUE}Cold storage${NC}  $cold_size  ($cold_count items)"
+    echo -e "  ${BLUE}Workbench${NC}     $wb_size  ($wb_count items)"
+}
+
+# Route commands
+case "${1:-}" in
+    list|ls)     cmd_list ;;
+    search|s)    cmd_search "${2:-}" ;;
+    fetch|f)     cmd_fetch "${2:-}" ;;
+    stash|st)    cmd_stash "${2:-}" ;;
+    status|w)    cmd_status ;;
+    peek|p)      cmd_peek "${2:-}" ;;
+    nuke|n)      cmd_nuke "${2:-}" ;;
+    size|sz)     cmd_size ;;
+    *)           usage ;;
+esac
