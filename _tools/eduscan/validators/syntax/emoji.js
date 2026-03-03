@@ -61,6 +61,62 @@ const EMOJI_GLOBAL_RE = EMOJI_CHAR_GLOBAL_RE;
 // Unicode escape patterns used in JS source (surrogate pairs and \u{} syntax)
 const UNICODE_ESCAPE_RE = /\\u[Dd][89AaBb][0-9A-Fa-f]{2}|\\u\{1[Ff][0-9A-Fa-f]{3}\}/;
 
+// Codepoints for characters that are excluded when in escaped form (\uXXXX)
+// Same characters as EXCLUDED_CHARS, but as numeric codepoints for decoded comparison
+const EXCLUDED_CODEPOINTS = new Set([
+    0x2713, 0x2714, 0x2717, 0x2718, // ✓ ✔ ✗ ✘
+    0x2705, 0x274C, 0x274E,         // ✅ ❌ ❎
+    0x2192, 0x2190, 0x2191, 0x2193, // → ← ↑ ↓
+    0xFE0E, 0xFE0F, 0x200D,        // variation selectors, ZWJ
+    0x25BC, 0x25B8, 0x25CB, 0x25CF, // ▼ ▸ ○ ●
+    0x25BA, 0x25B2, 0x25AA, 0x25BE, // ► ▲ ▪ ▾
+    0x25B9, 0x25C0, 0x25C4, 0x25B3, // ▹ ◀ ◄ △
+    0x25C6, 0x25C7, 0x25C8, 0x25C9, // ◆ ◇ ◈ ◉
+    0x25CE, 0x25EF, 0x25D0, 0x25C1, // ◎ ◯ ◐ ◁
+    0x25EB, 0x25E2, 0x25FB, 0x25B6, // ◫ ◢ ◻ ▶
+    0x25B7, 0x25BD, 0x25BF,         // ▷ ▽ ▿
+    0x2605, 0x2606, 0x2726, 0x2727, // ★ ☆ ✦ ✧
+    0x2756, 0x2734,                  // ❖ ✴
+    0x2665, 0x2661,                  // ♥ ♡
+    0x2610, 0x2611, 0x2612,         // ☐ ☑ ☒
+    0x2715,                          // ✕
+    0x2691,                          // ⚑ flag
+    0x2742, 0x2736,                  // ❂ ✶ decorative stars
+]);
+
+/**
+ * Decode a \uXXXX escape sequence string into codepoints.
+ * Handles surrogate pairs and filters variation selectors/ZWJ.
+ */
+function decodeEscapedCodepoints(escapedStr) {
+    const hexVals = escapedStr.match(/[0-9a-fA-F]{4}/g) || [];
+    const cps = [];
+    let i = 0;
+    while (i < hexVals.length) {
+        const val = parseInt(hexVals[i], 16);
+        if (val >= 0xD800 && val <= 0xDBFF && i + 1 < hexVals.length) {
+            const low = parseInt(hexVals[i + 1], 16);
+            if (low >= 0xDC00 && low <= 0xDFFF) {
+                cps.push((val - 0xD800) * 0x400 + (low - 0xDC00) + 0x10000);
+                i += 2;
+                continue;
+            }
+        }
+        cps.push(val);
+        i++;
+    }
+    // Filter variation selectors and ZWJ
+    return cps.filter(cp => cp !== 0xFE0F && cp !== 0x200D);
+}
+
+/**
+ * Check if all decoded codepoints from an escaped string are excluded
+ */
+function allEscapedExcluded(escapedStr) {
+    const cps = decodeEscapedCodepoints(escapedStr);
+    return cps.length > 0 && cps.every(cp => EXCLUDED_CODEPOINTS.has(cp));
+}
+
 // JS directories to scan in the global pass (all .js files found recursively)
 const GLOBAL_JS_DIRS = [
     'components',
@@ -214,9 +270,12 @@ class EmojiValidator {
                 if (!hasRawEmoji && !hasEscapedEmoji) continue;
                 if (this.isInsideOnerror(content, scriptStart + iconMatch.index)) continue;
 
+                // For escaped emoji, check if ALL codepoints are excluded (geometric/functional)
+                if (hasEscapedEmoji && !hasRawEmoji && allEscapedExcluded(value)) continue;
+
                 const line = this.getLineNumber(content, scriptStart + iconMatch.index);
 
-                if (hasEscapedEmoji) {
+                if (hasEscapedEmoji && !hasRawEmoji) {
                     // EMOJI-006: escaped Unicode — higher severity, harder to spot
                     issues.push({
                         code: 'EMOJI-006',
@@ -227,7 +286,7 @@ class EmojiValidator {
                         line,
                         fix: this.suggestIconFix(value)
                     });
-                } else {
+                } else if (hasRawEmoji) {
                     // EMOJI-001: raw emoji character
                     const emoji = this.extractEmoji(value);
                     issues.push({
