@@ -327,12 +327,15 @@ const ActivityFeed = (function() {
 
         const hasMore = allEvents.length > CONFIG.displayCount;
 
+        const unreadCount = getUnreadCount();
+
         container.innerHTML = `
             <div class="activity-feed-container${isExpanded ? ' expanded' : ''}">
                 <div class="activity-feed-header">
                     <div class="activity-feed-title">
                         <span class="feed-icon">◢</span>
                         HANDLER COMMS
+                        ${unreadCount > 0 ? `<span class="handler-unread-badge"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle"> ${unreadCount} NEW</span>` : ''}
                     </div>
                     <div class="activity-feed-status">
                         <span class="status-dot"></span>
@@ -525,9 +528,18 @@ const ActivityFeed = (function() {
                     const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
                     return tb - ta;
                 });
+                const prevIds = new Set(handlerMessages.map(m => m.id));
                 handlerMessages = deduped.slice(0, 20);
                 handlerMessagesFetched = true;
                 if (containerEl) renderFeed(containerEl);
+
+                // Notify on genuinely new messages (not initial load)
+                if (prevIds.size > 0) {
+                    const newMsgs = handlerMessages.filter(m => !prevIds.has(m.id));
+                    for (const m of newMsgs) {
+                        showIncomingToast(m);
+                    }
+                }
             }
 
             // 1. Real-time listener for individual messages
@@ -627,6 +639,34 @@ const ActivityFeed = (function() {
         for (const msg of unread) {
             await markAsRead(msg.id);
         }
+    }
+
+    /**
+     * Show a slide-in toast when a new handler message arrives in real-time.
+     */
+    function showIncomingToast(msg) {
+        const existing = document.getElementById('handlerCommsToast');
+        if (existing) existing.remove();
+
+        const sender = msg.senderName || 'Handler';
+        const preview = (msg.text || '').length > 80 ? msg.text.substring(0, 80) + '...' : msg.text;
+
+        const toast = document.createElement('div');
+        toast.id = 'handlerCommsToast';
+        toast.className = 'hc-incoming-toast';
+        toast.innerHTML = `
+            <div class="hc-toast-icon"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.4em;height:1.4em;vertical-align:middle"></div>
+            <div class="hc-toast-body">
+                <div class="hc-toast-label">INCOMING TRANSMISSION</div>
+                <div class="hc-toast-sender">From: ${sender}</div>
+                <div class="hc-toast-text">${preview}</div>
+            </div>
+            <button class="hc-toast-close" onclick="this.parentElement.remove()">&times;</button>
+        `;
+        document.body.appendChild(toast);
+
+        // Auto-dismiss after 8 seconds
+        setTimeout(() => { if (toast.parentElement) toast.remove(); }, 8000);
     }
 
     /**
@@ -894,6 +934,70 @@ const ActivityFeed = (function() {
                 0%, 100% { opacity: 1; }
                 50% { opacity: 0.7; }
             }
+
+            /* Incoming message toast */
+            .hc-incoming-toast {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                background: linear-gradient(135deg, rgba(30, 20, 0, 0.97), rgba(20, 15, 0, 0.99));
+                border: 1px solid #f59e0b;
+                border-radius: 10px;
+                padding: 14px 16px;
+                max-width: 360px;
+                box-shadow: 0 4px 24px rgba(245, 158, 11, 0.3), 0 0 40px rgba(245, 158, 11, 0.1);
+                font-family: 'Courier New', monospace;
+                animation: hcToastSlide 0.3s ease-out;
+            }
+
+            @keyframes hcToastSlide {
+                from { opacity: 0; transform: translateX(40px); }
+                to   { opacity: 1; transform: translateX(0); }
+            }
+
+            .hc-toast-icon {
+                flex-shrink: 0;
+                margin-top: 2px;
+            }
+
+            .hc-toast-label {
+                font-size: 0.6rem;
+                font-weight: 700;
+                color: #f59e0b;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+            }
+
+            .hc-toast-sender {
+                font-size: 0.7rem;
+                color: #d97706;
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+
+            .hc-toast-text {
+                font-size: 0.75rem;
+                color: #e2e8f0;
+                line-height: 1.4;
+            }
+
+            .hc-toast-close {
+                flex-shrink: 0;
+                background: none;
+                border: none;
+                color: #666;
+                font-size: 1.2rem;
+                cursor: pointer;
+                padding: 0 2px;
+                line-height: 1;
+            }
+
+            .hc-toast-close:hover { color: #f59e0b; }
 
             /* Magic theme override */
             .theme-magic .activity-feed-container {
