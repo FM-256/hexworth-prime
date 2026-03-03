@@ -394,6 +394,10 @@ const ActivityFeed = (function() {
         const fromLine = isHandler && event.data.className
             ? `<div class="event-from">via ${event.data.className}</div>` : '';
 
+        const dismissBtn = isHandler && event.data.msgId
+            ? `<button class="feed-dismiss-btn" onclick="ActivityFeed.dismissMessage('${event.data.msgId}')" title="Dismiss">&times;</button>`
+            : '';
+
         return `
             <div class="feed-event${handlerClass}${unreadClass}" data-event-id="${event.id}" style="--event-color: ${eventType.color}"${isHandler && event.data.msgId ? ` data-msg-id="${event.data.msgId}"` : ''}>
                 <div class="event-indicator">
@@ -405,6 +409,7 @@ const ActivityFeed = (function() {
                     ${fromLine}
                 </div>
                 <div class="event-time">${time}</div>
+                ${dismissBtn}
             </div>
         `;
     }
@@ -529,7 +534,8 @@ const ActivityFeed = (function() {
                     return tb - ta;
                 });
                 const prevIds = new Set(handlerMessages.map(m => m.id));
-                handlerMessages = deduped.slice(0, 20);
+                const dismissedIds = new Set(getDismissedIds());
+                handlerMessages = deduped.filter(m => !dismissedIds.has(m.id)).slice(0, 20);
                 handlerMessagesFetched = true;
                 if (containerEl) renderFeed(containerEl);
 
@@ -643,6 +649,24 @@ const ActivityFeed = (function() {
         for (const msg of unread) {
             await markAsRead(msg.id);
         }
+    }
+
+    const DISMISSED_KEY = 'hexworth_dismissed_handler_msgs';
+
+    function getDismissedIds() {
+        try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]'); }
+        catch { return []; }
+    }
+
+    function dismissMessage(msgId) {
+        const dismissed = getDismissedIds();
+        if (!dismissed.includes(msgId)) {
+            dismissed.push(msgId);
+            localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed));
+        }
+        // Remove from in-memory cache and re-render
+        handlerMessages = handlerMessages.filter(m => m.id !== msgId);
+        if (containerEl) renderFeed(containerEl);
     }
 
     /**
@@ -1003,6 +1027,23 @@ const ActivityFeed = (function() {
 
             .hc-toast-close:hover { color: #f59e0b; }
 
+            /* Dismiss button on handler messages */
+            .feed-dismiss-btn {
+                background: none;
+                border: none;
+                color: #555;
+                font-size: 1rem;
+                line-height: 1;
+                cursor: pointer;
+                padding: 0 4px;
+                opacity: 0;
+                transition: opacity 0.15s;
+                flex-shrink: 0;
+            }
+
+            .feed-event:hover .feed-dismiss-btn { opacity: 0.7; }
+            .feed-dismiss-btn:hover { color: #f87171; opacity: 1 !important; }
+
             /* Magic theme override */
             .theme-magic .activity-feed-container {
                 background: linear-gradient(180deg, rgba(20, 10, 30, 0.95) 0%, rgba(15, 8, 25, 0.98) 100%);
@@ -1084,6 +1125,7 @@ const ActivityFeed = (function() {
         markAsRead,
         markVisibleAsRead,
         getUnreadCount,
+        dismissMessage,
 
         // Convenience methods for common events
         moduleComplete: (moduleId, title) => record('module_complete', { moduleId, title }),
