@@ -40,6 +40,7 @@ const InstructorDashboard = (function() {
     let classProgressData = [];
     let rosterMembers = [];
     let arenaActivity = [];  // arena_complete, arena_flag, arena_hint events
+    let sentMessages = [];   // F-27: handler comms sent messages
     let chartInstances = { completion: null, difficulty: null, assignment: null };
 
     // Known CTF boxes (A1-A20) — used for grid columns and assignment dropdown
@@ -187,6 +188,16 @@ const InstructorDashboard = (function() {
                             <div class="id-activity-feed" id="idActivityFeed">
                                 <div class="id-activity-empty">No activity yet. Student progress will appear here.</div>
                             </div>
+                        </div>
+
+                        <!-- Handler Comms Section (F-27) -->
+                        <div class="id-section">
+                            <div class="id-section-header">
+                                <div class="id-section-title">
+                                    <img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Comms
+                                </div>
+                            </div>
+                            <div id="idCommsPanel"></div>
                         </div>
 
                         <!-- Assignments Section -->
@@ -367,6 +378,10 @@ const InstructorDashboard = (function() {
         ]);
         // Now load progress and render analytics (uses rosterMembers + classAssignments)
         await loadClassProgress(classId);
+
+        // Render comms panel + load sent messages
+        renderCommsPanel();
+        loadSentMessages(classId);
     }
 
     function showEmptyState() {
@@ -658,6 +673,177 @@ const InstructorDashboard = (function() {
                 errorEl.style.display = 'block';
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // HANDLER COMMS (F-27)
+    // ═══════════════════════════════════════════════════════════════
+
+    function renderCommsPanel() {
+        const panel = container.querySelector('#idCommsPanel');
+        if (!panel) return;
+
+        const recipientOptions = rosterMembers.map(m => {
+            const name = m.displayName || m.email?.split('@')[0] || 'Student';
+            return `<option value="${m.uid}">${escapeHtml(name)}</option>`;
+        }).join('');
+
+        panel.innerHTML = `
+            <div class="id-comms-compose">
+                <div class="id-comms-row">
+                    <label class="id-comms-label">To:</label>
+                    <select id="idCommsRecipient" class="id-comms-select">
+                        <option value="">Entire Class</option>
+                        ${recipientOptions}
+                    </select>
+                </div>
+                <div class="id-comms-row">
+                    <textarea id="idCommsText" class="id-comms-textarea" placeholder="Type your message..." maxlength="500" rows="3"></textarea>
+                </div>
+                <div class="id-comms-row id-comms-footer">
+                    <span class="id-comms-charcount" id="idCommsCharCount">0 / 500</span>
+                    <button class="id-primary-btn id-comms-send-btn" id="idCommsSendBtn" onclick="InstructorDashboard.sendCommsMessage()">Send Transmission</button>
+                </div>
+            </div>
+            <div class="id-comms-sent" id="idCommsSentList">
+                <div class="id-comms-sent-empty">No messages sent yet.</div>
+            </div>
+        `;
+
+        // Char counter
+        const textarea = panel.querySelector('#idCommsText');
+        const counter = panel.querySelector('#idCommsCharCount');
+        if (textarea && counter) {
+            textarea.addEventListener('input', () => {
+                counter.textContent = `${textarea.value.length} / 500`;
+                counter.style.color = textarea.value.length > 450 ? '#f59e0b' : '';
+            });
+        }
+    }
+
+    async function sendCommsMessage() {
+        const textEl = container.querySelector('#idCommsText');
+        const recipientEl = container.querySelector('#idCommsRecipient');
+        const sendBtn = container.querySelector('#idCommsSendBtn');
+        if (!textEl || !recipientEl) return;
+
+        const text = textEl.value.trim();
+        if (!text) {
+            showToast('Message cannot be empty');
+            return;
+        }
+        if (text.length > 500) {
+            showToast('Message must be 500 characters or less');
+            return;
+        }
+        if (!selectedClassId) {
+            showToast('No class selected');
+            return;
+        }
+
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+        }
+
+        try {
+            const data = { classId: selectedClassId, text };
+            const recipientUid = recipientEl.value;
+            if (recipientUid) data.recipientUid = recipientUid;
+
+            await FirebaseAuth.callFunction('sendHandlerMessage', data);
+
+            textEl.value = '';
+            const counter = container.querySelector('#idCommsCharCount');
+            if (counter) counter.textContent = '0 / 500';
+
+            showToast('Transmission sent');
+
+            // Reload sent messages
+            await loadSentMessages(selectedClassId);
+
+        } catch (error) {
+            console.error('[InstructorDashboard] Failed to send message:', error);
+            showToast('Failed to send: ' + (error.message || 'Unknown error'));
+        } finally {
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Transmission';
+            }
+        }
+    }
+
+    async function loadSentMessages(classId) {
+        const listEl = container.querySelector('#idCommsSentList');
+        if (!listEl) return;
+
+        try {
+            if (!window.firebaseFirestore) return;
+
+            const { collection, query, where, orderBy, limit: limitFn, getDocs, getFirestore } = window.firebaseFirestore;
+            const { getApps } = window.firebaseApp;
+            if (getApps().length === 0) return;
+            const db = getFirestore(getApps()[0]);
+
+            const user = FirebaseAuth.getUser();
+            if (!user) return;
+
+            const msgsRef = collection(db, 'handler_messages');
+            const q = query(
+                msgsRef,
+                where('senderUid', '==', user.uid),
+                where('classId', '==', classId),
+                orderBy('createdAt', 'desc'),
+                limitFn(10)
+            );
+            const snapshot = await getDocs(q);
+
+            sentMessages = [];
+            snapshot.forEach(doc => {
+                sentMessages.push({ id: doc.id, ...doc.data() });
+            });
+
+            renderSentMessages();
+        } catch (e) {
+            console.warn('[InstructorDashboard] Failed to load sent messages:', e);
+            listEl.innerHTML = '<div class="id-comms-sent-empty">Failed to load sent messages.</div>';
+        }
+    }
+
+    function renderSentMessages() {
+        const listEl = container.querySelector('#idCommsSentList');
+        if (!listEl) return;
+
+        if (sentMessages.length === 0) {
+            listEl.innerHTML = '<div class="id-comms-sent-empty">No messages sent yet.</div>';
+            return;
+        }
+
+        listEl.innerHTML = `
+            <div class="id-comms-sent-title">Recent Transmissions</div>
+            ${sentMessages.map(msg => {
+                const time = msg.createdAt?.toDate
+                    ? formatDate(msg.createdAt)
+                    : '—';
+                const recipient = msg.recipientType === 'class'
+                    ? 'Entire Class'
+                    : (rosterMembers.find(m => m.uid === msg.recipientUid)?.displayName || 'Student');
+                const readCount = (msg.readBy || []).length;
+                const totalRecipients = msg.recipientType === 'class'
+                    ? rosterMembers.length
+                    : 1;
+                return `
+                    <div class="id-comms-sent-item">
+                        <div class="id-comms-sent-meta">
+                            <span class="id-comms-sent-to">To: ${escapeHtml(recipient)}</span>
+                            <span class="id-comms-sent-time">${time}</span>
+                        </div>
+                        <div class="id-comms-sent-text">${escapeHtml(msg.text)}</div>
+                        <div class="id-comms-sent-read">Read by ${readCount} / ${totalRecipients}</div>
+                    </div>
+                `;
+            }).join('')}
+        `;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -3609,6 +3795,140 @@ const InstructorDashboard = (function() {
                 border-bottom: 1px solid rgba(255,255,255,0.04);
             }
 
+            /* Handler Comms (F-27) */
+            .id-comms-compose {
+                background: rgba(245, 158, 11, 0.05);
+                border: 1px solid rgba(245, 158, 11, 0.2);
+                border-radius: 6px;
+                padding: 14px;
+                margin-bottom: 12px;
+            }
+
+            .id-comms-row {
+                margin-bottom: 10px;
+            }
+
+            .id-comms-row:last-child {
+                margin-bottom: 0;
+            }
+
+            .id-comms-label {
+                font-size: 0.7rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: #f59e0b;
+                margin-right: 8px;
+            }
+
+            .id-comms-select {
+                background: rgba(0,0,0,0.3);
+                border: 1px solid rgba(255,255,255,0.15);
+                color: #e2e8f0;
+                padding: 6px 10px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 0.8rem;
+                min-width: 200px;
+            }
+
+            .id-comms-textarea {
+                width: 100%;
+                background: rgba(0,0,0,0.3);
+                border: 1px solid rgba(255,255,255,0.15);
+                color: #e2e8f0;
+                padding: 8px 10px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 0.8rem;
+                resize: vertical;
+                min-height: 60px;
+                box-sizing: border-box;
+            }
+
+            .id-comms-textarea:focus {
+                outline: none;
+                border-color: #f59e0b;
+            }
+
+            .id-comms-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .id-comms-charcount {
+                font-size: 0.65rem;
+                color: var(--id-text-muted);
+                font-family: 'Courier New', monospace;
+            }
+
+            .id-comms-send-btn {
+                background: rgba(245, 158, 11, 0.2) !important;
+                border: 1px solid #f59e0b !important;
+                color: #f59e0b !important;
+                font-size: 0.75rem !important;
+                padding: 6px 16px !important;
+            }
+
+            .id-comms-send-btn:hover {
+                background: rgba(245, 158, 11, 0.35) !important;
+            }
+
+            .id-comms-sent-title {
+                font-size: 0.7rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: var(--id-text-muted);
+                margin-bottom: 8px;
+            }
+
+            .id-comms-sent-empty {
+                font-size: 0.75rem;
+                color: var(--id-text-muted);
+                padding: 8px 0;
+            }
+
+            .id-comms-sent-item {
+                background: rgba(0,0,0,0.2);
+                border-left: 2px solid #f59e0b;
+                border-radius: 0 4px 4px 0;
+                padding: 8px 12px;
+                margin-bottom: 6px;
+            }
+
+            .id-comms-sent-meta {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 4px;
+            }
+
+            .id-comms-sent-to {
+                font-size: 0.65rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                color: #f59e0b;
+                letter-spacing: 0.5px;
+            }
+
+            .id-comms-sent-time {
+                font-size: 0.6rem;
+                color: var(--id-text-muted);
+            }
+
+            .id-comms-sent-text {
+                font-size: 0.8rem;
+                color: #e2e8f0;
+                line-height: 1.4;
+                margin-bottom: 4px;
+            }
+
+            .id-comms-sent-read {
+                font-size: 0.6rem;
+                color: var(--id-text-muted);
+            }
+
             /* Responsive */
             @media (max-width: 1000px) {
                 .id-layout {
@@ -3668,7 +3988,8 @@ const InstructorDashboard = (function() {
         submitArenaAssign: submitArenaAssign,
         showMergeModal: showMergeModal,
         previewMerge: previewMerge,
-        submitMerge: submitMerge
+        submitMerge: submitMerge,
+        sendCommsMessage: sendCommsMessage
     };
 
 })();

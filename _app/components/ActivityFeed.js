@@ -95,6 +95,12 @@ const ActivityFeed = (function() {
             prefix: 'HANDLER',
             template: (data) => data.message,
             color: '#94a3b8'
+        },
+        handler_message: {
+            icon: '<img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            prefix: 'HANDLER COMMS',
+            template: (data) => data.text,
+            color: '#f59e0b'
         }
     };
 
@@ -102,6 +108,8 @@ const ActivityFeed = (function() {
     let events = [];
     let isExpanded = false;
     let containerEl = null;
+    let handlerMessages = [];  // Firestore handler_messages cache
+    let handlerMessagesFetched = false;
 
     /**
      * Initialize the activity feed
@@ -286,17 +294,37 @@ const ActivityFeed = (function() {
         containerEl = container;
         drainQueue();
         renderFeed(container, options);
+
+        // Fetch handler messages from Firestore (async, re-renders when done)
+        if (!handlerMessagesFetched) {
+            fetchHandlerMessages();
+        }
     }
 
     /**
      * Internal render function
      */
     function renderFeed(container, options = {}) {
-        const displayEvents = isExpanded
-            ? events.slice(-CONFIG.expandedCount).reverse()
-            : events.slice(-CONFIG.displayCount).reverse();
+        // Merge local events with handler messages
+        const handlerEvts = handlerMessages.map(m => {
+            const ts = m.createdAt?.toMillis ? m.createdAt.toMillis()
+                : (m.createdAt?.seconds ? m.createdAt.seconds * 1000 : Date.now());
+            return {
+                id: 'hm_' + m.id,
+                type: 'handler_message',
+                data: { text: m.text, className: m.className, senderName: m.senderName, msgId: m.id },
+                timestamp: ts,
+                _isHandlerMsg: true,
+                _readBy: m.readBy || []
+            };
+        });
+        const allEvents = [...events, ...handlerEvts].sort((a, b) => a.timestamp - b.timestamp);
 
-        const hasMore = events.length > CONFIG.displayCount;
+        const displayEvents = isExpanded
+            ? allEvents.slice(-CONFIG.expandedCount).reverse()
+            : allEvents.slice(-CONFIG.displayCount).reverse();
+
+        const hasMore = allEvents.length > CONFIG.displayCount;
 
         container.innerHTML = `
             <div class="activity-feed-container${isExpanded ? ' expanded' : ''}">
@@ -352,14 +380,25 @@ const ActivityFeed = (function() {
         const message = eventType.template(event.data);
         const time = formatTime(event.timestamp);
 
+        // Handler messages get special styling
+        const isHandler = event._isHandlerMsg;
+        const user = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()
+            ? FirebaseAuth.getUser() : null;
+        const isUnread = isHandler && user && !(event._readBy || []).includes(user.uid);
+        const handlerClass = isHandler ? ' handler-msg' : '';
+        const unreadClass = isUnread ? ' unread' : '';
+        const fromLine = isHandler && event.data.className
+            ? `<div class="event-from">via ${event.data.className}</div>` : '';
+
         return `
-            <div class="feed-event" data-event-id="${event.id}" style="--event-color: ${eventType.color}">
+            <div class="feed-event${handlerClass}${unreadClass}" data-event-id="${event.id}" style="--event-color: ${eventType.color}"${isHandler && event.data.msgId ? ` data-msg-id="${event.data.msgId}"` : ''}>
                 <div class="event-indicator">
                     <span class="event-icon">${eventType.icon}</span>
                 </div>
                 <div class="event-content">
                     <div class="event-prefix">${eventType.prefix}</div>
                     <div class="event-message">${message}</div>
+                    ${fromLine}
                 </div>
                 <div class="event-time">${time}</div>
             </div>
@@ -437,6 +476,144 @@ const ActivityFeed = (function() {
             }
         } catch (e) {
             console.warn('[ActivityFeed] Failed to load from Firestore:', e);
+        }
+    }
+
+    // ─── F-27: Handler Message Functions ────────────────────────────
+
+    /**
+     * Fetch handler messages from Firestore for the current user.
+     * Queries messages targeted to the user individually or to their classes.
+     */
+    async function fetchHandlerMessages() {
+        if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) return;
+        if (!window.firebaseFirestore) return;
+
+        const user = FirebaseAuth.getUser();
+        if (!user) return;
+
+        try {
+            const { collection, query, where, orderBy, limit: limitFn, getDocs, getFirestore } = window.firebaseFirestore;
+            const { getApps } = window.firebaseApp;
+            if (getApps().length === 0) return;
+            const db = getFirestore(getApps()[0]);
+
+            const msgsRef = collection(db, 'handler_messages');
+            const fetched = [];
+
+            // 1. Messages targeted directly to this user
+            const individualQ = query(
+                msgsRef,
+                where('recipientUid', '==', user.uid),
+                orderBy('createdAt', 'desc'),
+                limitFn(20)
+            );
+            const individualSnap = await getDocs(individualQ);
+            individualSnap.forEach(doc => {
+                fetched.push({ id: doc.id, ...doc.data() });
+            });
+
+            // 2. Class-wide messages — get user's enrolled classes
+            if (typeof ClassManager !== 'undefined') {
+                const classes = ClassManager.getCachedEnrollments
+                    ? ClassManager.getCachedEnrollments()
+                    : [];
+                for (const cls of classes) {
+                    const classQ = query(
+                        msgsRef,
+                        where('classId', '==', cls.id),
+                        where('recipientType', '==', 'class'),
+                        orderBy('createdAt', 'desc'),
+                        limitFn(10)
+                    );
+                    try {
+                        const classSnap = await getDocs(classQ);
+                        classSnap.forEach(doc => {
+                            if (!fetched.find(m => m.id === doc.id)) {
+                                fetched.push({ id: doc.id, ...doc.data() });
+                            }
+                        });
+                    } catch (e) {
+                        // Index may not exist yet — skip silently
+                        console.warn('[ActivityFeed] Class message query failed (index needed?):', e.message);
+                    }
+                }
+            }
+
+            // Sort by createdAt descending, keep newest 20
+            fetched.sort((a, b) => {
+                const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+                const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+                return tb - ta;
+            });
+            handlerMessages = fetched.slice(0, 20);
+            handlerMessagesFetched = true;
+
+            // Re-render if container exists
+            if (containerEl) {
+                renderFeed(containerEl);
+            }
+        } catch (e) {
+            console.warn('[ActivityFeed] Failed to fetch handler messages:', e);
+        }
+    }
+
+    /**
+     * Mark a handler message as read by the current user.
+     * @param {string} msgId - Firestore document ID
+     */
+    async function markAsRead(msgId) {
+        if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) return;
+        if (!window.firebaseFirestore) return;
+
+        const user = FirebaseAuth.getUser();
+        if (!user) return;
+
+        try {
+            const { doc, updateDoc, arrayUnion, getFirestore } = window.firebaseFirestore;
+            const { getApps } = window.firebaseApp;
+            if (getApps().length === 0) return;
+            const db = getFirestore(getApps()[0]);
+
+            await updateDoc(doc(db, 'handler_messages', msgId), {
+                readBy: arrayUnion(user.uid)
+            });
+
+            // Update local cache
+            const msg = handlerMessages.find(m => m.id === msgId);
+            if (msg) {
+                if (!msg.readBy) msg.readBy = [];
+                if (!msg.readBy.includes(user.uid)) msg.readBy.push(user.uid);
+            }
+        } catch (e) {
+            console.warn('[ActivityFeed] Failed to mark message as read:', e);
+        }
+    }
+
+    /**
+     * Get count of unread handler messages for the current user.
+     * @returns {number}
+     */
+    function getUnreadCount() {
+        if (!handlerMessagesFetched || handlerMessages.length === 0) return 0;
+        const user = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()
+            ? FirebaseAuth.getUser() : null;
+        if (!user) return 0;
+        return handlerMessages.filter(m => !(m.readBy || []).includes(user.uid)).length;
+    }
+
+    /**
+     * Mark all visible handler messages as read (called on scroll/view).
+     */
+    async function markVisibleAsRead() {
+        if (!handlerMessagesFetched) return;
+        const user = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()
+            ? FirebaseAuth.getUser() : null;
+        if (!user) return;
+
+        const unread = handlerMessages.filter(m => !(m.readBy || []).includes(user.uid));
+        for (const msg of unread) {
+            await markAsRead(msg.id);
         }
     }
 
@@ -662,6 +839,50 @@ const ActivityFeed = (function() {
                 font-size: 0.6rem;
             }
 
+            /* Handler message styling (F-27) */
+            .feed-event.handler-msg {
+                border-left-width: 3px;
+                border-left-color: #f59e0b;
+                background: rgba(245, 158, 11, 0.06);
+            }
+
+            .feed-event.handler-msg.unread {
+                background: rgba(245, 158, 11, 0.12);
+                box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.1);
+            }
+
+            .feed-event.handler-msg .event-prefix {
+                color: #f59e0b;
+                font-weight: 700;
+            }
+
+            .event-from {
+                font-size: 0.6rem;
+                color: #6b7280;
+                margin-top: 2px;
+                font-style: italic;
+            }
+
+            .handler-unread-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                background: #f59e0b;
+                color: #000;
+                font-size: 0.6rem;
+                font-weight: 700;
+                padding: 2px 8px;
+                border-radius: 10px;
+                margin-left: 8px;
+                letter-spacing: 0.05em;
+                animation: badgePulse 2s infinite;
+            }
+
+            @keyframes badgePulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+
             /* Magic theme override */
             .theme-magic .activity-feed-container {
                 background: linear-gradient(180deg, rgba(20, 10, 30, 0.95) 0%, rgba(15, 8, 25, 0.98) 100%);
@@ -739,6 +960,10 @@ const ActivityFeed = (function() {
         getStyles,
         clear,
         getEvents,
+        fetchHandlerMessages,
+        markAsRead,
+        markVisibleAsRead,
+        getUnreadCount,
 
         // Convenience methods for common events
         moduleComplete: (moduleId, title) => record('module_complete', { moduleId, title }),

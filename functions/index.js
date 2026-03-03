@@ -817,6 +817,72 @@ exports.getHedExport = onRequest({ region: 'us-central1' }, async (req, res) => 
     }
 });
 
+// ─── F-27: Handler Comms — Targeted Messaging ──────────────────
+
+/**
+ * sendHandlerMessage — Sends a message from a handler to a class or individual student.
+ * Creates a document in handler_messages/{auto} collection.
+ * Validates sender is the handler of the specified class.
+ */
+exports.sendHandlerMessage = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { classId, recipientUid, text } = request.data || {};
+    const senderUid = request.auth.uid;
+
+    // Validate text
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        throw new HttpsError('invalid-argument', 'Message text is required.');
+    }
+    if (text.length > 500) {
+        throw new HttpsError('invalid-argument', 'Message must be 500 characters or less.');
+    }
+    if (!classId) {
+        throw new HttpsError('invalid-argument', 'classId is required.');
+    }
+
+    // Verify sender is the handler of this class
+    const classDoc = await db.doc(`classes/${classId}`).get();
+    if (!classDoc.exists) {
+        throw new HttpsError('not-found', 'Class not found.');
+    }
+    const classData = classDoc.data();
+    if (classData.handlerUid !== senderUid) {
+        throw new HttpsError('permission-denied', 'Only the class handler can send messages.');
+    }
+
+    // If targeting individual, verify they're in the class
+    if (recipientUid) {
+        const memberUids = classData.memberUids || [];
+        if (!memberUids.includes(recipientUid)) {
+            throw new HttpsError('invalid-argument', 'Recipient is not a member of this class.');
+        }
+    }
+
+    // Get sender display name
+    const senderDoc = await db.doc(`users/${senderUid}`).get();
+    const senderName = senderDoc.exists
+        ? (senderDoc.data().displayName || senderDoc.data().callsign || 'Handler')
+        : 'Handler';
+
+    // Create the message document
+    const msgRef = await db.collection('handler_messages').add({
+        classId,
+        className: classData.name || '',
+        senderUid,
+        senderName,
+        recipientType: recipientUid ? 'individual' : 'class',
+        recipientUid: recipientUid || null,
+        text: text.trim(),
+        createdAt: FieldValue.serverTimestamp(),
+        readBy: []
+    });
+
+    return { success: true, messageId: msgRef.id };
+});
+
 // ─── Helpers ─────────────────────────────────────────────────────
 
 /**
