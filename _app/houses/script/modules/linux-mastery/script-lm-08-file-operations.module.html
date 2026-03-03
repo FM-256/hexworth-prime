@@ -48,8 +48,6 @@
 
         .main-content {
             padding: 2rem 3rem;
-            overflow-y: auto;
-            max-height: 100vh;
         }
 
         .sidebar {
@@ -1114,143 +1112,23 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        // Initialize terminal
-        const terminal = new LinuxTerminal('terminal', {
+        // Initialize terminal using correct IIFE singleton API
+        LinuxTerminal.init('LM-08', '#terminal', {
             user: 'learner',
             hostname: 'linux-mastery',
-            height: '350px'
-        });
-
-        // Track created files and directories for the simulation
-        const createdItems = {
-            files: [],
-            dirs: []
-        };
-
-        // Custom command handlers
-        terminal.addCommand('touch', (args) => {
-            if (!args.length) {
-                return 'touch: missing file operand';
-            }
-            args.forEach(file => {
-                if (!createdItems.files.includes(file)) {
-                    createdItems.files.push(file);
+            height: '350px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'touch') checkTask('touch');
+                if (cmd === 'mkdir') {
+                    checkTask('mkdir');
+                    if (cmdLine.includes('-p')) checkTask('mkdir-p');
                 }
-            });
-            checkTask('touch');
-            return '';
-        });
-
-        terminal.addCommand('mkdir', (args) => {
-            if (!args.length) {
-                return 'mkdir: missing operand';
-            }
-
-            const hasP = args.includes('-p');
-            const hasV = args.includes('-v');
-            const dirs = args.filter(a => !a.startsWith('-'));
-
-            dirs.forEach(dir => {
-                if (hasP) {
-                    // Create parent directories
-                    const parts = dir.split('/');
-                    let path = '';
-                    parts.forEach(part => {
-                        path += (path ? '/' : '') + part;
-                        if (!createdItems.dirs.includes(path)) {
-                            createdItems.dirs.push(path);
-                        }
-                    });
-                    checkTask('mkdir-p');
-                } else {
-                    if (!createdItems.dirs.includes(dir)) {
-                        createdItems.dirs.push(dir);
-                    }
-                }
-            });
-            checkTask('mkdir');
-            return hasV ? dirs.map(d => `mkdir: created directory '${d}'`).join('\n') : '';
-        });
-
-        terminal.addCommand('rm', (args) => {
-            if (!args.length) {
-                return 'rm: missing operand';
-            }
-
-            const hasR = args.includes('-r') || args.includes('-rf') || args.includes('-ri');
-            const hasI = args.includes('-i') || args.includes('-ri');
-            const hasV = args.includes('-v');
-            const targets = args.filter(a => !a.startsWith('-'));
-
-            const output = [];
-            targets.forEach(target => {
-                // Remove from files
-                const fileIdx = createdItems.files.indexOf(target);
-                if (fileIdx > -1) {
-                    createdItems.files.splice(fileIdx, 1);
+                if (cmd === 'rm') {
                     checkTask('rm');
-                    if (hasI) output.push(`rm: remove '${target}'? y (removed)`);
-                    else if (hasV) output.push(`removed '${target}'`);
+                    if (/-[^\s]*r/.test(cmdLine)) checkTask('rmdir');
                 }
-
-                // Remove from dirs if -r
-                if (hasR) {
-                    const dirIdx = createdItems.dirs.indexOf(target);
-                    if (dirIdx > -1) {
-                        createdItems.dirs.splice(dirIdx, 1);
-                        checkTask('rmdir');
-                        if (hasI) output.push(`rm: remove directory '${target}'? y (removed)`);
-                        else if (hasV) output.push(`removed directory '${target}'`);
-                    }
-                }
-            });
-
-            return output.join('\n');
-        });
-
-        terminal.addCommand('rmdir', (args) => {
-            if (!args.length) {
-                return 'rmdir: missing operand';
+                if (cmd === 'rmdir') checkTask('rmdir');
             }
-
-            args.filter(a => !a.startsWith('-')).forEach(dir => {
-                const idx = createdItems.dirs.indexOf(dir);
-                if (idx > -1) {
-                    createdItems.dirs.splice(idx, 1);
-                }
-            });
-            checkTask('rmdir');
-            return '';
-        });
-
-        // Override ls to show created items
-        terminal.addCommand('ls', (args) => {
-            const hasL = args.includes('-l') || args.includes('-la') || args.includes('-lh');
-            const hasA = args.includes('-a') || args.includes('-la');
-
-            const items = [...createdItems.dirs.map(d => d + '/'), ...createdItems.files];
-
-            if (items.length === 0) {
-                return hasA ? '.  ..' : '';
-            }
-
-            if (hasL) {
-                const lines = [];
-                if (hasA) {
-                    lines.push('drwxr-xr-x  2 user user 4096 Jan 26 10:00 .');
-                    lines.push('drwxr-xr-x  3 user user 4096 Jan 26 10:00 ..');
-                }
-                createdItems.dirs.forEach(d => {
-                    lines.push(`drwxr-xr-x  2 user user 4096 Jan 26 10:00 ${d}`);
-                });
-                createdItems.files.forEach(f => {
-                    lines.push(`-rw-r--r--  1 user user    0 Jan 26 10:00 ${f}`);
-                });
-                return lines.join('\n');
-            }
-
-            let result = hasA ? '.  ..  ' : '';
-            return result + items.join('  ');
         });
 
         // Task tracking
