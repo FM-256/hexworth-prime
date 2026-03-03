@@ -557,9 +557,13 @@ const ActivityFeed = (function() {
 
             // 2. Real-time listeners for class-wide messages
             if (typeof ClassManager !== 'undefined') {
-                const classes = ClassManager.getCachedEnrollments
+                let classes = ClassManager.getCachedEnrollments
                     ? ClassManager.getCachedEnrollments()
                     : [];
+                // Fallback: if cache is empty, query Firestore for enrollments
+                if (classes.length === 0 && ClassManager.getStudentClasses) {
+                    try { classes = await ClassManager.getStudentClasses(user.uid); } catch (e) {}
+                }
                 for (const cls of classes) {
                     const classQ = query(
                         msgsRef,
