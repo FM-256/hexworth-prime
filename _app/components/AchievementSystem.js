@@ -2440,17 +2440,7 @@ class AchievementSystem {
         // Badge image with emoji fallback
         let iconHTML = achievement.icon;
         if (achievement.id) {
-            const badgePath = (function() {
-                try {
-                    const s = document.querySelector('script[src*="AchievementSystem"]');
-                    if (s) {
-                        const src = s.getAttribute('src');
-                        const ci = src.lastIndexOf('components/');
-                        if (ci >= 0) return src.substring(0, ci) + 'assets/images/badges/';
-                    }
-                } catch(e) {}
-                return 'assets/images/badges/';
-            })();
+            const badgePath = '/assets/images/badges/';
             const url = badgePath + achievement.id + '.webp';
             iconHTML = '<img src="' + url + '" alt="' + achievement.name + ' badge" style="width:48px;height:48px;border-radius:50%;object-fit:cover;box-shadow:0 2px 12px rgba(255,215,0,0.4);" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">'
                      + '<span style="display:none;">' + achievement.icon + '</span>';

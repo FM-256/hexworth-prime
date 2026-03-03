@@ -8,17 +8,7 @@
  * - Skill tree overview
  */
 
-const _pdBadgePath = (function() {
-    try {
-        const scripts = document.querySelectorAll('script[src*="ProgressDisplay"]');
-        if (scripts.length) {
-            const src = scripts[scripts.length - 1].getAttribute('src');
-            const idx = src.lastIndexOf('components/');
-            if (idx >= 0) return src.substring(0, idx) + 'assets/images/badges/';
-        }
-    } catch (e) {}
-    return 'assets/images/badges/';
-})();
+const _pdBadgePath = '/assets/images/badges/';
 
 class ProgressDisplay {
     /**

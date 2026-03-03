@@ -30,18 +30,7 @@ const AchievementPanel = (function() {
 
     // Resolve _app/ root from this script's own src attribute
     const _badgeBasePath = (function() {
-        try {
-            const scripts = document.querySelectorAll('script[src*="AchievementPanel"]');
-            if (scripts.length) {
-                // Script src is like "components/AchievementPanel.js" or "../../components/AchievementPanel.js"
-                const src = scripts[scripts.length - 1].getAttribute('src');
-                const componentsIdx = src.lastIndexOf('components/');
-                if (componentsIdx >= 0) {
-                    return src.substring(0, componentsIdx) + 'assets/images/badges/';
-                }
-            }
-        } catch (e) {}
-        return 'assets/images/badges/'; // fallback for _app/ root pages
+        return '/assets/images/badges/';
     })();
 
     // Cache which badge images exist (populated on first load)
