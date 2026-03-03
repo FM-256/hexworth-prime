@@ -110,6 +110,7 @@ const ActivityFeed = (function() {
     let containerEl = null;
     let handlerMessages = [];  // Firestore handler_messages cache
     let handlerMessagesFetched = false;
+    let _listenerUnsubs = [];   // onSnapshot unsubscribe functions
 
     /**
      * Initialize the activity feed
@@ -485,6 +486,10 @@ const ActivityFeed = (function() {
      * Fetch handler messages from Firestore for the current user.
      * Queries messages targeted to the user individually or to their classes.
      */
+    /**
+     * Set up real-time listeners for handler messages.
+     * Uses onSnapshot so new messages appear instantly without refresh.
+     */
     async function fetchHandlerMessages() {
         if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) return;
         if (!window.firebaseFirestore) return;
@@ -492,28 +497,53 @@ const ActivityFeed = (function() {
         const user = FirebaseAuth.getUser();
         if (!user) return;
 
+        // Tear down any previous listeners
+        _listenerUnsubs.forEach(fn => fn());
+        _listenerUnsubs = [];
+
         try {
-            const { collection, query, where, orderBy, limit: limitFn, getDocs, getFirestore } = window.firebaseFirestore;
+            const { collection, query, where, orderBy, limit: limitFn, onSnapshot, getFirestore } = window.firebaseFirestore;
             const { getApps } = window.firebaseApp;
             if (getApps().length === 0) return;
             const db = getFirestore(getApps()[0]);
 
             const msgsRef = collection(db, 'handler_messages');
-            const fetched = [];
 
-            // 1. Messages targeted directly to this user
+            // Buckets keyed by query source — merged on every snapshot
+            const buckets = { individual: [] };
+
+            function mergeAndRender() {
+                const all = Object.values(buckets).flat();
+                // Dedupe by doc id
+                const seen = new Set();
+                const deduped = [];
+                for (const m of all) {
+                    if (!seen.has(m.id)) { seen.add(m.id); deduped.push(m); }
+                }
+                deduped.sort((a, b) => {
+                    const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+                    const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+                    return tb - ta;
+                });
+                handlerMessages = deduped.slice(0, 20);
+                handlerMessagesFetched = true;
+                if (containerEl) renderFeed(containerEl);
+            }
+
+            // 1. Real-time listener for individual messages
             const individualQ = query(
                 msgsRef,
                 where('recipientUid', '==', user.uid),
                 orderBy('createdAt', 'desc'),
                 limitFn(20)
             );
-            const individualSnap = await getDocs(individualQ);
-            individualSnap.forEach(doc => {
-                fetched.push({ id: doc.id, ...doc.data() });
-            });
+            _listenerUnsubs.push(onSnapshot(individualQ, snap => {
+                buckets.individual = [];
+                snap.forEach(doc => buckets.individual.push({ id: doc.id, ...doc.data() }));
+                mergeAndRender();
+            }, e => console.warn('[ActivityFeed] Individual messages listener error:', e.message)));
 
-            // 2. Class-wide messages — get user's enrolled classes
+            // 2. Real-time listeners for class-wide messages
             if (typeof ClassManager !== 'undefined') {
                 const classes = ClassManager.getCachedEnrollments
                     ? ClassManager.getCachedEnrollments()
@@ -526,35 +556,17 @@ const ActivityFeed = (function() {
                         orderBy('createdAt', 'desc'),
                         limitFn(10)
                     );
-                    try {
-                        const classSnap = await getDocs(classQ);
-                        classSnap.forEach(doc => {
-                            if (!fetched.find(m => m.id === doc.id)) {
-                                fetched.push({ id: doc.id, ...doc.data() });
-                            }
-                        });
-                    } catch (e) {
-                        // Index may not exist yet — skip silently
-                        console.warn('[ActivityFeed] Class message query failed (index needed?):', e.message);
-                    }
+                    const key = 'class_' + cls.id;
+                    buckets[key] = [];
+                    _listenerUnsubs.push(onSnapshot(classQ, snap => {
+                        buckets[key] = [];
+                        snap.forEach(doc => buckets[key].push({ id: doc.id, ...doc.data() }));
+                        mergeAndRender();
+                    }, e => console.warn('[ActivityFeed] Class message listener error (index needed?):', e.message)));
                 }
             }
-
-            // Sort by createdAt descending, keep newest 20
-            fetched.sort((a, b) => {
-                const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
-                const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
-                return tb - ta;
-            });
-            handlerMessages = fetched.slice(0, 20);
-            handlerMessagesFetched = true;
-
-            // Re-render if container exists
-            if (containerEl) {
-                renderFeed(containerEl);
-            }
         } catch (e) {
-            console.warn('[ActivityFeed] Failed to fetch handler messages:', e);
+            console.warn('[ActivityFeed] Failed to set up handler message listeners:', e);
         }
     }
 
