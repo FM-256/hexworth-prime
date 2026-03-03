@@ -129,7 +129,7 @@ The modal shows only safe public data. It does **not** expose:
 - `FirestoreManager.getUserProfile(uid)` — fetches full user document
 - `FirebaseAuth.getUser()` — detects if viewing own profile (for "YOU" badge)
 - `generateAvatar()` — identicon generator (global in dashboard scope)
-- `escapeHtml()` — XSS protection (global in dashboard scope)
+- `escapeHtml()` — XSS protection (global in dashboard scope). Must escape both `"` → `&quot;` and `'` → `&#39;` in addition to standard `<>&` — see Badge Grid section below.
 
 **Script load order:** After FirestoreLeaderboard.js, before AchievementManager.js.
 
@@ -163,6 +163,60 @@ xpForLevel(n) = floor(12.5 * (2n - 1)^2 - 12.5)
 ```
 
 The XP bar shows progress from current level's XP threshold to next level's threshold.
+
+## Badge Grid (Profile Tab)
+
+The profile tab displays up to 12 earned achievement badges in a 4x3 grid. Each badge is a 100px circle with layered CSS backgrounds.
+
+### Rendering
+
+`buildBadgesGridHTML()` iterates earned achievements (v2 via `AchievementRegistry.getUnlockedIds()`, v1 fallback from `achievements[]` array). Each badge renders as:
+
+```html
+<div class="profile-badge-emoji"
+     style="background-image: url('/assets/images/badges/{achId}.webp'),
+                              url('/assets/images/icons/icon-trophy.webp')">
+</div>
+```
+
+The two-layer `background-image` provides automatic fallback: if a badge-specific `.webp` exists in `/assets/images/badges/`, it renders full-size as the top layer. If not (e.g. auto-generated achievements from `generateFromCatalog()`), the transparent miss falls through to the trophy icon underneath. No `<img>` elements or `onerror` handlers needed.
+
+**CSS:**
+```css
+.profile-badge-emoji {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background-color: rgba(255,255,255,0.04);
+    background-size: cover, 45%;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
+    box-shadow: 0 0 8px rgba(0,255,255,0.3);
+}
+```
+
+Clicking a badge opens a popover with the achievement name, description, and icon. Data attributes (`data-ach-name`, `data-ach-desc`, `data-ach-icon`) on each badge element carry the popover content.
+
+### Badge Art Sources
+
+- **304 static achievements** — all have matching `.webp` files in `/assets/images/badges/`
+- **Auto-generated achievements** (`generateFromCatalog()`) — IDs like `complete_pres_{moduleId}`, no badge files; trophy fallback displays instead
+- **OVERLAP_IDS** (13 IDs) — shared between AchievementSystem (plain URL icons) and AchievementManager (`<img>` HTML icons); the Registry merges System descriptions with Manager styles
+
+### escapeHtml() Quote Escaping (Bug Fix, 2026-03-03)
+
+**Root cause:** The standard `div.textContent`/`div.innerHTML` XSS escape technique only converts `<`, `>`, and `&`. It does NOT escape `"` or `'`. Achievement icons from AchievementManager are full `<img>` HTML strings containing many double quotes:
+
+```
+<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;...">
+```
+
+When placed into a `data-ach-icon="..."` attribute, the unescaped `"` inside the value terminated the attribute early, corrupting the HTML tag and every subsequent badge element in the grid.
+
+**Symptom:** Only badges with plain URL icons (OVERLAP_IDS that inherit from AchievementSystem) rendered correctly. All others collapsed to tiny broken elements.
+
+**Fix:** `escapeHtml()` now chains `.replace(/"/g, '&quot;').replace(/'/g, '&#39;')` after the standard innerHTML pass, plus a null guard (`if (str == null) return ''`). The browser's `dataset` API auto-decodes `&quot;` back to `"` when read, so popover rendering is unaffected.
+
+**Lesson:** Any time `escapeHtml()` output is placed inside an HTML attribute value (not just element content), quote escaping is mandatory. This applies to all `data-*` attributes across the platform.
 
 ## Why It Exists
 
