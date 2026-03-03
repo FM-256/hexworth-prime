@@ -136,19 +136,111 @@ Visual catalog of all 125 webp icons. Searchable grid, click-to-copy paths, refe
 ## Infrastructure
 
 ### bc1 — The Home Server
-Ubuntu 24.04 box on the local network. Always on. Runs scrapers, stores content, hosts tools.
 
-- **Tailscale**: mesh VPN — `ssh bc1` works from anywhere (100.96.136.114)
-- **Syncthing**: bidirectional real-time sync — `~/hexworth/tools/` ↔ `~/hexworth-shared/` on laptop
-- **Cold storage**: `~/hexworth/content/` — 12 scraped content libraries (MDN, W3Schools, React, Node.js, etc.)
-- **AI engines**: Claude Code CLI, Gemini CLI, OpenAI SDK, GitHub Copilot
+Ubuntu 24.04 box. Always on. The warehouse, the scraper farm, the AI workbench. The laptop stays lean — bc1 does the heavy lifting.
+
+**Connection:**
+- `ssh bc1` — works from anywhere (Tailscale mesh VPN, IP `100.96.136.114`)
+- LAN IP: `192.168.1.176` (home network only)
+- User: `eq1`, passwordless sudo, Docker-ready
+- Runtime: Python 3.12, Node 22, full dev toolchain
+
+**Directory layout on bc1:**
+```
+~/hexworth/
+├── content/                ← COLD STORAGE (not synced — the warehouse)
+│   ├── mdn/               ← Mozilla Developer Network scrape
+│   ├── w3schools/          ← W3Schools scrape
+│   ├── react/              ← React docs scrape
+│   ├── nodejs/             ← Node.js docs scrape
+│   ├── git/                ← Git reference scrape
+│   ├── geeksforgeeks/      ← GeeksforGeeks scrape
+│   ├── javascript-info/    ← javascript.info scrape
+│   └── ... (12 libraries, ~30MB total)
+└── tools/                  ← SYNCED to laptop via Syncthing
+    ├── workbench/          ← Content loading dock (fetched items land here)
+    └── icon-library.html   ← Shared tools/reports
+```
+
+**Syncthing (real-time file sync):**
+- bc1 `~/hexworth/tools/` ↔ laptop `~/hexworth-shared/`
+- Bidirectional, ~15 second propagation, systemd user services on both machines
+- Tailscale IP primary, LAN fallback. No relays, no public discovery — private mesh only.
+- HTTP server on bc1: `http://192.168.1.176:8090/` serves the tools folder
+
+### AI Engines on bc1
+
+bc1 has multiple AI models installed for delegating work — scraping, content research, brainstorming, and automation. The idea: offload long-running AI tasks to bc1 so the laptop isn't tied up.
+
+| Engine | How to Run | Auth Status |
+|--------|-----------|-------------|
+| **Gemini API** | Python `google-genai` SDK | Ready — key in `/etc/environment` |
+| **Gemini CLI** | `ssh bc1 -t "gemini"` | Needs browser auth (Google Pro account) |
+| **Claude Code** | `ssh bc1 -t "claude"` | Needs browser auth |
+| **OpenAI SDK** | Python `openai` SDK | Key set, needs billing credits |
+| **GitHub Copilot** | `gh copilot` | Needs `ssh bc1 -t "gh auth login"` |
+
+**Primary use case:** Gemini on bc1 runs scrapers. Gemini has 1M token context and 1000 req/day on the Pro subscription — ideal for parsing large documentation sites, extracting structured content, and converting to markdown.
+
+**Running AI tasks on bc1:**
+```bash
+# Quick test
+ssh bc1 'python3 -c "from google import genai; import os; c=genai.Client(api_key=os.environ[\"GEMINI_API_KEY\"]); print(c.models.generate_content(model=\"gemini-2.5-flash\", contents=\"hello\").text)"'
+
+# Fire and forget a scraper
+ssh bc1 'cd ~/hexworth/tools && nohup python3 scraper.py --source mdn > scraper.log 2>&1 &'
+
+# Check results later
+ssh bc1 'cat ~/hexworth/tools/scraper.log'
+ssh bc1 'hexcontent list'
+```
 
 ### Content Pipeline
-1. Gemini scrapes on bc1 → stores in cold storage
-2. `hexcontent fetch` → moves to workbench → Syncthing syncs to laptop
-3. We build the module on the laptop
-4. `hexcontent stash` → back to cold storage, laptop stays clean
-5. Deploy to Firebase Hosting
+
+This is how content flows from the internet into student-facing modules:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        bc1 (server)                         │
+│                                                             │
+│   Gemini scrapes docs ──→ ~/hexworth/content/ (cold)       │
+│                               │                             │
+│                     hexcontent fetch                         │
+│                               │                             │
+│                     ~/hexworth/tools/workbench/              │
+│                               │                             │
+│                          Syncthing                           │
+└───────────────────────────────┼─────────────────────────────┘
+                                │ (~15 sec)
+┌───────────────────────────────┼─────────────────────────────┐
+│                        Laptop (msi)                         │
+│                               │                             │
+│                     ~/hexworth-shared/workbench/             │
+│                               │                             │
+│                     Build module in _app/                    │
+│                               │                             │
+│                     firebase deploy                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+1. **Scrape** — Gemini on bc1 scrapes documentation sites → saves to cold storage
+2. **Fetch** — `ssh bc1 "hexcontent fetch mdn"` → copies to workbench → Syncthing syncs to laptop
+3. **Build** — We build the module on the laptop using the scraped content as reference
+4. **Stash** — `ssh bc1 "hexcontent stash mdn"` → content goes back to cold, laptop stays clean
+5. **Deploy** — `npx firebase deploy --only hosting`
+
+**Key principle:** Content never lives on the laptop permanently. bc1 is the warehouse. The workbench is just a loading dock — fetch what you need, build with it, stash it back.
+
+### Scraper Architecture (Planned)
+
+Sprint items SC-1 and SC-2 define the scraper framework (`_tools/scraper-core/`). Not yet built, but the design is locked:
+
+- **BaseScraper class** (Python) — rate limiting, retry logic, User-Agent rotation, response caching, HTML-to-markdown, resume capability
+- **Storage schema** — `output/{source}/{category}/{item-slug}/content.md` + `metadata.json`
+- **Content sources** — Microsoft Learn, GitHub repos, documentation sites (MDN, W3Schools, etc.)
+- **Related sprint series**: RS (Repo Scout — GitHub/GitLab discovery), JS (Job Search scraper), GF (Grant Finder scraper), BH (Hunting Grounds — CTF content), AI (AI House content hubs)
+
+All scrapers run on bc1. All output goes to cold storage. The laptop only sees content when explicitly fetched via `hexcontent`.
 
 ### Firebase
 - **Hosting**: static files, zero build step
