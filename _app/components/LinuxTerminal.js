@@ -840,6 +840,56 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             case 'info':
                 return _man(args);
 
+            case 'whatis': {
+                if (!args.length) return 'whatis what?';
+                const descriptions = {
+                    'ls': 'ls (1) - list directory contents',
+                    'cd': 'cd (1) - change the working directory',
+                    'cat': 'cat (1) - concatenate files and print on the standard output',
+                    'grep': 'grep (1) - print lines that match patterns',
+                    'chmod': 'chmod (1) - change file mode bits',
+                    'chown': 'chown (1) - change file owner and group',
+                    'man': 'man (1) - an interface to the system reference manuals',
+                    'whoami': 'whoami (1) - print effective user name',
+                    'id': 'id (1) - print real and effective user and group IDs',
+                    'pwd': 'pwd (1) - print name of current/working directory',
+                    'cp': 'cp (1) - copy files and directories',
+                    'mv': 'mv (1) - move (rename) files',
+                    'rm': 'rm (1) - remove files or directories',
+                    'mkdir': 'mkdir (1) - make directories',
+                    'touch': 'touch (1) - change file timestamps',
+                    'find': 'find (1) - search for files in a directory hierarchy',
+                    'head': 'head (1) - output the first part of files',
+                    'tail': 'tail (1) - output the last part of files',
+                    'wc': 'wc (1) - print newline, word, and byte counts for each file',
+                    'sort': 'sort (1) - sort lines of text files',
+                    'uniq': 'uniq (1) - report or omit repeated lines',
+                    'cut': 'cut (1) - remove sections from each line of files',
+                    'sed': 'sed (1) - stream editor for filtering and transforming text',
+                    'awk': 'awk (1) - pattern scanning and processing language',
+                    'echo': 'echo (1) - display a line of text',
+                    'ps': 'ps (1) - report a snapshot of the current processes',
+                    'kill': 'kill (1) - send a signal to a process',
+                    'df': 'df (1) - report file system disk space usage',
+                    'du': 'du (1) - estimate file space usage',
+                    'free': 'free (1) - display amount of free and used memory',
+                    'uname': 'uname (1) - print system information',
+                    'ping': 'ping (8) - send ICMP ECHO_REQUEST to network hosts',
+                    'ssh': 'ssh (1) - OpenSSH remote login client',
+                    'scp': 'scp (1) - OpenSSH secure file copy',
+                    'tar': 'tar (1) - an archiving utility',
+                    'whatis': 'whatis (1) - display one-line manual page descriptions',
+                    'type': 'type (1) - write a description of command type',
+                    'history': 'history (3) - GNU History Library'
+                };
+                return descriptions[args[0]] || `${args[0]}: nothing appropriate.`;
+            }
+
+            case 'apropos': {
+                if (!args.length) return 'apropos what?';
+                return `${args[0]}: nothing appropriate.`;
+            }
+
             case 'type':
                 return _type(args);
 
@@ -2191,7 +2241,34 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
        groups [USERNAME]...
 
 <span class="lt-success">DESCRIPTION</span>
-       Print group memberships for each USERNAME.`
+       Print group memberships for each USERNAME.`,
+
+            'man': `<span class="lt-highlight">MAN(1)                    User Commands                    MAN(1)</span>
+
+<span class="lt-success">NAME</span>
+       man - an interface to the system reference manuals
+
+<span class="lt-success">SYNOPSIS</span>
+       man [section] name ...
+
+<span class="lt-success">DESCRIPTION</span>
+       man is the system's manual pager. Each page argument given to
+       man is normally the name of a program, utility or function.
+
+<span class="lt-success">SECTIONS</span>
+       1   Executable programs or shell commands
+       2   System calls
+       3   Library calls
+       4   Special files (usually found in /dev)
+       5   File formats and conventions (e.g. /etc/passwd)
+       6   Games
+       7   Miscellaneous
+       8   System administration commands (usually root only)
+
+<span class="lt-success">EXAMPLES</span>
+       man ls         Show the manual page for ls
+       man 5 passwd   Show the passwd file format (section 5)
+       man -k search  Search manual page names and descriptions`
         };
 
         return manPages[args[0]] || `<span class="lt-error">No manual entry for ${args[0]}</span>`;
