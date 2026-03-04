@@ -725,6 +725,12 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             case 'du':
                 return _du(args);
 
+            case 'tree': {
+                const result = _tree(args);
+                _checkObjective('tree');
+                return result;
+            }
+
             case 'free': {
                 const result = _free(args);
                 _checkObjective('free');
@@ -1643,6 +1649,50 @@ tmpfs            4194304    12288   4182016   1% /tmp`;
 24576\t${path}`;
     }
 
+    function _tree(args) {
+        let targetPath = state.currentDir;
+        for (const arg of args) {
+            if (!arg.startsWith('-')) {
+                targetPath = _resolvePath(arg);
+                break;
+            }
+        }
+
+        const node = state.fs[targetPath];
+        if (!node) return `<span class="lt-error">${args[0] || targetPath}: No such file or directory</span>`;
+        if (node.type !== 'dir') return _escape(targetPath.split('/').pop());
+
+        const lines = [];
+        const dirName = targetPath === '/' ? '/' : targetPath.split('/').pop() || '.';
+        lines.push(dirName);
+        let dirCount = 0, fileCount = 0;
+
+        function walk(dirPath, prefix) {
+            const dir = state.fs[dirPath];
+            if (!dir || !dir.children) return;
+            const children = [...dir.children].sort();
+            children.forEach((child, i) => {
+                const isLast = i === children.length - 1;
+                const connector = isLast ? '└── ' : '├── ';
+                const childPath = dirPath === '/' ? '/' + child : dirPath + '/' + child;
+                const childNode = state.fs[childPath];
+                if (childNode && childNode.type === 'dir') {
+                    lines.push(prefix + connector + '<span class="lt-highlight">' + _escape(child) + '</span>');
+                    dirCount++;
+                    walk(childPath, prefix + (isLast ? '    ' : '│   '));
+                } else {
+                    lines.push(prefix + connector + _escape(child));
+                    fileCount++;
+                }
+            });
+        }
+
+        walk(targetPath, '');
+        lines.push('');
+        lines.push(`${dirCount} director${dirCount === 1 ? 'y' : 'ies'}, ${fileCount} file${fileCount === 1 ? '' : 's'}`);
+        return lines.join('\n');
+    }
+
     function _free(args) {
         const human = args.includes('-h');
         if (human) {
@@ -2285,7 +2335,7 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
             const commands = ['ls', 'cd', 'pwd', 'cat', 'head', 'tail', 'grep', 'find', 'mkdir', 'rm', 'cp', 'mv',
                            'touch', 'chmod', 'chown', 'echo', 'whoami', 'id', 'groups', 'ps', 'top', 'df', 'du',
                            'free', 'uname', 'man', 'help', 'clear', 'history', 'export', 'env',
-                           'sort', 'uniq', 'cut', 'wc', 'file', 'stat', 'rmdir', 'which', 'whereis',
+                           'sort', 'uniq', 'cut', 'wc', 'file', 'stat', 'rmdir', 'tree', 'which', 'whereis',
                            'locate', 'who', 'w', 'users', 'last', 'hostname', 'uptime', 'date', 'cal',
                            'sudo', 'apt', 'kill', 'tar', 'ln', 'sed', 'awk', 'tr', 'less', 'more',
                            'ping', 'ifconfig', 'ip', 'netstat', 'ss', 'curl', 'wget',
