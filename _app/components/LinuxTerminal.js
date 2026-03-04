@@ -1221,28 +1221,52 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
 
         for (const dir of dirs) {
             const path = _resolvePath(dir);
-            if (state.fs[path]) {
-                return `<span class="lt-error">mkdir: cannot create directory '${dir}': File exists</span>`;
-            }
 
-            const parentPath = path.split('/').slice(0, -1).join('/') || '/';
-            const dirName = path.split('/').pop();
-            const parent = state.fs[parentPath];
+            if (makeParents) {
+                // Build each segment of the path
+                const parts = path.split('/').filter(Boolean);
+                let current = '';
+                for (const part of parts) {
+                    current += '/' + part;
+                    if (!state.fs[current]) {
+                        const parentDir = current.split('/').slice(0, -1).join('/') || '/';
+                        const parentNode = state.fs[parentDir];
+                        state.fs[current] = {
+                            type: 'dir',
+                            perms: 'drwxr-xr-x',
+                            owner: state.currentUser.username,
+                            group: state.currentUser.username,
+                            children: []
+                        };
+                        if (parentNode && parentNode.children && !parentNode.children.includes(part)) {
+                            parentNode.children.push(part);
+                        }
+                    }
+                }
+            } else {
+                if (state.fs[path]) {
+                    return `<span class="lt-error">mkdir: cannot create directory '${dir}': File exists</span>`;
+                }
 
-            if (!parent && !makeParents) {
-                return `<span class="lt-error">mkdir: cannot create directory '${dir}': No such file or directory</span>`;
-            }
+                const parentPath = path.split('/').slice(0, -1).join('/') || '/';
+                const dirName = path.split('/').pop();
+                const parent = state.fs[parentPath];
 
-            if (parent && parent.type === 'dir') {
-                state.fs[path] = {
-                    type: 'dir',
-                    perms: 'drwxr-xr-x',
-                    owner: state.currentUser.username,
-                    group: state.currentUser.username,
-                    children: []
-                };
-                if (!parent.children.includes(dirName)) {
-                    parent.children.push(dirName);
+                if (!parent) {
+                    return `<span class="lt-error">mkdir: cannot create directory '${dir}': No such file or directory</span>`;
+                }
+
+                if (parent.type === 'dir') {
+                    state.fs[path] = {
+                        type: 'dir',
+                        perms: 'drwxr-xr-x',
+                        owner: state.currentUser.username,
+                        group: state.currentUser.username,
+                        children: []
+                    };
+                    if (!parent.children.includes(dirName)) {
+                        parent.children.push(dirName);
+                    }
                 }
             }
         }
