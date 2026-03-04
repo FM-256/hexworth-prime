@@ -153,6 +153,14 @@
             return null;
         }
 
+        // Arctic modules (stored in hexworth_arctic_progress)
+        try {
+            const arcticProgress = JSON.parse(localStorage.getItem('hexworth_arctic_progress') || '{}');
+            if (arcticProgress[contentId]) {
+                return { completed: true, score: null, completedAt: null };
+            }
+        } catch (e) { /* fall through */ }
+
         return null;
     }
 
@@ -320,6 +328,27 @@
                             }
                         }
                     }
+
+                    // Per-module expansion for path assignments (enables module-level heat maps)
+                    if (assignment.assignmentType === 'path' && typeof LearningPaths !== 'undefined') {
+                        const pathDef = LearningPaths.PATHS[assignment.contentId];
+                        if (pathDef && pathDef.modules) {
+                            for (const mod of pathDef.modules) {
+                                const modActivityKey = `${cls.id}:${mod.id}`;
+                                if (syncedActivity[modActivityKey]) continue;
+                                const modResult = checkLocalCompletion(mod.id);
+                                if (modResult && modResult.completed) {
+                                    try {
+                                        await AssignmentManager.submitProgress(cls.id, mod.id, modResult);
+                                        syncedActivity[modActivityKey] = Date.now();
+                                        synced++;
+                                    } catch (e) {
+                                        enqueueItem({ type: 'progress', classId: cls.id, contentId: mod.id, data: modResult });
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -342,6 +371,7 @@
     // Re-sync when progress updates (if on same page)
     window.addEventListener('courseProgress:componentComplete', () => sync());
     window.addEventListener('wsa-progress-updated', () => sync());
+    window.addEventListener('arctic:moduleComplete', () => sync());
 
     // Flush queue when coming back online
     window.addEventListener('online', () => {

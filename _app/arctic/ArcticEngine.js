@@ -90,6 +90,22 @@ const ArcticEngine = (() => {
         _saveProgress();
     }
 
+    function _autoDetectCompletions(district) {
+        let changed = false;
+        try {
+            const hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const scriptProgress = hp.script || {};
+            for (const mod of district.modules) {
+                if (_isComplete(mod.id)) continue;
+                if (scriptProgress[mod.id] && scriptProgress[mod.id].completed) {
+                    _progress[mod.id] = true;
+                    changed = true;
+                }
+            }
+        } catch (e) { /* non-critical */ }
+        if (changed) _saveProgress();
+    }
+
     // =========================================================================
     // SECTION GROUPING
     // =========================================================================
@@ -687,6 +703,8 @@ const ArcticEngine = (() => {
             return;
         }
 
+        _autoDetectCompletions(district);
+
         const faction = ArcticData.getFaction(district.faction);
         document.title = district.name + ' \u2014 The Arctic';
         _injectStyles(_getBaseCSS() + _getDistrictCSS());
@@ -989,6 +1007,9 @@ const ArcticEngine = (() => {
         toggleBtn.addEventListener('click', () => {
             const nowDone = !_isComplete(mod.id);
             _setComplete(mod.id, nowDone);
+            window.dispatchEvent(new CustomEvent('arctic:moduleComplete', {
+                detail: { moduleId: mod.id, completed: nowDone }
+            }));
             // Update toggle text
             toggleBtn.textContent = nowDone ? '\u2713 Marked Done' : '\u25CB Mark Done';
             toggleBtn.classList.toggle('ae-node-toggle--done', nowDone);
