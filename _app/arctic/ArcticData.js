@@ -228,7 +228,7 @@ const ArcticData = {
                 { id: 'lab-viewing-drill',  title: 'Viewing Drill',                type: 'lab', href: '../../../houses/script/labs/linux/script-linux-viewing-drill.lab.html' },
                 { id: 'lab-wildcards',      title: 'Wildcards Lab',                type: 'lab', href: '../../../houses/script/labs/linux/script-linux-wildcards.lab.html' },
                 { id: 'mission-text-view',  title: 'Mission: Text Viewing',        type: 'lab', href: '../../../houses/script/linux/labs/script-mission-text-viewing.lab.html' },
-                { id: 'review-regex-runner',title: 'Regex Runner (Game)',          type: 'review', href: '../../../houses/script/reviews/regex-runner.html' },
+                { id: 'review-regex-runner',title: 'Regex Runner (Game)',          type: 'review', href: '../../../houses/script/reviews/script-regex-runner.html' },
                 { id: 'tool-linux-cmd',     title: 'Linux Command Reference',      type: 'tool', href: '../../../houses/script/tools/script-linux-command.tool.html' }
             ]
         },
@@ -304,7 +304,7 @@ const ArcticData = {
                 { id: 'tool-process-mgmt',  title: 'Process Management Tool',     type: 'tool', href: '../../../houses/script/tools/script-process-management.tool.html' },
                 { id: 'tool-package-mgr',   title: 'Package Manager Reference',   type: 'tool', href: '../../../houses/script/tools/script-package-manager.tool.html' },
                 { id: 'quiz-sysadmin',      title: 'SysAdmin Quiz',               type: 'quiz', href: '../../../houses/script/quizzes/script-sysadmin.quiz.html' },
-                { id: 'game-dont-kill',     title: "Don't Kill the Server (Game)", type: 'game', href: '../../../houses/script/games/dont-kill-the-server.html' },
+                { id: 'game-dont-kill',     title: "Don't Kill the Server (Game)", type: 'game', href: '../../../houses/script/games/script-dont-kill-the-server.html' },
                 { id: 'lm-27-s4-practice', title: 'Section 4 Practice',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html' },
                 { id: 'lm-34-s5-practice', title: 'Section 5 Practice',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html' },
                 { id: 'lab-warmup-nav',    title: 'Warmup: Navigation',       type: 'lab', href: '../../../houses/script/linux/labs/script-warmup-navigation.lab.html' },
@@ -395,9 +395,9 @@ const ArcticData = {
                 // Orphaned encryption/checksum labs
                 { id: 'lab-checksum',       title: 'Checksum Verification Lab',   type: 'lab', href: '../../../houses/script/linux/labs/script-checksum-verify.lab.html' },
                 { id: 'lab-gpg',            title: 'GPG Encryption Lab',          type: 'lab', href: '../../../houses/script/linux/labs/script-gpg-encryption.lab.html' },
-                { id: 'review-terminal-vel',title: 'Terminal Velocity (Game)',     type: 'review', href: '../../../houses/script/reviews/terminal-velocity.html' },
-                { id: 'review-perm-puzzle', title: 'Permission Puzzle (Game)',     type: 'review', href: '../../../houses/script/reviews/permission-puzzle.html' },
-                { id: 'review-linux-cli',   title: 'Linux CLI Review',             type: 'review', href: '../../../houses/script/reviews/linux-cli-review.html' },
+                { id: 'review-terminal-vel',title: 'Terminal Velocity (Game)',     type: 'review', href: '../../../houses/script/reviews/script-terminal-velocity.html' },
+                { id: 'review-perm-puzzle', title: 'Permission Puzzle (Game)',     type: 'review', href: '../../../houses/script/reviews/script-permission-puzzle.html' },
+                { id: 'review-linux-cli',   title: 'Linux CLI Review',             type: 'review', href: '../../../houses/script/reviews/script-linux-cli-review.html' },
                 { id: 'review-la-comp',    title: 'LA Comprehensive Review',  type: 'review', href: '../../../houses/script/linux/reviews/script-la-comprehensive-review.html' }
             ]
         },
@@ -514,9 +514,9 @@ const ArcticData = {
                 { id: 'lab-ssh-hard',       title: 'SSH Lab',                        type: 'lab', href: '../../../houses/script/labs/linux/script-linux-ssh.lab.html' },
                 { id: 'lab-network-config', title: 'Network Configuration Lab',      type: 'lab', href: '../../../houses/script/labs/linux/script-linux-network-config.lab.html' },
                 { id: 'tool-perms-hard',    title: 'Permissions Reference Tool',     type: 'tool', href: '../../../houses/script/tools/script-linux-permissions.tool.html' },
-                { id: 'game-sudo-flap',     title: 'Sudo Flap (Game)',               type: 'game', href: '../../../houses/script/games/sudo-flap.html' },
-                { id: 'game-sudo-su',       title: 'sudo su (Game)',                 type: 'game', href: '../../../houses/script/games/sudo-su.html' },
-                { id: 'game-chmod777',      title: 'Chmod 777 Adventure (Game)',     type: 'game', href: '../../../houses/script/games/text-adventure-chmod777.html' },
+                { id: 'game-sudo-flap',     title: 'Sudo Flap (Game)',               type: 'game', href: '../../../houses/script/games/script-sudo-flap.html' },
+                { id: 'game-sudo-su',       title: 'sudo su (Game)',                 type: 'game', href: '../../../houses/script/games/script-sudo-su.html' },
+                { id: 'game-chmod777',      title: 'Chmod 777 Adventure (Game)',     type: 'game', href: '../../../houses/script/games/script-text-adventure-chmod777.html' },
                 // Shield defensive labs
                 { id: 'shield-firewall',       title: 'Firewall Lab',                   type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-firewall.lab.html' },
                 { id: 'shield-firewall-drill', title: 'Firewall Drill',                 type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-firewall-drill.lab.html' },
@@ -591,8 +591,8 @@ const ArcticData = {
                 { id: 'clh-016-off-applet', title: 'CLH-016: System Intelligence',   type: 'applet', href: '../../../houses/script/applets/linux/script-clh-016-system-intel.applet.html' },
                 { id: 'lab-file-search-off',title: 'File Search Lab',                type: 'lab', href: '../../../houses/script/labs/linux/script-linux-file-search.lab.html' },
                 { id: 'lab-mission-file-search', title: 'Mission: File Search',      type: 'lab', href: '../../../houses/script/linux/labs/script-mission-file-search.lab.html' },
-                { id: 'game-shell-sprint',  title: 'Shell Sprint (Game)',            type: 'game', href: '../../../houses/script/games/shell-sprint.html' },
-                { id: 'game-pipe-snake',    title: 'Pipe Snake (Game)',              type: 'game', href: '../../../houses/script/games/pipe-snake.html' },
+                { id: 'game-shell-sprint',  title: 'Shell Sprint (Game)',            type: 'game', href: '../../../houses/script/games/script-shell-sprint.applet.html' },
+                { id: 'game-pipe-snake',    title: 'Pipe Snake (Game)',              type: 'game', href: '../../../houses/script/games/script-pipe-snake.applet.html' },
                 // Dark Arts offensive labs
                 { id: 'da-nmap-drill',      title: 'Nmap Drill',                     type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-nmap-drill.lab.html' },
                 { id: 'da-nmap-advanced',   title: 'Nmap Advanced',                  type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-nmap-advanced.lab.html' },
