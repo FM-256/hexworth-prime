@@ -81,13 +81,6 @@ const ArcticEngine = (() => {
         return !!_progress[id];
     }
 
-    function _getCompletedAt(id) {
-        const val = _progress[id];
-        if (!val) return null;
-        // Legacy entries are just `true`; new entries are ISO timestamps
-        return typeof val === 'string' ? val : null;
-    }
-
     function _setComplete(id, value) {
         if (value) {
             _progress[id] = new Date().toISOString();
@@ -105,7 +98,7 @@ const ArcticEngine = (() => {
             for (const mod of district.modules) {
                 if (_isComplete(mod.id)) continue;
                 if (scriptProgress[mod.id] && scriptProgress[mod.id].completed) {
-                    _progress[mod.id] = true;
+                    _progress[mod.id] = new Date().toISOString();
                     changed = true;
                 }
             }
