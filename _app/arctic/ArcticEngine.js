@@ -81,9 +81,16 @@ const ArcticEngine = (() => {
         return !!_progress[id];
     }
 
+    function _getCompletedAt(id) {
+        const val = _progress[id];
+        if (!val) return null;
+        // Legacy entries are just `true`; new entries are ISO timestamps
+        return typeof val === 'string' ? val : null;
+    }
+
     function _setComplete(id, value) {
         if (value) {
-            _progress[id] = true;
+            _progress[id] = new Date().toISOString();
         } else {
             delete _progress[id];
         }

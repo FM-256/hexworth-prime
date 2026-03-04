@@ -156,8 +156,10 @@
         // Arctic modules (stored in hexworth_arctic_progress)
         try {
             const arcticProgress = JSON.parse(localStorage.getItem('hexworth_arctic_progress') || '{}');
-            if (arcticProgress[contentId]) {
-                return { completed: true, score: null, completedAt: null };
+            const arcticVal = arcticProgress[contentId];
+            if (arcticVal) {
+                const completedAt = typeof arcticVal === 'string' ? arcticVal : null;
+                return { completed: true, score: null, completedAt };
             }
         } catch (e) { /* fall through */ }
 
