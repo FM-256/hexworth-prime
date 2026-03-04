@@ -70,9 +70,9 @@
             position: fixed;
             bottom: 24px;
             right: 24px;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
             background: radial-gradient(circle at 30% 30%, #1a2a1a 0%, #0a1a0a 100%);
             border: 2px solid var(--flux-green);
             cursor: pointer;
@@ -102,9 +102,19 @@
 
         /* Biohazard Symbol */
         .flux-icon {
-            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
             filter: drop-shadow(0 0 8px var(--flux-green));
             animation: fluxSpin 8s linear infinite;
+        }
+
+        .flux-icon img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
         }
 
         @keyframes fluxPulse {
@@ -220,7 +230,7 @@
         }
 
         .flux-house.current::after {
-            content: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            content:'';display:inline-block;width:1.1em;height:1.1em;background:url(/assets/images/icons/icon-target.webp) center/contain no-repeat;vertical-align:middle;
             position: absolute;
             top: 8px;
             right: 8px;
@@ -228,7 +238,7 @@
         }
 
         .flux-house.home::after {
-            content: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
+            content:'';display:inline-block;width:1.1em;height:1.1em;background:url(/assets/images/icons/icon-star.webp) center/contain no-repeat;vertical-align:middle;
             position: absolute;
             top: 8px;
             left: 8px;
@@ -246,7 +256,7 @@
         }
 
         .flux-house.locked::after {
-            content: '<img src="/assets/images/icons/icon-swords.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            content:'';display:inline-block;width:1.1em;height:1.1em;background:url(/assets/images/icons/icon-swords.webp) center/contain no-repeat;vertical-align:middle;
             position: absolute;
             top: 8px;
             right: 8px;
@@ -487,7 +497,7 @@
             // Title
             const title = document.createElement('h2');
             title.className = 'flux-title';
-            title.textContent = '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> FLUX CAPACITOR <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            title.innerHTML = '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> FLUX CAPACITOR <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             modal.appendChild(title);
 
             // Subtitle
@@ -512,7 +522,7 @@
             dashSection.className = 'flux-dashboard';
             const dashBtn = document.createElement('button');
             dashBtn.className = 'flux-dashboard-btn';
-            dashBtn.textContent = '<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Return to Dashboard';
+            dashBtn.innerHTML = '<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Return to Dashboard';
             dashBtn.addEventListener('click', () => {
                 if (this.currentHouse === 'matrix') {
                     localStorage.removeItem('hexworth_theme');

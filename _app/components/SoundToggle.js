@@ -111,7 +111,7 @@ class SoundToggle {
     updateIcon() {
         const iconEl = this.element.querySelector('.sound-toggle-icon');
         if (iconEl) {
-            iconEl.textContent = this.getIcon();
+            iconEl.innerHTML = this.getIcon();
         }
 
         // Update class for styling

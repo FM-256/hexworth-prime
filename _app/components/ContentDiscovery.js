@@ -77,7 +77,7 @@ const ContentDiscovery = (function() {
     function catIconHTML(mod) {
         const fallback = mod.icon || '/assets/images/icons/icon-document.webp';
         if (!mod.category) return iconHTML(fallback, '18px');
-        return `<img src="/assets/images/categories/${mod.category}.webp" alt="${mod.category}" style="width:18px;height:18px;vertical-align:middle;object-fit:contain" onerror="this.outerHTML=iconHTML('${fallback}','18px')">`;
+        return `<img src="/assets/images/categories/${mod.category}.webp" alt="${mod.category}" style="width:18px;height:18px;vertical-align:middle;object-fit:contain" onerror="this.onerror=null;this.src='${fallback}'">`;
     }
 
     // ========================================

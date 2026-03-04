@@ -446,7 +446,7 @@ const CallsignModal = (function() {
         // Format validation
         if (!FirestoreManager.validateCallsign(callsign)) {
             wrapper.classList.add('invalid');
-            status.textContent = '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            status.innerHTML = '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             return;
         }
 
@@ -461,11 +461,11 @@ const CallsignModal = (function() {
 
         if (available) {
             wrapper.classList.add('valid');
-            status.textContent = '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            status.innerHTML = '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             submitBtn.disabled = false;
         } else {
             wrapper.classList.add('invalid');
-            status.textContent = '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            status.innerHTML = '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
         }
     }
 

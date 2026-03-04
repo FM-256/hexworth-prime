@@ -521,7 +521,7 @@ const HiveEngine = (() => {
         // Icon
         const icon = document.createElement('div');
         icon.className = 'hv-floor-icon';
-        icon.textContent = floorDef.icon || '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
+        icon.innerHTML = floorDef.icon || '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
 
         // Info
         const info = document.createElement('div');
@@ -557,12 +557,12 @@ const HiveEngine = (() => {
             statusEl.textContent = '✓';
             statusEl.style.color = '#4caf50';
         } else if (status === 'available') {
-            statusEl.textContent = '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            statusEl.innerHTML = '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
             statusEl.style.color = '#cc0000';
         } else if (status === 'locked') {
-            statusEl.textContent = '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            statusEl.innerHTML = '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
         } else {
-            statusEl.textContent = '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+            statusEl.innerHTML = '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
         }
 
         // Best time for completed floors

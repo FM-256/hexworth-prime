@@ -8,381 +8,293 @@
     <script src="../../../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LM-16: awk Processing | Linux Mastery</title>
-    <link rel="stylesheet" href="../../../../styles/main.css">
-    <link rel="stylesheet" href="../../../../styles/terminal.css">
     <style>
         :root {
-            --linux-orange: #E95420;
-            --linux-purple: #772953;
-            --terminal-green: #4EC9B0;
-            --background-dark: #0a0a0f;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --border-color: rgba(255, 255, 255, 0.1);
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #E95420;
+            --accent-dim: rgba(233, 84, 32, 0.15);
+            --blue: #3498db;
+            --blue-dim: rgba(52, 152, 219, 0.15);
+            --green: #4EC9B0;
+            --red: #e74c3c;
+            --yellow: #f39c12;
             --text-primary: #e0e0e0;
-            --text-secondary: #a0a0a0;
-            --success-green: #27ae60;
-            --awk-blue: #3498db;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--background-dark); color: var(--text-primary); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
-        .module-container { display: grid; grid-template-columns: 1fr 300px; min-height: 100vh; }
-        .main-content { padding: 2rem 3rem; overflow-y: auto; max-height: 100vh; }
-        .sidebar { background: rgba(0, 0, 0, 0.3); border-left: 1px solid var(--border-color); padding: 2rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+        code, .mono { font-family: 'JetBrains Mono', 'Consolas', monospace; }
 
-        .module-header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
-        .breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; }
-        .breadcrumb a { color: var(--linux-orange); text-decoration: none; }
-        .module-title { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; color: white; }
-        .module-meta { display: flex; gap: 1.5rem; color: var(--text-secondary); font-size: 0.9rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; background: var(--bg-card); border-bottom: 1px solid var(--border); }
+        .header-left { display: flex; align-items: center; gap: 1rem; }
+        .module-badge { background: var(--blue); color: #fff; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: #fff; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; }
+        .back-link:hover { color: var(--accent); }
 
-        .objectives-box { background: linear-gradient(135deg, rgba(233, 84, 32, 0.1), rgba(119, 41, 83, 0.1)); border: 1px solid rgba(233, 84, 32, 0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
-        .objectives-title { font-size: 1rem; font-weight: 600; color: var(--linux-orange); margin-bottom: 1rem; }
-        .objectives-list { list-style: none; }
-        .objectives-list li { padding: 0.4rem 0; padding-left: 1.5rem; position: relative; color: var(--text-secondary); }
-        .objectives-list li::before { content: '○'; position: absolute; left: 0; color: var(--linux-orange); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; height: calc(100vh - 49px); }
+        .terminal-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-terminal); }
+        .content-panel { overflow-y: auto; padding: 2rem 2.5rem; }
 
-        .content-section { margin-bottom: 2.5rem; }
-        .section-title { font-size: 1.4rem; font-weight: 600; margin-bottom: 1rem; color: white; }
-        .section-content { color: var(--text-secondary); line-height: 1.7; }
-        .section-content p { margin-bottom: 1rem; }
+        .panel-tasks { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+        .task-chip { font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 99px; border: 1px solid var(--border); color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+        .task-chip.completed { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .progress-bar { height: 3px; background: var(--border); border-radius: 2px; flex: 1; min-width: 60px; }
+        .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
+        .progress-text { font-size: 0.7rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+        .terminal-container { flex: 1; }
 
-        .command-hero { background: linear-gradient(135deg, rgba(52, 152, 219, 0.15), rgba(41, 128, 185, 0.15)); border: 1px solid rgba(52, 152, 219, 0.3); border-radius: 12px; padding: 2rem; margin: 1.5rem 0; text-align: center; }
-        .hero-icon { font-size: 3rem; margin-bottom: 1rem; }
-        .hero-cmd { font-family: 'Consolas', monospace; font-size: 1.4rem; color: var(--awk-blue); margin-bottom: 0.5rem; }
-        .hero-desc { color: var(--text-secondary); }
+        .objectives { background: var(--blue-dim); border: 1px solid rgba(52, 152, 219, 0.3); border-radius: 8px; padding: 1.25rem; margin-bottom: 2rem; }
+        .objectives h3 { font-size: 0.85rem; color: var(--blue); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .objectives li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.35rem; padding-left: 1.25rem; position: relative; list-style: none; }
+        .objectives li::before { content: '~'; position: absolute; left: 0; color: var(--blue); font-family: 'JetBrains Mono', monospace; }
 
-        .field-visual { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; }
-        .field-title { font-weight: 600; color: white; margin-bottom: 1rem; }
-        .field-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; font-family: 'Consolas', monospace; }
-        .field-item { background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); padding: 0.5rem 1rem; border-radius: 6px; text-align: center; }
-        .field-item .value { color: var(--terminal-green); font-size: 0.95rem; }
-        .field-item .label { color: var(--awk-blue); font-size: 0.75rem; margin-top: 0.25rem; }
-        .field-zero { border-color: var(--linux-orange); background: rgba(233, 84, 32, 0.1); }
-        .field-zero .label { color: var(--linux-orange); }
+        .content-panel h2 { font-size: 1.2rem; font-weight: 600; color: #fff; margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+        .content-panel p { color: var(--text-secondary); line-height: 1.7; margin-bottom: 1rem; font-size: 0.95rem; }
+        .content-panel code { background: rgba(0,0,0,0.3); padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.85em; color: var(--green); }
 
-        .example-grid { display: grid; gap: 1rem; margin: 1.5rem 0; }
-        .example-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; }
-        .example-header { background: rgba(0, 0, 0, 0.3); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); }
-        .example-cmd { font-family: 'Consolas', monospace; color: var(--terminal-green); }
-        .example-body { padding: 1rem; }
-        .example-desc { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.75rem; }
-        .example-output { background: rgba(0, 0, 0, 0.3); padding: 0.75rem; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.85rem; color: var(--text-primary); }
+        .hero-box { background: var(--blue-dim); border: 1px solid rgba(52, 152, 219, 0.3); border-radius: 8px; padding: 1.5rem; text-align: center; margin: 1.5rem 0; }
+        .hero-cmd { font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; color: var(--blue); margin-bottom: 0.5rem; }
+        .hero-desc { color: var(--text-secondary); font-size: 0.9rem; }
 
-        .options-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
-        .options-table th, .options-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
-        .options-table th { color: var(--awk-blue); font-weight: 600; }
-        .options-table code { background: rgba(0, 0, 0, 0.3); padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; color: var(--terminal-green); }
+        .field-visual { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0; }
+        .field-label { font-weight: 600; color: #fff; margin-bottom: 1rem; font-size: 0.95rem; }
+        .field-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; font-family: 'JetBrains Mono', monospace; }
+        .field-item { background: rgba(0,0,0,0.4); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: 6px; text-align: center; }
+        .field-item .val { color: var(--green); font-size: 0.9rem; }
+        .field-item .lbl { color: var(--blue); font-size: 0.7rem; margin-top: 0.2rem; }
+        .field-zero { border-color: var(--accent); background: var(--accent-dim); }
+        .field-zero .lbl { color: var(--accent); }
 
-        .terminal-section { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; }
-        .terminal-header { margin-bottom: 1rem; }
-        .terminal-title { font-weight: 600; color: white; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 1rem 0; }
+        .cmd-card-head { background: rgba(0,0,0,0.3); padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; color: var(--green); font-size: 0.85rem; }
+        .cmd-card-body { padding: 1rem; }
+        .cmd-card-body p { margin-bottom: 0.5rem; }
+        .cmd-output { background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-primary); line-height: 1.6; }
 
-        .takeaways-box { background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(78, 201, 176, 0.1)); border: 1px solid rgba(39, 174, 96, 0.3); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
-        .takeaways-title { font-size: 1.1rem; font-weight: 600; color: var(--success-green); margin-bottom: 1rem; }
-        .takeaways-list { list-style: none; }
-        .takeaways-list li { padding: 0.5rem 0; padding-left: 1.5rem; position: relative; color: var(--text-secondary); }
-        .takeaways-list li::before { content: '✓'; position: absolute; left: 0; color: var(--success-green); }
+        .flag-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+        .flag-table th { text-align: left; padding: 0.6rem 1rem; border-bottom: 2px solid var(--blue); color: var(--blue); font-weight: 600; }
+        .flag-table td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); }
+        .flag-table code { font-size: 0.85rem; }
 
-        .module-nav { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border-color); }
-        .nav-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); text-decoration: none; transition: all 0.3s ease; }
-        .nav-btn:hover { border-color: var(--linux-orange); background: rgba(233, 84, 32, 0.1); }
-        .nav-btn.primary { background: linear-gradient(135deg, var(--linux-orange), var(--linux-purple)); border: none; }
+        .takeaways { background: rgba(78, 201, 176, 0.08); border: 1px solid rgba(78, 201, 176, 0.25); border-radius: 8px; padding: 1.25rem; margin: 2rem 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+        .takeaways li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.35rem; padding-left: 1.25rem; position: relative; list-style: none; }
+        .takeaways li::before { content: '>'; position: absolute; left: 0; color: var(--green); font-family: 'JetBrains Mono', monospace; }
 
-        .sidebar-section { margin-bottom: 2rem; }
-        .sidebar-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 1rem; }
-        .progress-ring { width: 120px; height: 120px; margin: 0 auto 1rem; }
-        .progress-ring circle { fill: none; stroke-width: 8; }
-        .progress-ring .bg { stroke: var(--border-color); }
-        .progress-ring .progress { stroke: var(--linux-orange); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 0.5s ease; }
-        .progress-text { text-anchor: middle; fill: white; font-size: 1.5rem; font-weight: bold; }
-        .progress-label { text-anchor: middle; fill: var(--text-secondary); font-size: 0.7rem; }
+        .nav-footer { display: flex; justify-content: space-between; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+        .nav-btn { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 6px; }
+        .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .nav-btn.next { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-        .task-list { list-style: none; }
-        .task-item { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color); }
-        .task-checkbox { width: 20px; height: 20px; border: 2px solid var(--border-color); border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
-        .task-item.completed .task-checkbox { background: var(--success-green); border-color: var(--success-green); }
-        .task-item.completed .task-checkbox::after { content: '✓'; color: white; font-size: 0.75rem; }
-        .task-text { font-size: 0.9rem; color: var(--text-secondary); }
-        .task-item.completed .task-text { text-decoration: line-through; opacity: 0.6; }
-
-        .quick-ref { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; }
-        .quick-ref-item { display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 0.85rem; }
-        .quick-ref-cmd { font-family: 'Consolas', monospace; color: var(--awk-blue); }
-        .quick-ref-desc { color: var(--text-secondary); }
-
-        @media (max-width: 1024px) { .module-container { grid-template-columns: 1fr; } .sidebar { display: none; } .main-content { padding: 1.5rem; max-height: none; } }
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; height: auto; }
+            .terminal-panel { height: 45vh; }
+        }
     </style>
 </head>
 <body>
-    <div class="module-container">
-        <main class="main-content">
-            <header class="module-header">
-                <nav class="breadcrumb">
-                    <a href="../../index.html">Script House</a><span>›</span>
-                    <a href="index.html">Linux Mastery</a><span>›</span>
-                    <span>Section 3: Text Processing</span>
-                </nav>
-                <h1 class="module-title">awk Processing</h1>
-                <div class="module-meta">
-                    <span class="meta-item"><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Module 16 of 55</span>
-                    <span class="meta-item"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> 35 min</span>
-                    <span class="meta-item"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Column Processing</span>
-                </div>
-            </header>
 
-            <div class="objectives-box">
-                <div class="objectives-title"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Learning Objectives</div>
-                <ul class="objectives-list">
-                    <li>Understand awk's field-based processing</li>
-                    <li>Extract specific columns from data</li>
-                    <li>Use patterns to filter rows</li>
-                    <li>Perform calculations on fields</li>
-                </ul>
-            </div>
+<header class="header">
+    <div class="header-left">
+        <span class="module-badge">LM-16</span>
+        <h1>awk Processing</h1>
+    </div>
+    <a href="index.html" class="back-link">< Course Home</a>
+</header>
 
-            <section class="content-section">
-                <h2 class="section-title"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> What is awk?</h2>
-                <div class="section-content">
-                    <div class="command-hero">
-                        <div class="hero-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="awk processing" style="width:48px;height:48px;border-radius:8px;object-fit:cover;"></div>
-                        <div class="hero-cmd">awk '{print $1, $3}' file</div>
-                        <div class="hero-desc">Pattern scanning and processing language</div>
-                    </div>
-                    <p><code>awk</code> processes text line by line, splitting each line into fields (columns). It's incredibly powerful for extracting and manipulating columnar data like logs, CSVs, and command output.</p>
-                </div>
-            </section>
-
-            <section class="content-section">
-                <h2 class="section-title"><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Fields and Records</h2>
-                <div class="section-content">
-                    <p>awk automatically splits each line into fields (separated by whitespace by default):</p>
-                    <div class="field-visual">
-                        <div class="field-title">Line: "john 25 engineer"</div>
-                        <div class="field-row">
-                            <div class="field-item field-zero"><div class="value">john 25 engineer</div><div class="label">$0 (whole line)</div></div>
-                        </div>
-                        <div class="field-row">
-                            <div class="field-item"><div class="value">john</div><div class="label">$1</div></div>
-                            <div class="field-item"><div class="value">25</div><div class="label">$2</div></div>
-                            <div class="field-item"><div class="value">engineer</div><div class="label">$3</div></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="content-section">
-                <h2 class="section-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Basic Usage</h2>
-                <div class="section-content">
-                    <div class="example-grid">
-                        <div class="example-card">
-                            <div class="example-header"><span class="example-cmd">awk '{print $1}' users.txt</span></div>
-                            <div class="example-body">
-                                <div class="example-desc">Print first column only (usernames)</div>
-                                <div class="example-output">john<br>jane<br>admin</div>
-                            </div>
-                        </div>
-                        <div class="example-card">
-                            <div class="example-header"><span class="example-cmd">awk '{print $1, $3}' users.txt</span></div>
-                            <div class="example-body">
-                                <div class="example-desc">Print columns 1 and 3</div>
-                                <div class="example-output">john engineer<br>jane designer<br>admin sysadmin</div>
-                            </div>
-                        </div>
-                        <div class="example-card">
-                            <div class="example-header"><span class="example-cmd">awk '{print NR, $0}' file.txt</span></div>
-                            <div class="example-body">
-                                <div class="example-desc">Add line numbers (NR = record number)</div>
-                                <div class="example-output">1 first line<br>2 second line<br>3 third line</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="content-section">
-                <h2 class="section-title"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Pattern Matching</h2>
-                <div class="section-content">
-                    <p>Filter rows before processing with patterns:</p>
-                    <div class="example-grid">
-                        <div class="example-card">
-                            <div class="example-header"><span class="example-cmd">awk '/error/ {print}' log.txt</span></div>
-                            <div class="example-body"><div class="example-desc">Print lines containing "error"</div></div>
-                        </div>
-                        <div class="example-card">
-                            <div class="example-header"><span class="example-cmd">awk '$2 > 50 {print $1}' data.txt</span></div>
-                            <div class="example-body"><div class="example-desc">Print column 1 where column 2 is > 50</div></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="content-section">
-                <h2 class="section-title"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Built-in Variables</h2>
-                <div class="section-content">
-                    <table class="options-table">
-                        <thead><tr><th scope="col">Variable</th><th scope="col">Description</th></tr></thead>
-                        <tbody>
-                            <tr><td><code>$0</code></td><td>The entire current line</td></tr>
-                            <tr><td><code>$1, $2...</code></td><td>Fields 1, 2, etc.</td></tr>
-                            <tr><td><code>NF</code></td><td>Number of fields in current line</td></tr>
-                            <tr><td><code>NR</code></td><td>Current line (record) number</td></tr>
-                            <tr><td><code>FS</code></td><td>Field separator (default: whitespace)</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section class="content-section">
-                <h2 class="section-title"><img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Practice Terminal</h2>
-                <div class="terminal-section">
-                    <div class="terminal-header"><span class="terminal-title">Practice awk column extraction</span></div>
-                    <div id="terminal"></div>
-                </div>
-            </section>
-
-            <div class="takeaways-box">
-                <div class="takeaways-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Key Takeaways</div>
-                <ul class="takeaways-list">
-                    <li><code>$1, $2, $3...</code> reference fields (columns)</li>
-                    <li><code>$0</code> is the entire line</li>
-                    <li><code>NR</code> is the line number, <code>NF</code> is field count</li>
-                    <li>Use patterns before <code>{}</code> to filter rows</li>
-                    <li><code>-F</code> changes the field separator</li>
-                </ul>
-            </div>
-
-            <nav class="module-nav">
-                <a href="script-lm-15-sed-editor.module.html" class="nav-btn">← sed Editor</a>
-                <a href="script-lm-17-sort-uniq.module.html" class="nav-btn primary">sort & uniq →</a>
-            </nav>
-        </main>
-
-        <aside class="sidebar">
-            <div class="sidebar-section">
-                <div class="sidebar-title">Progress</div>
-                <svg class="progress-ring" viewBox="0 0 120 120">
-                    <circle class="bg" cx="60" cy="60" r="52"></circle>
-                    <circle class="progress" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle>
-                    <text class="progress-text" x="60" y="60" dy="0.3em">0%</text>
-                    <text class="progress-label" x="60" y="78">Complete</text>
-                </svg>
-            </div>
-            <div class="sidebar-section">
-                <div class="sidebar-title">Tasks</div>
-                <ul class="task-list">
-                    <li class="task-item" data-task="print-field"><div class="task-checkbox"></div><span class="task-text">Print a single field</span></li>
-                    <li class="task-item" data-task="multi-field"><div class="task-checkbox"></div><span class="task-text">Print multiple fields</span></li>
-                    <li class="task-item" data-task="nr"><div class="task-checkbox"></div><span class="task-text">Use NR or NF</span></li>
-                    <li class="task-item" data-task="pattern"><div class="task-checkbox"></div><span class="task-text">Use a pattern filter</span></li>
-                </ul>
-            </div>
-            <div class="sidebar-section">
-                <div class="sidebar-title">Quick Reference</div>
-                <div class="quick-ref">
-                    <div class="quick-ref-item"><span class="quick-ref-cmd">$1</span><span class="quick-ref-desc">field 1</span></div>
-                    <div class="quick-ref-item"><span class="quick-ref-cmd">$0</span><span class="quick-ref-desc">whole line</span></div>
-                    <div class="quick-ref-item"><span class="quick-ref-cmd">NR</span><span class="quick-ref-desc">line num</span></div>
-                    <div class="quick-ref-item"><span class="quick-ref-cmd">NF</span><span class="quick-ref-desc">field count</span></div>
-                    <div class="quick-ref-item"><span class="quick-ref-cmd">-F:</span><span class="quick-ref-desc">set delimiter</span></div>
-                </div>
-            </div>
-        </aside>
+<div class="main-layout">
+    <div class="terminal-panel">
+        <div class="panel-tasks">
+            <span class="task-chip" data-task="print-field">print field</span>
+            <span class="task-chip" data-task="multi-field">multi-field</span>
+            <span class="task-chip" data-task="nr">NR / NF</span>
+            <span class="task-chip" data-task="pattern">pattern</span>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="progress-text" id="progressText">0 / 4</span>
+        </div>
+        <div class="terminal-container" id="terminal"></div>
     </div>
 
-    <script src="../../../../components/LinuxTerminal.js"></script>
-    <script>
-        const terminal = new LinuxTerminal('terminal', { user: 'learner', hostname: 'linux-mastery', height: '350px' });
+    <div class="content-panel">
+        <div class="objectives">
+            <h3>Objectives</h3>
+            <ul>
+                <li>Understand awk's field-based processing model</li>
+                <li>Extract specific columns from structured data</li>
+                <li>Use patterns to filter rows before processing</li>
+                <li>Work with built-in variables like NR and NF</li>
+            </ul>
+        </div>
 
-        const files = {
-            'users.txt': ['john 25 engineer', 'jane 30 designer', 'admin 45 sysadmin', 'guest 20 visitor'],
-            'data.txt': ['apple 100 fruit', 'banana 75 fruit', 'carrot 50 vegetable', 'orange 120 fruit']
-        };
+        <div class="hero-box">
+            <div class="hero-cmd">awk '{print $1, $3}' file</div>
+            <div class="hero-desc">Pattern scanning and text processing language</div>
+        </div>
 
-        terminal.addCommand('awk', (args) => {
-            const cmdStr = args.join(' ');
-            const hasF = cmdStr.includes('-F');
-            let separator = /\s+/;
-            let program = '';
-            let fileName = 'users.txt';
+        <h2>What is awk?</h2>
+        <p><code>awk</code> processes text line by line, splitting each line into fields (columns). It's incredibly powerful for extracting and manipulating columnar data like logs, CSVs, and command output.</p>
+        <p>The basic syntax is: <code>awk 'pattern {action}' file</code>. If no pattern is given, the action runs on every line. If no action is given, matching lines are printed.</p>
 
-            // Parse arguments
-            for (let i = 0; i < args.length; i++) {
-                if (args[i] === '-F' && args[i+1]) { separator = new RegExp(args[++i]); }
-                else if (args[i].startsWith("'") || args[i].startsWith('"')) { program = args[i].replace(/['"]/g, ''); }
-                else if (files[args[i]]) { fileName = args[i]; }
+        <h2>Fields and Records</h2>
+        <p>awk automatically splits each line into fields separated by whitespace. Each field is referenced by <code>$1</code>, <code>$2</code>, etc. <code>$0</code> is the entire line.</p>
+
+        <div class="field-visual">
+            <div class="field-label">Line: "john 25 engineer"</div>
+            <div class="field-row">
+                <div class="field-item field-zero"><div class="val">john 25 engineer</div><div class="lbl">$0 (whole line)</div></div>
+            </div>
+            <div class="field-row">
+                <div class="field-item"><div class="val">john</div><div class="lbl">$1</div></div>
+                <div class="field-item"><div class="val">25</div><div class="lbl">$2</div></div>
+                <div class="field-item"><div class="val">engineer</div><div class="lbl">$3</div></div>
+            </div>
+        </div>
+
+        <h2>Basic Usage</h2>
+
+        <div class="cmd-card">
+            <div class="cmd-card-head">awk '{print $1}' users.txt</div>
+            <div class="cmd-card-body">
+                <p>Print first column only (usernames)</p>
+                <div class="cmd-output">john<br>jane<br>admin<br>guest</div>
+            </div>
+        </div>
+
+        <div class="cmd-card">
+            <div class="cmd-card-head">awk '{print $1, $3}' users.txt</div>
+            <div class="cmd-card-body">
+                <p>Print columns 1 and 3 together</p>
+                <div class="cmd-output">john engineer<br>jane designer<br>admin sysadmin<br>guest visitor</div>
+            </div>
+        </div>
+
+        <div class="cmd-card">
+            <div class="cmd-card-head">awk '{print NR, $0}' file.txt</div>
+            <div class="cmd-card-body">
+                <p>Add line numbers using NR (record number)</p>
+                <div class="cmd-output">1 first line of the file<br>2 second line of the file<br>3 third line of the file</div>
+            </div>
+        </div>
+
+        <h2>Pattern Matching</h2>
+        <p>Place a pattern before the <code>{action}</code> block to filter which lines get processed:</p>
+
+        <div class="cmd-card">
+            <div class="cmd-card-head">awk '/error/ {print}' log.txt</div>
+            <div class="cmd-card-body"><p>Print only lines containing "error"</p></div>
+        </div>
+
+        <div class="cmd-card">
+            <div class="cmd-card-head">awk '$2 > 50 {print $1, $2}' data.txt</div>
+            <div class="cmd-card-body"><p>Print columns 1 and 2 where column 2 is greater than 50</p></div>
+        </div>
+
+        <h2>Built-in Variables</h2>
+        <table class="flag-table">
+            <thead><tr><th>Variable</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr><td><code>$0</code></td><td>The entire current line</td></tr>
+                <tr><td><code>$1, $2...</code></td><td>Individual fields (columns)</td></tr>
+                <tr><td><code>NF</code></td><td>Number of fields in current line</td></tr>
+                <tr><td><code>NR</code></td><td>Current line (record) number</td></tr>
+                <tr><td><code>FS</code></td><td>Field separator (default: whitespace)</td></tr>
+            </tbody>
+        </table>
+        <p>Use <code>-F</code> to change the field separator: <code>awk -F: '{print $1}' /etc/passwd</code> splits on colons instead of whitespace.</p>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li><code>$1, $2, $3...</code> reference fields (columns), <code>$0</code> is the entire line</li>
+                <li><code>NR</code> is the line number, <code>NF</code> is the field count</li>
+                <li>Place patterns before <code>{}</code> to filter which rows get processed</li>
+                <li>Use <code>-F</code> to change the field separator for CSVs, passwd files, etc.</li>
+                <li>awk excels at columnar data — logs, CSVs, and command output piping</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="script-lm-15-sed-editor.module.html" class="nav-btn">< sed Editor</a>
+            <a href="script-lm-17-sort-uniq.module.html" class="nav-btn next">sort & uniq ></a>
+        </nav>
+    </div>
+</div>
+
+<script src="../../../../components/LinuxTerminal.js"></script>
+<script>
+LinuxTerminal.init('LM-16', '#terminal', {
+    user: 'learner',
+    hostname: 'linux-mastery',
+    startDir: '/home/learner',
+    height: '100%',
+    onCommand: function(cmdLine, output, cmd, args) {
+        if (cmd !== 'awk') return;
+        const joined = args.join(' ');
+
+        // Check for pattern filter: /pattern/ or $N > val
+        if (/\/[^/]+\/\s*\{/.test(joined) || /\$\d+\s*[><=!]+\s*\d+/.test(joined)) {
+            completeTask('pattern');
+        }
+
+        // Check for NR or NF in the awk program
+        if (/\bNR\b/.test(joined) || /\bNF\b/.test(joined)) {
+            completeTask('nr');
+        }
+
+        // Check for field printing
+        const printMatch = joined.match(/print\s+(.+?)\s*[}']/);
+        if (printMatch) {
+            const fields = printMatch[1].match(/\$\d+/g);
+            if (fields && fields.length > 1) {
+                completeTask('multi-field');
+            } else if (fields && fields.length === 1) {
+                completeTask('print-field');
             }
+        }
+    }
+});
 
-            const content = files[fileName];
-            if (!content) return `awk: can't open ${fileName}`;
+const MODULE_ID = 'lm-16-awk-processing';
+const tasks = { 'print-field': false, 'multi-field': false, 'nr': false, 'pattern': false };
 
-            const printMatch = program.match(/\{print\s+(.+?)\}/);
-            const patternMatch = program.match(/^\/(.+?)\/\s*\{/);
-            const condMatch = program.match(/^\$(\d+)\s*([><=]+)\s*(\d+)\s*\{/);
+function completeTask(id) {
+    if (tasks[id]) return;
+    tasks[id] = true;
+    document.querySelector(`.task-chip[data-task="${id}"]`)?.classList.add('completed');
+    updateProgress();
+    saveProgress();
+}
 
-            let results = [];
-            content.forEach((line, idx) => {
-                const fields = line.split(separator);
-                const NR = idx + 1;
-                const NF = fields.length;
+function updateProgress() {
+    const done = Object.values(tasks).filter(Boolean).length;
+    const total = Object.keys(tasks).length;
+    document.getElementById('progressText').textContent = done + ' / ' + total;
+    document.getElementById('progressFill').style.width = Math.round(done / total * 100) + '%';
+}
 
-                // Pattern filter
-                if (patternMatch) {
-                    const regex = new RegExp(patternMatch[1]);
-                    if (!regex.test(line)) return;
-                    checkTask('pattern');
-                }
+function saveProgress() {
+    const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+    if (!progress.script) progress.script = {};
+    progress.script[MODULE_ID] = {
+        completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+        lastAccess: Date.now()
+    };
+    localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+}
 
-                // Condition filter
-                if (condMatch) {
-                    const fieldNum = parseInt(condMatch[1]);
-                    const op = condMatch[2];
-                    const val = parseInt(condMatch[3]);
-                    const fieldVal = parseInt(fields[fieldNum - 1]) || 0;
-                    let pass = false;
-                    if (op === '>') pass = fieldVal > val;
-                    else if (op === '<') pass = fieldVal < val;
-                    else if (op === '==') pass = fieldVal === val;
-                    if (!pass) return;
-                    checkTask('pattern');
-                }
-
-                if (printMatch) {
-                    const expr = printMatch[1];
-                    const parts = expr.split(/,\s*/);
-                    const output = parts.map(p => {
-                        p = p.trim();
-                        if (p === '$0') return line;
-                        if (p === 'NR') { checkTask('nr'); return NR; }
-                        if (p === 'NF') { checkTask('nr'); return NF; }
-                        const m = p.match(/^\$(\d+)$/);
-                        if (m) {
-                            const fn = parseInt(m[1]);
-                            if (parts.length > 1) checkTask('multi-field');
-                            else checkTask('print-field');
-                            return fields[fn - 1] || '';
-                        }
-                        return p.replace(/"/g, '');
-                    });
-                    results.push(output.join(' '));
-                } else {
-                    results.push(line);
-                }
-            });
-
-            return results.join('\n');
-        });
-
-        terminal.addCommand('cat', (args) => files[args[0]]?.join('\n') || `cat: ${args[0]}: No such file`);
-        terminal.addCommand('ls', () => Object.keys(files).join('  '));
-
-        const completedTasks = new Set();
-        function checkTask(t) { if (!completedTasks.has(t)) { completedTasks.add(t); document.querySelector(`[data-task="${t}"]`)?.classList.add('completed'); updateProgress(); saveProgress(); } }
-        function updateProgress() { const pct = Math.round((completedTasks.size / 4) * 100); document.querySelector('.progress').style.strokeDashoffset = 326.7 - (pct / 100) * 326.7; document.querySelector('.progress-text').textContent = pct + '%'; }
-        function saveProgress() { const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); if (!p.script) p.script = {}; if (!p.script.linuxMastery) p.script.linuxMastery = {}; p.script.linuxMastery['lm-16'] = { completed: [...completedTasks], lastAccess: Date.now() }; localStorage.setItem('hexworth_progress', JSON.stringify(p)); }
-        function loadProgress() { const m = JSON.parse(localStorage.getItem('hexworth_progress') || '{}').script?.linuxMastery?.['lm-16']; if (m?.completed) { m.completed.forEach(t => { completedTasks.add(t); document.querySelector(`[data-task="${t}"]`)?.classList.add('completed'); }); updateProgress(); } }
-        loadProgress();
-    </script>
+(function loadProgress() {
+    const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+    const saved = progress.script?.[MODULE_ID];
+    if (saved?.completed) {
+        saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
+        updateProgress();
+    }
+})();
+</script>
 <script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

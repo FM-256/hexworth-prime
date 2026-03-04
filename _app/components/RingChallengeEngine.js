@@ -357,7 +357,7 @@ const RingChallengeEngine = (function() {
         const streakEl = document.getElementById('streak-value');
         if (streakEl) {
             if (state.streak > 0) {
-                streakEl.textContent = `<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> x${state.streak}`;
+                streakEl.innerHTML = `<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> x${state.streak}`;
                 streakEl.style.opacity = '1';
             } else {
                 streakEl.style.opacity = '0.3';
@@ -805,7 +805,7 @@ const RingChallengeEngine = (function() {
         for (let i = 0; i < 50; i++) {
             setTimeout(() => {
                 const particle = document.createElement('div');
-                particle.textContent = ['<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'][Math.floor(Math.random() * 4)];
+                particle.innerHTML = ['<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'][Math.floor(Math.random() * 4)];
                 particle.style.cssText = `
                     position: fixed;
                     top: 50%;

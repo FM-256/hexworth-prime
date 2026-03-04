@@ -155,7 +155,7 @@ class PlayerTools {
 
         this.injectStyles();
 
-        console.log('<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Player tools initialized');
+        console.log('[tools] Player tools initialized');
         return this;
     }
 
@@ -218,7 +218,7 @@ class PlayerTools {
         this.updateToolbarSelection();
         this.updateCursor();
 
-        console.log(`<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Selected: ${PlayerTools.TOOLS[toolKey].name}`);
+        console.log(`[tools] Selected: ${PlayerTools.TOOLS[toolKey].name}`);
     }
 
     /**

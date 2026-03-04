@@ -1086,7 +1086,7 @@ const HouseRenderer = (function() {
                     <span>Dashboard</span>
                 </a>
                 <div class="house-badge">
-                    <span class="house-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle}" onerror="this.outerHTML='${config.icon}'">` : config.icon}</span>
+                    <span class="house-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle}" onerror="this.onerror=null;this.src='/assets/images/icons/icon-home.webp'">` : config.icon}</span>
                     <span class="house-badge-text">${config.fullTitle}</span>
                 </div>
             </div>
@@ -1122,7 +1122,7 @@ const HouseRenderer = (function() {
                     </div>` : ''}
                 </div>
                 <div class="hero-right">
-                    <div class="hero-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle} emblem" onerror="this.outerHTML='${config.icon}'">` : config.icon}</div>
+                    <div class="hero-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle} emblem" onerror="this.onerror=null;this.src='/assets/images/icons/icon-home.webp'">` : config.icon}</div>
                     <h1 class="hero-title">House of the <span>${config.title}</span></h1>
                     <p class="hero-domain">${config.domain}</p>
                     <p class="hero-description">${config.description}</p>
@@ -1379,8 +1379,9 @@ const HouseRenderer = (function() {
 
         const pathCards = config.paths.map(p => {
             const catId = PATH_CATEGORY_MAP[p.id];
+            const pIconSrc = (p.icon && p.icon.includes('src=')) ? (p.icon.match(/src="([^"]+)"/)?.[1] || '/assets/images/icons/icon-books.webp') : (p.icon || '/assets/images/icons/icon-books.webp');
             const iconHTML = catId
-                ? `<img src="/assets/images/categories/${catId}.webp" alt="${p.name}" onerror="this.outerHTML='${p.icon}'">`
+                ? `<img src="/assets/images/categories/${catId}.webp" alt="${p.name}" onerror="this.onerror=null;this.src='${pIconSrc}'">`
                 : p.icon;
             return `
             <div class="path-card" role="listitem" tabindex="0" data-path-id="${p.id}" data-path-href="${p.href || ''}" aria-label="${p.name} - ${p.cert}">
@@ -1444,10 +1445,10 @@ const HouseRenderer = (function() {
                 const iconSrc = catId
                     ? `/assets/images/categories/${catId}.webp`
                     : (p.icon && p.icon.includes('src=') ? p.icon.match(/src="([^"]+)"/)?.[1] || '' : '');
-                const fallback = (p.icon && !p.icon.includes('<')) ? p.icon : '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+                const fallbackSrc = (p.icon && p.icon.includes('src=')) ? (p.icon.match(/src="([^"]+)"/)?.[1] || '/assets/images/icons/icon-books.webp') : (p.icon && !p.icon.includes('<') ? p.icon : '/assets/images/icons/icon-books.webp');
                 const iconHTML = iconSrc
-                    ? `<img src="${iconSrc}" alt="${p.name}" onerror="this.outerHTML='${fallback}'">`
-                    : fallback;
+                    ? `<img src="${iconSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='${fallbackSrc}'">`
+                    : (p.icon || `<img src="/assets/images/icons/icon-books.webp" alt="">`);
                 const href = p.href || `../../path-view.html?house=${config.houseId}&path=${p.id}`;
                 return `
                     <div class="hr-hub-card" role="listitem" tabindex="0" data-href="${href}" aria-label="${p.name} - ${p.cert}">
@@ -1507,8 +1508,8 @@ const HouseRenderer = (function() {
 
             const typeBadge = getTypeBadge(mod);
             const catIcon = mod.category
-                ? `<img src="/assets/images/categories/${mod.category}.webp" alt="${mod.title || mod.category}" onerror="this.outerHTML='${mod.icon}'">`
-                : mod.icon;
+                ? `<img src="/assets/images/categories/${mod.category}.webp" alt="${mod.title || mod.category}" onerror="this.onerror=null;this.src='${mod.icon}'">`
+                : `<img src="${mod.icon}" alt="${mod.title || ''}">`;
             card.innerHTML = `
                 <div class="module-header">
                     <span class="module-icon">${catIcon}</span>
@@ -1653,22 +1654,22 @@ const HouseRenderer = (function() {
                 <h3 class="hr-features-title">Special Features</h3>
                 <div class="hr-feature-grid" role="list">
                     <a href="/arena/index.html" class="hr-feature-card feat-arena" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/ctf.webp" alt="CTF challenges" onerror="this.outerHTML='<img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/ctf.webp" alt="CTF challenges" onerror="this.onerror=null;this.src='/assets/images/icons/icon-scales.webp'"></div>
                         <div class="hr-feature-name" style="color:#f87171;">The Arena</div>
                         <div class="hr-feature-desc">CTF challenges, capture-the-flag competitions, and ranked offensive security drills</div>
                     </a>
                     <a href="/hive/index.html" class="hr-feature-card feat-hive" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/games.webp" alt="Arcade games" onerror="this.outerHTML='<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/games.webp" alt="Arcade games" onerror="this.onerror=null;this.src='/assets/images/icons/icon-siren.webp'"></div>
                         <div class="hr-feature-name" style="color:#fbbf24;">The Hive</div>
                         <div class="hr-feature-desc">Arcade games, combat simulations, and gamified security training</div>
                     </a>
                     <a href="/arctic/index.html" class="hr-feature-card feat-arctic" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/linux.webp" alt="Linux terminal" onerror="this.outerHTML='<img src="/assets/images/icons/icon-penguin.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/linux.webp" alt="Linux terminal" onerror="this.onerror=null;this.src='/assets/images/icons/icon-penguin.webp'"></div>
                         <div class="hr-feature-name" style="color:#38bdf8;">The Arctic</div>
                         <div class="hr-feature-desc">Linux terminal training, command-line mastery, and server administration</div>
                     </a>
                     <a href="https://colosseum-arena.web.app" target="_blank" rel="noopener" class="hr-feature-card feat-colosseum" role="listitem" aria-label="The Colosseum - opens in new tab">
-                        <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="The Colosseum" onerror="this.outerHTML='<img src="/assets/images/icons/icon-institution.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'"></div>
+                        <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="The Colosseum" onerror="this.onerror=null;this.src='/assets/images/icons/icon-institution.webp'"></div>
                         <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#555;font-weight:400;" aria-hidden="true">↗</span></div>
                         <div class="hr-feature-desc">Incident response card game — live multiplayer cybersecurity battle simulator</div>
                     </a>

@@ -186,7 +186,7 @@ class Sanctuary {
 
         if (this.opacity >= 1) {
             this.state = 'active';
-            console.log(`<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${this.type.name} is now active`);
+            console.log(`[shield] ${this.type.name} is now active`);
         }
     }
 
@@ -485,7 +485,7 @@ class SanctuaryManager {
         this.sanctuaries.push(sanctuary);
         this.stats.sanctuariesCreated++;
 
-        console.log(`<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${sanctuary.type.name} created`);
+        console.log(`[shield] ${sanctuary.type.name} created`);
 
         return sanctuary;
     }

@@ -89,7 +89,7 @@ class SoundManager {
                 this.audioContext.resume();
             }
 
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Sound manager initialized');
+            console.log('[signal] Sound manager initialized');
 
             if (this.onReady) {
                 this.onReady();

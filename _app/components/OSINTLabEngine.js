@@ -267,7 +267,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .osint-clues{margin-top:1rem}
 .osint-clue-list{list-style:none;display:flex;flex-direction:column;gap:.35rem}
 .osint-clue{padding:.5rem .75rem;background:${ACCENT}06;border:1px solid ${ACCENT}22;border-radius:6px;font-size:.8rem;color:#cbd5e1;display:flex;align-items:flex-start;gap:.5rem}
-.osint-clue::before{content:'<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';font-size:.7rem;flex-shrink:0;margin-top:2px}
+.osint-clue::before{content:'';display:inline-block;width:1.1em;height:1.1em;background:url(/assets/images/icons/icon-magnifier.webp) center/contain no-repeat;vertical-align:middle;font-size:.7rem;flex-shrink:0;margin-top:2px}
 .osint-clue.new{animation:clueFlash .5s ease}
 @keyframes clueFlash{0%{background:${ACCENT}22}100%{background:${ACCENT}06}}
 
@@ -477,7 +477,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
         renderClueList(stageIdx, state.stageProgress[stageIdx]);
 
         // Update clue counter
-        document.getElementById('clueCounter').textContent = '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ' + state.clues.length + ' clues collected';
+        document.getElementById('clueCounter').innerHTML = '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ' + state.clues.length + ' clues collected';
 
         // Show questions if all tools used
         if (progress.toolsUsed.length >= stage.tools.length) {

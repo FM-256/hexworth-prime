@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-03-01 9:03:55 AM
+                    Scanned: 2026-03-03 7:55:39 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1997 |
-| Directories | 543 |
-| Content Files | 1997 |
-| Scan Duration | 407ms |
+| Files Scanned | 1998 |
+| Directories | 546 |
+| Content Files | 1998 |
+| Scan Duration | 802ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
 | presentation | 829 |
-| html | 558 |
+| html | 559 |
 | lab | 340 |
 | quiz | 232 |
 | applet | 38 |
@@ -29,10 +29,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1677 |
-| Available | 1665 |
+| Total Modules | 1678 |
+| Available | 1666 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 3 |
+| Undeclared Files (CAT-002) | 2 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,10 +41,10 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 58 |
-| Warning | 226 |
-| Info | 54 |
-| **Total** | **7972** |
+| Suspect | 62 |
+| Warning | 218 |
+| Info | 303 |
+| **Total** | **6728** |
 
 ### Sync Status
 
@@ -52,7 +52,7 @@
 |--------|-------|
 | Ready | 1438 |
 | Not Ready | 1 |
-| Unknown | 558 |
+| Unknown | 559 |
 
 
 ## FILE HIERARCHY
@@ -75,6 +75,8 @@
 │   │   ├── 📁 hardening
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 incident-response
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 linux-admin
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 log-analysis
 │   │   │   └── 📍 index.html
@@ -2584,6 +2586,8 @@
 │   └── 📄 career-pathway-planner.html
 ├── 📄 unauthorized.html
 ├── 📁 utils
+├── 📁 vendor
+│   └── 📁 skulpt
 └── 📁 workshop
     ├── 📁 a1-ancient-ledger
     │   └── 📄 current.html
@@ -4108,7 +4112,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (58) — heuristic, needs review
+### SUSPECT (62) — heuristic, needs review
 
 **[HEUR-006]** Hardcoded relative href in shared renderer: ../../dashboard.html — resolves differently depending on consumer page depth
   File: `components/CertPathRenderer.js`
@@ -4342,7 +4346,23 @@
   File: `houses/code/modules/python-hub/index.html`
   Fix: Remove duplicate <script src="../../../../components/ModuleProgress.js"> tag
 
-### WARNING (226)
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-01.module.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/code/modules/python-hub/modules/pyh-graphics-02.module.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/code/modules/python-hub/modules/pyh-project-03.module.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/web/games/web-packet-sniffer.applet.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+### WARNING (218)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
@@ -5216,39 +5236,7 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-**[EMOJI-003]** Emoji "🔥" in UI container — replace with image or CSS icon
-  File: `dashboard.html`
-  Fix: Replace with appropriate <img src="/assets/images/categories/..."> or emblem image
-
-**[EMOJI-003]** Emoji "🏆" in UI container — replace with image or CSS icon
-  File: `dashboard.html`
-  Fix: Replace with appropriate <img src="/assets/images/categories/..."> or emblem image
-
-**[EMOJI-003]** Emoji "📊" in UI container — replace with image or CSS icon
-  File: `houses/forge/applets/forge-settings.tool.html`
-  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
-
-**[EMOJI-003]** Emoji "🎯" in UI container — replace with image or CSS icon
-  File: `houses/forge/applets/forge-settings.tool.html`
-  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
-
-**[EMOJI-003]** Emoji "🏆" in UI container — replace with image or CSS icon
-  File: `houses/forge/applets/forge-settings.tool.html`
-  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
-
-**[EMOJI-003]** Emoji "📊" in UI container — replace with image or CSS icon
-  File: `houses/forge/tools/forge-settings.tool.html`
-  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
-
-**[EMOJI-003]** Emoji "🎯" in UI container — replace with image or CSS icon
-  File: `houses/forge/tools/forge-settings.tool.html`
-  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
-
-**[EMOJI-003]** Emoji "🏆" in UI container — replace with image or CSS icon
-  File: `houses/forge/tools/forge-settings.tool.html`
-  Fix: Replace with <img src="/assets/images/emblems/forge.webp">
-
-### INFO (54)
+### INFO (303)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -5455,7 +5443,1003 @@
   File: `./components/LearningPaths.js`
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-report.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-hunting.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-hunting.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-api-security.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-blockchain.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-blockchain.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-case-studies.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-cloud.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-fundamentals.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-injection.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-mobile.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-network.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon-adv.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon-adv.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-source-review.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-web-vulns.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/tools/bh-tool-ai.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/labs/ehe-lab-pentest-report.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/labs/ehe-lab-pentest-report.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `dark-arts/vault/ehe/modules/ehe-04-password-cracking.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/modules/ehe-05-social-engineering.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/modules/ehe-05-social-engineering.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/modules/ehe-06-network-attacks.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/modules/ehe-07-web-app-attacks.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/modules/ehe-07-web-app-attacks.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ehe/modules/ehe-12-pentest-fundamentals.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/footprinting-lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/desktop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/laptop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/laptop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/laptop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/laptop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/laptop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/laptop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8/laptop.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-8.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-9.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-9.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-9.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-9.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/gates/gate-9.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/ids-evasion-lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/incident-response.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `dark-arts/vault/modules/incident-response.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/sandbox-setup.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/modules/static-analysis.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/social-engineering-advanced.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/steganography-lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/steganography-lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-defense.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-setup.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-setup.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-setup.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dashboard.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dashboard.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dashboard.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/ai/games/ai-triage-trainer.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/ai/labs/ai-agent-workflow.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/ai/labs/ai-agent-workflow.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/ai/modules/ai-agent-components.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-guilab.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-guilab.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-guilab.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-guilab.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-guilab.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-guilab.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/presentations/cloud-aws-fundamentals.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/presentations/cloud-cloud.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/tools/cloud-ch03-support-plans.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/tools/cloud-ch09-database-services.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/tools/cloud-ch12-use-cases.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/code/applets/code-pipeline-builder.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/code/games/code-dont-deploy-on-friday.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/code/presentations/code-automation.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/eye/applets/cyberops/eye-content-filtering.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/eye/applets/cyberops/eye-content-filtering.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/eye/applets/cyberops/eye-data-types-output.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/eye/applets/cyberops/labs/eye-lab-2-2-5-becoming-defender.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/eye/applets/cyberops/labs/eye-lab-3-0-3-running-processes.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/eye/applets/cyberops/labs/eye-lab-3-3-10-user-accounts.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/eye/presentations/eye-soc-operations.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/eye/tools/eye-siem.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-rescue.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/domains/operating-systems/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-change-management.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-change-management.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-documentation.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-malware.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/applets/forge-admin-tools.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/applets/forge-windows-edition-selector.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/forge-windows-edition-selector.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/labs/forge-windows-editions.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m02-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m02-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m02-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m03-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m04-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m07-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m07-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m07-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/labs/forge-md100-m09-sim.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/md-100/presentations/forge-md100-m01-install-windows.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-100/presentations/forge-md100-m01-install-windows.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/md-100/presentations/forge-md100-m01-install-windows.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/md-100/presentations/forge-md100-m10-troubleshoot-os-apps.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-101/presentations/forge-md101-m02-device-enrollment.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/reviews/forge-backup-or-bust.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/tools/forge-admin-tools.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/forge/tools/forge-windows-edition-selector.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/forge/tools/forge-windows-edition-selector.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/key/labs/key-crypto-stego.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/key/presentations/key-cryptography-fundamentals.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/key/tools/key-cert.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/applets/python/script-python-chapter7-file-handling.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/applets/script-automation-intro.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/applets/script-automation-intro.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/applets/script-automation-intro.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/applets/script-automation-intro.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/applets/script-log-analysis.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/applets/script-reporting-automation.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/applets/script-reporting-automation.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/labs/script-linux-bash.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/modules/linux-mastery/script-lm-24-chown.module.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/presentations/python/script-python-chapter2.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/script/presentations/python/script-python-chapter7.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/presentations/script-automation.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/script/presentations/script-macos-linux-basics.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/applets/crypto/shield-checksum-verifier.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/applets/fundamentals/shield-asset-classification-wizard.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/applets/governance/shield-cism-management-dashboard.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/shield/applets/operations/shield-cfr-310-incident-response.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/applets/operations/shield-pentest-plus-toolkit.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/applets/operations/shield-pentest-plus-toolkit.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/applets/operations/shield-pentest-plus-toolkit.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/applets/threats/shield-malware-types.applet.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/cyber-framework/presentations/shield-cf-mm03-legislation.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/labs/shield-gpg-encryption.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/labs/shield-gpg-encryption.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/labs/shield-hash.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/presentations/shield-social-engineering.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/tools/shield-bia.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/shield/tools/shield-bia.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/web/presentations/web-ntp.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
+  File: `houses/web/presentations/web-ntp.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/web/tools/web-qos.tool.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `path-view.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `terminal.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `terminal.html`
   Fix: Manual review required - path is constructed dynamically
 
 

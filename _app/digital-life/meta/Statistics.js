@@ -116,7 +116,7 @@ class StatisticsSystem {
         // Start update loop
         this.startUpdates();
 
-        console.log('<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Statistics system initialized');
+        console.log('[barchart] Statistics system initialized');
         return this;
     }
 

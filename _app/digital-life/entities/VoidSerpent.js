@@ -287,7 +287,7 @@ class VoidSerpent {
             head.x > 50 && head.x < window.innerWidth - 50 &&
             head.y > 50 && head.y < window.innerHeight - 50) {
             this.state = 'hunting';
-            console.log(`<img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Void Serpent ${this.id} is hunting!`);
+            console.log(`[snake] Void Serpent ${this.id} is hunting!`);
         }
     }
 
@@ -596,7 +596,7 @@ class VoidSerpent {
             this.onRepel(this);
         }
 
-        console.log(`<img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Void Serpent ${this.id} repelled by swarm!`);
+        console.log(`[snake] Void Serpent ${this.id} repelled by swarm!`);
     }
 
     /**
@@ -606,7 +606,7 @@ class VoidSerpent {
         if (this.state === 'leaving') return;
 
         this.state = 'leaving';
-        console.log(`<img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Void Serpent ${this.id} departing... (consumed ${this.consumedCount} fireflies)`);
+        console.log(`[snake] Void Serpent ${this.id} departing... (consumed ${this.consumedCount} fireflies)`);
     }
 
     /**

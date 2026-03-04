@@ -92,7 +92,7 @@ class AmbientLayer {
         // Start update loop
         this.startUpdateLoop();
 
-        console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Ambient layer started');
+        console.log('[signal] Ambient layer started');
         return this;
     }
 
@@ -237,7 +237,7 @@ class AmbientLayer {
             this.updateTimer = null;
         }
 
-        console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Ambient layer stopped');
+        console.log('[signal] Ambient layer stopped');
         return this;
     }
 

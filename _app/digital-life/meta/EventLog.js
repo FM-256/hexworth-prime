@@ -70,7 +70,7 @@ class EventLog {
         // Log system start
         this.log('SYSTEM', 'Ecosystem initialized');
 
-        console.log('<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Event log initialized');
+        console.log('[clipboard] Event log initialized');
         return this;
     }
 

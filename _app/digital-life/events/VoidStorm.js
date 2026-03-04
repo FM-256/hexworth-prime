@@ -311,7 +311,7 @@ class VoidStormEvent {
         // Clear overlay
         manager.clearOverlay();
 
-        console.log(`<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Void Storm ended: ${eventData.data.voidTouched} fireflies void-touched`);
+        console.log(`[refresh] Void Storm ended: ${eventData.data.voidTouched} fireflies void-touched`);
     }
 
     /**

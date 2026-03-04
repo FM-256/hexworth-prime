@@ -399,7 +399,7 @@ class ShadowFirefly {
             this.onConvert(this, firefly);
         }
 
-        console.log(`<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Shadow converted firefly ${firefly.id}`);
+        console.log(`[users] Shadow converted firefly ${firefly.id}`);
     }
 
     /**
@@ -441,7 +441,7 @@ class ShadowFirefly {
             this.element.classList.add('purifying');
         }
 
-        console.log(`<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Shadow ${this.id} being purified...`);
+        console.log(`[star] Shadow ${this.id} being purified...`);
     }
 
     /**

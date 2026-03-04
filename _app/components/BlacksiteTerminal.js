@@ -632,7 +632,7 @@ const BlacksiteTerminal = (function() {
 
         const muted = systems.audio.toggleMute();
         state.audioEnabled = !muted;
-        elements.audioToggle.textContent = muted ? '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' : '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
+        elements.audioToggle.innerHTML = muted ? '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' : '<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">';
     }
 
     // ═══════════════════════════════════════════════════════════════

@@ -313,7 +313,7 @@ class Parasite {
                 this.onAttach(this, this.host);
             }
 
-            console.log(`<img src="/assets/images/icons/icon-virus.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Parasite attached to firefly ${this.host?.id}`);
+            console.log(`[virus] Parasite attached to firefly ${this.host?.id}`);
         }
     }
 

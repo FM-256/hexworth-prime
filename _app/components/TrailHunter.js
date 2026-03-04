@@ -693,7 +693,7 @@
             // Create patronus element
             this.patronus = document.createElement('div');
             this.patronus.className = 'patronus';
-            this.patronus.textContent = trail.icon;
+            this.patronus.innerHTML = trail.icon;
             this.patronus.style.left = this.position.x + 'px';
             this.patronus.style.top = this.position.y + 'px';
 
@@ -1051,7 +1051,7 @@
             // Create marker
             const marker = document.createElement('span');
             marker.className = 'trail-marker';
-            marker.textContent = trail.icon;
+            marker.innerHTML = trail.icon;
             marker.title = `${trail.name} Trail Module`;
 
             // Check if this module was already found (match by keywords in card)

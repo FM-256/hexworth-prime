@@ -336,7 +336,7 @@ class Portal {
             this.onTeleport(this, firefly, this.linkedPortal);
         }
 
-        console.log(`<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Firefly ${firefly.id} teleported through portal`);
+        console.log(`[refresh] Firefly ${firefly.id} teleported through portal`);
 
         return true;
     }
@@ -523,7 +523,7 @@ class PortalManager {
         this.portals.push(portalA, portalB);
         this.stats.portalsCreated += 2;
 
-        console.log(`<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Portal pair created`);
+        console.log(`[refresh] Portal pair created`);
 
         return { portalA, portalB };
     }

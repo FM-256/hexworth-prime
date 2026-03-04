@@ -11,7 +11,7 @@
 
 const ArcticData = {
 
-    version: '2.0.0',
+    version: '3.0.0',
 
     // ---------------------------------------------------------------------------
     // Faction definitions — Penguin is always unlocked; Parrot and Dragon gate
@@ -23,7 +23,7 @@ const ArcticData = {
             name: 'Penguin Collective',
             tagline: 'Understand the system.',
             description: 'Master the fundamentals: navigation, administration, scripting, and certification prep. No one defends or breaks what they do not first understand.',
-            icon: '\u{1F427}',
+            icon: '\u2745',
             color: '#3a8ab0',
             colorBg: 'rgba(200,225,245,0.50)',
             colorBorder: 'rgba(100,180,220,0.25)',
@@ -37,7 +37,7 @@ const ArcticData = {
             name: 'Parrot Division',
             tagline: 'Defend the system.',
             description: 'Blue team operations, hardening, log investigation, and incident response. You cannot defend what you have not first mastered.',
-            icon: '\u{1F99C}',
+            icon: '\u2660',
             color: '#2a8a6a',
             colorBg: 'rgba(190,235,225,0.45)',
             colorBorder: 'rgba(60,180,140,0.25)',
@@ -51,7 +51,7 @@ const ArcticData = {
             name: 'Dragon Order',
             tagline: 'Break the system.',
             description: 'Offensive security, enumeration, exploitation, and CTF mastery. The highest rank — earned only through the full journey.',
-            icon: '\u{1F409}',
+            icon: '\u2694',
             color: '#a04040',
             colorBg: 'rgba(240,215,215,0.45)',
             colorBorder: 'rgba(180,80,80,0.20)',
@@ -77,7 +77,7 @@ const ArcticData = {
             id: 'cli-fundamentals',
             name: 'CLI Fundamentals',
             faction: 'penguin',
-            icon: '\u{1F4BB}',
+            icon: '\u25A0',
             description: 'Your foundation in the frozen north. Master navigation, file operations, permissions, and user management before the blizzard hits.',
             lore: 'The first district every recruit passes through. Mayor Tux himself teaches navigation — because you cannot survive the Arctic without knowing the terrain.',
             difficulty: 1,
@@ -94,11 +94,27 @@ const ArcticData = {
                 { id: 'lm-09-copy-move',    title: 'Copy, Move, Remove',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html' },
                 { id: 'lm-11-find-files',  title: 'Finding Files',            type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html' },
                 { id: 'lm-12-s2-practice', title: 'Section 2 Practice',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html' },
-                // CLH applets
+                // CLH course modules + applets (lesson → practice → assessment)
+                // CLH-001: Intro to Hacker CLI (lesson → lab → quiz)
+                { id: 'clh-001-intro',      title: 'CLH-001: Intro to Hacker CLI (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-001/script-intro.module.html' },
                 { id: 'clh-001-applet',     title: 'CLH-001: Intro to Hacker CLI', type: 'applet', href: '../../../houses/script/applets/linux/script-clh-001-intro-to-hacker-cli.applet.html' },
+                { id: 'clh-001-lab',        title: 'CLH-001: Hacker CLI Lab',     type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-001/script-lab.lab.html' },
+                { id: 'clh-001-quiz',       title: 'CLH-001: CLI Basics (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-001/script-quiz.quiz.html' },
+                // CLH-002
+                { id: 'clh-002-intro',      title: 'CLH-002: Navigation Recon (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-002/script-intro.module.html' },
                 { id: 'clh-002-applet',     title: 'CLH-002: Navigation Recon',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-002-navigation-recon.applet.html' },
+                { id: 'clh-002-lab',        title: 'CLH-002: Navigation Recon (Lab)',   type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-002/script-lab.lab.html' },
+                { id: 'clh-002-quiz',       title: 'CLH-002: Navigation Recon (Quiz)',  type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-002/script-quiz.quiz.html' },
+                // CLH-006
+                { id: 'clh-006-intro',      title: 'CLH-006: File Operations (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-006/script-intro.module.html' },
                 { id: 'clh-006-applet',     title: 'CLH-006: File Operations',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-006-file-operations.applet.html' },
+                { id: 'clh-006-lab',        title: 'CLH-006: File Operations (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-006/script-lab.lab.html' },
+                { id: 'clh-006-quiz',       title: 'CLH-006: File Operations (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-006/script-quiz.quiz.html' },
+                // CLH-007
+                { id: 'clh-007-intro',      title: 'CLH-007: Permissions (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-007/script-intro.module.html' },
                 { id: 'clh-007-applet',     title: 'CLH-007: Permissions',         type: 'applet', href: '../../../houses/script/applets/linux/script-clh-007-permissions.applet.html' },
+                { id: 'clh-007-lab',        title: 'CLH-007: Permissions (Lab)',       type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-007/script-lab.lab.html' },
+                { id: 'clh-007-quiz',       title: 'CLH-007: Permissions (Quiz)',      type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-007/script-quiz.quiz.html' },
                 // Labs
                 { id: 'lab-nav-drill',      title: 'Navigation Drill',             type: 'lab', href: '../../../houses/script/labs/linux/script-linux-nav-drill.lab.html' },
                 { id: 'lab-mkdir-drill',    title: 'Directory Creation Drill',     type: 'lab', href: '../../../houses/script/labs/linux/script-linux-mkdir-drill.lab.html' },
@@ -109,6 +125,11 @@ const ArcticData = {
                 // Mission labs
                 { id: 'mission-file-ops',   title: 'Mission: File Operations',     type: 'lab', href: '../../../houses/script/linux/labs/script-mission-file-operations.lab.html' },
                 { id: 'mission-perms',      title: 'Mission: Permissions',         type: 'lab', href: '../../../houses/script/linux/labs/script-mission-permissions.lab.html' },
+                // Orphaned standalone content
+                { id: 'applet-cmd-translator', title: 'Command Translator',        type: 'applet', href: '../../../houses/script/applets/linux/script-command-translator.applet.html' },
+                { id: 'applet-fs-navigator',   title: 'Filesystem Navigator',      type: 'applet', href: '../../../houses/script/applets/linux/script-linux-filesystem-navigator.applet.html' },
+                { id: 'applet-user-identity',  title: 'User Identity Lab',         type: 'applet', href: '../../../houses/script/applets/linux/script-linux-lab-001-user-identity.applet.html' },
+                { id: 'applet-file-nav',       title: 'File Navigation Lab',       type: 'applet', href: '../../../houses/script/applets/linux/script-linux-lab-002-file-navigation.applet.html' },
                 // Tools
                 { id: 'tool-directory',     title: 'Directory Reference Tool',     type: 'tool', href: '../../../houses/script/linux/tools/script-directory.tool.html' },
                 { id: 'tool-permissions',   title: 'Permissions Calculator',       type: 'tool', href: '../../../houses/script/linux/tools/script-permission.tool.html' },
@@ -125,7 +146,7 @@ const ArcticData = {
             id: 'shell-scripting',
             name: 'Shell Scripting',
             faction: 'penguin',
-            icon: '\u{1F4DC}',
+            icon: '\u25B6',
             description: 'Automate your way across the tundra. Learn Bash scripting from variables and conditionals to functions and real-world scripts.',
             lore: 'The scribes of the Arctic — those who write the spells. A Penguin who cannot script is merely a tourist.',
             difficulty: 2,
@@ -138,7 +159,10 @@ const ArcticData = {
                 { id: 'lm-46-functions',    title: 'Functions',                    type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-46-functions.module.html' },
                 { id: 'lm-47-practical',    title: 'Practical Scripts',            type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-47-practical-scripts.module.html' },
                 { id: 'lm-48-s7-practice',  title: 'Section 7 Practice',          type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html' },
+                { id: 'clh-008-intro',      title: 'CLH-008: Shell Scripting (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-008/script-intro.module.html' },
                 { id: 'clh-008-applet',     title: 'CLH-008: Shell Scripting',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-008-shell-scripting.applet.html' },
+                { id: 'clh-008-lab',        title: 'CLH-008: Shell Scripting (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-008/script-lab.lab.html' },
+                { id: 'clh-008-quiz',       title: 'CLH-008: Shell Scripting (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-008/script-quiz.quiz.html' },
                 { id: 'lab-bash-basics',    title: 'Bash Basics Lab',              type: 'lab', href: '../../../houses/script/labs/linux/script-bash-basics.lab.html' },
                 { id: 'lab-bash-vars-drill',title: 'Variables Drill',              type: 'lab', href: '../../../houses/script/labs/linux/script-bash-variables-drill.lab.html' },
                 { id: 'lab-bash-conditionals',title: 'Conditionals Lab',           type: 'lab', href: '../../../houses/script/labs/linux/script-bash-conditionals.lab.html' },
@@ -162,7 +186,7 @@ const ArcticData = {
             id: 'text-processing',
             name: 'Text Processing',
             faction: 'penguin',
-            icon: '\u{1F50D}',
+            icon: '\u2261',
             description: 'The art of reading between the frozen lines. Grep, sed, awk, pipes, and redirection — the tools every Linux operator lives by.',
             lore: 'In the Arctic, signals are buried in noise. The text processors are the ones who find the signal.',
             difficulty: 2,
@@ -176,10 +200,27 @@ const ArcticData = {
                 { id: 'lm-18-cut-paste',    title: 'Cut & Paste',                  type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-18-cut-paste.module.html' },
                 { id: 'lm-19-text-pipelines',title: 'Text Pipelines',              type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-19-text-pipelines.module.html' },
                 { id: 'lm-20-s3-practice',  title: 'Section 3 Practice',          type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-20-section3-practice.module.html' },
+                // CLH course modules + applets (lesson → practice → assessment)
+                // CLH-003
+                { id: 'clh-003-intro',      title: 'CLH-003: Pattern Hunting (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-003/script-intro.module.html' },
                 { id: 'clh-003-applet',     title: 'CLH-003: Pattern Hunting',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-003-pattern-hunting.applet.html' },
+                { id: 'clh-003-lab',        title: 'CLH-003: Pattern Hunting (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-003/script-lab.lab.html' },
+                { id: 'clh-003-quiz',       title: 'CLH-003: Pattern Hunting (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-003/script-quiz.quiz.html' },
+                // CLH-009
+                { id: 'clh-009-intro',      title: 'CLH-009: Text Processing (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-009/script-intro.module.html' },
                 { id: 'clh-009-applet',     title: 'CLH-009: Text Processing',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-009-text-processing.applet.html' },
+                { id: 'clh-009-lab',        title: 'CLH-009: Text Processing (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-009/script-lab.lab.html' },
+                { id: 'clh-009-quiz',       title: 'CLH-009: Text Processing (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-009/script-quiz.quiz.html' },
+                // CLH-010
+                { id: 'clh-010-intro',      title: 'CLH-010: I/O Redirection (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-010/script-intro.module.html' },
                 { id: 'clh-010-applet',     title: 'CLH-010: I/O Redirection',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-010-io-redirection.applet.html' },
+                { id: 'clh-010-lab',        title: 'CLH-010: I/O Redirection (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-010/script-lab.lab.html' },
+                { id: 'clh-010-quiz',       title: 'CLH-010: I/O Redirection (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-010/script-quiz.quiz.html' },
+                // CLH-011
+                { id: 'clh-011-intro',      title: 'CLH-011: Advanced Grep (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-011/script-intro.module.html' },
                 { id: 'clh-011-applet',     title: 'CLH-011: Advanced Grep',       type: 'applet', href: '../../../houses/script/applets/linux/script-clh-011-advanced-grep.applet.html' },
+                { id: 'clh-011-lab',        title: 'CLH-011: Advanced Grep (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-011/script-lab.lab.html' },
+                { id: 'clh-011-quiz',       title: 'CLH-011: Advanced Grep (Quiz)',     type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-011/script-quiz.quiz.html' },
                 { id: 'lab-bash-pipes',     title: 'Pipes Lab',                    type: 'lab', href: '../../../houses/script/labs/linux/script-bash-pipes.lab.html' },
                 { id: 'lab-bash-io',        title: 'I/O Redirection Lab',          type: 'lab', href: '../../../houses/script/labs/linux/script-bash-io-redirect.lab.html' },
                 { id: 'lab-bash-io-drill',  title: 'Redirect Drill',               type: 'lab', href: '../../../houses/script/labs/linux/script-bash-redirect-drill.lab.html' },
@@ -200,7 +241,7 @@ const ArcticData = {
             id: 'sysadmin',
             name: 'System Administration',
             faction: 'penguin',
-            icon: '\u{1F5A5}',
+            icon: '\u2699',
             description: 'Keep the Arctic running. Manage processes, services, cron jobs, packages, and disks — the core skills of any Linux sysadmin.',
             lore: 'The engineers who keep the ice generators running. Without them, the entire Arctic grinds to a frozen halt.',
             difficulty: 3,
@@ -217,11 +258,37 @@ const ArcticData = {
                 { id: 'lm-32-cron',         title: 'Cron Jobs',                   type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-32-cron.module.html' },
                 { id: 'lm-33-systemd',      title: 'Systemd & Services',          type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-33-systemd.module.html' },
                 { id: 'lm-51-packages',     title: 'Package Management',          type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-51-package-management.module.html' },
+                // CLH course modules + applets (lesson → practice → assessment)
+                // CLH-004
+                { id: 'clh-004-intro',      title: 'CLH-004: Process Investigation (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-004/script-intro.module.html' },
                 { id: 'clh-004-applet',     title: 'CLH-004: Process Investigation', type: 'applet', href: '../../../houses/script/applets/linux/script-clh-004-process-investigation.applet.html' },
+                { id: 'clh-004-lab',        title: 'CLH-004: Process Investigation (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-004/script-lab.lab.html' },
+                { id: 'clh-004-quiz',       title: 'CLH-004: Process Investigation (Quiz)', type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-004/script-quiz.quiz.html' },
+                // CLH-013 (primary district: sysadmin)
+                { id: 'clh-013-intro',      title: 'CLH-013: Environment (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-013/script-intro.module.html' },
+                { id: 'clh-013-applet',     title: 'CLH-013: Environment',         type: 'applet', href: '../../../houses/script/applets/linux/script-clh-013-environment.applet.html' },
+                { id: 'clh-013-lab',        title: 'CLH-013: Environment (Lab)',       type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-013/script-lab.lab.html' },
+                { id: 'clh-013-quiz',       title: 'CLH-013: Environment (Quiz)',      type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-013/script-quiz.quiz.html' },
+                // CLH-014
+                { id: 'clh-014-intro',      title: 'CLH-014: Process Control (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-014/script-intro.module.html' },
                 { id: 'clh-014-applet',     title: 'CLH-014: Process Control',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-014-process-control.applet.html' },
+                { id: 'clh-014-lab',        title: 'CLH-014: Process Control (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-014/script-lab.lab.html' },
+                { id: 'clh-014-quiz',       title: 'CLH-014: Process Control (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-014/script-quiz.quiz.html' },
+                // CLH-023
+                { id: 'clh-023-intro',      title: 'CLH-023: Services (Lesson)',   type: 'module', href: '../../../houses/script/courses/clh/modules/clh-023/script-intro.module.html' },
                 { id: 'clh-023-applet',     title: 'CLH-023: Services',           type: 'applet', href: '../../../houses/script/applets/linux/script-clh-023-services.applet.html' },
+                { id: 'clh-023-lab',        title: 'CLH-023: Services (Lab)',         type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-023/script-lab.lab.html' },
+                { id: 'clh-023-quiz',       title: 'CLH-023: Services (Quiz)',        type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-023/script-quiz.quiz.html' },
+                // CLH-024
+                { id: 'clh-024-intro',      title: 'CLH-024: Cron (Lesson)',       type: 'module', href: '../../../houses/script/courses/clh/modules/clh-024/script-intro.module.html' },
                 { id: 'clh-024-applet',     title: 'CLH-024: Cron',               type: 'applet', href: '../../../houses/script/applets/linux/script-clh-024-cron.applet.html' },
+                { id: 'clh-024-lab',        title: 'CLH-024: Cron (Lab)',             type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-024/script-lab.lab.html' },
+                { id: 'clh-024-quiz',       title: 'CLH-024: Cron (Quiz)',            type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-024/script-quiz.quiz.html' },
+                // CLH-025
+                { id: 'clh-025-intro',      title: 'CLH-025: Packages (Lesson)',   type: 'module', href: '../../../houses/script/courses/clh/modules/clh-025/script-intro.module.html' },
                 { id: 'clh-025-applet',     title: 'CLH-025: Packages',           type: 'applet', href: '../../../houses/script/applets/linux/script-clh-025-packages.applet.html' },
+                { id: 'clh-025-lab',        title: 'CLH-025: Packages (Lab)',         type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-025/script-lab.lab.html' },
+                { id: 'clh-025-quiz',       title: 'CLH-025: Packages (Quiz)',        type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-025/script-quiz.quiz.html' },
                 { id: 'lab-process-drill',  title: 'Process Drill',               type: 'lab', href: '../../../houses/script/labs/linux/script-linux-process-drill.lab.html' },
                 { id: 'lab-process-lifecycle',title: 'Process Lifecycle Lab',     type: 'lab', href: '../../../houses/script/labs/linux/script-linux-process-lifecycle.lab.html' },
                 { id: 'lab-process-mgmt',   title: 'Process Management Lab',      type: 'lab', href: '../../../houses/script/labs/linux/script-linux-process-mgmt.lab.html' },
@@ -242,6 +309,9 @@ const ArcticData = {
                 { id: 'lm-34-s5-practice', title: 'Section 5 Practice',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html' },
                 { id: 'lab-warmup-nav',    title: 'Warmup: Navigation',       type: 'lab', href: '../../../houses/script/linux/labs/script-warmup-navigation.lab.html' },
                 { id: 'lab-template-warmup',title: 'Template Warmup Lab',     type: 'lab', href: '../../../houses/script/linux/labs/script-template-warmup.lab.html' },
+                // Orphaned standalone content
+                { id: 'applet-ubuntu-components', title: 'Ubuntu Components',      type: 'applet', href: '../../../houses/script/applets/linux/script-ubuntu-components.applet.html' },
+                { id: 'tool-automation',          title: 'Automation Reference',   type: 'tool',   href: '../../../houses/script/tools/script-automation.tool.html' },
                 { id: 'tool-quick-ref',    title: 'Quick Reference',          type: 'tool', href: '../../../houses/script/linux/script-quick.reference.html' }
             ]
         },
@@ -254,21 +324,63 @@ const ArcticData = {
             id: 'cert-prep',
             name: 'Cert Prep',
             faction: 'penguin',
-            icon: '\u{1F4CB}',
+            icon: '\u2605',
             description: 'The final Penguin district. Advanced Linux topics aligned to CompTIA Linux+ — environment management, storage, access control, monitoring, and Vim.',
             lore: 'The certification vault at the heart of the Penguin Collective. Earn your rank before venturing to the Parrot Division.',
             difficulty: 4,
             modules: [
+                // CLH course modules + applets (lesson → practice → assessment)
+                // CLH-016
+                { id: 'clh-016-intro',      title: 'CLH-016: System Intelligence (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-016/script-intro.module.html' },
                 { id: 'clh-016-applet',     title: 'CLH-016: System Intelligence', type: 'applet', href: '../../../houses/script/applets/linux/script-clh-016-system-intel.applet.html' },
+                { id: 'clh-016-lab',        title: 'CLH-016: System Intelligence (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-016/script-lab.lab.html' },
+                { id: 'clh-016-quiz',       title: 'CLH-016: System Intelligence (Quiz)', type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-016/script-quiz.quiz.html' },
+                // CLH-017
+                { id: 'clh-017-intro',      title: 'CLH-017: Find & Locate (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-017/script-intro.module.html' },
                 { id: 'clh-017-applet',     title: 'CLH-017: Find & Locate',       type: 'applet', href: '../../../houses/script/applets/linux/script-clh-017-find-locate.applet.html' },
+                { id: 'clh-017-lab',        title: 'CLH-017: Find & Locate (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-017/script-lab.lab.html' },
+                { id: 'clh-017-quiz',       title: 'CLH-017: Find & Locate (Quiz)',     type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-017/script-quiz.quiz.html' },
+                // CLH-018
+                { id: 'clh-018-intro',      title: 'CLH-018: Archive Operations (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-018/script-intro.module.html' },
                 { id: 'clh-018-applet',     title: 'CLH-018: Archive Operations',  type: 'applet', href: '../../../houses/script/applets/linux/script-clh-018-archive-ops.applet.html' },
+                { id: 'clh-018-lab',        title: 'CLH-018: Archive Operations (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-018/script-lab.lab.html' },
+                { id: 'clh-018-quiz',       title: 'CLH-018: Archive Operations (Quiz)', type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-018/script-quiz.quiz.html' },
+                // CLH-019
+                { id: 'clh-019-intro',      title: 'CLH-019: Disk Forensics (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-019/script-intro.module.html' },
                 { id: 'clh-019-applet',     title: 'CLH-019: Disk Forensics',      type: 'applet', href: '../../../houses/script/applets/linux/script-clh-019-disk-forensics.applet.html' },
+                { id: 'clh-019-lab',        title: 'CLH-019: Disk Forensics (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-019/script-lab.lab.html' },
+                { id: 'clh-019-quiz',       title: 'CLH-019: Disk Forensics (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-019/script-quiz.quiz.html' },
+                // CLH-020
+                { id: 'clh-020-intro',      title: 'CLH-020: User Recon (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-020/script-intro.module.html' },
                 { id: 'clh-020-applet',     title: 'CLH-020: User Recon',          type: 'applet', href: '../../../houses/script/applets/linux/script-clh-020-user-recon.applet.html' },
+                { id: 'clh-020-lab',        title: 'CLH-020: User Recon (Lab)',        type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-020/script-lab.lab.html' },
+                { id: 'clh-020-quiz',       title: 'CLH-020: User Recon (Quiz)',       type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-020/script-quiz.quiz.html' },
+                // CLH-026
+                { id: 'clh-026-intro',      title: 'CLH-026: Access Control (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-026/script-intro.module.html' },
                 { id: 'clh-026-applet',     title: 'CLH-026: Access Control',      type: 'applet', href: '../../../houses/script/applets/linux/script-clh-026-access.applet.html' },
+                { id: 'clh-026-lab',        title: 'CLH-026: Access Control (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-026/script-lab.lab.html' },
+                { id: 'clh-026-quiz',       title: 'CLH-026: Access Control (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-026/script-quiz.quiz.html' },
+                // CLH-027
+                { id: 'clh-027-intro',      title: 'CLH-027: Users (Advanced) (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-027/script-intro.module.html' },
                 { id: 'clh-027-applet',     title: 'CLH-027: Users (Advanced)',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-027-users.applet.html' },
+                { id: 'clh-027-lab',        title: 'CLH-027: Users (Advanced) (Lab)',   type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-027/script-lab.lab.html' },
+                { id: 'clh-027-quiz',       title: 'CLH-027: Users (Advanced) (Quiz)',  type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-027/script-quiz.quiz.html' },
+                // CLH-028
+                { id: 'clh-028-intro',      title: 'CLH-028: Monitoring (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-028/script-intro.module.html' },
                 { id: 'clh-028-applet',     title: 'CLH-028: Monitoring',          type: 'applet', href: '../../../houses/script/applets/linux/script-clh-028-monitoring.applet.html' },
+                { id: 'clh-028-lab',        title: 'CLH-028: Monitoring (Lab)',        type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-028/script-lab.lab.html' },
+                { id: 'clh-028-quiz',       title: 'CLH-028: Monitoring (Quiz)',       type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-028/script-quiz.quiz.html' },
+                // CLH-029
+                { id: 'clh-029-intro',      title: 'CLH-029: Vim (Lesson)',        type: 'module', href: '../../../houses/script/courses/clh/modules/clh-029/script-intro.module.html' },
                 { id: 'clh-029-applet',     title: 'CLH-029: Vim',                 type: 'applet', href: '../../../houses/script/applets/linux/script-clh-029-vim.applet.html' },
+                { id: 'clh-029-lab',        title: 'CLH-029: Vim (Lab)',               type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-029/script-lab.lab.html' },
+                { id: 'clh-029-quiz',       title: 'CLH-029: Vim (Quiz)',              type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-029/script-quiz.quiz.html' },
+                // CLH-030
+                { id: 'clh-030-intro',      title: 'CLH-030: Chimera (Lesson)',    type: 'module', href: '../../../houses/script/courses/clh/modules/clh-030/script-intro.module.html' },
                 { id: 'clh-030-applet',     title: 'CLH-030: Chimera (Capstone)',  type: 'applet', href: '../../../houses/script/applets/linux/script-clh-030-chimera.applet.html' },
+                { id: 'clh-030-lab',        title: 'CLH-030: Chimera (Lab)',           type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-030/script-lab.lab.html' },
+                { id: 'clh-030-quiz',       title: 'CLH-030: Chimera (Quiz)',          type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-030/script-quiz.quiz.html' },
+                // CLH-031: applet only in cert-prep (primary lab is in arena district)
                 { id: 'clh-031-applet',     title: 'CLH-031: Blackout (Final)',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-031-blackout.applet.html' },
                 { id: 'lm-26-special-perms',title: 'Special Permissions (SUID/SGID)', type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-26-special-permissions.module.html' },
                 { id: 'lm-49-links',        title: 'Hard & Symbolic Links',        type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-49-links.module.html' },
@@ -280,6 +392,9 @@ const ArcticData = {
                 { id: 'lab-file-search',    title: 'File Search Lab',              type: 'lab', href: '../../../houses/script/labs/linux/script-linux-file-search.lab.html' },
                 { id: 'lab-find-drill',     title: 'Find Drill',                   type: 'lab', href: '../../../houses/script/labs/linux/script-linux-find-drill.lab.html' },
                 { id: 'lab-disk-partition', title: 'Disk Partition Prep',          type: 'lab', href: '../../../houses/script/labs/linux/script-linux-disk-partition-prep.lab.html' },
+                // Orphaned encryption/checksum labs
+                { id: 'lab-checksum',       title: 'Checksum Verification Lab',   type: 'lab', href: '../../../houses/script/linux/labs/script-checksum-verify.lab.html' },
+                { id: 'lab-gpg',            title: 'GPG Encryption Lab',          type: 'lab', href: '../../../houses/script/linux/labs/script-gpg-encryption.lab.html' },
                 { id: 'review-terminal-vel',title: 'Terminal Velocity (Game)',     type: 'review', href: '../../../houses/script/reviews/terminal-velocity.html' },
                 { id: 'review-perm-puzzle', title: 'Permission Puzzle (Game)',     type: 'review', href: '../../../houses/script/reviews/permission-puzzle.html' },
                 { id: 'review-linux-cli',   title: 'Linux CLI Review',             type: 'review', href: '../../../houses/script/reviews/linux-cli-review.html' },
@@ -295,7 +410,7 @@ const ArcticData = {
             id: 'linux-admin',
             name: 'Linux Administration',
             faction: 'penguin',
-            icon: '\u{2699}',
+            icon: '\u25C6',
             description: 'The full Linux Administration course. 12 chapters covering distros, processes, daemons, networking, encryption, and compilation — each with a presentation, quiz, and hands-on lab.',
             lore: 'The deepest wing of the Penguin Collective. Only those who have mastered the fundamentals earn access to the full administration curriculum.',
             difficulty: 3,
@@ -359,12 +474,17 @@ const ArcticData = {
             id: 'log-analysis',
             name: 'Log Analysis',
             faction: 'parrot',
-            icon: '\u{1F4CA}',
+            icon: '\u2502',
             description: 'The art of reading the ice — logs tell stories. Investigate system logs, track intruders, and feed your findings into SIEM workflows.',
             lore: 'The Parrot Division\'s first lesson: every action leaves a trace. The analysts who read logs are the ones who find the attackers.',
             difficulty: 3,
             modules: [
+                // CLH-005 (primary district: log-analysis)
+                { id: 'clh-005-intro',      title: 'CLH-005: Log Analysis (Lesson)',   type: 'module', href: '../../../houses/script/courses/clh/modules/clh-005/script-intro.module.html' },
                 { id: 'clh-005-applet',     title: 'CLH-005: Log Analysis',           type: 'applet', href: '../../../houses/script/applets/linux/script-clh-005-log-analysis.applet.html' },
+                { id: 'clh-005-lab',        title: 'CLH-005: Log Analysis (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-005/script-lab.lab.html' },
+                { id: 'clh-005-quiz',       title: 'CLH-005: Log Analysis (Quiz)',     type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-005/script-quiz.quiz.html' },
+                // CLH-010 duplicate reference (primary is text-processing; no course modules here)
                 { id: 'clh-010-log-applet', title: 'CLH-010: I/O & Log Streams',      type: 'applet', href: '../../../houses/script/applets/linux/script-clh-010-io-redirection.applet.html' },
                 { id: 'lab-log-analysis',   title: 'Log Analysis Lab',                type: 'lab', href: '../../../houses/script/labs/linux/script-linux-log-analysis.lab.html' },
                 { id: 'lab-log-mission',    title: 'Mission: Log Analysis',           type: 'lab', href: '../../../houses/script/labs/linux/script-linux-log-analysis-mission.lab.html' },
@@ -383,7 +503,7 @@ const ArcticData = {
             id: 'hardening',
             name: 'System Hardening',
             faction: 'parrot',
-            icon: '\u{1F6E1}',
+            icon: '\u25B2',
             description: 'Fortify the perimeter. Learn Linux hardening — access controls, user privilege management, SSH hardening, and firewall configuration.',
             lore: 'The architects of the Arctic\'s ice walls. No attack succeeds against a properly hardened system.',
             difficulty: 4,
@@ -426,13 +546,18 @@ const ArcticData = {
             id: 'incident-response',
             name: 'Incident Response',
             faction: 'parrot',
-            icon: '\u{1F6A8}',
+            icon: '\u26A0',
             description: 'When the breach happens, respond. CLH IR procedures, environment forensics, and the Parrot capstone scenario.',
             lore: 'The Parrot Division\'s final test. An incident has occurred — and only the most prepared analysts can contain it.',
             difficulty: 5,
             modules: [
+                // CLH-013 duplicate (primary: sysadmin — no course modules here)
                 { id: 'clh-013-ir-applet',  title: 'CLH-013: Environment (IR Context)', type: 'applet', href: '../../../houses/script/applets/linux/script-clh-013-environment.applet.html' },
+                // CLH-015 (primary district: incident-response)
+                { id: 'clh-015-intro',      title: 'CLH-015: Capstone (Lesson)',         type: 'module', href: '../../../houses/script/courses/clh/modules/clh-015/script-intro.module.html' },
                 { id: 'clh-015-applet',     title: 'CLH-015: Capstone',                 type: 'applet', href: '../../../houses/script/applets/linux/script-clh-015-capstone.applet.html' },
+                { id: 'clh-015-lab',        title: 'CLH-015: Capstone (Lab)',            type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-015/script-lab.lab.html' },
+                { id: 'clh-015-quiz',       title: 'CLH-015: Capstone (Quiz)',           type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-015/script-quiz.quiz.html' },
                 { id: 'clh-016-ir-applet',  title: 'CLH-016: System Intelligence',      type: 'applet', href: '../../../houses/script/applets/linux/script-clh-016-system-intel.applet.html' },
                 { id: 'clh-019-ir-applet',  title: 'CLH-019: Disk Forensics',           type: 'applet', href: '../../../houses/script/applets/linux/script-clh-019-disk-forensics.applet.html' },
                 { id: 'clh-028-ir-applet',  title: 'CLH-028: Monitoring',               type: 'applet', href: '../../../houses/script/applets/linux/script-clh-028-monitoring.applet.html' },
@@ -456,7 +581,7 @@ const ArcticData = {
             id: 'offensive-tools',
             name: 'Offensive Tools',
             faction: 'dragon',
-            icon: '\u{1F5E1}',
+            icon: '\u2620',
             description: 'Learn to think like the attacker. Enumeration, reconnaissance, and exploitation — the offensive side of the Linux command line.',
             lore: 'Dragon recruits study offense to understand defense at a level no textbook can teach. To break the system is to know the system.',
             difficulty: 5,
@@ -494,14 +619,27 @@ const ArcticData = {
             id: 'network-ops',
             name: 'Network Operations',
             faction: 'dragon',
-            icon: '\u{1F310}',
+            icon: '\u25CE',
             description: 'The Arctic\'s communication layer. SSH operations, network reconnaissance, DNS investigation, and firewall control from the command line.',
             lore: 'Dragon operators must control the network. Lateral movement, tunneling, and scanning — the tradecraft of network-level offense.',
             difficulty: 5,
             modules: [
+                // CLH course modules + applets (lesson → practice → assessment)
+                // CLH-012
+                { id: 'clh-012-intro',      title: 'CLH-012: Network Basics (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-012/script-intro.module.html' },
                 { id: 'clh-012-applet',     title: 'CLH-012: Network Basics',        type: 'applet', href: '../../../houses/script/applets/linux/script-clh-012-network-basics.applet.html' },
+                { id: 'clh-012-lab',        title: 'CLH-012: Network Basics (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-012/script-lab.lab.html' },
+                { id: 'clh-012-quiz',       title: 'CLH-012: Network Basics (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-012/script-quiz.quiz.html' },
+                // CLH-021
+                { id: 'clh-021-intro',      title: 'CLH-021: SSH Operations (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-021/script-intro.module.html' },
                 { id: 'clh-021-applet',     title: 'CLH-021: SSH Operations',        type: 'applet', href: '../../../houses/script/applets/linux/script-clh-021-ssh-ops.applet.html' },
+                { id: 'clh-021-lab',        title: 'CLH-021: SSH Operations (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-021/script-lab.lab.html' },
+                { id: 'clh-021-quiz',       title: 'CLH-021: SSH Operations (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-021/script-quiz.quiz.html' },
+                // CLH-022
+                { id: 'clh-022-intro',      title: 'CLH-022: Network Recon (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-022/script-intro.module.html' },
                 { id: 'clh-022-applet',     title: 'CLH-022: Network Recon',         type: 'applet', href: '../../../houses/script/applets/linux/script-clh-022-network-recon.applet.html' },
+                { id: 'clh-022-lab',        title: 'CLH-022: Network Recon (Lab)',     type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-022/script-lab.lab.html' },
+                { id: 'clh-022-quiz',       title: 'CLH-022: Network Recon (Quiz)',    type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-022/script-quiz.quiz.html' },
                 { id: 'lm-35-network-info', title: 'Network Information',            type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-35-network-info.module.html' },
                 { id: 'lm-36-connectivity', title: 'Connectivity Testing',           type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html' },
                 { id: 'lm-37-dns',          title: 'DNS Tools (dig/nslookup)',       type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html' },
@@ -524,7 +662,7 @@ const ArcticData = {
             id: 'arena',
             name: 'The Arena',
             faction: 'dragon',
-            icon: '\u{1F3DF}',
+            icon: '\u2588',
             description: 'The frozen arena at the top of the world. Full CTF boxes, exploitation challenges, and the ultimate test of everything learned in the Arctic.',
             lore: 'Only those who have walked all districts may enter the Arena. Here, the Dragon Order proves mastery.',
             difficulty: 6,
@@ -550,7 +688,11 @@ const ArcticData = {
                 { id: 'arena-a19',  title: 'A19: Foundation\'s Fault',           type: 'lab', href: '../../../arena/boxes/a19-foundations-fault/index.html' },
                 { id: 'arena-a20',  title: 'A20: Project Chimera',               type: 'lab', href: '../../../arena/boxes/a20-project-chimera/index.html' },
                 { id: 'clh-030-arena',title: 'CLH-030: Chimera (Multi-Skill)',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-030-chimera.applet.html' },
-                { id: 'clh-031-arena',title: 'CLH-031: Blackout (Final Boss)',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-031-blackout.applet.html' }
+                { id: 'clh-031-arena',title: 'CLH-031: Blackout (Final Boss)',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-031-blackout.applet.html' },
+                // CLH-031 course content (intro briefing → lab → debrief quiz)
+                { id: 'clh-031-intro',title: 'CLH-031: Blackout (Briefing)',       type: 'module', href: '../../../houses/script/courses/clh/modules/clh-031/script-intro.module.html' },
+                { id: 'clh-031-lab',  title: 'CLH-031: Blackout (Lab)',            type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-031/script-lab.lab.html' },
+                { id: 'clh-031-quiz', title: 'CLH-031: Blackout (Debrief)',        type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-031/script-quiz.quiz.html' }
             ]
         }
 
@@ -627,15 +769,15 @@ const ArcticData = {
     /** Return the module type icon character for use in UI rendering. */
     getTypeIcon(type) {
         const icons = {
-            module:   '\u{1F4D6}',
-            lab:      '\u{1F9EA}',
-            applet:   '\u{1F5A5}',
-            quiz:     '\u{1F4DD}',
-            tool:     '\u{1F527}',
-            game:     '\u{1F3AE}',
-            review:   '\u{1F501}'
+            module:   '\u25A0',   // filled square
+            lab:      '\u25CB',   // circle
+            applet:   '\u25BA',   // right pointer
+            quiz:     '\u25C6',   // diamond
+            tool:     '\u2736',   // six-pointed star
+            game:     '\u2605',   // star
+            review:   '\u21BB'    // clockwise arrow
         };
-        return icons[type] || '\u{1F4C4}';
+        return icons[type] || '\u25A1'; // open square fallback
     },
 
     /** Return a human-readable label for a module type. */

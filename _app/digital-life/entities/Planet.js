@@ -716,7 +716,7 @@ class Planet {
             moon.createElement(this.element.parentNode);
         }
 
-        console.log(`<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Moon spawned: ${moon.type.name} orbiting ${this.type.name}`);
+        console.log(`[skull] Moon spawned: ${moon.type.name} orbiting ${this.type.name}`);
     }
 
     /**
@@ -780,7 +780,7 @@ class Planet {
             }, i * 100);
         }
 
-        console.log(`<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${this.type.name} eruption!`);
+        console.log(`[explosion] ${this.type.name} eruption!`);
     }
 
     /**
@@ -912,7 +912,7 @@ class Planet {
             this.element.classList.add('dying');
         }
 
-        console.log(`<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> ${this.type.name} entering death phase...`);
+        console.log(`[skull-crossbones] ${this.type.name} entering death phase...`);
     }
 
     /**

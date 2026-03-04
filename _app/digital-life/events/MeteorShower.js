@@ -322,7 +322,7 @@ class MeteorShowerEvent {
         // Clear overlay
         manager.clearOverlay();
 
-        console.log(`<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Meteor Shower ended: ${eventData.data.meteorsLaunched} meteors, ${eventData.data.seedsDropped} seeds, ${eventData.data.goldenMeteors} golden`);
+        console.log(`[explosion] Meteor Shower ended: ${eventData.data.meteorsLaunched} meteors, ${eventData.data.seedsDropped} seeds, ${eventData.data.goldenMeteors} golden`);
     }
 
     /**

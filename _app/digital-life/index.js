@@ -480,7 +480,7 @@ class DigitalLife {
         this.isInitialized = true;
         this.isRunning = true;
 
-        console.log('<img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Digital Life initialized with all behavior systems');
+        console.log('[diamond] Digital Life initialized with all behavior systems');
 
         return this;
     }
@@ -575,7 +575,7 @@ class DigitalLife {
         // Genetics System (trait inheritance)
         if (this.config.genetics.enabled && typeof GeneticsSystem !== 'undefined') {
             this.geneticsSystem = new GeneticsSystem(this.config.genetics);
-            console.log('<img src="/assets/images/icons/icon-dna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Genetics system initialized');
+            console.log('[dna] Genetics system initialized');
 
             // Hook genetics into reproduction
             if (this.reproductionSystem) {
@@ -597,19 +597,19 @@ class DigitalLife {
         if (this.config.pheromones.enabled && typeof PheromoneSystem !== 'undefined') {
             this.pheromoneSystem = new PheromoneSystem(this.config.pheromones);
             this.pheromoneSystem.init(this.container, window.innerWidth, window.innerHeight);
-            console.log('<img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Pheromone system initialized');
+            console.log('[flask] Pheromone system initialized');
         }
 
         // Spawn initial energy wells
         if (this.config.energyWells.enabled && typeof EnergyWell !== 'undefined') {
             // Start with one energy well
             this.spawnEnergyWell();
-            console.log('<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Energy well system initialized');
+            console.log('[lightning] Energy well system initialized');
         }
 
         // Predator stars spawn over time (not immediately)
         if (this.config.predatorStars.enabled && typeof PredatorStar !== 'undefined') {
-            console.log('<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Predator star system initialized');
+            console.log('[star] Predator star system initialized');
         }
     }
 
@@ -634,10 +634,10 @@ class DigitalLife {
 
         // Set up callbacks
         well.onDepleted = (w) => {
-            console.log(`<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Energy well ${w.type.name} depleted`);
+            console.log(`[lightning] Energy well ${w.type.name} depleted`);
         };
         well.onRestored = (w) => {
-            console.log(`<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Energy well ${w.type.name} restored`);
+            console.log(`[lightning] Energy well ${w.type.name} restored`);
         };
 
         return well;
@@ -665,11 +665,11 @@ class DigitalLife {
             if (this.ecosystem) {
                 // Kill the caught firefly
                 this.ecosystem.handleFireflyDeath(prey);
-                console.log(`<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${predator.type.name} caught firefly ${prey.id}`);
+                console.log(`[star] ${predator.type.name} caught firefly ${prey.id}`);
             }
         };
 
-        console.log(`<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Spawned ${star.type.name}`);
+        console.log(`[star] Spawned ${star.type.name}`);
         return star;
     }
 
@@ -708,7 +708,7 @@ class DigitalLife {
             this.cosmicEventManager.registerEventHandler('NEBULA_DRIFT', new NebulaDriftEvent());
         }
 
-        console.log('<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Cosmic Event system initialized');
+        console.log('[globe] Cosmic Event system initialized');
     }
 
     /**
@@ -722,7 +722,7 @@ class DigitalLife {
         this.predatorManager = new PredatorManager(this.config.predators);
         this.predatorManager.init(this.container, this.ecosystem);
 
-        console.log('<img src="/assets/images/icons/icon-snake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Phase 5: Predator variety system initialized');
+        console.log('[snake] Phase 5: Predator variety system initialized');
     }
 
     /**
@@ -733,24 +733,24 @@ class DigitalLife {
         if (this.config.playerTools.enabled && typeof PlayerTools !== 'undefined') {
             this.playerTools = new PlayerTools(this.config.playerTools);
             this.playerTools.init(this.container, this.ecosystem);
-            console.log('<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Player tools initialized');
+            console.log('[tools] Player tools initialized');
         }
 
         // Portal Manager
         if (this.config.portals.enabled && typeof PortalManager !== 'undefined') {
             this.portalManager = new PortalManager(this.config.portals);
             this.portalManager.init(this.container, this.ecosystem);
-            console.log('<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Portal system initialized');
+            console.log('[refresh] Portal system initialized');
         }
 
         // Sanctuary Manager
         if (this.config.sanctuaries.enabled && typeof SanctuaryManager !== 'undefined') {
             this.sanctuaryManager = new SanctuaryManager(this.config.sanctuaries);
             this.sanctuaryManager.init(this.container, this.ecosystem);
-            console.log('<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Sanctuary system initialized');
+            console.log('[shield] Sanctuary system initialized');
         }
 
-        console.log('<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Phase 6: Player tools system initialized');
+        console.log('[star] Phase 6: Player tools system initialized');
     }
 
     /**
@@ -761,27 +761,27 @@ class DigitalLife {
         if (this.config.eventLog.enabled && typeof EventLog !== 'undefined') {
             this.eventLog = new EventLog(this.config.eventLog);
             this.eventLog.init(document.body);
-            console.log('<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Event log initialized');
+            console.log('[clipboard] Event log initialized');
         }
 
         // Statistics Display
         if (this.config.statistics.enabled && typeof StatisticsDisplay !== 'undefined') {
             this.statisticsDisplay = new StatisticsDisplay(this.config.statistics);
             this.statisticsDisplay.init(document.body);
-            console.log('<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Statistics display initialized');
+            console.log('[barchart] Statistics display initialized');
         }
 
         // Achievement System (Digital Life ecosystem achievements)
         if (this.config.achievements.enabled && typeof EcosystemAchievements !== 'undefined') {
             this.achievementSystem = new EcosystemAchievements(this.config.achievements);
             this.achievementSystem.init(document.body);
-            console.log('<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievement system initialized');
+            console.log('[trophy] Achievement system initialized');
         }
 
         // Wire up event hooks
         this.wirePhase7Events();
 
-        console.log('<img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Phase 7: Meta systems initialized');
+        console.log('[barchart] Phase 7: Meta systems initialized');
     }
 
     /**
@@ -888,7 +888,7 @@ class DigitalLife {
      */
     initializePhase8Systems() {
         if (!this.config.audio.enabled) {
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Audio system disabled (enable with config.audio.enabled = true)');
+            console.log('[signal] Audio system disabled (enable with config.audio.enabled = true)');
             return;
         }
 
@@ -918,7 +918,7 @@ class DigitalLife {
             document.addEventListener('click', initAudio);
             document.addEventListener('keydown', initAudio);
 
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Sound manager created (will initialize on first interaction)');
+            console.log('[signal] Sound manager created (will initialize on first interaction)');
         }
 
         // Event Sounds (lifecycle, collisions, cosmic events)
@@ -926,7 +926,7 @@ class DigitalLife {
             this.eventSounds = new EventSounds(this.soundManager, {
                 enabled: this.config.audio.eventsEnabled
             });
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Event sounds initialized');
+            console.log('[signal] Event sounds initialized');
         }
 
         // Ambient Layer (background atmosphere)
@@ -934,13 +934,13 @@ class DigitalLife {
             this.ambientLayer = new AmbientLayer(this.soundManager, {
                 enabled: this.config.audio.ambientEnabled
             });
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Ambient layer initialized');
+            console.log('[signal] Ambient layer initialized');
         }
 
         // Wire up audio to ecosystem events
         this.wirePhase8Audio();
 
-        console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Phase 8: Audio system initialized');
+        console.log('[signal] Phase 8: Audio system initialized');
     }
 
     /**
@@ -2135,7 +2135,7 @@ class DigitalLife {
             this.blackHole.y
         );
         if (planet) {
-            console.log(`<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Spawned ${digit === 0 ? 'Null World' : 'Unity Sphere'} planet`);
+            console.log(`[globe] Spawned ${digit === 0 ? 'Null World' : 'Unity Sphere'} planet`);
         }
         return this;
     }
@@ -2156,7 +2156,7 @@ class DigitalLife {
             firefly.tier = Firefly.TIERS.ASCENDED;
             firefly.gravityResist = Firefly.TIERS.ASCENDED.gravityResist;
             firefly.maxAge = firefly.baseMaxAge * Firefly.TIERS.ASCENDED.lifeMultiplier;
-            console.log('<img src="/assets/images/icons/icon-crown.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Spawned Ascended firefly');
+            console.log('[crown] Spawned Ascended firefly');
         }
         return this;
     }
@@ -2174,7 +2174,7 @@ class DigitalLife {
         target.energy = 5;
         target.age = target.maxAge * 0.9; // 90% through lifespan
 
-        console.log('<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Made firefly desperate:', target.id);
+        console.log('[skull-crossbones] Made firefly desperate:', target.id);
         return this;
     }
 
@@ -2203,7 +2203,7 @@ class DigitalLife {
                 this.ecosystem.createPlanet(digit, this.blackHole.x, this.blackHole.y);
             }, i * 500);
         }
-        console.log('<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Terraform initiated - spawning 4 planets');
+        console.log('[globe] Terraform initiated - spawning 4 planets');
         return this;
     }
 
@@ -2216,11 +2216,11 @@ class DigitalLife {
         if (this.blackHole.isActive) {
             this.blackHole.isActive = false;
             this.blackHole.opacity = 0.3;
-            console.log('<img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Black hole deactivated');
+            console.log('[door] Black hole deactivated');
         } else {
             this.blackHole.isActive = true;
             this.blackHole.opacity = 1;
-            console.log('<img src="/assets/images/icons/icon-door.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Black hole activated');
+            console.log('[door] Black hole activated');
         }
         this.blackHole.updateElementStyle();
         return this;
@@ -2500,7 +2500,7 @@ class DigitalLife {
 
         const newState = !this.pheromoneSystem.config.visualize;
         this.pheromoneSystem.toggleVisualization(newState);
-        console.log(`<img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Pheromone visualization: ${newState ? 'ON' : 'OFF'}`);
+        console.log(`[flask] Pheromone visualization: ${newState ? 'ON' : 'OFF'}`);
         return this;
     }
 
@@ -2538,7 +2538,7 @@ class DigitalLife {
         }
         this.achievementSystem.reset();
         this.eventLog?.log('SYSTEM', 'Achievements reset');
-        console.log('<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievements reset');
+        console.log('[trophy] Achievements reset');
         return this;
     }
 
@@ -2557,7 +2557,7 @@ class DigitalLife {
             icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
             points: 100
         });
-        console.log('<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Test achievement triggered');
+        console.log('[star] Test achievement triggered');
         return this;
     }
 
@@ -2596,17 +2596,17 @@ class DigitalLife {
             if (!this.config.audio.enabled) {
                 this.config.audio.enabled = true;
                 this.initializePhase8Systems();
-                console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Audio enabled');
+                console.log('[signal] Audio enabled');
             }
             return this;
         }
 
         if (this.soundManager.isMuted) {
             this.soundManager.unmute();
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Audio unmuted');
+            console.log('[signal] Audio unmuted');
         } else {
             this.soundManager.mute();
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Audio muted');
+            console.log('[signal] Audio muted');
         }
         return this;
     }
@@ -2622,10 +2622,10 @@ class DigitalLife {
 
         if (this.ambientLayer.isPlaying) {
             this.ambientLayer.stop();
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Ambient stopped');
+            console.log('[signal] Ambient stopped');
         } else {
             this.ambientLayer.start();
-            console.log('<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Ambient started');
+            console.log('[signal] Ambient started');
         }
         return this;
     }
@@ -2918,7 +2918,7 @@ class DigitalLife {
     setDominantHouse(houseKey, weight = 0.6) {
         if (this.housePersonalitySystem) {
             this.housePersonalitySystem.setDominantHouse(houseKey, weight);
-            console.log(`<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Digital Life: Dominant house set to ${houseKey} (${weight * 100}% bias)`);
+            console.log(`[home] Digital Life: Dominant house set to ${houseKey} (${weight * 100}% bias)`);
         }
         return this;
     }
@@ -2929,7 +2929,7 @@ class DigitalLife {
     clearDominantHouse() {
         if (this.housePersonalitySystem) {
             this.housePersonalitySystem.clearDominantHouse();
-            console.log('<img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Digital Life: Dominant house cleared');
+            console.log('[home] Digital Life: Dominant house cleared');
         }
         return this;
     }
@@ -3128,7 +3128,7 @@ DigitalLife.applyTheme = function(themeName) {
         });
     }
 
-    console.log(`<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Digital Life theme applied: ${theme.name}`);
+    console.log(`[star] Digital Life theme applied: ${theme.name}`);
 };
 
 /**

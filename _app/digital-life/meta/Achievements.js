@@ -413,7 +413,7 @@ class EcosystemAchievements {
     init(container) {
         this.createToastContainer(container);
         this.injectStyles();
-        console.log('<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievement system initialized');
+        console.log('[trophy] Achievement system initialized');
         return this;
     }
 
@@ -483,7 +483,7 @@ class EcosystemAchievements {
         this.unlocked.add(achievement.id);
         this.totalPoints += achievement.points;
 
-        console.log(`<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Achievement Unlocked: ${achievement.name}`);
+        console.log(`[trophy] Achievement Unlocked: ${achievement.name}`);
 
         // Show toast
         if (this.config.showToasts) {
@@ -614,7 +614,7 @@ class EcosystemAchievements {
                 // Merge loaded stats with defaults
                 this.stats = { ...this.stats, ...data.stats };
                 this.totalPoints = data.totalPoints || 0;
-                console.log(`<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Loaded ${this.unlocked.size} achievements`);
+                console.log(`[trophy] Loaded ${this.unlocked.size} achievements`);
             }
         } catch (e) {
             console.warn('Could not load achievement progress:', e);
