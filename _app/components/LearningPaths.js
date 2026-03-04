@@ -5457,12 +5457,18 @@ class LearningPaths {
         };
         const FACTION_COLORS = { penguin: '#3ab8e0', parrot: '#3ac8a0', dragon: '#d05050' };
 
+        // Arctic hrefs are relative from district pages (../../../houses/...).
+        // Normalize to _app-root paths (houses/...) for the student dashboard.
+        function normalizeHref(href) {
+            return href.replace(/^(\.\.\/)+/, '');
+        }
+
         const allModules = [];
         ArcticData.districts.forEach(d => {
             const mods = (d.modules || []).map(m => ({
                 id: m.id, title: m.title, type: m.type,
                 difficulty: 'intermediate', duration: '15 min',
-                href: m.href, prerequisites: []
+                href: normalizeHref(m.href), prerequisites: []
             }));
             allModules.push(...mods);
             LearningPaths.registerPath('arctic-' + d.id, {
@@ -5470,6 +5476,7 @@ class LearningPaths {
                 description: d.description || d.lore || '',
                 icon: FACTION_ICONS[d.faction] || '/assets/images/icons/icon-terminal.webp',
                 color: FACTION_COLORS[d.faction] || '#3ab8e0',
+                courseHref: 'arctic/districts/' + d.id + '/index.html',
                 modules: mods
             });
         });
@@ -5480,6 +5487,7 @@ class LearningPaths {
             description: '12 districts, 3 factions, 368 modules. Master Linux from CLI fundamentals through offensive security.',
             icon: '/assets/images/icons/icon-terminal.webp',
             color: '#3ab8e0',
+            courseHref: 'arctic/index.html',
             modules: allModules
         });
     }
