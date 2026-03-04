@@ -751,7 +751,10 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
 
             // --------------- Text Processing ---------------
             case 'echo': {
-                const result = args.join(' ');
+                const result = args.join(' ').replace(/\$\{(\w+)\}|\$(\w+)/g, (_, a, b) => {
+                    const varName = a || b;
+                    return state.env[varName] !== undefined ? state.env[varName] : '';
+                });
                 _checkObjective('echo');
                 return result;
             }
