@@ -5457,18 +5457,30 @@ class LearningPaths {
         };
         const FACTION_COLORS = { penguin: '#3ab8e0', parrot: '#3ac8a0', dragon: '#d05050' };
 
+        const allModules = [];
         ArcticData.districts.forEach(d => {
+            const mods = (d.modules || []).map(m => ({
+                id: m.id, title: m.title, type: m.type,
+                difficulty: 'intermediate', duration: '15 min',
+                href: m.href, prerequisites: []
+            }));
+            allModules.push(...mods);
             LearningPaths.registerPath('arctic-' + d.id, {
                 name: 'Arctic: ' + d.name,
                 description: d.description || d.lore || '',
                 icon: FACTION_ICONS[d.faction] || '/assets/images/icons/icon-terminal.webp',
                 color: FACTION_COLORS[d.faction] || '#3ab8e0',
-                modules: (d.modules || []).map(m => ({
-                    id: m.id, title: m.title, type: m.type,
-                    difficulty: 'intermediate', duration: '15 min',
-                    href: m.href, prerequisites: []
-                }))
+                modules: mods
             });
+        });
+
+        // Parent path so "The Arctic" appears as a full house path
+        LearningPaths.registerPath('arctic', {
+            name: 'The Arctic — Linux Training Hub',
+            description: '12 districts, 3 factions, 368 modules. Master Linux from CLI fundamentals through offensive security.',
+            icon: '/assets/images/icons/icon-terminal.webp',
+            color: '#3ab8e0',
+            modules: allModules
         });
     }
 }
