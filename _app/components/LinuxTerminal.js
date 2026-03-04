@@ -558,11 +558,15 @@ Type <span class="lt-cmd">help</span> for available commands.
     }
 
     function _expandVars(str) {
-        return str.replace(/\$(\w+)/g, (match, varName) => {
-            return state.env[varName] || '';
-        }).replace(/\$\{(\w+)\}/g, (match, varName) => {
-            return state.env[varName] || '';
-        });
+        function _lookup(varName) {
+            if (state.env[varName] !== undefined) return state.env[varName];
+            // Try uppercase — students often type $shell instead of $SHELL
+            const upper = varName.toUpperCase();
+            if (state.env[upper] !== undefined) return state.env[upper];
+            return '';
+        }
+        return str.replace(/\$\{(\w+)\}/g, (_, v) => _lookup(v))
+                  .replace(/\$(\w+)/g, (_, v) => _lookup(v));
     }
 
     function _executeCommand(cmd, args, fullLine) {
@@ -751,12 +755,11 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
 
             // --------------- Text Processing ---------------
             case 'echo': {
-                const result = args.join(' ').replace(/\$\{(\w+)\}|\$(\w+)/g, (_, a, b) => {
-                    const varName = a || b;
-                    return state.env[varName] !== undefined ? state.env[varName] : '';
-                });
+                // Variables already expanded by _parseCommand → _expandVars
+                const result = args.join(' ');
                 _checkObjective('echo');
-                return result;
+                // Return a zero-width space for empty echo so it renders a blank line
+                return result || '\u200b';
             }
 
             case 'printf':
