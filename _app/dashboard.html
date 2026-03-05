@@ -3998,12 +3998,12 @@
             // Initialize House Community
             initHouseCommunity();
 
-            // Check for updates (store globally for manual check)
-            window.updateManager = new UpdateManager();
-            await window.updateManager.init();
-
-            // Initialize footer version display (after UpdateManager loads version)
+            // Initialize footer version display immediately (don't block on UpdateManager)
             initFooterVersion();
+
+            // Check for updates in background (don't block the rest of init)
+            window.updateManager = new UpdateManager();
+            window.updateManager.init().catch(e => console.error('UpdateManager init:', e));
 
             // Initialize God Mode toggle (secret 5-click pattern on footer)
             initGodModeToggle();
@@ -6644,23 +6644,12 @@
         // VERSION & UPDATE SYSTEM
         // ─────────────────────────────────────────────────────────────
 
-        // Initialize footer version display
+        // Initialize footer version display (fetches config/version.json directly, no dependency on UpdateManager)
         async function initFooterVersion() {
             const footerVersion = document.getElementById('footerVersion');
             if (!footerVersion) return;
 
             try {
-                // Try to use UpdateManager's version first (it may already be loaded)
-                if (window.updateManager && window.updateManager.localVersion) {
-                    const v = window.updateManager.localVersion;
-                    footerVersion.innerHTML = `
-                        <span class="version-current">v${v.version}</span>
-                        <span class="version-codename">"${v.codename}"</span>
-                    `;
-                    return;
-                }
-
-                // Otherwise load it ourselves
                 const response = await fetch('config/version.json');
                 if (!response.ok) throw new Error('Failed to fetch');
                 const versionData = await response.json();
@@ -6670,18 +6659,7 @@
                 `;
             } catch (e) {
                 console.error('Version load failed:', e);
-                // Retry after a delay in case UpdateManager is still loading
-                setTimeout(async () => {
-                    if (window.updateManager && window.updateManager.localVersion) {
-                        const v = window.updateManager.localVersion;
-                        footerVersion.innerHTML = `
-                            <span class="version-current">v${v.version}</span>
-                            <span class="version-codename">"${v.codename}"</span>
-                        `;
-                    } else {
-                        footerVersion.innerHTML = '<span class="version-current">v1.2.0</span>';
-                    }
-                }, 1000);
+                footerVersion.innerHTML = '<span class="version-current">v5.1.0</span>';
             }
         }
 
@@ -6879,8 +6857,6 @@
 
         // Check for Updates with visual feedback
         async function checkForUpdates() {
-            const footerVersion = document.getElementById('footerVersion');
-
             // Check if running from file:// (CORS restrictions prevent update checks)
             if (window.location.protocol === 'file:') {
                 updateFooterStatus('info', 'Local mode - check GitHub');
@@ -6891,67 +6867,133 @@
             updateFooterStatus('checking', 'Checking...');
 
             try {
-                if (window.updateManager) {
-                    // Load local version if needed
-                    if (!window.updateManager.localVersion) {
-                        try {
-                            await window.updateManager.loadLocalVersion();
-                        } catch (loadErr) {
-                            /* silently ignore */
-                        }
-                    }
+                // Load local version directly
+                let localData = null;
+                try {
+                    const localResp = await fetch('config/version.json');
+                    if (localResp.ok) localData = await localResp.json();
+                } catch (e) { /* use fallback */ }
 
-                    const localVersion = window.updateManager.localVersion?.version || '0.0.0';
+                const localVersion = localData?.version || '0.0.0';
 
-                    // Try to fetch remote version
+                // Try GitHub releases API with 5s timeout
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+
+                let remoteVersion = null;
+                try {
                     const response = await fetch(
-                        `https://api.github.com/repos/FM-256/hexworth-prime/releases/latest`,
-                        { headers: { 'Accept': 'application/vnd.github.v3+json' } }
+                        'https://api.github.com/repos/FM-256/hexworth-prime/releases/latest',
+                        { headers: { 'Accept': 'application/vnd.github.v3+json' }, signal: controller.signal }
                     );
-
+                    clearTimeout(timeout);
                     if (response.ok) {
                         const release = await response.json();
-                        const remoteVersion = release.tag_name.replace(/^v/, '');
-
-                        if (window.updateManager.isNewerVersion(remoteVersion, localVersion)) {
-                            updateFooterStatus('update-available', `v${remoteVersion} available!`);
-                            // Also show the full modal
-                            await window.updateManager.forceCheck();
-                        } else {
-                            updateFooterStatus('up-to-date', `Up to date`);
-                            window.updateManager.showWhatsNew();
-                        }
-                    } else {
-                        // No releases found, check version.json fallback
-                        const fallbackResponse = await fetch(
-                            `https://raw.githubusercontent.com/FM-256/hexworth-prime/master/_app/config/version.json`
-                        );
-
-                        if (fallbackResponse.ok) {
-                            const remoteData = await fallbackResponse.json();
-                            if (window.updateManager.isNewerVersion(remoteData.version, localVersion)) {
-                                updateFooterStatus('update-available', `v${remoteData.version} available!`);
-                                // Show download modal for fallback updates too
-                                await window.updateManager.forceCheck();
-                            } else {
-                                updateFooterStatus('up-to-date', `Up to date`);
-                                window.updateManager.showWhatsNew();
-                            }
-                        } else {
-                            // Remote unreachable (private repo) — show local What's New
-                            updateFooterStatus('up-to-date', `Up to date`);
-                            window.updateManager.showWhatsNew();
-                        }
+                        remoteVersion = release.tag_name.replace(/^v/, '');
                     }
+                } catch (e) {
+                    clearTimeout(timeout);
+                }
+
+                // Fallback: check raw version.json on GitHub
+                if (!remoteVersion) {
+                    try {
+                        const fallback = await fetch(
+                            'https://raw.githubusercontent.com/FM-256/hexworth-prime/master/_app/config/version.json',
+                            { cache: 'no-store' }
+                        );
+                        if (fallback.ok) {
+                            const data = await fallback.json();
+                            remoteVersion = data.version;
+                        }
+                    } catch (e) { /* unreachable */ }
+                }
+
+                // Compare versions
+                if (remoteVersion && window.updateManager?.isNewerVersion(remoteVersion, localVersion)) {
+                    updateFooterStatus('update-available', `v${remoteVersion} available!`);
+                    if (window.updateManager) await window.updateManager.forceCheck();
                 } else {
-                    updateFooterStatus('info', 'Reload to enable');
+                    updateFooterStatus('up-to-date', 'Up to date');
+                    // Show What's New modal with changelog
+                    showWhatsNewModal(localData);
                 }
             } catch (e) {
                 console.error('Update check failed:', e);
-                // Network error — still show What's New from local version
-                updateFooterStatus('up-to-date', `Up to date`);
-                if (window.updateManager) window.updateManager.showWhatsNew();
+                updateFooterStatus('up-to-date', 'Up to date');
             }
+        }
+
+        // Self-contained What's New modal (no dependency on UpdateManager)
+        function showWhatsNewModal(versionData) {
+            if (!versionData || !versionData.changelog) return;
+
+            // Remove existing modal if any
+            const existing = document.getElementById('whatsNewOverlay');
+            if (existing) existing.remove();
+
+            const v = versionData.version || '?';
+            const codename = versionData.codename || '';
+            const changelog = versionData.changelog;
+
+            const overlay = document.createElement('div');
+            overlay.id = 'whatsNewOverlay';
+            Object.assign(overlay.style, {
+                position: 'absolute',
+                top: (window.scrollY || 0) + 'px',
+                left: '0', right: '0',
+                height: window.innerHeight + 'px',
+                background: 'rgba(0,0,0,0.85)',
+                backdropFilter: 'blur(8px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: '10002',
+                opacity: '0',
+                transition: 'opacity 0.3s ease',
+                padding: '20px', boxSizing: 'border-box'
+            });
+
+            const features = Array.isArray(changelog)
+                ? changelog.map(item => `
+                    <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <span style="font-size:1.3rem;flex-shrink:0;margin-top:2px;">${item.icon || ''}</span>
+                        <div>
+                            <div style="color:#e0e0e0;font-weight:600;font-size:0.95rem;">${item.title}</div>
+                            ${item.description ? `<div style="color:#888;font-size:0.85rem;margin-top:3px;">${item.description}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('')
+                : `<div style="color:#888;">${changelog}</div>`;
+
+            overlay.innerHTML = `
+                <div style="background:linear-gradient(180deg,#1e1a2e 0%,#151020 100%);border:1px solid rgba(159,122,234,0.2);border-radius:16px;max-width:520px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 25px 80px rgba(0,0,0,0.5);transform:translateY(20px);transition:transform 0.3s ease;" id="whatsNewPanel">
+                    <div style="text-align:center;padding:24px 20px 16px;border-bottom:1px solid rgba(159,122,234,0.1);flex-shrink:0;">
+                        <div style="font-size:1.5rem;margin-bottom:8px;"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.3em;height:1.3em;vertical-align:middle;"></div>
+                        <div style="color:#e8d5f5;font-size:1.2rem;font-weight:700;letter-spacing:0.05em;">v${v}</div>
+                        ${codename ? `<div style="color:#9f7aea;font-size:0.85rem;letter-spacing:0.15em;margin-top:4px;">"${codename}"</div>` : ''}
+                    </div>
+                    <div style="padding:16px 24px;overflow-y:auto;flex:1;min-height:0;">
+                        <div style="color:#777;font-size:0.8rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">What's in this version</div>
+                        ${features}
+                    </div>
+                    <div style="padding:16px 24px;border-top:1px solid rgba(159,122,234,0.1);flex-shrink:0;text-align:center;">
+                        <button id="whatsNewCloseBtn" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;padding:10px 32px;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:600;letter-spacing:0.05em;">Close</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            // Animate in
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                document.getElementById('whatsNewPanel').style.transform = 'translateY(0)';
+            });
+
+            // Close handlers
+            const close = () => { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 300); };
+            document.getElementById('whatsNewCloseBtn').addEventListener('click', close);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+            document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
         }
 
         function retakeSorting() {
