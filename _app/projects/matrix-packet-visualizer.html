@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build a Packet Visualizer | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(0, 255, 65, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(0, 255, 65, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(0, 255, 65, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — SVG overlay themed to packet analysis */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2300ff41'%3E%3C!-- ═══ LEFT MARGIN: Ethernet frame structure diagram ═══ --%3E%3Crect x='12' y='28' width='140' height='110' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='18' y='44' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.22'%3EETHERNET FRAME%3C/text%3E%3Cline x1='12' y1='50' x2='152' y2='50' stroke-width='1' opacity='0.14'/%3E%3Cline x1='40' y1='50' x2='40' y2='138' stroke-width='0.7' opacity='0.09'/%3E%3Cline x1='75' y1='50' x2='75' y2='138' stroke-width='0.7' opacity='0.09'/%3E%3Cline x1='110' y1='50' x2='110' y2='138' stroke-width='0.7' opacity='0.09'/%3E%3Cline x1='130' y1='50' x2='130' y2='138' stroke-width='0.7' opacity='0.07'/%3E%3Ctext x='14' y='66' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.2'%3EPRE%3C/text%3E%3Ctext x='44' y='66' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.18'%3EDST%3C/text%3E%3Ctext x='78' y='66' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3ESRC%3C/text%3E%3Ctext x='112' y='66' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3ETYP%3C/text%3E%3Ctext x='132' y='66' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3EFCS%3C/text%3E%3Ctext x='14' y='80' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3E8B%3C/text%3E%3Ctext x='44' y='80' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3E6B%3C/text%3E%3Ctext x='78' y='80' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3E6B%3C/text%3E%3Ctext x='112' y='80' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3E2B%3C/text%3E%3Ctext x='132' y='80' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3E4B%3C/text%3E%3Cline x1='12' y1='84' x2='152' y2='84' stroke-width='0.6' opacity='0.08'/%3E%3Ctext x='14' y='98' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3Eaa bb%3C/text%3E%3Ctext x='44' y='98' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3Edc:a6%3C/text%3E%3Ctext x='78' y='98' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3E5a:2f%3C/text%3E%3Ctext x='112' y='98' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3E0800%3C/text%3E%3C!-- LEFT MARGIN: TCP header field layout --%3E%3Crect x='12' y='158' width='140' height='130' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='18' y='174' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.2'%3ETCP HEADER%3C/text%3E%3Cline x1='12' y1='180' x2='152' y2='180' stroke-width='1' opacity='0.12'/%3E%3Cline x1='82' y1='180' x2='82' y2='210' stroke-width='0.7' opacity='0.09'/%3E%3Ctext x='20' y='196' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3ESRC PORT%3C/text%3E%3Ctext x='90' y='196' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3EDST PORT%3C/text%3E%3Cline x1='12' y1='202' x2='152' y2='202' stroke-width='0.6' opacity='0.08'/%3E%3Ctext x='20' y='218' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3ESEQ NUMBER%3C/text%3E%3Cline x1='12' y1='224' x2='152' y2='224' stroke-width='0.6' opacity='0.08'/%3E%3Ctext x='20' y='240' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3EACK NUMBER%3C/text%3E%3Cline x1='12' y1='246' x2='152' y2='246' stroke-width='0.6' opacity='0.08'/%3E%3Cline x1='52' y1='246' x2='52' y2='268' stroke-width='0.6' opacity='0.07'/%3E%3Cline x1='90' y1='246' x2='90' y2='268' stroke-width='0.6' opacity='0.07'/%3E%3Ctext x='14' y='262' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3EOFF%3C/text%3E%3Ctext x='56' y='262' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3EFLAGS%3C/text%3E%3Ctext x='96' y='262' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3EWIN%3C/text%3E%3Cline x1='12' y1='268' x2='152' y2='268' stroke-width='0.6' opacity='0.08'/%3E%3Ctext x='20' y='282' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3ECHKSUM%3C/text%3E%3C!-- LEFT MARGIN: Hex dump of packet bytes --%3E%3Crect x='12' y='308' width='140' height='130' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='18' y='324' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.18'%3EHEX DUMP%3C/text%3E%3Cline x1='12' y1='330' x2='152' y2='330' stroke-width='1' opacity='0.1'/%3E%3Ctext x='14' y='346' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3E0000 45 00 00 3c%3C/text%3E%3Ctext x='14' y='360' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3E0004 1c 46 40 00%3C/text%3E%3Ctext x='14' y='374' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3E0008 40 06 a6 ec%3C/text%3E%3Ctext x='14' y='388' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3E000c c0 a8 01 01%3C/text%3E%3Ctext x='14' y='402' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3E0010 c0 a8 01 fe%3C/text%3E%3Ctext x='14' y='416' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.07'%3E0014 1f 90 c6 22%3C/text%3E%3C!-- LEFT MARGIN: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='460' x2='8' y2='720'/%3E%3Cline x1='4' y1='460' x2='12' y2='460'/%3E%3Cline x1='4' y1='510' x2='12' y2='510'/%3E%3Cline x1='4' y1='560' x2='12' y2='560'/%3E%3Cline x1='4' y1='610' x2='12' y2='610'/%3E%3Cline x1='4' y1='660' x2='12' y2='660'/%3E%3Cline x1='4' y1='710' x2='12' y2='710'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='485' x2='10' y2='485'/%3E%3Cline x1='6' y1='535' x2='10' y2='535'/%3E%3Cline x1='6' y1='585' x2='10' y2='585'/%3E%3Cline x1='6' y1='635' x2='10' y2='635'/%3E%3Cline x1='6' y1='685' x2='10' y2='685'/%3E%3C/g%3E%3C!-- ═══ CENTER: Packet capture dashboard wireframe ═══ --%3E%3Crect x='300' y='60' width='400' height='220' rx='3' stroke-width='2' opacity='0.18'/%3E%3Cline x1='300' y1='82' x2='700' y2='82' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='390' y='76' font-family='monospace' font-size='10' fill='%2300ff41' stroke='none' opacity='0.22'%3EPACKET CAPTURE%3C/text%3E%3Cline x1='300' y1='104' x2='700' y2='104' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='300' y1='126' x2='700' y2='126' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='300' y1='148' x2='700' y2='148' stroke-width='0.8' opacity='0.07'/%3E%3Cline x1='300' y1='170' x2='700' y2='170' stroke-width='0.8' opacity='0.06'/%3E%3Cline x1='300' y1='192' x2='700' y2='192' stroke-width='0.8' opacity='0.05'/%3E%3Ctext x='308' y='99' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.18'%3E%23%20%20Time%20%20%20%20Src%20%20%20%20%20%20%20%20Dst%20%20%20%20%20%20%20%20%20Proto%20%20Len%3C/text%3E%3Ctext x='308' y='120' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3E1%20%200.000%20%20192.168.1.5%20%20%208.8.8.8%20%20%20%20%20DNS%20%20%2068%3C/text%3E%3Ctext x='308' y='142' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3E2%20%200.012%20%208.8.8.8%20%20%20%20%20%20192.168.1.5%20%20DNS%20%2098%3C/text%3E%3Ctext x='308' y='164' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3E3%20%200.034%20%20192.168.1.5%20%20%2093.184.216.34%20TCP%20%2066%3C/text%3E%3Ctext x='308' y='186' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3E4%20%200.056%20%2093.184.216.34%20192.168.1.5%20%20%20TCP%20%2066%3C/text%3E%3Ctext x='308' y='206' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.07'%3E5%20%200.091%20%20192.168.1.5%20%20%2093.184.216.34%20HTTP%20512%3C/text%3E%3Cline x1='300' y1='215' x2='700' y2='215' stroke-width='1' opacity='0.1'/%3E%3Ctext x='310' y='230' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.14'%3EPROTOCOL HIERARCHY%3C/text%3E%3Crect x='310' y='236' width='60' height='8' rx='1' fill='%2300ff41' fill-opacity='0.08' stroke='none'/%3E%3Crect x='310' y='248' width='44' height='8' rx='1' fill='%2300ff41' fill-opacity='0.06' stroke='none'/%3E%3Crect x='310' y='260' width='32' height='8' rx='1' fill='%2300ff41' fill-opacity='0.05' stroke='none'/%3E%3Ctext x='376' y='244' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3ETCP 44%25%3C/text%3E%3Ctext x='376' y='256' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3EDNS 32%25%3C/text%3E%3Ctext x='376' y='268' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3EHTTP 24%25%3C/text%3E%3C!-- CENTER: Protocol stack visualization (layered boxes) --%3E%3Crect x='440' y='236' width='100' height='20' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='468' y='250' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.22'%3EHTTP%3C/text%3E%3Crect x='430' y='260' width='120' height='20' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='466' y='274' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.18'%3ETCP%3C/text%3E%3Crect x='420' y='284' width='140' height='20' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='472' y='298' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.14'%3EIPv4%3C/text%3E%3Crect x='410' y='308' width='160' height='20' rx='2' stroke-width='1.5' opacity='0.1'/%3E%3Ctext x='460' y='322' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.1'%3EETHERNET%3C/text%3E%3C!-- CENTER: compass arc --%3E%3Cpath d='M170 400 A100 100 0 0 1 370 400' stroke-width='2' opacity='0.18'/%3E%3Cpath d='M185 400 A85 85 0 0 1 355 400' stroke-width='1.2' opacity='0.1' stroke-dasharray='6 4'/%3E%3Cpath d='M200 400 A70 70 0 0 1 340 400' stroke-width='0.8' opacity='0.06' stroke-dasharray='3 3'/%3E%3Ccircle cx='270' cy='400' r='5' fill='%2300ff41' stroke='none' opacity='0.22'/%3E%3Cline x1='270' y1='400' x2='270' y2='310' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Cline x1='270' y1='400' x2='360' y2='356' stroke-width='1' opacity='0.08' stroke-dasharray='3 5'/%3E%3Cline x1='270' y1='400' x2='196' y2='344' stroke-width='1' opacity='0.07' stroke-dasharray='3 5'/%3E%3Cg stroke-width='1' opacity='0.12'%3E%3Cline x1='220' y1='318' x2='224' y2='328'/%3E%3Cline x1='270' y1='302' x2='270' y2='312'/%3E%3Cline x1='320' y1='318' x2='316' y2='328'/%3E%3Cline x1='360' y1='356' x2='352' y2='358'/%3E%3Cline x1='180' y1='356' x2='188' y2='358'/%3E%3C/g%3E%3Ctext x='262' y='322' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.1'%3EN%3C/text%3E%3C!-- CENTER: network traffic flow nodes --%3E%3Ccircle cx='490' cy='460' r='22' stroke-width='2' opacity='0.18'/%3E%3Ccircle cx='610' cy='410' r='16' stroke-width='1.5' opacity='0.14'/%3E%3Ccircle cx='630' cy='530' r='18' stroke-width='1.5' opacity='0.12'/%3E%3Ccircle cx='750' cy='470' r='14' stroke-width='1.2' opacity='0.1'/%3E%3Ccircle cx='390' cy='510' r='13' stroke-width='1.2' opacity='0.09'/%3E%3Cline x1='512' y1='456' x2='594' y2='414' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='504' y1='476' x2='614' y2='520' stroke-width='1.2' opacity='0.1'/%3E%3Cline x1='626' y1='410' x2='638' y2='514' stroke-width='1' opacity='0.08' stroke-dasharray='5 4'/%3E%3Cline x1='624' y1='416' x2='738' y2='464' stroke-width='1' opacity='0.07' stroke-dasharray='4 6'/%3E%3Cline x1='472' y1='470' x2='402' y2='502' stroke-width='1' opacity='0.07'/%3E%3Ctext x='476' y='466' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.18'%3ECLT%3C/text%3E%3Ctext x='598' y='415' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.14'%3ESRV%3C/text%3E%3Ctext x='618' y='536' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.1'%3EDNS%3C/text%3E%3Ctext x='740' y='475' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.08'%3EGWX%3C/text%3E%3Ctext x='378' y='516' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.07'%3EPRX%3C/text%3E%3C!-- ═══ RIGHT MARGIN: TCP handshake sequence diagram ═══ --%3E%3Crect x='878' y='30' width='115' height='180' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='888' y='48' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.22'%3ETCP HANDSHAKE%3C/text%3E%3Cline x1='878' y1='54' x2='993' y2='54' stroke-width='1' opacity='0.14'/%3E%3Cline x1='894' y1='60' x2='894' y2='200' stroke-width='1' opacity='0.12'/%3E%3Cline x1='976' y1='60' x2='976' y2='200' stroke-width='1' opacity='0.12'/%3E%3Ctext x='884' y='74' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3ECLIENT%3C/text%3E%3Ctext x='962' y='74' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3ESERVER%3C/text%3E%3Cline x1='894' y1='90' x2='970' y2='104' stroke-width='1.2' opacity='0.18'/%3E%3Cpolygon points='967,100 976,106 966,108' fill='%2300ff41' stroke='none' opacity='0.2'/%3E%3Ctext x='908' y='100' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.18'%3ESYN%3C/text%3E%3Cline x1='976' y1='118' x2='900' y2='132' stroke-width='1.2' opacity='0.16'/%3E%3Cpolygon points='903,128 894,134 904,136' fill='%2300ff41' stroke='none' opacity='0.18'/%3E%3Ctext x='920' y='128' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3ESYN-ACK%3C/text%3E%3Cline x1='894' y1='146' x2='970' y2='160' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='967,156 976,162 966,164' fill='%2300ff41' stroke='none' opacity='0.16'/%3E%3Ctext x='912' y='156' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3EACK%3C/text%3E%3Cline x1='894' y1='174' x2='970' y2='188' stroke-width='1.2' opacity='0.12'/%3E%3Cpolygon points='967,184 976,190 966,192' fill='%2300ff41' stroke='none' opacity='0.12'/%3E%3Ctext x='906' y='184' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3EDATA%3C/text%3E%3C!-- RIGHT MARGIN: Bandwidth timeline sparkline --%3E%3Crect x='876' y='228' width='117' height='80' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='886' y='244' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.18'%3EBANDWIDTH%3C/text%3E%3Cline x1='876' y1='250' x2='993' y2='250' stroke-width='1' opacity='0.1'/%3E%3Cpath d='M882 290 L892 282 L902 295 L912 274 L922 288 L932 270 L942 284 L952 268 L962 278 L972 265 L982 280 L990 260' stroke-width='1.5' opacity='0.2' fill='none'/%3E%3Cline x1='882' y1='298' x2='990' y2='298' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='882' y='308' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3Et=0s%3C/text%3E%3Ctext x='960' y='308' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3E60s%3C/text%3E%3C!-- RIGHT MARGIN: Protocol distribution pie chart sketch --%3E%3Ccircle cx='935' cy='390' r='42' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='935' y1='390' x2='935' y2='348' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='935' y1='390' x2='973' y2='415' stroke-width='1.2' opacity='0.14'/%3E%3Cpath d='M935 348 A42 42 0 0 1 973 415' stroke-width='2' opacity='0.2' fill='%2300ff41' fill-opacity='0.05'/%3E%3Cline x1='935' y1='390' x2='895' y2='410' stroke-width='1' opacity='0.1'/%3E%3Cpath d='M973 415 A42 42 0 0 1 895 410' stroke-width='1.5' opacity='0.14' fill='%2300ff41' fill-opacity='0.03'/%3E%3Ctext x='912' y='444' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.16'%3EPROTO DIST%3C/text%3E%3Ctext x='882' y='458' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3ETCP 44%25%3C/text%3E%3Ctext x='882' y='470' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3EDNS 32%25%3C/text%3E%3Ctext x='882' y='482' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3EHTTP 24%25%3C/text%3E%3C!-- RIGHT MARGIN: vertical dashed line separator --%3E%3Cline x1='872' y1='220' x2='872' y2='700' stroke-width='1' opacity='0.07' stroke-dasharray='6 8'/%3E%3C!-- RIGHT MARGIN: hex memory addresses --%3E%3Ctext x='882' y='520' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.16'%3E0x0000:0050%3C/text%3E%3Ctext x='882' y='536' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.14'%3E0x0000:0051%3C/text%3E%3Ctext x='882' y='552' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.12'%3E0x0000:01bb%3C/text%3E%3Ctext x='882' y='568' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.1'%3E0x0000:0035%3C/text%3E%3Ctext x='882' y='584' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.08'%3E0x0000:1f90%3C/text%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='280' y1='560' x2='300' y2='560'/%3E%3Cline x1='290' y1='550' x2='290' y2='570'/%3E%3Ccircle cx='290' cy='560' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='720' y1='340' x2='740' y2='340'/%3E%3Cline x1='730' y1='330' x2='730' y2='350'/%3E%3Ccircle cx='730' cy='340' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.13' stroke-width='1.5'%3E%3Cline x1='150' y1='620' x2='170' y2='620'/%3E%3Cline x1='160' y1='610' x2='160' y2='630'/%3E%3Ccircle cx='160' cy='620' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='600' x2='380' y2='300' stroke-width='1.2' opacity='0.06' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='220' stroke-width='1.2' opacity='0.05' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='440' stroke-width='1' opacity='0.04' stroke-dasharray='6 10'/%3E%3Cline x1='860' y1='400' x2='1000' y2='580' stroke-width='1' opacity='0.04' stroke-dasharray='8 10'/%3E%3Cline x1='0' y1='740' x2='280' y2='620' stroke-width='1' opacity='0.04' stroke-dasharray='12 8'/%3E%3Cline x1='740' y1='720' x2='1000' y2='790' stroke-width='1' opacity='0.04' stroke-dasharray='6 12'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M778 640 A120 120 0 0 1 958 640' stroke-width='2' opacity='0.12'/%3E%3Cpath d='M798 640 A100 100 0 0 1 938 640' stroke-width='1.2' opacity='0.08'/%3E%3Cpath d='M818 640 A80 80 0 0 1 918 640' stroke-width='1' opacity='0.05' stroke-dasharray='4 3'/%3E%3Cline x1='868' y1='640' x2='868' y2='530' stroke-width='1' opacity='0.09' stroke-dasharray='3 5'/%3E%3Ctext x='853' y='524' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.09'%3E90%C2%B0%3C/text%3E%3Cg stroke-width='1' opacity='0.07'%3E%3Cline x1='798' y1='570' x2='804' y2='576'/%3E%3Cline x1='828' y1='545' x2='832' y2='553'/%3E%3Cline x1='908' y1='545' x2='904' y2='553'/%3E%3Cline x1='938' y1='570' x2='932' y2='576'/%3E%3C/g%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3C!-- Ruler top edge --%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='36' y='448' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.12' transform='rotate(-10 36 448)'%3Escapy.sniff()%3C/text%3E%3Ctext x='570' y='600' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.1'%3EBPF filter%3C/text%3E%3Ctext x='300' y='500' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.08' transform='rotate(4 300 500)'%3Estruct.unpack%3C/text%3E%3Ctext x='650' y='640' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.09' transform='rotate(-3 650 640)'%3Esocket.AF_PACKET%3C/text%3E%3Ctext x='140' y='700' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.08' transform='rotate(6 140 700)'%3Eport 443 and tcp%3C/text%3E%3Ctext x='480' y='680' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.07'%3Epkt.haslayer(IP)%3C/text%3E%3Ctext x='200' y='740' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.08' transform='rotate(-4 200 740)'%3Eprn=packet_handler%3C/text%3E%3Ctext x='440' y='740' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.07'%3Erdpcap('cap.pcap')%3C/text%3E%3C!-- ═══ DIAMOND MARKERS at corners ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2300ff41' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2300ff41' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2300ff41' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%2300ff41' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #00ff41;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(0, 255, 65, 0.06);
+        }
+
+        /* Classified stamp */
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Fold line */
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(0, 255, 65, 0.25) 0%,
+                rgba(0, 255, 65, 0.12) 60%,
+                rgba(0, 255, 65, 0.06) 100%);
+            border: 3px solid rgba(0, 255, 65, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(0, 255, 65, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Convex sheen — pin button highlight */
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #00ff41;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        /* Subject line */
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        /* Classification badges */
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        /* Advanced — red difficulty badge */
+        .cf-badge-diff {
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        /* XP badge uses house primary color */
+        .cf-badge-xp {
+            color: #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid rgba(0, 255, 65, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(0, 255, 65, 0.08);
+            border-left: 3px solid rgba(0, 255, 65, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        /* Paper clip decoration */
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        /* Tape strip decoration */
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        /* Section stamp label */
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #00ff41;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #00ff41;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites (form style) ────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        /* Checkbox style bullet */
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(0, 255, 65, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(0, 255, 65, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(0, 255, 65, 0.02);
+            border: 1px solid rgba(0, 255, 65, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(0, 255, 65, 0.25);
+            background: rgba(0, 255, 65, 0.04);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.06);
+        }
+
+        /* Evidence marker number */
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        /* Pin/thumbtack decoration */
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest (tools) ────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(0, 255, 65, 0.04);
+            border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(0, 255, 65, 0.08);
+            border-color: rgba(0, 255, 65, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #00ff41;
+        }
+
+        /* ── Debrief (what you'll learn) ───────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        /* Arrow marker */
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #00ff41;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(0, 255, 65, 0.3) 0%,
+                rgba(0, 255, 65, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Training cards ───────────────────────────────── */
+        .cf-training-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .cf-training-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .cf-training-card:hover {
+            border-color: #00ff41;
+            transform: translateY(-2px);
+        }
+        .cf-training-card .tc-district {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #00ff41;
+            opacity: 0.8;
+        }
+        .cf-training-card .tc-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .cf-training-card .tc-type {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">MX-PV-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">MX-PV-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-05</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-matrix.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Matrix House</span>
+                    <span class="cf-house-domain">Data &amp; Analysis Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a Packet Visualizer</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Advanced</span>
+                <span class="cf-badge cf-badge-time">2H</span>
+                <span class="cf-badge cf-badge-xp">1000 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation tasks you with building a <strong>live packet visualizer</strong>
+                    from the ground up in Python &mdash; a tool that captures raw network traffic
+                    in real time or reads recorded captures from <code>pcap</code> files, then decodes
+                    each packet layer by layer from the Ethernet frame all the way up through IP,
+                    TCP/UDP, and application protocols like HTTP and DNS. The goal is not to run
+                    Wireshark and read its output, but to understand, at the byte level, exactly
+                    what Wireshark is doing under the hood when it parses a packet capture.
+                </p>
+                <p>
+                    The visualizer displays a scrollable <strong>packet list</strong> in the terminal,
+                    showing timestamp, source address, destination address, protocol, length, and a
+                    one-line summary for each captured frame. Selecting a packet expands a full
+                    decoded header tree &mdash; a Wireshark-style detail pane rendered in ASCII &mdash;
+                    allowing you to inspect every field at every protocol layer. Traffic statistics
+                    update live: top talkers by IP, protocol distribution percentages, packets-per-second
+                    rate, and conversation tracking across unique source/destination pairs are all computed
+                    from the raw capture stream using <code>collections.Counter</code> and timestamp math.
+                </p>
+                <p>
+                    Built with <code>scapy</code> for packet parsing and <code>rich</code> or
+                    <code>curses</code> for terminal rendering, this project teaches the craft of
+                    <strong>binary data interpretation at the protocol level</strong>. You will work
+                    directly with <code>struct.unpack()</code> to extract header fields from raw byte
+                    buffers, implement BPF filter strings to focus the capture on traffic that matters,
+                    and detect behavioral patterns like port scans and DNS tunneling from aggregated
+                    flow data. When you are done, you will have both a functional network forensics
+                    tool and a deep, hands-on understanding of how network protocols encode information
+                    inside layered byte sequences.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Solid Python skills including classes, binary data handling, and basic use of the <code>struct</code> module for packing and unpacking byte sequences</li>
+                <li>Basic networking knowledge covering IP addressing, ports, the difference between TCP and UDP, and what HTTP requests look like at a high level</li>
+                <li>Comfortable running commands with <code>sudo</code> or administrator privileges, since live packet capture requires elevated access to network interfaces</li>
+                <li>Familiar with terminal-based interfaces and reading dense text output; you will spend most of your time in a fullscreen terminal UI</li>
+                <li>No prior experience with packet analysis or <code>scapy</code> is required &mdash; this project builds the decoder stack from the ground up, explaining each protocol field as it is implemented</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Packet Capture &amp; Ingestion</div>
+                        <div class="cf-evidence-desc">
+                            Build a capture engine using <code>scapy</code>'s <code>sniff()</code> function
+                            with BPF filter support so you can focus on specific traffic types, ports, or
+                            hosts from the command line. Implement an <code>iface</code> argument to select
+                            the network interface and a <code>--read</code> flag to load an existing
+                            <code>pcap</code> file via <code>rdpcap()</code>. Back the capture with a
+                            thread-safe ring buffer of configurable maximum size so the UI is never blocked
+                            by the capture thread.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Protocol Decoder Stack</div>
+                        <div class="cf-evidence-desc">
+                            Write a layered decoder chain that normalizes each captured packet into a
+                            structured dictionary. Implement decoders for Ethernet (source/destination MAC,
+                            EtherType), IPv4 and IPv6 (addresses, TTL, protocol number), TCP (source/destination
+                            port, sequence number, acknowledgment number, flags as named booleans), UDP
+                            (ports, length), DNS (query name, record type, response addresses), and HTTP
+                            (method, URI, status code, content type). Use <code>struct.unpack()</code>
+                            directly on raw bytes alongside <code>scapy</code> layer accessors to reinforce
+                            how header fields map to byte offsets.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Packet List &amp; Detail View</div>
+                        <div class="cf-evidence-desc">
+                            Build a scrollable terminal UI displaying captured packets in a fixed-column
+                            table: <code>#</code>, <code>Time</code>, <code>Source</code>,
+                            <code>Destination</code>, <code>Protocol</code>, <code>Length</code>,
+                            and <code>Info</code>. Implement keyboard navigation so pressing Enter on a
+                            selected packet expands a full decoded header tree in a split pane, showing
+                            every field at every protocol layer the way Wireshark's detail view does.
+                            Color-code rows by protocol family &mdash; TCP connections, UDP datagrams,
+                            and DNS traffic each get a distinct accent.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Traffic Analysis Engine</div>
+                        <div class="cf-evidence-desc">
+                            Layer a live statistics engine over the capture stream using
+                            <code>collections.Counter</code> and timestamp arithmetic. Track top talkers
+                            (ranked by packet count and byte volume), protocol distribution percentages,
+                            live packets-per-second rate, and average packet size across the session.
+                            Build a conversation tracker keyed on <code>(src_ip, dst_ip, src_port, dst_port)</code>
+                            tuples, accumulating packet counts and byte totals per flow. Implement
+                            heuristic detection for port scan signatures (many unique destination ports from
+                            one source IP) and DNS tunneling indicators (abnormally long query names or
+                            high query frequency to a single resolver).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Visualization &amp; Export</div>
+                        <div class="cf-evidence-desc">
+                            Render ASCII-art protocol distribution bar charts, sortable conversation tables,
+                            and a rolling traffic timeline in the terminal status panel. Wire up a JSON
+                            export that writes the full decoded packet list, conversation summary, and
+                            statistical report to disk with a single keypress. Add a filtered
+                            <code>pcap</code> write mode: accept a BPF expression at runtime and use
+                            <code>wrpcap()</code> to save only matching packets, enabling surgical
+                            extraction of attack traffic from a larger capture.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Python 3.10+</div>
+                <div class="cf-manifest-item">scapy</div>
+                <div class="cf-manifest-item">struct</div>
+                <div class="cf-manifest-item">socket</div>
+                <div class="cf-manifest-item">argparse</div>
+                <div class="cf-manifest-item">json</div>
+                <div class="cf-manifest-item">datetime</div>
+                <div class="cf-manifest-item">collections</div>
+                <div class="cf-manifest-item">curses / rich</div>
+                <div class="cf-manifest-item">pcap files</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Packet capture with scapy and BPF filters</li>
+                <li>Decoding Ethernet, IP, TCP, and UDP headers</li>
+                <li>Understanding TCP flags and connection states</li>
+                <li>DNS query and response parsing</li>
+                <li>HTTP request and response extraction</li>
+                <li>Building terminal-based scrollable UIs</li>
+                <li>Network traffic statistical analysis</li>
+                <li>Conversation tracking and top-talker detection</li>
+                <li>Binary data manipulation with struct</li>
+                <li>Protocol hierarchy and encapsulation concepts</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Related Training ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../arctic/districts/network-ops/index.html" class="cf-training-card">
+                    <span class="tc-district">Network Operations</span>
+                    <span class="tc-title">Network Basics</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/network-ops/index.html" class="cf-training-card">
+                    <span class="tc-district">Network Operations</span>
+                    <span class="tc-title">Network Recon</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/log-analysis/index.html" class="cf-training-card">
+                    <span class="tc-district">Log Analysis</span>
+                    <span class="tc-title">Log Analysis Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/offensive-tools/index.html" class="cf-training-card">
+                    <span class="tc-district">Offensive Tools</span>
+                    <span class="tc-title">Nmap Essentials Lab</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/text-processing/index.html" class="cf-training-card">
+                    <span class="tc-district">Text Processing</span>
+                    <span class="tc-title">I/O Redirection Mastery</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/linux-admin/index.html" class="cf-training-card">
+                    <span class="tc-district">Linux Administration</span>
+                    <span class="tc-title">Chapter 8: Configuring a Network</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>
