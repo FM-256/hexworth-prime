@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Arduino-Python Pipeline | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(74, 222, 128, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 222, 128, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(74, 222, 128, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 222, 128, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(74, 222, 128, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — SVG overlay */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%234ade80'%3E%3C!-- ═══ LEFT MARGIN: JSON curly braces + data object ═══ --%3E%3Crect x='14' y='28' width='126' height='130' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='22' y='46' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.22'%3EJSON OUTPUT%3C/text%3E%3Cline x1='14' y1='52' x2='140' y2='52' stroke-width='1' opacity='0.14'/%3E%3Ctext x='22' y='68' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.2'%3E%7B%3C/text%3E%3Ctext x='30' y='80' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.18'%3E%22temp%22:24.5,%3C/text%3E%3Ctext x='30' y='91' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.16'%3E%22humidity%22:62,%3C/text%3E%3Ctext x='30' y='102' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3E%22light%22:73,%3C/text%3E%3Ctext x='30' y='113' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3E%22dist%22:42.1,%3C/text%3E%3Ctext x='30' y='124' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3E%22ts%22:12345%3C/text%3E%3Ctext x='22' y='135' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.2'%3E%7D%3C/text%3E%3Ctext x='22' y='152' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Eevery 2 seconds%3C/text%3E%3C!-- Left margin: USB connector symbol --%3E%3Crect x='40' y='180' width='60' height='32' rx='4' stroke-width='1.5' opacity='0.18'/%3E%3Crect x='20' y='188' width='20' height='16' rx='2' stroke-width='1.2' opacity='0.14' fill='%234ade80' fill-opacity='0.04'/%3E%3Cline x1='22' y1='193' x2='38' y2='193' stroke-width='1' opacity='0.14'/%3E%3Cline x1='22' y1='199' x2='38' y2='199' stroke-width='1' opacity='0.12'/%3E%3Ctext x='46' y='200' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.18'%3EUSB-B%3C/text%3E%3Ctext x='30' y='222' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3ESERIAL 9600%3C/text%3E%3C!-- Left margin: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='250' x2='8' y2='520'/%3E%3Cline x1='4' y1='250' x2='12' y2='250'/%3E%3Cline x1='4' y1='300' x2='12' y2='300'/%3E%3Cline x1='4' y1='350' x2='12' y2='350'/%3E%3Cline x1='4' y1='400' x2='12' y2='400'/%3E%3Cline x1='4' y1='450' x2='12' y2='450'/%3E%3Cline x1='4' y1='500' x2='12' y2='500'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='275' x2='10' y2='275'/%3E%3Cline x1='6' y1='325' x2='10' y2='325'/%3E%3Cline x1='6' y1='375' x2='10' y2='375'/%3E%3Cline x1='6' y1='425' x2='10' y2='425'/%3E%3Cline x1='6' y1='475' x2='10' y2='475'/%3E%3C/g%3E%3C!-- Left margin: terminal window (rich dashboard) --%3E%3Crect x='18' y='268' width='120' height='90' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='18' y1='284' x2='138' y2='284' stroke-width='1' opacity='0.12'/%3E%3Ccircle cx='28' cy='277' r='3' stroke-width='1' opacity='0.14'/%3E%3Ccircle cx='38' cy='277' r='3' stroke-width='1' opacity='0.12'/%3E%3Ccircle cx='48' cy='277' r='3' stroke-width='1' opacity='0.1'/%3E%3Ctext x='26' y='298' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.18'%3Erich dashboard%3C/text%3E%3Ctext x='26' y='310' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.16'%3ETEMP  24.5 C%3C/text%3E%3Ctext x='26' y='322' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3EHUM   62 %25%3C/text%3E%3Ctext x='26' y='334' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3EDIST  42.1 cm%3C/text%3E%3Ctext x='26' y='346' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Erec: 1842 rows%3C/text%3E%3C!-- Left margin: database cylinder --%3E%3Cellipse cx='70' cy='400' rx='40' ry='10' stroke-width='1.5' opacity='0.18'/%3E%3Cline x1='30' y1='400' x2='30' y2='460' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='110' y1='400' x2='110' y2='460' stroke-width='1.5' opacity='0.16'/%3E%3Cellipse cx='70' cy='460' rx='40' ry='10' stroke-width='1.5' opacity='0.18'/%3E%3Cellipse cx='70' cy='430' rx='40' ry='10' stroke-width='1' opacity='0.1' stroke-dasharray='5 4'/%3E%3Ctext x='46' y='434' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3ESQLite%3C/text%3E%3Ctext x='40' y='476' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Ereadings.db%3C/text%3E%3C!-- Left margin: circuit traces --%3E%3Cpath d='M5 560 L40 560 L40 540 L80 540 L80 560 L120 560' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3Cpath d='M5 580 L25 580 L25 595 L60 595 L60 580 L90 580 L90 600 L120 600' stroke-width='1' opacity='0.1' fill='none'/%3E%3Ccircle cx='40' cy='540' r='3' fill='%234ade80' stroke='none' opacity='0.16'/%3E%3Ccircle cx='80' cy='540' r='3' fill='%234ade80' stroke='none' opacity='0.16'/%3E%3Ccircle cx='25' cy='595' r='3' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Ccircle cx='60' cy='595' r='3' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3C!-- ═══ RIGHT MARGIN: ETL pipeline flow — full height ═══ --%3E%3Crect x='870' y='30' width='116' height='36' rx='2' stroke-width='1.5' opacity='0.18' fill='%234ade80' fill-opacity='0.02'/%3E%3Ctext x='882' y='53' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.2'%3ESENSORS%3C/text%3E%3Cline x1='928' y1='66' x2='928' y2='82' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='924,78 928,88 932,78' fill='%234ade80' stroke='none' opacity='0.16'/%3E%3Crect x='870' y='88' width='116' height='36' rx='2' stroke-width='1.5' opacity='0.16' fill='%234ade80' fill-opacity='0.02'/%3E%3Ctext x='882' y='111' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.18'%3EARDUINO%3C/text%3E%3Cline x1='928' y1='124' x2='928' y2='140' stroke-width='1.5' opacity='0.14'/%3E%3Cpolygon points='924,136 928,146 932,136' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='870' y='146' width='116' height='36' rx='2' stroke-width='1.5' opacity='0.14' fill='%234ade80' fill-opacity='0.02'/%3E%3Ctext x='882' y='169' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.16'%3ESERIAL%3C/text%3E%3Cline x1='928' y1='182' x2='928' y2='198' stroke-width='1.5' opacity='0.12'/%3E%3Cpolygon points='924,194 928,204 932,194' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Crect x='870' y='204' width='116' height='36' rx='2' stroke-width='1.5' opacity='0.12' fill='%234ade80' fill-opacity='0.02'/%3E%3Ctext x='882' y='227' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.14'%3EPYTHON%3C/text%3E%3Cline x1='928' y1='240' x2='928' y2='256' stroke-width='1.5' opacity='0.1'/%3E%3Cpolygon points='924,252 928,262 932,252' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3Crect x='870' y='262' width='116' height='36' rx='2' stroke-width='1.5' opacity='0.1' fill='%234ade80' fill-opacity='0.02'/%3E%3Ctext x='882' y='285' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.12'%3ESQUITE DB%3C/text%3E%3Cline x1='928' y1='298' x2='928' y2='314' stroke-width='1.5' opacity='0.08'/%3E%3Cpolygon points='924,310 928,320 932,310' fill='%234ade80' stroke='none' opacity='0.08'/%3E%3Crect x='870' y='320' width='116' height='36' rx='2' stroke-width='1.5' opacity='0.08' fill='%234ade80' fill-opacity='0.02'/%3E%3Ctext x='876' y='343' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1'%3EDASHBOARD%3C/text%3E%3Ctext x='876' y='370' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3EETL PIPELINE%3C/text%3E%3C!-- Right margin: SQLite table schema --%3E%3Crect x='860' y='390' width='130' height='100' rx='2' stroke-width='1.5' opacity='0.12'/%3E%3Ctext x='872' y='408' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3ESCHEMA%3C/text%3E%3Cline x1='860' y1='414' x2='990' y2='414' stroke-width='1' opacity='0.1'/%3E%3Ctext x='868' y='428' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Eid      INTEGER PK%3C/text%3E%3Ctext x='868' y='440' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3Etimestamp TEXT%3C/text%3E%3Ctext x='868' y='452' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Etemp    REAL%3C/text%3E%3Ctext x='868' y='464' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.09'%3Ehumidity REAL%3C/text%3E%3Ctext x='868' y='476' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.08'%3Edistance REAL%3C/text%3E%3C!-- Right margin: sparkline charts --%3E%3Crect x='862' y='510' width='128' height='70' rx='2' stroke-width='1.5' opacity='0.12'/%3E%3Ctext x='874' y='528' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3ESPARKLINES%3C/text%3E%3Cline x1='862' y1='534' x2='990' y2='534' stroke-width='1' opacity='0.1'/%3E%3Cpath d='M870 558 L882 554 L894 560 L906 548 L918 554 L930 546 L942 552 L954 542 L966 550 L978 544' stroke-width='1.5' opacity='0.2' fill='none'/%3E%3Cpath d='M870 568 L882 566 L894 570 L906 564 L918 568 L930 562 L942 566 L954 560 L966 564 L978 558' stroke-width='1' opacity='0.12' fill='none'/%3E%3Ctext x='868' y='578' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Etemp  humidity  dist%3C/text%3E%3C!-- Right margin: pyserial code snippet --%3E%3Crect x='860' y='600' width='130' height='60' rx='2' stroke-width='1.5' opacity='0.1'/%3E%3Ctext x='872' y='618' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.16'%3Eser = serial.Serial(%3C/text%3E%3Ctext x='872' y='630' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3E  '/dev/ttyUSB0',%3C/text%3E%3Ctext x='872' y='642' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3E  9600)%3C/text%3E%3Ctext x='872' y='654' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Eline = ser.readline()%3C/text%3E%3C!-- Right margin: vertical dashed line --%3E%3Cline x1='856' y1='160' x2='856' y2='600' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- ═══ CENTER: Main pipeline diagram ═══ --%3E%3C!-- Sensor box --%3E%3Crect x='220' y='100' width='80' height='40' rx='3' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='236' y='125' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.2'%3ESENSOR%3C/text%3E%3C!-- Arrow to Arduino --%3E%3Cline x1='300' y1='120' x2='330' y2='120' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='326,116 334,120 326,124' fill='%234ade80' stroke='none' opacity='0.16'/%3E%3C!-- Arduino box --%3E%3Crect x='330' y='100' width='90' height='40' rx='3' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='346' y='125' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.18'%3EARDUINO%3C/text%3E%3C!-- Arrow down to Serial --%3E%3Cline x1='375' y1='140' x2='375' y2='168' stroke-width='1.5' opacity='0.14'/%3E%3Cpolygon points='371,164 375,174 379,164' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3C!-- Serial JSON box --%3E%3Crect x='310' y='174' width='130' height='40' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='330' y='199' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.18'%3ESERIAL JSON%3C/text%3E%3C!-- Arrow right to Python --%3E%3Cline x1='440' y1='194' x2='480' y2='194' stroke-width='1.5' opacity='0.14'/%3E%3Cpolygon points='476,190 484,194 476,198' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3C!-- Python parser box --%3E%3Crect x='480' y='174' width='110' height='40' rx='3' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='496' y='199' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.16'%3EPYSERIAL%3C/text%3E%3C!-- Arrow down to SQLite --%3E%3Cline x1='535' y1='214' x2='535' y2='242' stroke-width='1.5' opacity='0.12'/%3E%3Cpolygon points='531,238 535,248 539,238' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3C!-- SQLite box --%3E%3Crect x='480' y='248' width='110' height='40' rx='3' stroke-width='1.5' opacity='0.12'/%3E%3Ctext x='502' y='273' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.14'%3ESQULITE%3C/text%3E%3C!-- Arrow left to Dashboard --%3E%3Cline x1='480' y1='268' x2='440' y2='268' stroke-width='1.5' opacity='0.1'/%3E%3Cpolygon points='444,264 436,268 444,272' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3C!-- Dashboard box --%3E%3Crect x='310' y='248' width='130' height='40' rx='3' stroke-width='1.5' opacity='0.1'/%3E%3Ctext x='330' y='273' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.12'%3EDASHBOARD%3C/text%3E%3C!-- Center: line chart (multiple sensor sparklines) --%3E%3Crect x='250' y='380' width='380' height='130' rx='3' stroke-width='2' opacity='0.16'/%3E%3Cline x1='250' y1='400' x2='630' y2='400' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='390' y='394' font-family='monospace' font-size='10' fill='%234ade80' stroke='none' opacity='0.2'%3ELIVE MONITOR%3C/text%3E%3Cpath d='M262 480 L284 470 L306 478 L328 460 L350 468 L372 454 L394 462 L416 448 L438 456 L460 442 L482 450 L504 438 L526 446 L548 432 L570 440 L610 430' stroke-width='2' opacity='0.2' fill='none'/%3E%3Cpath d='M262 496 L284 494 L306 498 L328 492 L350 496 L372 490 L394 494 L416 488 L438 492 L460 486 L482 490 L504 484 L526 488 L548 482 L570 486 L610 480' stroke-width='1.2' opacity='0.12' fill='none' stroke-dasharray='4 4'/%3E%3Cline x1='262' y1='502' x2='610' y2='502' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='260' y='516' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3E0s%3C/text%3E%3Ctext x='424' y='516' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3E60s%3C/text%3E%3Ctext x='594' y='516' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.08'%3E120s%3C/text%3E%3C!-- Center: compass arc (top-left area) --%3E%3Cpath d='M160 200 A90 90 0 0 1 340 200' stroke-width='2' opacity='0.18'/%3E%3Cpath d='M174 200 A76 76 0 0 1 326 200' stroke-width='1.2' opacity='0.12' stroke-dasharray='6 4'/%3E%3Ccircle cx='250' cy='200' r='5' fill='%234ade80' stroke='none' opacity='0.22'/%3E%3Cline x1='250' y1='200' x2='250' y2='118' stroke-width='1' opacity='0.12' stroke-dasharray='3 5'/%3E%3Cg stroke-width='1' opacity='0.12'%3E%3Cline x1='198' y1='126' x2='202' y2='136'/%3E%3Cline x1='250' y1='112' x2='250' y2='122'/%3E%3Cline x1='302' y1='126' x2='298' y2='136'/%3E%3C/g%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='600' y1='600' x2='620' y2='600'/%3E%3Cline x1='610' y1='590' x2='610' y2='610'/%3E%3Ccircle cx='610' cy='600' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='720' y1='300' x2='740' y2='300'/%3E%3Cline x1='730' y1='290' x2='730' y2='310'/%3E%3Ccircle cx='730' cy='300' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.14' stroke-width='1.5'%3E%3Cline x1='160' y1='480' x2='180' y2='480'/%3E%3Cline x1='170' y1='470' x2='170' y2='490'/%3E%3Ccircle cx='170' cy='480' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3Cline x1='0' y1='750' x2='300' y2='600' stroke-width='1' opacity='0.05' stroke-dasharray='12 8'/%3E%3Cline x1='750' y1='700' x2='1000' y2='780' stroke-width='1' opacity='0.05' stroke-dasharray='6 12'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M780 640 A120 120 0 0 1 960 640' stroke-width='2' opacity='0.14'/%3E%3Cpath d='M800 640 A100 100 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cpath d='M820 640 A80 80 0 0 1 920 640' stroke-width='1' opacity='0.06' stroke-dasharray='4 3'/%3E%3Cline x1='870' y1='640' x2='870' y2='530' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Ctext x='855' y='525' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1'%3E90%C2%B0%3C/text%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='800' y1='570' x2='806' y2='576'/%3E%3Cline x1='830' y1='545' x2='834' y2='553'/%3E%3Cline x1='910' y1='545' x2='906' y2='553'/%3E%3Cline x1='940' y1='570' x2='934' y2='576'/%3E%3C/g%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3C!-- Ruler top edge --%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='40' y='232' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.12' transform='rotate(-12 40 232)'%3Eevery 2s%3C/text%3E%3Ctext x='580' y='560' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1'%3Ejson.loads(line)%3C/text%3E%3Ctext x='280' y='560' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.08' transform='rotate(5 280 560)'%3Ecursor.execute()%3C/text%3E%3Ctext x='660' y='600' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1' transform='rotate(-3 660 600)'%3Eargparse%3C/text%3E%3Ctext x='160' y='620' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.08' transform='rotate(8 160 620)'%3Econn.commit()%3C/text%3E%3Ctext x='480' y='600' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.07'%3ESerial.print(%22{%22)%3C/text%3E%3Ctext x='220' y='650' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.09' transform='rotate(-5 220 650)'%3ELive(refresh=1)%3C/text%3E%3C!-- ═══ DIAMOND MARKERS at corners ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%234ade80' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #4ade80;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(74, 222, 128, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(74, 222, 128, 0.06);
+        }
+
+        /* Classified stamp */
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Fold line */
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(74, 222, 128, 0.25) 0%,
+                rgba(74, 222, 128, 0.12) 60%,
+                rgba(74, 222, 128, 0.06) 100%);
+            border: 3px solid rgba(74, 222, 128, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(74, 222, 128, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Convex sheen — pin button highlight */
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #4ade80;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        /* Subject line */
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        /* Classification badges */
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(74, 222, 128, 0.08);
+            border-left: 3px solid rgba(74, 222, 128, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        /* Paper clip decoration */
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        /* Tape strip decoration */
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        /* Section stamp label */
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #4ade80;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites (form style) ────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        /* Checkbox style bullet */
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(74, 222, 128, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(74, 222, 128, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(74, 222, 128, 0.02);
+            border: 1px solid rgba(74, 222, 128, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(74, 222, 128, 0.25);
+            background: rgba(74, 222, 128, 0.04);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.06);
+        }
+
+        /* Evidence marker number */
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        /* Pin/thumbtack decoration */
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest (tools) ────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(74, 222, 128, 0.04);
+            border: 1px solid rgba(74, 222, 128, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(74, 222, 128, 0.08);
+            border-color: rgba(74, 222, 128, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #4ade80;
+        }
+
+        /* ── Debrief (what you'll learn) ───────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        /* Arrow marker */
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #4ade80;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(74, 222, 128, 0.3) 0%,
+                rgba(74, 222, 128, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Training cards ───────────────────────────────── */
+        .cf-training-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .cf-training-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .cf-training-card:hover {
+            border-color: #4ade80;
+            transform: translateY(-2px);
+        }
+        .cf-training-card .tc-district {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #4ade80;
+            opacity: 0.8;
+        }
+        .cf-training-card .tc-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .cf-training-card .tc-type {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CH-APP-003</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CH-APP-003</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-05</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-laptop.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Code House</span>
+                    <span class="cf-house-domain">Software Development Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build an Arduino-Python Pipeline</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Beginner</span>
+                <span class="cf-badge cf-badge-time">45 min</span>
+                <span class="cf-badge cf-badge-xp">250 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation builds an end-to-end data pipeline from physical sensors to a database and live terminal dashboard &mdash; the Arduino sends sensor readings as JSON objects over serial, a Python script receives and parses them in real time, stores each reading in an SQLite database, and renders a continuously updating terminal dashboard.
+                </p>
+                <p>
+                    You will program the Arduino to format sensor data as JSON strings with proper escaping, establish reliable serial communication using pyserial on the Python side, parse incoming JSON and validate the data structure, persist every reading to an SQLite database with automatic schema creation, and render a live terminal dashboard using the <code>rich</code> library that displays current values, historical trends, and data statistics.
+                </p>
+                <p>
+                    This is the exact ETL (Extract-Transform-Load) pattern used in every IoT deployment &mdash; hardware generates data, a receiver normalizes it, a database stores it, and a dashboard visualizes it. Compressed into two scripts and a USB cable.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>ELEGOO Mega R3 Ultimate Starter Kit</li>
+                <li>Python 3 with pip (for installing pyserial, rich, and sqlite3)</li>
+                <li>USB cable connecting Arduino to your computer</li>
+                <li>Basic Python skills (dictionaries/loops/functions)</li>
+                <li>Basic Arduino skills (setup/loop/Serial) &mdash; or completion of the Serial Console project</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Arduino JSON Serial Output</div>
+                        <div class="cf-evidence-desc">
+                            Wire the DHT11, photoresistor, and HC-SR04 to the Arduino Mega. Write a sketch that reads all three sensors every 2 seconds and outputs a JSON string over serial: <code>{"temp":24.5,"humidity":62,"light":73,"distance":42.1,"ts":12345}</code>. Use <code>Serial.print()</code> to manually construct the JSON (no library needed for simple output).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Python Serial Reader with pyserial</div>
+                        <div class="cf-evidence-desc">
+                            Write a Python script that opens the serial port with <code>serial.Serial('/dev/ttyUSB0', 9600)</code>, reads lines with <code>.readline()</code>, and prints each received JSON string to the console. Handle connection errors, port discovery, and the initial Arduino reset delay (2-second pause after connection). Verify data flows reliably.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">JSON Parsing &amp; SQLite Storage</div>
+                        <div class="cf-evidence-desc">
+                            Parse each received line with <code>json.loads()</code>, validate that required fields exist, and insert the record into an SQLite database. Create the table automatically if it doesn't exist: <code>CREATE TABLE IF NOT EXISTS readings (id INTEGER PRIMARY KEY, timestamp TEXT, temp REAL, humidity REAL, light REAL, distance REAL)</code>. Add a record counter that prints every 10 insertions.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Live Terminal Dashboard with rich</div>
+                        <div class="cf-evidence-desc">
+                            Install the <code>rich</code> library and build a <code>Live</code> display that renders a dashboard in the terminal showing: current sensor values in a styled table, a sparkline or bar showing the last 20 readings for each sensor, connection status and uptime, and total records in the database. Update the display every time a new reading arrives.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Historical Query &amp; Data Export</div>
+                        <div class="cf-evidence-desc">
+                            Add command-line arguments to the Python script: <code>--live</code> for the dashboard mode, <code>--query [minutes]</code> to display statistics for the last N minutes (min/max/avg for each sensor), and <code>--export [filename.csv]</code> to export the SQLite database to CSV. Implement each mode as a separate function that reads from the shared database.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Arduino Mega 2560</div>
+                <div class="cf-manifest-item">DHT11 Sensor</div>
+                <div class="cf-manifest-item">Photoresistor</div>
+                <div class="cf-manifest-item">HC-SR04 Ultrasonic</div>
+                <div class="cf-manifest-item">Python 3</div>
+                <div class="cf-manifest-item">pyserial</div>
+                <div class="cf-manifest-item">SQLite3</div>
+                <div class="cf-manifest-item">rich (terminal UI)</div>
+                <div class="cf-manifest-item">USB Cable</div>
+                <div class="cf-manifest-item">Arduino IDE</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>JSON serial output from embedded devices</li>
+                <li>Python serial communication with pyserial</li>
+                <li>JSON parsing and data validation</li>
+                <li>SQLite database creation and insertion</li>
+                <li>Live terminal dashboards with rich</li>
+                <li>Command-line argument parsing</li>
+                <li>Data export from SQLite to CSV</li>
+                <li>End-to-end IoT data pipeline design</li>
+                <li>Sensor-to-database ETL patterns</li>
+                <li>Building real-time monitoring tools</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Related Training ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../arctic/districts/shell-scripting/index.html" class="cf-training-card">
+                    <span class="tc-district">Shell Scripting</span>
+                    <span class="tc-title">Bash Functions</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/cli-fundamentals/index.html" class="cf-training-card">
+                    <span class="tc-district">CLI Fundamentals</span>
+                    <span class="tc-title">Input/Output Redirection</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/text-processing/index.html" class="cf-training-card">
+                    <span class="tc-district">Text Processing</span>
+                    <span class="tc-title">JSON Processing</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/cert-prep/index.html" class="cf-training-card">
+                    <span class="tc-district">Cert Prep</span>
+                    <span class="tc-title">Hardware Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/cli-fundamentals/index.html" class="cf-training-card">
+                    <span class="tc-district">CLI Fundamentals</span>
+                    <span class="tc-title">Working with Pipes</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/shell-scripting/index.html" class="cf-training-card">
+                    <span class="tc-district">Shell Scripting</span>
+                    <span class="tc-title">Bash Variables &amp; Arguments</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

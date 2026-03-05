@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Arduino Data Logger | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(167, 139, 250, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(167, 139, 250, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(167, 139, 250, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(167, 139, 250, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(167, 139, 250, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — SVG overlay */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%23a78bfa'%3E%3C!-- ═══ LEFT MARGIN: SD card outline ═══ --%3E%3Crect x='28' y='30' width='84' height='110' rx='4' stroke-width='1.5' opacity='0.18'/%3E%3Cpolygon points='28,30 60,30 60,18 112,18 112,30' stroke-width='1.2' opacity='0.14' fill='%23a78bfa' fill-opacity='0.03'/%3E%3Cline x1='38' y1='55' x2='102' y2='55' stroke-width='1' opacity='0.12'/%3E%3Cline x1='38' y1='65' x2='88' y2='65' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='38' y1='75' x2='96' y2='75' stroke-width='0.8' opacity='0.09'/%3E%3Cline x1='38' y1='85' x2='80' y2='85' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='38' y='44' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.2'%3EmicroSD%3C/text%3E%3Ctext x='36' y='105' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3EFAT32%3C/text%3E%3Ctext x='36' y='117' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3ESPI mode%3C/text%3E%3Ctext x='36' y='129' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.1'%3EMOSI/MISO%3C/text%3E%3C!-- Left margin: RTC clock face --%3E%3Ccircle cx='70' cy='200' r='42' stroke-width='1.5' opacity='0.16'/%3E%3Ccircle cx='70' cy='200' r='34' stroke-width='1' opacity='0.1'/%3E%3Ccircle cx='70' cy='200' r='3' fill='%23a78bfa' stroke='none' opacity='0.2'/%3E%3Cline x1='70' y1='200' x2='70' y2='172' stroke-width='2' opacity='0.18'/%3E%3Cline x1='70' y1='200' x2='94' y2='210' stroke-width='1.5' opacity='0.14'/%3E%3Cg stroke-width='1' opacity='0.12'%3E%3Cline x1='70' y1='160' x2='70' y2='168'/%3E%3Cline x1='70' y1='232' x2='70' y2='240'/%3E%3Cline x1='30' y1='200' x2='38' y2='200'/%3E%3Cline x1='102' y1='200' x2='110' y2='200'/%3E%3C/g%3E%3Ctext x='52' y='204' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.18'%3EDS1302%3C/text%3E%3Ctext x='36' y='254' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3ERTC MODULE%3C/text%3E%3C!-- Left margin: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='290' x2='8' y2='560'/%3E%3Cline x1='4' y1='290' x2='12' y2='290'/%3E%3Cline x1='4' y1='340' x2='12' y2='340'/%3E%3Cline x1='4' y1='390' x2='12' y2='390'/%3E%3Cline x1='4' y1='440' x2='12' y2='440'/%3E%3Cline x1='4' y1='490' x2='12' y2='490'/%3E%3Cline x1='4' y1='540' x2='12' y2='540'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='315' x2='10' y2='315'/%3E%3Cline x1='6' y1='365' x2='10' y2='365'/%3E%3Cline x1='6' y1='415' x2='10' y2='415'/%3E%3Cline x1='6' y1='465' x2='10' y2='465'/%3E%3Cline x1='6' y1='515' x2='10' y2='515'/%3E%3C/g%3E%3C!-- Left margin: CSV data table --%3E%3Crect x='18' y='300' width='122' height='90' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='18' y1='316' x2='140' y2='316' stroke-width='1' opacity='0.14'/%3E%3Cline x1='18' y1='330' x2='140' y2='330' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='18' y1='344' x2='140' y2='344' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='18' y1='358' x2='140' y2='358' stroke-width='0.8' opacity='0.07'/%3E%3Cline x1='18' y1='372' x2='140' y2='372' stroke-width='0.8' opacity='0.06'/%3E%3Ctext x='24' y='312' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.2'%3Etimestamp,temp,hum%3C/text%3E%3Ctext x='24' y='326' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.16'%3E08:00,22.1,58%3C/text%3E%3Ctext x='24' y='340' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3E08:10,22.4,60%3C/text%3E%3Ctext x='24' y='354' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3E08:20,23.0,61%3C/text%3E%3Ctext x='24' y='368' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.1'%3E08:30,23.8,63%3C/text%3E%3Ctext x='24' y='382' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.08'%3E08:40,24.1,65%3C/text%3E%3C!-- Left margin: photoresistor voltage divider symbol --%3E%3Cline x1='70' y1='430' x2='70' y2='460' stroke-width='1.5' opacity='0.16'/%3E%3Crect x='58' y='460' width='24' height='34' rx='2' stroke-width='1.5' opacity='0.18' fill='%23a78bfa' fill-opacity='0.04'/%3E%3Cline x1='70' y1='494' x2='70' y2='520' stroke-width='1.5' opacity='0.14'/%3E%3Crect x='58' y='520' width='24' height='28' rx='2' stroke-width='1.2' opacity='0.14' fill='%23a78bfa' fill-opacity='0.04'/%3E%3Ctext x='86' y='478' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.16'%3EPHR%3C/text%3E%3Ctext x='86' y='536' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3E10K%3C/text%3E%3Cline x1='70' y1='548' x2='70' y2='560' stroke-width='1.5' opacity='0.12'/%3E%3Ctext x='34' y='576' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3EVOLTAGE DIVIDER%3C/text%3E%3C!-- Left margin: circuit traces --%3E%3Cpath d='M5 610 L40 610 L40 590 L80 590 L80 610 L120 610' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3Ccircle cx='40' cy='590' r='3' fill='%23a78bfa' stroke='none' opacity='0.16'/%3E%3Ccircle cx='80' cy='590' r='3' fill='%23a78bfa' stroke='none' opacity='0.16'/%3E%3C!-- ═══ RIGHT MARGIN: Data flow arrows diagram ═══ --%3E%3Crect x='868' y='30' width='120' height='38' rx='2' stroke-width='1.5' opacity='0.18' fill='%23a78bfa' fill-opacity='0.02'/%3E%3Ctext x='888' y='54' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.2'%3EDHT11 SENSOR%3C/text%3E%3Cline x1='928' y1='68' x2='928' y2='86' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='924,82 928,92 932,82' fill='%23a78bfa' stroke='none' opacity='0.16'/%3E%3Crect x='868' y='92' width='120' height='38' rx='2' stroke-width='1.5' opacity='0.16' fill='%23a78bfa' fill-opacity='0.02'/%3E%3Ctext x='880' y='116' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.18'%3EARDUINO MEGA%3C/text%3E%3Cline x1='928' y1='130' x2='928' y2='148' stroke-width='1.5' opacity='0.14'/%3E%3Cpolygon points='924,144 928,154 932,144' fill='%23a78bfa' stroke='none' opacity='0.14'/%3E%3Crect x='868' y='154' width='120' height='38' rx='2' stroke-width='1.5' opacity='0.14' fill='%23a78bfa' fill-opacity='0.02'/%3E%3Ctext x='886' y='178' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.16'%3ESD CARD LOG%3C/text%3E%3Ctext x='876' y='204' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3EDATAFLOW PIPELINE%3C/text%3E%3C!-- Right margin: line graph (temperature over time) --%3E%3Crect x='862' y='230' width='130' height='90' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='874' y='248' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.2'%3ETEMP CHART%3C/text%3E%3Cline x1='862' y1='254' x2='992' y2='254' stroke-width='1' opacity='0.12'/%3E%3Cpath d='M870 306 L882 300 L894 308 L906 296 L918 302 L930 294 L942 300 L954 290 L966 298 L978 292 L990 286' stroke-width='1.5' opacity='0.2' fill='none'/%3E%3Cpath d='M870 316 L882 314 L894 315 L906 312 L918 313 L930 310 L942 312 L954 308 L966 310 L978 307 L990 306' stroke-width='1' opacity='0.1' fill='none' stroke-dasharray='3 4'/%3E%3Cline x1='870' y1='316' x2='990' y2='316' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='868' y='328' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3Et  h  l (3 series)%3C/text%3E%3C!-- Right margin: file icon --%3E%3Crect x='882' y='360' width='70' height='86' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='934,360 952,360 952,378 934,378' stroke-width='1' opacity='0.12' fill='%23a78bfa' fill-opacity='0.04'/%3E%3Cline x1='894' y1='396' x2='938' y2='396' stroke-width='1' opacity='0.14'/%3E%3Cline x1='894' y1='408' x2='930' y2='408' stroke-width='1' opacity='0.12'/%3E%3Cline x1='894' y1='420' x2='934' y2='420' stroke-width='1' opacity='0.1'/%3E%3Cline x1='894' y1='432' x2='926' y2='432' stroke-width='1' opacity='0.08'/%3E%3Ctext x='876' y='462' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3ELOG_2026-03-05.csv%3C/text%3E%3C!-- Right margin: matplotlib bar stats --%3E%3Crect x='862' y='480' width='130' height='80' rx='2' stroke-width='1.5' opacity='0.12'/%3E%3Ctext x='874' y='498' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.18'%3EMATPLOTLIB%3C/text%3E%3Cline x1='862' y1='504' x2='992' y2='504' stroke-width='1' opacity='0.1'/%3E%3Crect x='872' y='510' width='12' height='36' rx='1' stroke-width='1' opacity='0.16' fill='%23a78bfa' fill-opacity='0.06'/%3E%3Crect x='890' y='520' width='12' height='26' rx='1' stroke-width='1' opacity='0.14' fill='%23a78bfa' fill-opacity='0.05'/%3E%3Crect x='908' y='514' width='12' height='32' rx='1' stroke-width='1' opacity='0.12' fill='%23a78bfa' fill-opacity='0.04'/%3E%3Crect x='926' y='522' width='12' height='24' rx='1' stroke-width='1' opacity='0.1' fill='%23a78bfa' fill-opacity='0.04'/%3E%3Crect x='944' y='508' width='12' height='38' rx='1' stroke-width='1' opacity='0.1' fill='%23a78bfa' fill-opacity='0.04'/%3E%3Crect x='962' y='516' width='12' height='30' rx='1' stroke-width='1' opacity='0.09' fill='%23a78bfa' fill-opacity='0.03'/%3E%3Cline x1='866' y1='548' x2='980' y2='548' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='868' y='558' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.1'%3Ereadings over session%3C/text%3E%3C!-- Right margin: SPI bus label --%3E%3Crect x='862' y='580' width='130' height='70' rx='2' stroke-width='1.5' opacity='0.12'/%3E%3Ctext x='876' y='598' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.18'%3ESPI BUS%3C/text%3E%3Cline x1='862' y1='604' x2='992' y2='604' stroke-width='1' opacity='0.1'/%3E%3Ctext x='870' y='618' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3EMOSI → PIN 51%3C/text%3E%3Ctext x='870' y='630' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3EMISO → PIN 50%3C/text%3E%3Ctext x='870' y='642' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.1'%3ESCK  → PIN 52%3C/text%3E%3Ctext x='870' y='644' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.08'%3ECS   → PIN 10%3C/text%3E%3C!-- Right margin: vertical dashed line --%3E%3Cline x1='858' y1='200' x2='858' y2='580' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- ═══ CENTER: Data pipeline flow diagram ═══ --%3E%3Crect x='270' y='80' width='90' height='40' rx='3' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='286' y='105' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.2'%3EDHT11%3C/text%3E%3Cline x1='360' y1='100' x2='390' y2='100' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='386,96 394,100 386,104' fill='%23a78bfa' stroke='none' opacity='0.16'/%3E%3Crect x='390' y='80' width='100' height='40' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='406' y='105' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.18'%3EARDUINO%3C/text%3E%3Cline x1='490' y1='100' x2='520' y2='100' stroke-width='1.5' opacity='0.14'/%3E%3Cpolygon points='516,96 524,100 516,104' fill='%23a78bfa' stroke='none' opacity='0.14'/%3E%3Crect x='520' y='80' width='90' height='40' rx='3' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='536' y='105' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.16'%3ESD CARD%3C/text%3E%3Cline x1='610' y1='100' x2='640' y2='100' stroke-width='1.5' opacity='0.12'/%3E%3Cpolygon points='636,96 644,100 636,104' fill='%23a78bfa' stroke='none' opacity='0.12'/%3E%3Crect x='640' y='80' width='90' height='40' rx='3' stroke-width='1.5' opacity='0.12'/%3E%3Ctext x='656' y='105' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.14'%3EPYTHON%3C/text%3E%3C!-- Center: RTC timestamp flow annotation --%3E%3Ctext x='370' y='74' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.12' transform='rotate(-8 370 74)'%3ERTC timestamp%3C/text%3E%3C!-- Center: temperature line graph (large) --%3E%3Crect x='300' y='200' width='400' height='160' rx='3' stroke-width='2' opacity='0.16'/%3E%3Cline x1='300' y1='220' x2='700' y2='220' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='440' y='214' font-family='monospace' font-size='10' fill='%23a78bfa' stroke='none' opacity='0.2'%3ESESSION LOG — TEMP%3C/text%3E%3Cpath d='M310 330 L340 320 L370 328 L400 310 L430 316 L460 304 L490 312 L520 298 L550 308 L580 294 L610 300 L640 288 L670 296 L690 290' stroke-width='2' opacity='0.2' fill='none'/%3E%3Cpath d='M310 350 L340 348 L370 352 L400 346 L430 350 L460 344 L490 348 L520 342 L550 346 L580 340 L610 344 L640 338 L670 342 L690 338' stroke-width='1.2' opacity='0.12' fill='none' stroke-dasharray='4 4'/%3E%3Cline x1='310' y1='355' x2='690' y2='355' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='308' y='370' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3E00:00%3C/text%3E%3Ctext x='488' y='370' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.1'%3E30:00%3C/text%3E%3Ctext x='672' y='370' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.08'%3E60:00%3C/text%3E%3C!-- Center: photoresistor symbol in center --%3E%3Ccircle cx='400' cy='460' r='24' stroke-width='1.5' opacity='0.16'/%3E%3Crect x='390' y='448' width='20' height='24' rx='2' stroke-width='1.2' opacity='0.14' fill='%23a78bfa' fill-opacity='0.03'/%3E%3Cline x1='404' y1='454' x2='410' y2='448' stroke-width='1' opacity='0.14'/%3E%3Cline x1='410' y1='458' x2='416' y2='452' stroke-width='1' opacity='0.12'/%3E%3Ctext x='382' y='494' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.14'%3EPHOTO%3C/text%3E%3C!-- Center: compass arc --%3E%3Cpath d='M160 260 A90 90 0 0 1 340 260' stroke-width='2' opacity='0.18'/%3E%3Cpath d='M174 260 A76 76 0 0 1 326 260' stroke-width='1.2' opacity='0.12' stroke-dasharray='6 4'/%3E%3Ccircle cx='250' cy='260' r='5' fill='%23a78bfa' stroke='none' opacity='0.22'/%3E%3Cline x1='250' y1='260' x2='250' y2='180' stroke-width='1' opacity='0.12' stroke-dasharray='3 5'/%3E%3Cg stroke-width='1' opacity='0.12'%3E%3Cline x1='200' y1='186' x2='204' y2='196'/%3E%3Cline x1='250' y1='172' x2='250' y2='182'/%3E%3Cline x1='300' y1='186' x2='296' y2='196'/%3E%3C/g%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='560' y1='500' x2='580' y2='500'/%3E%3Cline x1='570' y1='490' x2='570' y2='510'/%3E%3Ccircle cx='570' cy='500' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='700' y1='200' x2='720' y2='200'/%3E%3Cline x1='710' y1='190' x2='710' y2='210'/%3E%3Ccircle cx='710' cy='200' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.14' stroke-width='1.5'%3E%3Cline x1='160' y1='480' x2='180' y2='480'/%3E%3Cline x1='170' y1='470' x2='170' y2='490'/%3E%3Ccircle cx='170' cy='480' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3Cline x1='0' y1='750' x2='300' y2='600' stroke-width='1' opacity='0.05' stroke-dasharray='12 8'/%3E%3Cline x1='750' y1='700' x2='1000' y2='780' stroke-width='1' opacity='0.05' stroke-dasharray='6 12'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M780 640 A120 120 0 0 1 960 640' stroke-width='2' opacity='0.14'/%3E%3Cpath d='M800 640 A100 100 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cpath d='M820 640 A80 80 0 0 1 920 640' stroke-width='1' opacity='0.06' stroke-dasharray='4 3'/%3E%3Cline x1='870' y1='640' x2='870' y2='530' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Ctext x='855' y='525' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.1'%3E90%C2%B0%3C/text%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='800' y1='570' x2='806' y2='576'/%3E%3Cline x1='830' y1='545' x2='834' y2='553'/%3E%3Cline x1='910' y1='545' x2='906' y2='553'/%3E%3Cline x1='940' y1='570' x2='934' y2='576'/%3E%3C/g%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3C!-- Ruler top edge --%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='40' y='240' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.12' transform='rotate(-12 40 240)'%3Einterval: 10s%3C/text%3E%3Ctext x='560' y='550' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.1'%3ESD.open(filename)%3C/text%3E%3Ctext x='280' y='560' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.08' transform='rotate(5 280 560)'%3Edht.readTemperature()%3C/text%3E%3Ctext x='660' y='500' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.1' transform='rotate(-3 660 500)'%3Ertc.getDateStr()%3C/text%3E%3Ctext x='160' y='600' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.08' transform='rotate(8 160 600)'%3Eplt.savefig()%3C/text%3E%3Ctext x='480' y='580' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.07'%3Efile.println(row)%3C/text%3E%3Ctext x='220' y='500' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.09' transform='rotate(-5 220 500)'%3EanalogRead(A0)%3C/text%3E%3C!-- ═══ DIAMOND MARKERS at corners ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%23a78bfa' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%23a78bfa' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%23a78bfa' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%23a78bfa' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(167, 139, 250, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #a78bfa;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(167, 139, 250, 0.06);
+        }
+
+        /* Classified stamp */
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Fold line */
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(167, 139, 250, 0.25) 0%,
+                rgba(167, 139, 250, 0.12) 60%,
+                rgba(167, 139, 250, 0.06) 100%);
+            border: 3px solid rgba(167, 139, 250, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(167, 139, 250, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Convex sheen — pin button highlight */
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #a78bfa;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        /* Subject line */
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        /* Classification badges */
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #a78bfa;
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(167, 139, 250, 0.08);
+            border-left: 3px solid rgba(167, 139, 250, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        /* Paper clip decoration */
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        /* Tape strip decoration */
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        /* Section stamp label */
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #a78bfa;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #a78bfa;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #a78bfa;
+            background: rgba(167, 139, 250, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites (form style) ────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        /* Checkbox style bullet */
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(167, 139, 250, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(167, 139, 250, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(167, 139, 250, 0.02);
+            border: 1px solid rgba(167, 139, 250, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(167, 139, 250, 0.25);
+            background: rgba(167, 139, 250, 0.04);
+            box-shadow: 0 0 20px rgba(167, 139, 250, 0.06);
+        }
+
+        /* Evidence marker number */
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        /* Pin/thumbtack decoration */
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #a78bfa;
+            background: rgba(167, 139, 250, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest (tools) ────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(167, 139, 250, 0.04);
+            border: 1px solid rgba(167, 139, 250, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(167, 139, 250, 0.08);
+            border-color: rgba(167, 139, 250, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #a78bfa;
+        }
+
+        /* ── Debrief (what you'll learn) ───────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        /* Arrow marker */
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #a78bfa;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(167, 139, 250, 0.3) 0%,
+                rgba(167, 139, 250, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Training cards ───────────────────────────────── */
+        .cf-training-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .cf-training-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .cf-training-card:hover {
+            border-color: #a78bfa;
+            transform: translateY(-2px);
+        }
+        .cf-training-card .tc-district {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #a78bfa;
+            opacity: 0.8;
+        }
+        .cf-training-card .tc-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .cf-training-card .tc-type {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">SC-DL-003</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">SC-DL-003</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-05</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-scroll.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Script House</span>
+                    <span class="cf-house-domain">Scripting &amp; Automation Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build an Arduino Data Logger</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Beginner</span>
+                <span class="cf-badge cf-badge-time">60 min</span>
+                <span class="cf-badge cf-badge-xp">250 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation builds a standalone data acquisition system that reads sensor values at regular intervals, timestamps each reading with a real-time clock, and writes structured CSV data to an SD card &mdash; a self-contained logger that runs unattended and produces analysis-ready datasets. The Arduino Mega collects temperature and humidity from a DHT11 sensor and light level from a photoresistor, pairs each reading with an accurate timestamp from the DS1302 RTC module, formats everything as comma-separated values with proper headers, and writes the rows to a microSD card via the SPI-connected SD card module.
+                </p>
+                <p>
+                    When you pull the card and open the file, the data is immediately ready for analysis in Excel, Python, or any tool that reads CSV. You will wire an RTC module for real timestamps, configure the SD card module for file I/O, combine multiple sensor inputs into structured records, implement configurable logging intervals and file rotation, and build a Python companion script that reads the SD card data and renders charts with matplotlib.
+                </p>
+                <p>
+                    This is the foundational pattern behind every SCADA historian, weather station, and IoT fleet data pipeline &mdash; automated data collection on constrained hardware.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>ELEGOO Mega R3 Ultimate Starter Kit (includes DHT11, photoresistor, SD card module)</li>
+                <li>A DS1302 or DS3231 RTC module (often included in kits)</li>
+                <li>A microSD card (formatted FAT32) and adapter</li>
+                <li>Arduino IDE and Python 3 with matplotlib installed</li>
+                <li>No prior SD card or RTC experience required &mdash; the project teaches both from scratch</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">SD Card Module Wiring &amp; File Write Test</div>
+                        <div class="cf-evidence-desc">
+                            Connect the SD card module to the Arduino Mega via SPI (MOSI/MISO/SCK/CS). Install or use the built-in <code>SD</code> library. Initialize the card, create a test file, write a string to it, close the file, then read it back and print to serial. Verify the file appears when you insert the card into your computer.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">RTC Module Setup for Real Timestamps</div>
+                        <div class="cf-evidence-desc">
+                            Wire the DS1302 (or DS3231) RTC module to the Arduino. Install the appropriate library, set the current date and time, and read it back. Print formatted timestamps (<code>YYYY-MM-DD HH:MM:SS</code>) to serial. Verify the clock maintains time even when the Arduino is powered off and back on.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">DHT11 &amp; Photoresistor Sensor Readings</div>
+                        <div class="cf-evidence-desc">
+                            Wire the DHT11 and a photoresistor (with voltage divider). Read temperature (&deg;C), humidity (%), and light level (0&ndash;1023 raw, mapped to 0&ndash;100%). Print all three values to serial in a clean tabular format. Verify readings change when you manipulate the environment (warm the sensor, cover the photoresistor).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">CSV Format Logging with Headers</div>
+                        <div class="cf-evidence-desc">
+                            Create a new CSV file on the SD card named with the current date (e.g., <code>LOG_2026-03-05.csv</code>). Write a header row: <code>timestamp,temp_c,humidity_pct,light_pct</code>. Every N seconds (configurable, default 10), read all sensors, get the RTC timestamp, format a CSV row, and append it to the file. Add a counter showing total rows written on serial.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Python Data Visualization Script</div>
+                        <div class="cf-evidence-desc">
+                            Write a Python script that reads the CSV file from the SD card, parses the timestamp column with <code>datetime</code>, and generates three matplotlib charts: temperature over time (line), humidity over time (line), and light level over time (area). Save the charts as PNG files and display a summary: total readings, duration, min/max/average for each sensor.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Arduino Mega 2560</div>
+                <div class="cf-manifest-item">SD Card Module + microSD</div>
+                <div class="cf-manifest-item">DS1302 RTC Module</div>
+                <div class="cf-manifest-item">DHT11 Sensor</div>
+                <div class="cf-manifest-item">Photoresistor</div>
+                <div class="cf-manifest-item">10K Resistor</div>
+                <div class="cf-manifest-item">Python 3 / matplotlib</div>
+                <div class="cf-manifest-item">Breadboard &amp; Jumper Wires</div>
+                <div class="cf-manifest-item">Arduino IDE</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>SPI-based SD card read/write operations</li>
+                <li>Real-time clock module configuration</li>
+                <li>Multi-sensor data acquisition</li>
+                <li>CSV file format design and writing</li>
+                <li>Date-stamped log file rotation</li>
+                <li>Configurable sampling intervals</li>
+                <li>Python CSV parsing and analysis</li>
+                <li>Data visualization with matplotlib</li>
+                <li>Building standalone data collection systems</li>
+                <li>Sensor data pipeline from hardware to charts</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Related Training ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../arctic/districts/shell-scripting/index.html" class="cf-training-card">
+                    <span class="tc-district">Shell Scripting</span>
+                    <span class="tc-title">File I/O Operations</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/sysadmin/index.html" class="cf-training-card">
+                    <span class="tc-district">System Administration</span>
+                    <span class="tc-title">Log Management</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/cli-fundamentals/index.html" class="cf-training-card">
+                    <span class="tc-district">CLI Fundamentals</span>
+                    <span class="tc-title">Working with Files</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/text-processing/index.html" class="cf-training-card">
+                    <span class="tc-district">Text Processing</span>
+                    <span class="tc-title">CSV Processing</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/shell-scripting/index.html" class="cf-training-card">
+                    <span class="tc-district">Shell Scripting</span>
+                    <span class="tc-title">Bash Variables &amp; Arguments</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/sysadmin/index.html" class="cf-training-card">
+                    <span class="tc-district">System Administration</span>
+                    <span class="tc-title">System Monitoring Tools</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

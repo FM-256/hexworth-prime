@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build a Pi Network Probe | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(96, 165, 250, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(96, 165, 250, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(96, 165, 250, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(96, 165, 250, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(96, 165, 250, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — SVG overlay */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2360a5fa'%3E%3C!-- ═══ LEFT MARGIN: Network topology diagram ═══ --%3E%3C!-- Router --%3E%3Crect x='40' y='38' width='80' height='36' rx='3' stroke-width='1.8' opacity='0.18' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='55' y='60' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.22'%3EROUTER%3C/text%3E%3Cline x1='80' y1='74' x2='80' y2='96' stroke-width='1.2' opacity='0.16'/%3E%3C!-- Switch --%3E%3Crect x='48' y='96' width='64' height='28' rx='2' stroke-width='1.5' opacity='0.16' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='58' y='114' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.18'%3ESWITCH%3C/text%3E%3C!-- Hosts branching from switch --%3E%3Cline x1='60' y1='124' x2='30' y2='155' stroke-width='1' opacity='0.14'/%3E%3Cline x1='80' y1='124' x2='80' y2='155' stroke-width='1' opacity='0.14'/%3E%3Cline x1='100' y1='124' x2='130' y2='155' stroke-width='1' opacity='0.14'/%3E%3Crect x='16' y='155' width='36' height='24' rx='2' stroke-width='1.2' opacity='0.14' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Crect x='62' y='155' width='36' height='24' rx='2' stroke-width='1.2' opacity='0.14' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Crect x='112' y='155' width='36' height='24' rx='2' stroke-width='1.2' opacity='0.12' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='22' y='171' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E.101%3C/text%3E%3Ctext x='68' y='171' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E.102%3C/text%3E%3Ctext x='116' y='171' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E.103%3C/text%3E%3C!-- Pi probe node --%3E%3Ccircle cx='80' cy='215' r='14' stroke-width='1.8' opacity='0.2' fill='%2360a5fa' fill-opacity='0.06'/%3E%3Ctext x='70' y='219' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.2'%3EPROBE%3C/text%3E%3Cline x1='80' y1='179' x2='80' y2='201' stroke-width='1' opacity='0.12' stroke-dasharray='4 3'/%3E%3C!-- Left margin: ping waveform --%3E%3Ctext x='18' y='258' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.18'%3EPING SWEEP%3C/text%3E%3Cpath d='M18 278 L28 278 L28 258 L32 258 L32 278 L55 278 L55 265 L59 265 L59 278 L82 278 L82 262 L86 262 L86 278 L110 278 L110 270 L114 270 L114 278 L140 278' stroke-width='1.5' opacity='0.18' fill='none'/%3E%3Cline x1='18' y1='280' x2='142' y2='280' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='18' y='294' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E192.168.1.0/24%3C/text%3E%3C!-- Left margin: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='320' x2='8' y2='580'/%3E%3Cline x1='4' y1='320' x2='12' y2='320'/%3E%3Cline x1='4' y1='370' x2='12' y2='370'/%3E%3Cline x1='4' y1='420' x2='12' y2='420'/%3E%3Cline x1='4' y1='470' x2='12' y2='470'/%3E%3Cline x1='4' y1='520' x2='12' y2='520'/%3E%3Cline x1='4' y1='570' x2='12' y2='570'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='345' x2='10' y2='345'/%3E%3Cline x1='6' y1='395' x2='10' y2='395'/%3E%3Cline x1='6' y1='445' x2='10' y2='445'/%3E%3Cline x1='6' y1='495' x2='10' y2='495'/%3E%3Cline x1='6' y1='545' x2='10' y2='545'/%3E%3C/g%3E%3C!-- Left margin: uptime bar chart --%3E%3Ctext x='22' y='338' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.18'%3EUPTIME%3C/text%3E%3Crect x='22' y='346' width='110' height='12' rx='1' stroke-width='1' opacity='0.14' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Crect x='22' y='346' width='105' height='12' rx='1' stroke='none' fill='%2360a5fa' fill-opacity='0.12'/%3E%3Ctext x='136' y='357' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E99%25%3C/text%3E%3Crect x='22' y='364' width='110' height='12' rx='1' stroke-width='1' opacity='0.12' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Crect x='22' y='364' width='88' height='12' rx='1' stroke='none' fill='%2360a5fa' fill-opacity='0.1'/%3E%3Ctext x='136' y='375' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E80%25%3C/text%3E%3Crect x='22' y='382' width='110' height='12' rx='1' stroke-width='1' opacity='0.1' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Crect x='22' y='382' width='44' height='12' rx='1' stroke='none' fill='%2360a5fa' fill-opacity='0.08'/%3E%3Ctext x='136' y='393' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E40%25%3C/text%3E%3C!-- Left margin: IP table --%3E%3Crect x='14' y='420' width='138' height='100' rx='2' stroke-width='1.4' opacity='0.14'/%3E%3Ctext x='20' y='436' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.2'%3EHOST TABLE%3C/text%3E%3Cline x1='14' y1='442' x2='152' y2='442' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='20' y='456' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.16'%3E.101 UP :22,80%3C/text%3E%3Ctext x='20' y='470' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E.102 UP :80,443%3C/text%3E%3Ctext x='20' y='484' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E.103 DOWN%3C/text%3E%3Ctext x='20' y='498' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E.104 UP :3306%3C/text%3E%3Ctext x='20' y='512' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.09'%3E.105 UP :8080%3C/text%3E%3C!-- Left margin: circuit traces --%3E%3Cpath d='M5 570 L35 570 L35 548 L72 548 L72 570 L112 570' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3Cpath d='M5 595 L22 595 L22 610 L55 610 L55 595 L85 595 L85 612 L118 612' stroke-width='1' opacity='0.1' fill='none'/%3E%3Ccircle cx='35' cy='548' r='3' fill='%2360a5fa' stroke='none' opacity='0.16'/%3E%3Ccircle cx='72' cy='548' r='3' fill='%2360a5fa' stroke='none' opacity='0.16'/%3E%3Ccircle cx='22' cy='610' r='3' fill='%2360a5fa' stroke='none' opacity='0.12'/%3E%3Ccircle cx='55' cy='610' r='3' fill='%2360a5fa' stroke='none' opacity='0.12'/%3E%3Ccircle cx='85' cy='595' r='3' fill='%2360a5fa' stroke='none' opacity='0.1'/%3E%3C!-- ═══ RIGHT MARGIN: Flask route labels ═══ --%3E%3Crect x='882' y='35' width='112' height='140' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='892' y='52' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.22'%3EFLASK ROUTES%3C/text%3E%3Cline x1='882' y1='58' x2='994' y2='58' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='890' y='74' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.18'%3EGET /%3C/text%3E%3Ctext x='898' y='88' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.16'%3EGET /hosts%3C/text%3E%3Ctext x='898' y='102' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3EGET /status%3C/text%3E%3Ctext x='898' y='116' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.13'%3EGET /history%3C/text%3E%3Ctext x='898' y='130' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.11'%3EPOST /scan%3C/text%3E%3Ctext x='898' y='144' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3EGET /alerts%3C/text%3E%3Ctext x='898' y='158' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.09'%3EGET /api/hosts%3C/text%3E%3Ctext x='898' y='172' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.08'%3EGET /health%3C/text%3E%3C!-- Right margin: SQLite table diagram --%3E%3Crect x='876' y='200' width='118' height='120' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='892' y='218' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.2'%3ESQLite SCHEMA%3C/text%3E%3Cline x1='876' y1='224' x2='994' y2='224' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='884' y='238' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.16'%3Ehosts%3C/text%3E%3Ctext x='890' y='252' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E+-- ip TEXT%3C/text%3E%3Ctext x='890' y='264' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.13'%3E+-- mac TEXT%3C/text%3E%3Ctext x='890' y='276' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E+-- hostname%3C/text%3E%3Ctext x='884' y='292' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.14'%3Echecks%3C/text%3E%3Ctext x='890' y='306' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E+-- ts INTEGER%3C/text%3E%3Ctext x='890' y='318' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E+-- status TEXT%3C/text%3E%3C!-- Right margin: port check status grid --%3E%3Crect x='880' y='355' width='112' height='110' rx='2' stroke-width='1.4' opacity='0.14'/%3E%3Ctext x='892' y='372' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.18'%3EPORT CHECKS%3C/text%3E%3Cline x1='880' y1='378' x2='992' y2='378' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='888' y='394' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.16'%3E:22  SSH   OPEN%3C/text%3E%3Ctext x='888' y='408' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E:80  HTTP  OPEN%3C/text%3E%3Ctext x='888' y='422' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E:443 HTTPS OPEN%3C/text%3E%3Ctext x='888' y='436' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.11'%3E:53  DNS   OPEN%3C/text%3E%3Ctext x='888' y='450' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E:8080 HTTP CLSD%3C/text%3E%3C!-- Right margin: load avg waveform --%3E%3Ctext x='882' y='490' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.16'%3ERESPONSE MS%3C/text%3E%3Cpath d='M882 510 L896 500 L906 515 L916 498 L926 518 L936 502 L946 512 L956 496 L966 514 L976 504 L990 510' stroke-width='1.5' opacity='0.18' fill='none'/%3E%3Cline x1='882' y1='524' x2='990' y2='524' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='882' y='536' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E0ms ─────── 50ms%3C/text%3E%3C!-- Right margin: hex addresses --%3E%3Ctext x='886' y='575' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.16'%3Esocket.connect()%3C/text%3E%3Ctext x='886' y='589' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.14'%3Esocket.timeout%3C/text%3E%3Ctext x='886' y='603' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.12'%3EICMP echo%3C/text%3E%3Ctext x='886' y='617' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.1'%3EARP table%3C/text%3E%3Ctext x='886' y='631' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.08'%3Enmap -sP%3C/text%3E%3C!-- Right margin: vertical dashed line --%3E%3Cline x1='874' y1='200' x2='874' y2='660' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- ═══ CENTER: Network topology + Flask dashboard wireframe ═══ --%3E%3C!-- Central switch node --%3E%3Crect x='430' y='95' width='140' height='50' rx='3' stroke-width='2' opacity='0.18'/%3E%3Ctext x='454' y='125' font-family='monospace' font-size='11' fill='%2360a5fa' stroke='none' opacity='0.2'%3ENETWORK PROBE%3C/text%3E%3C!-- Hosts radiating out --%3E%3Ccircle cx='340' cy='200' r='20' stroke-width='1.8' opacity='0.16'/%3E%3Ccircle cx='430' cy='220' r='18' stroke-width='1.5' opacity='0.14'/%3E%3Ccircle cx='520' cy='200' r='20' stroke-width='1.8' opacity='0.16'/%3E%3Ccircle cx='600' cy='220' r='18' stroke-width='1.5' opacity='0.14'/%3E%3Ccircle cx='680' cy='200' r='16' stroke-width='1.5' opacity='0.13'/%3E%3Ccircle cx='500' cy='145' r='16' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='430' y1='120' x2='360' y2='186' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='455' y1='120' x2='434' y2='204' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='500' y1='120' x2='500' y2='131' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='545' y1='120' x2='522' y2='185' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='560' y1='112' x2='595' y2='208' stroke-width='1.2' opacity='0.12'/%3E%3Cline x1='570' y1='108' x2='672' y2='190' stroke-width='1.2' opacity='0.11'/%3E%3Ctext x='326' y='204' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.16'%3E.101%3C/text%3E%3Ctext x='420' y='224' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.14'%3E.102%3C/text%3E%3Ctext x='508' y='204' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.14'%3E.103%3C/text%3E%3Ctext x='588' y='225' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.12'%3E.104%3C/text%3E%3Ctext x='668' y='204' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.11'%3E.105%3C/text%3E%3Ctext x='488' y='148' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.14'%3E.100%3C/text%3E%3C!-- Flask dashboard wireframe --%3E%3Crect x='380' y='310' width='260' height='180' rx='3' stroke-width='2' opacity='0.18'/%3E%3Cline x1='380' y1='332' x2='640' y2='332' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='448' y='325' font-family='monospace' font-size='10' fill='%2360a5fa' stroke='none' opacity='0.2'%3EDASHBOARD%3C/text%3E%3Cline x1='500' y1='332' x2='500' y2='490' stroke-width='1' opacity='0.1'/%3E%3Cline x1='380' y1='410' x2='640' y2='410' stroke-width='1' opacity='0.1'/%3E%3Ctext x='408' y='360' font-family='monospace' font-size='10' fill='%2360a5fa' stroke='none' opacity='0.18'%3EHOSTS%3C/text%3E%3Ctext x='525' y='360' font-family='monospace' font-size='10' fill='%2360a5fa' stroke='none' opacity='0.16'%3EPORTS%3C/text%3E%3Ctext x='405' y='450' font-family='monospace' font-size='10' fill='%2360a5fa' stroke='none' opacity='0.14'%3EUPTIME%3C/text%3E%3Ctext x='520' y='450' font-family='monospace' font-size='10' fill='%2360a5fa' stroke='none' opacity='0.12'%3EALERTS%3C/text%3E%3C!-- Uptime bars in dashboard --%3E%3Crect x='394' y='372' width='90' height='14' rx='1' stroke-width='1' opacity='0.12' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Crect x='394' y='372' width='86' height='14' rx='1' stroke='none' fill='%2360a5fa' fill-opacity='0.1'/%3E%3Crect x='394' y='390' width='90' height='14' rx='1' stroke-width='1' opacity='0.1' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Crect x='394' y='390' width='68' height='14' rx='1' stroke='none' fill='%2360a5fa' fill-opacity='0.08'/%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='290' y1='460' x2='310' y2='460'/%3E%3Cline x1='300' y1='450' x2='300' y2='470'/%3E%3Ccircle cx='300' cy='460' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='730' y1='320' x2='750' y2='320'/%3E%3Cline x1='740' y1='310' x2='740' y2='330'/%3E%3Ccircle cx='740' cy='320' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.14' stroke-width='1.5'%3E%3Cline x1='150' y1='500' x2='170' y2='500'/%3E%3Cline x1='160' y1='490' x2='160' y2='510'/%3E%3Ccircle cx='160' cy='500' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3Cline x1='0' y1='750' x2='300' y2='600' stroke-width='1' opacity='0.05' stroke-dasharray='12 8'/%3E%3Cline x1='750' y1='700' x2='1000' y2='780' stroke-width='1' opacity='0.05' stroke-dasharray='6 12'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M780 640 A120 120 0 0 1 960 640' stroke-width='2' opacity='0.14'/%3E%3Cpath d='M800 640 A100 100 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cpath d='M820 640 A80 80 0 0 1 920 640' stroke-width='1' opacity='0.06' stroke-dasharray='4 3'/%3E%3Cline x1='870' y1='640' x2='870' y2='530' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Ctext x='855' y='525' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.1'%3E90%C2%B0%3C/text%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='800' y1='570' x2='806' y2='576'/%3E%3Cline x1='830' y1='545' x2='834' y2='553'/%3E%3Cline x1='910' y1='545' x2='906' y2='553'/%3E%3Cline x1='940' y1='570' x2='934' y2='576'/%3E%3C/g%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3C!-- Ruler top edge --%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='40' y='240' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.12' transform='rotate(-12 40 240)'%3Esubnet scan%3C/text%3E%3Ctext x='580' y='530' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.1'%3Epy nmap -sP%3C/text%3E%3Ctext x='300' y='380' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.08' transform='rotate(5 300 380)'%3Esocket.connect%3C/text%3E%3Ctext x='660' y='550' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.1' transform='rotate(-3 660 550)'%3Eflask run --host%3C/text%3E%3Ctext x='145' y='660' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.08' transform='rotate(8 145 660)'%3Esetinterval(scan, 60)%3C/text%3E%3Ctext x='480' y='575' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.07'%3ECIDR: 192.168.1.0/24%3C/text%3E%3Ctext x='200' y='555' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.09' transform='rotate(-5 200 555)'%3Esqlite3.connect()%3C/text%3E%3Ctext x='440' y='320' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.08'%3Eimport nmap%3C/text%3E%3C!-- ═══ DIAMOND MARKERS at corners ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2360a5fa' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2360a5fa' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2360a5fa' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%2360a5fa' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #60a5fa;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #111827 0%, #0f1623 100%);
+            border: 1px solid rgba(96, 165, 250, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(96, 165, 250, 0.06);
+        }
+
+        /* Classified stamp */
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Fold line */
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(96, 165, 250, 0.25) 0%,
+                rgba(96, 165, 250, 0.12) 60%,
+                rgba(96, 165, 250, 0.06) 100%);
+            border: 3px solid rgba(96, 165, 250, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(96, 165, 250, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #60a5fa;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        /* Subject line */
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        /* Classification badges */
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        /* Journeyman difficulty */
+        .cf-badge-diff {
+            color: #facc15;
+            background: rgba(250, 204, 21, 0.1);
+            border: 1px solid rgba(250, 204, 21, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #111827 0%, #0f1622 100%);
+            border: 1px solid rgba(96, 165, 250, 0.08);
+            border-left: 3px solid rgba(96, 165, 250, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        /* Paper clip decoration */
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        /* Tape strip decoration */
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        /* Section stamp label */
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #60a5fa;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #60a5fa;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites (form style) ────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        /* Checkbox style bullet */
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(96, 165, 250, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(96, 165, 250, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(96, 165, 250, 0.02);
+            border: 1px solid rgba(96, 165, 250, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(96, 165, 250, 0.25);
+            background: rgba(96, 165, 250, 0.04);
+            box-shadow: 0 0 20px rgba(96, 165, 250, 0.06);
+        }
+
+        /* Evidence marker number */
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        /* Pin/thumbtack decoration */
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest (tools) ────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(96, 165, 250, 0.04);
+            border: 1px solid rgba(96, 165, 250, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(96, 165, 250, 0.08);
+            border-color: rgba(96, 165, 250, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #60a5fa;
+        }
+
+        /* ── Debrief (what you'll learn) ───────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        /* Arrow marker */
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #60a5fa;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(96, 165, 250, 0.3) 0%,
+                rgba(96, 165, 250, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Training cards ───────────────────────────────── */
+        .cf-training-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .cf-training-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .cf-training-card:hover {
+            border-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+        .cf-training-card .tc-district {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #60a5fa;
+            opacity: 0.8;
+        }
+        .cf-training-card .tc-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .cf-training-card .tc-type {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">WH-PNP-002</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">WH-PNP-002</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-05</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-spiderweb.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Web House</span>
+                    <span class="cf-house-domain">Networking Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a Pi Network Probe</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">90 min</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation deploys a Raspberry Pi as a dedicated <strong>network monitoring station</strong> — a silent probe that continuously scans your local network, tracks which services are up or down, logs uptime history, and serves the results through a live web dashboard. The Pi sits plugged into your network and watches everything.
+                </p>
+                <p>
+                    Ping sweeps reveal new devices, port checks confirm critical services are reachable, and an SQLite database accumulates the history so you can spot patterns over time. You will build a Python-based network scanner using nmap and ICMP pings, a port availability checker for key services like SSH, HTTP, and DNS, an uptime logger backed by SQLite with timestamped records, a Flask web dashboard that renders live status with color-coded indicators, and an alert pipeline that flags services the moment they go down.
+                </p>
+                <p>
+                    This is the exact architecture behind commercial network monitoring tools like Nagios and Uptime Robot &mdash; built from scratch on a $35 computer.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>A Raspberry Pi 4B connected to your local network</li>
+                <li>Python 3 with pip installed on the Pi</li>
+                <li>Basic familiarity with Python (functions/loops/dictionaries)</li>
+                <li>Understanding of IP addresses and common ports (22/80/443)</li>
+                <li>No prior Flask or nmap experience required &mdash; the project covers both</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Network Discovery with Ping Sweep</div>
+                        <div class="cf-evidence-desc">
+                            Write a Python script that sweeps your local subnet (e.g., 192.168.1.0/24) using ICMP pings via <code>subprocess</code> or the <code>python-nmap</code> library. Collect responding IP addresses, MAC addresses where available, and response times into a structured list.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Port Availability Checker</div>
+                        <div class="cf-evidence-desc">
+                            Build a function that tests a list of critical ports (22, 80, 443, 3306, 8080) on each discovered host using Python's <code>socket</code> module with configurable timeouts. Record the state (open/closed/filtered) for each port on each host.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Uptime History Logger with SQLite</div>
+                        <div class="cf-evidence-desc">
+                            Create an SQLite database with tables for hosts and check results. Each scan cycle inserts timestamped rows recording host availability and port states. Add query functions to retrieve uptime percentage over the last 24 hours, 7 days, and 30 days.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Flask Web Dashboard with Live Status</div>
+                        <div class="cf-evidence-desc">
+                            Build a Flask application that serves an HTML dashboard showing all monitored hosts, their current status (up/down with color coding), open ports, last-seen timestamp, and uptime percentage bars. Add auto-refresh via JavaScript <code>setInterval</code> or Server-Sent Events.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Down-Service Alert System</div>
+                        <div class="cf-evidence-desc">
+                            Implement a monitoring loop that compares each scan against the previous state. When a previously-up service goes down, trigger an alert via terminal notification, log entry, and optional webhook POST. Include a configurable cooldown to prevent alert storms.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Raspberry Pi 4B</div>
+                <div class="cf-manifest-item">Python 3</div>
+                <div class="cf-manifest-item">Flask</div>
+                <div class="cf-manifest-item">python-nmap / nmap</div>
+                <div class="cf-manifest-item">SQLite3</div>
+                <div class="cf-manifest-item">HTML / CSS / JavaScript</div>
+                <div class="cf-manifest-item">socket module</div>
+                <div class="cf-manifest-item">subprocess</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Network scanning and host discovery techniques</li>
+                <li>Port checking with socket programming</li>
+                <li>SQLite database design and querying</li>
+                <li>Flask web application development</li>
+                <li>Real-time dashboard rendering</li>
+                <li>Service monitoring and alerting patterns</li>
+                <li>Subnet math and CIDR notation</li>
+                <li>Building network monitoring infrastructure</li>
+                <li>REST API design for status endpoints</li>
+                <li>Data visualization with HTML/CSS</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Related Training ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../arctic/districts/network-ops/index.html" class="cf-training-card">
+                    <span class="tc-district">Network Ops</span>
+                    <span class="tc-title">Network Scanning Fundamentals</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/cli-fundamentals/index.html" class="cf-training-card">
+                    <span class="tc-district">CLI Fundamentals</span>
+                    <span class="tc-title">Networking Commands</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/linux-admin/index.html" class="cf-training-card">
+                    <span class="tc-district">Linux Administration</span>
+                    <span class="tc-title">Chapter 10: Network Configuration</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/sysadmin/index.html" class="cf-training-card">
+                    <span class="tc-district">System Administration</span>
+                    <span class="tc-title">Service &amp; Daemon Control</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/shell-scripting/index.html" class="cf-training-card">
+                    <span class="tc-district">Shell Scripting</span>
+                    <span class="tc-title">Bash Variables &amp; Arguments</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/sysadmin/index.html" class="cf-training-card">
+                    <span class="tc-district">System Administration</span>
+                    <span class="tc-title">Log Management</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -12,7 +12,7 @@
 
 const ProjectsData = {
 
-    version: '1.0.0',
+    version: '2.0.0',
 
     // -------------------------------------------------------------------------
     // Difficulty tiers — color, label, and XP reward per tier.
@@ -116,7 +116,7 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — one per house, 12 total.
+    // Project definitions — 28 total (12 software + 16 hardware).
     // -------------------------------------------------------------------------
     projects: [
         {
@@ -226,6 +226,158 @@ const ProjectsData = {
             difficulty: 'pro',
             minutes: 150,
             xp: 2000
+        },
+
+        // ── Hardware Projects: Raspberry Pi ──────────────────────────────────
+        {
+            id: 'script-pi-automation',
+            house: 'script',
+            title: 'Build a Pi Automation Hub',
+            description: 'Transform a headless Raspberry Pi into an autonomous automation hub with cron jobs, GPIO triggers, health monitoring, and alert notifications.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'web-pi-network-probe',
+            house: 'web',
+            title: 'Build a Pi Network Probe',
+            description: 'Deploy a Raspberry Pi as a network monitoring station with ping sweeps, port checks, uptime logging, and a live Flask dashboard.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'cloud-pi-homelab',
+            house: 'cloud',
+            title: 'Build a Pi Home Lab Server',
+            description: 'Run a Docker-based home lab on a Raspberry Pi with Pi-hole DNS filtering, Portainer management, and Nginx reverse proxy with SSL.',
+            difficulty: 'journeyman',
+            minutes: 120,
+            xp: 500
+        },
+        {
+            id: 'shield-pi-ids',
+            house: 'shield',
+            title: 'Build a Pi Network IDS',
+            description: 'Deploy a Raspberry Pi as a passive intrusion detection system using Suricata with custom alert dashboards and automated iptables blocking.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+
+        // ── Hardware Projects: ELEGOO Mega R3 Kit ────────────────────────────
+        {
+            id: 'forge-sensor-dashboard',
+            house: 'forge',
+            title: 'Build a Sensor Dashboard',
+            description: 'Wire DHT11, ultrasonic, and photoresistor sensors to an Arduino Mega with an LCD multi-screen dashboard and LED threshold alerts.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'code-serial-console',
+            house: 'code',
+            title: 'Build a Serial Command Console',
+            description: 'Build a two-way serial bridge where Python sends text commands to an Arduino that executes hardware actions and returns JSON responses.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'eye-motion-surveillance',
+            house: 'eye',
+            title: 'Build a Motion Surveillance Rig',
+            description: 'Construct a PIR-triggered surveillance system with servo sweep scanning, ultrasonic distance mapping, IR remote control, and serial event logging.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'key-rfid-access',
+            house: 'key',
+            title: 'Build an RFID Access Controller',
+            description: 'Build a two-factor access control system with RFID badge scanning, keypad PIN entry, servo door lock, LCD status, and brute-force lockout.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+
+        // ── Hardware Projects: ESP32 CYD (Cheap Yellow Display) ──────────────
+        {
+            id: 'darkarts-wifi-scanner',
+            house: 'dark-arts',
+            title: 'Build a WiFi Recon Scanner',
+            description: 'Scan nearby WiFi networks on an ESP32 touchscreen displaying SSIDs, signal strength bars, channels, and encryption with tap-to-detail navigation.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'matrix-traffic-dashboard',
+            house: 'matrix',
+            title: 'Build a Packet Traffic Dashboard',
+            description: 'Capture raw 802.11 frames in promiscuous mode on an ESP32 CYD, classify packet types, and render real-time traffic graphs with channel hopping.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'ai-network-anomaly',
+            house: 'ai',
+            title: 'Build a Network Anomaly Monitor',
+            description: 'Monitor WiFi environments on an ESP32 CYD, fingerprint devices, detect anomalies like new devices and deauth floods, and log trends to microSD.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'divergent-field-terminal',
+            house: 'divergent',
+            title: 'Build a Multi-Protocol Field Terminal',
+            description: 'Build a portable touchscreen multi-tool on an ESP32 CYD with tabbed WiFi scanner, BLE scanner, network tools, and packet sniffer.',
+            difficulty: 'pro',
+            minutes: 150,
+            xp: 2000
+        },
+
+        // ── Hardware Projects: Arduino Simple Builds ─────────────────────────
+        {
+            id: 'forge-env-monitor',
+            house: 'forge',
+            title: 'Build an Environmental Monitor',
+            description: 'Read temperature and humidity from a DHT11 with LED threshold indicators, buzzer alerts, LCD display, and running average tracking.',
+            difficulty: 'beginner',
+            minutes: 45,
+            xp: 250
+        },
+        {
+            id: 'shield-perimeter-alarm',
+            house: 'shield',
+            title: 'Build a Perimeter Alarm System',
+            description: 'Wire PIR motion and reed switch sensors into an arm/disarm alarm system with distinct buzzer patterns and timestamped serial event logs.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'script-data-logger',
+            house: 'script',
+            title: 'Build an Arduino Data Logger',
+            description: 'Log timestamped sensor readings to an SD card as CSV with an RTC module, then visualize the data with a Python matplotlib script.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'code-arduino-pipeline',
+            house: 'code',
+            title: 'Build an Arduino-Python Pipeline',
+            description: 'Stream JSON sensor data from an Arduino over serial to a Python script that stores it in SQLite and renders a live terminal dashboard.',
+            difficulty: 'beginner',
+            minutes: 45,
+            xp: 250
         }
     ],
 
