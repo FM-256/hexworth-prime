@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Network Topology Visualizer | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(96, 165, 250, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(96, 165, 250, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(96, 165, 250, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(96, 165, 250, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(96, 165, 250, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — network topology SVG overlay */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2360a5fa'%3E%3C!-- ═══ LEFT MARGIN: Subnet diagram 192.168.1.0/24 ═══ --%3E%3Crect x='12' y='28' width='138' height='160' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='20' y='44' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.24'%3E192.168.1.0/24%3C/text%3E%3Cline x1='12' y1='50' x2='150' y2='50' stroke-width='1' opacity='0.14'/%3E%3Crect x='20' y='58' width='48' height='18' rx='1' stroke-width='1' opacity='0.16' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Ctext x='26' y='71' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.2'%3E.1 GW%3C/text%3E%3Crect x='80' y='58' width='60' height='18' rx='1' stroke-width='1' opacity='0.14' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='86' y='71' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.16'%3E.10 SRV%3C/text%3E%3Cline x1='44' y1='76' x2='44' y2='96' stroke-width='1' opacity='0.12'/%3E%3Cline x1='44' y1='96' x2='110' y2='96' stroke-width='1' opacity='0.12'/%3E%3Cline x1='110' y1='96' x2='110' y2='76' stroke-width='1' opacity='0.12'/%3E%3Crect x='20' y='96' width='48' height='16' rx='1' stroke-width='0.8' opacity='0.12' fill='%2360a5fa' fill-opacity='0.02'/%3E%3Ctext x='26' y='107' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E.20 WS%3C/text%3E%3Crect x='80' y='96' width='60' height='16' rx='1' stroke-width='0.8' opacity='0.1' fill='%2360a5fa' fill-opacity='0.02'/%3E%3Ctext x='86' y='107' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E.30 WS%3C/text%3E%3Crect x='20' y='124' width='48' height='16' rx='1' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='26' y='135' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E.40 AP%3C/text%3E%3Crect x='80' y='124' width='60' height='16' rx='1' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='86' y='135' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E.50 PRNT%3C/text%3E%3Ctext x='18' y='158' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3EMASK: 255.255.255.0%3C/text%3E%3Ctext x='18' y='170' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3EBRDC: 192.168.1.255%3C/text%3E%3Ctext x='18' y='182' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.08'%3EHOSTS: 254 available%3C/text%3E%3C!-- LEFT MARGIN: OSI model layer stack --%3E%3Ctext x='18' y='218' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.22'%3EOSI LAYERS%3C/text%3E%3Crect x='12' y='224' width='138' height='196' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Crect x='18' y='228' width='126' height='24' rx='1' stroke-width='1' opacity='0.2' fill='%2360a5fa' fill-opacity='0.07'/%3E%3Ctext x='24' y='244' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.24'%3EL7 APPLICATION%3C/text%3E%3Crect x='18' y='254' width='126' height='24' rx='1' stroke-width='1' opacity='0.18' fill='%2360a5fa' fill-opacity='0.05'/%3E%3Ctext x='24' y='270' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.2'%3EL6 PRESENTATION%3C/text%3E%3Crect x='18' y='280' width='126' height='24' rx='1' stroke-width='1' opacity='0.16' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Ctext x='24' y='296' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.18'%3EL5 SESSION%3C/text%3E%3Crect x='18' y='306' width='126' height='24' rx='1' stroke-width='1' opacity='0.14' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Ctext x='24' y='322' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.16'%3EL4 TRANSPORT%3C/text%3E%3Crect x='18' y='332' width='126' height='24' rx='1' stroke-width='1' opacity='0.12' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='24' y='348' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.14'%3EL3 NETWORK%3C/text%3E%3Crect x='18' y='358' width='126' height='24' rx='1' stroke-width='1' opacity='0.1' fill='%2360a5fa' fill-opacity='0.02'/%3E%3Ctext x='24' y='374' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.12'%3EL2 DATA LINK%3C/text%3E%3Crect x='18' y='384' width='126' height='24' rx='1' stroke-width='1' opacity='0.08'/%3E%3Ctext x='24' y='400' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.1'%3EL1 PHYSICAL%3C/text%3E%3C!-- LEFT MARGIN: Routing table snippet --%3E%3Ctext x='18' y='440' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.2'%3EROUTING TABLE%3C/text%3E%3Crect x='12' y='446' width='138' height='110' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='12' y1='458' x2='150' y2='458' stroke-width='1' opacity='0.12'/%3E%3Ctext x='16' y='454' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.16'%3EDEST         GW         IF%3C/text%3E%3Ctext x='16' y='472' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E0.0.0.0      .1.1       eth0%3C/text%3E%3Ctext x='16' y='486' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E10.0.0.0/8   .1.254     tun0%3C/text%3E%3Ctext x='16' y='500' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E172.16.0/12  .1.10      eth1%3C/text%3E%3Ctext x='16' y='514' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.08'%3E192.168.0/16 *          lo%3C/text%3E%3Ctext x='16' y='528' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.07'%3E224.0.0.0/4  *          eth0%3C/text%3E%3Ctext x='16' y='542' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.06'%3E255.255.255  *          lo%3C/text%3E%3C!-- LEFT MARGIN: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='580' x2='8' y2='760'/%3E%3Cline x1='4' y1='580' x2='12' y2='580'/%3E%3Cline x1='4' y1='620' x2='12' y2='620'/%3E%3Cline x1='4' y1='660' x2='12' y2='660'/%3E%3Cline x1='4' y1='700' x2='12' y2='700'/%3E%3Cline x1='4' y1='740' x2='12' y2='740'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='600' x2='10' y2='600'/%3E%3Cline x1='6' y1='640' x2='10' y2='640'/%3E%3Cline x1='6' y1='680' x2='10' y2='680'/%3E%3Cline x1='6' y1='720' x2='10' y2='720'/%3E%3C/g%3E%3C!-- ═══ CENTER: Network topology wireframe (star/mesh/ring) ═══ --%3E%3C!-- Core router (center) --%3E%3Crect x='450' y='290' width='52' height='40' rx='3' stroke-width='2' opacity='0.22' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Ctext x='461' y='315' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.26'%3EROUTER%3C/text%3E%3C!-- Distribution switches --%3E%3Crect x='320' y='200' width='50' height='34' rx='2' stroke-width='1.5' opacity='0.18' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='327' y='221' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.2'%3ESWTCH-A%3C/text%3E%3Crect x='590' y='200' width='50' height='34' rx='2' stroke-width='1.5' opacity='0.18' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='597' y='221' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.2'%3ESWTCH-B%3C/text%3E%3Crect x='350' y='420' width='50' height='34' rx='2' stroke-width='1.5' opacity='0.16' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='357' y='441' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.18'%3ESWTCH-C%3C/text%3E%3Crect x='560' y='420' width='50' height='34' rx='2' stroke-width='1.5' opacity='0.16' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='567' y='441' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.18'%3ESWTCH-D%3C/text%3E%3C!-- Firewall --%3E%3Crect x='454' y='150' width='54' height='38' rx='2' stroke-width='2' opacity='0.2' fill='%2360a5fa' fill-opacity='0.05'/%3E%3Ctext x='459' y='173' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.22'%3EFIREWALL%3C/text%3E%3C!-- Internet cloud outline --%3E%3Cellipse cx='476' cy='100' rx='55' ry='30' stroke-width='1.5' opacity='0.14' stroke-dasharray='6 4'/%3E%3Ctext x='455' y='104' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.16'%3EINERNET%3C/text%3E%3C!-- End hosts (leaf nodes) --%3E%3Ccircle cx='265' cy='165' r='14' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='255' y='169' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3EHOST%3C/text%3E%3Ccircle cx='240' cy='250' r='12' stroke-width='1' opacity='0.12'/%3E%3Ctext x='232' y='254' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3EHOST%3C/text%3E%3Ccircle cx='670' cy='165' r='14' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='660' y='169' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3EHOST%3C/text%3E%3Ccircle cx='700' cy='250' r='12' stroke-width='1' opacity='0.12'/%3E%3Ctext x='692' y='254' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3EHOST%3C/text%3E%3Ccircle cx='290' cy='490' r='12' stroke-width='1' opacity='0.1'/%3E%3Ctext x='282' y='494' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3EHOST%3C/text%3E%3Ccircle cx='680' cy='490' r='12' stroke-width='1' opacity='0.1'/%3E%3Ctext x='672' y='494' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3EHOST%3C/text%3E%3C!-- Server --%3E%3Crect x='453' y='500' width='46' height='30' rx='1' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='460' y='518' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.16'%3ESERVER%3C/text%3E%3C!-- Connections: internet to firewall --%3E%3Cline x1='476' y1='130' x2='476' y2='150' stroke-width='2' opacity='0.2'/%3E%3C!-- Firewall to router --%3E%3Cline x1='476' y1='188' x2='476' y2='290' stroke-width='1.8' opacity='0.18'/%3E%3C!-- Router to switches --%3E%3Cline x1='450' y1='306' x2='370' y2='217' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='502' y1='306' x2='590' y2='217' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='460' y1='330' x2='400' y2='420' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='492' y1='330' x2='560' y2='420' stroke-width='1.2' opacity='0.14'/%3E%3C!-- Switch-A to hosts --%3E%3Cline x1='320' y1='212' x2='279' y2='172' stroke-width='1' opacity='0.12'/%3E%3Cline x1='320' y1='225' x2='252' y2='248' stroke-width='1' opacity='0.1'/%3E%3C!-- Switch-B to hosts --%3E%3Cline x1='640' y1='212' x2='656' y2='172' stroke-width='1' opacity='0.12'/%3E%3Cline x1='640' y1='225' x2='688' y2='248' stroke-width='1' opacity='0.1'/%3E%3C!-- Switch-C to host + server --%3E%3Cline x1='370' y1='445' x2='302' y2='483' stroke-width='1' opacity='0.1'/%3E%3Cline x1='376' y1='454' x2='453' y2='510' stroke-width='1' opacity='0.1' stroke-dasharray='4 3'/%3E%3C!-- Switch-D to host + server --%3E%3Cline x1='590' y1='445' x2='668' y2='483' stroke-width='1' opacity='0.1'/%3E%3Cline x1='584' y1='454' x2='499' y2='510' stroke-width='1' opacity='0.1' stroke-dasharray='4 3'/%3E%3C!-- Traffic flow arrows (directional indicators) --%3E%3Cpolygon points='476,154 472,162 480,162' fill='%2360a5fa' stroke='none' opacity='0.18'/%3E%3Cpolygon points='476,286 472,294 480,294' fill='%2360a5fa' stroke='none' opacity='0.16'/%3E%3Cpolygon points='454,304 444,308 446,300' fill='%2360a5fa' stroke='none' opacity='0.14'/%3E%3Cpolygon points='498,304 508,300 510,308' fill='%2360a5fa' stroke='none' opacity='0.14'/%3E%3C!-- Bandwidth utilization labels on links --%3E%3Ctext x='484' y='240' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E1Gbps%3C/text%3E%3Ctext x='404' y='272' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E100M%3C/text%3E%3Ctext x='526' y='272' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E100M%3C/text%3E%3C!-- ═══ CENTER: Compass arc ═══ --%3E%3Cpath d='M200 560 A120 120 0 0 1 420 560' stroke-width='2' opacity='0.14'/%3E%3Cpath d='M214 560 A106 106 0 0 1 406 560' stroke-width='1.2' opacity='0.09' stroke-dasharray='6 4'/%3E%3Cpath d='M228 560 A92 92 0 0 1 392 560' stroke-width='0.8' opacity='0.06' stroke-dasharray='3 3'/%3E%3Ccircle cx='310' cy='560' r='5' fill='%2360a5fa' stroke='none' opacity='0.2'/%3E%3Cline x1='310' y1='560' x2='310' y2='448' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Cline x1='310' y1='560' x2='406' y2='510' stroke-width='1' opacity='0.08' stroke-dasharray='3 5'/%3E%3Cline x1='310' y1='560' x2='226' y2='506' stroke-width='1' opacity='0.08' stroke-dasharray='3 5'/%3E%3Cg stroke-width='1' opacity='0.12'%3E%3Cline x1='258' y1='472' x2='262' y2='482'/%3E%3Cline x1='310' y1='458' x2='310' y2='468'/%3E%3Cline x1='362' y1='472' x2='358' y2='482'/%3E%3Cline x1='400' y1='510' x2='393' y2='514'/%3E%3Cline x1='220' y1='510' x2='227' y2='514'/%3E%3C/g%3E%3Ctext x='303' y='472' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.1'%3EN%3C/text%3E%3C!-- ═══ RIGHT MARGIN: VLAN segmentation diagram ═══ --%3E%3Ctext x='872' y='42' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.22'%3EVLAN SEGMENTS%3C/text%3E%3Crect x='862' y='48' width='128' height='190' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='862' y1='58' x2='990' y2='58' stroke-width='1' opacity='0.14'/%3E%3Crect x='868' y='64' width='114' height='28' rx='1' stroke-width='1.2' opacity='0.2' fill='%2360a5fa' fill-opacity='0.06'/%3E%3Ctext x='874' y='80' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.24'%3EVLAN 10 - MGMT%3C/text%3E%3Ctext x='874' y='90' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E10.10.10.0/24%3C/text%3E%3Crect x='868' y='98' width='114' height='28' rx='1' stroke-width='1' opacity='0.18' fill='%2360a5fa' fill-opacity='0.04'/%3E%3Ctext x='874' y='114' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.2'%3EVLAN 20 - USERS%3C/text%3E%3Ctext x='874' y='124' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E10.20.0.0/22%3C/text%3E%3Crect x='868' y='132' width='114' height='28' rx='1' stroke-width='1' opacity='0.16' fill='%2360a5fa' fill-opacity='0.03'/%3E%3Ctext x='874' y='148' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.18'%3EVLAN 30 - SERVERS%3C/text%3E%3Ctext x='874' y='158' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E10.30.0.0/24%3C/text%3E%3Crect x='868' y='166' width='114' height='28' rx='1' stroke-width='1' opacity='0.12' fill='%2360a5fa' fill-opacity='0.02'/%3E%3Ctext x='874' y='182' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.16'%3EVLAN 40 - DMZ%3C/text%3E%3Ctext x='874' y='192' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.08'%3E10.40.0.0/28%3C/text%3E%3Crect x='868' y='200' width='114' height='28' rx='1' stroke-width='1' opacity='0.1'/%3E%3Ctext x='874' y='216' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.14'%3EVLAN 99 - NATIVE%3C/text%3E%3Ctext x='874' y='226' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.06'%3Euntagged only%3C/text%3E%3C!-- RIGHT MARGIN: Port/protocol reference card --%3E%3Ctext x='872' y='262' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.2'%3EPORT REF%3C/text%3E%3Crect x='862' y='268' width='128' height='148' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='862' y1='278' x2='990' y2='278' stroke-width='1' opacity='0.12'/%3E%3Ctext x='866' y='274' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.16'%3EPORT  PROTO  SERVICE%3C/text%3E%3Ctext x='866' y='292' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.16'%3E22    TCP    SSH%3C/text%3E%3Ctext x='866' y='306' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.14'%3E53    UDP    DNS%3C/text%3E%3Ctext x='866' y='320' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E80    TCP    HTTP%3C/text%3E%3Ctext x='866' y='334' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E443   TCP    HTTPS%3C/text%3E%3Ctext x='866' y='348' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.1'%3E3306  TCP    MySQL%3C/text%3E%3Ctext x='866' y='362' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.09'%3E5432  TCP    Postgres%3C/text%3E%3Ctext x='866' y='376' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.08'%3E6379  TCP    Redis%3C/text%3E%3Ctext x='866' y='390' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.07'%3E8080  TCP    Alt-HTTP%3C/text%3E%3Ctext x='866' y='404' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.06'%3E9200  TCP    Elastic%3C/text%3E%3C!-- RIGHT MARGIN: Bandwidth utilization sparkline --%3E%3Ctext x='872' y='438' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.2'%3EBANDWIDTH UTIL%3C/text%3E%3Crect x='862' y='444' width='128' height='70' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='862' y1='500' x2='990' y2='500' stroke-width='0.8' opacity='0.08'/%3E%3Cpath d='M868 490 L876 485 L884 492 L892 478 L900 488 L908 474 L916 486 L924 470 L932 482 L940 468 L948 480 L956 472 L964 484 L972 466 L980 478 L988 470' stroke-width='1.5' opacity='0.2' fill='none'/%3E%3Ctext x='866' y='510' font-family='monospace' font-size='7' fill='%2360a5fa' stroke='none' opacity='0.12'%3E0 ─────── 1Gbps%3C/text%3E%3C!-- RIGHT MARGIN: vertical dashed separator --%3E%3Cline x1='854' y1='60' x2='854' y2='680' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='320' y1='630' x2='340' y2='630'/%3E%3Cline x1='330' y1='620' x2='330' y2='640'/%3E%3Ccircle cx='330' cy='630' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='750' y1='340' x2='770' y2='340'/%3E%3Cline x1='760' y1='330' x2='760' y2='350'/%3E%3Ccircle cx='760' cy='340' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.14' stroke-width='1.5'%3E%3Cline x1='196' y1='640' x2='216' y2='640'/%3E%3Cline x1='206' y1='630' x2='206' y2='650'/%3E%3Ccircle cx='206' cy='640' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='560' x2='380' y2='300' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='180' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='840' y1='400' x2='1000' y2='560' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3Cline x1='0' y1='750' x2='280' y2='600' stroke-width='1' opacity='0.05' stroke-dasharray='12 8'/%3E%3Cline x1='760' y1='700' x2='1000' y2='760' stroke-width='1' opacity='0.05' stroke-dasharray='6 12'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M780 660 A120 120 0 0 1 960 660' stroke-width='2' opacity='0.12'/%3E%3Cpath d='M800 660 A100 100 0 0 1 940 660' stroke-width='1.2' opacity='0.08'/%3E%3Cpath d='M820 660 A80 80 0 0 1 920 660' stroke-width='1' opacity='0.06' stroke-dasharray='4 3'/%3E%3Cline x1='870' y1='660' x2='870' y2='548' stroke-width='1' opacity='0.09' stroke-dasharray='3 5'/%3E%3Ctext x='855' y='542' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.09'%3E90%C2%B0%3C/text%3E%3Cg stroke-width='1' opacity='0.07'%3E%3Cline x1='800' y1='590' x2='806' y2='596'/%3E%3Cline x1='830' y1='563' x2='834' y2='571'/%3E%3Cline x1='910' y1='563' x2='906' y2='571'/%3E%3Cline x1='940' y1='590' x2='934' y2='596'/%3E%3C/g%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3C!-- Ruler top edge --%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='200' y='580' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.1' transform='rotate(-8 200 580)'%3Eping -c 4 10.0.0.1%3C/text%3E%3Ctext x='560' y='580' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.09'%3Etraceroute -n gw%3C/text%3E%3Ctext x='370' y='620' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.08' transform='rotate(4 370 620)'%3Earp -a%3C/text%3E%3Ctext x='620' y='630' font-family='monospace' font-size='9' fill='%2360a5fa' stroke='none' opacity='0.09' transform='rotate(-3 620 630)'%3Enetstat -rn%3C/text%3E%3Ctext x='170' y='680' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.07' transform='rotate(6 170 680)'%3Eip route show%3C/text%3E%3Ctext x='480' y='660' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.07'%3Enmap -sn 192.168.1.0/24%3C/text%3E%3Ctext x='700' y='680' font-family='monospace' font-size='8' fill='%2360a5fa' stroke='none' opacity='0.07' transform='rotate(-5 700 680)'%3Etcpdump -i eth0%3C/text%3E%3C!-- ═══ DIAMOND MARKERS at corners ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2360a5fa' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2360a5fa' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2360a5fa' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%2360a5fa' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #60a5fa;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(96, 165, 250, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(96, 165, 250, 0.06);
+        }
+
+        /* Classified stamp */
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Fold line */
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(96, 165, 250, 0.25) 0%,
+                rgba(96, 165, 250, 0.12) 60%,
+                rgba(96, 165, 250, 0.06) 100%);
+            border: 3px solid rgba(96, 165, 250, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(96, 165, 250, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Convex sheen — pin button highlight */
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #60a5fa;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        /* Subject line */
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        /* Classification badges */
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #facc15;
+            background: rgba(250, 204, 21, 0.1);
+            border: 1px solid rgba(250, 204, 21, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(96, 165, 250, 0.08);
+            border-left: 3px solid rgba(96, 165, 250, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        /* Paper clip decoration */
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        /* Tape strip decoration */
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        /* Section stamp label */
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #60a5fa;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #60a5fa;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites (form style) ────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        /* Checkbox style bullet */
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(96, 165, 250, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(96, 165, 250, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(96, 165, 250, 0.02);
+            border: 1px solid rgba(96, 165, 250, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(96, 165, 250, 0.25);
+            background: rgba(96, 165, 250, 0.04);
+            box-shadow: 0 0 20px rgba(96, 165, 250, 0.06);
+        }
+
+        /* Evidence marker number */
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        /* Pin/thumbtack decoration */
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest (tools) ────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(96, 165, 250, 0.04);
+            border: 1px solid rgba(96, 165, 250, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(96, 165, 250, 0.08);
+            border-color: rgba(96, 165, 250, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #60a5fa;
+        }
+
+        /* ── Debrief (what you'll learn) ───────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        /* Arrow marker */
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #60a5fa;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(96, 165, 250, 0.3) 0%,
+                rgba(96, 165, 250, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">WB-NTV-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">WB-NTV-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-05</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-spiderweb.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Web House</span>
+                    <span class="cf-house-domain">Networking Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a Network Topology Visualizer</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">120 min</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation requires the construction of an <strong>interactive network topology
+                    visualizer</strong> that renders live network maps from structured device configuration
+                    data. The application consumes a <code>JSON</code> topology definition describing
+                    routers, switches, firewalls, and endpoints, then draws the resulting graph on an
+                    <code>HTML5 Canvas</code> with directional connection lines, device-type icons,
+                    and real-time node status indicators. The entire system is delivered as a single
+                    self-contained HTML file with no external dependencies or build steps.
+                </p>
+                <p>
+                    Beyond static rendering, the visualizer is fully interactive. Agents can
+                    <strong>drag nodes</strong> to manually reposition devices, use the mouse wheel to
+                    <strong>zoom and pan</strong> across large topologies, and click any node to open a
+                    sidebar inspector showing IP address, interface details, VLAN membership, and live
+                    status. Animated dashed-line overlays simulate <strong>packet flow</strong> along
+                    active links, and link thickness scales with configured bandwidth capacity.
+                </p>
+                <p>
+                    Completing this operation builds a deep, practical command of the
+                    <strong>Canvas 2D API</strong>, force-directed graph layout mathematics, and
+                    event-driven interaction design. These are the exact primitives that underpin every
+                    serious data visualization tool in the field. The final artifact is export-ready:
+                    the current topology view can be saved to <code>PNG</code> and the positioned
+                    node layout can be serialized back to <code>JSON</code> for reuse.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>HTML/CSS/JS fundamentals &mdash; DOM manipulation, event listeners, and browser APIs</li>
+                <li>Basic networking concepts &mdash; IP addressing, subnets, VLANs, and routing topology</li>
+                <li>Familiarity with JSON data structures and how to parse and validate them in JavaScript</li>
+                <li>Understanding of Canvas or SVG drawing APIs &mdash; coordinates, transforms, and path commands</li>
+                <li>No prior visualization library experience needed &mdash; all graph logic is built from scratch</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Data Model &amp; JSON Schema</div>
+                        <div class="cf-evidence-desc">
+                            Design the network topology data format: nodes carrying
+                            <code>type</code>, <code>ip</code>, <code>interfaces</code>, and
+                            <code>status</code> fields, and links carrying <code>source</code>,
+                            <code>destination</code>, <code>bandwidth</code>, and <code>protocol</code>.
+                            Build a parser that validates and normalizes the input JSON, rejects
+                            malformed entries with descriptive error messages, and initializes a
+                            clean in-memory graph structure ready for the render pipeline.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Canvas Rendering Engine</div>
+                        <div class="cf-evidence-desc">
+                            Implement the drawing layer using the <code>HTML5 Canvas</code> 2D API.
+                            Render device icons at their grid positions using distinct shapes per
+                            device class &mdash; diamond for router, rectangle for switch, shield
+                            outline for firewall, circle for endpoint, rack silhouette for server.
+                            Draw connection lines between nodes with directional arrowhead markers
+                            and scale line width by the link's configured bandwidth value.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Interactive Controls</div>
+                        <div class="cf-evidence-desc">
+                            Add <strong>drag-and-drop</strong> node repositioning via
+                            <code>mousedown</code>, <code>mousemove</code>, and <code>mouseup</code>
+                            events with hit-testing against node bounding boxes. Implement canvas
+                            pan using middle-click drag and zoom using the
+                            <code>wheel</code> event mapped to a viewport transform matrix.
+                            Wire a click handler to populate the sidebar inspector panel with the
+                            selected node's IP address, VLAN assignment, interface list, and uptime.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Traffic Flow &amp; Status Visualization</div>
+                        <div class="cf-evidence-desc">
+                            Animate <strong>packet flow</strong> along active links using a
+                            <code>requestAnimationFrame</code> loop that advances a dashed line
+                            offset each frame, creating a moving dash pattern that simulates traffic
+                            direction. Color-code node outlines by status:
+                            <code>#4ade80</code> for up, <code>#f87171</code> for down, and
+                            <code>#fbbf24</code> for degraded. Represent link bandwidth utilization
+                            as a filled bar overlaid on the connection line.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Layout Algorithms &amp; Export</div>
+                        <div class="cf-evidence-desc">
+                            Implement an automatic <strong>force-directed layout</strong> using
+                            repulsion between all node pairs and spring attraction along link edges,
+                            iterated until the graph reaches equilibrium. Add a hierarchical
+                            layout mode that tiers nodes by device type (internet, firewall,
+                            router, switch, host). Expose an export panel: save the canvas frame
+                            to <code>PNG</code> via <code>toDataURL</code> and serialize the
+                            current node positions back to the original JSON schema for reuse.
+                            Build a minimap overlay for navigating topologies with many nodes.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">HTML5 Canvas</div>
+                <div class="cf-manifest-item">JavaScript ES6+</div>
+                <div class="cf-manifest-item">CSS Grid</div>
+                <div class="cf-manifest-item">JSON</div>
+                <div class="cf-manifest-item">requestAnimationFrame</div>
+                <div class="cf-manifest-item">Mouse Events</div>
+                <div class="cf-manifest-item">SVG Icons</div>
+                <div class="cf-manifest-item">localStorage</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>HTML5 Canvas drawing and animation</li>
+                <li>Network topology data modeling</li>
+                <li>Force-directed graph layout algorithms</li>
+                <li>Interactive pan/zoom/drag controls</li>
+                <li>Real-time status visualization</li>
+                <li>Event-driven UI architecture</li>
+                <li>JSON schema design and validation</li>
+                <li>Subnet and VLAN visualization</li>
+                <li>Canvas performance optimization</li>
+                <li>Network device classification and iconography</li>
+            </ul>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

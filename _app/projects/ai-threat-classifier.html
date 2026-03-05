@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build a Threat Classification Bot | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(139, 92, 246, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 92, 246, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(139, 92, 246, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 92, 246, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(139, 92, 246, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — SVG overlay */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%238b5cf6'%3E%3C!-- ═══ LEFT MARGIN: Neural network diagram (3 layers) ═══ --%3E%3Ctext x='18' y='46' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.22'%3ENEURAL NET%3C/text%3E%3C!-- Input layer nodes --%3E%3Ccircle cx='32' cy='70' r='7' stroke-width='1.5' opacity='0.2' fill='%238b5cf6' fill-opacity='0.04'/%3E%3Ccircle cx='32' cy='95' r='7' stroke-width='1.5' opacity='0.18' fill='%238b5cf6' fill-opacity='0.04'/%3E%3Ccircle cx='32' cy='120' r='7' stroke-width='1.5' opacity='0.16' fill='%238b5cf6' fill-opacity='0.04'/%3E%3Ccircle cx='32' cy='145' r='7' stroke-width='1.5' opacity='0.14' fill='%238b5cf6' fill-opacity='0.03'/%3E%3C!-- Hidden layer nodes --%3E%3Ccircle cx='78' cy='80' r='7' stroke-width='1.5' opacity='0.2' fill='%238b5cf6' fill-opacity='0.05'/%3E%3Ccircle cx='78' cy='107' r='7' stroke-width='1.5' opacity='0.18' fill='%238b5cf6' fill-opacity='0.05'/%3E%3Ccircle cx='78' cy='134' r='7' stroke-width='1.5' opacity='0.16' fill='%238b5cf6' fill-opacity='0.04'/%3E%3C!-- Output layer nodes --%3E%3Ccircle cx='124' cy='88' r='7' stroke-width='1.5' opacity='0.2' fill='%238b5cf6' fill-opacity='0.06'/%3E%3Ccircle cx='124' cy='120' r='7' stroke-width='1.5' opacity='0.16' fill='%238b5cf6' fill-opacity='0.04'/%3E%3C!-- Connections input to hidden --%3E%3Cline x1='39' y1='70' x2='71' y2='80' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='39' y1='70' x2='71' y2='107' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='39' y1='70' x2='71' y2='134' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='39' y1='95' x2='71' y2='80' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='39' y1='95' x2='71' y2='107' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='39' y1='95' x2='71' y2='134' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='39' y1='120' x2='71' y2='80' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='39' y1='120' x2='71' y2='107' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='39' y1='120' x2='71' y2='134' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='39' y1='145' x2='71' y2='80' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='39' y1='145' x2='71' y2='107' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='39' y1='145' x2='71' y2='134' stroke-width='0.8' opacity='0.12'/%3E%3C!-- Connections hidden to output --%3E%3Cline x1='85' y1='80' x2='117' y2='88' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='85' y1='80' x2='117' y2='120' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='85' y1='107' x2='117' y2='88' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='85' y1='107' x2='117' y2='120' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='85' y1='134' x2='117' y2='88' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='85' y1='134' x2='117' y2='120' stroke-width='0.8' opacity='0.1'/%3E%3C!-- Layer labels --%3E%3Ctext x='22' y='165' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3EINPUT%3C/text%3E%3Ctext x='66' y='154' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3EHIDDEN%3C/text%3E%3Ctext x='112' y='142' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3EOUT%3C/text%3E%3C!-- Left margin: Confusion matrix --%3E%3Ctext x='18' y='200' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3ECONF MATRIX%3C/text%3E%3Crect x='18' y='208' width='120' height='100' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Cline x1='18' y1='233' x2='138' y2='233' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='18' y1='258' x2='138' y2='258' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='18' y1='283' x2='138' y2='283' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='48' y1='208' x2='48' y2='308' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='78' y1='208' x2='78' y2='308' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='108' y1='208' x2='108' y2='308' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='53' y='228' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.18'%3ETP%3C/text%3E%3Ctext x='83' y='228' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.14'%3EFP%3C/text%3E%3Ctext x='113' y='228' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3EPRE%3C/text%3E%3Ctext x='53' y='253' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.14'%3EFN%3C/text%3E%3Ctext x='83' y='253' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.18'%3ETN%3C/text%3E%3Crect x='48' y='208' width='30' height='25' fill='%238b5cf6' fill-opacity='0.08' stroke='none'/%3E%3Crect x='78' y='233' width='30' height='25' fill='%238b5cf6' fill-opacity='0.08' stroke='none'/%3E%3Ctext x='20' y='275' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3EPRED+%3C/text%3E%3Ctext x='20' y='295' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3EPRED-%3C/text%3E%3C!-- Left margin: Feature importance bar chart --%3E%3Ctext x='18' y='340' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3EFEATURE IMP%3C/text%3E%3Crect x='18' y='352' width='78' height='8' rx='1' stroke-width='1' opacity='0.16' fill='%238b5cf6' fill-opacity='0.12'/%3E%3Crect x='18' y='352' width='78' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.1'/%3E%3Ctext x='100' y='360' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.16'%3Etf-idf%3C/text%3E%3Crect x='18' y='366' width='58' height='8' rx='1' stroke-width='1' opacity='0.14' fill='%238b5cf6' fill-opacity='0.08'/%3E%3Crect x='18' y='366' width='58' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.07'/%3E%3Ctext x='80' y='374' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3Ekeyword%3C/text%3E%3Crect x='18' y='380' width='44' height='8' rx='1' stroke-width='1' opacity='0.12' fill='%238b5cf6' fill-opacity='0.06'/%3E%3Crect x='18' y='380' width='44' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.06'/%3E%3Ctext x='66' y='388' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Ezone%3C/text%3E%3Crect x='18' y='394' width='30' height='8' rx='1' stroke-width='1' opacity='0.1' fill='%238b5cf6' fill-opacity='0.04'/%3E%3Crect x='18' y='394' width='30' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.04'/%3E%3Ctext x='52' y='402' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Elen%3C/text%3E%3Crect x='18' y='408' width='18' height='8' rx='1' stroke-width='1' opacity='0.08' fill='%238b5cf6' fill-opacity='0.03'/%3E%3Ctext x='40' y='416' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.08'%3Etime%3C/text%3E%3C!-- Left margin: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='450' x2='8' y2='680'/%3E%3Cline x1='4' y1='450' x2='12' y2='450'/%3E%3Cline x1='4' y1='500' x2='12' y2='500'/%3E%3Cline x1='4' y1='550' x2='12' y2='550'/%3E%3Cline x1='4' y1='600' x2='12' y2='600'/%3E%3Cline x1='4' y1='650' x2='12' y2='650'/%3E%3Cline x1='4' y1='680' x2='12' y2='680'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='475' x2='10' y2='475'/%3E%3Cline x1='6' y1='525' x2='10' y2='525'/%3E%3Cline x1='6' y1='575' x2='10' y2='575'/%3E%3Cline x1='6' y1='625' x2='10' y2='625'/%3E%3C/g%3E%3C!-- Left margin: circuit traces --%3E%3Cpath d='M5 720 L40 720 L40 705 L80 705 L80 720 L120 720' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3Cpath d='M5 740 L25 740 L25 755 L60 755 L60 740 L90 740 L90 758 L120 758' stroke-width='1' opacity='0.1' fill='none'/%3E%3Ccircle cx='40' cy='705' r='3' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Ccircle cx='80' cy='705' r='3' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Ccircle cx='25' cy='755' r='3' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Ccircle cx='60' cy='755' r='3' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Ccircle cx='90' cy='740' r='3' fill='%238b5cf6' stroke='none' opacity='0.1'/%3E%3C!-- ═══ CENTER: Classification pipeline wireframe ═══ --%3E%3Ctext x='320' y='80' font-family='monospace' font-size='10' fill='%238b5cf6' stroke='none' opacity='0.2'%3ECLASSIFICATION PIPELINE%3C/text%3E%3C!-- Pipeline boxes --%3E%3Crect x='310' y='90' width='68' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='322' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3EDATA IN%3C/text%3E%3Cline x1='378' y1='105' x2='398' y2='105' stroke-width='1.5' opacity='0.18'/%3E%3Cpolygon points='398,101 406,105 398,109' fill='%238b5cf6' stroke='none' opacity='0.18'/%3E%3Crect x='406' y='90' width='76' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='412' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3EPREPROC%3C/text%3E%3Cline x1='482' y1='105' x2='502' y2='105' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='502,101 510,105 502,109' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Crect x='510' y='90' width='68' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='518' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3EMODEL%3C/text%3E%3Cline x1='578' y1='105' x2='598' y2='105' stroke-width='1.5' opacity='0.18'/%3E%3Cpolygon points='598,101 606,105 598,109' fill='%238b5cf6' stroke='none' opacity='0.18'/%3E%3Crect x='606' y='90' width='68' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='612' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3EPREDICT%3C/text%3E%3Cline x1='674' y1='105' x2='694' y2='105' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='694,101 702,105 694,109' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Crect x='702' y='90' width='68' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='706' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3EOUTPUT%3C/text%3E%3C!-- Sub-labels --%3E%3Ctext x='312' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Ealerts.csv%3C/text%3E%3Ctext x='410' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Etokenize%3C/text%3E%3Ctext x='514' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3ERandForest%3C/text%3E%3Ctext x='612' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Eproba[]%3C/text%3E%3Ctext x='706' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3ECRITICAL%3C/text%3E%3C!-- Center: Decision boundary scatter plot --%3E%3Ctext x='400' y='190' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3EDECISION BOUNDARY%3C/text%3E%3Crect x='380' y='200' width='240' height='160' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='380' y1='340' x2='620' y2='200' stroke-width='1.5' opacity='0.2' stroke-dasharray='6 4'/%3E%3C!-- Class A points --%3E%3Ccircle cx='410' cy='320' r='4' fill='%238b5cf6' stroke='none' opacity='0.22'/%3E%3Ccircle cx='425' cy='310' r='4' fill='%238b5cf6' stroke='none' opacity='0.2'/%3E%3Ccircle cx='440' cy='325' r='4' fill='%238b5cf6' stroke='none' opacity='0.18'/%3E%3Ccircle cx='415' cy='335' r='4' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Ccircle cx='450' cy='315' r='4' fill='%238b5cf6' stroke='none' opacity='0.18'/%3E%3Ccircle cx='435' cy='340' r='4' fill='%238b5cf6' stroke='none' opacity='0.14'/%3E%3Ccircle cx='460' cy='330' r='4' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3C!-- Class B points (hollow) --%3E%3Ccircle cx='555' cy='215' r='4' stroke-width='1.2' opacity='0.2' fill='none'/%3E%3Ccircle cx='575' cy='225' r='4' stroke-width='1.2' opacity='0.18' fill='none'/%3E%3Ccircle cx='560' cy='235' r='4' stroke-width='1.2' opacity='0.16' fill='none'/%3E%3Ccircle cx='585' cy='215' r='4' stroke-width='1.2' opacity='0.16' fill='none'/%3E%3Ccircle cx='570' cy='245' r='4' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3Ccircle cx='590' cy='230' r='4' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3C!-- Axis labels --%3E%3Ctext x='382' y='368' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3ETFIDF SCORE (%E2%86%92)%3C/text%3E%3Ctext x='382' y='355' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3E%E2%96%A0 malware%3C/text%3E%3Ctext x='450' y='355' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3E%E2%97%A1 benign%3C/text%3E%3C!-- Center: compass arc --%3E%3Cpath d='M180 440 A100 100 0 0 1 380 440' stroke-width='2' opacity='0.2'/%3E%3Cpath d='M195 440 A85 85 0 0 1 365 440' stroke-width='1.2' opacity='0.12' stroke-dasharray='6 4'/%3E%3Cpath d='M210 440 A70 70 0 0 1 350 440' stroke-width='0.8' opacity='0.07' stroke-dasharray='3 3'/%3E%3Ccircle cx='280' cy='440' r='5' fill='%238b5cf6' stroke='none' opacity='0.22'/%3E%3Cline x1='280' y1='440' x2='280' y2='350' stroke-width='1' opacity='0.12' stroke-dasharray='3 5'/%3E%3Cline x1='280' y1='440' x2='370' y2='400' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Cline x1='280' y1='440' x2='210' y2='385' stroke-width='1' opacity='0.08' stroke-dasharray='3 5'/%3E%3Cg stroke-width='1' opacity='0.14'%3E%3Cline x1='230' y1='358' x2='234' y2='368'/%3E%3Cline x1='280' y1='342' x2='280' y2='352'/%3E%3Cline x1='330' y1='358' x2='326' y2='368'/%3E%3Cline x1='370' y1='400' x2='362' y2='402'/%3E%3Cline x1='190' y1='400' x2='198' y2='402'/%3E%3C/g%3E%3Ctext x='272' y='362' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.12'%3EN%3C/text%3E%3C!-- ═══ RIGHT MARGIN: Training metrics (accuracy + loss curves) ═══ --%3E%3Ctext x='886' y='46' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.22'%3ETRAIN METRICS%3C/text%3E%3Crect x='880' y='55' width='110' height='100' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='880' y1='155' x2='990' y2='55' stroke-width='0' opacity='0'/%3E%3C!-- Accuracy curve (rising) --%3E%3Cpath d='M888 140 L900 130 L914 118 L928 108 L942 100 L956 94 L970 90 L982 87' stroke-width='1.5' opacity='0.22' fill='none'/%3E%3C!-- Loss curve (falling) --%3E%3Cpath d='M888 70 L900 78 L914 88 L928 100 L942 112 L956 122 L970 130 L982 137' stroke-width='1.2' opacity='0.16' fill='none' stroke-dasharray='4 3'/%3E%3Cline x1='880' y1='108' x2='990' y2='108' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='882' y='66' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.16'%3Eacc%3C/text%3E%3Ctext x='928' y='163' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3Eepoch%3C/text%3E%3Ctext x='882' y='106' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3E0.80%3C/text%3E%3Ctext x='972' y='84' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3E0.94%3C/text%3E%3C!-- Right margin: Alert severity spectrum --%3E%3Ctext x='882' y='200' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3ESEVERITY%3C/text%3E%3Crect x='882' y='208' width='104' height='18' rx='1' stroke-width='1.5' opacity='0.18'/%3E%3Crect x='882' y='208' width='104' height='18' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.04'/%3E%3Ctext x='885' y='221' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.2'%3ELOW%3C/text%3E%3Ctext x='914' y='221' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.18'%3EMED%3C/text%3E%3Ctext x='942' y='221' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.16'%3EHIGH%3C/text%3E%3Ctext x='965' y='221' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3ECRIT%3C/text%3E%3Crect x='882' y='230' width='26' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.04'/%3E%3Crect x='908' y='230' width='26' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.06'/%3E%3Crect x='934' y='230' width='26' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.1'/%3E%3Crect x='960' y='230' width='26' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.16'/%3E%3Cline x1='882' y1='244' x2='986' y2='244' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='882' y='256' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3E1..4 scale%3C/text%3E%3C!-- Right margin: ROC curve --%3E%3Ctext x='882' y='285' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3EROC CURVE%3C/text%3E%3Crect x='882' y='293' width='100' height='100' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='882' y1='393' x2='982' y2='293' stroke-width='0.8' opacity='0.1' stroke-dasharray='4 4'/%3E%3Cpath d='M882 393 L890 370 L902 350 L918 334 L936 320 L958 308 L982 293' stroke-width='1.8' opacity='0.24' fill='none'/%3E%3Cpath d='M882 393 L892 380 L905 366 L920 352 L936 340 L955 328 L982 293' stroke-width='1' opacity='0.12' fill='none' stroke-dasharray='3 3'/%3E%3Ctext x='884' y='407' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3EFPR (1-spec)%3C/text%3E%3Ctext x='958' y='312' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3EAUC%3C/text%3E%3Ctext x='958' y='322' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3E0.97%3C/text%3E%3C!-- Right margin: vertical dashed line --%3E%3Cline x1='875' y1='160' x2='875' y2='700' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- Right margin: hex weights / model metadata --%3E%3Ctext x='882' y='440' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3EMODEL META%3C/text%3E%3Ctext x='882' y='458' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3En_estimators: 200%3C/text%3E%3Ctext x='882' y='472' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Emax_depth: 12%3C/text%3E%3Ctext x='882' y='486' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Emin_samples: 5%3C/text%3E%3Ctext x='882' y='500' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Eclass_weight: bal%3C/text%3E%3Ctext x='882' y='514' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Ecv_folds: 5%3C/text%3E%3Ctext x='882' y='528' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.08'%3Epickle: model.pkl%3C/text%3E%3C!-- Right margin: signal waveform annotation --%3E%3Ctext x='882' y='560' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.16'%3EF1 / EPOCH%3C/text%3E%3Cpath d='M882 580 L896 576 L906 586 L918 572 L930 590 L942 574 L954 584 L966 570 L978 588 L990 576' stroke-width='1.5' opacity='0.18' fill='none'/%3E%3Cline x1='882' y1='595' x2='990' y2='595' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='882' y='608' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3E0.82 -- 0.91%3C/text%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='290' y1='560' x2='310' y2='560'/%3E%3Cline x1='300' y1='550' x2='300' y2='570'/%3E%3Ccircle cx='300' cy='560' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='730' y1='460' x2='750' y2='460'/%3E%3Cline x1='740' y1='450' x2='740' y2='470'/%3E%3Ccircle cx='740' cy='460' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.14' stroke-width='1.5'%3E%3Cline x1='150' y1='500' x2='170' y2='500'/%3E%3Cline x1='160' y1='490' x2='160' y2='510'/%3E%3Ccircle cx='160' cy='500' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3Cline x1='0' y1='750' x2='300' y2='600' stroke-width='1' opacity='0.05' stroke-dasharray='12 8'/%3E%3Cline x1='750' y1='700' x2='1000' y2='780' stroke-width='1' opacity='0.05' stroke-dasharray='6 12'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M780 640 A120 120 0 0 1 960 640' stroke-width='2' opacity='0.14'/%3E%3Cpath d='M800 640 A100 100 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cpath d='M820 640 A80 80 0 0 1 920 640' stroke-width='1' opacity='0.06' stroke-dasharray='4 3'/%3E%3Cline x1='870' y1='640' x2='870' y2='530' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Ctext x='855' y='525' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.1'%3E90%C2%B0%3C/text%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='800' y1='570' x2='806' y2='576'/%3E%3Cline x1='830' y1='545' x2='834' y2='553'/%3E%3Cline x1='910' y1='545' x2='906' y2='553'/%3E%3Cline x1='940' y1='570' x2='934' y2='576'/%3E%3C/g%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3C!-- Ruler top edge --%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='40' y='470' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.12' transform='rotate(-12 40 470)'%3Efit_transform()%3C/text%3E%3Ctext x='560' y='520' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.1'%3Ethreshold: 0.5%3C/text%3E%3Ctext x='300' y='500' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.08' transform='rotate(5 300 500)'%3Etrain_test_split%3C/text%3E%3Ctext x='640' y='580' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.1' transform='rotate(-3 640 580)'%3Epredict_proba()%3C/text%3E%3Ctext x='140' y='660' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.08' transform='rotate(8 140 660)'%3Eclass_weight=balanced%3C/text%3E%3Ctext x='460' y='480' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.07'%3Epickle.dump(clf,f)%3C/text%3E%3Ctext x='200' y='620' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.09' transform='rotate(-5 200 620)'%3EGridSearchCV%3C/text%3E%3Ctext x='460' y='420' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.08'%3Ecross_val_score%3C/text%3E%3C!-- ═══ DIAMOND MARKERS at corners ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%238b5cf6' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%238b5cf6' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #8b5cf6;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(139, 92, 246, 0.06);
+        }
+
+        /* Classified stamp */
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Fold line */
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(139, 92, 246, 0.25) 0%,
+                rgba(139, 92, 246, 0.12) 60%,
+                rgba(139, 92, 246, 0.06) 100%);
+            border: 3px solid rgba(139, 92, 246, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(139, 92, 246, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Convex sheen — pin button highlight */
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #8b5cf6;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        /* Subject line */
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        /* Classification badges */
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #facc15;
+            background: rgba(250, 204, 21, 0.1);
+            border: 1px solid rgba(250, 204, 21, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(139, 92, 246, 0.08);
+            border-left: 3px solid rgba(139, 92, 246, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        /* Paper clip decoration */
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        /* Tape strip decoration */
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        /* Section stamp label */
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #8b5cf6;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #8b5cf6;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites (form style) ────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        /* Checkbox style bullet */
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(139, 92, 246, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(139, 92, 246, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(139, 92, 246, 0.02);
+            border: 1px solid rgba(139, 92, 246, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(139, 92, 246, 0.25);
+            background: rgba(139, 92, 246, 0.04);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.06);
+        }
+
+        /* Evidence marker number */
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        /* Pin/thumbtack decoration */
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest (tools) ────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(139, 92, 246, 0.04);
+            border: 1px solid rgba(139, 92, 246, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(139, 92, 246, 0.08);
+            border-color: rgba(139, 92, 246, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #8b5cf6;
+        }
+
+        /* ── Debrief (what you'll learn) ───────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        /* Arrow marker */
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #8b5cf6;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(139, 92, 246, 0.3) 0%,
+                rgba(139, 92, 246, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">AI-TCB-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">AI-TCB-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-05</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-robot.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">AI House</span>
+                    <span class="cf-house-domain">Artificial Intelligence Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a Threat Classification Bot</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">90 min</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation tasks you with building a <strong>machine learning classification bot</strong>
+                    that ingests raw security alert text and automatically sorts each alert into one of four
+                    severity tiers &mdash; <code>low</code>, <code>medium</code>, <code>high</code>, and <code>critical</code> &mdash;
+                    while simultaneously tagging it with an attack type: <code>malware</code>, <code>phishing</code>,
+                    <code>brute-force</code>, or <code>data-exfil</code>. Every prediction is accompanied by a
+                    confidence score and a recommended response action, giving the operator immediate,
+                    actionable intelligence without manual triage.
+                </p>
+                <p>
+                    The classifier is powered by <strong>TF-IDF vectorization</strong> to convert raw alert
+                    text into numerical feature vectors, feeding both a Naive Bayes baseline and a Random
+                    Forest model for comparison. Additional hand-crafted features &mdash; time of day, source
+                    network zone, alert length, and keyword presence &mdash; are stacked alongside the TF-IDF
+                    output to improve accuracy on edge cases. Training, evaluation, and prediction are all
+                    orchestrated through <code>scikit-learn</code>, with <code>pandas</code> handling
+                    the labeled CSV dataset at every stage.
+                </p>
+                <p>
+                    The finished artifact is a command-line tool: pass in an alert string and receive
+                    a structured prediction instantly. The trained model is serialized with <code>pickle</code>
+                    so it survives across sessions &mdash; no retraining required on subsequent runs. Along the
+                    way, you will evaluate your classifier using a <strong>confusion matrix</strong>,
+                    per-class precision/recall/F1, and a cross-validated accuracy score, building the
+                    statistical intuition that separates a working prototype from a trustworthy production tool.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Python basics &mdash; functions, loops, lists, and dictionaries at a working level</li>
+                <li>Comfortable installing packages with pip and navigating a virtual environment</li>
+                <li>Basic understanding of what classification means: sorting things into labeled categories</li>
+                <li>Familiarity with CSV files and tabular data (rows, columns, headers)</li>
+                <li>No prior machine learning or data science experience required &mdash; the project teaches the fundamentals from first principles</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Dataset Preparation</div>
+                        <div class="cf-evidence-desc">
+                            Load the labeled alert dataset from a CSV containing <code>alert_text</code>,
+                            <code>severity</code>, and <code>attack_type</code> columns using
+                            <code>pandas.read_csv()</code>. Clean raw alert text by lowercasing, stripping
+                            timestamps, and removing IP address patterns with regex. Handle missing values
+                            by dropping incomplete rows or imputing sensible defaults. Split the cleaned
+                            dataset into training and test sets using <code>train_test_split()</code>
+                            with stratification to preserve class balance across both partitions.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Feature Engineering</div>
+                        <div class="cf-evidence-desc">
+                            Apply <code>TfidfVectorizer</code> to transform alert text into a sparse
+                            numerical matrix, tuning <code>max_features</code> and
+                            <code>ngram_range</code> for optimal signal. Beyond TF-IDF, engineer
+                            structured features: extract time-of-day bucket from alert timestamps,
+                            map source IP ranges to network zones (internal/DMZ/external),
+                            compute raw alert character length, and flag the presence of high-signal
+                            keywords such as <code>exfil</code>, <code>lateral</code>, and
+                            <code>credential</code>. Combine these feature sets with
+                            <code>scipy.sparse.hstack</code> before passing to the model.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Model Training</div>
+                        <div class="cf-evidence-desc">
+                            Train a <code>MultinomialNB</code> (Naive Bayes) classifier as a fast
+                            baseline, recording its cross-validated accuracy with
+                            <code>cross_val_score()</code> over five folds. Then train a
+                            <code>RandomForestClassifier</code> on the same feature matrix and compare
+                            performance. Use <code>GridSearchCV</code> to tune hyperparameters
+                            including <code>n_estimators</code>, <code>max_depth</code>, and
+                            <code>min_samples_split</code>. Set <code>class_weight='balanced'</code>
+                            throughout to account for imbalanced severity distributions in the
+                            training data.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Evaluation &amp; Metrics</div>
+                        <div class="cf-evidence-desc">
+                            Run the trained model against the held-out test set and generate a full
+                            <code>classification_report()</code> showing per-class precision, recall,
+                            and F1-score for both severity and attack-type predictions. Render a
+                            labeled <strong>confusion matrix</strong> in formatted terminal output
+                            using padding and ANSI color codes to highlight off-diagonal errors.
+                            Report macro-averaged and weighted F1 alongside overall accuracy.
+                            Identify the lowest-performing class and analyze the misclassified
+                            samples to surface patterns.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Prediction Pipeline</div>
+                        <div class="cf-evidence-desc">
+                            Build a CLI interface using <code>argparse</code> that accepts a raw
+                            alert string via <code>--alert</code> and returns a structured result:
+                            predicted severity, attack type, confidence score from
+                            <code>predict_proba()</code>, and a mapped recommended response action.
+                            Serialize the fitted vectorizer and classifier together into
+                            <code>model.pkl</code> with <code>pickle.dump()</code> so subsequent
+                            runs load the trained model in milliseconds without retraining.
+                            Include a <code>--retrain</code> flag that triggers a full training
+                            run and overwrites the saved model file.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Python 3.10+</div>
+                <div class="cf-manifest-item">scikit-learn</div>
+                <div class="cf-manifest-item">pandas</div>
+                <div class="cf-manifest-item">numpy</div>
+                <div class="cf-manifest-item">TF-IDF</div>
+                <div class="cf-manifest-item">Naive Bayes</div>
+                <div class="cf-manifest-item">Random Forest</div>
+                <div class="cf-manifest-item">argparse</div>
+                <div class="cf-manifest-item">pickle</div>
+                <div class="cf-manifest-item">csv</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Text preprocessing for NLP tasks</li>
+                <li>TF-IDF vectorization and feature extraction</li>
+                <li>Training classification models with scikit-learn</li>
+                <li>Evaluating models with precision, recall, and F1-score</li>
+                <li>Understanding confusion matrices</li>
+                <li>Cross-validation and hyperparameter tuning</li>
+                <li>Building ML prediction pipelines</li>
+                <li>Handling imbalanced datasets</li>
+                <li>Model serialization with pickle</li>
+                <li>Applying ML to cybersecurity use cases</li>
+            </ul>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

