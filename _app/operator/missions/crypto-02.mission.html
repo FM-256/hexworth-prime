@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRYPTO-02: Key Escrow | Operator</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ─── Header ─── */
+        .mission-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
+            height: 44px;
+            flex-shrink: 0;
+        }
+        .mission-header-back {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .mission-header-back:hover { color: #39ff14; }
+        .mission-header-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            color: #39ff14;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .mission-header-status {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: rgba(57, 255, 20, 0.4);
+            text-transform: uppercase;
+        }
+
+        /* ─── Objectives Bar ─── */
+        .obj-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 7px 20px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .obj-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.15em;
+            color: rgba(57, 255, 20, 0.3);
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.25);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            transition: color 0.3s;
+        }
+        .obj-item.complete { color: #39ff14; }
+        .obj-check {
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
+            border: 1px solid rgba(57, 255, 20, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .obj-item.complete .obj-check {
+            background: rgba(57, 255, 20, 0.15);
+            border-color: #39ff14;
+            color: #39ff14;
+        }
+
+        /* ─── Split Layout ─── */
+        .mission-layout {
+            display: flex;
+            height: calc(100vh - 44px - 30px);
+        }
+
+        /* ─── Map Panel (left 55%) ─── */
+        .map-panel {
+            flex: 0 0 55%;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #090b0f;
+        }
+        .map-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+        }
+
+        /* ─── Grid ─── */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 4px;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            max-height: 480px;
+        }
+
+        .grid-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(57, 255, 20, 0.06);
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.4s ease;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Cell visibility states */
+        .grid-cell.vis-hidden {
+            background: rgba(57, 255, 20, 0.01);
+            border-color: rgba(57, 255, 20, 0.04);
+        }
+        .grid-cell.vis-revealed {
+            background: rgba(57, 255, 20, 0.05);
+            border-color: rgba(57, 255, 20, 0.15);
+        }
+        .grid-cell.vis-visited {
+            background: rgba(57, 255, 20, 0.09);
+            border-color: rgba(57, 255, 20, 0.25);
+        }
+        .grid-cell.current {
+            background: rgba(57, 255, 20, 0.14);
+            border-color: #39ff14;
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
+        }
+        .grid-cell.wall {
+            background: rgba(255, 255, 255, 0.015);
+            border-color: rgba(255, 255, 255, 0.03);
+        }
+        .grid-cell.empty-vis {
+            background: rgba(57, 255, 20, 0.03);
+        }
+
+        /* Firewall & target accent */
+        .grid-cell[data-type="firewall"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 68, 68, 0.4);
+        }
+        .grid-cell[data-type="firewall"].bypassed:not(.vis-hidden) {
+            border-left-color: rgba(57, 255, 20, 0.4);
+        }
+        .grid-cell[data-type="target"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 215, 0, 0.4);
+        }
+
+        /* Cell content */
+        .cell-icon {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            transition: color 0.3s;
+        }
+        .cell-label {
+            font-size: 0.5rem;
+            letter-spacing: 0.06em;
+            margin-top: 2px;
+            transition: color 0.3s;
+            text-align: center;
+        }
+        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
+        .vis-hidden .cell-label { color: transparent; }
+        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
+        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
+        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
+        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
+        .current .cell-icon { color: #39ff14; }
+        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
+        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
+        .wall .cell-label { color: transparent; }
+
+        /* Agent dot */
+        .cell-agent {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #39ff14;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            animation: agentPulse 2s ease-in-out infinite;
+            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
+        }
+        @keyframes agentPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
+            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
+        }
+
+        /* Cell reveal animation */
+        @keyframes cellReveal {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .grid-cell.just-revealed {
+            animation: cellReveal 0.4s ease-out;
+        }
+
+        /* ─── Terminal Panel (right 45%) ─── */
+        .term-panel {
+            flex: 0 0 45%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #080a0e;
+        }
+        .term-bar {
+            padding: 7px 14px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .term-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(57, 255, 20, 0.3);
+        }
+        .term-bar-label {
+            font-size: 0.55rem;
+            color: rgba(57, 255, 20, 0.35);
+            letter-spacing: 0.1em;
+            margin-left: 6px;
+        }
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            line-height: 1.65;
+        }
+        .term-output::-webkit-scrollbar { width: 4px; }
+        .term-output::-webkit-scrollbar-track { background: transparent; }
+        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
+
+        /* Terminal line types */
+        .term-line { word-break: break-word; }
+        .term-system { color: rgba(57, 255, 20, 0.3); }
+        .term-info { color: rgba(57, 255, 20, 0.65); }
+        .term-success { color: #39ff14; font-weight: 600; }
+        .term-error { color: #ff4444; }
+        .term-warning { color: #ffaa00; }
+        .term-node-info { color: #00ccff; }
+        .term-heading { color: #39ff14; font-weight: 700; }
+        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
+
+        /* Terminal input */
+        .term-input-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 14px;
+            border-top: 1px solid rgba(57, 255, 20, 0.1);
+            background: #0a0c12;
+            flex-shrink: 0;
+        }
+        .term-prompt-text {
+            color: #39ff14;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #76ff03;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            caret-color: #39ff14;
+        }
+
+        /* ─── Mission Complete Overlay ─── */
+        .mission-complete {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.88);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 8000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s;
+        }
+        .mission-complete.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .mc-card {
+            background: #0e1018;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 8px;
+            padding: 36px 40px;
+            text-align: center;
+            max-width: 380px;
+            width: 90%;
+        }
+        .mc-badge {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            color: rgba(57, 255, 20, 0.5);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .mc-title {
+            font-size: 1.3rem;
+            color: #39ff14;
+            letter-spacing: 0.2em;
+            margin-bottom: 6px;
+            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+        }
+        .mc-subtitle {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 28px;
+        }
+        .mc-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .mc-stat-value {
+            font-size: 1.5rem;
+            color: #39ff14;
+            font-weight: 700;
+        }
+        .mc-stat-label {
+            font-size: 0.55rem;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.08em;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+        .mc-btn {
+            display: inline-block;
+            padding: 10px 28px;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 4px;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mc-btn:hover {
+            background: rgba(57, 255, 20, 0.2);
+            border-color: #39ff14;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
+        }
+
+        /* ─── Mobile ─── */
+        @media (max-width: 768px) {
+            .mission-layout {
+                flex-direction: column;
+            }
+            .map-panel {
+                flex: 0 0 42%;
+                border-right: none;
+                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            }
+            .term-panel {
+                flex: 1;
+            }
+            .obj-bar { gap: 10px; padding: 6px 12px; }
+            .obj-item { font-size: 0.5rem; }
+            .obj-label { font-size: 0.5rem; }
+            .grid-container { padding: 10px; max-height: none; }
+        }
+        @media (max-width: 480px) {
+            .mission-header { padding: 8px 12px; height: 38px; }
+            .mission-header-title { font-size: 0.6rem; }
+            .mission-layout { height: calc(100vh - 38px - 26px); }
+            .cell-label { display: none; }
+            .cell-icon { font-size: 0.7rem; }
+            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
+            .mc-card { padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="mission-header">
+        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
+        <div class="mission-header-title">CRYPTO-02 / KEY ESCROW</div>
+        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
+    </div>
+
+    <!-- Objectives bar -->
+    <div class="obj-bar">
+        <span class="obj-label">OBJ</span>
+        <div class="obj-item" id="obj-0">
+            <span class="obj-check"></span> Identify rogue CA
+        </div>
+        <div class="obj-item" id="obj-1">
+            <span class="obj-check"></span> Decode message
+        </div>
+        <div class="obj-item" id="obj-2">
+            <span class="obj-check"></span> Revoke rogue cert
+        </div>
+        <div class="obj-item" id="obj-3">
+            <span class="obj-check"></span> Verify TLS chain
+        </div>
+    </div>
+
+    <!-- Split layout -->
+    <div class="mission-layout">
+        <!-- Left: PKI Map -->
+        <div class="map-panel">
+            <div class="grid-container" id="grid-container"></div>
+        </div>
+
+        <!-- Right: Terminal -->
+        <div class="term-panel" id="term-panel">
+            <div class="term-bar">
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <span class="term-bar-label">OPERATOR TERMINAL</span>
+            </div>
+            <div class="term-output" id="term-output"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-text">analyst@pki:~$</span>
+                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission Complete Overlay -->
+    <div class="mission-complete" id="mission-complete">
+        <div class="mc-card">
+            <div class="mc-badge">MISSION COMPLETE</div>
+            <div class="mc-title">KEY ESCROW</div>
+            <div class="mc-subtitle">Rogue CA neutralized. PKI integrity restored.</div>
+            <div class="mc-stats">
+                <div>
+                    <div class="mc-stat-value" id="stat-nodes">0</div>
+                    <div class="mc-stat-label">Certs</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-commands">0</div>
+                    <div class="mc-stat-label">Commands</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-time">0s</div>
+                    <div class="mc-stat-label">Time</div>
+                </div>
+            </div>
+            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
+        </div>
+    </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   CRYPTO-02: Key Escrow — Mission Engine
+   ═══════════════════════════════════════════════════════════ */
+
+// ─── Grid Map ───
+// Rows 0-3, Cols 0-4
+const GRID_MAP = [
+    ['ca-root',      'intermediate-ca', 'empty',          'wall',        'wall'],
+    ['empty',        'cert-store',      'empty',          'rogue-cert',  'wall'],
+    ['wall',         'empty',           'revocation-list', 'empty',      'tls-endpoint'],
+    ['wall',         'key-escrow',      'empty',          'signing-log', 'empty']
+];
+
+const ROWS = 4;
+const COLS = 5;
+
+// ─── Cell Info ───
+const CELL_INFO = {
+    'ca-root':         { label: 'CA-ROOT',         abbr: 'CAR', ip: 'pki-01',           desc: 'Root Certificate Authority — offline signing key',         ports: ['N/A'],              os: 'HSM-Protected' },
+    'intermediate-ca': { label: 'INTERMEDIATE-CA', abbr: 'ICA', ip: 'pki-01',           desc: 'Intermediate CA — issues endpoint certificates',           ports: ['443/HTTPS','8080/OCSP'], os: 'EJBCA Enterprise' },
+    'cert-store':      { label: 'CERT-STORE',      abbr: 'CST', ip: 'pki-01',           desc: 'Certificate database — issued and revoked certs',          ports: ['389/LDAP','636/LDAPS'], os: 'OpenLDAP 2.6' },
+    'rogue-cert':      { label: 'ROGUE-CERT',      abbr: 'RGC', ip: 'pki-01',           desc: 'Suspicious intermediate certificate — unauthorized',       ports: ['N/A'],              os: 'Unknown Issuer' },
+    'revocation-list': { label: 'CRL/OCSP',        abbr: 'CRL', ip: 'pki-01',           desc: 'Certificate Revocation List and OCSP responder',           ports: ['80/HTTP','8080/OCSP'], os: 'OpenSSL CRL' },
+    'tls-endpoint':    { label: 'TLS-ENDPOINT',    abbr: 'TLS', ip: 'app.hexworth.com', desc: 'Production web server — TLS certificate chain',            ports: ['443/HTTPS'],        os: 'Nginx 1.25' },
+    'key-escrow':      { label: 'KEY-ESCROW',      abbr: 'ESC', ip: 'pki-01',           desc: 'Key escrow vault — backed-up private keys',               ports: ['N/A'],              os: 'Vault by HashiCorp' },
+    'signing-log':     { label: 'SIGNING-LOG',     abbr: 'SGL', ip: 'pki-01',           desc: 'Certificate signing transparency log',                      ports: ['N/A'],              os: 'CT-Log v2' }
+};
+
+// ─── Game State ───
+let STATE = {
+    position: { col: 0, row: 0 },
+    visibility: {},
+    objectives: [false, false, false, false],
+    nodesDiscovered: new Set(),
+    commandCount: 0,
+    commandHistory: [],
+    historyIndex: -1,
+    startTime: Date.now(),
+    completed: false,
+    // Mission-specific state
+    rogueIdentified: false,
+    messageDecoded: false,
+    rogueRevoked: false,
+    chainVerified: false,
+    certsExamined: new Set()
+};
+
+// ─── Objective labels ───
+const OBJ_LABELS = [
+    'ROGUE CA IDENTIFIED — forged intermediate certificate found',
+    'MESSAGE DECODED — hidden evidence extracted',
+    'ROGUE CERT REVOKED — unauthorized CA removed from trust',
+    'TLS CHAIN VERIFIED — endpoint certificate chain validated'
+];
+
+// The hidden base64 message players must decode
+const ENCODED_MESSAGE = 'aGV4d29ydGh7cjBndWVfY0FfZDN0M2N0ZWR9';
+const DECODED_MESSAGE  = 'hexworth{r0gue_cA_d3t3cted}';
+
+// ═══ Grid Rendering ═══
+
+function buildGrid() {
+    var container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = GRID_MAP[r][c];
+
+            var icon = document.createElement('div');
+            icon.className = 'cell-icon';
+
+            var label = document.createElement('div');
+            label.className = 'cell-label';
+
+            var agent = document.createElement('div');
+            agent.className = 'cell-agent';
+            agent.style.display = 'none';
+
+            cell.appendChild(icon);
+            cell.appendChild(label);
+            cell.appendChild(agent);
+            container.appendChild(cell);
+        }
+    }
+}
+
+function updateGrid() {
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var cell = document.querySelector('.grid-cell[data-col="' + c + '"][data-row="' + r + '"]');
+            if (!cell) continue;
+
+            var type = GRID_MAP[r][c];
+            var key = c + ',' + r;
+            var vis = STATE.visibility[key] || 'hidden';
+            var isCurrent = STATE.position.col === c && STATE.position.row === r;
+
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = type;
+
+            if (type === 'wall') {
+                cell.classList.add('wall');
+            } else if (isCurrent) {
+                cell.classList.add('current');
+            } else {
+                cell.classList.add('vis-' + vis);
+                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
+            }
+
+            var iconEl = cell.querySelector('.cell-icon');
+            var labelEl = cell.querySelector('.cell-label');
+            var agentEl = cell.querySelector('.cell-agent');
+
+            if (type === 'wall') {
+                iconEl.textContent = '';
+                labelEl.textContent = '';
+            } else if (vis === 'hidden' && !isCurrent) {
+                iconEl.textContent = '?';
+                labelEl.textContent = '';
+            } else if (type === 'empty') {
+                iconEl.textContent = '\u00B7';
+                labelEl.textContent = '';
+            } else {
+                var info = CELL_INFO[type];
+                iconEl.textContent = info.abbr;
+                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
+            }
+
+            agentEl.style.display = isCurrent ? 'block' : 'none';
+        }
+    }
+}
+
+// ═══ Fog of War ═══
+
+function revealAdjacent(col, row) {
+    var dirs = [[0,-1],[0,1],[1,0],[-1,0]];
+    dirs.forEach(function(d) {
+        var nc = col + d[0];
+        var nr = row + d[1];
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+        if (GRID_MAP[nr][nc] === 'wall') return;
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+            var cell = document.querySelector('.grid-cell[data-col="' + nc + '"][data-row="' + nr + '"]');
+            if (cell) {
+                cell.classList.add('just-revealed');
+                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+            }
+        }
+    });
+}
+
+// ═══ Terminal Output ═══
+
+function printLine(text, type) {
+    var output = document.getElementById('term-output');
+    var line = document.createElement('div');
+    line.className = 'term-line term-' + (type || 'system');
+    line.textContent = text;
+    output.appendChild(line);
+    while (output.children.length > 200) {
+        output.removeChild(output.firstChild);
+    }
+    output.scrollTop = output.scrollHeight;
+}
+
+// ═══ Node Resolution ═══
+
+function resolveNode(query) {
+    var q = query.toLowerCase();
+    var exact = [];
+    var partial = [];
+
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var type = GRID_MAP[r][c];
+            if (type === 'empty' || type === 'wall') continue;
+            var info = CELL_INFO[type];
+            var vis = STATE.visibility[c + ',' + r] || 'hidden';
+            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
+
+            if (q === type || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) {
+                exact.push(entry);
+            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
+                partial.push(entry);
+            }
+        }
+    }
+
+    var results = exact.length > 0 ? exact : partial;
+
+    if (results.length === 1) return results[0];
+    if (results.length > 1) {
+        printLine('Multiple matches. Be more specific:', 'warning');
+        results.forEach(function(m) {
+            printLine('  ' + m.info.label + ' (' + m.info.ip + ')', 'info');
+        });
+        return null;
+    }
+    return null;
+}
+
+// ═══ Helper: get current node type ═══
+
+function currentNodeType() {
+    return GRID_MAP[STATE.position.row][STATE.position.col];
+}
+
+// ═══ Command Handlers ═══
+
+function cmdHelp() {
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+    printLine('  scan                  Survey area, reveal adjacent PKI nodes', 'info');
+    printLine('  move <dir>            Move analyst (north/south/east/west or n/s/e/w)', 'info');
+    printLine('  examine               Inspect certificate/PKI data at current node', 'info');
+    printLine('  openssl <target>      Inspect certificate details and chain', 'info');
+    printLine('  decode <string>       Decode a base64 or hex string', 'info');
+    printLine('  diff <cert1> <cert2>  Compare two certificates side by side', 'info');
+    printLine('  revoke                Revoke rogue cert (at CRL/OCSP node only)', 'info');
+    printLine('  verify                Verify TLS chain (at TLS-ENDPOINT node only)', 'info');
+    printLine('  status                Show analyst position and objectives', 'info');
+    printLine('  help                  Show this reference', 'info');
+    printLine('  clear                 Clear terminal output', 'info');
+    printLine('', 'system');
+    printLine('Nodes: ca-root, intermediate-ca, cert-store, rogue-cert,', 'system');
+    printLine('       revocation-list, tls-endpoint, key-escrow, signing-log', 'system');
+}
+
+function cmdScan() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+
+    printLine('Scanning PKI infrastructure...', 'system');
+    printLine('', 'system');
+
+    if (cellType !== 'empty' && cellType !== 'wall') {
+        var cur = CELL_INFO[cellType];
+        printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
+        printLine(cur.desc, 'info');
+        printLine('Platform: ' + cur.os, 'node-info');
+    } else {
+        printLine('Current: Traversal path (no PKI node)', 'heading');
+    }
+
+    printLine('', 'system');
+    printLine('Adjacent:', 'heading');
+
+    var dirs = [
+        { name: 'North', dc: 0, dr: -1 },
+        { name: 'South', dc: 0, dr: 1 },
+        { name: 'East',  dc: 1, dr: 0 },
+        { name: 'West',  dc: -1, dr: 0 }
+    ];
+
+    dirs.forEach(function(d) {
+        var nc = col + d.dc;
+        var nr = row + d.dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
+            printLine('  ' + d.name + ': [infrastructure edge]', 'system');
+            return;
+        }
+        var type = GRID_MAP[nr][nc];
+        if (type === 'wall') {
+            printLine('  ' + d.name + ': [isolated / no path]', 'system');
+            return;
+        }
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+        }
+        if (type === 'empty') {
+            printLine('  ' + d.name + ': Clear path', 'info');
+        } else {
+            var info = CELL_INFO[type];
+            printLine('  ' + d.name + ': ' + info.label + ' — ' + info.desc, 'node-info');
+        }
+    });
+
+    updateGrid();
+    saveState();
+}
+
+function cmdMove(args) {
+    if (!args.length) {
+        printLine('Usage: move <direction>', 'error');
+        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var dirMap = {
+        'north': [0,-1], 'n': [0,-1],
+        'south': [0,1],  's': [0,1],
+        'east':  [1,0],  'e': [1,0],
+        'west':  [-1,0], 'w': [-1,0]
+    };
+
+    var dir = args[0].toLowerCase();
+    if (!dirMap[dir]) {
+        printLine('Unknown direction: ' + args[0], 'error');
+        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var d = dirMap[dir];
+    var newCol = STATE.position.col + d[0];
+    var newRow = STATE.position.row + d[1];
+
+    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
+        printLine('Edge of PKI infrastructure. Cannot move ' + dir + '.', 'error');
+        return;
+    }
+
+    var cellType = GRID_MAP[newRow][newCol];
+
+    if (cellType === 'wall') {
+        printLine('Isolated segment. No path ' + dir + '.', 'error');
+        return;
+    }
+
+    STATE.position = { col: newCol, row: newRow };
+    STATE.visibility[newCol + ',' + newRow] = 'visited';
+
+    if (cellType !== 'empty') {
+        STATE.nodesDiscovered.add(cellType);
+    }
+
+    revealAdjacent(newCol, newRow);
+
+    var dirFull = { n: 'north', s: 'south', e: 'east', w: 'west' };
+    var dirName = dirFull[dir] || dir;
+    if (cellType === 'empty') {
+        printLine('Moving ' + dirName + '... Clear path.', 'system');
+    } else {
+        var info = CELL_INFO[cellType];
+        printLine('Moving ' + dirName + '... ' + info.label + ' (' + info.ip + ')', 'success');
+        printLine(info.desc, 'info');
+        printLine('Platform: ' + info.os, 'node-info');
+        printLine('Type "examine" to inspect this PKI node.', 'system');
+    }
+
+    checkObjectives();
+    updateGrid();
+    saveState();
+}
+
+// ─── Examine: inspect certificate data at current node ───
+
+function cmdExamine() {
+    var type = currentNodeType();
+
+    if (type === 'empty' || type === 'wall') {
+        printLine('Nothing to examine here. Move to a PKI node.', 'error');
+        return;
+    }
+
+    printLine('', 'system');
+
+    switch (type) {
+
+        case 'ca-root':
+            printLine('=== ROOT CA CERTIFICATE ===', 'heading');
+            printLine('Subject:     CN=Hexworth Root CA, O=Hexworth Corp', 'info');
+            printLine('Serial:      00:A1:B2:C3:D4', 'info');
+            printLine('Valid:       2020-01-01 to 2040-01-01', 'info');
+            printLine('Key:         RSA 4096-bit (HSM-protected)', 'info');
+            printLine('Fingerprint: SHA256:9f:3a:b7:cc:12:de:4f:01:98:ab:...', 'node-info');
+            printLine('Status:      TRUSTED — offline root, air-gapped', 'success');
+            STATE.certsExamined.add('ca-root');
+            break;
+
+        case 'intermediate-ca':
+            printLine('=== INTERMEDIATE CA ===', 'heading');
+            printLine('Subject:     CN=Hexworth Issuing CA, O=Hexworth Corp', 'info');
+            printLine('Issuer:      CN=Hexworth Root CA', 'info');
+            printLine('Serial:      00:E5:F6:G7:H8', 'info');
+            printLine('Valid:       2023-01-01 to 2028-01-01', 'info');
+            printLine('Key:         RSA 2048-bit', 'info');
+            printLine('Fingerprint: SHA256:4d:2e:a1:77:3b:5c:d8:f2:...', 'node-info');
+            printLine('Status:      VALID — chain verified to root', 'success');
+            printLine('', 'system');
+            printLine('Also found: SECONDARY issuing CA', 'warning');
+            printLine('Subject:     CN=Hexworth Cloud CA, O=Hexworth Corp  <- [SUSPICIOUS]', 'warning');
+            printLine('Serial:      00:FF:00:11:22', 'warning');
+            printLine('This CA was NOT in the original issuance plan.', 'warning');
+            STATE.certsExamined.add('intermediate-ca');
+            break;
+
+        case 'cert-store':
+            printLine('=== CERTIFICATE DATABASE ===', 'heading');
+            printLine('Total certificates: 2,847', 'info');
+            printLine('Active: 2,612 | Revoked: 198 | Expired: 37', 'info');
+            printLine('', 'system');
+            printLine('Recent issuances (last 7 days):', 'heading');
+            printLine('[03/01] app.hexworth.com    — issued by Hexworth Issuing CA', 'info');
+            printLine('[03/02] api.hexworth.com    — issued by Hexworth Issuing CA', 'info');
+            printLine('[03/03] *.hexworth.com      — issued by Hexworth Cloud CA  <- [SUSPICIOUS]', 'warning');
+            printLine('[03/04] vpn.hexworth.com    — issued by Hexworth Cloud CA  <- [SUSPICIOUS]', 'warning');
+            printLine('', 'system');
+            printLine('[!] WARNING: "Hexworth Cloud CA" is issuing wildcard certs', 'warning');
+            STATE.certsExamined.add('cert-store');
+            break;
+
+        case 'rogue-cert':
+            printLine('=== ROGUE CERTIFICATE ANALYSIS ===', 'heading');
+            printLine('Subject:     CN=Hexworth Cloud CA, O=Hexworth Corp', 'info');
+            printLine('Issuer:      CN=Hexworth Root CA (FORGED SIGNATURE)', 'warning');
+            printLine('Serial:      00:FF:00:11:22', 'info');
+            printLine('Valid:       2026-02-28 to 2031-02-28', 'info');
+            printLine('Key:         RSA 2048-bit (software-generated, NOT HSM)', 'warning');
+            printLine('Fingerprint: SHA256:de:ad:be:ef:ca:fe:ba:be:...', 'node-info');
+            printLine('', 'system');
+            printLine('[!] CRITICAL: Signature verification FAILS against known root key.', 'warning');
+            printLine('[!] This is a FORGED intermediate CA certificate.', 'warning');
+            if (!STATE.rogueIdentified) {
+                STATE.rogueIdentified = true;
+                printLine('', 'system');
+                printLine('[FINDING] Rogue CA confirmed. Proceed to CRL/OCSP to revoke.', 'success');
+            }
+            STATE.certsExamined.add('rogue-cert');
+            break;
+
+        case 'tls-endpoint':
+            printLine('=== TLS ENDPOINT: app.hexworth.com ===', 'heading');
+            printLine('Certificate chain:', 'info');
+            printLine('  [0] CN=app.hexworth.com (leaf)', 'info');
+            printLine('      Issuer: CN=Hexworth Issuing CA ' + (STATE.rogueRevoked ? '\u2713' : ''), 'info');
+            printLine('  [1] CN=Hexworth Issuing CA (intermediate)', 'info');
+            printLine('      Issuer: CN=Hexworth Root CA ' + (STATE.rogueRevoked ? '\u2713' : ''), 'info');
+            printLine('  [2] CN=Hexworth Root CA (root) ' + (STATE.rogueRevoked ? '\u2713' : ''), 'info');
+            printLine('', 'system');
+            if (STATE.rogueRevoked) {
+                printLine('Rogue CA removed. No unauthorized issuers in chain.', 'success');
+                printLine('Chain status: VALID — run "verify" to finalize.', 'success');
+            } else {
+                printLine('Chain status: At risk — rogue CA still active in trust store.', 'warning');
+                printLine('Revoke the rogue cert first. Use "revoke" at CRL/OCSP node.', 'info');
+            }
+            STATE.certsExamined.add('tls-endpoint');
+            break;
+
+        case 'signing-log':
+            printLine('=== CERTIFICATE TRANSPARENCY LOG ===', 'heading');
+            printLine('[02/28 04:12] SIGNED: CN=Hexworth Cloud CA — issuer: Root CA', 'info');
+            printLine('  Signing host: pki-backup-03 (NOT primary HSM)  <- [SUSPICIOUS]', 'warning');
+            printLine('  Operator: unknown (no audit trail)', 'warning');
+            printLine('[03/01 09:00] SIGNED: app.hexworth.com — issuer: Issuing CA  \u2713', 'info');
+            printLine('[03/03 02:14] SIGNED: *.hexworth.com — issuer: Cloud CA  <- [ROGUE]', 'warning');
+            printLine('', 'system');
+            printLine('[!] Unauthorized signing from non-HSM host detected.', 'warning');
+            STATE.certsExamined.add('signing-log');
+            break;
+
+        case 'key-escrow':
+            printLine('=== KEY ESCROW VAULT ===', 'heading');
+            printLine('Stored keys: 4', 'info');
+            printLine('  [1] Hexworth Root CA     — HSM slot 1 (air-gapped)  \u2713', 'info');
+            printLine('  [2] Hexworth Issuing CA  — HSM slot 2  \u2713', 'info');
+            printLine('  [3] Hexworth Cloud CA    — software key  <- [NO HSM]', 'warning');
+            printLine('  [4] TLS wildcard key     — software generated', 'warning');
+            printLine('', 'system');
+            printLine('[!] Key #3 was imported 02/28 without HSM protection', 'warning');
+            printLine('Encoded message found in key metadata:', 'info');
+            printLine(ENCODED_MESSAGE, 'node-info');
+            printLine('', 'system');
+            printLine('Use "decode ' + ENCODED_MESSAGE + '" to extract.', 'system');
+            STATE.certsExamined.add('key-escrow');
+            break;
+
+        default:
+            printLine('No examination handler for this node.', 'error');
+            return;
+    }
+
+    printLine('', 'system');
+    printLine('[+] ' + CELL_INFO[type].label + ' examined. (' + STATE.certsExamined.size + '/8 nodes)', 'info');
+
+    checkObjectives();
+    saveState();
+}
+
+// ─── OpenSSL: inspect certificate by name ───
+
+function cmdOpenSSL(args) {
+    if (!args.length) {
+        printLine('Usage: openssl <target>', 'error');
+        printLine('Example: openssl ca-root, openssl rogue-cert', 'system');
+        return;
+    }
+
+    var target = args.join('-').toLowerCase();
+    // Normalize common aliases
+    var aliases = {
+        'ca-root': 'ca-root', 'caroot': 'ca-root', 'root': 'ca-root', 'car': 'ca-root',
+        'intermediate': 'intermediate-ca', 'intermediate-ca': 'intermediate-ca', 'ica': 'intermediate-ca',
+        'rogue': 'rogue-cert', 'rogue-cert': 'rogue-cert', 'rgc': 'rogue-cert',
+        'tls': 'tls-endpoint', 'tls-endpoint': 'tls-endpoint', 'endpoint': 'tls-endpoint',
+        'crl': 'revocation-list', 'revocation': 'revocation-list', 'ocsp': 'revocation-list'
+    };
+    var resolved = aliases[target] || aliases[args[0].toLowerCase()] || null;
+
+    if (!resolved) {
+        printLine('openssl: unknown target: ' + args.join(' '), 'error');
+        printLine('Try: ca-root, intermediate-ca, rogue-cert, tls-endpoint', 'system');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('openssl x509 -in ' + resolved + '.pem -text -noout', 'prompt-echo');
+    printLine('', 'system');
+
+    switch (resolved) {
+        case 'ca-root':
+            printLine('Certificate:', 'heading');
+            printLine('  Issuer: CN=Hexworth Root CA, O=Hexworth Corp', 'info');
+            printLine('  Subject: CN=Hexworth Root CA, O=Hexworth Corp', 'info');
+            printLine('  Serial: 00:A1:B2:C3:D4', 'info');
+            printLine('  Validity: Jan  1 00:00:00 2020 GMT — Jan  1 00:00:00 2040 GMT', 'info');
+            printLine('  Public Key: rsaEncryption (4096 bit)', 'node-info');
+            printLine('  X509v3 Basic Constraints: CA:TRUE, pathlen:1', 'node-info');
+            printLine('  Signature Algorithm: sha256WithRSAEncryption', 'info');
+            printLine('  Verification: OK', 'success');
+            break;
+
+        case 'intermediate-ca':
+            printLine('Certificate:', 'heading');
+            printLine('  Issuer: CN=Hexworth Root CA, O=Hexworth Corp', 'info');
+            printLine('  Subject: CN=Hexworth Issuing CA, O=Hexworth Corp', 'info');
+            printLine('  Serial: 00:E5:F6:G7:H8', 'info');
+            printLine('  Validity: Jan  1 00:00:00 2023 GMT — Jan  1 00:00:00 2028 GMT', 'info');
+            printLine('  Public Key: rsaEncryption (2048 bit)', 'node-info');
+            printLine('  X509v3 Basic Constraints: CA:TRUE, pathlen:0', 'node-info');
+            printLine('  Signature Algorithm: sha256WithRSAEncryption', 'info');
+            printLine('  Verification: OK', 'success');
+            break;
+
+        case 'rogue-cert':
+            printLine('Certificate:', 'heading');
+            printLine('  Issuer: CN=Hexworth Root CA, O=Hexworth Corp (CLAIMED)', 'warning');
+            printLine('  Subject: CN=Hexworth Cloud CA, O=Hexworth Corp', 'info');
+            printLine('  Serial: 00:FF:00:11:22', 'info');
+            printLine('  Validity: Feb 28 00:00:00 2026 GMT — Feb 28 00:00:00 2031 GMT', 'info');
+            printLine('  Public Key: rsaEncryption (2048 bit) — SOFTWARE GENERATED', 'warning');
+            printLine('  X509v3 Basic Constraints: CA:TRUE', 'node-info');
+            printLine('  Signature Algorithm: sha256WithRSAEncryption', 'info');
+            printLine('', 'system');
+            printLine('  Verifying signature against root public key...', 'system');
+            printLine('  verify error:num=7:certificate signature failure', 'error');
+            printLine('  RSA key mismatch — signature does NOT match Root CA key.', 'error');
+            printLine('  Verification: FAILED — FORGED CERTIFICATE', 'error');
+            break;
+
+        case 'tls-endpoint':
+            printLine('Chain verification for app.hexworth.com:', 'heading');
+            printLine('  depth=2: CN=Hexworth Root CA — OK', 'info');
+            printLine('  depth=1: CN=Hexworth Issuing CA — OK', 'info');
+            printLine('  depth=0: CN=app.hexworth.com — OK', 'info');
+            printLine('  Chain: VALID', 'success');
+            if (!STATE.rogueRevoked) {
+                printLine('', 'system');
+                printLine('  Warning: Rogue CA "Hexworth Cloud CA" still in trust store.', 'warning');
+                printLine('  Wildcards issued by rogue CA remain valid until revoked.', 'warning');
+            }
+            break;
+
+        default:
+            printLine('Certificate data not available for: ' + resolved, 'info');
+    }
+
+    printLine('', 'system');
+}
+
+// ─── Decode: base64 decoder ───
+
+function cmdDecode(args) {
+    if (!args.length) {
+        printLine('Usage: decode <base64 or hex string>', 'error');
+        return;
+    }
+
+    var input = args[0];
+    printLine('', 'system');
+    printLine('Decoding: ' + input, 'system');
+
+    // Check if it matches the mission string (exact or trimmed)
+    if (input === ENCODED_MESSAGE || input.trim() === ENCODED_MESSAGE) {
+        printLine('Encoding detected: Base64', 'info');
+        printLine('Decoded output: ' + DECODED_MESSAGE, 'success');
+        if (!STATE.messageDecoded) {
+            STATE.messageDecoded = true;
+            printLine('', 'system');
+            printLine('[FINDING] Hidden message extracted from key metadata.', 'success');
+        }
+    } else {
+        // Generic decode attempt — simulate plausible output for other strings
+        try {
+            // Only attempt decode if it looks like valid base64
+            if (/^[A-Za-z0-9+/]+=*$/.test(input) && input.length >= 4) {
+                var decoded = atob(input);
+                printLine('Encoding detected: Base64', 'info');
+                printLine('Decoded output: ' + decoded, 'node-info');
+            } else {
+                printLine('Input does not appear to be valid Base64.', 'error');
+                printLine('Hint: Look for encoded strings in the key-escrow node metadata.', 'system');
+            }
+        } catch (e) {
+            printLine('Decode failed: invalid encoding.', 'error');
+            printLine('Hint: Look for encoded strings in the key-escrow node metadata.', 'system');
+        }
+    }
+
+    printLine('', 'system');
+    checkObjectives();
+    saveState();
+}
+
+// ─── Diff: compare two certificates ───
+
+function cmdDiff(args) {
+    if (args.length < 2) {
+        printLine('Usage: diff <cert1> <cert2>', 'error');
+        printLine('Example: diff intermediate-ca rogue-cert', 'system');
+        return;
+    }
+
+    var aliases = {
+        'intermediate': 'intermediate-ca', 'ica': 'intermediate-ca', 'intermediate-ca': 'intermediate-ca',
+        'rogue': 'rogue-cert', 'rgc': 'rogue-cert', 'rogue-cert': 'rogue-cert',
+        'root': 'ca-root', 'car': 'ca-root', 'ca-root': 'ca-root'
+    };
+
+    var c1 = aliases[args[0].toLowerCase()] || args[0].toLowerCase();
+    var c2 = aliases[args[1].toLowerCase()] || args[1].toLowerCase();
+
+    printLine('', 'system');
+    printLine('Comparing: ' + c1.toUpperCase() + ' vs ' + c2.toUpperCase(), 'heading');
+    printLine('', 'system');
+
+    // intermediate-ca vs rogue-cert — the key comparison
+    if ((c1 === 'intermediate-ca' && c2 === 'rogue-cert') ||
+        (c1 === 'rogue-cert' && c2 === 'intermediate-ca')) {
+        printLine('FIELD              INTERMEDIATE-CA           ROGUE-CERT', 'heading');
+        printLine('Issuer claim:      Hexworth Root CA          Hexworth Root CA', 'info');
+        printLine('Key type:          HSM-protected             Software-generated', 'warning');
+        printLine('Key size:          RSA 2048-bit              RSA 2048-bit', 'info');
+        printLine('Signature valid:   YES (verified)            NO (forged)        <- MISMATCH', 'warning');
+        printLine('Created:           2023-01-01                2026-02-28', 'info');
+        printLine('Signing host:      primary HSM               pki-backup-03', 'warning');
+        printLine('Audit trail:       Complete                  None               <- MISSING', 'warning');
+        printLine('', 'system');
+        printLine('Conclusion: Rogue cert forges Root CA signature. HSM not used.', 'warning');
+    }
+    // ca-root vs rogue-cert
+    else if ((c1 === 'ca-root' && c2 === 'rogue-cert') ||
+             (c1 === 'rogue-cert' && c2 === 'ca-root')) {
+        printLine('FIELD              CA-ROOT                   ROGUE-CERT', 'heading');
+        printLine('Role:              Trust anchor              Forged intermediate', 'info');
+        printLine('Key size:          RSA 4096-bit              RSA 2048-bit       <- WEAKER', 'warning');
+        printLine('Key storage:       HSM slot 1 (air-gapped)   Software keystore  <- INSECURE', 'warning');
+        printLine('Self-signed:       YES (expected)            NO (forged issuer)', 'info');
+        printLine('Fingerprint match: N/A                       FAILS vs root key', 'error');
+    }
+    else {
+        printLine('No diff data available for this pair.', 'info');
+        printLine('Try: diff intermediate-ca rogue-cert', 'system');
+    }
+
+    printLine('', 'system');
+}
+
+// ─── Revoke: revoke the rogue cert (CRL/OCSP node only) ───
+
+function cmdRevoke() {
+    var type = currentNodeType();
+
+    if (type !== 'revocation-list') {
+        printLine('revoke: must be at CRL/OCSP node.', 'error');
+        printLine('Navigate to revocation-list and try again.', 'system');
+        return;
+    }
+
+    if (!STATE.rogueIdentified) {
+        printLine('Cannot revoke — rogue certificate not yet identified.', 'error');
+        printLine('Navigate to rogue-cert node and use "examine" first.', 'system');
+        return;
+    }
+
+    if (STATE.rogueRevoked) {
+        printLine('Rogue certificate already revoked.', 'info');
+        printLine('Serial 00:FF:00:11:22 is in the CRL. Trust store clean.', 'info');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('Initiating revocation: CN=Hexworth Cloud CA (Serial: 00:FF:00:11:22)', 'warning');
+    printLine('Adding to Certificate Revocation List...', 'system');
+    printLine('Updating OCSP responder...', 'system');
+    printLine('Propagating to trust store...', 'system');
+    printLine('', 'system');
+    printLine('Revocation complete.', 'success');
+    printLine('Serial 00:FF:00:11:22 — STATUS: REVOKED', 'success');
+    printLine('All certificates issued by rogue CA marked UNTRUSTED.', 'success');
+    printLine('OCSP response updated. Effective immediately.', 'success');
+    printLine('', 'system');
+    printLine('[!] Navigate to TLS-ENDPOINT and run "verify" to confirm clean chain.', 'info');
+
+    STATE.rogueRevoked = true;
+
+    checkObjectives();
+    saveState();
+}
+
+// ─── Verify: verify TLS chain (tls-endpoint node only) ───
+
+function cmdVerify() {
+    var type = currentNodeType();
+
+    if (type !== 'tls-endpoint') {
+        printLine('verify: must be at TLS-ENDPOINT node.', 'error');
+        printLine('Navigate to tls-endpoint and try again.', 'system');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('Verifying TLS certificate chain for app.hexworth.com...', 'system');
+    printLine('', 'system');
+
+    if (!STATE.rogueRevoked) {
+        printLine('Chain verification...', 'system');
+        printLine('', 'system');
+        printLine('WARNING: Rogue CA "Hexworth Cloud CA" still active in trust store.', 'warning');
+        printLine('Wildcards and VPN cert issued by rogue CA remain trusted.', 'warning');
+        printLine('', 'system');
+        printLine('Revoke the rogue cert before re-verifying.', 'error');
+        printLine('Navigate to revocation-list and use "revoke".', 'system');
+        return;
+    }
+
+    printLine('Checking issuer chain...', 'system');
+    printLine('  CN=app.hexworth.com', 'info');
+    printLine('    signed by CN=Hexworth Issuing CA  \u2713', 'info');
+    printLine('  CN=Hexworth Issuing CA', 'info');
+    printLine('    signed by CN=Hexworth Root CA  \u2713', 'info');
+    printLine('  CN=Hexworth Root CA (self-signed trust anchor)  \u2713', 'info');
+    printLine('', 'system');
+    printLine('Checking revocation status...', 'system');
+    printLine('  Rogue CA 00:FF:00:11:22 — REVOKED  \u2713', 'success');
+    printLine('  All certs in chain — NOT REVOKED  \u2713', 'success');
+    printLine('', 'system');
+    printLine('All certificates trace to legitimate Root CA.', 'success');
+    printLine('No rogue issuers detected in trust chain.', 'success');
+    printLine('TLS CHAIN VERIFIED.', 'success');
+
+    if (!STATE.chainVerified) {
+        STATE.chainVerified = true;
+    }
+
+    checkObjectives();
+    saveState();
+}
+
+function cmdStatus() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Traversal path';
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 PKI INVESTIGATION STATUS \u2550\u2550\u2550', 'heading');
+    printLine('Position: (' + col + ',' + row + ') — ' + posLabel, 'info');
+    printLine('Certs examined: ' + STATE.certsExamined.size + ' / 8', 'info');
+    printLine('Commands used: ' + STATE.commandCount, 'info');
+    printLine('', 'system');
+    printLine('Investigation flags:', 'heading');
+    printLine((STATE.rogueIdentified ? ' [X] ' : ' [ ] ') + 'Rogue CA identified', STATE.rogueIdentified ? 'success' : 'system');
+    printLine((STATE.messageDecoded  ? ' [X] ' : ' [ ] ') + 'Hidden message decoded',  STATE.messageDecoded  ? 'success' : 'system');
+    printLine((STATE.rogueRevoked    ? ' [X] ' : ' [ ] ') + 'Rogue cert revoked',    STATE.rogueRevoked    ? 'success' : 'system');
+    printLine((STATE.chainVerified   ? ' [X] ' : ' [ ] ') + 'TLS chain verified',    STATE.chainVerified   ? 'success' : 'system');
+}
+
+// ═══ Utility ═══
+
+function padRight(str, len) {
+    while (str.length < len) str += ' ';
+    return str;
+}
+
+// ═══ Objectives ═══
+
+function checkObjectives() {
+    var prev = STATE.objectives.slice();
+
+    STATE.objectives[0] = STATE.rogueIdentified;
+    STATE.objectives[1] = STATE.messageDecoded;
+    STATE.objectives[2] = STATE.rogueRevoked;
+    STATE.objectives[3] = STATE.chainVerified;
+
+    STATE.objectives.forEach(function(done, i) {
+        if (done && !prev[i]) {
+            printLine('', 'system');
+            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
+        }
+    });
+
+    updateObjectivesUI();
+
+    if (STATE.objectives.every(Boolean) && !STATE.completed) {
+        STATE.completed = true;
+        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
+
+        var stats = {
+            completed: true,
+            time: elapsed,
+            commands: STATE.commandCount,
+            certsExamined: STATE.certsExamined.size,
+            timestamp: Date.now()
+        };
+        try {
+            localStorage.setItem('hexworth_operator_crypto02', JSON.stringify(stats));
+            localStorage.removeItem('hexworth_operator_crypto02_save');
+        } catch (e) {}
+
+        printLine('', 'system');
+        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
+        printLine('Mission CRYPTO-02 accomplished. PKI integrity restored.', 'success');
+
+        document.getElementById('header-status').textContent = 'COMPLETE';
+        document.getElementById('header-status').style.color = '#39ff14';
+
+        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
+    }
+}
+
+function updateObjectivesUI() {
+    STATE.objectives.forEach(function(done, i) {
+        var el = document.getElementById('obj-' + i);
+        if (!el) return;
+        var check = el.querySelector('.obj-check');
+        if (done) {
+            el.classList.add('complete');
+            check.textContent = '\u2713';
+        } else {
+            el.classList.remove('complete');
+            check.textContent = '';
+        }
+    });
+}
+
+function showMissionComplete(elapsed) {
+    var mins = Math.floor(elapsed / 60);
+    var secs = elapsed % 60;
+    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
+    document.getElementById('stat-nodes').textContent = STATE.certsExamined.size;
+    document.getElementById('stat-commands').textContent = STATE.commandCount;
+    document.getElementById('stat-time').textContent = timeStr;
+
+    document.getElementById('mission-complete').classList.add('visible');
+}
+
+// ═══ Save / Load ═══
+
+function saveState() {
+    try {
+        var data = {
+            position: STATE.position,
+            visibility: STATE.visibility,
+            objectives: STATE.objectives,
+            nodesDiscovered: Array.from(STATE.nodesDiscovered),
+            commandCount: STATE.commandCount,
+            startTime: STATE.startTime,
+            rogueIdentified: STATE.rogueIdentified,
+            messageDecoded: STATE.messageDecoded,
+            rogueRevoked: STATE.rogueRevoked,
+            chainVerified: STATE.chainVerified,
+            certsExamined: Array.from(STATE.certsExamined)
+        };
+        localStorage.setItem('hexworth_operator_crypto02_save', JSON.stringify(data));
+    } catch (e) {}
+}
+
+function loadState() {
+    try {
+        var saved = localStorage.getItem('hexworth_operator_crypto02_save');
+        if (!saved) return false;
+        var data = JSON.parse(saved);
+        STATE.position = data.position;
+        STATE.visibility = data.visibility;
+        STATE.objectives = data.objectives;
+        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
+        STATE.commandCount = data.commandCount;
+        STATE.startTime = data.startTime;
+        STATE.rogueIdentified = data.rogueIdentified || false;
+        STATE.messageDecoded  = data.messageDecoded  || false;
+        STATE.rogueRevoked    = data.rogueRevoked    || false;
+        STATE.chainVerified   = data.chainVerified   || false;
+        STATE.certsExamined   = new Set(data.certsExamined || []);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function resetState() {
+    STATE = {
+        position: { col: 0, row: 0 },
+        visibility: {},
+        objectives: [false, false, false, false],
+        nodesDiscovered: new Set(),
+        commandCount: 0,
+        commandHistory: [],
+        historyIndex: -1,
+        startTime: Date.now(),
+        completed: false,
+        rogueIdentified: false,
+        messageDecoded: false,
+        rogueRevoked: false,
+        chainVerified: false,
+        certsExamined: new Set()
+    };
+    // Starting cell
+    STATE.visibility['0,0'] = 'visited';
+    STATE.nodesDiscovered.add('ca-root');
+    revealAdjacent(0, 0);
+}
+
+// ═══ Command Parser ═══
+
+function executeCommand(input) {
+    STATE.commandCount++;
+
+    printLine('analyst@pki:~$ ' + input, 'prompt-echo');
+
+    var parts = input.trim().split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+    var args = parts.slice(1);
+
+    switch (cmd) {
+        case 'scan':    cmdScan(); break;
+        case 'move':    cmdMove(args); break;
+        case 'examine': cmdExamine(); break;
+        case 'openssl': cmdOpenSSL(args); break;
+        case 'decode':  cmdDecode(args); break;
+        case 'diff':    cmdDiff(args); break;
+        case 'revoke':  cmdRevoke(); break;
+        case 'verify':  cmdVerify(); break;
+        case 'status':  cmdStatus(); break;
+        case 'help':    cmdHelp(); break;
+        case 'clear':
+            document.getElementById('term-output').innerHTML = '';
+            break;
+        default:
+            printLine('Unknown command: ' + cmd, 'error');
+            printLine('Type "help" for available commands.', 'system');
+    }
+}
+
+// ═══ Terminal Input ═══
+
+function setupInput() {
+    var input = document.getElementById('term-input');
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            var cmd = this.value.trim();
+            if (cmd) {
+                STATE.commandHistory.push(cmd);
+                STATE.historyIndex = STATE.commandHistory.length;
+                executeCommand(cmd);
+            }
+            this.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (STATE.historyIndex > 0) {
+                STATE.historyIndex--;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
+                STATE.historyIndex++;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            } else {
+                STATE.historyIndex = STATE.commandHistory.length;
+                this.value = '';
+            }
+        }
+    });
+
+    document.getElementById('term-panel').addEventListener('click', function(e) {
+        if (e.target.tagName !== 'INPUT') input.focus();
+    });
+}
+
+// ═══ Mission Briefing ═══
+
+function showBriefing() {
+    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
+    printLine('\u2551  MISSION: CRYPTO-02 \u2014 KEY ESCROW          \u2551', 'heading');
+    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
+    printLine('\u2551  PKI infrastructure compromised.             \u2551', 'heading');
+    printLine('\u2551  Rogue intermediate CA in trust chain.       \u2551', 'heading');
+    printLine('\u2551  Identify the forgery. Decode the evidence.  \u2551', 'heading');
+    printLine('\u2551  Revoke the cert. Verify the chain.          \u2551', 'heading');
+    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
+    printLine('', 'system');
+    printLine('[SYS] Analyst online at CA-ROOT (pki-01)', 'success');
+    printLine('[SYS] Type "help" for command reference', 'info');
+    printLine('[SYS] Type "scan" to survey adjacent PKI nodes', 'info');
+    printLine('[SYS] Use "examine" to inspect certificate data', 'info');
+    printLine('', 'system');
+}
+
+// ═══ Init ═══
+
+function init() {
+    buildGrid();
+    setupInput();
+
+    var restored = loadState();
+    if (restored && !STATE.completed) {
+        printLine('[SYS] Session restored from save.', 'system');
+        printLine('[SYS] Type "status" to review PKI investigation progress.', 'info');
+        printLine('', 'system');
+    } else {
+        resetState();
+        showBriefing();
+    }
+
+    updateGrid();
+    updateObjectivesUI();
+    document.getElementById('term-input').focus();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

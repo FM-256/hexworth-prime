@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WINDOWS-CMD-02: Blue Screen Protocol | Operator</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ─── Header ─── */
+        .mission-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
+            height: 44px;
+            flex-shrink: 0;
+        }
+        .mission-header-back {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .mission-header-back:hover { color: #39ff14; }
+        .mission-header-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            color: #39ff14;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .mission-header-status {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: rgba(57, 255, 20, 0.4);
+            text-transform: uppercase;
+        }
+
+        /* ─── Objectives Bar ─── */
+        .obj-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 7px 20px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .obj-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.15em;
+            color: rgba(57, 255, 20, 0.3);
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.25);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            transition: color 0.3s;
+        }
+        .obj-item.complete { color: #39ff14; }
+        .obj-check {
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
+            border: 1px solid rgba(57, 255, 20, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .obj-item.complete .obj-check {
+            background: rgba(57, 255, 20, 0.15);
+            border-color: #39ff14;
+            color: #39ff14;
+        }
+
+        /* ─── Split Layout ─── */
+        .mission-layout {
+            display: flex;
+            height: calc(100vh - 44px - 30px);
+        }
+
+        /* ─── Map Panel (left 55%) ─── */
+        .map-panel {
+            flex: 0 0 55%;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #090b0f;
+        }
+        .map-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+        }
+
+        /* ─── Grid ─── */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 4px;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            max-height: 480px;
+        }
+
+        .grid-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(57, 255, 20, 0.06);
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.4s ease;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Cell visibility states */
+        .grid-cell.vis-hidden {
+            background: rgba(57, 255, 20, 0.01);
+            border-color: rgba(57, 255, 20, 0.04);
+        }
+        .grid-cell.vis-revealed {
+            background: rgba(57, 255, 20, 0.05);
+            border-color: rgba(57, 255, 20, 0.15);
+        }
+        .grid-cell.vis-visited {
+            background: rgba(57, 255, 20, 0.09);
+            border-color: rgba(57, 255, 20, 0.25);
+        }
+        .grid-cell.current {
+            background: rgba(57, 255, 20, 0.14);
+            border-color: #39ff14;
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
+        }
+        .grid-cell.wall {
+            background: rgba(255, 255, 255, 0.015);
+            border-color: rgba(255, 255, 255, 0.03);
+        }
+        .grid-cell.empty-vis {
+            background: rgba(57, 255, 20, 0.03);
+        }
+
+        /* Firewall & target accent */
+        .grid-cell[data-type="firewall"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 68, 68, 0.4);
+        }
+        .grid-cell[data-type="firewall"].bypassed:not(.vis-hidden) {
+            border-left-color: rgba(57, 255, 20, 0.4);
+        }
+        .grid-cell[data-type="target"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 215, 0, 0.4);
+        }
+
+        /* Remediation accent: nodes turn green when their threat is resolved */
+        .grid-cell[data-type="task-scheduler"].remediated:not(.vis-hidden) {
+            border-left: 2px solid rgba(57, 255, 20, 0.5);
+        }
+        .grid-cell[data-type="services-panel"].remediated:not(.vis-hidden) {
+            border-left: 2px solid rgba(57, 255, 20, 0.5);
+        }
+        .grid-cell[data-type="user-accounts"].remediated:not(.vis-hidden) {
+            border-left: 2px solid rgba(57, 255, 20, 0.5);
+        }
+        /* Suspicious accent: nodes with known threats get amber left border */
+        .grid-cell[data-type="task-scheduler"]:not(.remediated):not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 170, 0, 0.35);
+        }
+        .grid-cell[data-type="services-panel"]:not(.remediated):not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 170, 0, 0.35);
+        }
+        .grid-cell[data-type="user-accounts"]:not(.remediated):not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 170, 0, 0.35);
+        }
+
+        /* Cell content */
+        .cell-icon {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            transition: color 0.3s;
+        }
+        .cell-label {
+            font-size: 0.5rem;
+            letter-spacing: 0.06em;
+            margin-top: 2px;
+            transition: color 0.3s;
+            text-align: center;
+        }
+        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
+        .vis-hidden .cell-label { color: transparent; }
+        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
+        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
+        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
+        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
+        .current .cell-icon { color: #39ff14; }
+        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
+        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
+        .wall .cell-label { color: transparent; }
+
+        /* Agent dot */
+        .cell-agent {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #39ff14;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            animation: agentPulse 2s ease-in-out infinite;
+            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
+        }
+        @keyframes agentPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
+            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
+        }
+
+        /* Cell reveal animation */
+        @keyframes cellReveal {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .grid-cell.just-revealed {
+            animation: cellReveal 0.4s ease-out;
+        }
+
+        /* ─── Terminal Panel (right 45%) ─── */
+        .term-panel {
+            flex: 0 0 45%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #080a0e;
+        }
+        .term-bar {
+            padding: 7px 14px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .term-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(57, 255, 20, 0.3);
+        }
+        .term-bar-label {
+            font-size: 0.55rem;
+            color: rgba(57, 255, 20, 0.35);
+            letter-spacing: 0.1em;
+            margin-left: 6px;
+        }
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            line-height: 1.65;
+        }
+        .term-output::-webkit-scrollbar { width: 4px; }
+        .term-output::-webkit-scrollbar-track { background: transparent; }
+        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
+
+        /* Terminal line types */
+        .term-line { word-break: break-word; }
+        .term-system { color: rgba(57, 255, 20, 0.3); }
+        .term-info { color: rgba(57, 255, 20, 0.65); }
+        .term-success { color: #39ff14; font-weight: 600; }
+        .term-error { color: #ff4444; }
+        .term-warning { color: #ffaa00; }
+        .term-node-info { color: #00ccff; }
+        .term-heading { color: #39ff14; font-weight: 700; }
+        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
+
+        /* Terminal input */
+        .term-input-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 14px;
+            border-top: 1px solid rgba(57, 255, 20, 0.1);
+            background: #0a0c12;
+            flex-shrink: 0;
+        }
+        .term-prompt-text {
+            color: #39ff14;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #76ff03;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            caret-color: #39ff14;
+        }
+
+        /* ─── Mission Complete Overlay ─── */
+        .mission-complete {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.88);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 8000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s;
+        }
+        .mission-complete.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .mc-card {
+            background: #0e1018;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 8px;
+            padding: 36px 40px;
+            text-align: center;
+            max-width: 380px;
+            width: 90%;
+        }
+        .mc-badge {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            color: rgba(57, 255, 20, 0.5);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .mc-title {
+            font-size: 1.3rem;
+            color: #39ff14;
+            letter-spacing: 0.2em;
+            margin-bottom: 6px;
+            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+        }
+        .mc-subtitle {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 28px;
+        }
+        .mc-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .mc-stat-value {
+            font-size: 1.5rem;
+            color: #39ff14;
+            font-weight: 700;
+        }
+        .mc-stat-label {
+            font-size: 0.55rem;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.08em;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+        .mc-btn {
+            display: inline-block;
+            padding: 10px 28px;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 4px;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mc-btn:hover {
+            background: rgba(57, 255, 20, 0.2);
+            border-color: #39ff14;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
+        }
+
+        /* ─── Mobile ─── */
+        @media (max-width: 768px) {
+            .mission-layout {
+                flex-direction: column;
+            }
+            .map-panel {
+                flex: 0 0 42%;
+                border-right: none;
+                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            }
+            .term-panel {
+                flex: 1;
+            }
+            .obj-bar { gap: 10px; padding: 6px 12px; }
+            .obj-item { font-size: 0.5rem; }
+            .obj-label { font-size: 0.5rem; }
+            .grid-container { padding: 10px; max-height: none; }
+        }
+        @media (max-width: 480px) {
+            .mission-header { padding: 8px 12px; height: 38px; }
+            .mission-header-title { font-size: 0.6rem; }
+            .mission-layout { height: calc(100vh - 38px - 26px); }
+            .cell-label { display: none; }
+            .cell-icon { font-size: 0.7rem; }
+            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
+            .mc-card { padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="mission-header">
+        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
+        <div class="mission-header-title">WINDOWS-CMD-02 / BLUE SCREEN PROTOCOL</div>
+        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
+    </div>
+
+    <!-- Objectives bar -->
+    <div class="obj-bar">
+        <span class="obj-label">OBJ</span>
+        <div class="obj-item" id="obj-0">
+            <span class="obj-check"></span> Find rogue task
+        </div>
+        <div class="obj-item" id="obj-1">
+            <span class="obj-check"></span> Stop mal. service
+        </div>
+        <div class="obj-item" id="obj-2">
+            <span class="obj-check"></span> Disable unauth. user
+        </div>
+        <div class="obj-item" id="obj-3">
+            <span class="obj-check"></span> Verify remediation
+        </div>
+    </div>
+
+    <!-- Split layout -->
+    <div class="mission-layout">
+        <!-- Left: Server Map (represents SRV-DC01 administrative panels) -->
+        <div class="map-panel">
+            <div class="grid-container" id="grid-container"></div>
+        </div>
+
+        <!-- Right: Terminal -->
+        <div class="term-panel" id="term-panel">
+            <div class="term-bar">
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <span class="term-bar-label">OPERATOR TERMINAL</span>
+            </div>
+            <div class="term-output" id="term-output"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-text">C:\Operator></span>
+                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission Complete Overlay -->
+    <div class="mission-complete" id="mission-complete">
+        <div class="mc-card">
+            <div class="mc-badge">MISSION COMPLETE</div>
+            <div class="mc-title">BLUE SCREEN PROTOCOL</div>
+            <div class="mc-subtitle">SRV-DC01 remediated. Threat eliminated.</div>
+            <div class="mc-stats">
+                <div>
+                    <div class="mc-stat-value" id="stat-nodes">0</div>
+                    <div class="mc-stat-label">Panels</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-commands">0</div>
+                    <div class="mc-stat-label">Commands</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-time">0s</div>
+                    <div class="mc-stat-label">Time</div>
+                </div>
+            </div>
+            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
+        </div>
+    </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   WINDOWS-CMD-02: Blue Screen Protocol — Mission Engine
+   Windows Server remediation scenario on SRV-DC01.
+   Navigate admin panels, diagnose threats, remediate.
+   ═══════════════════════════════════════════════════════════ */
+
+// ─── Grid Map ───
+// Each node represents a Windows admin panel/tool on SRV-DC01
+// Rows 0-3, Cols 0-4
+const GRID_MAP = [
+    ['task-scheduler', 'services-panel', 'event-viewer', 'wall',            'wall'],
+    ['empty',          'user-accounts',  'empty',         'registry-editor', 'wall'],
+    ['wall',           'group-policy',   'empty',         'empty',           'network-shares'],
+    ['wall',           'empty',          'startup-config','empty',           'wall']
+];
+
+const ROWS = 4;
+const COLS = 5;
+
+// ─── Cell Info ───
+// Windows admin context: ip field holds hostname, ports hold descriptive entries
+const CELL_INFO = {
+    'task-scheduler': { label: 'TASK SCHEDULER', abbr: 'TSK', ip: 'SRV-DC01', desc: 'Windows Task Scheduler \u2014 scheduled jobs & automation',          ports: ['N/A (local admin tool)'], os: 'Windows Server 2022' },
+    'services-panel': { label: 'SERVICES',        abbr: 'SVC', ip: 'SRV-DC01', desc: 'Service Control Manager \u2014 running services list',               ports: ['N/A (local admin tool)'], os: 'Windows Server 2022' },
+    'event-viewer':   { label: 'EVENT VIEWER',    abbr: 'EVT', ip: 'SRV-DC01', desc: 'Windows Event Log \u2014 Security/System/Application logs',          ports: ['N/A (local admin tool)'], os: 'Windows Server 2022' },
+    'user-accounts':  { label: 'USER ACCOUNTS',   abbr: 'USR', ip: 'SRV-DC01', desc: 'Local user & group management \u2014 net user/localgroup',           ports: ['N/A (local admin tool)'], os: 'Windows Server 2022' },
+    'registry-editor':{ label: 'REGISTRY',        abbr: 'REG', ip: 'SRV-DC01', desc: 'Windows Registry \u2014 system configuration and persistence store',  ports: ['N/A (local admin tool)'], os: 'Windows Server 2022' },
+    'group-policy':   { label: 'GROUP POLICY',    abbr: 'GPO', ip: 'SRV-DC01', desc: 'Group Policy Objects \u2014 domain-wide security settings',           ports: ['N/A (local admin tool)'], os: 'Windows Server 2022' },
+    'network-shares': { label: 'NET SHARES',      abbr: 'NET', ip: 'SRV-DC01', desc: 'SMB network shares \u2014 shared folders and drive mappings',         ports: ['445/SMB', '139/NetBIOS'], os: 'Windows Server 2022' },
+    'startup-config': { label: 'STARTUP CONFIG',  abbr: 'STP', ip: 'SRV-DC01', desc: 'Boot configuration & startup programs \u2014 msconfig/autoruns',      ports: ['N/A (local admin tool)'], os: 'Windows Server 2022' }
+};
+
+// ─── Game State ───
+let STATE = {
+    position: { col: 0, row: 0 },
+    visibility: {},
+    objectives: [false, false, false, false],
+    nodesDiscovered: new Set(),
+    // Mission-specific remediation state
+    rogueTaskFound: false,       // ran schtasks at task-scheduler, saw \Custom\SyncUpdate
+    rogueTaskDisabled: false,    // ran schtasks /disable at task-scheduler
+    serviceViewed: false,        // ran sc at services-panel, saw sysmonitor_x64
+    maliciousServiceStopped: false, // ran sc stop at services-panel
+    userViewed: false,           // ran net at user-accounts, saw svc_backup
+    unauthorizedUserDisabled: false, // ran net user svc_backup /active:no
+    remediationVerified: false,  // ran wevtutil at event-viewer after all 3 remediations done
+    commandCount: 0,
+    commandHistory: [],
+    historyIndex: -1,
+    startTime: Date.now(),
+    completed: false
+};
+
+// ─── Objective labels for announcements ───
+const OBJ_LABELS = [
+    'ROGUE TASK FOUND \u2014 suspicious scheduled task identified',
+    'SERVICE STOPPED \u2014 malicious service terminated',
+    'USER DISABLED \u2014 unauthorized account deactivated',
+    'REMEDIATION VERIFIED \u2014 event logs confirm cleanup'
+];
+
+// ═══ Grid Rendering ═══
+
+function buildGrid() {
+    const container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = GRID_MAP[r][c];
+
+            const icon = document.createElement('div');
+            icon.className = 'cell-icon';
+
+            const label = document.createElement('div');
+            label.className = 'cell-label';
+
+            const agent = document.createElement('div');
+            agent.className = 'cell-agent';
+            agent.style.display = 'none';
+
+            cell.appendChild(icon);
+            cell.appendChild(label);
+            cell.appendChild(agent);
+            container.appendChild(cell);
+        }
+    }
+}
+
+function updateGrid() {
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = document.querySelector(`.grid-cell[data-col="${c}"][data-row="${r}"]`);
+            if (!cell) continue;
+
+            const type = GRID_MAP[r][c];
+            const key = c + ',' + r;
+            const vis = STATE.visibility[key] || 'hidden';
+            const isCurrent = STATE.position.col === c && STATE.position.row === r;
+
+            // Reset classes
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = type;
+
+            if (type === 'wall') {
+                cell.classList.add('wall');
+            } else if (isCurrent) {
+                cell.classList.add('current');
+            } else {
+                cell.classList.add('vis-' + vis);
+                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
+            }
+
+            // Mark remediated nodes with class for CSS accent
+            if (type === 'task-scheduler' && STATE.rogueTaskDisabled) cell.classList.add('remediated');
+            if (type === 'services-panel' && STATE.maliciousServiceStopped) cell.classList.add('remediated');
+            if (type === 'user-accounts' && STATE.unauthorizedUserDisabled) cell.classList.add('remediated');
+
+            // Cell content
+            const iconEl = cell.querySelector('.cell-icon');
+            const labelEl = cell.querySelector('.cell-label');
+            const agentEl = cell.querySelector('.cell-agent');
+
+            if (type === 'wall') {
+                iconEl.textContent = '';
+                labelEl.textContent = '';
+            } else if (vis === 'hidden' && !isCurrent) {
+                iconEl.textContent = '?';
+                labelEl.textContent = '';
+            } else if (type === 'empty') {
+                iconEl.textContent = '\u00B7';
+                labelEl.textContent = '';
+            } else {
+                const info = CELL_INFO[type];
+                iconEl.textContent = info.abbr;
+                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
+            }
+
+            agentEl.style.display = isCurrent ? 'block' : 'none';
+        }
+    }
+}
+
+// ═══ Fog of War ═══
+
+function revealAdjacent(col, row) {
+    const dirs = [[0,-1],[0,1],[1,0],[-1,0]];
+    dirs.forEach(function(d) {
+        const nc = col + d[0];
+        const nr = row + d[1];
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+        if (GRID_MAP[nr][nc] === 'wall') return;
+        const key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+            const cell = document.querySelector(`.grid-cell[data-col="${nc}"][data-row="${nr}"]`);
+            if (cell) {
+                cell.classList.add('just-revealed');
+                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+            }
+        }
+    });
+}
+
+// ═══ Terminal Output ═══
+
+function printLine(text, type) {
+    const output = document.getElementById('term-output');
+    const line = document.createElement('div');
+    line.className = 'term-line term-' + (type || 'system');
+    line.textContent = text;
+    output.appendChild(line);
+
+    // Cap at 200 lines
+    while (output.children.length > 200) {
+        output.removeChild(output.firstChild);
+    }
+    output.scrollTop = output.scrollHeight;
+}
+
+// ═══ Node Resolution ═══
+
+function resolveNode(query) {
+    var q = query.toLowerCase();
+    var exact = [];
+    var partial = [];
+
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var type = GRID_MAP[r][c];
+            if (type === 'empty' || type === 'wall') continue;
+            var info = CELL_INFO[type];
+            var vis = STATE.visibility[c + ',' + r] || 'hidden';
+            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
+
+            if (q === type || q === info.label.toLowerCase() || q === info.abbr.toLowerCase()) {
+                exact.push(entry);
+            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
+                partial.push(entry);
+            }
+        }
+    }
+
+    var results = exact.length > 0 ? exact : partial;
+
+    if (results.length === 1) return results[0];
+    if (results.length > 1) {
+        printLine('Multiple matches. Be more specific:', 'warning');
+        results.forEach(function(m) {
+            printLine('  ' + m.info.label, 'info');
+        });
+        return null;
+    }
+    return null;
+}
+
+// ─── Helper: current cell type ───
+function currentCellType() {
+    return GRID_MAP[STATE.position.row][STATE.position.col];
+}
+
+// ═══ Command Handlers ═══
+
+function cmdHelp() {
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+    printLine('  scan                   Survey area, reveal adjacent panels', 'info');
+    printLine('  move <dir>             Move (north/south/east/west or n/s/e/w)', 'info');
+    printLine('  status                 Show position and remediation progress', 'info');
+    printLine('  help                   Show this reference', 'info');
+    printLine('  clear                  Clear terminal output', 'info');
+    printLine('', 'system');
+    printLine('Windows admin commands (location-specific):', 'heading');
+    printLine('  schtasks               List scheduled tasks [at TASK SCHEDULER]', 'info');
+    printLine('  schtasks /disable      Disable rogue task [at TASK SCHEDULER]', 'info');
+    printLine('  sc                     List services [at SERVICES]', 'info');
+    printLine('  sc stop sysmonitor_x64 Stop malicious service [at SERVICES]', 'info');
+    printLine('  net                    List user accounts [at USER ACCOUNTS]', 'info');
+    printLine('  net user svc_backup /active:no  Disable user [at USER ACCOUNTS]', 'info');
+    printLine('  wevtutil               View event logs [at EVENT VIEWER]', 'info');
+    printLine('  reg                    View registry keys [at REGISTRY]', 'info');
+    printLine('  gpresult               View applied GPOs [at GROUP POLICY]', 'info');
+    printLine('', 'system');
+    printLine('Navigate to the correct panel before running admin commands.', 'system');
+}
+
+function cmdScan() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+
+    printLine('Scanning area...', 'system');
+    printLine('', 'system');
+
+    // Current position info
+    if (cellType !== 'empty' && cellType !== 'wall') {
+        var cur = CELL_INFO[cellType];
+        printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
+        printLine(cur.desc, 'info');
+        STATE.nodesDiscovered.add(cellType);
+    } else {
+        printLine('Current: Corridor (no panel)', 'heading');
+    }
+
+    printLine('', 'system');
+    printLine('Adjacent:', 'heading');
+
+    var dirs = [
+        { name: 'North', dc: 0, dr: -1 },
+        { name: 'South', dc: 0, dr: 1 },
+        { name: 'East',  dc: 1, dr: 0 },
+        { name: 'West',  dc: -1, dr: 0 }
+    ];
+
+    dirs.forEach(function(d) {
+        var nc = col + d.dc;
+        var nr = row + d.dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
+            printLine('  ' + d.name + ': [edge]', 'system');
+            return;
+        }
+        var type = GRID_MAP[nr][nc];
+        if (type === 'wall') {
+            printLine('  ' + d.name + ': [blocked]', 'system');
+            return;
+        }
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+        }
+        if (type === 'empty') {
+            printLine('  ' + d.name + ': Corridor', 'info');
+        } else {
+            var info = CELL_INFO[type];
+            printLine('  ' + d.name + ': ' + info.label, 'node-info');
+        }
+    });
+
+    updateGrid();
+    saveState();
+}
+
+function cmdMove(args) {
+    if (!args.length) {
+        printLine('Usage: move <direction>', 'error');
+        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var dirMap = {
+        'north': [0,-1], 'n': [0,-1],
+        'south': [0,1],  's': [0,1],
+        'east':  [1,0],  'e': [1,0],
+        'west':  [-1,0], 'w': [-1,0]
+    };
+
+    var dir = args[0].toLowerCase();
+    if (!dirMap[dir]) {
+        printLine('Unknown direction: ' + args[0], 'error');
+        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var d = dirMap[dir];
+    var newCol = STATE.position.col + d[0];
+    var newRow = STATE.position.row + d[1];
+
+    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
+        printLine('Edge of server. Cannot move ' + dir + '.', 'error');
+        return;
+    }
+
+    var cellType = GRID_MAP[newRow][newCol];
+
+    if (cellType === 'wall') {
+        printLine('Blocked. No path ' + dir + '.', 'error');
+        return;
+    }
+
+    STATE.position = { col: newCol, row: newRow };
+    STATE.visibility[newCol + ',' + newRow] = 'visited';
+
+    if (cellType !== 'empty') {
+        STATE.nodesDiscovered.add(cellType);
+    }
+
+    revealAdjacent(newCol, newRow);
+
+    var dirFull = { n:'north', s:'south', e:'east', w:'west' };
+    var dirName = dirFull[dir] || dir;
+
+    if (cellType === 'empty') {
+        printLine('Moving ' + dirName + '... Corridor.', 'system');
+    } else {
+        var info = CELL_INFO[cellType];
+        printLine('Moving ' + dirName + '... ' + info.label, 'success');
+        printLine(info.desc, 'info');
+    }
+
+    updateGrid();
+    saveState();
+}
+
+// ─── schtasks: list tasks (must be at task-scheduler) ───
+function cmdSchtasks(args) {
+    var ct = currentCellType();
+    if (ct !== 'task-scheduler') {
+        printLine('schtasks: must be at TASK SCHEDULER panel.', 'error');
+        printLine('Navigate north-east from starting position.', 'system');
+        return;
+    }
+
+    // If /disable sub-command
+    if (args.length > 0 && args[0].toLowerCase() === '/disable') {
+        if (!STATE.rogueTaskFound) {
+            printLine('schtasks /disable: Run "schtasks" first to enumerate tasks.', 'warning');
+            return;
+        }
+        if (STATE.rogueTaskDisabled) {
+            printLine('Task \\Custom\\SyncUpdate is already disabled.', 'info');
+            return;
+        }
+        printLine('', 'system');
+        printLine('Disabling scheduled task \\Custom\\SyncUpdate...', 'system');
+        printLine('SUCCESS: The operation completed successfully.', 'success');
+        printLine('Task \\Custom\\SyncUpdate set to DISABLED.', 'success');
+        STATE.rogueTaskDisabled = true;
+        checkObjectives();
+        updateGrid();
+        saveState();
+        return;
+    }
+
+    // Default: list all scheduled tasks
+    printLine('', 'system');
+    printLine('schtasks /query /fo TABLE /nh', 'system');
+    printLine('', 'system');
+    printLine('TaskName                    Status    Next Run', 'heading');
+    printLine('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', 'heading');
+    printLine('\\Microsoft\\Windows\\Defrag   Ready     03/10/2026 02:00', 'node-info');
+    printLine('\\Maintenance\\DiskCleanup    Ready     03/06/2026 01:00', 'node-info');
+    printLine('\\Custom\\SyncUpdate          Ready     Every 15 min', 'warning');
+    printLine('\\Microsoft\\Windows\\Backup   Ready     03/06/2026 03:00', 'node-info');
+    printLine('', 'system');
+    printLine('[!] SUSPICIOUS: \\Custom\\SyncUpdate runs every 15 minutes \u2014 unusual frequency.', 'warning');
+    printLine('[!] Non-standard path. Publisher: Unknown. Created: 03/05/2026 03:12', 'warning');
+    printLine('', 'system');
+    printLine('Use "schtasks /disable" to disable the rogue task.', 'info');
+
+    STATE.rogueTaskFound = true;
+    checkObjectives();
+    saveState();
+}
+
+// ─── sc: list services or stop malicious one (must be at services-panel) ───
+function cmdSc(args) {
+    var ct = currentCellType();
+    if (ct !== 'services-panel') {
+        printLine('sc: must be at SERVICES panel.', 'error');
+        printLine('Move east from TASK SCHEDULER.', 'system');
+        return;
+    }
+
+    // Handle "sc stop sysmonitor_x64" or "sc stop" (lenient)
+    if (args.length > 0 && args[0].toLowerCase() === 'stop') {
+        if (!STATE.serviceViewed) {
+            printLine('sc stop: Run "sc" first to enumerate services.', 'warning');
+            return;
+        }
+        if (STATE.maliciousServiceStopped) {
+            printLine('sysmonitor_x64 is already stopped.', 'info');
+            return;
+        }
+        printLine('', 'system');
+        printLine('[SC] StopService: sysmonitor_x64', 'system');
+        printLine('[SC] SendControlToService', 'system');
+        printLine('', 'system');
+        printLine('SERVICE_NAME: sysmonitor_x64', 'heading');
+        printLine('        TYPE               : 10  WIN32_OWN_PROCESS', 'node-info');
+        printLine('        STATE              : 1  STOPPED', 'success');
+        printLine('                                (NOT_STOPPABLE, NOT_PAUSABLE, IGNORES_SHUTDOWN)', 'node-info');
+        printLine('        WIN32_EXIT_CODE    : 0  (0x0)', 'node-info');
+        printLine('', 'system');
+        printLine('[+] sysmonitor_x64 terminated. Binary: C:\\ProgramData\\svchost64.exe', 'success');
+        STATE.maliciousServiceStopped = true;
+        checkObjectives();
+        updateGrid();
+        saveState();
+        return;
+    }
+
+    // Default: list services
+    printLine('', 'system');
+    printLine('sc query type= all state= all', 'system');
+    printLine('', 'system');
+    printLine('SERVICE_NAME        STATE          DISPLAY_NAME', 'heading');
+    printLine('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', 'heading');
+    printLine('wuauserv           RUNNING        Windows Update', 'node-info');
+    printLine('WinRM              RUNNING        WS-Management', 'node-info');
+    printLine('sysmonitor_x64     RUNNING        System Monitor Helper', 'warning');
+    printLine('W32Time            RUNNING        Windows Time', 'node-info');
+    printLine('', 'system');
+    printLine('[!] SUSPICIOUS: sysmonitor_x64 \u2014 not a known Windows service.', 'warning');
+    printLine('[!] PID: 4892 | Binary: C:\\ProgramData\\svchost64.exe', 'warning');
+    printLine('[!] Loaded modules include keylogger signatures.', 'warning');
+    printLine('', 'system');
+    printLine('Use "sc stop sysmonitor_x64" to terminate the malicious service.', 'info');
+
+    STATE.serviceViewed = true;
+    saveState();
+}
+
+// ─── net: list/manage user accounts (must be at user-accounts) ───
+function cmdNet(args) {
+    var ct = currentCellType();
+    if (ct !== 'user-accounts') {
+        printLine('net: must be at USER ACCOUNTS panel.', 'error');
+        printLine('Move south from TASK SCHEDULER, then east.', 'system');
+        return;
+    }
+
+    // Handle "net user svc_backup /active:no" or simplified "net disable"
+    var fullCmd = args.join(' ').toLowerCase();
+    if (fullCmd.indexOf('active:no') !== -1 || fullCmd.indexOf('disable') !== -1 || fullCmd.indexOf('svc_backup') !== -1) {
+        if (!STATE.userViewed) {
+            printLine('net user: Run "net" first to enumerate accounts.', 'warning');
+            return;
+        }
+        if (STATE.unauthorizedUserDisabled) {
+            printLine('svc_backup is already disabled.', 'info');
+            return;
+        }
+        printLine('', 'system');
+        printLine('net user svc_backup /active:no', 'system');
+        printLine('The command completed successfully.', 'success');
+        printLine('', 'system');
+        printLine('[+] Account svc_backup set to INACTIVE.', 'success');
+        printLine('[+] Active sessions terminated.', 'success');
+        STATE.unauthorizedUserDisabled = true;
+        checkObjectives();
+        updateGrid();
+        saveState();
+        return;
+    }
+
+    // Default: list users
+    printLine('', 'system');
+    printLine('net user', 'system');
+    printLine('', 'system');
+    printLine('User Name              Status    Last Logon', 'heading');
+    printLine('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', 'heading');
+    printLine('Administrator          Active    03/05/2026 14:22', 'node-info');
+    printLine('svc_sql                Active    03/04/2026 08:00', 'node-info');
+    printLine('svc_backup             Active    03/05/2026 03:14', 'warning');
+    printLine('Guest                  Disabled  Never', 'node-info');
+    printLine('', 'system');
+    printLine('[!] SUSPICIOUS: svc_backup \u2014 created 03/05/2026 at 03:14.', 'warning');
+    printLine('[!] Correlates with Security Event ID 4720 in event logs.', 'warning');
+    printLine('[!] No authorized service account by this name on record.', 'warning');
+    printLine('', 'system');
+    printLine('Use "net user svc_backup /active:no" to disable this account.', 'info');
+
+    STATE.userViewed = true;
+    saveState();
+}
+
+// ─── wevtutil: view event logs (must be at event-viewer) ───
+function cmdWevtutil() {
+    var ct = currentCellType();
+    if (ct !== 'event-viewer') {
+        printLine('wevtutil: must be at EVENT VIEWER panel.', 'error');
+        printLine('Move east from SERVICES panel.', 'system');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('wevtutil qe Security /c:10 /rd:true /f:text', 'system');
+    printLine('', 'system');
+    printLine('Event ID  Level    Source          Message', 'heading');
+    printLine('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', 'heading');
+    printLine('4624      Info     Security        Logon success \u2014 Administrator', 'node-info');
+    printLine('4625      Warning  Security        Logon failure \u2014 svc_backup (3 attempts)', 'warning');
+    printLine('4720      Warning  Security        New user created: svc_backup', 'warning');
+    printLine('4688      Info     Security        Process created: svchost64.exe (PID 4892)', 'warning');
+    printLine('7045      Warning  System          Service installed: sysmonitor_x64', 'warning');
+    printLine('', 'system');
+
+    // Check if all 3 remediations are done — then verify
+    var allRemediated = STATE.rogueTaskDisabled && STATE.maliciousServiceStopped && STATE.unauthorizedUserDisabled;
+
+    if (allRemediated) {
+        printLine('Checking for post-remediation events...', 'system');
+        printLine('', 'system');
+        printLine('4689      Info     Security        Process terminated: svchost64.exe', 'success');
+        printLine('7036      Info     System          Service stopped: sysmonitor_x64', 'success');
+        printLine('4725      Info     Security        Account disabled: svc_backup', 'success');
+        printLine('4702      Info     Security        Scheduled task disabled: \\Custom\\SyncUpdate', 'success');
+        printLine('', 'system');
+        printLine('[+] All remediation events confirmed in event log.', 'success');
+        printLine('[+] SRV-DC01 threat indicators cleared.', 'success');
+        STATE.remediationVerified = true;
+    } else {
+        printLine('[!] Threat indicators still active. Complete all remediation steps first:', 'warning');
+        if (!STATE.rogueTaskDisabled) printLine('    [ ] Disable rogue scheduled task (schtasks /disable)', 'system');
+        if (!STATE.maliciousServiceStopped) printLine('    [ ] Stop malicious service (sc stop sysmonitor_x64)', 'system');
+        if (!STATE.unauthorizedUserDisabled) printLine('    [ ] Disable unauthorized user (net user svc_backup /active:no)', 'system');
+        printLine('', 'system');
+        printLine('Return here after completing all actions to verify.', 'info');
+    }
+
+    checkObjectives();
+    saveState();
+}
+
+// ─── reg: view registry (must be at registry-editor) ───
+function cmdReg() {
+    var ct = currentCellType();
+    if (ct !== 'registry-editor') {
+        printLine('reg: must be at REGISTRY panel.', 'error');
+        printLine('Move east from USER ACCOUNTS.', 'system');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run', 'system');
+    printLine('', 'system');
+    printLine('HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run', 'heading');
+    printLine('    WindowsUpdate    REG_SZ    C:\\ProgramData\\svchost64.exe', 'warning');
+    printLine('    SecurityHealth   REG_SZ    C:\\Program Files\\Windows Defender\\...', 'node-info');
+    printLine('    OneDrive         REG_SZ    C:\\Program Files\\OneDrive\\onedrive.exe', 'node-info');
+    printLine('', 'system');
+    printLine('[!] SUSPICIOUS: "WindowsUpdate" key points to C:\\ProgramData\\svchost64.exe', 'warning');
+    printLine('[!] Legitimate WindowsUpdate does not use this path.', 'warning');
+    printLine('[!] This is a persistence mechanism for the malicious service.', 'warning');
+    printLine('', 'system');
+    printLine('[*] Note: Stopping the service and disabling startup task will prevent re-execution.', 'info');
+
+    STATE.nodesDiscovered.add('registry-editor');
+    saveState();
+}
+
+// ─── gpresult: view group policy (must be at group-policy) ───
+function cmdGpresult() {
+    var ct = currentCellType();
+    if (ct !== 'group-policy') {
+        printLine('gpresult: must be at GROUP POLICY panel.', 'error');
+        printLine('Move south from USER ACCOUNTS.', 'system');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('gpresult /r', 'system');
+    printLine('', 'system');
+    printLine('COMPUTER SETTINGS', 'heading');
+    printLine('    CN=SRV-DC01,OU=Servers,DC=corp,DC=hexworth,DC=local', 'node-info');
+    printLine('', 'system');
+    printLine('Applied Group Policy Objects', 'heading');
+    printLine('    Default Domain Policy', 'node-info');
+    printLine('    Server Hardening Baseline', 'node-info');
+    printLine('    Audit Policy \u2014 Enhanced', 'node-info');
+    printLine('', 'system');
+    printLine('Computer OU: OU=Servers,DC=corp,DC=hexworth,DC=local', 'info');
+    printLine('Domain: corp.hexworth.local', 'info');
+    printLine('Site Name: Default-First-Site-Name', 'info');
+    printLine('', 'system');
+    printLine('[*] GPO audit policy is active \u2014 all actions are logged to Security event log.', 'info');
+
+    STATE.nodesDiscovered.add('group-policy');
+    saveState();
+}
+
+function cmdStatus() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Corridor';
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
+    printLine('Server: SRV-DC01 (corp.hexworth.local)', 'info');
+    printLine('Position: ' + posLabel, 'info');
+    printLine('Panels accessed: ' + STATE.nodesDiscovered.size + ' / 8', 'info');
+    printLine('Commands used: ' + STATE.commandCount, 'info');
+    printLine('', 'system');
+    printLine('Remediation Status:', 'heading');
+    printLine('  Rogue task found:    ' + (STATE.rogueTaskFound ? 'YES' : 'NO'), STATE.rogueTaskFound ? 'success' : 'system');
+    printLine('  Rogue task disabled: ' + (STATE.rogueTaskDisabled ? 'YES' : 'NO'), STATE.rogueTaskDisabled ? 'success' : 'system');
+    printLine('  Malicious service:   ' + (STATE.maliciousServiceStopped ? 'STOPPED' : 'RUNNING'), STATE.maliciousServiceStopped ? 'success' : 'warning');
+    printLine('  Unauth user:         ' + (STATE.unauthorizedUserDisabled ? 'DISABLED' : 'ACTIVE'), STATE.unauthorizedUserDisabled ? 'success' : 'warning');
+    printLine('  Verified in logs:    ' + (STATE.remediationVerified ? 'YES' : 'PENDING'), STATE.remediationVerified ? 'success' : 'system');
+    printLine('', 'system');
+    printLine('Objectives:', 'heading');
+
+    var objText = [
+        'Find rogue scheduled task (schtasks at TASK SCHEDULER)',
+        'Stop malicious service (sc stop at SERVICES)',
+        'Disable unauthorized user (net user at USER ACCOUNTS)',
+        'Verify remediation in event logs (wevtutil at EVENT VIEWER)'
+    ];
+
+    STATE.objectives.forEach(function(done, i) {
+        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
+    });
+}
+
+// ═══ Utility ═══
+
+function padRight(str, len) {
+    while (str.length < len) str += ' ';
+    return str;
+}
+
+// ═══ Objectives ═══
+
+function checkObjectives() {
+    var prev = STATE.objectives.slice();
+
+    // 1. Find rogue task
+    STATE.objectives[0] = STATE.rogueTaskFound;
+
+    // 2. Stop malicious service
+    STATE.objectives[1] = STATE.maliciousServiceStopped;
+
+    // 3. Disable unauthorized user
+    STATE.objectives[2] = STATE.unauthorizedUserDisabled;
+
+    // 4. Verify remediation in event logs (requires all 3 prior remediations)
+    STATE.objectives[3] = STATE.remediationVerified;
+
+    // Announce newly completed objectives
+    STATE.objectives.forEach(function(done, i) {
+        if (done && !prev[i]) {
+            printLine('', 'system');
+            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
+        }
+    });
+
+    updateObjectivesUI();
+
+    // All complete?
+    if (STATE.objectives.every(Boolean) && !STATE.completed) {
+        STATE.completed = true;
+        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
+
+        var stats = {
+            completed: true,
+            time: elapsed,
+            commands: STATE.commandCount,
+            nodesDiscovered: STATE.nodesDiscovered.size,
+            timestamp: Date.now()
+        };
+        try {
+            localStorage.setItem('hexworth_operator_windowscmd02', JSON.stringify(stats));
+            localStorage.removeItem('hexworth_operator_windowscmd02_save');
+        } catch (e) {}
+
+        printLine('', 'system');
+        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
+        printLine('Mission WINDOWS-CMD-02 accomplished.', 'success');
+        printLine('SRV-DC01 is clean. Incident contained.', 'success');
+
+        document.getElementById('header-status').textContent = 'COMPLETE';
+        document.getElementById('header-status').style.color = '#39ff14';
+
+        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
+    }
+}
+
+function updateObjectivesUI() {
+    STATE.objectives.forEach(function(done, i) {
+        var el = document.getElementById('obj-' + i);
+        if (!el) return;
+        var check = el.querySelector('.obj-check');
+        if (done) {
+            el.classList.add('complete');
+            check.textContent = '\u2713';
+        } else {
+            el.classList.remove('complete');
+            check.textContent = '';
+        }
+    });
+}
+
+function showMissionComplete(elapsed) {
+    var mins = Math.floor(elapsed / 60);
+    var secs = elapsed % 60;
+    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
+    document.getElementById('stat-nodes').textContent = STATE.nodesDiscovered.size;
+    document.getElementById('stat-commands').textContent = STATE.commandCount;
+    document.getElementById('stat-time').textContent = timeStr;
+
+    document.getElementById('mission-complete').classList.add('visible');
+}
+
+// ═══ Save / Load ═══
+
+function saveState() {
+    try {
+        var data = {
+            position: STATE.position,
+            visibility: STATE.visibility,
+            objectives: STATE.objectives,
+            nodesDiscovered: Array.from(STATE.nodesDiscovered),
+            rogueTaskFound: STATE.rogueTaskFound,
+            rogueTaskDisabled: STATE.rogueTaskDisabled,
+            serviceViewed: STATE.serviceViewed,
+            maliciousServiceStopped: STATE.maliciousServiceStopped,
+            userViewed: STATE.userViewed,
+            unauthorizedUserDisabled: STATE.unauthorizedUserDisabled,
+            remediationVerified: STATE.remediationVerified,
+            commandCount: STATE.commandCount,
+            startTime: STATE.startTime
+        };
+        localStorage.setItem('hexworth_operator_windowscmd02_save', JSON.stringify(data));
+    } catch (e) {}
+}
+
+function loadState() {
+    try {
+        var saved = localStorage.getItem('hexworth_operator_windowscmd02_save');
+        if (!saved) return false;
+        var data = JSON.parse(saved);
+        STATE.position = data.position;
+        STATE.visibility = data.visibility;
+        STATE.objectives = data.objectives;
+        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
+        STATE.rogueTaskFound = data.rogueTaskFound || false;
+        STATE.rogueTaskDisabled = data.rogueTaskDisabled || false;
+        STATE.serviceViewed = data.serviceViewed || false;
+        STATE.maliciousServiceStopped = data.maliciousServiceStopped || false;
+        STATE.userViewed = data.userViewed || false;
+        STATE.unauthorizedUserDisabled = data.unauthorizedUserDisabled || false;
+        STATE.remediationVerified = data.remediationVerified || false;
+        STATE.commandCount = data.commandCount;
+        STATE.startTime = data.startTime;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function resetState() {
+    STATE = {
+        position: { col: 0, row: 0 },
+        visibility: {},
+        objectives: [false, false, false, false],
+        nodesDiscovered: new Set(),
+        rogueTaskFound: false,
+        rogueTaskDisabled: false,
+        serviceViewed: false,
+        maliciousServiceStopped: false,
+        userViewed: false,
+        unauthorizedUserDisabled: false,
+        remediationVerified: false,
+        commandCount: 0,
+        commandHistory: [],
+        historyIndex: -1,
+        startTime: Date.now(),
+        completed: false
+    };
+    // Starting cell: task-scheduler at (0,0)
+    STATE.visibility['0,0'] = 'visited';
+    STATE.nodesDiscovered.add('task-scheduler');
+    revealAdjacent(0, 0);
+}
+
+// ═══ Command Parser ═══
+
+function executeCommand(input) {
+    STATE.commandCount++;
+
+    // Echo prompt (Windows style)
+    printLine('C:\\Operator> ' + input, 'prompt-echo');
+
+    var parts = input.trim().split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+    var args = parts.slice(1);
+
+    switch (cmd) {
+        case 'scan':        cmdScan(); break;
+        case 'move':        cmdMove(args); break;
+        case 'status':      cmdStatus(); break;
+        case 'help':        cmdHelp(); break;
+        case 'clear':
+            document.getElementById('term-output').innerHTML = '';
+            break;
+        case 'schtasks':    cmdSchtasks(args); break;
+        case 'sc':          cmdSc(args); break;
+        case 'net':         cmdNet(args); break;
+        case 'wevtutil':    cmdWevtutil(); break;
+        case 'reg':         cmdReg(); break;
+        case 'gpresult':    cmdGpresult(); break;
+        // Reject network recon commands — wrong environment
+        case 'nmap':
+        case 'ping':
+        case 'traceroute':
+        case 'pivot':
+            printLine(cmd + ': command not available on Windows Server.', 'error');
+            printLine('Use Windows admin commands. Type "help" for the full list.', 'system');
+            break;
+        default:
+            printLine('\'' + cmd + '\' is not recognized as an internal or external command.', 'error');
+            printLine('Type "help" for available commands.', 'system');
+    }
+}
+
+// ═══ Terminal Input ═══
+
+function setupInput() {
+    var input = document.getElementById('term-input');
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            var cmd = this.value.trim();
+            if (cmd) {
+                STATE.commandHistory.push(cmd);
+                STATE.historyIndex = STATE.commandHistory.length;
+                executeCommand(cmd);
+            }
+            this.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (STATE.historyIndex > 0) {
+                STATE.historyIndex--;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
+                STATE.historyIndex++;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            } else {
+                STATE.historyIndex = STATE.commandHistory.length;
+                this.value = '';
+            }
+        }
+    });
+
+    // Click terminal area to focus input
+    document.getElementById('term-panel').addEventListener('click', function(e) {
+        if (e.target.tagName !== 'INPUT') input.focus();
+    });
+}
+
+// ═══ Mission Briefing ═══
+
+function showBriefing() {
+    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
+    printLine('\u2551  MISSION: WINDOWS-CMD-02                    \u2551', 'heading');
+    printLine('\u2551  BLUE SCREEN PROTOCOL                       \u2551', 'heading');
+    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
+    printLine('\u2551  Rogue activity detected on SRV-DC01.       \u2551', 'heading');
+    printLine('\u2551  Suspicious scheduled tasks, unknown        \u2551', 'heading');
+    printLine('\u2551  services, unauthorized user accounts.      \u2551', 'heading');
+    printLine('\u2551  Diagnose and remediate.                    \u2551', 'heading');
+    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
+    printLine('', 'system');
+    printLine('[SYS] Connected to SRV-DC01 (Administrator session)', 'success');
+    printLine('[SYS] Starting at TASK SCHEDULER panel', 'info');
+    printLine('[SYS] Type "help" for command reference', 'info');
+    printLine('[SYS] Type "scan" to survey adjacent panels', 'info');
+    printLine('', 'system');
+}
+
+// ═══ Init ═══
+
+function init() {
+    buildGrid();
+    setupInput();
+
+    var restored = loadState();
+    if (restored && !STATE.completed) {
+        printLine('[SYS] Session restored from save.', 'system');
+        printLine('[SYS] Type "status" to review remediation progress.', 'info');
+        printLine('', 'system');
+    } else {
+        resetState();
+        showBriefing();
+    }
+
+    updateGrid();
+    updateObjectivesUI();
+    document.getElementById('term-input').focus();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

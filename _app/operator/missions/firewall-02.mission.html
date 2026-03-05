@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIREWALL-02: Zero Day Response | Operator</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ─── Header ─── */
+        .mission-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
+            height: 44px;
+            flex-shrink: 0;
+        }
+        .mission-header-back {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .mission-header-back:hover { color: #39ff14; }
+        .mission-header-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            color: #39ff14;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .mission-header-status {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: rgba(57, 255, 20, 0.4);
+            text-transform: uppercase;
+        }
+
+        /* ─── Objectives Bar ─── */
+        .obj-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 7px 20px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .obj-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.15em;
+            color: rgba(57, 255, 20, 0.3);
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.25);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            transition: color 0.3s;
+        }
+        .obj-item.complete { color: #39ff14; }
+        .obj-check {
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
+            border: 1px solid rgba(57, 255, 20, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .obj-item.complete .obj-check {
+            background: rgba(57, 255, 20, 0.15);
+            border-color: #39ff14;
+            color: #39ff14;
+        }
+
+        /* ─── Split Layout ─── */
+        .mission-layout {
+            display: flex;
+            height: calc(100vh - 44px - 30px);
+        }
+
+        /* ─── Map Panel (left 55%) ─── */
+        .map-panel {
+            flex: 0 0 55%;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #090b0f;
+        }
+        .map-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+        }
+
+        /* ─── Grid ─── */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 4px;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            max-height: 480px;
+        }
+
+        .grid-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(57, 255, 20, 0.06);
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.4s ease;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Cell visibility states */
+        .grid-cell.vis-hidden {
+            background: rgba(57, 255, 20, 0.01);
+            border-color: rgba(57, 255, 20, 0.04);
+        }
+        .grid-cell.vis-revealed {
+            background: rgba(57, 255, 20, 0.05);
+            border-color: rgba(57, 255, 20, 0.15);
+        }
+        .grid-cell.vis-visited {
+            background: rgba(57, 255, 20, 0.09);
+            border-color: rgba(57, 255, 20, 0.25);
+        }
+        .grid-cell.current {
+            background: rgba(57, 255, 20, 0.14);
+            border-color: #39ff14;
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
+        }
+        .grid-cell.wall {
+            background: rgba(255, 255, 255, 0.015);
+            border-color: rgba(255, 255, 255, 0.03);
+        }
+        .grid-cell.empty-vis {
+            background: rgba(57, 255, 20, 0.03);
+        }
+
+        /* Firewall & target accent */
+        .grid-cell[data-type="firewall"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 68, 68, 0.4);
+        }
+        .grid-cell[data-type="firewall"].bypassed:not(.vis-hidden) {
+            border-left-color: rgba(57, 255, 20, 0.4);
+        }
+        .grid-cell[data-type="target"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 215, 0, 0.4);
+        }
+
+        /* Cell content */
+        .cell-icon {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            transition: color 0.3s;
+        }
+        .cell-label {
+            font-size: 0.5rem;
+            letter-spacing: 0.06em;
+            margin-top: 2px;
+            transition: color 0.3s;
+            text-align: center;
+        }
+        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
+        .vis-hidden .cell-label { color: transparent; }
+        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
+        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
+        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
+        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
+        .current .cell-icon { color: #39ff14; }
+        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
+        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
+        .wall .cell-label { color: transparent; }
+
+        /* Agent dot */
+        .cell-agent {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #39ff14;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            animation: agentPulse 2s ease-in-out infinite;
+            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
+        }
+        @keyframes agentPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
+            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
+        }
+
+        /* Cell reveal animation */
+        @keyframes cellReveal {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .grid-cell.just-revealed {
+            animation: cellReveal 0.4s ease-out;
+        }
+
+        /* ─── Terminal Panel (right 45%) ─── */
+        .term-panel {
+            flex: 0 0 45%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #080a0e;
+        }
+        .term-bar {
+            padding: 7px 14px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .term-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(57, 255, 20, 0.3);
+        }
+        .term-bar-label {
+            font-size: 0.55rem;
+            color: rgba(57, 255, 20, 0.35);
+            letter-spacing: 0.1em;
+            margin-left: 6px;
+        }
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            line-height: 1.65;
+        }
+        .term-output::-webkit-scrollbar { width: 4px; }
+        .term-output::-webkit-scrollbar-track { background: transparent; }
+        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
+
+        /* Terminal line types */
+        .term-line { word-break: break-word; }
+        .term-system { color: rgba(57, 255, 20, 0.3); }
+        .term-info { color: rgba(57, 255, 20, 0.65); }
+        .term-success { color: #39ff14; font-weight: 600; }
+        .term-error { color: #ff4444; }
+        .term-warning { color: #ffaa00; }
+        .term-node-info { color: #00ccff; }
+        .term-heading { color: #39ff14; font-weight: 700; }
+        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
+
+        /* Terminal input */
+        .term-input-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 14px;
+            border-top: 1px solid rgba(57, 255, 20, 0.1);
+            background: #0a0c12;
+            flex-shrink: 0;
+        }
+        .term-prompt-text {
+            color: #39ff14;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #76ff03;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            caret-color: #39ff14;
+        }
+
+        /* ─── Mission Complete Overlay ─── */
+        .mission-complete {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.88);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 8000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s;
+        }
+        .mission-complete.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .mc-card {
+            background: #0e1018;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 8px;
+            padding: 36px 40px;
+            text-align: center;
+            max-width: 380px;
+            width: 90%;
+        }
+        .mc-badge {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            color: rgba(57, 255, 20, 0.5);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .mc-title {
+            font-size: 1.3rem;
+            color: #39ff14;
+            letter-spacing: 0.2em;
+            margin-bottom: 6px;
+            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+        }
+        .mc-subtitle {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 28px;
+        }
+        .mc-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .mc-stat-value {
+            font-size: 1.5rem;
+            color: #39ff14;
+            font-weight: 700;
+        }
+        .mc-stat-label {
+            font-size: 0.55rem;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.08em;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+        .mc-btn {
+            display: inline-block;
+            padding: 10px 28px;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 4px;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mc-btn:hover {
+            background: rgba(57, 255, 20, 0.2);
+            border-color: #39ff14;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
+        }
+
+        /* ─── Mobile ─── */
+        @media (max-width: 768px) {
+            .mission-layout {
+                flex-direction: column;
+            }
+            .map-panel {
+                flex: 0 0 42%;
+                border-right: none;
+                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            }
+            .term-panel {
+                flex: 1;
+            }
+            .obj-bar { gap: 10px; padding: 6px 12px; }
+            .obj-item { font-size: 0.5rem; }
+            .obj-label { font-size: 0.5rem; }
+            .grid-container { padding: 10px; max-height: none; }
+        }
+        @media (max-width: 480px) {
+            .mission-header { padding: 8px 12px; height: 38px; }
+            .mission-header-title { font-size: 0.6rem; }
+            .mission-layout { height: calc(100vh - 38px - 26px); }
+            .cell-label { display: none; }
+            .cell-icon { font-size: 0.7rem; }
+            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
+            .mc-card { padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="mission-header">
+        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
+        <div class="mission-header-title">FIREWALL-02 / ZERO DAY RESPONSE</div>
+        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
+    </div>
+
+    <!-- Objectives bar -->
+    <div class="obj-bar">
+        <span class="obj-label">OBJ</span>
+        <div class="obj-item" id="obj-0">
+            <span class="obj-check"></span> ID attack pattern
+        </div>
+        <div class="obj-item" id="obj-1">
+            <span class="obj-check"></span> Write WAF rule
+        </div>
+        <div class="obj-item" id="obj-2">
+            <span class="obj-check"></span> Segment database
+        </div>
+        <div class="obj-item" id="obj-3">
+            <span class="obj-check"></span> Verify egress
+        </div>
+    </div>
+
+    <!-- Split layout -->
+    <div class="mission-layout">
+        <!-- Left: Network Map -->
+        <div class="map-panel">
+            <div class="grid-container" id="grid-container"></div>
+        </div>
+
+        <!-- Right: Terminal -->
+        <div class="term-panel" id="term-panel">
+            <div class="term-bar">
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <span class="term-bar-label">OPERATOR TERMINAL</span>
+            </div>
+            <div class="term-output" id="term-output"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-text">operator@waf:~$</span>
+                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission Complete Overlay -->
+    <div class="mission-complete" id="mission-complete">
+        <div class="mc-card">
+            <div class="mc-badge">MISSION COMPLETE</div>
+            <div class="mc-title">ZERO DAY RESPONSE</div>
+            <div class="mc-subtitle">Perimeter hardened. Exfiltration blocked.</div>
+            <div class="mc-stats">
+                <div>
+                    <div class="mc-stat-value" id="stat-nodes">0</div>
+                    <div class="mc-stat-label">Nodes</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-commands">0</div>
+                    <div class="mc-stat-label">Commands</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-time">0s</div>
+                    <div class="mc-stat-label">Time</div>
+                </div>
+            </div>
+            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
+        </div>
+    </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   FIREWALL-02: Zero Day Response — Mission Engine
+   ═══════════════════════════════════════════════════════════ */
+
+// ─── Grid Map ───
+// Rows 0-3, Cols 0-4
+const GRID_MAP = [
+    ['waf-logs',       'app-server',      'empty',          'wall',           'wall'],
+    ['empty',          'load-balancer',   'empty',          'ids-sensor',     'wall'],
+    ['wall',           'empty',           'rule-engine',    'empty',          'db-server'],
+    ['wall',           'quarantine-zone', 'empty',          'egress-monitor', 'empty']
+];
+
+const ROWS = 4;
+const COLS = 5;
+
+// ─── Cell Info ───
+const CELL_INFO = {
+    'waf-logs':        { label: 'WAF-LOGS',     abbr: 'WAF', ip: '10.2.0.10',   desc: 'Web Application Firewall — request/response logs',           ports: ['80/HTTP', '443/HTTPS'],                          os: 'ModSecurity 3.0' },
+    'app-server':      { label: 'APP-SERVER',   abbr: 'APP', ip: '10.2.0.20',   desc: 'Production web application — Node.js backend',               ports: ['443/HTTPS', '3000/API', '8080/DEBUG'],            os: 'Ubuntu 22.04 LTS' },
+    'load-balancer':   { label: 'LOAD-BALANCER',abbr: 'LB',  ip: '10.2.0.5',    desc: 'L7 load balancer — traffic distribution',                    ports: ['80/HTTP', '443/HTTPS', '8443/STATS'],             os: 'HAProxy 2.8' },
+    'ids-sensor':      { label: 'IDS-SENSOR',   abbr: 'IDS', ip: '10.2.0.50',   desc: 'Intrusion Detection System — packet analysis',               ports: ['N/A'],                                            os: 'Suricata 7.0' },
+    'rule-engine':     { label: 'RULE-ENGINE',  abbr: 'RUL', ip: '10.2.0.10',   desc: 'WAF rule management — signature updates',                    ports: ['443/HTTPS', '9090/MGMT'],                        os: 'ModSecurity 3.0' },
+    'db-server':       { label: 'DB-SERVER',    abbr: 'DBS', ip: '10.2.1.100',  desc: 'Production database — customer records',                     ports: ['5432/PostgreSQL', '6379/Redis'],                  os: 'RHEL 9.3' },
+    'quarantine-zone': { label: 'QUARANTINE',   abbr: 'QRN', ip: '10.2.2.0/24', desc: 'Network quarantine — isolated VLAN for analysis',            ports: ['N/A'],                                            os: 'VLAN 999' },
+    'egress-monitor':  { label: 'EGRESS-MON',   abbr: 'EGR', ip: '10.2.0.254',  desc: 'Egress traffic monitor — outbound data inspection',          ports: ['N/A'],                                            os: 'Zeek 6.0' }
+};
+
+// ─── Game State ───
+let STATE = {
+    position: { col: 0, row: 0 },
+    visibility: {},
+    objectives: [false, false, false, false],
+    nodesDiscovered: new Set(),
+    commandCount: 0,
+    commandHistory: [],
+    historyIndex: -1,
+    startTime: Date.now(),
+    completed: false,
+    // Mission-specific fields
+    attackPatternFound: false,
+    customRuleWritten: false,
+    dbSegmented: false,
+    egressVerified: false,
+    attackSignature: '',
+    ruleWritten: ''
+};
+
+// ─── Objective labels ───
+const OBJ_LABELS = [
+    'ATTACK PATTERN IDENTIFIED — obfuscation technique decoded',
+    'CUSTOM WAF RULE DEPLOYED — encoded SQLi now detected',
+    'DATABASE SEGMENTED — critical data isolated from attack surface',
+    'EGRESS VERIFIED — exfiltration monitoring confirmed effective'
+];
+
+// ═══ Grid Rendering ═══
+
+function buildGrid() {
+    const container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = GRID_MAP[r][c];
+
+            const icon = document.createElement('div');
+            icon.className = 'cell-icon';
+
+            const label = document.createElement('div');
+            label.className = 'cell-label';
+
+            const agent = document.createElement('div');
+            agent.className = 'cell-agent';
+            agent.style.display = 'none';
+
+            cell.appendChild(icon);
+            cell.appendChild(label);
+            cell.appendChild(agent);
+            container.appendChild(cell);
+        }
+    }
+}
+
+function updateGrid() {
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = document.querySelector(`.grid-cell[data-col="${c}"][data-row="${r}"]`);
+            if (!cell) continue;
+
+            const type = GRID_MAP[r][c];
+            const key = c + ',' + r;
+            const vis = STATE.visibility[key] || 'hidden';
+            const isCurrent = STATE.position.col === c && STATE.position.row === r;
+
+            // Reset classes
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = type;
+
+            if (type === 'wall') {
+                cell.classList.add('wall');
+            } else if (isCurrent) {
+                cell.classList.add('current');
+            } else {
+                cell.classList.add('vis-' + vis);
+                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
+            }
+
+            // Content
+            const iconEl = cell.querySelector('.cell-icon');
+            const labelEl = cell.querySelector('.cell-label');
+            const agentEl = cell.querySelector('.cell-agent');
+
+            if (type === 'wall') {
+                iconEl.textContent = '';
+                labelEl.textContent = '';
+            } else if (vis === 'hidden' && !isCurrent) {
+                iconEl.textContent = '?';
+                labelEl.textContent = '';
+            } else if (type === 'empty') {
+                iconEl.textContent = '\u00B7';
+                labelEl.textContent = '';
+            } else {
+                const info = CELL_INFO[type];
+                iconEl.textContent = info.abbr;
+                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
+            }
+
+            agentEl.style.display = isCurrent ? 'block' : 'none';
+        }
+    }
+}
+
+// ═══ Fog of War ═══
+
+function revealAdjacent(col, row) {
+    const dirs = [[0,-1],[0,1],[1,0],[-1,0]];
+    dirs.forEach(function(d) {
+        const nc = col + d[0];
+        const nr = row + d[1];
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+        if (GRID_MAP[nr][nc] === 'wall') return;
+        const key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+            const cell = document.querySelector(`.grid-cell[data-col="${nc}"][data-row="${nr}"]`);
+            if (cell) {
+                cell.classList.add('just-revealed');
+                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+            }
+        }
+    });
+}
+
+// ═══ Terminal Output ═══
+
+function printLine(text, type) {
+    const output = document.getElementById('term-output');
+    const line = document.createElement('div');
+    line.className = 'term-line term-' + (type || 'system');
+    line.textContent = text;
+    output.appendChild(line);
+
+    // Cap at 200 lines to prevent memory bloat
+    while (output.children.length > 200) {
+        output.removeChild(output.firstChild);
+    }
+    output.scrollTop = output.scrollHeight;
+}
+
+// ═══ Node Resolution ═══
+
+function resolveNode(query) {
+    var q = query.toLowerCase();
+    var exact = [];
+    var partial = [];
+
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var type = GRID_MAP[r][c];
+            if (type === 'empty' || type === 'wall') continue;
+            var info = CELL_INFO[type];
+            var vis = STATE.visibility[c + ',' + r] || 'hidden';
+            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
+
+            if (q === type || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) {
+                exact.push(entry);
+            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
+                partial.push(entry);
+            }
+        }
+    }
+
+    var results = exact.length > 0 ? exact : partial;
+
+    if (results.length === 1) return results[0];
+    if (results.length > 1) {
+        printLine('Multiple matches. Be more specific:', 'warning');
+        results.forEach(function(m) {
+            printLine('  ' + m.info.label + ' (' + m.info.ip + ')', 'info');
+        });
+        return null;
+    }
+    return null;
+}
+
+// ─── Helper: get current cell type ───
+function currentCellType() {
+    return GRID_MAP[STATE.position.row][STATE.position.col];
+}
+
+// ═══ Command Handlers ═══
+
+function cmdHelp() {
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+    printLine('  scan              Survey area, reveal adjacent nodes', 'info');
+    printLine('  move <dir>        Move agent (north/south/east/west or n/s/e/w)', 'info');
+    printLine('  examine           Investigate current node in depth', 'info');
+    printLine('  analyze <node>    Deep traffic analysis of a node', 'info');
+    printLine('  rule <pattern>    Write a custom WAF rule (at RULE-ENGINE)', 'info');
+    printLine('  segment <target>  Isolate a network segment (at QUARANTINE or DB-SERVER)', 'info');
+    printLine('  block <ip>        Block an IP address at the perimeter', 'info');
+    printLine('  verify            Verify perimeter is hardened (at EGRESS-MON)', 'info');
+    printLine('  status            Show position and objectives', 'info');
+    printLine('  help              Show this reference', 'info');
+    printLine('  clear             Clear terminal output', 'info');
+    printLine('', 'system');
+    printLine('Start: examine WAF-LOGS to identify the attack pattern.', 'system');
+    printLine('Then: rule <pattern> at RULE-ENGINE to block it.', 'system');
+}
+
+function cmdScan() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+
+    printLine('Scanning area...', 'system');
+    printLine('', 'system');
+
+    if (cellType !== 'empty' && cellType !== 'wall') {
+        var cur = CELL_INFO[cellType];
+        printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
+        printLine(cur.desc, 'info');
+    } else {
+        printLine('Current: Clear path (no node)', 'heading');
+    }
+
+    printLine('', 'system');
+    printLine('Adjacent:', 'heading');
+
+    var dirs = [
+        { name: 'North', dc: 0, dr: -1 },
+        { name: 'South', dc: 0, dr: 1 },
+        { name: 'East',  dc: 1, dr: 0 },
+        { name: 'West',  dc: -1, dr: 0 }
+    ];
+
+    dirs.forEach(function(d) {
+        var nc = col + d.dc;
+        var nr = row + d.dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
+            printLine('  ' + d.name + ': [network edge]', 'system');
+            return;
+        }
+        var type = GRID_MAP[nr][nc];
+        if (type === 'wall') {
+            printLine('  ' + d.name + ': [blocked]', 'system');
+            return;
+        }
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+        }
+        if (type === 'empty') {
+            printLine('  ' + d.name + ': Clear path', 'info');
+        } else {
+            var info = CELL_INFO[type];
+            printLine('  ' + d.name + ': ' + info.label + ' (' + info.ip + ')', 'node-info');
+        }
+    });
+
+    updateGrid();
+    saveState();
+}
+
+function cmdMove(args) {
+    if (!args.length) {
+        printLine('Usage: move <direction>', 'error');
+        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var dirMap = {
+        'north': [0,-1], 'n': [0,-1],
+        'south': [0,1],  's': [0,1],
+        'east':  [1,0],  'e': [1,0],
+        'west':  [-1,0], 'w': [-1,0]
+    };
+
+    var dir = args[0].toLowerCase();
+    if (!dirMap[dir]) {
+        printLine('Unknown direction: ' + args[0], 'error');
+        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var d = dirMap[dir];
+    var newCol = STATE.position.col + d[0];
+    var newRow = STATE.position.row + d[1];
+
+    // Bounds check
+    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
+        printLine('Edge of network. Cannot move ' + dir + '.', 'error');
+        return;
+    }
+
+    var cellType = GRID_MAP[newRow][newCol];
+
+    if (cellType === 'wall') {
+        printLine('Blocked. No traversable path ' + dir + '.', 'error');
+        return;
+    }
+
+    // Move agent
+    STATE.position = { col: newCol, row: newRow };
+    STATE.visibility[newCol + ',' + newRow] = 'visited';
+
+    if (cellType !== 'empty') {
+        STATE.nodesDiscovered.add(cellType);
+    }
+
+    revealAdjacent(newCol, newRow);
+
+    var dirFull = { n:'north', s:'south', e:'east', w:'west' };
+    var dirName = dirFull[dir] || dir;
+    if (cellType === 'empty') {
+        printLine('Moving ' + dirName + '... Clear path.', 'system');
+    } else {
+        var info = CELL_INFO[cellType];
+        printLine('Moving ' + dirName + '... ' + info.label + ' (' + info.ip + ')', 'success');
+        printLine(info.desc, 'info');
+    }
+
+    checkObjectives();
+    updateGrid();
+    saveState();
+}
+
+function cmdExamine() {
+    var type = currentCellType();
+
+    if (type === 'empty') {
+        printLine('Nothing notable at this location. Move to a node.', 'system');
+        return;
+    }
+    if (type === 'wall') {
+        printLine('Cannot examine a wall segment.', 'error');
+        return;
+    }
+
+    printLine('', 'system');
+
+    switch (type) {
+        case 'waf-logs':
+            printLine('=== WAF REQUEST LOG ===', 'heading');
+            printLine('[03/05 02:14] POST /api/search \u2014 200 (PASSED)', 'node-info');
+            printLine('  Payload: {"q":"test\' OR 1=1--"}  \u2192 BLOCKED by rule 942100', 'info');
+            printLine('[03/05 02:15] POST /api/search \u2014 200 (PASSED)', 'node-info');
+            printLine('  Payload: {"q":"te%73t%27%20O%52%201%3D1%2D%2D"}  \u2192 NOT DETECTED  \u2190 [BYPASS!]', 'warning');
+            printLine('[03/05 02:16] POST /api/users \u2014 200 (PASSED)', 'node-info');
+            printLine('  Payload: {"id":"1%27%20UN%49ON%20SE%4CECT%20*%2D%2D"}  \u2192 NOT DETECTED  \u2190 [BYPASS!]', 'warning');
+            printLine('[03/05 02:18] POST /api/data \u2014 200 (PASSED)', 'node-info');
+            printLine('  Payload: {"export":"../../etc/passwd"}  \u2192 BLOCKED by rule 930110', 'info');
+            printLine('', 'system');
+            printLine('[!] CRITICAL: URL-encoded SQL injection bypassing signature detection', 'error');
+            printLine('Pattern: Partial URL encoding of SQL keywords (OR\u2192O%52, UNION\u2192UN%49ON, SELECT\u2192SE%4CECT)', 'warning');
+            STATE.attackPatternFound = true;
+            STATE.attackSignature = 'partial-url-encode-sqli';
+            break;
+
+        case 'app-server':
+            printLine('=== APPLICATION SERVER STATUS ===', 'heading');
+            printLine('Service: hexworth-api (Node.js 20.11)', 'node-info');
+            printLine('Status: RUNNING (PID 4521)', 'info');
+            printLine('Uptime: 47d 12h', 'info');
+            printLine('Recent errors:', 'heading');
+            printLine("  [03/05 02:16] SQL error: syntax near '1 UNION SELECT *--'", 'warning');
+            printLine('  [03/05 02:17] SQL error: unexpected token in query', 'warning');
+            printLine('', 'system');
+            printLine('[!] Application is processing injected SQL \u2014 WAF bypass confirmed', 'error');
+            break;
+
+        case 'load-balancer':
+            printLine('=== LOAD BALANCER STATUS ===', 'heading');
+            printLine('Backend pool: 3 servers (app-01, app-02, app-03)', 'node-info');
+            printLine('Active connections: 847', 'info');
+            printLine('Requests/sec: 234', 'info');
+            printLine('Health: All backends UP', 'success');
+            printLine('', 'system');
+            printLine('Suspicious traffic pattern:', 'warning');
+            printLine('  Source 45.33.xx.xx \u2014 412 requests in last hour (10x normal)', 'warning');
+            printLine('  All POST requests targeting /api/search and /api/users', 'warning');
+            break;
+
+        case 'ids-sensor':
+            printLine('=== IDS ALERTS ===', 'heading');
+            printLine('[03/05 02:14] SID:2001219 SQL Injection Attempt \u2192 BLOCKED', 'success');
+            printLine('[03/05 02:15] No alert \u2014 encoded payload evaded signatures', 'error');
+            printLine('[03/05 02:16] No alert \u2014 encoded payload evaded signatures', 'error');
+            printLine('[03/05 02:20] SID:2001219 SQL Injection (variant) \u2192 BLOCKED', 'success');
+            printLine('', 'system');
+            printLine('Detection gap: 02:15-02:18 \u2014 14 requests undetected', 'warning');
+            printLine('[!] IDS signatures also vulnerable to same encoding bypass', 'error');
+            break;
+
+        case 'rule-engine':
+            printLine('=== WAF RULE ENGINE ===', 'heading');
+            printLine('Active rulesets:', 'node-info');
+            printLine('  OWASP CRS 3.3.5 (942xxx \u2014 SQL injection rules)', 'info');
+            printLine('  Custom rules: 12 active', 'info');
+            printLine('', 'system');
+            printLine('Current SQL injection rules match on:', 'heading');
+            printLine('  - Literal SQL keywords (OR, UNION, SELECT, DROP)', 'info');
+            printLine('  - Common bypass: /**/, char(), concat()', 'info');
+            printLine('  - Missing: partial URL-encoding evasion  \u2190 [GAP]', 'warning');
+            printLine('', 'system');
+            if (!STATE.attackPatternFound) {
+                printLine('No attack pattern identified yet. Examine WAF-LOGS first.', 'system');
+            } else {
+                printLine('Use "rule <pattern>" to write a custom detection rule.', 'info');
+                printLine('Example: rule block url-encoded sqli', 'info');
+            }
+            break;
+
+        case 'db-server':
+            printLine('=== DATABASE SERVER ===', 'heading');
+            printLine('PostgreSQL 16.1 \u2014 Status: RUNNING', 'success');
+            printLine('Databases: hexworth_prod (2.3GB), hexworth_staging', 'node-info');
+            printLine('Active connections: 12 (normal: 8-15)', 'info');
+            printLine('', 'system');
+            printLine('Recent queries from app pool:', 'heading');
+            printLine("  [03/05 02:16] SELECT * FROM users WHERE id='1' UNION SELECT *--", 'error');
+            printLine("  [03/05 02:17] SELECT * FROM users WHERE id='1' UNION SELECT table_name FROM information_schema.tables--", 'error');
+            printLine('', 'system');
+            printLine('[!] CRITICAL: SQL injection reaching database \u2014 data exposure imminent', 'error');
+            printLine('Network segment: Same VLAN as app-server (10.2.0.0/24)  \u2190 [NOT SEGMENTED]', 'warning');
+            if (!STATE.dbSegmented) {
+                printLine('', 'system');
+                printLine('Use "segment db" to isolate the database.', 'info');
+            }
+            break;
+
+        case 'quarantine-zone':
+            printLine('=== QUARANTINE ZONE ===', 'heading');
+            printLine('VLAN 999 \u2014 Isolated network segment', 'node-info');
+            printLine('Currently quarantined: ' + (STATE.dbSegmented ? 'DB-SERVER (10.2.1.100)' : '(none)'), STATE.dbSegmented ? 'success' : 'info');
+            printLine('', 'system');
+            if (!STATE.dbSegmented) {
+                printLine('Available: segment db \u2014 isolate the production database', 'info');
+            } else {
+                printLine('Segmentation active. Database isolated on VLAN 100.', 'success');
+            }
+            break;
+
+        case 'egress-monitor':
+            printLine('=== EGRESS MONITOR ===', 'heading');
+            printLine('Zeek connection log analysis:', 'node-info');
+            printLine('[03/05 02:19] 10.2.0.20 \u2192 45.33.xx.xx:443 \u2014 2.1MB outbound  \u2190 [SUSPICIOUS]', 'warning');
+            printLine('[03/05 02:20] 10.2.0.20 \u2192 45.33.xx.xx:443 \u2014 4.7MB outbound  \u2190 [DATA EXFIL?]', 'warning');
+            printLine('[03/05 02:21] 10.2.1.100 \u2192 45.33.xx.xx:8443 \u2014 12.3MB outbound  \u2190 [CRITICAL]', 'error');
+            printLine('', 'system');
+            printLine('Total outbound to 45.33.xx.xx: 19.1MB in 3 minutes', 'error');
+            if (!STATE.egressVerified) {
+                printLine('', 'system');
+                var missing = [];
+                if (!STATE.customRuleWritten) missing.push('write WAF rule');
+                if (!STATE.dbSegmented) missing.push('segment database');
+                if (missing.length > 0) {
+                    printLine('Before verifying: ' + missing.join(', then ') + '.', 'warning');
+                } else {
+                    printLine('Prerequisites met. Use "verify" to confirm perimeter.', 'info');
+                }
+            }
+            break;
+
+        default:
+            printLine('No detailed information available for this node.', 'system');
+    }
+
+    printLine('', 'system');
+    checkObjectives();
+    saveState();
+}
+
+function cmdAnalyze(args) {
+    if (!args.length) {
+        printLine('Usage: analyze <node>', 'error');
+        return;
+    }
+
+    var target = args.join(' ').toLowerCase();
+
+    if (target.indexOf('waf') !== -1 || target.indexOf('log') !== -1) {
+        printLine('', 'system');
+        printLine('=== DEEP TRAFFIC ANALYSIS: WAF-LOGS ===', 'heading');
+        printLine('Decoded request payloads:', 'node-info');
+        printLine('  %73 = s  %27 = \'  %20 = SPACE  %52 = R  %4C = L  %2D = -', 'info');
+        printLine('  te%73t%27%20O%52%201%3D1%2D%2D', 'warning');
+        printLine('  Decoded: test\' OR 1=1--   (Classic SQLi)', 'error');
+        printLine('  1%27%20UN%49ON%20SE%4CECT%20*%2D%2D', 'warning');
+        printLine('  Decoded: 1\' UNION SELECT *--   (UNION injection)', 'error');
+        printLine('', 'system');
+        printLine('Bypass technique: Partial hex URL-encoding of keyword characters.', 'warning');
+        printLine('Standard CRS rules match full plaintext \u2014 encoding breaks the match.', 'info');
+        STATE.attackPatternFound = true;
+        STATE.attackSignature = 'partial-url-encode-sqli';
+    } else if (target.indexOf('ids') !== -1 || target.indexOf('sensor') !== -1) {
+        printLine('', 'system');
+        printLine('=== DEEP TRAFFIC ANALYSIS: IDS-SENSOR ===', 'heading');
+        printLine('Packet capture analysis:', 'node-info');
+        printLine('  14 requests in 02:15-02:18 window passed without IDS alert', 'warning');
+        printLine('  All contained partial-encoded payloads targeting /api/search, /api/users', 'info');
+        printLine('  Suricata rule 2001219 matches plain-text SQL \u2014 missed encoded variant', 'error');
+        printLine('Recommendation: Add URL-decode preprocessing to IDS pipeline.', 'info');
+    } else if (target.indexOf('egress') !== -1 || target.indexOf('egr') !== -1) {
+        printLine('', 'system');
+        printLine('=== DEEP TRAFFIC ANALYSIS: EGRESS-MONITOR ===', 'heading');
+        printLine('Byte-level exfiltration breakdown:', 'node-info');
+        printLine('  02:19  10.2.0.20 \u2192 45.33.xx.xx:443    2,097,152 bytes  (results page)', 'warning');
+        printLine('  02:20  10.2.0.20 \u2192 45.33.xx.xx:443    4,926,234 bytes  (user table dump)', 'error');
+        printLine('  02:21  10.2.1.100 \u2192 45.33.xx.xx:8443  12,885,032 bytes (DB direct exfil)', 'error');
+        printLine('  Total exfiltrated: ~19.1MB over HTTPS to Tor-exit 45.33.xx.xx', 'error');
+        printLine('', 'system');
+        printLine('Destination 45.33.xx.xx flagged in threat intel feed (Tor exit node).', 'warning');
+    } else {
+        printLine('analyze: no deep analysis available for "' + args.join(' ') + '".', 'error');
+        printLine('Try: analyze waf-logs, analyze ids-sensor, analyze egress-monitor', 'system');
+    }
+
+    printLine('', 'system');
+    checkObjectives();
+    saveState();
+}
+
+function cmdRule(args) {
+    if (!args.length) {
+        printLine('Usage: rule <pattern>', 'error');
+        printLine('Example: rule block url-encoded sqli', 'system');
+        return;
+    }
+
+    // Must be at rule-engine node
+    if (currentCellType() !== 'rule-engine') {
+        printLine('rule: must be at RULE-ENGINE node.', 'error');
+        printLine('Navigate to RULE-ENGINE (10.2.0.10) first.', 'system');
+        return;
+    }
+
+    // Must have identified the attack pattern first
+    if (!STATE.attackPatternFound) {
+        printLine('No attack pattern identified yet.', 'warning');
+        printLine('Examine WAF-LOGS first to identify the bypass technique.', 'info');
+        return;
+    }
+
+    // Accept any reasonable rule description related to encoding/sqli
+    var ruleStr = args.join(' ').toLowerCase();
+    var isValid = (
+        ruleStr.indexOf('url') !== -1 ||
+        ruleStr.indexOf('encod') !== -1 ||
+        ruleStr.indexOf('sqli') !== -1 ||
+        ruleStr.indexOf('sql') !== -1 ||
+        ruleStr.indexOf('inject') !== -1 ||
+        ruleStr.indexOf('bypass') !== -1 ||
+        ruleStr.indexOf('decode') !== -1 ||
+        ruleStr.indexOf('percent') !== -1 ||
+        ruleStr.indexOf('hex') !== -1
+    );
+
+    if (!isValid) {
+        printLine('Rule pattern not specific enough.', 'warning');
+        printLine('Try: rule block url-encoded sqli', 'info');
+        printLine('  or: rule detect partial encoding', 'info');
+        printLine('  or: rule url-decode before inspection', 'info');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('Custom rule created:', 'heading');
+    printLine('SecRule REQUEST_BODY "@rx (?i)(?:%[0-9a-f]{2}){2,}.*(?:union|select|insert|update|delete|drop)"', 'node-info');
+    printLine('  "id:100001,phase:2,deny,status:403,msg:\'Encoded SQLi bypass attempt\'"', 'node-info');
+    printLine('', 'system');
+    printLine('Rule deployed. Testing against captured payloads...', 'system');
+    printLine('  te%73t%27%20O%52%201%3D1%2D%2D  \u2192 BLOCKED \u2713', 'success');
+    printLine('  1%27%20UN%49ON%20SE%4CECT%20*   \u2192 BLOCKED \u2713', 'success');
+    printLine('', 'system');
+    printLine('Custom rule effective.', 'success');
+
+    STATE.customRuleWritten = true;
+    STATE.ruleWritten = args.join(' ');
+
+    printLine('', 'system');
+    checkObjectives();
+    updateGrid();
+    saveState();
+}
+
+function cmdSegment(args) {
+    // Must be at quarantine-zone or db-server
+    var pos = currentCellType();
+    if (pos !== 'quarantine-zone' && pos !== 'db-server') {
+        printLine('segment: must be at QUARANTINE or DB-SERVER node.', 'error');
+        return;
+    }
+
+    if (!args.length) {
+        printLine('Usage: segment <target>', 'error');
+        printLine('Example: segment db', 'system');
+        return;
+    }
+
+    var target = args.join(' ').toLowerCase();
+    var isDb = (
+        target.indexOf('db') !== -1 ||
+        target.indexOf('data') !== -1 ||
+        target.indexOf('server') !== -1 ||
+        target.indexOf('postgres') !== -1 ||
+        target.indexOf('sql') !== -1
+    );
+
+    if (!isDb) {
+        printLine('segment: unknown target "' + args.join(' ') + '".', 'error');
+        printLine('Try: segment db  or  segment database', 'system');
+        return;
+    }
+
+    if (STATE.dbSegmented) {
+        printLine('Database is already segmented on VLAN 100.', 'info');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('Creating network segment...', 'system');
+    printLine('Moving DB-SERVER (10.2.1.100) to isolated VLAN 100.', 'node-info');
+    printLine('Firewall rule: ALLOW 10.2.0.20 \u2192 10.2.1.100:5432 (app-server only)', 'info');
+    printLine('Firewall rule: DENY * \u2192 10.2.1.100 (all other traffic)', 'info');
+    printLine('', 'system');
+    printLine('Database segmented. Direct external access blocked.', 'success');
+
+    STATE.dbSegmented = true;
+
+    printLine('', 'system');
+    checkObjectives();
+    updateGrid();
+    saveState();
+}
+
+function cmdBlock(args) {
+    if (!args.length) {
+        printLine('Usage: block <ip>', 'error');
+        return;
+    }
+
+    var ip = args[0];
+    if (ip.indexOf('45.33') !== -1 || ip === '45.33.xx.xx') {
+        printLine('Blocking 45.33.xx.xx at perimeter...', 'system');
+        printLine('ACL entry added: DENY src 45.33.0.0/16 any', 'node-info');
+        printLine('Done. Traffic from 45.33.xx.xx will be dropped.', 'success');
+    } else {
+        printLine('Blocking ' + ip + ' at perimeter...', 'system');
+        printLine('ACL entry added: DENY src ' + ip + ' any', 'node-info');
+        printLine('Done.', 'success');
+    }
+}
+
+function cmdVerify() {
+    // Must be at egress-monitor
+    if (currentCellType() !== 'egress-monitor') {
+        printLine('verify: must be at EGRESS-MON node.', 'error');
+        printLine('Navigate to EGRESS-MONITOR (10.2.0.254) first.', 'system');
+        return;
+    }
+
+    // Check prerequisites
+    if (!STATE.customRuleWritten && !STATE.dbSegmented) {
+        printLine('Verification incomplete.', 'warning');
+        printLine('  [ ] Write custom WAF rule (at RULE-ENGINE)', 'error');
+        printLine('  [ ] Segment the database (at QUARANTINE or DB-SERVER)', 'error');
+        return;
+    }
+    if (!STATE.customRuleWritten) {
+        printLine('Verification incomplete.', 'warning');
+        printLine('  [ ] Write custom WAF rule (at RULE-ENGINE)', 'error');
+        printLine('  [X] Database segmented', 'success');
+        return;
+    }
+    if (!STATE.dbSegmented) {
+        printLine('Verification incomplete.', 'warning');
+        printLine('  [X] Custom WAF rule deployed', 'success');
+        printLine('  [ ] Segment the database (at QUARANTINE or DB-SERVER)', 'error');
+        return;
+    }
+
+    printLine('', 'system');
+    printLine('Running verification test suite...', 'system');
+    printLine('[1] Encoded SQLi payload \u2192 WAF: BLOCKED \u2713', 'success');
+    printLine('[2] Direct DB access from external \u2192 Firewall: DENIED \u2713', 'success');
+    printLine('[3] Outbound exfil to 45.33.xx.xx \u2192 Egress: BLOCKED \u2713', 'success');
+    printLine('[4] Normal API traffic \u2192 ALLOWED \u2713', 'success');
+    printLine('', 'system');
+    printLine('All tests passed. Perimeter hardened.', 'success');
+
+    STATE.egressVerified = true;
+
+    printLine('', 'system');
+    checkObjectives();
+    updateGrid();
+    saveState();
+}
+
+function cmdStatus() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = GRID_MAP[row][col];
+    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Clear';
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
+    printLine('Position: (' + col + ',' + row + ') \u2014 ' + posLabel, 'info');
+    printLine('Nodes discovered: ' + STATE.nodesDiscovered.size + ' / 8', 'info');
+    printLine('Commands used: ' + STATE.commandCount, 'info');
+    printLine('', 'system');
+    printLine('Attack pattern identified: ' + (STATE.attackPatternFound ? 'YES \u2014 partial URL-encode SQLi' : 'NO'), STATE.attackPatternFound ? 'success' : 'warning');
+    printLine('Custom WAF rule written:   ' + (STATE.customRuleWritten ? 'YES' : 'NO'), STATE.customRuleWritten ? 'success' : 'warning');
+    printLine('Database segmented:        ' + (STATE.dbSegmented ? 'YES' : 'NO'), STATE.dbSegmented ? 'success' : 'warning');
+    printLine('Egress verified:           ' + (STATE.egressVerified ? 'YES' : 'NO'), STATE.egressVerified ? 'success' : 'warning');
+    printLine('', 'system');
+    printLine('Objectives:', 'heading');
+
+    var objText = [
+        'Identify the WAF bypass attack pattern',
+        'Write custom WAF rule at RULE-ENGINE',
+        'Segment database at QUARANTINE or DB-SERVER',
+        'Verify perimeter hardening at EGRESS-MON'
+    ];
+
+    STATE.objectives.forEach(function(done, i) {
+        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
+    });
+}
+
+// ═══ Utility ═══
+
+function padRight(str, len) {
+    while (str.length < len) str += ' ';
+    return str;
+}
+
+// ═══ Objectives ═══
+
+function checkObjectives() {
+    var prev = STATE.objectives.slice();
+
+    STATE.objectives[0] = STATE.attackPatternFound;
+    STATE.objectives[1] = STATE.customRuleWritten;
+    STATE.objectives[2] = STATE.dbSegmented;
+    STATE.objectives[3] = STATE.egressVerified;
+
+    // Announce newly completed objectives
+    STATE.objectives.forEach(function(done, i) {
+        if (done && !prev[i]) {
+            printLine('', 'system');
+            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
+        }
+    });
+
+    updateObjectivesUI();
+
+    // All complete?
+    if (STATE.objectives.every(Boolean) && !STATE.completed) {
+        STATE.completed = true;
+        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
+
+        // Write completion record; remove in-progress save
+        var stats = {
+            completed: true,
+            time: elapsed,
+            commands: STATE.commandCount,
+            nodesDiscovered: STATE.nodesDiscovered.size,
+            timestamp: Date.now()
+        };
+        try {
+            localStorage.setItem('hexworth_operator_firewall02', JSON.stringify(stats));
+            localStorage.removeItem('hexworth_operator_firewall02_save');
+        } catch (e) {}
+
+        printLine('', 'system');
+        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
+        printLine('Mission FIREWALL-02 accomplished.', 'success');
+
+        document.getElementById('header-status').textContent = 'COMPLETE';
+        document.getElementById('header-status').style.color = '#39ff14';
+
+        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
+    }
+}
+
+function updateObjectivesUI() {
+    STATE.objectives.forEach(function(done, i) {
+        var el = document.getElementById('obj-' + i);
+        if (!el) return;
+        var check = el.querySelector('.obj-check');
+        if (done) {
+            el.classList.add('complete');
+            check.textContent = '\u2713';
+        } else {
+            el.classList.remove('complete');
+            check.textContent = '';
+        }
+    });
+}
+
+function showMissionComplete(elapsed) {
+    var mins = Math.floor(elapsed / 60);
+    var secs = elapsed % 60;
+    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
+    document.getElementById('stat-nodes').textContent = STATE.nodesDiscovered.size;
+    document.getElementById('stat-commands').textContent = STATE.commandCount;
+    document.getElementById('stat-time').textContent = timeStr;
+
+    document.getElementById('mission-complete').classList.add('visible');
+}
+
+// ═══ Save / Load ═══
+
+function saveState() {
+    try {
+        var data = {
+            position: STATE.position,
+            visibility: STATE.visibility,
+            objectives: STATE.objectives,
+            nodesDiscovered: Array.from(STATE.nodesDiscovered),
+            commandCount: STATE.commandCount,
+            startTime: STATE.startTime,
+            attackPatternFound: STATE.attackPatternFound,
+            customRuleWritten: STATE.customRuleWritten,
+            dbSegmented: STATE.dbSegmented,
+            egressVerified: STATE.egressVerified,
+            attackSignature: STATE.attackSignature,
+            ruleWritten: STATE.ruleWritten
+        };
+        localStorage.setItem('hexworth_operator_firewall02_save', JSON.stringify(data));
+    } catch (e) {}
+}
+
+function loadState() {
+    try {
+        var saved = localStorage.getItem('hexworth_operator_firewall02_save');
+        if (!saved) return false;
+        var data = JSON.parse(saved);
+        STATE.position = data.position;
+        STATE.visibility = data.visibility;
+        STATE.objectives = data.objectives;
+        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
+        STATE.commandCount = data.commandCount;
+        STATE.startTime = data.startTime;
+        STATE.attackPatternFound = data.attackPatternFound || false;
+        STATE.customRuleWritten = data.customRuleWritten || false;
+        STATE.dbSegmented = data.dbSegmented || false;
+        STATE.egressVerified = data.egressVerified || false;
+        STATE.attackSignature = data.attackSignature || '';
+        STATE.ruleWritten = data.ruleWritten || '';
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function resetState() {
+    STATE = {
+        position: { col: 0, row: 0 },
+        visibility: {},
+        objectives: [false, false, false, false],
+        nodesDiscovered: new Set(),
+        commandCount: 0,
+        commandHistory: [],
+        historyIndex: -1,
+        startTime: Date.now(),
+        completed: false,
+        attackPatternFound: false,
+        customRuleWritten: false,
+        dbSegmented: false,
+        egressVerified: false,
+        attackSignature: '',
+        ruleWritten: ''
+    };
+    // Starting cell is waf-logs at (0,0)
+    STATE.visibility['0,0'] = 'visited';
+    STATE.nodesDiscovered.add('waf-logs');
+    revealAdjacent(0, 0);
+}
+
+// ═══ Command Parser ═══
+
+function executeCommand(input) {
+    STATE.commandCount++;
+
+    // Echo command to terminal
+    printLine('operator@waf:~$ ' + input, 'prompt-echo');
+
+    var parts = input.trim().split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+    var args = parts.slice(1);
+
+    switch (cmd) {
+        case 'scan':    cmdScan(); break;
+        case 'move':    cmdMove(args); break;
+        case 'examine': cmdExamine(); break;
+        case 'analyze': cmdAnalyze(args); break;
+        case 'rule':    cmdRule(args); break;
+        case 'segment': cmdSegment(args); break;
+        case 'block':   cmdBlock(args); break;
+        case 'verify':  cmdVerify(); break;
+        case 'status':  cmdStatus(); break;
+        case 'help':    cmdHelp(); break;
+        case 'clear':
+            document.getElementById('term-output').innerHTML = '';
+            break;
+        default:
+            printLine('Unknown command: ' + cmd, 'error');
+            printLine('Type "help" for available commands.', 'system');
+    }
+}
+
+// ═══ Terminal Input ═══
+
+function setupInput() {
+    var input = document.getElementById('term-input');
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            var cmd = this.value.trim();
+            if (cmd) {
+                STATE.commandHistory.push(cmd);
+                STATE.historyIndex = STATE.commandHistory.length;
+                executeCommand(cmd);
+            }
+            this.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (STATE.historyIndex > 0) {
+                STATE.historyIndex--;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
+                STATE.historyIndex++;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            } else {
+                STATE.historyIndex = STATE.commandHistory.length;
+                this.value = '';
+            }
+        }
+    });
+
+    // Click anywhere in terminal panel to focus input
+    document.getElementById('term-panel').addEventListener('click', function(e) {
+        if (e.target.tagName !== 'INPUT') input.focus();
+    });
+}
+
+// ═══ Mission Briefing ═══
+
+function showBriefing() {
+    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
+    printLine('\u2551  MISSION: FIREWALL-02 \u2014 ZERO DAY RESPONSE  \u2551', 'heading');
+    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
+    printLine('\u2551  Zero-day WAF bypass detected.              \u2551', 'heading');
+    printLine('\u2551  Encoded SQL injection evading signatures.  \u2551', 'heading');
+    printLine('\u2551  Analyze. Write custom rules.               \u2551', 'heading');
+    printLine('\u2551  Segment critical assets. Verify perimeter. \u2551', 'heading');
+    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
+    printLine('', 'system');
+    printLine('[SYS] Operator online at WAF-LOGS (10.2.0.10)', 'success');
+    printLine('[SYS] Type "help" for command reference', 'info');
+    printLine('[SYS] Type "examine" to inspect current node', 'info');
+    printLine('', 'system');
+}
+
+// ═══ Init ═══
+
+function init() {
+    buildGrid();
+    setupInput();
+
+    var restored = loadState();
+    if (restored && !STATE.completed) {
+        printLine('[SYS] Session restored from save.', 'system');
+        printLine('[SYS] Type "status" to review position.', 'info');
+        printLine('', 'system');
+    } else {
+        resetState();
+        showBriefing();
+    }
+
+    updateGrid();
+    updateObjectivesUI();
+    document.getElementById('term-input').focus();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
