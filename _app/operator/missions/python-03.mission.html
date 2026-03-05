@@ -204,6 +204,14 @@
             border-left: 2px solid rgba(255, 215, 0, 0.4);
         }
 
+        /* Corrupt segment accent */
+        .grid-cell[data-type="corrupt-seg"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(0,200,255,0.45);
+        }
+        .grid-cell[data-type="corrupt-seg"].bypassed:not(.vis-hidden) {
+            border-left-color: rgba(57, 255, 20, 0.4);
+        }
+
         /* Cell content */
         .cell-icon {
             font-size: 0.85rem;
@@ -302,6 +310,15 @@
         .editor-btn.stop-btn:hover {
             background: rgba(255, 68, 68, 0.18);
             border-color: #ff4444;
+        }
+        .editor-btn.reset-btn {
+            border-color: rgba(255, 170, 0, 0.4);
+            color: #ffaa00;
+            background: rgba(255, 170, 0, 0.08);
+        }
+        .editor-btn.reset-btn:hover {
+            background: rgba(255, 170, 0, 0.18);
+            border-color: #ffaa00;
         }
         .toolbar-spacer { flex: 1; }
         .toolbar-hint {
@@ -513,6 +530,9 @@
         <div class="obj-item" id="obj-3">
             <span class="obj-check"></span> Reach engineering workstation
         </div>
+        <div class="obj-item" id="obj-4">
+            <span class="obj-check"></span> Patch corrupt segment
+        </div>
     </div>
 
     <!-- Split layout -->
@@ -528,6 +548,7 @@
                 <button class="editor-btn" id="btn-run" onclick="runScript()">&gt; RUN</button>
                 <button class="editor-btn stop-btn" id="btn-stop" onclick="stopScript()" disabled>&#9632; STOP</button>
                 <button class="editor-btn" id="btn-clear" onclick="clearOutput()">CLEAR OUT</button>
+                <button class="editor-btn reset-btn" id="btn-reset" onclick="resetMission()">RESET</button>
                 <div class="toolbar-spacer"></div>
                 <span class="toolbar-hint">Ctrl+Enter = Run</span>
             </div>
@@ -573,10 +594,10 @@
 // ─── Grid Map ───
 // Rows 0-3, Cols 0-4
 var GRID_MAP = [
-    ['historian',   'empty',     'hmi',        'empty',        'wall'],
-    ['empty',       'plc-north', 'empty',      'data-diode',   'eng-ws'],
-    ['scada',       'empty',     'plc-south',  'empty',        'wall'],
-    ['wall',        'rtu',       'wall',       'sensor-net',   'wall']
+    ['historian',   'empty',       'hmi',        'empty',        'wall'],
+    ['empty',       'plc-north',   'empty',      'data-diode',   'eng-ws'],
+    ['scada',       'corrupt-seg', 'plc-south',  'empty',        'wall'],
+    ['wall',        'rtu',         'wall',       'sensor-net',   'wall']
 ];
 
 var ROWS = 4;
@@ -592,17 +613,19 @@ var CELL_INFO = {
     'scada':       { label: 'SCADA',            abbr: 'SCA', ip: '192.168.100.40', desc: 'SCADA master server',                ports: ['22/SSH','502/MODBUS','20000/DNP3'],                os: 'Ignition SCADA 8.1' },
     'plc-south':   { label: 'PLC-SOUTH',        abbr: 'PLS', ip: '192.168.100.32', desc: 'Programmable logic controller',      ports: ['502/MODBUS','44818/ENIP'],                         os: 'Siemens S7-1500' },
     'rtu':         { label: 'RTU',              abbr: 'RTU', ip: '192.168.100.50', desc: 'Remote terminal unit',               ports: ['502/MODBUS','20000/DNP3'],                         os: 'SEL-3530 RTAC' },
-    'sensor-net':  { label: 'SENSOR-NET',       abbr: 'SNT', ip: '192.168.100.60', desc: 'Distributed sensor network',        ports: ['161/SNMP','47808/BACNET'],                         os: 'Yokogawa CENTUM VP' }
+    'sensor-net':  { label: 'SENSOR-NET',       abbr: 'SNT', ip: '192.168.100.60', desc: 'Distributed sensor network',        ports: ['161/SNMP','47808/BACNET'],                         os: 'Yokogawa CENTUM VP' },
+    'corrupt-seg':   { label: 'CORRUPT-SEG',     abbr: 'CRP', ip: '192.168.100.70', desc: 'Corrupted firmware segment',          ports: ['502/MODBUS-ERR','44818/ENIP-FAULT'],              os: 'Corrupted Firmware [UNRESPONSIVE]' }
 };
 
 // ─── Game State ───
 var STATE = {
     position: { col: 0, row: 0 },
     visibility: {},
-    objectives: [false, false, false, false],
+    objectives: [false, false, false, false, false],
     nodesDiscovered: new Set(),
     nmapTargets: new Set(),
     firewallBypassed: false,
+    corruptSegPatched: false,
     agentCmdCount: 0,
     startTime: Date.now(),
     completed: false
@@ -613,7 +636,8 @@ var OBJ_LABELS = [
     'NODES DISCOVERED \u2014 5 OT nodes mapped',
     'PLC SCANNED \u2014 nmap scan complete',
     'DATA DIODE BYPASSED \u2014 access granted',
-    'WORKSTATION REACHED \u2014 mission objective complete'
+    'WORKSTATION REACHED \u2014 mission objective complete',
+    'CORRUPT SEGMENT PATCHED \u2014 firmware restored'
 ];
 
 /* ════════════════════════════════════════════════════════════
@@ -676,6 +700,7 @@ function updateGrid() {
             }
 
             if (type === 'data-diode' && STATE.firewallBypassed) cell.classList.add('bypassed');
+            if (type === 'corrupt-seg' && STATE.corruptSegPatched) cell.classList.add('bypassed');
 
             // Content
             var iconEl = cell.querySelector('.cell-icon');
@@ -814,6 +839,9 @@ function checkObjectives() {
     // 4. Reach the engineering workstation (sticky — once visited, always complete)
     STATE.objectives[3] = STATE.nodesDiscovered.has('eng-ws');
 
+    // 5. Patch corrupt segment
+    STATE.objectives[4] = STATE.corruptSegPatched;
+
     // Announce newly completed objectives
     STATE.objectives.forEach(function(done, i) {
         if (done && !prev[i]) {
@@ -893,6 +921,7 @@ function saveState() {
             nodesDiscovered: Array.from(STATE.nodesDiscovered),
             nmapTargets: Array.from(STATE.nmapTargets),
             firewallBypassed: STATE.firewallBypassed,
+            corruptSegPatched: STATE.corruptSegPatched,
             agentCmdCount: STATE.agentCmdCount,
             startTime: STATE.startTime
         };
@@ -911,6 +940,7 @@ function loadState() {
         STATE.nodesDiscovered = new Set(data.nodesDiscovered);
         STATE.nmapTargets = new Set(data.nmapTargets);
         STATE.firewallBypassed = data.firewallBypassed;
+        STATE.corruptSegPatched = data.corruptSegPatched || false;
         STATE.agentCmdCount = data.agentCmdCount || 0;
         STATE.startTime = data.startTime;
         return true;
@@ -923,10 +953,11 @@ function resetState() {
     STATE = {
         position: { col: 0, row: 0 },
         visibility: {},
-        objectives: [false, false, false, false],
+        objectives: [false, false, false, false, false],
         nodesDiscovered: new Set(),
         nmapTargets: new Set(),
         firewallBypassed: false,
+        corruptSegPatched: false,
         agentCmdCount: 0,
         startTime: Date.now(),
         completed: false
@@ -1830,6 +1861,15 @@ async function interpret(ast) {
    short animation delay for visual pacing.
    ════════════════════════════════════════════════════════════ */
 
+function _clearObstacle(target, requiredType, stateFlag, label) {
+    var node = resolveNode(String(target));
+    if (!node) { printLine('[' + label + '] Failed to resolve: ' + String(target), 'error'); return null; }
+    if (node.visibility === 'hidden') { printLine('[' + label + '] Host unreachable. Scan area first.', 'error'); return null; }
+    if (node.type !== requiredType) { printLine('[' + label + '] Wrong target. This tool works on ' + requiredType + ' nodes.', 'error'); return null; }
+    if (STATE[stateFlag]) { printLine('[' + label + '] Already cleared.', 'system'); return { cleared: true }; }
+    return node;
+}
+
 var AGENT_BRIDGE = {
 
     /* agent.move("north"|"south"|"east"|"west") or n/s/e/w */
@@ -1869,6 +1909,12 @@ var AGENT_BRIDGE = {
         // Data diode gate
         if (cellType === 'data-diode' && !STATE.firewallBypassed) {
             printLine('[MOVE] DATA DIODE blocking access. Run agent.nmap("data-diode") first.', 'warning');
+            return false;
+        }
+
+        // Corrupt segment gate
+        if (cellType === 'corrupt-seg' && !STATE.corruptSegPatched) {
+            printLine('[MOVE] CORRUPT SEGMENT blocking path. Run agent.patch("corrupt-seg") first.', 'warning');
             return false;
         }
 
@@ -1983,6 +2029,41 @@ var AGENT_BRIDGE = {
         saveState();
         await delay(150);
         return result;
+    },
+
+    /* agent.patch("target") — patch corrupted firmware segment */
+    patch: async function(target) {
+        var node = _clearObstacle(target, 'corrupt-seg', 'corruptSegPatched', 'PATCH');
+        if (!node) return null;
+        if (node.cleared) return { status: 'already_cleared' };
+
+        printLine('[PATCH] Patching ' + node.info.label + ' (' + node.info.ip + ')...', 'system');
+        printLine('[PATCH] CVE-2024-3122: Siemens S7 firmware integrity bypass via unsigned update channel', 'warning');
+        printLine('[PATCH] Firmware restored. Segment online.', 'success');
+        STATE.corruptSegPatched = true;
+        checkObjectives();
+        updateGrid();
+        saveState();
+        await delay(150);
+        return { status: 'patched', vuln: 'CVE-2024-3122' };
+    },
+
+    /* agent.status() — print current mission status */
+    status: async function() {
+        var pos = GRID_MAP[STATE.position.row][STATE.position.col];
+        var posLabel = (pos !== 'empty' && pos !== 'wall' && CELL_INFO[pos]) ? CELL_INFO[pos].label : 'EMPTY';
+        printLine('[STATUS] \u2550\u2550\u2550 AGENT STATUS \u2550\u2550\u2550', 'heading');
+        printLine('[STATUS] Position: ' + posLabel + ' (' + STATE.position.col + ',' + STATE.position.row + ')', 'info');
+        printLine('[STATUS] Nodes discovered: ' + STATE.nodesDiscovered.size, 'info');
+        printLine('[STATUS] Agent commands: ' + STATE.agentCmdCount, 'info');
+        var completedCount = STATE.objectives.filter(Boolean).length;
+        printLine('[STATUS] Objectives: ' + completedCount + '/' + STATE.objectives.length, completedCount === STATE.objectives.length ? 'success' : 'info');
+        OBJ_LABELS.forEach(function(label, i) {
+            var shortLabel = label.split(' \u2014 ')[0];
+            printLine('[STATUS]   ' + (STATE.objectives[i] ? '\u2713' : '\u2717') + ' ' + shortLabel, STATE.objectives[i] ? 'success' : 'system');
+        });
+        await delay(50);
+        return { position: posLabel, discovered: STATE.nodesDiscovered.size, objectives: completedCount + '/' + STATE.objectives.length };
     }
 };
 
@@ -2065,6 +2146,21 @@ function clearOutput() {
     document.getElementById('output-console').innerHTML = '';
 }
 
+function resetMission() {
+    if (RUNNING) return;
+    clearOutput();
+    try { localStorage.removeItem('hexworth_operator_python03_save'); } catch (e) {}
+    resetState();
+    updateGrid();
+    updateObjectivesUI();
+    document.getElementById('header-status').textContent = 'IN PROGRESS';
+    document.getElementById('header-status').style.color = '';
+    document.getElementById('mission-complete').classList.remove('visible');
+    showBriefing();
+    printLine('[SYS] Mission reset. All progress cleared.', 'warning');
+    printLine('', 'system');
+}
+
 function setupEditor() {
     var textarea = document.getElementById('code-input');
 
@@ -2112,6 +2208,8 @@ function showBriefing() {
     printLine('[API] agent.move("north")    \u2014 move (n/s/e/w or full name)', 'info');
     printLine('[API] agent.ping("router")   \u2014 ping node by name or IP', 'info');
     printLine('[API] agent.nmap("firewall") \u2014 deep port + vuln scan', 'info');
+    printLine('[API] agent.patch("target")   \u2014 patch corrupted firmware', 'info');
+    printLine('[API] agent.status()         \u2014 show mission progress', 'info');
     printLine('[API] agent.position         \u2014 current node label (property)', 'info');
     printLine('[API] agent.discovered       \u2014 list of found node names', 'info');
     printLine('', 'system');

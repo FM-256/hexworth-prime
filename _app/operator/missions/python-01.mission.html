@@ -303,6 +303,15 @@
             background: rgba(255, 68, 68, 0.18);
             border-color: #ff4444;
         }
+        .editor-btn.reset-btn {
+            border-color: rgba(255, 170, 0, 0.4);
+            color: #ffaa00;
+            background: rgba(255, 170, 0, 0.08);
+        }
+        .editor-btn.reset-btn:hover {
+            background: rgba(255, 170, 0, 0.18);
+            border-color: #ffaa00;
+        }
         .toolbar-spacer { flex: 1; }
         .toolbar-hint {
             font-size: 0.55rem;
@@ -528,6 +537,7 @@
                 <button class="editor-btn" id="btn-run" onclick="runScript()">&gt; RUN</button>
                 <button class="editor-btn stop-btn" id="btn-stop" onclick="stopScript()" disabled>&#9632; STOP</button>
                 <button class="editor-btn" id="btn-clear" onclick="clearOutput()">CLEAR OUT</button>
+                <button class="editor-btn reset-btn" id="btn-reset" onclick="resetMission()">RESET</button>
                 <div class="toolbar-spacer"></div>
                 <span class="toolbar-hint">Ctrl+Enter = Run</span>
             </div>
@@ -1982,6 +1992,24 @@ var AGENT_BRIDGE = {
         saveState();
         await delay(150);
         return result;
+    },
+
+    /* agent.status() — print current mission status */
+    status: async function() {
+        var pos = GRID_MAP[STATE.position.row][STATE.position.col];
+        var posLabel = (pos !== 'empty' && pos !== 'wall' && CELL_INFO[pos]) ? CELL_INFO[pos].label : 'EMPTY';
+        printLine('[STATUS] \u2550\u2550\u2550 AGENT STATUS \u2550\u2550\u2550', 'heading');
+        printLine('[STATUS] Position: ' + posLabel + ' (' + STATE.position.col + ',' + STATE.position.row + ')', 'info');
+        printLine('[STATUS] Nodes discovered: ' + STATE.nodesDiscovered.size, 'info');
+        printLine('[STATUS] Agent commands: ' + STATE.agentCmdCount, 'info');
+        var completedCount = STATE.objectives.filter(Boolean).length;
+        printLine('[STATUS] Objectives: ' + completedCount + '/' + STATE.objectives.length, completedCount === STATE.objectives.length ? 'success' : 'info');
+        OBJ_LABELS.forEach(function(label, i) {
+            var shortLabel = label.split(' \u2014 ')[0];
+            printLine('[STATUS]   ' + (STATE.objectives[i] ? '\u2713' : '\u2717') + ' ' + shortLabel, STATE.objectives[i] ? 'success' : 'system');
+        });
+        await delay(50);
+        return { position: posLabel, discovered: STATE.nodesDiscovered.size, objectives: completedCount + '/' + STATE.objectives.length };
     }
 };
 
@@ -2064,6 +2092,21 @@ function clearOutput() {
     document.getElementById('output-console').innerHTML = '';
 }
 
+function resetMission() {
+    if (RUNNING) return;
+    clearOutput();
+    try { localStorage.removeItem('hexworth_operator_python01_save'); } catch (e) {}
+    resetState();
+    updateGrid();
+    updateObjectivesUI();
+    document.getElementById('header-status').textContent = 'IN PROGRESS';
+    document.getElementById('header-status').style.color = '';
+    document.getElementById('mission-complete').classList.remove('visible');
+    showBriefing();
+    printLine('[SYS] Mission reset. All progress cleared.', 'warning');
+    printLine('', 'system');
+}
+
 function setupEditor() {
     var textarea = document.getElementById('code-input');
 
@@ -2111,6 +2154,7 @@ function showBriefing() {
     printLine('[API] agent.move("north")    \u2014 move (n/s/e/w or full name)', 'info');
     printLine('[API] agent.ping("router")   \u2014 ping node by name or IP', 'info');
     printLine('[API] agent.nmap("firewall") \u2014 deep port + vuln scan', 'info');
+    printLine('[API] agent.status()         \u2014 show mission progress', 'info');
     printLine('[API] agent.position         \u2014 current node label (property)', 'info');
     printLine('[API] agent.discovered       \u2014 list of found node names', 'info');
     printLine('', 'system');
