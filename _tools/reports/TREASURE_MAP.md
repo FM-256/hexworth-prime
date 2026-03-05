@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-03-03 7:55:39 AM
+                    Scanned: 2026-03-05 11:16:11 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,19 +10,19 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1998 |
-| Directories | 546 |
-| Content Files | 1998 |
-| Scan Duration | 802ms |
+| Files Scanned | 2024 |
+| Directories | 564 |
+| Content Files | 2024 |
+| Scan Duration | 219ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 829 |
-| html | 559 |
-| lab | 340 |
-| quiz | 232 |
+| presentation | 837 |
+| html | 570 |
+| lab | 341 |
+| quiz | 238 |
 | applet | 38 |
 
 ### ContentCatalog Validation
@@ -32,7 +32,7 @@
 | Total Modules | 1678 |
 | Available | 1666 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 2 |
+| Undeclared Files (CAT-002) | 9 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 62 |
-| Warning | 218 |
-| Info | 303 |
-| **Total** | **6728** |
+| Suspect | 63 |
+| Warning | 224 |
+| Info | 295 |
+| **Total** | **6796** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1438 |
-| Not Ready | 1 |
-| Unknown | 559 |
+| Ready | 1450 |
+| Not Ready | 4 |
+| Unknown | 570 |
 
 
 ## FILE HIERARCHY
@@ -720,6 +720,35 @@
 │   │   │   ├── 📄 code-kubernetes-cluster-sim.applet.html
 │   │   │   ├── 📄 code-pipeline-builder.applet.html
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 devops
+│   │   │   ├── 📍 index.html
+│   │   │   └── 📁 sections
+│   │   │       ├── 📁 ansible
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 assessments
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 certprep
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 cicd
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 culture
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 docker
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 foundation
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 git
+│   │   │       │   ├── 📄 do-7-git-fundamentals.html
+│   │   │       │   ├── 📄 do-8-branches.html
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 iac
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 ide
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 kubernetes
+│   │   │       │   └── 📍 index.html
+│   │   │       └── 📁 workbench
+│   │   │           └── 📍 index.html
 │   │   ├── 📁 docs
 │   │   ├── 📁 games
 │   │   │   ├── 📄 code-build-breaker.applet.html
@@ -1163,49 +1192,54 @@
 │   │   │   │   │   │   └── 📁 troubleshooting [applets]
 │   │   │   │   │   │       └── 📍 index.html
 │   │   │   │   │   ├── 📍 index.html
-│   │   │   │   │   └── 📁 labs [labs]
-│   │   │   │   │       ├── 🔬 forge-bluetooth-pairing.lab.html
-│   │   │   │   │       ├── 🔬 forge-cable-matching.lab.html
-│   │   │   │   │       ├── 🔬 forge-cloud-scenarios.lab.html
-│   │   │   │   │       ├── 🔬 forge-command-line.lab.html
-│   │   │   │   │       ├── 🔬 forge-cpu-sockets.lab.html
-│   │   │   │   │       ├── 🔬 forge-diagnostic-tools.lab.html
-│   │   │   │   │       ├── 🔬 forge-display-troubleshoot.lab.html
-│   │   │   │   │       ├── 🔬 forge-dns-config.lab.html
-│   │   │   │   │       ├── 🔬 forge-docking-config.lab.html
-│   │   │   │   │       ├── 🔬 forge-email-config.lab.html
-│   │   │   │   │       ├── 🔬 forge-esd-workspace.lab.html
-│   │   │   │   │       ├── 🔬 forge-hardware-diagnosis.lab.html
-│   │   │   │   │       ├── 🔬 forge-laptop-memory.lab.html
-│   │   │   │   │       ├── 🔬 forge-mdm-config.lab.html
-│   │   │   │   │       ├── 🔬 forge-mobile-email.lab.html
-│   │   │   │   │       ├── 🔬 forge-mobile-identifier.lab.html
-│   │   │   │   │       ├── 🔬 forge-mobile-sync.lab.html
-│   │   │   │   │       ├── 🔬 forge-mobile-troubleshoot.lab.html
-│   │   │   │   │       ├── 🔬 forge-network-commands.lab.html
-│   │   │   │   │       ├── 🔬 forge-network-config.lab.html
-│   │   │   │   │       ├── 🔬 forge-network-design.lab.html
-│   │   │   │   │       ├── 🔬 forge-pc-builder.lab.html
-│   │   │   │   │       ├── 🔬 forge-pc-components.lab.html
-│   │   │   │   │       ├── 🔬 forge-port-identification.lab.html
-│   │   │   │   │       ├── 🔬 forge-post-beep-codes.lab.html
-│   │   │   │   │       ├── 🔬 forge-printer-troubleshoot.lab.html
-│   │   │   │   │       ├── 🔬 forge-protocol-analysis.lab.html
-│   │   │   │   │       ├── 🔬 forge-psu-connectors.lab.html
-│   │   │   │   │       ├── 🔬 forge-raid-config.lab.html
-│   │   │   │   │       ├── 🔬 forge-ram-identification.lab.html
-│   │   │   │   │       ├── 🔬 forge-router-config.lab.html
-│   │   │   │   │       ├── 🔬 forge-server-roles.lab.html
-│   │   │   │   │       ├── 🔬 forge-soho-designer.lab.html
-│   │   │   │   │       ├── 🔬 forge-soho-rescue.lab.html
-│   │   │   │   │       ├── 🔬 forge-storage-upgrade.lab.html
-│   │   │   │   │       ├── 🔬 forge-subnet-calculator.lab.html
-│   │   │   │   │       ├── 🔬 forge-topology-builder.lab.html
-│   │   │   │   │       ├── 🔬 forge-troubleshooting-flowchart.lab.html
-│   │   │   │   │       ├── 🔬 forge-troubleshooting-scenarios.lab.html
-│   │   │   │   │       ├── 🔬 forge-troubleshooting.lab.html
-│   │   │   │   │       ├── 🔬 forge-vm-setup.lab.html
-│   │   │   │   │       └── 🔬 forge-wireless-security.lab.html
+│   │   │   │   │   ├── 📁 labs [labs]
+│   │   │   │   │   │   ├── 🔬 forge-bluetooth-pairing.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-cable-matching.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-cloud-scenarios.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-command-line.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-cpu-sockets.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-diagnostic-tools.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-display-troubleshoot.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-dns-config.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-docking-config.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-email-config.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-esd-workspace.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-hardware-diagnosis.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-laptop-memory.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-mdm-config.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-mobile-email.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-mobile-identifier.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-mobile-sync.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-mobile-troubleshoot.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-network-commands.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-network-config.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-network-design.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-pc-builder.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-pc-components.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-port-identification.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-post-beep-codes.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-printer-troubleshoot.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-protocol-analysis.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-psu-connectors.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-raid-config.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-ram-identification.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-router-config.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-server-roles.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-soho-designer.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-soho-rescue.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-storage-upgrade.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-subnet-calculator.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-topology-builder.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-troubleshooting-flowchart.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-troubleshooting-scenarios.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-troubleshooting.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-vm-setup.lab.html
+│   │   │   │   │   │   └── 🔬 forge-wireless-security.lab.html
+│   │   │   │   │   └── 📁 quizzes [quizzes]
+│   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-1.quiz.html
+│   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-2.quiz.html
+│   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-3.quiz.html
+│   │   │   │   │       └── ❓ forge-aplus-core1-prep-round-4.quiz.html
 │   │   │   │   ├── 📁 core-2 [applets]
 │   │   │   │   │   ├── 📁 chapters [applets]
 │   │   │   │   │   │   ├── 📁 ch13-windows-editions [applets]
@@ -1672,7 +1706,9 @@
 │   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 📁 modules [modules]
 │   │   │   │   │   ├── 📁 clh-001 [modules]
-│   │   │   │   │   │   └── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-002 [modules]
 │   │   │   │   │   │   ├── 📄 script-intro.module.html
 │   │   │   │   │   │   ├── 🔬 script-lab.lab.html
@@ -1790,7 +1826,9 @@
 │   │   │   │   │   │   ├── 🔬 script-lab.lab.html
 │   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   └── 📁 clh-031 [modules]
-│   │   │   │   │       └── 🔬 script-lab.lab.html
+│   │   │   │   │       ├── 📄 script-intro.module.html
+│   │   │   │   │       ├── 🔬 script-lab.lab.html
+│   │   │   │   │       └── ❓ script-quiz.quiz.html
 │   │   │   │   ├── 📁 reference [courses]
 │   │   │   │   └── 📁 tiers [courses]
 │   │   │   └── 📁 grep-pipe-mastery [courses]
@@ -2568,9 +2606,15 @@
 ├── 📁 oasis
 │   ├── 📄 challenge.html
 │   └── 📍 index.html
+├── 📁 operator
+│   ├── 📍 index.html
+│   └── 📁 missions
+│       └── 📄 recon-01.mission.html
 ├── 📄 path-view.html
 ├── 📄 privacy.html
 ├── 📄 product-info.html
+├── 📁 projects
+│   └── 📍 index.html
 ├── 📄 quickstart.html
 ├── 📁 scripts
 ├── 📄 sorting.html
@@ -2810,6 +2854,8 @@
 |---------|------|------|--------|
 | code-docker-playground.applet | presentation | ✓ | 0 |
 | code-kubernetes-cluster-sim.applet | presentation | ✓ | 0 |
+| do-7-git-fundamentals | presentation | ✓ | 0 |
+| do-8-branches | presentation | ✓ | 0 |
 | code-build-breaker.applet | applet | ✓ | 1 |
 | code-git-blame | presentation | ✓ | 0 |
 | code-kill-nine.applet | presentation | ✓ | 0 |
@@ -3080,6 +3126,10 @@
 | forge-troubleshooting-scenarios.lab | presentation | ✓ | 0 |
 | forge-vm-setup.lab | presentation | ✓ | 0 |
 | forge-wireless-security.lab | presentation | ✓ | 0 |
+| aplus-core1-prep-r1 | quiz | ✓ | 0 |
+| forge-aplus-core1-prep-round-2.quiz | quiz | ✓ | 1 |
+| forge-aplus-core1-prep-round-3.quiz | quiz | ✓ | 1 |
+| forge-aplus-core1-prep-round-4.quiz | quiz | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
@@ -3413,6 +3463,8 @@
 | clh-029 | quiz | ✓ | 0 |
 | clh-030 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-001 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-002 | quiz | ✓ | 0 |
@@ -3486,7 +3538,9 @@
 | clh-029 | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-030 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-031 | quiz | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | script-dont-kill-the-server | presentation | ✓ | 0 |
 | script-pipe-snake.applet | applet | ✓ | 1 |
@@ -3598,8 +3652,13 @@
 | script-directory.tool | presentation | ✓ | 0 |
 | script-permission.tool | presentation | ✓ | 0 |
 | script-service.tool | presentation | ✓ | 0 |
+| script-lm-01-welcome.module | presentation | ✓ | 0 |
+| script-lm-02-first-commands.module | presentation | ✓ | 0 |
 | script-lm-03-getting-help.module | presentation | ✓ | 0 |
 | script-lm-04-terminal-environment.module | presentation | ✓ | 0 |
+| script-lm-05-section1-practice.module | presentation | ✓ | 0 |
+| script-lm-06-navigation.module | presentation | ✓ | 0 |
+| script-lm-07-listing-files.module | presentation | ✓ | 0 |
 | script-lm-08-file-operations.module | presentation | ✓ | 0 |
 | script-lm-09-copy-move.module | presentation | ✓ | 0 |
 | script-lm-10-viewing-files.module | presentation | ✓ | 0 |
@@ -4112,7 +4171,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (62) — heuristic, needs review
+### SUSPECT (63) — heuristic, needs review
 
 **[HEUR-006]** Hardcoded relative href in shared renderer: ../../dashboard.html — resolves differently depending on consumer page depth
   File: `components/CertPathRenderer.js`
@@ -4144,6 +4203,10 @@
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/AchievementSystem.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/ActivityFeed.js`
   Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
@@ -4362,7 +4425,7 @@
   File: `houses/web/games/web-packet-sniffer.applet.html`
   Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
-### WARNING (218)
+### WARNING (224)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
@@ -4805,6 +4868,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-7-git-fundamentals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-8-branches.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/modules/python-engineering/code-pye-chapter01.module.html`
   Fix: Add entry to content-registry.js
 
@@ -5041,6 +5112,22 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-1.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-100/labs/forge-md100-m01-sim.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -5205,6 +5292,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-001/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-031/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/games/shield-debugger.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -5220,14 +5315,6 @@
   File: `houses/web/games/web-subnet-siege.applet.html`
   Fix: Add entry to content-registry.js
 
-**[CAT-004]** Module 'clh-001' (status: coming-soon) href 'courses/clh/modules/clh-001/script-lab.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'script-clh-001' (status: coming-soon) href 'courses/clh/modules/clh-001/script-lab.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
 **[CAT-004]** Module 'key-hashing' (status: coming-soon) href 'applets/hashing-lab.html' does not exist on disk
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
@@ -5236,7 +5323,7 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-### INFO (303)
+### INFO (295)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -6287,38 +6374,6 @@
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
   Fix: Manual review required - path is constructed dynamically
 
@@ -6446,7 +6501,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (211)
+### Unregistered Content (219)
 
 | Path | Type | House |
 |------|------|-------|
@@ -6560,6 +6615,8 @@
 | houses/ai/tools/ai-prompt-tester.tool.html | presentation | ai |
 | houses/ai/tools/ai-tokenizer.tool.html | applet | ai |
 | houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
+| houses/code/devops/sections/git/do-7-git-fundamentals.html | presentation | code |
+| houses/code/devops/sections/git/do-8-branches.html | presentation | code |
 | houses/code/modules/python-engineering/code-pye-chapter01.module.html | applet | code |
 | houses/code/modules/python-hub/labs/pyh-lab-graphics-01.html | lab | code |
 | houses/code/modules/python-hub/labs/pyh-lab-graphics-02.html | lab | code |
@@ -6616,6 +6673,10 @@
 | houses/eye/games/eye-log-analysis-lab.applet.html | applet | eye |
 | houses/eye/games/eye-security-onion-soc.applet.html | applet | eye |
 | houses/eye/games/eye-threat-hunting-lab.applet.html | applet | eye |
+| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-1.quiz.html | quiz | forge |
+| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html | quiz | forge |
+| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html | quiz | forge |
+| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html | quiz | forge |
 | houses/forge/md-100/labs/forge-md100-m01-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m02-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m03-sim.lab.html | lab | forge |
@@ -6657,6 +6718,8 @@
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
+| houses/script/courses/clh/modules/clh-001/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-031/script-intro.module.html | presentation | script |
 | houses/shield/games/shield-debugger.applet.html | applet | shield |
 | houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
 | houses/web/games/web-dns-resolver-race.applet.html | presentation | web |

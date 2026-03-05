@@ -48,6 +48,7 @@ const LinuxTerminal = (function() {
         height: '350px',
         onCommand: null,
         onObjectiveComplete: null,
+        suppressUnknown: false,
     };
 
     const state = {
@@ -190,6 +191,7 @@ const LinuxTerminal = (function() {
         if (options.height) config.height = options.height;
         if (options.onCommand) config.onCommand = options.onCommand;
         if (options.onObjectiveComplete) config.onObjectiveComplete = options.onObjectiveComplete;
+        if (options.suppressUnknown) config.suppressUnknown = true;
 
         // Set objectives
         if (options.objectives) {
@@ -500,7 +502,13 @@ Type <span class="lt-cmd">help</span> for available commands.
         const { cmd, args } = _parseCommand(cmdLine);
         const output = _executeCommand(cmd, args, cmdLine);
 
-        if (output !== null && output !== undefined) {
+        // Callback fires first — if it returns true, suppress default output
+        let handled = false;
+        if (config.onCommand) {
+            handled = config.onCommand(cmdLine, output, cmd, args);
+        }
+
+        if (!handled && output !== null && output !== undefined) {
             _appendOutput(output);
         }
 
@@ -508,11 +516,6 @@ Type <span class="lt-cmd">help</span> for available commands.
         const scrollTarget = state.outputEl || state.containerEl;
         if (scrollTarget) {
             scrollTarget.scrollTop = scrollTarget.scrollHeight;
-        }
-
-        // Callback
-        if (config.onCommand) {
-            config.onCommand(cmdLine, output, cmd, args);
         }
     }
 
@@ -1032,6 +1035,8 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
                     state.env[varName] = valueParts.join('=');
                     return null;
                 }
+                // When suppressUnknown is set, let the onCommand callback handle unknown commands
+                if (config.suppressUnknown && config.onCommand) return null;
                 return `<span class="lt-error">${_escape(cmd)}: command not found</span>`;
         }
     }

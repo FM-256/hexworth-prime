@@ -1012,6 +1012,7 @@ NetworkManager and wpa_supplicant may be restarted: service NetworkManager start
             startDir:  '/home/wfuser',
             height:    '100%',
             onCommand: handleCommand,
+            suppressUnknown: true,
             objectives: TASKS.map(t => ({
                 id:   `obj${t.id}`,
                 desc: t.question.replace(/<[^>]+>/g, '').substring(0, 52)
@@ -1139,7 +1140,7 @@ Steps:
         /* ── Passthrough built-in commands — no penalty ───────────── */
         const passthroughs = ['clear', 'help', 'ls', 'cat', 'cd', 'pwd', 'whoami',
                               'uname', 'man', 'which', 'echo', 'history'];
-        if (passthroughs.includes(cmd)) return;
+        if (passthroughs.includes(cmd)) return false;
 
         /* ── objectives — list all tasks with their status ─────────── */
         if (cmd === 'objectives') {
@@ -1154,7 +1155,7 @@ Steps:
                     : '<span style="color:#374151;">[ -- ]</span>';
                 LinuxTerminal.print(`  ${status} ${i + 1}. ${task.question.replace(/<[^>]+>/g, '').substring(0, 65)}`);
             });
-            return;
+            return true;
         }
 
         /* ── iwconfig — always informational, reflects monitor state ─ */
@@ -1179,7 +1180,7 @@ lo        no wireless extensions.
 eth0      no wireless extensions.`
                 );
             }
-            return;
+            return true;
         }
 
         /* ── ifconfig — always informational ──────────────────────── */
@@ -1195,20 +1196,20 @@ lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
 Attacker-wlan0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
         ether 02:00:00:00:01:00  txqueuelen 1000  (Ethernet)`
             );
-            return;
+            return true;
         }
 
         /* ── iperf with no flags — guide user toward correct syntax ── */
         if (cmd === 'iperf' && c.trim() === 'iperf') {
             LinuxTerminal.print('<span style="color:#f59e0b;">iperf: specify mode. Server: iperf -s | Client: iperf -c &lt;host&gt; -u -b &lt;rate&gt; -t &lt;seconds&gt;</span>');
-            return;
+            return true;
         }
 
         /* ── airodump without monitor mode active — guard rail ──────
            Only blocks if monitor mode has not been enabled yet.        */
         if (cmd === 'airodump-ng' && !state.monitorEnabled) {
             LinuxTerminal.print('<span style="color:#ef4444;">airodump-ng: Attacker-wlan0 is in Managed mode. Enable monitor mode first: airmon-ng start Attacker-wlan0</span>');
-            return;
+            return true;
         }
 
         /* ── iperf client before server guard rail ──────────────────
@@ -1217,14 +1218,14 @@ Attacker-wlan0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
            obj 5, but show a warning if attempted too early.            */
         if (cmd === 'iperf' && c.includes('-c') && !state.iperfServerUp && state.currentTask < 4) {
             LinuxTerminal.print('<span style="color:#ef4444;">iperf: no server running. Start the iperf server first (iperf -s) on a second terminal before connecting a client.</span>');
-            return;
+            return true;
         }
 
         /* ── aircrack-ng before sufficient IVs — guard rail ─────────
            Cannot crack if the capture file does not yet have enough IVs. */
         if (cmd === 'aircrack-ng' && !state.iperfFloodDone) {
             LinuxTerminal.print('<span style="color:#ef4444;">Insufficient IVs. #Data: ~342 — need 25,000+. Generate traffic with iperf (objectives 4-5) before cracking.</span>');
-            return;
+            return true;
         }
 
         /* ── Validate against the active task ────────────────────── */
@@ -1308,6 +1309,7 @@ Attacker-wlan0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
                 document.getElementById('taskHint').classList.add('show');
             }
         }
+        return true;
     }
 
     /* ── Show hint on demand — costs 5 points ────────────────────── */

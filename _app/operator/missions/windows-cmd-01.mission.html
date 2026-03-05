@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WINDOWS-CMD-01: Workstation Triage | Operator</title>
+<style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0c10; color: rgba(255,255,255,0.85); font-family: 'Courier New', monospace; overflow: hidden; height: 100vh; width: 100vw; }
+
+    /* CRT scanlines */
+    body::after { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 3px); pointer-events: none; z-index: 9000; }
+
+    /* Header */
+    .mission-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #0e1018; border-bottom: 1px solid rgba(57,255,20,0.15); height: 44px; flex-shrink: 0; }
+    .mission-header-back { font-size: 0.75rem; color: rgba(255,255,255,0.4); text-decoration: none; letter-spacing: 0.08em; transition: color 0.2s; }
+    .mission-header-back:hover { color: #39ff14; }
+    .mission-header-title { font-size: 0.7rem; letter-spacing: 0.15em; color: #39ff14; text-transform: uppercase; font-weight: 600; }
+    .mission-header-status { font-size: 0.6rem; letter-spacing: 0.12em; color: rgba(57,255,20,0.4); text-transform: uppercase; }
+
+    /* Objectives Bar */
+    .obj-bar { display: flex; align-items: center; gap: 16px; padding: 7px 20px; background: #0c0e14; border-bottom: 1px solid rgba(57,255,20,0.1); overflow-x: auto; flex-shrink: 0; }
+    .obj-label { font-size: 0.55rem; letter-spacing: 0.15em; color: rgba(57,255,20,0.3); text-transform: uppercase; white-space: nowrap; margin-right: 4px; }
+    .obj-item { display: flex; align-items: center; gap: 5px; font-size: 0.6rem; color: rgba(255,255,255,0.25); letter-spacing: 0.04em; white-space: nowrap; transition: color 0.3s; }
+    .obj-item.complete { color: #39ff14; }
+    .obj-check { width: 13px; height: 13px; border-radius: 3px; border: 1px solid rgba(57,255,20,0.15); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; flex-shrink: 0; transition: all 0.3s; }
+    .obj-item.complete .obj-check { background: rgba(57,255,20,0.15); border-color: #39ff14; color: #39ff14; }
+
+    /* Split Layout */
+    .mission-layout { display: flex; height: calc(100vh - 44px - 30px); }
+
+    /* Map Panel */
+    .map-panel { flex: 0 0 55%; position: relative; overflow: hidden; border-right: 1px solid rgba(57,255,20,0.1); display: flex; align-items: center; justify-content: center; background: #090b0f; }
+    .map-panel::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(57,255,20,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(57,255,20,0.015) 1px, transparent 1px); background-size: 30px 30px; pointer-events: none; }
+
+    /* Grid */
+    .grid-container { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(4, 1fr); gap: 4px; padding: 20px; width: 100%; height: 100%; max-width: 600px; max-height: 480px; }
+    .grid-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba(57,255,20,0.06); border-radius: 4px; position: relative; transition: all 0.4s ease; min-height: 0; overflow: hidden; }
+    .grid-cell.vis-hidden { background: rgba(57,255,20,0.01); border-color: rgba(57,255,20,0.04); }
+    .grid-cell.vis-revealed { background: rgba(57,255,20,0.05); border-color: rgba(57,255,20,0.15); }
+    .grid-cell.vis-visited { background: rgba(57,255,20,0.09); border-color: rgba(57,255,20,0.25); }
+    .grid-cell.current { background: rgba(57,255,20,0.14); border-color: #39ff14; box-shadow: 0 0 12px rgba(57,255,20,0.15), inset 0 0 8px rgba(57,255,20,0.05); }
+    .grid-cell.wall { background: rgba(255,255,255,0.015); border-color: rgba(255,255,255,0.03); }
+    .grid-cell.empty-vis { background: rgba(57,255,20,0.03); }
+    .grid-cell[data-type="malware-host"]:not(.vis-hidden):not(.wall) { border-left: 2px solid rgba(255,68,68,0.4); }
+    .grid-cell[data-type="domain-controller"]:not(.vis-hidden):not(.wall) { border-left: 2px solid rgba(255,215,0,0.4); }
+
+    /* Cell content */
+    .cell-icon { font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; transition: color 0.3s; }
+    .cell-label { font-size: 0.5rem; letter-spacing: 0.06em; margin-top: 2px; transition: color 0.3s; text-align: center; }
+    .vis-hidden .cell-icon { color: rgba(255,255,255,0.06); } .vis-hidden .cell-label { color: transparent; }
+    .vis-revealed .cell-icon { color: rgba(57,255,20,0.45); } .vis-revealed .cell-label { color: rgba(57,255,20,0.2); }
+    .vis-visited .cell-icon { color: rgba(57,255,20,0.7); } .vis-visited .cell-label { color: rgba(57,255,20,0.35); }
+    .current .cell-icon { color: #39ff14; } .current .cell-label { color: rgba(57,255,20,0.6); }
+    .wall .cell-icon { color: rgba(255,255,255,0.04); } .wall .cell-label { color: transparent; }
+
+    /* Agent dot */
+    .cell-agent { width: 10px; height: 10px; border-radius: 50%; background: #39ff14; position: absolute; bottom: 5px; right: 5px; animation: agentPulse 2s ease-in-out infinite; box-shadow: 0 0 6px rgba(57,255,20,0.5); }
+    @keyframes agentPulse {
+        0%, 100% { box-shadow: 0 0 4px rgba(57,255,20,0.3); transform: scale(1); }
+        50% { box-shadow: 0 0 12px rgba(57,255,20,0.7), 0 0 20px rgba(57,255,20,0.15); transform: scale(1.15); }
+    }
+    @keyframes cellReveal { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    .grid-cell.just-revealed { animation: cellReveal 0.4s ease-out; }
+
+    /* Terminal Panel */
+    .term-panel { flex: 0 0 45%; display: flex; flex-direction: column; height: 100%; background: #080a0e; }
+    .term-bar { padding: 7px 14px; background: #0c0e14; border-bottom: 1px solid rgba(57,255,20,0.1); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .term-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(57,255,20,0.3); }
+    .term-bar-label { font-size: 0.55rem; color: rgba(57,255,20,0.35); letter-spacing: 0.1em; margin-left: 6px; }
+    .term-output { flex: 1; overflow-y: auto; padding: 10px 14px; font-size: 0.78rem; line-height: 1.65; }
+    .term-output::-webkit-scrollbar { width: 4px; }
+    .term-output::-webkit-scrollbar-track { background: transparent; }
+    .term-output::-webkit-scrollbar-thumb { background: rgba(57,255,20,0.15); border-radius: 2px; }
+    .term-line { word-break: break-word; }
+    .term-system { color: rgba(57,255,20,0.3); } .term-info { color: rgba(57,255,20,0.65); }
+    .term-success { color: #39ff14; font-weight: 600; } .term-error { color: #ff4444; }
+    .term-warning { color: #ffaa00; } .term-node-info { color: #00ccff; }
+    .term-heading { color: #39ff14; font-weight: 700; } .term-prompt-echo { color: rgba(57,255,20,0.45); }
+    .term-input-row { display: flex; align-items: center; padding: 8px 14px; border-top: 1px solid rgba(57,255,20,0.1); background: #0a0c12; flex-shrink: 0; }
+    .term-prompt-text { color: #39ff14; font-size: 0.78rem; white-space: nowrap; margin-right: 8px; }
+    .term-input { flex: 1; background: transparent; border: none; outline: none; color: #76ff03; font-family: 'Courier New', monospace; font-size: 0.78rem; caret-color: #39ff14; }
+
+    /* Mission Complete Overlay */
+    .mission-complete { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: flex; align-items: center; justify-content: center; z-index: 8000; opacity: 0; pointer-events: none; transition: opacity 0.6s; }
+    .mission-complete.visible { opacity: 1; pointer-events: auto; }
+    .mc-card { background: #0e1018; border: 1px solid rgba(57,255,20,0.3); border-radius: 8px; padding: 36px 40px; text-align: center; max-width: 380px; width: 90%; }
+    .mc-badge { font-size: 0.55rem; letter-spacing: 0.2em; color: rgba(57,255,20,0.5); text-transform: uppercase; margin-bottom: 10px; }
+    .mc-title { font-size: 1.3rem; color: #39ff14; letter-spacing: 0.2em; margin-bottom: 6px; text-shadow: 0 0 20px rgba(57,255,20,0.3); }
+    .mc-subtitle { font-size: 0.7rem; color: rgba(255,255,255,0.35); margin-bottom: 28px; }
+    .mc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+    .mc-stat-value { font-size: 1.5rem; color: #39ff14; font-weight: 700; }
+    .mc-stat-label { font-size: 0.55rem; color: rgba(255,255,255,0.25); letter-spacing: 0.08em; margin-top: 3px; text-transform: uppercase; }
+    .mc-btn { display: inline-block; padding: 10px 28px; background: rgba(57,255,20,0.1); border: 1px solid rgba(57,255,20,0.3); border-radius: 4px; color: #39ff14; font-family: 'Courier New', monospace; font-size: 0.7rem; letter-spacing: 0.12em; text-decoration: none; cursor: pointer; transition: all 0.2s; }
+    .mc-btn:hover { background: rgba(57,255,20,0.2); border-color: #39ff14; box-shadow: 0 0 15px rgba(57,255,20,0.15); }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+        .mission-layout { flex-direction: column; }
+        .map-panel { flex: 0 0 42%; border-right: none; border-bottom: 1px solid rgba(57,255,20,0.1); }
+        .term-panel { flex: 1; }
+        .obj-bar { gap: 10px; padding: 6px 12px; }
+        .obj-item { font-size: 0.5rem; } .obj-label { font-size: 0.5rem; }
+        .grid-container { padding: 10px; max-height: none; }
+    }
+    @media (max-width: 480px) {
+        .mission-header { padding: 8px 12px; height: 38px; }
+        .mission-header-title { font-size: 0.6rem; }
+        .mission-layout { height: calc(100vh - 38px - 26px); }
+        .cell-label { display: none; } .cell-icon { font-size: 0.7rem; }
+        .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
+        .mc-card { padding: 24px; }
+    }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="mission-header">
+    <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
+    <div class="mission-header-title">WINDOWS-CMD-01 / WORKSTATION TRIAGE</div>
+    <div class="mission-header-status" id="header-status">IN PROGRESS</div>
+</div>
+
+<!-- Objectives bar -->
+<div class="obj-bar">
+    <span class="obj-label">OBJ</span>
+    <div class="obj-item" id="obj-0"><span class="obj-check"></span> Identify C2 connection</div>
+    <div class="obj-item" id="obj-1"><span class="obj-check"></span> Kill malicious process</div>
+    <div class="obj-item" id="obj-2"><span class="obj-check"></span> Repair system files</div>
+    <div class="obj-item" id="obj-3"><span class="obj-check"></span> Verify DNS integrity</div>
+</div>
+
+<!-- Split layout -->
+<div class="mission-layout">
+    <div class="map-panel">
+        <div class="grid-container" id="grid-container"></div>
+    </div>
+    <div class="term-panel" id="term-panel">
+        <div class="term-bar">
+            <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+            <span class="term-bar-label">COMMAND PROMPT</span>
+        </div>
+        <div class="term-output" id="term-output"></div>
+        <div class="term-input-row">
+            <span class="term-prompt-text">C:\Users\analyst></span>
+            <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+        </div>
+    </div>
+</div>
+
+<!-- Mission Complete Overlay -->
+<div class="mission-complete" id="mission-complete">
+    <div class="mc-card">
+        <div class="mc-badge">MISSION COMPLETE</div>
+        <div class="mc-title">WORKSTATION TRIAGE</div>
+        <div class="mc-subtitle">Threat neutralized. System restored.</div>
+        <div class="mc-stats">
+            <div><div class="mc-stat-value" id="stat-nodes">0</div><div class="mc-stat-label">Nodes</div></div>
+            <div><div class="mc-stat-value" id="stat-commands">0</div><div class="mc-stat-label">Commands</div></div>
+            <div><div class="mc-stat-value" id="stat-time">0s</div><div class="mc-stat-label">Time</div></div>
+        </div>
+        <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
+    </div>
+</div>
+
+<script>
+/* ===============================================================
+   WINDOWS-CMD-01: Workstation Triage -- Mission Engine
+   =============================================================== */
+
+// --- Grid Map (5x4) ---
+var GRID_MAP = [
+    ['workstation','empty','dns-server','domain-controller','wall'],
+    ['empty','print-server','empty','file-server','malware-host'],
+    ['wall','network-share','empty','empty','wall'],
+    ['wall','wall','backup-server','wall','wall']
+];
+var ROWS = 4, COLS = 5;
+
+// --- Cell Info ---
+var CELL_INFO = {
+    'workstation':       { label:'WORKSTATION', abbr:'WKS', ip:'192.168.1.10', desc:'Compromised Windows workstation',    ports:['135/RPC','445/SMB','3389/RDP','5985/WinRM'],             os:'Windows 10 Pro' },
+    'dns-server':        { label:'DNS-SRV',     abbr:'DNS', ip:'192.168.1.2',  desc:'Internal DNS server',               ports:['53/DNS','135/RPC','445/SMB'],                            os:'Windows Server 2022' },
+    'domain-controller': { label:'DC-01',       abbr:'DC1', ip:'192.168.1.1',  desc:'Active Directory domain controller', ports:['53/DNS','88/Kerberos','389/LDAP','445/SMB','636/LDAPS'], os:'Windows Server 2022' },
+    'print-server':      { label:'PRINT-SRV',   abbr:'PRT', ip:'192.168.1.30', desc:'Network print server',              ports:['135/RPC','445/SMB','9100/RAW'],                          os:'Windows Server 2019' },
+    'file-server':       { label:'FILE-SRV',    abbr:'FSV', ip:'192.168.1.20', desc:'Corporate file server',             ports:['445/SMB','137/NetBIOS','138/NetBIOS'],                   os:'Windows Server 2022' },
+    'malware-host':      { label:'MALWARE-C2',  abbr:'C2!', ip:'203.0.113.42', desc:'External command & control server',  ports:['443/HTTPS','8443/CUSTOM'],                              os:'Unknown' },
+    'network-share':     { label:'NET-SHARE',   abbr:'SHR', ip:'192.168.1.25', desc:'Department shared drive',           ports:['445/SMB'],                                               os:'NAS' },
+    'backup-server':     { label:'BACKUP-SRV',  abbr:'BAK', ip:'192.168.1.50', desc:'Veeam backup server',               ports:['22/SSH','9392/VEEAM'],                                   os:'Windows Server 2022' }
+};
+
+// --- Game State ---
+var STATE = {
+    position: { col: 0, row: 0 }, visibility: {}, objectives: [false, false, false, false],
+    nodesDiscovered: new Set(), c2Identified: false, malwareKilled: false,
+    filesRepaired: false, dnsVerified: false, commandCount: 0,
+    commandHistory: [], historyIndex: -1, startTime: Date.now(), completed: false
+};
+
+var OBJ_LABELS = [
+    'C2 IDENTIFIED \u2014 suspicious outbound connection found',
+    'MALWARE KILLED \u2014 malicious process terminated',
+    'FILES REPAIRED \u2014 system integrity restored',
+    'DNS VERIFIED \u2014 domain controller DNS confirmed clean'
+];
+
+// === Grid Rendering ===
+
+function buildGrid() {
+    var container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var cell = document.createElement('div');
+            cell.className = 'grid-cell'; cell.dataset.col = c; cell.dataset.row = r; cell.dataset.type = GRID_MAP[r][c];
+            var icon = document.createElement('div'); icon.className = 'cell-icon';
+            var lbl = document.createElement('div'); lbl.className = 'cell-label';
+            var ag = document.createElement('div'); ag.className = 'cell-agent'; ag.style.display = 'none';
+            cell.appendChild(icon); cell.appendChild(lbl); cell.appendChild(ag);
+            container.appendChild(cell);
+        }
+    }
+}
+
+function updateGrid() {
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var cell = document.querySelector('.grid-cell[data-col="' + c + '"][data-row="' + r + '"]');
+            if (!cell) continue;
+            var type = GRID_MAP[r][c], key = c + ',' + r, vis = STATE.visibility[key] || 'hidden';
+            var isCur = STATE.position.col === c && STATE.position.row === r;
+
+            cell.className = 'grid-cell'; cell.dataset.col = c; cell.dataset.row = r; cell.dataset.type = type;
+            if (type === 'wall') cell.classList.add('wall');
+            else if (isCur) cell.classList.add('current');
+            else { cell.classList.add('vis-' + vis); if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis'); }
+
+            var iconEl = cell.querySelector('.cell-icon'), labelEl = cell.querySelector('.cell-label'), agentEl = cell.querySelector('.cell-agent');
+            if (type === 'wall') { iconEl.textContent = ''; labelEl.textContent = ''; }
+            else if (vis === 'hidden' && !isCur) { iconEl.textContent = '?'; labelEl.textContent = ''; }
+            else if (type === 'empty') { iconEl.textContent = '\u00B7'; labelEl.textContent = ''; }
+            else { var info = CELL_INFO[type]; iconEl.textContent = info.abbr; labelEl.textContent = (vis === 'visited' || isCur) ? info.label : ''; }
+            agentEl.style.display = isCur ? 'block' : 'none';
+        }
+    }
+}
+
+// === Fog of War ===
+
+function revealAdjacent(col, row) {
+    [[0,-1],[0,1],[1,0],[-1,0]].forEach(function(d) {
+        var nc = col + d[0], nr = row + d[1];
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS || GRID_MAP[nr][nc] === 'wall') return;
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+            var cell = document.querySelector('.grid-cell[data-col="' + nc + '"][data-row="' + nr + '"]');
+            if (cell) { cell.classList.add('just-revealed'); setTimeout(function() { cell.classList.remove('just-revealed'); }, 500); }
+        }
+    });
+}
+
+// === Terminal Output ===
+
+function printLine(text, type) {
+    var out = document.getElementById('term-output');
+    var el = document.createElement('div');
+    el.className = 'term-line term-' + (type || 'system'); el.textContent = text;
+    out.appendChild(el);
+    while (out.children.length > 200) out.removeChild(out.firstChild);
+    out.scrollTop = out.scrollHeight;
+}
+
+// === Node Resolution ===
+
+function resolveNode(query) {
+    var q = query.toLowerCase(), exact = [], partial = [];
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var type = GRID_MAP[r][c];
+            if (type === 'empty' || type === 'wall') continue;
+            var info = CELL_INFO[type], vis = STATE.visibility[c + ',' + r] || 'hidden';
+            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
+            if (q === type || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) exact.push(entry);
+            else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) partial.push(entry);
+        }
+    }
+    var results = exact.length > 0 ? exact : partial;
+    if (results.length === 1) return results[0];
+    if (results.length > 1) {
+        printLine('Multiple matches. Be more specific:', 'warning');
+        results.forEach(function(m) { printLine('  ' + m.info.label + ' (' + m.info.ip + ')', 'info'); });
+    }
+    return null;
+}
+
+// === Command Handlers ===
+
+function cmdHelp() {
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+    printLine('  scan              Survey area, reveal adjacent nodes', 'info');
+    printLine('  move <dir>        Move agent (north/south/east/west or n/s/e/w)', 'info');
+    printLine('  ipconfig          Show network configuration', 'info');
+    printLine('  netstat           Show active connections', 'info');
+    printLine('  tasklist          Show running processes', 'info');
+    printLine('  taskkill /PID #   Kill process by PID', 'info');
+    printLine('  sfc /scannow      System File Checker', 'info');
+    printLine('  chkdsk            Check disk integrity', 'info');
+    printLine('  nslookup <node>   DNS lookup on a node', 'info');
+    printLine('  ping <node>       Ping a node by name or IP', 'info');
+    printLine('  status            Show position and objectives', 'info');
+    printLine('  help              Show this reference', 'info');
+    printLine('  clear             Clear terminal output', 'info');
+    printLine('', 'system');
+    printLine('Nodes: reference by name, abbreviation, or IP.', 'system');
+}
+
+function cmdScan() {
+    var col = STATE.position.col, row = STATE.position.row, cellType = GRID_MAP[row][col];
+    printLine('Scanning area...', 'system');
+    printLine('', 'system');
+    if (cellType !== 'empty' && cellType !== 'wall') {
+        var cur = CELL_INFO[cellType];
+        printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
+        printLine(cur.desc, 'info');
+    } else { printLine('Current: Clear path (no node)', 'heading'); }
+    printLine('', 'system');
+    printLine('Adjacent:', 'heading');
+    [{name:'North',dc:0,dr:-1},{name:'South',dc:0,dr:1},{name:'East',dc:1,dr:0},{name:'West',dc:-1,dr:0}].forEach(function(d) {
+        var nc = col + d.dc, nr = row + d.dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) { printLine('  ' + d.name + ': [network edge]', 'system'); return; }
+        var type = GRID_MAP[nr][nc];
+        if (type === 'wall') { printLine('  ' + d.name + ': [blocked]', 'system'); return; }
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') STATE.visibility[key] = 'revealed';
+        if (type === 'empty') printLine('  ' + d.name + ': Clear path', 'info');
+        else { var info = CELL_INFO[type]; printLine('  ' + d.name + ': ' + info.label + ' (' + info.ip + ')', 'node-info'); }
+    });
+    updateGrid(); saveState();
+}
+
+function cmdMove(args) {
+    if (!args.length) { printLine('Usage: move <direction>', 'error'); return; }
+    var dirMap = { 'north':[0,-1],'n':[0,-1],'south':[0,1],'s':[0,1],'east':[1,0],'e':[1,0],'west':[-1,0],'w':[-1,0] };
+    var dir = args[0].toLowerCase();
+    if (!dirMap[dir]) { printLine('Unknown direction: ' + args[0], 'error'); return; }
+    var d = dirMap[dir], nc = STATE.position.col + d[0], nr = STATE.position.row + d[1];
+    if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) { printLine('Edge of network. Cannot move ' + dir + '.', 'error'); return; }
+    var cellType = GRID_MAP[nr][nc];
+    if (cellType === 'wall') { printLine('Blocked. No traversable path ' + dir + '.', 'error'); return; }
+    STATE.position = { col: nc, row: nr }; STATE.visibility[nc + ',' + nr] = 'visited';
+    if (cellType !== 'empty') STATE.nodesDiscovered.add(cellType);
+    revealAdjacent(nc, nr);
+    var dirName = { n:'north', s:'south', e:'east', w:'west' }[dir] || dir;
+    if (cellType === 'empty') printLine('Moving ' + dirName + '... Clear path.', 'system');
+    else { var info = CELL_INFO[cellType]; printLine('Moving ' + dirName + '... ' + info.label + ' (' + info.ip + ')', 'success'); printLine(info.desc, 'info'); }
+    checkObjectives(); updateGrid(); saveState();
+}
+
+function cmdPing(args) {
+    if (!args.length) { printLine('Usage: ping <node name or IP>', 'error'); return; }
+    var target = args.join(' '), node = resolveNode(target);
+    if (!node) { printLine(target.match(/^[\d.]+$/) ? 'Request timed out.' : 'Ping request could not find host ' + target + '.', 'error'); return; }
+    if (node.visibility === 'hidden') { printLine('Request timed out. No route to host.', 'error'); return; }
+    var info = node.info, ms = (Math.random() * 5 + 0.5).toFixed(0);
+    printLine('', 'system');
+    printLine('Pinging ' + info.ip + ' with 32 bytes of data:', 'system');
+    printLine('Reply from ' + info.ip + ': bytes=32 time=' + ms + 'ms TTL=128', 'node-info');
+    printLine('Reply from ' + info.ip + ': bytes=32 time=' + (parseInt(ms) + 1) + 'ms TTL=128', 'node-info');
+    printLine('', 'system');
+    printLine('Ping statistics for ' + info.ip + ':', 'info');
+    printLine('    Packets: Sent = 2, Received = 2, Lost = 0 (0% loss)', 'info');
+}
+
+function cmdIpconfig() {
+    var cellType = GRID_MAP[STATE.position.row][STATE.position.col];
+    printLine('', 'system');
+    printLine('Windows IP Configuration', 'heading');
+    printLine('', 'system');
+    if (cellType !== 'empty' && cellType !== 'wall') {
+        var info = CELL_INFO[cellType];
+        printLine('   Host Name . . . . . . . . . . : ' + info.label, 'info');
+        printLine('   OS  . . . . . . . . . . . . . : ' + info.os, 'info');
+        printLine('', 'system');
+        printLine('Ethernet adapter Ethernet0:', 'heading');
+        printLine('', 'system');
+        printLine('   IPv4 Address. . . . . . . . . : ' + info.ip, 'node-info');
+        printLine('   Subnet Mask . . . . . . . . . : 255.255.255.0', 'info');
+        printLine('   Default Gateway . . . . . . . : 192.168.1.1', 'info');
+        printLine('   DNS Server  . . . . . . . . . : 192.168.1.2', 'info');
+    } else { printLine('   No network adapter detected at this position.', 'warning'); }
+    printLine('', 'system');
+}
+
+function cmdNetstat() {
+    var cellType = GRID_MAP[STATE.position.row][STATE.position.col];
+    printLine('', 'system');
+    printLine('Active Connections', 'heading');
+    printLine('', 'system');
+    printLine('  Proto  Local Address          Foreign Address        State', 'info');
+    if (cellType !== 'workstation') {
+        if (cellType !== 'empty' && cellType !== 'wall') {
+            var info = CELL_INFO[cellType];
+            printLine('  TCP    ' + info.ip + ':445          192.168.1.10:49300     ESTABLISHED', 'system');
+        }
+        printLine('', 'system');
+        printLine('No suspicious connections detected.', 'info');
+        return;
+    }
+    printLine('  TCP    192.168.1.10:49152     192.168.1.1:389        ESTABLISHED', 'system');
+    printLine('  TCP    192.168.1.10:49153     192.168.1.2:53         ESTABLISHED', 'system');
+    printLine('  TCP    192.168.1.10:49201     203.0.113.42:443       ESTABLISHED  *', 'warning');
+    printLine('  TCP    192.168.1.10:49202     203.0.113.42:8443      ESTABLISHED  *', 'warning');
+    printLine('  TCP    192.168.1.10:3389      192.168.1.100:52341    ESTABLISHED', 'system');
+    printLine('', 'system');
+    printLine('* Suspicious outbound connections to unknown external host', 'error');
+    if (!STATE.c2Identified) { STATE.c2Identified = true; checkObjectives(); saveState(); }
+}
+
+function cmdTasklist() {
+    var cellType = GRID_MAP[STATE.position.row][STATE.position.col];
+    printLine('', 'system');
+    printLine('Image Name                     PID Session Name        Mem Usage', 'info');
+    printLine('========================= ======== ================ ==========', 'info');
+    if (cellType !== 'workstation') {
+        printLine('System Idle Process              0 Services                0 K', 'system');
+        printLine('System                           4 Services            1,024 K', 'system');
+        printLine('svchost.exe                    512 Services            6,432 K', 'system');
+        printLine('', 'system');
+        printLine('No anomalies detected on this host.', 'info');
+        return;
+    }
+    printLine('System Idle Process              0 Services                0 K', 'system');
+    printLine('System                           4 Services            1,024 K', 'system');
+    printLine('svchost.exe                    892 Services           12,432 K', 'system');
+    printLine('svchost.exe                   1204 Services            8,756 K', 'system');
+    printLine('explorer.exe                  3456 Console            45,892 K', 'system');
+    printLine('svchost.exe                   4891 Services           98,432 K  *', 'warning');
+    printLine('chrome.exe                    5123 Console            89,012 K', 'system');
+    printLine('tasklist.exe                  7890 Console             5,120 K', 'system');
+    printLine('', 'system');
+    printLine('* PID 4891: Abnormal memory usage for svchost.exe \u2014 potential malware', 'error');
+}
+
+function cmdTaskkill(args) {
+    var raw = args.join(' ').toLowerCase(), pidMatch = raw.match(/\/pid\s+(\d+)/);
+    if (!pidMatch) { printLine('Usage: taskkill /PID <process_id>', 'error'); return; }
+    var pid = parseInt(pidMatch[1]);
+    if (pid === 4891) {
+        if (STATE.malwareKilled) { printLine('ERROR: PID 4891 has already been terminated.', 'warning'); return; }
+        printLine('SUCCESS: The process with PID 4891 has been terminated.', 'success');
+        printLine('[!] Malicious svchost.exe (98,432 K) killed.', 'success');
+        printLine('Outbound C2 connections should begin to drop.', 'info');
+        STATE.malwareKilled = true; checkObjectives(); saveState();
+    } else if (pid === 0 || pid === 4) {
+        printLine('ERROR: Access denied. Cannot terminate system process PID ' + pid + '.', 'error');
+    } else if ([892, 1204, 3456, 5123, 7890].indexOf(pid) !== -1) {
+        printLine('SUCCESS: The process with PID ' + pid + ' has been terminated.', 'warning');
+        printLine('[!] WARNING: You terminated a legitimate process. Focus on PID 4891.', 'warning');
+    } else { printLine('ERROR: The process "' + pid + '" not found.', 'error'); }
+}
+
+function cmdSfc(args) {
+    if (args.join(' ').toLowerCase() !== '/scannow') { printLine('Usage: sfc /scannow', 'error'); return; }
+    printLine('', 'system');
+    printLine('Beginning system scan. This process will take some time.', 'system');
+    printLine('', 'system');
+    printLine('Beginning verification phase of system scan.', 'system');
+    printLine('Verification 100% complete.', 'info');
+    printLine('', 'system');
+    if (STATE.filesRepaired) { printLine('Windows Resource Protection did not find any integrity violations.', 'success'); return; }
+    printLine('Windows Resource Protection found corrupt files and successfully repaired them.', 'success');
+    printLine('For online repairs, details are included in the CBS log file:', 'info');
+    printLine('C:\\Windows\\Logs\\CBS\\CBS.log', 'info');
+    printLine('', 'system');
+    printLine('  Files repaired: 3', 'warning');
+    printLine('  - C:\\Windows\\System32\\drivers\\tcpip.sys (replaced)', 'warning');
+    printLine('  - C:\\Windows\\System32\\svchost.exe (replaced)', 'warning');
+    printLine('  - C:\\Windows\\System32\\netsh.dll (replaced)', 'warning');
+    STATE.filesRepaired = true; checkObjectives(); saveState();
+}
+
+function cmdChkdsk() {
+    printLine('', 'system');
+    printLine('The type of the file system is NTFS.', 'info');
+    printLine('Volume label is OS.', 'info');
+    printLine('', 'system');
+    printLine('Stage 1: Examining basic file system structure ...', 'system');
+    printLine('  523776 file records processed.', 'system');
+    printLine('Stage 2: Examining file name linkage ...', 'system');
+    printLine('  612040 index entries processed.', 'system');
+    printLine('Stage 3: Examining security descriptors ...', 'system');
+    printLine('  52416 security descriptors processed.', 'system');
+    printLine('', 'system');
+    printLine('Windows has scanned the file system and found no problems.', 'success');
+    printLine('No further action is required.', 'info');
+}
+
+function cmdNslookup(args) {
+    if (!args.length) { printLine('Usage: nslookup <node name or IP>', 'error'); return; }
+    var target = args.join(' '), node = resolveNode(target);
+    if (!node) { printLine('*** UnKnown can\'t find ' + target + ': Non-existent domain', 'error'); return; }
+    if (node.visibility === 'hidden') { printLine('DNS request timed out. Server not reachable.', 'error'); return; }
+    var info = node.info;
+    printLine('', 'system');
+    printLine('Server:  dns-srv.corp.local', 'info');
+    printLine('Address: 192.168.1.2', 'info');
+    printLine('', 'system');
+    printLine('Name:    ' + info.label.toLowerCase() + '.corp.local', 'node-info');
+    printLine('Address: ' + info.ip, 'node-info');
+    if (node.type === 'domain-controller' && !STATE.dnsVerified) {
+        printLine('', 'system');
+        printLine('[+] DNS resolution for DC-01 confirmed clean.', 'success');
+        printLine('[+] No DNS poisoning or hijacking detected.', 'success');
+        STATE.dnsVerified = true; checkObjectives(); saveState();
+    }
+}
+
+function cmdStatus() {
+    var col = STATE.position.col, row = STATE.position.row, cellType = GRID_MAP[row][col];
+    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Clear';
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
+    printLine('Position: (' + col + ',' + row + ') \u2014 ' + posLabel, 'info');
+    printLine('Nodes discovered: ' + STATE.nodesDiscovered.size + ' / 8', 'info');
+    printLine('Commands used: ' + STATE.commandCount, 'info');
+    printLine('C2 connection: ' + (STATE.c2Identified ? 'IDENTIFIED' : 'UNKNOWN'), STATE.c2Identified ? 'success' : 'warning');
+    printLine('Malicious process: ' + (STATE.malwareKilled ? 'TERMINATED' : 'ACTIVE'), STATE.malwareKilled ? 'success' : 'warning');
+    printLine('System files: ' + (STATE.filesRepaired ? 'REPAIRED' : 'UNCHECKED'), STATE.filesRepaired ? 'success' : 'warning');
+    printLine('DNS integrity: ' + (STATE.dnsVerified ? 'VERIFIED' : 'UNVERIFIED'), STATE.dnsVerified ? 'success' : 'warning');
+    printLine('', 'system');
+    printLine('Objectives:', 'heading');
+    var objText = ['Identify C2 connection (run netstat at workstation)', 'Kill malicious process (taskkill /PID 4891)',
+                   'Repair system files (sfc /scannow)', 'Verify DNS integrity (nslookup domain controller)'];
+    STATE.objectives.forEach(function(done, i) {
+        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
+    });
+}
+
+// === Objectives ===
+
+function checkObjectives() {
+    var prev = STATE.objectives.slice();
+    STATE.objectives[0] = STATE.c2Identified;
+    STATE.objectives[1] = STATE.malwareKilled;
+    STATE.objectives[2] = STATE.filesRepaired;
+    STATE.objectives[3] = STATE.dnsVerified;
+
+    STATE.objectives.forEach(function(done, i) {
+        if (done && !prev[i]) { printLine('', 'system'); printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success'); }
+    });
+    updateObjectivesUI();
+
+    if (STATE.objectives.every(Boolean) && !STATE.completed) {
+        STATE.completed = true;
+        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
+        try {
+            localStorage.setItem('hexworth_operator_windowscmd01', JSON.stringify({ completed: true, time: elapsed, commands: STATE.commandCount, nodesDiscovered: STATE.nodesDiscovered.size, timestamp: Date.now() }));
+            localStorage.removeItem('hexworth_operator_windowscmd01_save');
+        } catch (e) {}
+
+        printLine('', 'system');
+        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
+        printLine('Mission WINDOWS-CMD-01 accomplished.', 'success');
+        document.getElementById('header-status').textContent = 'COMPLETE';
+        document.getElementById('header-status').style.color = '#39ff14';
+        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
+
+        try { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('operator', 'windows-cmd-01', { returnUrl: '../index.html' }); } catch(e) {}
+    }
+}
+
+function updateObjectivesUI() {
+    STATE.objectives.forEach(function(done, i) {
+        var el = document.getElementById('obj-' + i); if (!el) return;
+        var check = el.querySelector('.obj-check');
+        if (done) { el.classList.add('complete'); check.textContent = '\u2713'; }
+        else { el.classList.remove('complete'); check.textContent = ''; }
+    });
+}
+
+function showMissionComplete(elapsed) {
+    var mins = Math.floor(elapsed / 60), secs = elapsed % 60;
+    document.getElementById('stat-nodes').textContent = STATE.nodesDiscovered.size;
+    document.getElementById('stat-commands').textContent = STATE.commandCount;
+    document.getElementById('stat-time').textContent = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+    document.getElementById('mission-complete').classList.add('visible');
+}
+
+// === Save / Load ===
+
+function saveState() {
+    try {
+        localStorage.setItem('hexworth_operator_windowscmd01_save', JSON.stringify({
+            position: STATE.position, visibility: STATE.visibility, objectives: STATE.objectives,
+            nodesDiscovered: Array.from(STATE.nodesDiscovered), c2Identified: STATE.c2Identified,
+            malwareKilled: STATE.malwareKilled, filesRepaired: STATE.filesRepaired,
+            dnsVerified: STATE.dnsVerified, commandCount: STATE.commandCount, startTime: STATE.startTime
+        }));
+    } catch (e) {}
+}
+
+function loadState() {
+    try {
+        var saved = localStorage.getItem('hexworth_operator_windowscmd01_save');
+        if (!saved) return false;
+        var data = JSON.parse(saved);
+        STATE.position = data.position; STATE.visibility = data.visibility;
+        STATE.objectives = data.objectives; STATE.nodesDiscovered = new Set(data.nodesDiscovered);
+        STATE.c2Identified = data.c2Identified; STATE.malwareKilled = data.malwareKilled;
+        STATE.filesRepaired = data.filesRepaired; STATE.dnsVerified = data.dnsVerified;
+        STATE.commandCount = data.commandCount; STATE.startTime = data.startTime;
+        return true;
+    } catch (e) { return false; }
+}
+
+function resetState() {
+    STATE = {
+        position: { col: 0, row: 0 }, visibility: {}, objectives: [false, false, false, false],
+        nodesDiscovered: new Set(), c2Identified: false, malwareKilled: false, filesRepaired: false,
+        dnsVerified: false, commandCount: 0, commandHistory: [], historyIndex: -1,
+        startTime: Date.now(), completed: false
+    };
+    STATE.visibility['0,0'] = 'visited';
+    STATE.nodesDiscovered.add('workstation');
+    revealAdjacent(0, 0);
+}
+
+// === Command Parser ===
+
+function executeCommand(input) {
+    STATE.commandCount++;
+    printLine('C:\\Users\\analyst>' + input, 'prompt-echo');
+    var parts = input.trim().split(/\s+/), cmd = parts[0].toLowerCase(), args = parts.slice(1);
+    switch (cmd) {
+        case 'scan':     cmdScan(); break;
+        case 'move':     cmdMove(args); break;
+        case 'ping':     cmdPing(args); break;
+        case 'ipconfig': cmdIpconfig(); break;
+        case 'netstat':  cmdNetstat(); break;
+        case 'tasklist': cmdTasklist(); break;
+        case 'taskkill': cmdTaskkill(args); break;
+        case 'sfc':      cmdSfc(args); break;
+        case 'chkdsk':   cmdChkdsk(); break;
+        case 'nslookup': cmdNslookup(args); break;
+        case 'status':   cmdStatus(); break;
+        case 'help':     cmdHelp(); break;
+        case 'clear':    document.getElementById('term-output').innerHTML = ''; break;
+        default:
+            printLine('\'' + cmd + '\' is not recognized as an internal or external command,', 'error');
+            printLine('operable program or batch file.', 'error');
+            printLine('Type "help" for available commands.', 'system');
+    }
+}
+
+// === Terminal Input ===
+
+function setupInput() {
+    var input = document.getElementById('term-input');
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            var cmd = this.value.trim();
+            if (cmd) { STATE.commandHistory.push(cmd); STATE.historyIndex = STATE.commandHistory.length; executeCommand(cmd); }
+            this.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (STATE.historyIndex > 0) { STATE.historyIndex--; this.value = STATE.commandHistory[STATE.historyIndex]; }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (STATE.historyIndex < STATE.commandHistory.length - 1) { STATE.historyIndex++; this.value = STATE.commandHistory[STATE.historyIndex]; }
+            else { STATE.historyIndex = STATE.commandHistory.length; this.value = ''; }
+        }
+    });
+    document.getElementById('term-panel').addEventListener('click', function(e) { if (e.target.tagName !== 'INPUT') input.focus(); });
+}
+
+// === Mission Briefing ===
+
+function showBriefing() {
+    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
+    printLine('\u2551  MISSION: WINDOWS-CMD-01 \u2014 WORKSTATION TRIAGE  \u2551', 'heading');
+    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
+    printLine('\u2551  Incoming alert: workstation WKS-192.168.1.10  \u2551', 'heading');
+    printLine('\u2551  is sending traffic to an unrecognized          \u2551', 'heading');
+    printLine('\u2551  external IP. Diagnose the compromise,          \u2551', 'heading');
+    printLine('\u2551  terminate the threat, repair system files,     \u2551', 'heading');
+    printLine('\u2551  and verify DNS integrity.                      \u2551', 'heading');
+    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
+    printLine('', 'system');
+    printLine('Commands: scan, move, ipconfig, netstat, sfc /scannow, chkdsk,', 'info');
+    printLine('          tasklist, taskkill, nslookup, ping, status, help, clear.', 'info');
+    printLine('', 'system');
+    printLine('[SYS] Analyst online at WORKSTATION (192.168.1.10)', 'success');
+    printLine('[SYS] Type "help" for command reference', 'info');
+    printLine('[SYS] Type "scan" to survey the area', 'info');
+    printLine('', 'system');
+}
+
+// === Init ===
+
+function init() {
+    buildGrid(); setupInput();
+    var restored = loadState();
+    if (restored && !STATE.completed) {
+        printLine('[SYS] Session restored from save.', 'system');
+        printLine('[SYS] Type "status" to review position.', 'info');
+        printLine('', 'system');
+    } else { resetState(); showBriefing(); }
+    updateGrid(); updateObjectivesUI();
+    document.getElementById('term-input').focus();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

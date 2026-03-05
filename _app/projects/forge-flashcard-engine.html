@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build a Flashcard Study Engine | Hexworth Prime Projects</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* Grid background */
+        .pp-grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Header                                                               */
+        /* ------------------------------------------------------------------ */
+        .pp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            height: 48px;
+        }
+        .pp-header-back {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .pp-header-back:hover { color: rgba(255,255,255,0.8); }
+        .pp-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .pp-header-count {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Hero                                                                 */
+        /* ------------------------------------------------------------------ */
+        .pp-hero {
+            text-align: center;
+            padding: 52px 24px 36px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        /* House icon circle */
+        .pp-house-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(251,191,36,0.08);
+            border: 1px solid rgba(251,191,36,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 24px rgba(251,191,36,0.15);
+        }
+        .pp-house-icon-wrap img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+        }
+
+        /* House label above title */
+        .pp-house-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #fbbf24;
+            margin-bottom: 10px;
+        }
+
+        /* Project title */
+        .pp-hero-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.95);
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        /* Badge row */
+        .pp-badge-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .pp-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 3px;
+        }
+        .pp-badge img {
+            width: 12px;
+            height: 12px;
+            object-fit: contain;
+            opacity: 0.8;
+        }
+        /* Difficulty — green */
+        .pp-badge-diff {
+            background: rgba(74,222,128,0.1);
+            border: 1px solid rgba(74,222,128,0.25);
+            color: #4ade80;
+        }
+        /* Time — neutral */
+        .pp-badge-time {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+        }
+        /* XP — house amber */
+        .pp-badge-xp {
+            background: rgba(251,191,36,0.1);
+            border: 1px solid rgba(251,191,36,0.25);
+            color: #fbbf24;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Main content                                                         */
+        /* ------------------------------------------------------------------ */
+        .pp-content {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 48px 24px 72px;
+        }
+
+        /* Section title */
+        .pp-section-label {
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #fbbf24;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(251,191,36,0.15);
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Overview                                                             */
+        /* ------------------------------------------------------------------ */
+        .pp-section { margin-bottom: 44px; }
+
+        .pp-prose p {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.55);
+            line-height: 1.75;
+            margin-bottom: 12px;
+        }
+        .pp-prose p:last-child { margin-bottom: 0; }
+
+        /* ------------------------------------------------------------------ */
+        /* Prerequisites                                                        */
+        /* ------------------------------------------------------------------ */
+        .pp-prereq-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .pp-prereq-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.04em;
+        }
+        /* Diamond bullet in house color */
+        .pp-prereq-list li::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #fbbf24;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Milestones                                                           */
+        /* ------------------------------------------------------------------ */
+        .pp-milestones {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* Each milestone card */
+        .pp-milestone {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 6px;
+            padding: 18px 20px;
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+            /* Left accent bar via box-shadow on the left edge */
+            border-left: 3px solid #fbbf24;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .pp-milestone:hover {
+            background: rgba(251,191,36,0.03);
+            border-left-color: #fbbf24;
+        }
+
+        /* Phase number circle */
+        .pp-phase-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(251,191,36,0.12);
+            border: 1px solid rgba(251,191,36,0.3);
+            color: #fbbf24;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Phase text */
+        .pp-phase-body { flex: 1; min-width: 0; }
+        .pp-phase-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.88);
+            letter-spacing: 0.06em;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        .pp-phase-desc {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.4);
+            line-height: 1.6;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Tools & Technologies                                                 */
+        /* ------------------------------------------------------------------ */
+        .pp-tools-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .pp-tool-chip {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* What You'll Learn                                                    */
+        /* ------------------------------------------------------------------ */
+        .pp-learn-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 24px;
+        }
+        .pp-learn-list li {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.55);
+            letter-spacing: 0.04em;
+            line-height: 1.5;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        /* Right-angle bracket marker */
+        .pp-learn-list li::before {
+            content: '>';
+            color: #fbbf24;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Footer                                                               */
+        /* ------------------------------------------------------------------ */
+        .pp-footer {
+            text-align: center;
+            padding: 24px;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.15);
+            letter-spacing: 0.1em;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Responsive                                                           */
+        /* ------------------------------------------------------------------ */
+        @media (max-width: 600px) {
+            .pp-hero { padding: 36px 16px 28px; }
+            .pp-hero-title { font-size: 1.05rem; }
+            .pp-content { padding: 32px 16px 48px; }
+            .pp-learn-list { grid-template-columns: 1fr; }
+            .pp-milestone { padding: 14px 16px; gap: 14px; }
+            .pp-phase-num { width: 28px; height: 28px; font-size: 0.65rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="pp-grid-bg"></div>
+
+    <!-- ------------------------------------------------------------------ -->
+    <!-- Header                                                               -->
+    <!-- ------------------------------------------------------------------ -->
+    <div class="pp-header">
+        <a href="index.html" class="pp-header-back">&larr; PROJECTS</a>
+        <div class="pp-header-title">PROJECTS</div>
+        <div class="pp-header-count">12 PROJECTS</div>
+    </div>
+
+    <!-- ------------------------------------------------------------------ -->
+    <!-- Hero                                                                 -->
+    <!-- ------------------------------------------------------------------ -->
+    <div class="pp-hero">
+        <!-- House icon -->
+        <div class="pp-house-icon-wrap">
+            <img src="/assets/images/icons/icon-tools.webp" alt="Forge House">
+        </div>
+
+        <!-- House label -->
+        <div class="pp-house-label">Forge House &mdash; Hardware &amp; Engineering</div>
+
+        <!-- Title -->
+        <div class="pp-hero-title">Build a Flashcard Study Engine</div>
+
+        <!-- Badges -->
+        <div class="pp-badge-row">
+            <span class="pp-badge pp-badge-diff">
+                <img src="/assets/images/icons/icon-star.webp" alt="">
+                Beginner
+            </span>
+            <span class="pp-badge pp-badge-time">
+                <img src="/assets/images/icons/icon-clock.webp" alt="">
+                60 Minutes
+            </span>
+            <span class="pp-badge pp-badge-xp">
+                250 XP
+            </span>
+        </div>
+    </div>
+
+    <!-- ------------------------------------------------------------------ -->
+    <!-- Main content                                                         -->
+    <!-- ------------------------------------------------------------------ -->
+    <div class="pp-content">
+
+        <!-- Overview -->
+        <div class="pp-section">
+            <div class="pp-section-label">Overview</div>
+            <div class="pp-prose">
+                <p>
+                    In this project you will build a fully functional command-line flashcard engine in Python.
+                    Starting from a JSON deck file, you will implement the complete study loop: loading cards,
+                    prompting the user, evaluating answers, and tracking performance across a session.
+                </p>
+                <p>
+                    The core challenge is implementing a simplified version of the SM-2 spaced-repetition
+                    algorithm — the same scheduling logic behind tools like Anki. Cards you answer correctly
+                    get pushed further into the future; cards you struggle with resurface sooner. By the end,
+                    you will have a system that genuinely adapts to how well you know the material.
+                </p>
+                <p>
+                    Along the way you will practice real-world Python patterns: loading structured data with
+                    the <code>json</code> module, writing and reading progress files between sessions,
+                    handling user input cleanly, and building a scoring engine with streak tracking. These
+                    are foundational skills that show up constantly in backend scripts, automation tools,
+                    and security tooling.
+                </p>
+            </div>
+        </div>
+
+        <!-- Prerequisites -->
+        <div class="pp-section">
+            <div class="pp-section-label">Prerequisites</div>
+            <ul class="pp-prereq-list">
+                <li>Python 3 basics — variables, functions, loops, conditionals</li>
+                <li>Familiarity with Python dictionaries and lists</li>
+                <li>Understanding of reading and writing files in Python</li>
+                <li>Comfort using the terminal to run a Python script</li>
+            </ul>
+        </div>
+
+        <!-- Milestones -->
+        <div class="pp-section">
+            <div class="pp-section-label">Milestones</div>
+            <div class="pp-milestones">
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">01</div>
+                    <div class="pp-phase-body">
+                        <div class="pp-phase-title">Card Data Model and Deck Loading</div>
+                        <div class="pp-phase-desc">
+                            Define the data structure for a flashcard and write a loader that reads a JSON
+                            deck file into memory. Validate the schema and handle missing or malformed
+                            entries gracefully.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">02</div>
+                    <div class="pp-phase-body">
+                        <div class="pp-phase-title">Quiz Loop — Display, Input, and Evaluation</div>
+                        <div class="pp-phase-desc">
+                            Build the core study loop: display a question, accept a typed answer, and
+                            compare it against the correct response. Handle case normalization and
+                            whitespace trimming so minor variations do not count as wrong.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">03</div>
+                    <div class="pp-phase-body">
+                        <div class="pp-phase-title">Scoring Engine with Streak Tracking</div>
+                        <div class="pp-phase-desc">
+                            Add a session scoring system that tracks correct answers, wrong answers,
+                            and the current streak. Display live feedback after each card and print a
+                            summary table when the session ends.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">04</div>
+                    <div class="pp-phase-body">
+                        <div class="pp-phase-title">Spaced Repetition Scheduling (SM-2 Simplified)</div>
+                        <div class="pp-phase-desc">
+                            Implement a stripped-down version of the SM-2 algorithm. Each card stores an
+                            interval and an ease factor. Correct answers push the next review date further
+                            out; incorrect answers reset the card. Use <code>datetime</code> to schedule
+                            and filter due cards.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">05</div>
+                    <div class="pp-phase-body">
+                        <div class="pp-phase-title">Progress Persistence and Session Summary</div>
+                        <div class="pp-phase-desc">
+                            Save each card's scheduling state back to a progress JSON file at the end of
+                            every session. On startup, load that file so the engine remembers what is due.
+                            Print a final summary showing total cards reviewed, accuracy rate, and the
+                            next scheduled review date.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Tools & Technologies -->
+        <div class="pp-section">
+            <div class="pp-section-label">Tools &amp; Technologies</div>
+            <div class="pp-tools-grid">
+                <span class="pp-tool-chip">Python 3</span>
+                <span class="pp-tool-chip">json</span>
+                <span class="pp-tool-chip">datetime</span>
+                <span class="pp-tool-chip">random</span>
+                <span class="pp-tool-chip">os</span>
+            </div>
+        </div>
+
+        <!-- What You'll Learn -->
+        <div class="pp-section">
+            <div class="pp-section-label">What You'll Learn</div>
+            <ul class="pp-learn-list">
+                <li>Spaced repetition algorithm design (SM-2)</li>
+                <li>Data persistence across sessions with JSON files</li>
+                <li>Interactive CLI design and input handling</li>
+                <li>Session scoring and streak tracking systems</li>
+                <li>Date arithmetic with the datetime module</li>
+                <li>Schema validation for structured data</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <!-- ------------------------------------------------------------------ -->
+    <!-- Footer                                                               -->
+    <!-- ------------------------------------------------------------------ -->
+    <div class="pp-footer">HEXWORTH PRIME</div>
+
+</body>
+</html>

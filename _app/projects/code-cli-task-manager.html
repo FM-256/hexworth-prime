@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build a CLI Task Manager | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* CRT scanlines overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* Grid background */
+        .pp-grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Header                                                               */
+        /* ------------------------------------------------------------------ */
+        .pp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            height: 48px;
+        }
+        .pp-header-back {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pp-header-back:hover { color: rgba(255,255,255,0.8); }
+        .pp-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .pp-header-badge {
+            font-size: 0.55rem;
+            letter-spacing: 0.12em;
+            color: #4ade80;
+            text-transform: uppercase;
+            border: 1px solid rgba(74,222,128,0.3);
+            background: rgba(74,222,128,0.06);
+            padding: 3px 9px;
+            border-radius: 3px;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Hero                                                                 */
+        /* ------------------------------------------------------------------ */
+        .pp-hero {
+            text-align: center;
+            padding: 52px 24px 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .pp-house-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: 1px solid rgba(74,222,128,0.35);
+            background: rgba(74,222,128,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 24px rgba(74,222,128,0.15);
+        }
+        .pp-house-icon-wrap img {
+            width: 38px;
+            height: 38px;
+            object-fit: contain;
+        }
+        .pp-hero-house-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #4ade80;
+            margin-bottom: 10px;
+            opacity: 0.75;
+        }
+        .pp-hero-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.95);
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+        .pp-hero-badges {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .pp-badge {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            padding: 4px 12px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .pp-badge-difficulty {
+            background: rgba(74,222,128,0.1);
+            color: #4ade80;
+            border: 1px solid rgba(74,222,128,0.3);
+        }
+        .pp-badge-time {
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.45);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .pp-badge-xp {
+            background: rgba(74,222,128,0.06);
+            color: #4ade80;
+            border: 1px solid rgba(74,222,128,0.2);
+        }
+        .pp-badge img {
+            width: 13px;
+            height: 13px;
+            object-fit: contain;
+            opacity: 0.6;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Content body                                                         */
+        /* ------------------------------------------------------------------ */
+        .pp-body {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 48px 24px 64px;
+        }
+
+        /* Section heading */
+        .pp-section {
+            margin-bottom: 44px;
+        }
+        .pp-section-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #4ade80;
+            opacity: 0.7;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pp-section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(74,222,128,0.15);
+        }
+
+        /* Overview paragraphs */
+        .pp-prose p {
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.55);
+            line-height: 1.75;
+            margin-bottom: 14px;
+        }
+        .pp-prose p:last-child { margin-bottom: 0; }
+        .pp-prose strong {
+            color: rgba(255,255,255,0.8);
+            font-weight: 600;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Prerequisites list                                                   */
+        /* ------------------------------------------------------------------ */
+        .pp-prereq-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .pp-prereq-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.03em;
+        }
+        .pp-prereq-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4ade80;
+            opacity: 0.5;
+            flex-shrink: 0;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Milestones                                                            */
+        /* ------------------------------------------------------------------ */
+        .pp-milestones {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .pp-milestone {
+            display: flex;
+            gap: 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-left: 3px solid #4ade80;
+            border-radius: 0 6px 6px 0;
+            padding: 18px 20px;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .pp-milestone:hover {
+            background: rgba(74,222,128,0.03);
+            border-left-color: #4ade80;
+        }
+        .pp-phase-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(74,222,128,0.1);
+            border: 1px solid rgba(74,222,128,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #4ade80;
+            letter-spacing: 0;
+            flex-shrink: 0;
+        }
+        .pp-milestone-body {
+            flex: 1;
+        }
+        .pp-milestone-title {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.85);
+            letter-spacing: 0.05em;
+            margin-bottom: 5px;
+        }
+        .pp-milestone-desc {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.38);
+            line-height: 1.55;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Tools & Technologies                                                  */
+        /* ------------------------------------------------------------------ */
+        .pp-tools-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .pp-tool-tag {
+            font-size: 0.68rem;
+            letter-spacing: 0.1em;
+            padding: 5px 14px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .pp-tool-tag:hover {
+            border-color: rgba(74,222,128,0.3);
+            color: rgba(74,222,128,0.8);
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* What You'll Learn                                                    */
+        /* ------------------------------------------------------------------ */
+        .pp-learn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+        .pp-learn-item {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .pp-learn-accent {
+            width: 3px;
+            height: 100%;
+            min-height: 36px;
+            border-radius: 2px;
+            background: rgba(74,222,128,0.4);
+            flex-shrink: 0;
+        }
+        .pp-learn-text {
+            flex: 1;
+        }
+        .pp-learn-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.75);
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        .pp-learn-sub {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.3);
+            line-height: 1.5;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Footer                                                               */
+        /* ------------------------------------------------------------------ */
+        .pp-footer {
+            text-align: center;
+            padding: 20px 24px;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.12);
+            letter-spacing: 0.12em;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Mobile                                                               */
+        /* ------------------------------------------------------------------ */
+        @media (max-width: 600px) {
+            .pp-hero { padding: 36px 16px 28px; }
+            .pp-hero-title { font-size: 1.15rem; }
+            .pp-body { padding: 32px 16px 48px; }
+            .pp-section { margin-bottom: 32px; }
+            .pp-milestone { padding: 14px 14px; gap: 12px; }
+            .pp-learn-grid { grid-template-columns: 1fr; }
+            .pp-header { padding: 12px 16px; }
+            .pp-header-badge { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="pp-grid-bg"></div>
+
+    <!-- Header -->
+    <div class="pp-header">
+        <a href="index.html" class="pp-header-back">&larr; PROJECTS</a>
+        <div class="pp-header-title">PROJECT BRIEF</div>
+        <div class="pp-badge pp-header-badge">Code House</div>
+    </div>
+
+    <!-- Hero -->
+    <div class="pp-hero">
+        <div class="pp-house-icon-wrap">
+            <img src="/assets/images/icons/icon-laptop.webp" alt="Code House">
+        </div>
+        <div class="pp-hero-house-label">Code House &mdash; Software Development</div>
+        <h1 class="pp-hero-title">Build a CLI Task Manager</h1>
+        <div class="pp-hero-badges">
+            <span class="pp-badge pp-badge-difficulty">Beginner</span>
+            <span class="pp-badge pp-badge-time">
+                <img src="/assets/images/icons/icon-clock.webp" alt="">45 Minutes
+            </span>
+            <span class="pp-badge pp-badge-xp">250 XP</span>
+        </div>
+    </div>
+
+    <!-- Body -->
+    <div class="pp-body">
+
+        <!-- Overview -->
+        <div class="pp-section">
+            <div class="pp-section-label">Overview</div>
+            <div class="pp-prose">
+                <p>
+                    In this project you will design and build a <strong>command-line task manager</strong>
+                    entirely in Python. The application will let users create, view, update, and delete tasks
+                    from the terminal, with each task storing a title, priority level, optional due date, and
+                    one or more tags. All data persists between sessions in a local <strong>JSON file</strong>,
+                    so no database or external service is required.
+                </p>
+                <p>
+                    You will use Python's built-in <strong>argparse</strong> module to expose a clean
+                    subcommand interface (similar to tools like <code>git</code> or <code>apt</code>) and
+                    practice the fundamental CRUD pattern that underpins virtually every real-world application.
+                    By the end you will have a working tool you can actually use day-to-day.
+                </p>
+                <p>
+                    The emphasis is on <strong>clean structure over clever code</strong>. Keep your functions
+                    small, your data model explicit, and your error messages human-readable. A good CLI tool
+                    feels intuitive on first run without needing a manual.
+                </p>
+            </div>
+        </div>
+
+        <!-- Prerequisites -->
+        <div class="pp-section">
+            <div class="pp-section-label">Prerequisites</div>
+            <ul class="pp-prereq-list">
+                <li><span class="pp-prereq-dot"></span>Python 3.8 or later installed and runnable from your terminal</li>
+                <li><span class="pp-prereq-dot"></span>Comfort writing functions, loops, and conditionals in Python</li>
+                <li><span class="pp-prereq-dot"></span>Basic understanding of JSON structure (keys, values, arrays)</li>
+                <li><span class="pp-prereq-dot"></span>Familiarity with running scripts from the command line</li>
+                <li><span class="pp-prereq-dot"></span>Understanding of what command-line arguments and flags are</li>
+            </ul>
+        </div>
+
+        <!-- Milestones -->
+        <div class="pp-section">
+            <div class="pp-section-label">Milestones</div>
+            <div class="pp-milestones">
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">1</div>
+                    <div class="pp-milestone-body">
+                        <div class="pp-milestone-title">Data Model and JSON Storage Layer</div>
+                        <div class="pp-milestone-desc">
+                            Define your task schema as a Python dictionary and write the two core storage
+                            functions: one that reads the JSON file from disk (or returns an empty list if it
+                            does not exist), and one that writes the full task list back. This layer is the
+                            foundation everything else sits on.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">2</div>
+                    <div class="pp-milestone-body">
+                        <div class="pp-milestone-title">Add, List, and Delete Commands with argparse</div>
+                        <div class="pp-milestone-desc">
+                            Wire up your first three subcommands using <code>argparse.add_subparsers()</code>.
+                            <code>task add "Buy milk"</code> should append a new task, <code>task list</code>
+                            should print all tasks to the terminal, and <code>task delete 3</code> should
+                            remove by ID. Confirm each action with a one-line success message.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">3</div>
+                    <div class="pp-milestone-body">
+                        <div class="pp-milestone-title">Priority Levels and Due Date Support</div>
+                        <div class="pp-milestone-desc">
+                            Extend the <code>add</code> command with optional <code>--priority</code>
+                            (low / medium / high, defaulting to medium) and <code>--due</code>
+                            (YYYY-MM-DD format) flags. Validate the date format on input and surface a
+                            clear error if it is malformed. Sort the list output by priority then due date.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">4</div>
+                    <div class="pp-milestone-body">
+                        <div class="pp-milestone-title">Tags, Filtering, and Search</div>
+                        <div class="pp-milestone-desc">
+                            Add a <code>--tags</code> flag to <code>add</code> that accepts a
+                            comma-separated list of labels (e.g. <code>work,urgent</code>). Extend
+                            <code>list</code> with <code>--tag</code> and <code>--search</code> options
+                            that narrow output to matching tasks. Store tags as a JSON array per task.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pp-milestone">
+                    <div class="pp-phase-num">5</div>
+                    <div class="pp-milestone-body">
+                        <div class="pp-milestone-title">Status Transitions and Formatted Table Output</div>
+                        <div class="pp-milestone-desc">
+                            Add a <code>task done ID</code> subcommand that marks a task complete and
+                            records a timestamp. Refactor <code>list</code> to render output as a
+                            padded table with columns for ID, status, priority, due date, tags, and title.
+                            Completed tasks should appear dimmed or struck through using ANSI escape codes.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Tools & Technologies -->
+        <div class="pp-section">
+            <div class="pp-section-label">Tools &amp; Technologies</div>
+            <div class="pp-tools-grid">
+                <span class="pp-tool-tag">Python 3</span>
+                <span class="pp-tool-tag">argparse</span>
+                <span class="pp-tool-tag">json</span>
+                <span class="pp-tool-tag">datetime</span>
+                <span class="pp-tool-tag">os / pathlib</span>
+                <span class="pp-tool-tag">ANSI escape codes</span>
+                <span class="pp-tool-tag">sys</span>
+            </div>
+        </div>
+
+        <!-- What You'll Learn -->
+        <div class="pp-section">
+            <div class="pp-section-label">What You'll Learn</div>
+            <div class="pp-learn-grid">
+
+                <div class="pp-learn-item">
+                    <div class="pp-learn-accent"></div>
+                    <div class="pp-learn-text">
+                        <div class="pp-learn-title">CLI Design Patterns</div>
+                        <div class="pp-learn-sub">How to structure subcommands and flags the way professional tools do it.</div>
+                    </div>
+                </div>
+
+                <div class="pp-learn-item">
+                    <div class="pp-learn-accent"></div>
+                    <div class="pp-learn-text">
+                        <div class="pp-learn-title">Data Persistence</div>
+                        <div class="pp-learn-sub">Reading and writing structured data to disk without a database.</div>
+                    </div>
+                </div>
+
+                <div class="pp-learn-item">
+                    <div class="pp-learn-accent"></div>
+                    <div class="pp-learn-text">
+                        <div class="pp-learn-title">CRUD Operations</div>
+                        <div class="pp-learn-sub">Create, read, update, and delete — the pattern behind every real application.</div>
+                    </div>
+                </div>
+
+                <div class="pp-learn-item">
+                    <div class="pp-learn-accent"></div>
+                    <div class="pp-learn-text">
+                        <div class="pp-learn-title">Argument Parsing</div>
+                        <div class="pp-learn-sub">Turning raw terminal input into structured, validated program arguments.</div>
+                    </div>
+                </div>
+
+                <div class="pp-learn-item">
+                    <div class="pp-learn-accent"></div>
+                    <div class="pp-learn-text">
+                        <div class="pp-learn-title">Input Validation</div>
+                        <div class="pp-learn-sub">Checking user-supplied values and returning actionable error messages.</div>
+                    </div>
+                </div>
+
+                <div class="pp-learn-item">
+                    <div class="pp-learn-accent"></div>
+                    <div class="pp-learn-text">
+                        <div class="pp-learn-title">Terminal Formatting</div>
+                        <div class="pp-learn-sub">Using ANSI codes to build readable tabular output and color-coded status.</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /pp-body -->
+
+    <!-- Footer -->
+    <div class="pp-footer">HEXWORTH PRIME &mdash; PROJECTS v1.0</div>
+
+</body>
+</html>

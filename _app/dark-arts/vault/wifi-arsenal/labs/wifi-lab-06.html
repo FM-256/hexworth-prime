@@ -919,6 +919,7 @@ Crackability: HIGH — both passwords are trivially pattern-crackable despite pa
             startDir:  '/WifiForge/framework/lab_materials/loot',
             height:    '100%',
             onCommand: handleCommand,
+            suppressUnknown: true,
             objectives: TASKS.map(t => ({
                 id:   `obj${t.id}`,
                 desc: t.question.replace(/<[^>]+>/g, '').substring(0, 52)
@@ -1056,7 +1057,7 @@ Crackability: HIGH — both passwords are trivially pattern-crackable despite pa
         /* ── Passthrough built-in commands — no penalty ───────────── */
         const passthroughs = ['clear', 'help', 'ls', 'cat', 'cd', 'pwd', 'whoami',
                               'uname', 'man', 'which', 'echo', 'history', 'grep', 'find'];
-        if (passthroughs.includes(cmd)) return;
+        if (passthroughs.includes(cmd)) return false;
 
         /* ── objectives — list all tasks with their status ─────────── */
         if (cmd === 'objectives') {
@@ -1071,14 +1072,14 @@ Crackability: HIGH — both passwords are trivially pattern-crackable despite pa
                     : '<span style="color:#374151;">[ -- ]</span>';
                 LinuxTerminal.print(`  ${status} ${i + 1}. ${task.question.replace(/<[^>]+>/g, '').substring(0, 65)}`);
             });
-            return;
+            return true;
         }
 
         /* ── john invoked without --format specified ─────────────── */
         if (cmd === 'john' && !c.includes('--format') && !c.includes('--list') &&
             !c.includes('--pipe') && c.includes('hashes.txt')) {
             LinuxTerminal.print('<span style="color:#f59e0b;">john: hash format not specified. For NetNTLMv2 use: john --format=netntlmv2 hashes.txt</span>');
-            return;
+            return true;
         }
 
         /* ── State gate: mask attack requires dictionary attack first ─
@@ -1086,26 +1087,26 @@ Crackability: HIGH — both passwords are trivially pattern-crackable despite pa
            explain why it is premature (session conflict warning).         */
         if (cmd === 'john' && c.includes('--mask') && !state.dictAttackDone) {
             LinuxTerminal.print('<span style="color:#ef4444;">john: dictionary attack has not run yet. John\'s session will skip already-cracked hashes automatically — run the dictionary attack first (objective 4) to avoid redundant mask keyspace on already-solved hashes.</span>');
-            return;
+            return true;
         }
 
         /* ── State gate: --show requires at least one crack attempt ──
            If neither dict nor mask has run, --show returns nothing useful. */
         if (cmd === 'john' && c.includes('--show') && !state.atLeastOneCracked) {
             LinuxTerminal.print('<span style="color:#ef4444;">john --show: no cracked hashes in session yet. Complete the dictionary attack (objective 4) before displaying results.</span>');
-            return;
+            return true;
         }
 
         /* ── State gate: potfile export requires at least one crack ── */
         if (cmd === 'john' && c.includes('--pot') && !state.atLeastOneCracked) {
             LinuxTerminal.print('<span style="color:#ef4444;">john: cannot export potfile — no cracked hashes in session yet. Complete at least the dictionary attack (objective 4) first.</span>');
-            return;
+            return true;
         }
 
         /* ── john --list=formats without ntlm grep — informational ── */
         if (cmd === 'john' && c.includes('--list=formats') && !c.includes('ntlm')) {
             LinuxTerminal.print(`<span style="color:#6b7280;">john: supported formats include: descrypt, bsdicrypt, md5crypt, bcrypt, scrypt, LM, NT, netntlm, netntlmv2, mschapv2, sha256crypt, sha512crypt, krb5pa-sha1, wpapsk, rar, zip, pdf, and ~400 others. Use grep to filter: john --list=formats | grep -i ntlm</span>`);
-            return;
+            return true;
         }
 
         /* ── Validate against the active task ────────────────────── */
@@ -1201,6 +1202,7 @@ Crackability: HIGH — both passwords are trivially pattern-crackable despite pa
                 document.getElementById('taskHint').classList.add('show');
             }
         }
+        return true;
     }
 
     /* ── Show hint on demand — costs 5 points ────────────────────── */

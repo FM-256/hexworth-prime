@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build a Port Scanner in Python | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        /* ── Base ─────────────────────────────────────────────── */
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* CRT scanlines overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.10) 0px,
+                rgba(0,0,0,0.10) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* Subtle grid background */
+        .pp-grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* ── Header ───────────────────────────────────────────── */
+        .pp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .pp-header-back {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: color 0.2s;
+        }
+        .pp-header-back:hover { color: rgba(255,255,255,0.8); }
+
+        /* Back arrow drawn with CSS — no external deps */
+        .pp-header-back::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-left: 1.5px solid currentColor;
+            border-bottom: 1.5px solid currentColor;
+            transform: rotate(45deg);
+            margin-right: 2px;
+        }
+
+        .pp-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .pp-header-badge {
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+        }
+
+        /* ── Main content wrapper ─────────────────────────────── */
+        .pp-main {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+        }
+
+        /* ── Hero ─────────────────────────────────────────────── */
+        .pp-hero {
+            padding: 56px 0 44px;
+            text-align: center;
+        }
+
+        /* House icon circle */
+        .pp-house-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(147, 51, 234, 0.12);
+            border: 1px solid rgba(147, 51, 234, 0.35);
+            box-shadow: 0 0 24px rgba(147, 51, 234, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .pp-house-icon-wrap img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            /* Purple tint via CSS filter */
+            filter: brightness(0.85) sepia(1) hue-rotate(250deg) saturate(2.5);
+            opacity: 0.9;
+        }
+
+        .pp-hero-house-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: #9333ea;
+            margin-bottom: 10px;
+        }
+
+        .pp-hero-title {
+            font-size: 1.55rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: rgba(255,255,255,0.95);
+            margin-bottom: 22px;
+            line-height: 1.3;
+        }
+
+        /* Badge row */
+        .pp-badge-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pp-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.68rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        /* Difficulty: beginner = green */
+        .pp-badge-difficulty {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+
+        /* Time badge */
+        .pp-badge-time {
+            color: rgba(255,255,255,0.55);
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+
+        /* XP badge: house accent */
+        .pp-badge-xp {
+            color: #9333ea;
+            background: rgba(147, 51, 234, 0.1);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        /* ── Section layout ───────────────────────────────────── */
+        .pp-section {
+            margin-top: 48px;
+        }
+
+        .pp-section-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #9333ea;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        /* ── Overview text ────────────────────────────────────── */
+        .pp-prose p {
+            font-size: 0.88rem;
+            line-height: 1.8;
+            color: rgba(255,255,255,0.65);
+            margin-bottom: 14px;
+        }
+        .pp-prose p:last-child { margin-bottom: 0; }
+
+        /* Ethical-use callout */
+        .pp-callout {
+            margin-top: 20px;
+            padding: 14px 18px;
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.25);
+            border-left: 3px solid #9333ea;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            line-height: 1.7;
+            color: rgba(255,255,255,0.55);
+        }
+        .pp-callout strong {
+            color: #9333ea;
+            font-weight: 700;
+        }
+
+        /* ── Prerequisites list ───────────────────────────────── */
+        .pp-prereq-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .pp-prereq-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.65);
+            line-height: 1.5;
+        }
+
+        /* Purple dot bullet */
+        .pp-prereq-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #9333ea;
+            margin-top: 6px;
+            box-shadow: 0 0 6px rgba(147, 51, 234, 0.6);
+        }
+
+        /* ── Milestone cards ──────────────────────────────────── */
+        .pp-milestones {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .pp-milestone-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 18px;
+            background: #0e1018;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-left: 3px solid #9333ea;
+            border-radius: 4px;
+        }
+
+        /* Phase number circle */
+        .pp-phase-num {
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(147, 51, 234, 0.15);
+            border: 1px solid rgba(147, 51, 234, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #9333ea;
+            letter-spacing: 0;
+        }
+
+        .pp-milestone-body { flex: 1; }
+
+        .pp-milestone-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 5px;
+            letter-spacing: 0.03em;
+        }
+
+        .pp-milestone-desc {
+            font-size: 0.8rem;
+            line-height: 1.65;
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* ── Tools grid ───────────────────────────────────────── */
+        .pp-tools-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .pp-tool-chip {
+            font-size: 0.78rem;
+            padding: 6px 14px;
+            background: #0e1018;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 3px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+        }
+
+        .pp-tool-chip span {
+            color: #9333ea;
+            margin-right: 5px;
+        }
+
+        /* ── What you'll learn list ───────────────────────────── */
+        .pp-learn-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .pp-learn-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            font-size: 0.83rem;
+            color: rgba(255,255,255,0.62);
+            line-height: 1.5;
+        }
+
+        /* Checkmark using CSS */
+        .pp-learn-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            background: rgba(147, 51, 234, 0.15);
+            border: 1px solid rgba(147, 51, 234, 0.35);
+            margin-top: 1px;
+            /* Draw a checkmark via clip-path gradient substitute — using outline square as check indicator */
+            outline: none;
+            position: relative;
+        }
+
+        /* Simpler approach: use a colored square as the bullet */
+        .pp-learn-check {
+            flex-shrink: 0;
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            background: rgba(147, 51, 234, 0.15);
+            border: 1px solid rgba(147, 51, 234, 0.4);
+            margin-top: 2px;
+            /* inner dot to signal "checked" */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pp-learn-check::after {
+            content: '';
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #9333ea;
+        }
+
+        /* Remove the ::before pseudo-bullet since we use .pp-learn-check span */
+        .pp-learn-list li::before { display: none; }
+
+        /* ── Footer ───────────────────────────────────────────── */
+        .pp-footer {
+            margin-top: 80px;
+            padding: 24px 0;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            text-align: center;
+        }
+
+        .pp-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.28em;
+            color: rgba(255,255,255,0.15);
+            text-transform: uppercase;
+        }
+
+        /* ── Responsive ───────────────────────────────────────── */
+        @media (max-width: 600px) {
+            .pp-main { padding: 0 16px 60px; }
+            .pp-hero { padding: 36px 0 32px; }
+            .pp-hero-title { font-size: 1.2rem; }
+            .pp-learn-list { grid-template-columns: 1fr; }
+            .pp-section { margin-top: 36px; }
+            .pp-milestone-card { padding: 14px 14px; }
+            .pp-header { padding: 12px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Fixed background grid -->
+    <div class="pp-grid-bg"></div>
+
+    <!-- ── Header ─────────────────────────────────────────────── -->
+    <header class="pp-header">
+        <a href="index.html" class="pp-header-back">&larr; PROJECTS</a>
+        <span class="pp-header-title">PROJECTS</span>
+        <span class="pp-header-badge">Dark Arts</span>
+    </header>
+
+    <!-- ── Main ───────────────────────────────────────────────── -->
+    <main class="pp-main">
+
+        <!-- Hero -->
+        <section class="pp-hero">
+            <div class="pp-house-icon-wrap">
+                <img src="/assets/images/icons/icon-skull.webp" alt="Dark Arts" />
+            </div>
+            <p class="pp-hero-house-label">Dark Arts &mdash; Offensive Security</p>
+            <h1 class="pp-hero-title">Build a Port Scanner in Python</h1>
+            <div class="pp-badge-row">
+                <span class="pp-badge pp-badge-difficulty">Beginner</span>
+                <span class="pp-badge pp-badge-time">60 min</span>
+                <span class="pp-badge pp-badge-xp">250 XP</span>
+            </div>
+        </section>
+
+        <!-- Overview -->
+        <section class="pp-section">
+            <p class="pp-section-label">Overview</p>
+            <div class="pp-prose">
+                <p>
+                    In this project you will write a Python port scanner from scratch using only the standard
+                    library. Starting with a single raw socket connection, you will progressively build the tool
+                    up to a concurrent, multi-threaded scanner that can sweep a host across thousands of ports
+                    in seconds, grab service banners, and produce clean structured output you can pipe into
+                    other tools.
+                </p>
+                <p>
+                    Port scanning is one of the first steps in any engagement — it tells you what services
+                    a target is exposing and gives you the surface area you need to plan the next move.
+                    Understanding how scanners work at the socket level means you will never be a black-box
+                    operator: you will know exactly what packets are being sent, why a port is marked open
+                    vs. filtered, and how defenders detect this activity.
+                </p>
+                <p>
+                    By the end you will have a real command-line tool you can use in lab environments, complete
+                    with argparse-driven configuration, thread pool concurrency, banner grabbing, and JSON
+                    output suitable for ingestion by other scripts.
+                </p>
+            </div>
+
+            <div class="pp-callout">
+                <strong>Authorized testing only.</strong> Port scanning without explicit written permission
+                is illegal in most jurisdictions and a violation of computer fraud statutes. Always operate
+                inside lab environments, your own infrastructure, or networks where you hold documented
+                authorization. Hexworth Prime builds offensive skills for defensive understanding — never
+                for unauthorized access.
+            </div>
+        </section>
+
+        <!-- Prerequisites -->
+        <section class="pp-section">
+            <p class="pp-section-label">Prerequisites</p>
+            <ul class="pp-prereq-list">
+                <li>Python 3 basics — variables, loops, functions, and importing modules</li>
+                <li>Fundamental understanding of TCP/IP: what an IP address and port number represent</li>
+                <li>Familiarity with how a TCP three-way handshake establishes a connection</li>
+                <li>Comfortable running scripts from the terminal and reading error output</li>
+                <li>A lab environment or virtual machine to test against (localhost works for Phase 1-2)</li>
+            </ul>
+        </section>
+
+        <!-- Milestones -->
+        <section class="pp-section">
+            <p class="pp-section-label">Milestones</p>
+            <div class="pp-milestones">
+
+                <div class="pp-milestone-card">
+                    <div class="pp-phase-num">1</div>
+                    <div class="pp-milestone-body">
+                        <p class="pp-milestone-title">Socket Basics — Single-Port TCP Connect Scan</p>
+                        <p class="pp-milestone-desc">
+                            Open a raw TCP socket with Python's <code>socket</code> module and attempt a
+                            connection to a single host and port. Handle the three outcomes: open, closed
+                            (connection refused), and filtered (timeout). Set a sensible connect timeout
+                            so the script doesn't hang indefinitely.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="pp-milestone-card">
+                    <div class="pp-phase-num">2</div>
+                    <div class="pp-milestone-body">
+                        <p class="pp-milestone-title">Multi-Port Scanning with Range Parsing</p>
+                        <p class="pp-milestone-desc">
+                            Accept a port specification string on the command line (e.g. <code>22,80,443</code>
+                            or <code>1-1024</code>) and iterate through the resolved list sequentially. Print
+                            a live status line for each result so the user sees progress in real time. Collect
+                            open ports into a results list.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="pp-milestone-card">
+                    <div class="pp-phase-num">3</div>
+                    <div class="pp-milestone-body">
+                        <p class="pp-milestone-title">Threading for Concurrent Scans</p>
+                        <p class="pp-milestone-desc">
+                            Replace the sequential loop with a <code>ThreadPoolExecutor</code> to fire
+                            multiple connection attempts simultaneously. Add a configurable thread-count
+                            argument (default 100). Use a thread-safe structure to accumulate results
+                            without race conditions, and measure total scan time before and after to see
+                            the speedup.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="pp-milestone-card">
+                    <div class="pp-phase-num">4</div>
+                    <div class="pp-milestone-body">
+                        <p class="pp-milestone-title">Banner Grabbing and Service Detection</p>
+                        <p class="pp-milestone-desc">
+                            For each open port, attempt to read the first bytes the server sends after
+                            connection — many services (SSH, FTP, SMTP) announce themselves immediately.
+                            Send a minimal HTTP request for port 80/443 to elicit a response header.
+                            Decode and sanitize the banner, then map well-known ports to service names
+                            using a local lookup table.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="pp-milestone-card">
+                    <div class="pp-phase-num">5</div>
+                    <div class="pp-milestone-body">
+                        <p class="pp-milestone-title">Structured Output and Summary Stats</p>
+                        <p class="pp-milestone-desc">
+                            Add an <code>--output</code> flag that switches between a human-readable table
+                            (aligned columns, color-coded via ANSI codes) and JSON mode for downstream
+                            consumption. Print a summary block showing total ports scanned, open count,
+                            scan duration, and threads used. Optionally write results to a file with
+                            <code>--out-file</code>.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Tools & Technologies -->
+        <section class="pp-section">
+            <p class="pp-section-label">Tools &amp; Technologies</p>
+            <div class="pp-tools-grid">
+                <div class="pp-tool-chip"><span>#</span>Python 3</div>
+                <div class="pp-tool-chip"><span>#</span>socket</div>
+                <div class="pp-tool-chip"><span>#</span>concurrent.futures</div>
+                <div class="pp-tool-chip"><span>#</span>threading</div>
+                <div class="pp-tool-chip"><span>#</span>argparse</div>
+                <div class="pp-tool-chip"><span>#</span>json</div>
+                <div class="pp-tool-chip"><span>#</span>TCP/IP</div>
+                <div class="pp-tool-chip"><span>#</span>ANSI escape codes</div>
+            </div>
+        </section>
+
+        <!-- What You'll Learn -->
+        <section class="pp-section">
+            <p class="pp-section-label">What You'll Learn</p>
+            <ul class="pp-learn-list">
+                <li>
+                    <span class="pp-learn-check"></span>
+                    How the TCP three-way handshake works at the socket level
+                </li>
+                <li>
+                    <span class="pp-learn-check"></span>
+                    Python socket programming — connect, send, recv, and error handling
+                </li>
+                <li>
+                    <span class="pp-learn-check"></span>
+                    Thread pool concurrency with <code>ThreadPoolExecutor</code>
+                </li>
+                <li>
+                    <span class="pp-learn-check"></span>
+                    Parsing and validating user-supplied port range strings
+                </li>
+                <li>
+                    <span class="pp-learn-check"></span>
+                    Service enumeration through banner grabbing
+                </li>
+                <li>
+                    <span class="pp-learn-check"></span>
+                    Structuring CLI tools with argparse and output modes
+                </li>
+                <li>
+                    <span class="pp-learn-check"></span>
+                    How defenders detect port scan activity (SYN logs, IDS rules)
+                </li>
+                <li>
+                    <span class="pp-learn-check"></span>
+                    Writing scan results as JSON for pipeline integration
+                </li>
+            </ul>
+        </section>
+
+        <!-- Footer -->
+        <footer class="pp-footer">
+            <p class="pp-footer-text">Hexworth Prime</p>
+        </footer>
+
+    </main>
+
+</body>
+</html>
