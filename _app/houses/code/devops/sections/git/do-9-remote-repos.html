@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Repos - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-branch.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status flow rows */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Remote flow diagram — horizontal topology strip */
+        .remote-flow { display: flex; align-items: stretch; gap: 0; margin: 20px 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .remote-node { flex: 1; padding: 18px 14px; text-align: center; background: var(--bg-card); border-right: 1px solid var(--border); transition: background 0.2s; cursor: default; }
+        .remote-node:last-child { border-right: none; }
+        .remote-node-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 6px; }
+        .remote-node-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .remote-node-url { font-size: 11px; color: var(--forge); font-family: 'Cascadia Code', monospace; }
+        .remote-node-center { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 14px 8px; }
+        .remote-node-center .arrow-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+        .remote-node-center .arrow-sym { font-size: 18px; color: var(--forge); font-weight: bold; }
+
+        /* Tracking branch pill list */
+        .tracking-list { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
+        .tracking-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Cascadia Code', monospace; }
+        .tracking-local { color: #79c0ff; min-width: 120px; }
+        .tracking-sep { color: var(--text-dim); padding: 0 4px; }
+        .tracking-remote { color: var(--forge); }
+        .tracking-status { margin-left: auto; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+        .tracking-ahead { background: rgba(16,185,129,0.15); color: var(--forge); }
+        .tracking-behind { background: rgba(239,68,68,0.12); color: var(--red); }
+        .tracking-ok { background: rgba(255,255,255,0.05); color: var(--text-dim); }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+            .remote-flow { flex-direction: column; }
+            .remote-node { border-right: none; border-bottom: 1px solid var(--border); }
+            .remote-node:last-child { border-bottom: none; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-9</span>
+            <h1>Remote Repos &mdash; Push, Pull, Fetch</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Git Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-branch.webp" alt="">
+            <h2>Remote Repos</h2>
+            <p class="hero-sub">Push, pull, and fetch &mdash; the mechanics of collaborating across repositories. Understand how Git tracks remotes, syncs branches, and manages upstream connections.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-branch.webp" alt="" width="14" height="14"> Beginner</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain what a remote repository is and why Git supports multiple remotes</li>
+                <li>Inspect configured remotes with <code>git remote -v</code> and <code>git remote show</code></li>
+                <li>Add a new remote with <code>git remote add</code></li>
+                <li>Distinguish between <code>git fetch</code> and <code>git pull</code> and know when to use each</li>
+                <li>Push branches upstream with <code>git push</code> and handle rejected pushes</li>
+                <li>Understand remote-tracking refs like <code>origin/main</code> and how they update</li>
+                <li>Create and modify tracking branches with <code>--track</code> and <code>-u</code></li>
+                <li>Rename and remove remotes cleanly</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: What Are Remotes? -->
+        <div class="section">
+            <h3>What Are Remotes?</h3>
+            <p>A remote repository is any version of your project hosted somewhere other than your current working directory &mdash; on GitHub, a company server, a teammate's machine, or even another path on the same machine. The word "remote" refers to its location relative to your repo, not necessarily its physical distance.</p>
+
+            <p>Remotes are what make Git a collaboration tool. Without them, every developer works in isolation. With them, you can push your changes out, pull others' work in, and maintain multiple upstream sources simultaneously &mdash; each with its own URL and permissions.</p>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Remote vs. Local</div>
+                <p>A "remote" can live on the same machine as your local repo. It still behaves identically &mdash; you push, pull, and fetch from it using the same commands. The distinction is purely about which repository is which, not about network topology.</p>
+            </div>
+
+            <h4>The Topology</h4>
+            <!-- Interactive: click a node to see its role -->
+            <div class="remote-flow" id="topoFlow">
+                <div class="remote-node" onclick="showTopo('dev')" id="topo-dev">
+                    <div class="remote-node-label">Your Machine</div>
+                    <div class="remote-node-name">Local Repo</div>
+                    <div class="remote-node-url">.git/</div>
+                </div>
+                <div class="remote-node remote-node-center" style="flex: 0; padding: 0 12px; cursor: default;">
+                    <div class="arrow-sym">&#8644;</div>
+                    <div class="arrow-label">push / fetch</div>
+                </div>
+                <div class="remote-node" onclick="showTopo('origin')" id="topo-origin">
+                    <div class="remote-node-label">Primary Remote</div>
+                    <div class="remote-node-name">origin</div>
+                    <div class="remote-node-url">github.com/you/repo</div>
+                </div>
+                <div class="remote-node remote-node-center" style="flex: 0; padding: 0 12px; cursor: default;">
+                    <div class="arrow-sym">&#8644;</div>
+                    <div class="arrow-label">fetch</div>
+                </div>
+                <div class="remote-node" onclick="showTopo('upstream')" id="topo-upstream">
+                    <div class="remote-node-label">Secondary Remote</div>
+                    <div class="remote-node-name">upstream</div>
+                    <div class="remote-node-url">github.com/org/repo</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="topoDetail">Click a node above to learn more about its role.</div>
+        </div>
+
+        <!-- Section 2: Viewing Remotes -->
+        <div class="section">
+            <h3>Viewing Remotes</h3>
+            <p>The <code>git remote</code> command lists every remote configured for your repository. After cloning, you will always have at least one: <code>origin</code>, the name Git automatically assigns to the server you cloned from.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># List remote shortnames</span>
+<span class="cmd">$</span> git remote
+<span class="output">origin</span>
+
+<span class="comment"># Show URLs for each remote (-v = verbose)</span>
+<span class="cmd">$</span> git remote <span class="flag">-v</span>
+<span class="output">origin    https://github.com/schacon/ticgit (fetch)
+origin    https://github.com/schacon/ticgit (push)</span></code></pre>
+            </div>
+
+            <p>Git stores separate fetch and push URLs per remote. In practice they are almost always identical, but you can configure them to differ &mdash; useful if you fetch via HTTPS and push via SSH, for example.</p>
+
+            <h4>Multiple Remotes</h4>
+            <p>Repositories with several collaborators often have multiple remotes configured. Each line pair shows the shortname and its fetch/push URLs.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git remote <span class="flag">-v</span>
+<span class="output">bakkdoor  https://github.com/bakkdoor/grit (fetch)
+bakkdoor  https://github.com/bakkdoor/grit (push)
+cho45     https://github.com/cho45/grit (fetch)
+cho45     https://github.com/cho45/grit (push)
+defunkt   https://github.com/defunkt/grit (fetch)
+defunkt   https://github.com/defunkt/grit (push)
+origin    git@github.com:mojombo/grit.git (fetch)
+origin    git@github.com:mojombo/grit.git (push)</span></code></pre>
+            </div>
+
+            <p>With this setup you can fetch from any contributor's fork independently. Notice that <code>origin</code> uses SSH while the others use HTTPS &mdash; Git handles different protocols per remote without issue.</p>
+
+            <h4>Inspecting a Remote</h4>
+            <p><code>git remote show &lt;name&gt;</code> gives a detailed report: tracking branches, push configuration, and any branches that have gone stale on the server.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git remote show origin
+<span class="output">* remote origin
+  Fetch URL: https://github.com/schacon/ticgit
+  Push  URL: https://github.com/schacon/ticgit
+  HEAD branch: master
+  Remote branches:
+    master                               tracked
+    dev-branch                           tracked
+  Local branch configured for 'git pull':
+    master merges with remote master
+  Local ref configured for 'git push':
+    master pushes to master (up to date)</span></code></pre>
+            </div>
+
+            <p>On a busy project the output becomes richer: it flags branches that are <code>new</code> (not fetched yet), <code>stale</code> (deleted from the server), and shows ahead/behind status for every configured push target.</p>
+
+            <div class="callout callout-info">
+                <div class="callout-title">"origin" Is Not Special</div>
+                <p>Just like <code>main</code> or <code>master</code>, the name <code>origin</code> carries no built-in meaning in Git. It is simply the default shortname assigned when you run <code>git clone</code>. Run <code>git clone -o upstream &lt;url&gt;</code> and your default remote will be called <code>upstream</code> instead.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Adding Remotes -->
+        <div class="section">
+            <h3>Adding Remotes</h3>
+            <p>When you initialize a repository locally (rather than cloning), no remotes exist. You add them explicitly with <code>git remote add</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Syntax: git remote add &lt;shortname&gt; &lt;url&gt;</span>
+<span class="cmd">$</span> git remote add origin https://github.com/you/my-project.git
+
+<span class="comment"># Add a second remote (e.g., a collaborator's fork)</span>
+<span class="cmd">$</span> git remote add pb https://github.com/paulboone/ticgit
+
+<span class="comment"># Verify both remotes are registered</span>
+<span class="cmd">$</span> git remote <span class="flag">-v</span>
+<span class="output">origin  https://github.com/you/my-project.git (fetch)
+origin  https://github.com/you/my-project.git (push)
+pb      https://github.com/paulboone/ticgit (fetch)
+pb      https://github.com/paulboone/ticgit (push)</span></code></pre>
+            </div>
+
+            <p>The shortname becomes an alias. You can now type <code>pb</code> anywhere a URL would go, and Git resolves it. For instance, to fetch everything Paul has that you don't:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git fetch pb
+<span class="output">remote: Counting objects: 43, done.
+remote: Compressing objects: 100% (36/36), done.
+remote: Total 43 (delta 10), reused 31 (delta 5)
+Unpacking objects: 100% (43/43), done.
+From https://github.com/paulboone/ticgit
+ * [new branch]      master     -> pb/master
+ * [new branch]      ticgit     -> pb/ticgit</span></code></pre>
+            </div>
+
+            <p>Paul's <code>master</code> branch is now available locally as <code>pb/master</code>. You can inspect it or merge it into one of your branches whenever you're ready.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git remote add</code> <span class="tag">ADD</span></div>
+                    <p>Register a new remote shortname pointing to a URL</p>
+                    <div class="example">$ git remote add upstream https://github.com/org/repo.git</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git remote -v</code> <span class="tag">LIST</span></div>
+                    <p>List all remotes with their fetch and push URLs</p>
+                    <div class="example">$ git remote -v</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git remote show</code> <span class="tag">INSPECT</span></div>
+                    <p>Full details: branches, tracking, push configuration</p>
+                    <div class="example">$ git remote show origin</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Fetching & Pulling -->
+        <div class="section">
+            <h3>Fetching &amp; Pulling</h3>
+            <p>Git gives you two ways to download remote changes. The difference between them is one of the most important things to understand about Git's remote model.</p>
+
+            <h4>git fetch &mdash; Download Without Merging</h4>
+            <p><code>git fetch</code> goes out to the remote, downloads all data you don't have, and updates your remote-tracking references (e.g., <code>origin/main</code>). It does <strong>not</strong> touch your working directory or your local branches. Your code is exactly as you left it; you've simply brought the remote's state into your local database.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Fetch all changes from origin</span>
+<span class="cmd">$</span> git fetch origin
+<span class="output">remote: Counting objects: 7, done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 3 (delta 0), reused 3 (delta 0)
+Unpacking objects: 100% (3/3), done.
+From https://github.com/schacon/simplegit
+ * [new branch]      serverfix    -> origin/serverfix</span>
+
+<span class="comment"># origin/main now points to the latest remote commit,
+# but your local main branch is unchanged.</span>
+<span class="cmd">$</span> git log origin/main <span class="flag">--oneline</span> <span class="flag">-5</span>
+
+<span class="comment"># When you're ready, merge manually</span>
+<span class="cmd">$</span> git merge origin/main</code></pre>
+            </div>
+
+            <h4>git pull &mdash; Fetch Then Merge</h4>
+            <p><code>git pull</code> is a two-step shortcut: it fetches from the tracked remote, then immediately merges the result into your current branch. If you have a tracking branch configured (and you almost always will), this is all you need to stay up to date.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Pull (fetch + merge) from the tracked upstream</span>
+<span class="cmd">$</span> git pull
+<span class="output">remote: Enumerating objects: 5, done.
+remote: Counting objects: 100% (5/5), done.
+Unpacking objects: 100% (5/5), done.
+From https://github.com/schacon/simplegit
+   a1b2c3d..e4f5a6b  main       -> origin/main
+Updating a1b2c3d..e4f5a6b
+Fast-forward
+ README.md | 3 +++
+ 1 file changed, 3 insertions(+)</span>
+
+<span class="comment"># Or pull from a specific remote/branch explicitly</span>
+<span class="cmd">$</span> git pull origin main</code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Command</th>
+                    <th>What It Does</th>
+                    <th>Working Directory</th>
+                    <th>Best When</th>
+                </tr>
+                <tr>
+                    <td><code>git fetch</code></td>
+                    <td>Downloads remote data, updates tracking refs</td>
+                    <td>Unchanged</td>
+                    <td>You want to inspect changes before integrating</td>
+                </tr>
+                <tr>
+                    <td><code>git pull</code></td>
+                    <td>fetch + merge in one command</td>
+                    <td>Updated if merge succeeds</td>
+                    <td>You trust the remote and want fast integration</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Prefer Fetch in Team Environments</div>
+                <p>Fetching first gives you the chance to inspect what changed before it lands in your branch. Run <code>git fetch</code>, then <code>git log origin/main..main</code> to see what you're about to merge. This habit prevents a lot of surprises.</p>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">git pull and Rebase (Git 2.27+)</div>
+                <p>From Git 2.27 onward, running <code>git pull</code> warns you if <code>pull.rebase</code> is not set. Silence the warning permanently: use <code>git config --global pull.rebase false</code> to keep merge behavior, or <code>git config --global pull.rebase true</code> to rebase instead of merge.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Pushing -->
+        <div class="section">
+            <h3>Pushing</h3>
+            <p>When your local commits are ready to share, push them to a remote you have write access to.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Syntax: git push &lt;remote&gt; &lt;branch&gt;</span>
+<span class="cmd">$</span> git push origin main
+
+<span class="comment"># Push a feature branch</span>
+<span class="cmd">$</span> git push origin serverfix
+<span class="output">Counting objects: 24, done.
+Delta compression using up to 8 threads.
+Compressing objects: 100% (15/15), done.
+Writing objects: 100% (24/24), 1.91 KiB | 0 bytes/s, done.
+Total 24 (delta 2), reused 0 (delta 0)
+To https://github.com/schacon/simplegit
+ * [new branch]      serverfix -> serverfix</span>
+
+<span class="comment"># Push local branch to a differently named remote branch</span>
+<span class="cmd">$</span> git push origin serverfix:awesomebranch
+
+<span class="comment"># Delete a remote branch</span>
+<span class="cmd">$</span> git push origin <span class="flag">--delete</span> serverfix
+<span class="output">To https://github.com/schacon/simplegit
+ - [deleted]         serverfix</span></code></pre>
+            </div>
+
+            <h4>When a Push Gets Rejected</h4>
+            <p>Your push will be rejected if someone else has pushed to the same branch since you last fetched. Git won't overwrite their work. You must integrate their changes first.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Rejected push scenario</span>
+<span class="cmd">$</span> git push origin main
+<span class="output">To https://github.com/you/project.git
+ ! [rejected]        main -> main (fetch first)
+error: failed to push some refs to 'https://github.com/you/project.git'
+hint: Updates were rejected because the remote contains work that you do
+hint: not have locally. Integrate the remote changes (e.g. git pull ...)
+hint: before pushing again.</span>
+
+<span class="comment"># Fix: fetch, integrate, then push</span>
+<span class="cmd">$</span> git fetch origin
+<span class="cmd">$</span> git merge origin/main     <span class="comment"># or: git rebase origin/main</span>
+<span class="cmd">$</span> git push origin main</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Never Force-Push to Shared Branches</div>
+                <p><code>git push --force</code> overwrites the remote branch, erasing commits others may have built on. It is appropriate only on private branches you own. Force-pushing to <code>main</code> or any shared branch is a team-breaking action.</p>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">HTTPS Password Fatigue</div>
+                <p>If you push via HTTPS and tire of entering credentials, run <code>git config --global credential.helper cache</code> to cache them in memory for a few minutes, or set up SSH key authentication to skip passwords entirely.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Remote Branches -->
+        <div class="section">
+            <h3>Remote Branches</h3>
+            <p>Remote-tracking branches are read-only local references that record where branches on a remote stood the last time Git communicated with it. Think of them as bookmarks &mdash; they do not move until you fetch again.</p>
+
+            <p>They follow the naming convention <code>&lt;remote&gt;/&lt;branch&gt;</code>. So after cloning, you have <code>origin/main</code> pointing to the same commit as the remote's <code>main</code> at clone time. Your own local <code>main</code> starts at the same spot and diverges from there as you and your teammates each add commits.</p>
+
+            <!-- Interactive: fetch/diverge diagram -->
+            <div class="diagram" id="remoteDiagram">
+                <div class="diagram-box" onclick="showRemoteState('clone')" id="box-clone">
+                    <div class="diagram-box-title">After Clone</div>
+                    <div class="diagram-box-sub">In sync</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showRemoteState('diverge')" id="box-diverge">
+                    <div class="diagram-box-title">After Work</div>
+                    <div class="diagram-box-sub">Diverged</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showRemoteState('fetch')" id="box-fetch">
+                    <div class="diagram-box-title">After Fetch</div>
+                    <div class="diagram-box-sub">Refs updated</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showRemoteState('merge')" id="box-merge">
+                    <div class="diagram-box-title">After Merge</div>
+                    <div class="diagram-box-sub">Re-integrated</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="remoteDetail">Click a stage to see what happens to <code>origin/main</code> and your local <code>main</code> at each point.</div>
+
+            <h4>Using Remote-Tracking Branches</h4>
+            <p>You cannot commit to <code>origin/main</code> directly &mdash; it is a read-only pointer. To work with the code, either merge it into your branch or create a local branch based on it.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># See all remote-tracking refs</span>
+<span class="cmd">$</span> git branch <span class="flag">-r</span>
+<span class="output">  origin/HEAD -> origin/main
+  origin/main
+  origin/serverfix</span>
+
+<span class="comment"># Merge a remote-tracking branch into your current branch</span>
+<span class="cmd">$</span> git merge origin/serverfix
+
+<span class="comment"># Or: create a local branch starting at that point</span>
+<span class="cmd">$</span> git checkout <span class="flag">-b</span> serverfix origin/serverfix
+<span class="output">Branch serverfix set up to track remote branch serverfix from origin.
+Switched to a new branch 'serverfix'</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 7: Tracking Branches -->
+        <div class="section">
+            <h3>Tracking Branches</h3>
+            <p>A tracking branch is a local branch with a configured relationship to a remote branch. When you are on a tracking branch, <code>git pull</code> knows exactly where to fetch from and what to merge in. Git sets this up automatically when you clone a repository or when you <code>checkout</code> a remote branch.</p>
+
+            <h4>Creating a Tracking Branch</h4>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Verbose form: create local branch from remote-tracking ref</span>
+<span class="cmd">$</span> git checkout <span class="flag">-b</span> serverfix origin/serverfix
+<span class="output">Branch serverfix set up to track remote branch serverfix from origin.
+Switched to a new branch 'serverfix'</span>
+
+<span class="comment"># Shorthand: --track (same result)</span>
+<span class="cmd">$</span> git checkout <span class="flag">--track</span> origin/serverfix
+<span class="output">Branch serverfix set up to track remote branch serverfix from origin.
+Switched to a new branch 'serverfix'</span>
+
+<span class="comment"># Even shorter: if 'serverfix' doesn't exist locally
+# and matches exactly one remote, Git auto-tracks it</span>
+<span class="cmd">$</span> git checkout serverfix
+<span class="output">Branch serverfix set up to track remote branch serverfix from origin.
+Switched to a new branch 'serverfix'</span>
+
+<span class="comment"># Different local name, same remote source</span>
+<span class="cmd">$</span> git checkout <span class="flag">-b</span> sf origin/serverfix
+<span class="output">Branch sf set up to track remote branch serverfix from origin.
+Switched to a new branch 'sf'</span></code></pre>
+            </div>
+
+            <h4>Setting Upstream on an Existing Branch</h4>
+            <p>If a local branch already exists and you want to point it at a remote branch (or change which remote branch it tracks), use <code>git branch -u</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Set (or change) the upstream for the current branch</span>
+<span class="cmd">$</span> git branch <span class="flag">-u</span> origin/serverfix
+<span class="output">Branch serverfix set up to track remote branch serverfix from origin.</span>
+
+<span class="comment"># Inspect all tracking relationships</span>
+<span class="cmd">$</span> git branch <span class="flag">-vv</span>
+<span class="output">  iss53     7e424c3 [origin/iss53: ahead 2] Add forgotten brackets
+  master    1ae2a45 [origin/master] Deploy index fix
+* serverfix f8674d9 [teamone/server-fix-good: ahead 3, behind 1] This should do it
+  testing   5ea463a Try something new</span></code></pre>
+            </div>
+
+            <!-- Visual tracking status strip -->
+            <div class="tracking-list">
+                <div class="tracking-row">
+                    <span class="tracking-local">iss53</span>
+                    <span class="tracking-sep">tracks</span>
+                    <span class="tracking-remote">origin/iss53</span>
+                    <span class="tracking-status tracking-ahead">ahead 2</span>
+                </div>
+                <div class="tracking-row">
+                    <span class="tracking-local">master</span>
+                    <span class="tracking-sep">tracks</span>
+                    <span class="tracking-remote">origin/master</span>
+                    <span class="tracking-status tracking-ok">up to date</span>
+                </div>
+                <div class="tracking-row">
+                    <span class="tracking-local">serverfix</span>
+                    <span class="tracking-sep">tracks</span>
+                    <span class="tracking-remote">teamone/server-fix-good</span>
+                    <span class="tracking-status tracking-behind">behind 1</span>
+                </div>
+                <div class="tracking-row">
+                    <span class="tracking-local">testing</span>
+                    <span class="tracking-sep">&mdash;</span>
+                    <span class="tracking-remote" style="color: var(--text-dim);">no upstream</span>
+                    <span class="tracking-status tracking-ok">not tracked</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Numbers Are Cached</div>
+                <p>The ahead/behind counts from <code>git branch -vv</code> reflect only what your local database knows. They do not reach out to the server. To get fresh numbers, run <code>git fetch --all</code> first, then <code>git branch -vv</code>.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Upstream Shorthand</div>
+                <p>Once a tracking branch is configured, you can reference its upstream with <code>@{u}</code> or <code>@{upstream}</code>. So instead of <code>git merge origin/main</code> you can write <code>git merge @{u}</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Renaming & Removing Remotes -->
+        <div class="section">
+            <h3>Renaming &amp; Removing Remotes</h3>
+            <p>As projects evolve, remote configurations need to change. A fork you added as <code>pb</code> becomes more central to your workflow and deserves a clearer name. A mirror you set up is no longer maintained. Git makes both operations straightforward.</p>
+
+            <h4>Renaming a Remote</h4>
+            <p><code>git remote rename</code> changes the shortname and updates all associated remote-tracking branch names automatically. Everything that referenced <code>pb/master</code> will now be at <code>paul/master</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Rename remote 'pb' to 'paul'</span>
+<span class="cmd">$</span> git remote rename pb paul
+
+<span class="comment"># Verify the new name</span>
+<span class="cmd">$</span> git remote
+<span class="output">origin
+paul</span>
+
+<span class="comment"># Remote-tracking branches renamed automatically:
+# pb/master  ->  paul/master</span></code></pre>
+            </div>
+
+            <h4>Removing a Remote</h4>
+            <p>Use <code>git remote remove</code> (or the alias <code>git remote rm</code>) to delete a remote entirely. This also removes all remote-tracking branches and stored configuration for that remote.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Remove the 'paul' remote</span>
+<span class="cmd">$</span> git remote remove paul
+
+<span class="comment"># Confirm it's gone</span>
+<span class="cmd">$</span> git remote
+<span class="output">origin</span>
+
+<span class="comment"># All associated remote-tracking refs are also deleted:
+# paul/master no longer exists</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Cascading Deletion</div>
+                <p>Removing a remote deletes all remote-tracking branches for that remote (<code>paul/master</code>, <code>paul/dev</code>, etc.) and removes its entry from <code>.git/config</code>. Any local tracking branches that pointed to that remote will lose their upstream configuration &mdash; they still exist, but <code>git pull</code> on them will fail until you set a new upstream.</p>
+            </div>
+
+            <h4>Quick Reference</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git remote rename</code> <span class="tag">RENAME</span></div>
+                    <p>Rename a remote and all its tracking refs</p>
+                    <div class="example">$ git remote rename origin upstream</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git remote remove</code> <span class="tag">DELETE</span></div>
+                    <p>Remove a remote and all its associated refs and config</p>
+                    <div class="example">$ git remote remove upstream</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git remote set-url</code> <span class="tag">UPDATE URL</span></div>
+                    <p>Change the URL of an existing remote (e.g., switch to SSH)</p>
+                    <div class="example">$ git remote set-url origin git@github.com:you/repo.git</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 9: Putting It Together — Typical Collaboration Flow -->
+        <div class="section">
+            <h3>Putting It Together</h3>
+            <p>Here is the complete lifecycle for contributing to a shared project, from first clone through pushing your finished feature.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># 1. Clone the repository (sets up 'origin' automatically)</span>
+<span class="cmd">$</span> git clone https://github.com/org/project.git
+<span class="cmd">$</span> cd project
+
+<span class="comment"># 2. Verify remotes</span>
+<span class="cmd">$</span> git remote <span class="flag">-v</span>
+<span class="output">origin  https://github.com/org/project.git (fetch)
+origin  https://github.com/org/project.git (push)</span>
+
+<span class="comment"># 3. Create a feature branch (auto-tracks origin/feature-login
+#    if it exists; otherwise just a local branch for now)</span>
+<span class="cmd">$</span> git checkout <span class="flag">-b</span> feature-login
+
+<span class="comment"># 4. Do your work, commit locally</span>
+<span class="cmd">$</span> git add auth.js
+<span class="cmd">$</span> git commit <span class="flag">-m</span> <span class="str">"Add login form validation"</span>
+
+<span class="comment"># 5. Before pushing, sync with the remote to catch any changes</span>
+<span class="cmd">$</span> git fetch origin
+<span class="cmd">$</span> git rebase origin/main   <span class="comment"># keep history clean</span>
+
+<span class="comment"># 6. Push the branch and set its upstream in one step</span>
+<span class="cmd">$</span> git push <span class="flag">-u</span> origin feature-login
+<span class="output">Branch feature-login set up to track remote branch feature-login from origin.
+To https://github.com/org/project.git
+ * [new branch]      feature-login -> feature-login</span>
+
+<span class="comment"># 7. Now 'git push' and 'git pull' work without arguments</span>
+<span class="cmd">$</span> git push
+<span class="cmd">$</span> git pull</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The -u Flag</div>
+                <p><code>git push -u origin feature-login</code> (where <code>-u</code> is short for <code>--set-upstream</code>) pushes the branch <em>and</em> configures tracking in one step. After this, bare <code>git push</code> and <code>git pull</code> know exactly what to do. Use this on every first push of a new branch.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // --- Topology diagram ---
+        const topoInfo = {
+            dev: {
+                title: 'Your Local Repository',
+                desc: 'All your commits, branches, and history live here inside <code>.git/</code>. You can work entirely offline. Remotes are just named pointers to external repos you sync with when ready.'
+            },
+            origin: {
+                title: 'origin &mdash; Your Primary Remote',
+                desc: 'The default remote name assigned when you run <code>git clone</code>. Typically your own fork or the team\'s canonical repo on GitHub/GitLab. You push your work here and pull teammates\' updates from here.'
+            },
+            upstream: {
+                title: 'upstream &mdash; A Secondary Remote',
+                desc: 'Common in open-source workflows: <code>origin</code> is your fork, <code>upstream</code> is the original project. You fetch from <code>upstream</code> to stay current with the source, then push to <code>origin</code> to propose changes.'
+            }
+        };
+
+        function showTopo(id) {
+            document.querySelectorAll('.remote-node[id^="topo-"]').forEach(n => {
+                n.style.background = '';
+                n.style.borderColor = '';
+            });
+            const node = document.getElementById('topo-' + id);
+            if (node) {
+                node.style.background = 'var(--forge-dim)';
+                node.style.borderColor = 'var(--forge)';
+            }
+            const info = topoInfo[id];
+            document.getElementById('topoDetail').innerHTML =
+                '<strong>' + info.title + '</strong><br>' + info.desc;
+        }
+
+        // --- Remote branch lifecycle diagram ---
+        const remoteStates = {
+            clone: {
+                title: 'After Clone',
+                desc: 'Both <code>main</code> and <code>origin/main</code> point to the same commit &mdash; call it C1. Your local branch and the remote-tracking ref are perfectly in sync.'
+            },
+            diverge: {
+                title: 'After Work (No Network Contact)',
+                desc: 'You commit C2 locally. Simultaneously, a teammate pushes C3 to the server. Your <code>main</code> is at C2. The server\'s <code>main</code> is at C3. But <strong><code>origin/main</code> is still stuck at C1</strong> &mdash; it hasn\'t updated because you haven\'t fetched.'
+            },
+            fetch: {
+                title: 'After git fetch origin',
+                desc: 'Git contacts the server, downloads C3, and moves <code>origin/main</code> to point at C3. Your local <code>main</code> is unchanged at C2. Now you can see what\'s on the server without having touched your working directory.'
+            },
+            merge: {
+                title: 'After git merge origin/main',
+                desc: 'Git merges C2 and C3 into a new merge commit C4. Both <code>main</code> and <code>origin/main</code> are ancestors of C4. After you push, the server\'s <code>main</code> will also advance to C4 and everything is in sync again.'
+            }
+        };
+
+        function showRemoteState(id) {
+            // Clear all active states
+            document.querySelectorAll('#remoteDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const s = remoteStates[id];
+            document.getElementById('remoteDetail').innerHTML =
+                '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // --- Code copy ---
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // --- Module completion ---
+        function completeModule() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-9'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-9-remote-repos', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // --- Init: auto-show first state in each diagram ---
+        showTopo('origin');
+        showRemoteState('clone');
+
+        // --- Restore completed state if already marked ---
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-9']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Internals — Objects, Refs, the DAG - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-branch.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+        .code-block .sha { color: #f97316; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram — interactive click-to-reveal */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Object graph — SVG-based DAG visual */
+        .dag-container {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 24px; margin: 20px 0; overflow-x: auto;
+        }
+        .dag-container svg { display: block; margin: 0 auto; max-width: 100%; }
+
+        /* Object type pills */
+        .obj-pill {
+            display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px;
+            font-weight: 700; letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle;
+        }
+        .pill-blob { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+        .pill-tree { background: rgba(16,185,129,0.12); color: var(--forge); border: 1px solid rgba(16,185,129,0.3); }
+        .pill-commit { background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+        .pill-tag { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .pill-ref { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 13px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* File tree visual */
+        .file-tree {
+            background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px;
+            padding: 16px 20px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 13px;
+            line-height: 1.9; margin: 14px 0;
+        }
+        .ft-dir { color: var(--forge); }
+        .ft-file { color: #ffa657; }
+        .ft-comment { color: #8b949e; }
+        .ft-sha { color: #f97316; }
+
+        /* Status flow rows */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+        .status-label { font-weight: 600; color: #fff; min-width: 80px; flex-shrink: 0; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-15</span>
+            <h1>Git Internals &mdash; Objects, Refs, the DAG</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Git Section</a>
+    </header>
+
+    <main class="content">
+
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-branch.webp" alt="">
+            <h2>Git Internals &mdash; Objects, Refs, the DAG</h2>
+            <p class="hero-sub">Beneath every <code>git commit</code> is a content-addressable object database, a directed acyclic graph of commits, and a handful of human-readable pointers. This module cracks open the black box.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~50 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-branch.webp" alt="" width="14" height="14"> Advanced</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Distinguish plumbing commands from porcelain commands and explain when each is useful</li>
+                <li>Explain how Git's content-addressable object database works using SHA-1 hashing</li>
+                <li>Describe what blob, tree, commit, and tag objects store and how they relate</li>
+                <li>Use <code>git hash-object</code> and <code>git cat-file</code> to inspect the raw object database</li>
+                <li>Explain the directed acyclic graph (DAG) structure of commit history</li>
+                <li>Understand how references in <code>.git/refs/</code> map human-readable names to SHA-1 hashes</li>
+                <li>Read and manipulate HEAD using <code>git symbolic-ref</code></li>
+                <li>Walk the full object graph from HEAD to blobs using plumbing commands</li>
+            </ul>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 1: Plumbing vs Porcelain                             -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>Plumbing vs. Porcelain</h3>
+            <p>Git is, at its core, a <strong>content-addressable filesystem</strong> with a version control system interface built on top. This distinction creates two layers of commands: <em>plumbing</em> and <em>porcelain</em>.</p>
+
+            <p>When you use Git day-to-day &mdash; <code>git add</code>, <code>git commit</code>, <code>git branch</code>, <code>git checkout</code> &mdash; you are using <strong>porcelain commands</strong>. They are polished, user-friendly, and designed for human interaction. They compose multiple low-level steps into one convenient action.</p>
+
+            <p>Underneath them sit <strong>plumbing commands</strong>: low-level, unix-style primitives that manipulate the raw object store and index directly. They were designed to be composed in scripts and are not intended for interactive use. But understanding them is the fastest way to truly understand Git.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Layer</th>
+                    <th>Purpose</th>
+                    <th>Examples</th>
+                    <th>When You Use It</th>
+                </tr>
+                <tr>
+                    <td><strong>Porcelain</strong></td>
+                    <td>User-facing, polished commands</td>
+                    <td><code>git add</code>, <code>git commit</code>, <code>git branch</code>, <code>git merge</code></td>
+                    <td>Daily workflow</td>
+                </tr>
+                <tr>
+                    <td><strong>Plumbing</strong></td>
+                    <td>Low-level, composable primitives</td>
+                    <td><code>git hash-object</code>, <code>git cat-file</code>, <code>git update-ref</code>, <code>git symbolic-ref</code></td>
+                    <td>Scripts, tooling, understanding internals</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Insight</div>
+                <p>Every porcelain command is secretly a sequence of plumbing calls. When you run <code>git commit</code>, Git runs <code>git write-tree</code>, then <code>git commit-tree</code>, then updates a ref. Knowing the plumbing means you can reproduce, debug, or replace any step.</p>
+            </div>
+
+            <h4>The .git Directory</h4>
+            <p>Everything Git knows about your repository lives inside the <code>.git</code> directory. Copying this single directory is enough to fully reproduce the repository. Here is what a freshly initialized <code>.git</code> looks like:</p>
+
+            <div class="file-tree">
+<span class="ft-dir">.git/</span>
+├── <span class="ft-file">HEAD</span>          <span class="ft-comment"># Symbolic ref to current branch</span>
+├── <span class="ft-file">config</span>        <span class="ft-comment"># Repository-local configuration</span>
+├── <span class="ft-file">description</span>   <span class="ft-comment"># Used by GitWeb, safe to ignore</span>
+├── <span class="ft-dir">hooks/</span>        <span class="ft-comment"># Client/server hook scripts</span>
+├── <span class="ft-dir">info/</span>         <span class="ft-comment"># Global exclude patterns</span>
+├── <span class="ft-dir">objects/</span>      <span class="ft-comment"># The entire object database</span>
+│   ├── <span class="ft-dir">info/</span>
+│   └── <span class="ft-dir">pack/</span>
+└── <span class="ft-dir">refs/</span>         <span class="ft-comment"># Human-readable pointers to commits</span>
+    ├── <span class="ft-dir">heads/</span>    <span class="ft-comment"># Local branches</span>
+    ├── <span class="ft-dir">tags/</span>     <span class="ft-comment"># Tags</span>
+    └── <span class="ft-dir">remotes/</span>  <span class="ft-comment"># Remote tracking refs</span>
+            </div>
+
+            <p>The four critical entries are <code>HEAD</code>, the <code>index</code> file (created after first <code>git add</code>), <code>objects/</code>, and <code>refs/</code>. Everything else is configuration and tooling.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 2: The Object Database                               -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>The Object Database</h3>
+            <p>Git's object database lives in <code>.git/objects/</code>. It is a simple <strong>content-addressable key-value store</strong>: you hand it content, it gives you back a SHA-1 hash. That hash is the permanent address of that content, forever. The same content always produces the same hash.</p>
+
+            <p>Every object is stored as a zlib-compressed file. The filename is the SHA-1 hash of its content, split into a 2-character directory prefix and a 38-character filename:</p>
+
+            <div class="file-tree">
+<span class="ft-dir">.git/objects/</span>
+├── <span class="ft-dir">d6/</span>
+│   └── <span class="ft-sha">70460b4b4aece5915caf5c68d12f560a9fe3e4</span>  <span class="ft-comment"># full SHA: d670460b...</span>
+├── <span class="ft-dir">83/</span>
+│   └── <span class="ft-sha">baae61804e65cc73a7201a7252750c76066a30</span>  <span class="ft-comment"># full SHA: 83baae61...</span>
+├── <span class="ft-dir">info/</span>
+└── <span class="ft-dir">pack/</span>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">How SHA-1 Is Computed</div>
+                <p>Git does not hash the raw content. It first constructs a header: <code>type SP size NUL</code> (e.g., <code>blob 16\0</code>), concatenates it with the content, then hashes the whole thing. This means the same file content always hashes to the same address, but objects of different types with the same content produce different hashes.</p>
+            </div>
+
+            <p>There are four object types in Git. Three of them form the core data model:</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: #60a5fa"></div>
+                    <span class="status-label">Blob</span>
+                    <span>Stores file content. No filename, no permissions &mdash; just bytes. The same content in two files is stored once.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Tree</span>
+                    <span>A directory snapshot. Stores a list of (mode, type, SHA-1, name) entries pointing to blobs or other trees.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: #a78bfa"></div>
+                    <span class="status-label">Commit</span>
+                    <span>Points to a top-level tree, zero or more parent commits, author info, committer info, and a message.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: #fbbf24"></div>
+                    <span class="status-label">Tag</span>
+                    <span>An annotated label. Points to any object (usually a commit) and includes tagger info and a message.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 3: Blob Objects                                      -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>Blob Objects <span class="obj-pill pill-blob">BLOB</span></h3>
+            <p>A blob stores the raw contents of a file. It knows nothing about filenames, paths, or permissions. That metadata lives in the tree objects that reference blobs. Two files with identical content share a single blob &mdash; Git deduplicates automatically.</p>
+
+            <h4>Creating a Blob with git hash-object</h4>
+            <p>The <code>git hash-object</code> plumbing command computes the SHA-1 hash of content and, with the <code>-w</code> flag, writes it to the object database.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Initialize a new repo and confirm objects/ is empty</span>
+<span class="cmd">$</span> git init test && cd test
+<span class="output">Initialized empty Git repository in /tmp/test/.git/</span>
+<span class="cmd">$</span> find .git/objects -type f
+<span class="comment"># (no output — nothing stored yet)</span>
+
+<span class="comment"># Write content to the object database via stdin</span>
+<span class="comment"># -w: write to database  --stdin: read from stdin</span>
+<span class="cmd">$</span> echo 'test content' | git hash-object <span class="flag">-w</span> <span class="flag">--stdin</span>
+<span class="output">d670460b4b4aece5915caf5c68d12f560a9fe3e4</span>
+
+<span class="comment"># The object now exists on disk</span>
+<span class="cmd">$</span> find .git/objects -type f
+<span class="output">.git/objects/d6/70460b4b4aece5915caf5c68d12f560a9fe3e4</span></code></pre>
+            </div>
+
+            <h4>Reading a Blob with git cat-file</h4>
+            <p><code>git cat-file</code> is the swiss-army knife for reading objects. <code>-p</code> pretty-prints the content. <code>-t</code> reveals the type. <code>-s</code> shows the byte size.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Pretty-print the blob content</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> d670460b4b4aece5915caf5c68d12f560a9fe3e4
+<span class="output">test content</span>
+
+<span class="comment"># Check the object type</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-t</span> d670460b4b4aece5915caf5c68d12f560a9fe3e4
+<span class="output">blob</span>
+
+<span class="comment"># Version control at the plumbing level:
+# store version 1 of a file</span>
+<span class="cmd">$</span> echo 'version 1' > test.txt
+<span class="cmd">$</span> git hash-object <span class="flag">-w</span> test.txt
+<span class="output">83baae61804e65cc73a7201a7252750c76066a30</span>
+
+<span class="comment"># Store version 2</span>
+<span class="cmd">$</span> echo 'version 2' > test.txt
+<span class="cmd">$</span> git hash-object <span class="flag">-w</span> test.txt
+<span class="output">1f7a7a472abf3dd9643fd615f6da379c4acb3e3a</span>
+
+<span class="comment"># Restore version 1 directly from the object DB</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> 83baae61804e65cc73a7201a7252750c76066a30 > test.txt
+<span class="cmd">$</span> cat test.txt
+<span class="output">version 1</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Blobs Store Content, Not Files</div>
+                <p>A blob object has no filename. If you rename a file without changing its contents, Git sees the same blob &mdash; just referenced by a different name in the parent tree. This is why <code>git mv</code> is cheap: the blob is not duplicated.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 4: Tree Objects                                      -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>Tree Objects <span class="obj-pill pill-tree">TREE</span></h3>
+            <p>A tree solves the problem blobs cannot: storing filenames and directory structure. It is a snapshot of a directory, listing each entry as a tuple of <code>(mode, type, SHA-1, name)</code>. Entries can point to blobs (files) or other trees (subdirectories), making the structure fully recursive.</p>
+
+            <h4>Inspecting a Tree</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Read the top-level tree of the latest commit on master</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> master^{tree}
+<span class="output">100644 blob a906cb2a4a904a152e80877d4088654daad0c859    README
+100644 blob 8f94139338f9404f26296befa88755fc2598c289    Rakefile
+040000 tree 99f1a6d12cb4b6f19c8655fca46c3ecf317074e0    lib</span>
+
+<span class="comment"># The lib/ entry is a subtree — drill into it</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> 99f1a6d12cb4b6f19c8655fca46c3ecf317074e0
+<span class="output">100644 blob 47c6340d6459e05787f644c2447d2595f5d3a54b    simplegit.rb</span></code></pre>
+            </div>
+
+            <h4>File Mode Meanings</h4>
+            <table class="compare">
+                <tr>
+                    <th>Mode</th>
+                    <th>Type</th>
+                    <th>Meaning</th>
+                </tr>
+                <tr>
+                    <td><code>100644</code></td>
+                    <td>blob</td>
+                    <td>Regular file (non-executable)</td>
+                </tr>
+                <tr>
+                    <td><code>100755</code></td>
+                    <td>blob</td>
+                    <td>Executable file</td>
+                </tr>
+                <tr>
+                    <td><code>120000</code></td>
+                    <td>blob</td>
+                    <td>Symbolic link (content is the link target)</td>
+                </tr>
+                <tr>
+                    <td><code>040000</code></td>
+                    <td>tree</td>
+                    <td>Directory (subtree)</td>
+                </tr>
+                <tr>
+                    <td><code>160000</code></td>
+                    <td>commit</td>
+                    <td>Git submodule</td>
+                </tr>
+            </table>
+
+            <h4>Building a Tree from the Plumbing</h4>
+            <p>Normally trees are created when you run <code>git commit</code>. But you can construct them manually using <code>git update-index</code> to build a staging area, then <code>git write-tree</code> to freeze it into a tree object.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Manually stage version 1 of test.txt into a new index
+# --add: file doesn't exist in index yet
+# --cacheinfo: file is in the DB, not on disk
+# 100644: regular file mode</span>
+<span class="cmd">$</span> git update-index <span class="flag">--add</span> <span class="flag">--cacheinfo</span> 100644 \
+  83baae61804e65cc73a7201a7252750c76066a30 test.txt
+
+<span class="comment"># Write the index state to a tree object</span>
+<span class="cmd">$</span> git write-tree
+<span class="output">d8329fc1cc938780ffdd9f94e0d364e0ea74f579</span>
+
+<span class="comment"># Confirm it is a tree</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-t</span> d8329fc1cc938780ffdd9f94e0d364e0ea74f579
+<span class="output">tree</span>
+
+<span class="comment"># Inspect its contents</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> d8329fc1cc938780ffdd9f94e0d364e0ea74f579
+<span class="output">100644 blob 83baae61804e65cc73a7201a7252750c76066a30    test.txt</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Trees Are Immutable Snapshots</div>
+                <p>Once a tree is written to the object database, it never changes. Modifying a file creates a new blob, which changes the tree entry, which produces a new tree with a new SHA-1. The old tree and old blob remain untouched in the object database. This is why Git history is tamper-evident.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 5: Commit Objects                                    -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>Commit Objects <span class="obj-pill pill-commit">COMMIT</span></h3>
+            <p>A commit object is the glue that binds everything together. It records <em>who</em> saved a snapshot, <em>when</em>, <em>why</em> (the message), and exactly <em>what</em> state the project was in (via a tree pointer). Critically, every commit (except the very first) points to one or more parent commits &mdash; this is how Git builds its history chain.</p>
+
+            <h4>Creating a Commit at the Plumbing Level</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create first commit pointing to tree 1 (no parent)</span>
+<span class="cmd">$</span> echo 'First commit' | git commit-tree d8329f
+<span class="output">fdf4fc3344e67ab068f836878b6c4951e3b15f3d</span>
+
+<span class="comment"># Inspect the raw commit object</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> fdf4fc3
+<span class="output">tree d8329fc1cc938780ffdd9f94e0d364e0ea74f579
+author Scott Chacon &lt;schacon@gmail.com&gt; 1243040974 -0700
+committer Scott Chacon &lt;schacon@gmail.com&gt; 1243040974 -0700
+
+First commit</span>
+
+<span class="comment"># Create second commit pointing to tree 2, with commit 1 as parent
+# -p: specify parent SHA</span>
+<span class="cmd">$</span> echo 'Second commit' | git commit-tree 0155eb <span class="flag">-p</span> fdf4fc3
+<span class="output">cac0cab538b970a37ea1e769cbbde608743bc96d</span>
+
+<span class="comment"># Create third commit — parent is commit 2</span>
+<span class="cmd">$</span> echo 'Third commit' | git commit-tree 3c4e9c <span class="flag">-p</span> cac0cab
+<span class="output">1a410efbd13591db07496601ebc7a059dd55cfe9</span>
+
+<span class="comment"># git log works on raw commit hashes</span>
+<span class="cmd">$</span> git log <span class="flag">--stat</span> 1a410e
+<span class="output">commit 1a410efbd13591db07496601ebc7a059dd55cfe9
+Author: Scott Chacon &lt;schacon@gmail.com&gt;
+Date:   Fri May 22 18:15:24 2009 -0700
+
+    Third commit
+
+ bak/test.txt | 1 +
+ 1 file changed, 1 insertion(+)</span></code></pre>
+            </div>
+
+            <h4>Anatomy of a Commit Object</h4>
+            <table class="compare">
+                <tr>
+                    <th>Field</th>
+                    <th>Content</th>
+                    <th>Notes</th>
+                </tr>
+                <tr>
+                    <td><code>tree</code></td>
+                    <td>SHA-1 of the root tree</td>
+                    <td>Complete project snapshot at this moment</td>
+                </tr>
+                <tr>
+                    <td><code>parent</code></td>
+                    <td>SHA-1 of parent commit(s)</td>
+                    <td>0 for initial commit; 2+ for merges</td>
+                </tr>
+                <tr>
+                    <td><code>author</code></td>
+                    <td>Name, email, timestamp</td>
+                    <td>Who wrote the original change</td>
+                </tr>
+                <tr>
+                    <td><code>committer</code></td>
+                    <td>Name, email, timestamp</td>
+                    <td>Who applied the commit (differs after rebase/cherry-pick)</td>
+                </tr>
+                <tr>
+                    <td>message</td>
+                    <td>Free text after blank line</td>
+                    <td>The commit message</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Author vs Committer</div>
+                <p>When you rebase or cherry-pick, the author stays the same (it was their change) but the committer becomes you (you re-applied it). <code>git log --format="%an vs %cn"</code> will show the difference. This is why git history isn't rewritten &mdash; the original author record is preserved in the commit object.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 6: The DAG                                           -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>The Directed Acyclic Graph (DAG)</h3>
+            <p>Git's commit history is a <strong>directed acyclic graph</strong>. Each commit node has directed edges pointing to its parent(s). The graph is <em>acyclic</em> because no commit can be its own ancestor &mdash; time only moves forward in the history chain.</p>
+
+            <p>Click any node in the diagram below to learn what it contains.</p>
+
+            <!-- Interactive object graph diagram -->
+            <div class="dag-container">
+                <svg viewBox="0 0 700 320" width="700" height="320" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Arrow marker definition -->
+                    <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/>
+                        </marker>
+                        <marker id="arrow-dim" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b949e"/>
+                        </marker>
+                    </defs>
+
+                    <!-- ---- REF layer (top) ---- -->
+                    <!-- HEAD -->
+                    <rect x="10" y="10" width="80" height="38" rx="6" fill="rgba(239,68,68,0.12)" stroke="#f87171" stroke-width="1.5" class="dag-node" id="dag-HEAD" style="cursor:pointer"/>
+                    <text x="50" y="26" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700" font-family="monospace">HEAD</text>
+                    <text x="50" y="40" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">symbolic ref</text>
+
+                    <!-- main branch ref -->
+                    <rect x="120" y="10" width="100" height="38" rx="6" fill="rgba(239,68,68,0.12)" stroke="#f87171" stroke-width="1.5" class="dag-node" id="dag-main" style="cursor:pointer"/>
+                    <text x="170" y="26" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700" font-family="monospace">refs/heads/main</text>
+                    <text x="170" y="40" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">branch ref</text>
+
+                    <!-- HEAD -> main arrow -->
+                    <line x1="90" y1="29" x2="119" y2="29" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="4 2"/>
+
+                    <!-- ---- COMMIT layer ---- -->
+                    <!-- Commit C3 (latest) -->
+                    <rect x="120" y="85" width="100" height="52" rx="6" fill="rgba(139,92,246,0.12)" stroke="#a78bfa" stroke-width="1.5" class="dag-node" id="dag-c3" style="cursor:pointer"/>
+                    <text x="170" y="103" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700" font-family="monospace">COMMIT</text>
+                    <text x="170" y="117" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">1a410e...</text>
+                    <text x="170" y="130" text-anchor="middle" fill="#e0e0e0" font-size="9" font-family="sans-serif">Third commit</text>
+
+                    <!-- Commit C2 -->
+                    <rect x="280" y="85" width="100" height="52" rx="6" fill="rgba(139,92,246,0.12)" stroke="#a78bfa" stroke-width="1.5" class="dag-node" id="dag-c2" style="cursor:pointer"/>
+                    <text x="330" y="103" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700" font-family="monospace">COMMIT</text>
+                    <text x="330" y="117" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">cac0ca...</text>
+                    <text x="330" y="130" text-anchor="middle" fill="#e0e0e0" font-size="9" font-family="sans-serif">Second commit</text>
+
+                    <!-- Commit C1 -->
+                    <rect x="440" y="85" width="100" height="52" rx="6" fill="rgba(139,92,246,0.12)" stroke="#a78bfa" stroke-width="1.5" class="dag-node" id="dag-c1" style="cursor:pointer"/>
+                    <text x="490" y="103" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700" font-family="monospace">COMMIT</text>
+                    <text x="490" y="117" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">fdf4fc...</text>
+                    <text x="490" y="130" text-anchor="middle" fill="#e0e0e0" font-size="9" font-family="sans-serif">First commit</text>
+
+                    <!-- ref -> C3 -->
+                    <line x1="170" y1="48" x2="170" y2="84" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="4 2"/>
+                    <!-- C3 -> C2 parent -->
+                    <line x1="221" y1="111" x2="279" y2="111" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrow)"/>
+                    <!-- C2 -> C1 parent -->
+                    <line x1="381" y1="111" x2="439" y2="111" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                    <!-- ---- TREE layer ---- -->
+                    <!-- Tree T3 -->
+                    <rect x="80" y="185" width="80" height="40" rx="6" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1.5" class="dag-node" id="dag-t3" style="cursor:pointer"/>
+                    <text x="120" y="203" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700" font-family="monospace">TREE</text>
+                    <text x="120" y="217" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">3c4e9c...</text>
+
+                    <!-- Tree T2 -->
+                    <rect x="240" y="185" width="80" height="40" rx="6" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1.5" class="dag-node" id="dag-t2" style="cursor:pointer"/>
+                    <text x="280" y="203" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700" font-family="monospace">TREE</text>
+                    <text x="280" y="217" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">0155eb...</text>
+
+                    <!-- Tree T1 -->
+                    <rect x="400" y="185" width="80" height="40" rx="6" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1.5" class="dag-node" id="dag-t1" style="cursor:pointer"/>
+                    <text x="440" y="203" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700" font-family="monospace">TREE</text>
+                    <text x="440" y="217" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">d8329f...</text>
+
+                    <!-- C3 -> T3 -->
+                    <line x1="150" y1="137" x2="128" y2="184" stroke="#10b981" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 2"/>
+                    <!-- C2 -> T2 -->
+                    <line x1="310" y1="137" x2="288" y2="184" stroke="#10b981" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 2"/>
+                    <!-- C1 -> T1 -->
+                    <line x1="470" y1="137" x2="448" y2="184" stroke="#10b981" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 2"/>
+
+                    <!-- ---- BLOB layer ---- -->
+                    <!-- Blob: new.txt -->
+                    <rect x="30" y="265" width="80" height="40" rx="6" fill="rgba(59,130,246,0.12)" stroke="#60a5fa" stroke-width="1.5" class="dag-node" id="dag-b-new" style="cursor:pointer"/>
+                    <text x="70" y="283" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700" font-family="monospace">BLOB</text>
+                    <text x="70" y="297" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">new.txt</text>
+
+                    <!-- Blob: test.txt v2 -->
+                    <rect x="150" y="265" width="80" height="40" rx="6" fill="rgba(59,130,246,0.12)" stroke="#60a5fa" stroke-width="1.5" class="dag-node" id="dag-b-v2" style="cursor:pointer"/>
+                    <text x="190" y="283" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700" font-family="monospace">BLOB</text>
+                    <text x="190" y="297" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">test.txt v2</text>
+
+                    <!-- Blob: test.txt v1 -->
+                    <rect x="380" y="265" width="80" height="40" rx="6" fill="rgba(59,130,246,0.12)" stroke="#60a5fa" stroke-width="1.5" class="dag-node" id="dag-b-v1" style="cursor:pointer"/>
+                    <text x="420" y="283" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700" font-family="monospace">BLOB</text>
+                    <text x="420" y="297" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">test.txt v1</text>
+
+                    <!-- T3 -> blobs -->
+                    <line x1="100" y1="225" x2="88" y2="264" stroke="#60a5fa" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 2"/>
+                    <line x1="135" y1="225" x2="175" y2="264" stroke="#60a5fa" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 2"/>
+
+                    <!-- T2 -> blobs -->
+                    <line x1="258" y1="225" x2="218" y2="264" stroke="#60a5fa" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 2"/>
+                    <line x1="295" y1="225" x2="196" y2="264" stroke="#60a5fa" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 2"/>
+
+                    <!-- T1 -> blob v1 -->
+                    <line x1="432" y1="225" x2="425" y2="264" stroke="#60a5fa" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 2"/>
+
+                    <!-- Legend -->
+                    <rect x="570" y="180" width="120" height="120" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                    <text x="630" y="198" text-anchor="middle" fill="#8b949e" font-size="9" font-weight="700">LEGEND</text>
+                    <rect x="580" y="208" width="10" height="10" rx="2" fill="rgba(239,68,68,0.25)" stroke="#f87171" stroke-width="1"/>
+                    <text x="597" y="218" fill="#8b949e" font-size="9" font-family="sans-serif">Ref / HEAD</text>
+                    <rect x="580" y="226" width="10" height="10" rx="2" fill="rgba(139,92,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
+                    <text x="597" y="236" fill="#8b949e" font-size="9" font-family="sans-serif">Commit</text>
+                    <rect x="580" y="244" width="10" height="10" rx="2" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="1"/>
+                    <text x="597" y="254" fill="#8b949e" font-size="9" font-family="sans-serif">Tree</text>
+                    <rect x="580" y="262" width="10" height="10" rx="2" fill="rgba(59,130,246,0.25)" stroke="#60a5fa" stroke-width="1"/>
+                    <text x="597" y="272" fill="#8b949e" font-size="9" font-family="sans-serif">Blob</text>
+                    <text x="597" y="290" fill="#8b949e" font-size="8" font-family="sans-serif">--- symbolic/ref</text>
+                </svg>
+            </div>
+
+            <!-- DAG node detail panel -->
+            <div class="diagram-detail" id="dagDetail">Click any node in the graph to inspect it.</div>
+
+            <h4>Why Acyclic Matters</h4>
+            <p>The acyclic property means Git can traverse the full history of any commit by following parent pointers until there are no more parents. This is what <code>git log</code>, <code>git rebase</code>, and merge base calculations all rely on. A cycle would create infinite loops during traversal &mdash; the model would break.</p>
+
+            <p>For merge commits, Git stores <em>two</em> parent pointers: the branch being merged into, and the branch being merged. This creates a graph with converging paths but still no cycles.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Full Object Picture</div>
+                <p>After three commits you have 10 objects on disk: 3 commits, 3 trees, and 4 blobs. Each is addressed purely by content. Nothing is duplicated. If two different commits share the same tree state, they reference the same tree SHA-1 &mdash; stored once.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 7: References                                        -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>References (Refs) <span class="obj-pill pill-ref">REF</span></h3>
+            <p>Remembering a 40-character SHA-1 hash for every commit is not practical. References solve this: they are plain text files containing a single SHA-1 hash. A branch is nothing more than a file in <code>.git/refs/heads/</code> whose contents are the hash of the latest commit on that branch.</p>
+
+            <h4>Creating and Updating Refs</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Explore the refs directory (initially empty)</span>
+<span class="cmd">$</span> find .git/refs
+<span class="output">.git/refs
+.git/refs/heads
+.git/refs/tags</span>
+
+<span class="comment"># Point 'master' at our third commit (low-level — direct file write)</span>
+<span class="cmd">$</span> echo 1a410efbd13591db07496601ebc7a059dd55cfe9 > .git/refs/heads/master
+
+<span class="comment"># Now git log works using the branch name</span>
+<span class="cmd">$</span> git log <span class="flag">--pretty=oneline</span> master
+<span class="output">1a410efbd13591db07496601ebc7a059dd55cfe9 Third commit
+cac0cab538b970a37ea1e769cbbde608743bc96d Second commit
+fdf4fc3344e67ab068f836878b6c4951e3b15f3d First commit</span>
+
+<span class="comment"># The safe way: use git update-ref instead of writing directly</span>
+<span class="cmd">$</span> git update-ref refs/heads/master 1a410efbd13591db07496601ebc7a059dd55cfe9
+
+<span class="comment"># Create a second branch pointing at commit 2</span>
+<span class="cmd">$</span> git update-ref refs/heads/test cac0cab538b970a37ea1e769cbbde608743bc96d
+
+<span class="comment"># test only shows commits 1 and 2</span>
+<span class="cmd">$</span> git log <span class="flag">--pretty=oneline</span> test
+<span class="output">cac0cab538b970a37ea1e769cbbde608743bc96d Second commit
+fdf4fc3344e67ab068f836878b6c4951e3b15f3d First commit</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Always Use git update-ref</div>
+                <p>Writing directly to <code>.git/refs/</code> works but bypasses safety checks. <code>git update-ref</code> locks the file during the update to prevent race conditions. Use it in scripts. Never write ref files by hand in production.</p>
+            </div>
+
+            <h4>Tag References</h4>
+            <p>Lightweight tags are just refs in <code>.git/refs/tags/</code> that never move. Annotated tags are different: they create a full tag object in the object database, and the ref points to the tag object (which in turn points to the commit).</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Lightweight tag — just a static ref, no object created</span>
+<span class="cmd">$</span> git update-ref refs/tags/v1.0 cac0cab538b970a37ea1e769cbbde608743bc96d
+
+<span class="comment"># Annotated tag — creates a tag object, then points the ref at it</span>
+<span class="cmd">$</span> git tag <span class="flag">-a</span> v1.1 1a410efbd13591db07496601ebc7a059dd55cfe9 <span class="flag">-m</span> <span class="str">'Release v1.1'</span>
+
+<span class="comment"># The ref points to a tag object, NOT directly to a commit</span>
+<span class="cmd">$</span> cat .git/refs/tags/v1.1
+<span class="output">9585191f37f7b0fb9444f35a9bf50de191beadc2</span>
+
+<span class="comment"># The tag object contains tagger info + pointer to the commit</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> 9585191f37f7b0fb9444f35a9bf50de191beadc2
+<span class="output">object 1a410efbd13591db07496601ebc7a059dd55cfe9
+type commit
+tag v1.1
+tagger Scott Chacon &lt;schacon@gmail.com&gt; Sat May 23 16:48:58 2009 -0700
+
+Release v1.1</span></code></pre>
+            </div>
+
+            <h4>Remote Tracking Refs</h4>
+            <p>When you push to a remote, Git stores the SHA-1 you last pushed in <code>.git/refs/remotes/&lt;remote&gt;/&lt;branch&gt;</code>. These refs are <strong>read-only</strong>: Git will never move them with a commit command. They are bookmarks of the last known state on the server.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># After git push origin master</span>
+<span class="cmd">$</span> cat .git/refs/remotes/origin/master
+<span class="output">ca82a6dff817ec66f44342007202690a93763949</span>
+
+<span class="comment"># You can check out a remote ref, but Git won't let you commit to it</span>
+<span class="comment"># (you'd enter detached HEAD state)</span></code></pre>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 8: HEAD                                              -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>HEAD &mdash; Where You Are</h3>
+            <p><code>HEAD</code> is a special pointer stored in <code>.git/HEAD</code>. It always tells Git (and you) which branch you currently have checked out. Unlike normal refs, HEAD is a <strong>symbolic reference</strong> &mdash; it contains a pointer to another reference rather than directly to a commit SHA-1.</p>
+
+            <h4>Normal State: Attached HEAD</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># HEAD on the master branch</span>
+<span class="cmd">$</span> cat .git/HEAD
+<span class="output">ref: refs/heads/master</span>
+
+<span class="comment"># After git checkout test</span>
+<span class="cmd">$</span> cat .git/HEAD
+<span class="output">ref: refs/heads/test</span>
+
+<span class="comment"># Read HEAD symbolically via plumbing</span>
+<span class="cmd">$</span> git symbolic-ref HEAD
+<span class="output">refs/heads/master</span>
+
+<span class="comment"># Set HEAD via plumbing (same as git checkout test)</span>
+<span class="cmd">$</span> git symbolic-ref HEAD refs/heads/test
+<span class="cmd">$</span> cat .git/HEAD
+<span class="output">ref: refs/heads/test</span>
+
+<span class="comment"># Git enforces the refs/ prefix — this fails</span>
+<span class="cmd">$</span> git symbolic-ref HEAD test
+<span class="output">fatal: Refusing to point HEAD outside of refs/</span></code></pre>
+            </div>
+
+            <h4>Detached HEAD State</h4>
+            <p>When you check out a specific commit hash (not a branch name), a tag, or a remote ref, HEAD stops being a symbolic reference and becomes a direct SHA-1 pointer. Git calls this <strong>detached HEAD state</strong>. New commits you make in this state are not on any branch and will be garbage collected eventually.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Checkout a specific commit SHA — enters detached HEAD</span>
+<span class="cmd">$</span> git checkout cac0cab
+<span class="output">Note: switching to 'cac0cab'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.</span>
+
+<span class="comment"># HEAD now contains a raw SHA-1 instead of a ref</span>
+<span class="cmd">$</span> cat .git/HEAD
+<span class="output">cac0cab538b970a37ea1e769cbbde608743bc96d</span>
+
+<span class="comment"># Reattach to master to get back to normal</span>
+<span class="cmd">$</span> git checkout master</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">HEAD and Commits</div>
+                <p>When you run <code>git commit</code>, Git reads HEAD to find the current branch ref, reads that ref to get the parent commit SHA-1, creates the new commit with that parent, then updates the branch ref to point to the new commit. HEAD itself does not change &mdash; it still points at the same branch name.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 9: Plumbing Command Reference                        -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>Plumbing Command Reference</h3>
+            <p>These are the core low-level commands used to directly interact with the Git object database and ref store. They are the building blocks that all porcelain commands are constructed from.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git hash-object</code> <span class="tag">WRITE</span></div>
+                    <p>Compute SHA-1 of content and optionally write it to the object database.</p>
+                    <div class="example">$ echo 'hello' | git hash-object -w --stdin<br>$ git hash-object -w myfile.txt</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git cat-file</code> <span class="tag">READ</span></div>
+                    <p>Inspect any object: <code>-t</code> for type, <code>-s</code> for size, <code>-p</code> for pretty-printed content.</p>
+                    <div class="example">$ git cat-file -p &lt;sha1&gt;<br>$ git cat-file -t &lt;sha1&gt;</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git update-index</code> <span class="tag">INDEX</span></div>
+                    <p>Manually add files or blobs to the staging area (index). Enables building trees by hand.</p>
+                    <div class="example">$ git update-index --add --cacheinfo 100644 &lt;sha1&gt; file.txt</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git write-tree</code> <span class="tag">TREE</span></div>
+                    <p>Write the current index state to a tree object in the object database.</p>
+                    <div class="example">$ git write-tree<br># outputs tree SHA-1</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git read-tree</code> <span class="tag">TREE</span></div>
+                    <p>Load a tree object into the index. With <code>--prefix</code>, mount it as a subdirectory.</p>
+                    <div class="example">$ git read-tree --prefix=bak/ &lt;tree-sha1&gt;</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git commit-tree</code> <span class="tag">COMMIT</span></div>
+                    <p>Create a commit object from a tree SHA-1 and optional parent commit SHA-1(s).</p>
+                    <div class="example">$ echo 'msg' | git commit-tree &lt;tree-sha1&gt; -p &lt;parent-sha1&gt;</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git update-ref</code> <span class="tag">REF</span></div>
+                    <p>Safely update a ref file to point to a new SHA-1. The correct way to move or create branches at the plumbing level.</p>
+                    <div class="example">$ git update-ref refs/heads/main &lt;sha1&gt;</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git symbolic-ref</code> <span class="tag">REF</span></div>
+                    <p>Read or write a symbolic reference like HEAD. Enforces the <code>refs/</code> namespace constraint.</p>
+                    <div class="example">$ git symbolic-ref HEAD<br>$ git symbolic-ref HEAD refs/heads/feature</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Section 10: Walking the Object Graph                         -->
+        <!-- ============================================================ -->
+        <div class="section">
+            <h3>Walking the Object Graph from HEAD to Blobs</h3>
+            <p>Every piece of data in your repository is reachable from HEAD by following the chain: HEAD &rarr; branch ref &rarr; commit &rarr; tree &rarr; blobs. This is the fundamental traversal that underpins <code>git log</code>, <code>git diff</code>, <code>git checkout</code>, and garbage collection.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal &mdash; Full Graph Walk</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Step 1: Read HEAD — get the branch ref</span>
+<span class="cmd">$</span> cat .git/HEAD
+<span class="output">ref: refs/heads/main</span>
+
+<span class="comment"># Step 2: Read the branch ref — get the commit SHA</span>
+<span class="cmd">$</span> cat .git/refs/heads/main
+<span class="output">1a410efbd13591db07496601ebc7a059dd55cfe9</span>
+
+<span class="comment"># Step 3: Inspect the commit — get the tree SHA and parent</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> 1a410e
+<span class="output">tree 3c4e9cd789d88d8d89c1073707c3585e41b0e614
+parent cac0cab538b970a37ea1e769cbbde608743bc96d
+author Scott Chacon &lt;schacon@gmail.com&gt; 1243041261 -0700
+committer Scott Chacon &lt;schacon@gmail.com&gt; 1243041261 -0700
+
+Third commit</span>
+
+<span class="comment"># Step 4: Inspect the tree — get all files in this snapshot</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> 3c4e9cd789d88d8d89c1073707c3585e41b0e614
+<span class="output">040000 tree d8329fc1cc938780ffdd9f94e0d364e0ea74f579      bak
+100644 blob fa49b077972391ad58037050f2a75f74e3671e92      new.txt
+100644 blob 1f7a7a472abf3dd9643fd615f6da379c4acb3e3a      test.txt</span>
+
+<span class="comment"># Step 5: Read a blob — see the actual file content</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> 1f7a7a472abf3dd9643fd615f6da379c4acb3e3a
+<span class="output">version 2</span>
+
+<span class="comment"># Step 6: Drill into a subtree (the bak/ directory)</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> d8329fc1cc938780ffdd9f94e0d364e0ea74f579
+<span class="output">100644 blob 83baae61804e65cc73a7201a7252750c76066a30      test.txt</span>
+
+<span class="comment"># Step 7: That blob is version 1 — proving history is intact</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> 83baae61804e65cc73a7201a7252750c76066a30
+<span class="output">version 1</span></code></pre>
+            </div>
+
+            <h4>The Complete Object Inventory</h4>
+            <p>After three commits, all 10 objects exist on disk. Every SHA-1 maps to exactly one piece of content &mdash; forever, immutably:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> find .git/objects -type f
+<span class="output">.git/objects/01/55eb4229851634a0f03eb265b69f5a2d56f341</span> <span class="comment"># tree 2</span>
+<span class="output">.git/objects/1a/410efbd13591db07496601ebc7a059dd55cfe9</span> <span class="comment"># commit 3</span>
+<span class="output">.git/objects/1f/7a7a472abf3dd9643fd615f6da379c4acb3e3a</span> <span class="comment"># test.txt v2</span>
+<span class="output">.git/objects/3c/4e9cd789d88d8d89c1073707c3585e41b0e614</span> <span class="comment"># tree 3</span>
+<span class="output">.git/objects/83/baae61804e65cc73a7201a7252750c76066a30</span> <span class="comment"># test.txt v1</span>
+<span class="output">.git/objects/ca/c0cab538b970a37ea1e769cbbde608743bc96d</span> <span class="comment"># commit 2</span>
+<span class="output">.git/objects/d6/70460b4b4aece5915caf5c68d12f560a9fe3e4</span> <span class="comment"># 'test content' blob</span>
+<span class="output">.git/objects/d8/329fc1cc938780ffdd9f94e0d364e0ea74f579</span> <span class="comment"># tree 1</span>
+<span class="output">.git/objects/fa/49b077972391ad58037050f2a75f74e3671e92</span> <span class="comment"># new.txt</span>
+<span class="output">.git/objects/fd/f4fc3344e67ab068f836878b6c4951e3b15f3d</span> <span class="comment"># commit 1</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">How git add and git commit Work Internally</div>
+                <p>When you run <code>git add file.txt</code>, Git runs <code>git hash-object -w file.txt</code> (stores the blob) then <code>git update-index</code> (updates the staging area). When you run <code>git commit</code>, Git runs <code>git write-tree</code> (freezes the index into a tree), then <code>git commit-tree</code> (creates the commit pointing at that tree), then <code>git update-ref</code> (advances the current branch ref to the new commit). You have just done all of this by hand in this module.</p>
+            </div>
+
+            <h4>Garbage Collection and Reachability</h4>
+            <p>Git's garbage collector (<code>git gc</code>) removes objects that are not reachable from any ref. An object is reachable if you can get to it by starting from any ref (branch, tag, HEAD) and following the commit &rarr; tree &rarr; blob pointer chain. Unreachable objects are "dangling" and will eventually be cleaned up.</p>
+
+            <p>This is why detached HEAD commits are lost if you don't create a branch: they become unreachable from any named ref, and the GC removes them. It is also why <code>git reflog</code> can recover "deleted" commits &mdash; the reflog keeps temporary refs to recent HEAD positions, preventing GC from collecting them for 30 days by default.</p>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Packfiles</div>
+                <p>As a repository grows, storing thousands of individual loose object files becomes inefficient. Git compresses them into <strong>packfiles</strong> (<code>.git/objects/pack/</code>) using delta compression &mdash; storing only the differences between similar objects. <code>git gc</code> or <code>git repack</code> triggers this process. Packfiles are transparent: all plumbing commands work identically whether objects are loose or packed.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" id="completeBtn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // ----------------------------------------------------------------
+        // DAG node click interaction — show details for each clicked node
+        // ----------------------------------------------------------------
+        const dagInfo = {
+            'dag-HEAD': {
+                title: 'HEAD — .git/HEAD',
+                body: 'A symbolic reference. Usually contains <code>ref: refs/heads/&lt;branch&gt;</code> pointing to the current branch. In detached HEAD state it contains a raw SHA-1. Read with <code>git symbolic-ref HEAD</code>.'
+            },
+            'dag-main': {
+                title: 'refs/heads/main — Branch Reference',
+                body: 'A plain text file in <code>.git/refs/heads/</code> containing the SHA-1 of the latest commit on the branch. When you commit, Git updates this file to the new commit SHA. Creating a branch is just creating this file.'
+            },
+            'dag-c3': {
+                title: 'Commit 1a410e — Third commit',
+                body: 'Contains: <code>tree 3c4e9c...</code>, <code>parent cac0ca...</code>, author/committer, and message "Third commit". This is the current tip of main.'
+            },
+            'dag-c2': {
+                title: 'Commit cac0ca — Second commit',
+                body: 'Contains: <code>tree 0155eb...</code>, <code>parent fdf4fc...</code>, and message "Second commit". The parent pointer forms the history chain back to commit 1.'
+            },
+            'dag-c1': {
+                title: 'Commit fdf4fc — First commit',
+                body: 'The initial commit. Contains: <code>tree d8329f...</code>, no parent (it is the root), and message "First commit". Every repo has exactly one root commit (unless it was manually created with two orphaned histories).'
+            },
+            'dag-t3': {
+                title: 'Tree 3c4e9c — Snapshot for Third commit',
+                body: 'Lists three entries: <code>040000 tree d8329f bak/</code>, <code>100644 blob fa49b0 new.txt</code>, <code>100644 blob 1f7a7a test.txt</code>. The bak/ subdirectory is actually tree T1 reused by reference.'
+            },
+            'dag-t2': {
+                title: 'Tree 0155eb — Snapshot for Second commit',
+                body: 'Lists two entries: <code>100644 blob fa49b0 new.txt</code> and <code>100644 blob 1f7a7a test.txt</code> (version 2). No bak/ directory yet.'
+            },
+            'dag-t1': {
+                title: 'Tree d8329f — Snapshot for First commit',
+                body: 'A single entry: <code>100644 blob 83baae test.txt</code> (version 1). This tree is also reused as the bak/ subdirectory in tree T3 &mdash; stored once, referenced twice.'
+            },
+            'dag-b-new': {
+                title: 'Blob fa49b0 — new.txt',
+                body: 'Content: <code>new file</code>. Created during the second commit. Content is stored exactly once regardless of how many trees reference it.'
+            },
+            'dag-b-v2': {
+                title: 'Blob 1f7a7a — test.txt (version 2)',
+                body: 'Content: <code>version 2</code>. SHA-1: <code>1f7a7a472abf3dd9643fd615f6da379c4acb3e3a</code>. Used in trees T2 and T3.'
+            },
+            'dag-b-v1': {
+                title: 'Blob 83baae — test.txt (version 1)',
+                body: 'Content: <code>version 1</code>. SHA-1: <code>83baae61804e65cc73a7201a7252750c76066a30</code>. Used in tree T1 (and therefore bak/ in T3). Both file versions coexist in the object DB.'
+            }
+        };
+
+        // Attach click handlers to all SVG nodes
+        document.querySelectorAll('.dag-node').forEach(function(el) {
+            el.addEventListener('click', function() {
+                var id = el.id;
+                var info = dagInfo[id];
+                if (!info) return;
+                var detail = document.getElementById('dagDetail');
+                detail.innerHTML = '<strong style="color:#fff">' + info.title + '</strong><br><br>' + info.body;
+                // Highlight the clicked node's parent group rect
+                document.querySelectorAll('.dag-node').forEach(function(n) {
+                    n.setAttribute('opacity', '0.6');
+                });
+                el.setAttribute('opacity', '1');
+            });
+        });
+
+        // ----------------------------------------------------------------
+        // Code copy utility
+        // ----------------------------------------------------------------
+        function copyCode(btn) {
+            var code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(function() {
+                btn.textContent = 'Copied!';
+                setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+            }).catch(function() {
+                btn.textContent = 'Failed';
+                setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+            });
+        }
+
+        // ----------------------------------------------------------------
+        // Module completion — writes to forge progress and ModuleProgress
+        // ----------------------------------------------------------------
+        function completeModule() {
+            // Write to ForgeData progress store
+            try {
+                var progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-15'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch (e) {}
+
+            // Report via ModuleProgress API if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-15-git-internals', { returnToDashboard: false });
+            }
+
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // ----------------------------------------------------------------
+        // Restore completed state on load
+        // ----------------------------------------------------------------
+        (function checkCompleted() {
+            try {
+                var p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                if (p['do-15']) {
+                    var btn = document.getElementById('completeBtn');
+                    btn.textContent = 'Completed!';
+                    btn.style.background = 'rgba(16,185,129,0.2)';
+                    btn.style.color = '#10b981';
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

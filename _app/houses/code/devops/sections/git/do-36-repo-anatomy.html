@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Anatomy — Inside .git/ - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-branch.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 580px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+        .code-block .dir { color: #79c0ff; }
+        .code-block .sha { color: #d2a8ff; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+        .compare tr:last-child td { border-bottom: none; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card-head .tag-warn { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(245,158,11,0.12); color: var(--orange); }
+        .cmd-card-head .tag-blue { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(59,130,246,0.12); color: var(--blue); }
+        .cmd-card-head .tag-red { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(239,68,68,0.12); color: var(--red); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Directory tree */
+        .dir-tree { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin: 16px 0; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.8; }
+        .dir-tree .tree-root { color: var(--forge); font-weight: 700; }
+        .dir-tree .tree-dir { color: #79c0ff; }
+        .dir-tree .tree-file { color: #e6edf3; }
+        .dir-tree .tree-desc { color: #8b949e; font-size: 12px; margin-left: 8px; }
+        .dir-tree .tree-line { display: flex; align-items: baseline; gap: 0; }
+        .dir-tree .tree-prefix { color: #444; white-space: pre; }
+        .dir-tree .tree-entry { cursor: pointer; transition: color 0.15s; }
+        .dir-tree .tree-entry:hover { color: var(--forge); }
+
+        /* File detail panel */
+        .file-detail { background: var(--bg-card); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px; padding: 16px 20px; margin-top: 12px; font-size: 13px; min-height: 64px; transition: all 0.25s; }
+        .file-detail-title { font-weight: 700; color: var(--forge); margin-bottom: 6px; font-size: 14px; }
+        .file-detail p { color: var(--text-dim); margin: 0; }
+
+        /* Status row */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+        .status-label { font-weight: 600; color: #fff; min-width: 110px; flex-shrink: 0; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-36</span>
+            <h1>Repository Anatomy &mdash; Inside .git/</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Git Section</a>
+    </header>
+
+    <main class="content">
+
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-branch.webp" alt="">
+            <h2>Repository Anatomy &mdash; Inside .git/</h2>
+            <p class="hero-sub">Lift the hood on every Git repository. Understand what each file and directory does, how Git stores objects, and how to recover from almost any disaster.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~40 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-branch.webp" alt="" width="14" height="14"> Advanced</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Map the full <code>.git/</code> directory tree and explain the role of each entry</li>
+                <li>Understand <code>HEAD</code> as a symbolic reference and how it tracks your current branch</li>
+                <li>Read and modify repository-level config with <code>git config --local</code></li>
+                <li>Explain how Git's object database stores blobs, trees, commits, and tags</li>
+                <li>Understand how packfiles compress history with delta chains</li>
+                <li>Recover lost commits using <code>git reflog</code> and <code>git fsck</code></li>
+                <li>Use <code>git gc</code> and <code>git prune</code> to maintain a healthy repository</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: The .git/ Directory -->
+        <div class="section">
+            <h3>The .git/ Directory</h3>
+            <p>Git is fundamentally a <strong>content-addressable filesystem</strong> with a version-control interface layered on top. All of its data lives in a single hidden directory: <code>.git/</code>. When you run <code>git init</code>, this directory is created with everything Git needs to start tracking your project.</p>
+
+            <p>The key insight is that the <code>.git/</code> directory <em>is</em> the repository. Your working directory is just a checked-out view of its contents. If you want to back up or move a repository, copying this single directory is sufficient &mdash; no other files are needed.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Initialize a new repository and inspect the resulting .git/ structure</span>
+<span class="cmd">$</span> git init my-project
+<span class="output">Initialized empty Git repository in /home/user/my-project/.git/</span>
+
+<span class="cmd">$</span> ls <span class="flag">-F1</span> my-project/.git/
+<span class="output">config
+description
+HEAD
+hooks/
+info/
+objects/
+refs/</span></code></pre>
+            </div>
+
+            <p>Click any entry in the tree below to learn what it does.</p>
+
+            <!-- Interactive directory tree -->
+            <div class="dir-tree" id="dirTree">
+                <div class="tree-line"><span class="tree-root">.git/</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('HEAD')">HEAD</span><span class="tree-desc">&larr; current branch pointer</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('config')">config</span><span class="tree-desc">&larr; repo-level configuration</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('description')">description</span><span class="tree-desc">&larr; GitWeb display name</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('index')">index</span><span class="tree-desc">&larr; staging area (binary)</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('packed-refs')">packed-refs</span><span class="tree-desc">&larr; compacted branch/tag refs</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('hooks')">hooks/</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9474;   &#9500;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('pre-commit')">pre-commit.sample</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9474;   &#9492;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('commit-msg')">commit-msg.sample</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('info')">info/</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9474;   &#9492;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('exclude')">exclude</span><span class="tree-desc">&larr; personal ignores (not committed)</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('logs')">logs/</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9474;   &#9492;&#9472;&#9472; </span><span class="tree-file tree-entry" onclick="showFile('reflog')">HEAD</span><span class="tree-desc">&larr; reflog data</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9500;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('objects')">objects/</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9474;   &#9500;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('objects-loose')">ab/ ca/ ff/ &hellip;</span><span class="tree-desc">&larr; loose objects (2-char dirs)</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9474;   &#9500;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('objects-pack')">pack/</span><span class="tree-desc">&larr; packfiles + indexes</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9474;   &#9492;&#9472;&#9472; </span><span class="tree-dir">info/</span></div>
+                <div class="tree-line"><span class="tree-prefix">&#9492;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('refs')">refs/</span></div>
+                <div class="tree-line"><span class="tree-prefix">    &#9500;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('refs-heads')">heads/</span><span class="tree-desc">&larr; local branches</span></div>
+                <div class="tree-line"><span class="tree-prefix">    &#9500;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('refs-tags')">tags/</span><span class="tree-desc">&larr; tags</span></div>
+                <div class="tree-line"><span class="tree-prefix">    &#9492;&#9472;&#9472; </span><span class="tree-dir tree-entry" onclick="showFile('refs-remotes')">remotes/</span><span class="tree-desc">&larr; remote-tracking branches</span></div>
+            </div>
+
+            <div class="file-detail" id="fileDetail">
+                <div class="file-detail-title">Interactive Tree</div>
+                <p>Click any file or directory above to see a detailed explanation of its role in the repository.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: HEAD -->
+        <div class="section">
+            <h3>HEAD &mdash; Where You Are Right Now</h3>
+            <p><code>HEAD</code> is a symbolic reference that tells Git which branch (or commit) you currently have checked out. It is just a text file containing a single line.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># HEAD normally contains a ref to the current branch</span>
+<span class="cmd">$</span> cat .git/HEAD
+<span class="output">ref: refs/heads/main</span>
+
+<span class="comment"># After checking out a specific commit (detached HEAD state)</span>
+<span class="cmd">$</span> git checkout 1a410ef
+<span class="cmd">$</span> cat .git/HEAD
+<span class="output">1a410efbd13591db07496601ebc7a059dd55cfe9</span>
+
+<span class="comment"># Return to a branch</span>
+<span class="cmd">$</span> git checkout main
+<span class="cmd">$</span> cat .git/HEAD
+<span class="output">ref: refs/heads/main</span></code></pre>
+            </div>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Attached HEAD</span>
+                    <span>Contains <code>ref: refs/heads/branchname</code>. Every new commit advances the branch pointer. This is the normal state.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Detached HEAD</span>
+                    <span>Contains a raw SHA-1. You are not on any branch. New commits are made but not reachable from any named ref &mdash; they can be garbage collected. Always create a branch if you plan to commit in this state.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">How Commits Move the Branch</div>
+                <p>When you commit with HEAD pointing to a branch, Git writes the new commit, then updates the file at <code>refs/heads/branchname</code> to contain the new commit's SHA-1. HEAD itself doesn't change &mdash; it still points to the branch, which now points to the new commit.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: config -->
+        <div class="section">
+            <h3>config &mdash; Repository-Level Settings</h3>
+            <p>The <code>.git/config</code> file stores configuration that applies only to this repository. It overrides user-level (<code>~/.gitconfig</code>) and system-level config for operations inside this repo.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.git/config (example)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="output">[core]
+        repositoryformatversion = 0
+        filemode = true
+        bare = false
+        logallrefupdates = true
+[remote "origin"]
+        url = https://github.com/user/project.git
+        fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+        remote = origin
+        merge = refs/heads/main</span></code></pre>
+            </div>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git config --local</code> <span class="tag">REPO</span></div>
+                    <p>Read or write repo-level config (writes to <code>.git/config</code>)</p>
+                    <div class="example">$ git config --local user.email "work@corp.com"</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git config --list</code> <span class="tag-blue">READ</span></div>
+                    <p>Show all active configuration including which level each value comes from</p>
+                    <div class="example">$ git config --list --show-origin</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>core.bare</code> <span class="tag-blue">KEY</span></div>
+                    <p>If <code>true</code>, this is a bare repository (no working directory, used for remotes and CI servers)</p>
+                    <div class="example">$ git config --local core.bare</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>remote.origin.url</code> <span class="tag-blue">KEY</span></div>
+                    <p>The URL Git pushes to and fetches from when you use the name <code>origin</code></p>
+                    <div class="example">$ git remote set-url origin git@github.com:u/r.git</div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Config Precedence</div>
+                <p>Configuration cascades: <code>.git/config</code> (local) wins over <code>~/.gitconfig</code> (global) which wins over <code>/etc/gitconfig</code> (system). Local config lets you use a different email for work repos without changing your global identity.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: description and hooks -->
+        <div class="section">
+            <h3>description &amp; hooks/</h3>
+
+            <h4>description</h4>
+            <p>The <code>description</code> file is a single-line text file used by the GitWeb web interface to display the repository name. For most workflows it is irrelevant &mdash; GitHub, GitLab, and Gitea ignore it entirely and use their own naming. You can safely disregard it.</p>
+
+            <h4>hooks/ &mdash; Automating Git Events</h4>
+            <p>The <code>hooks/</code> directory contains scripts that Git executes automatically at specific points in its lifecycle. When you initialize a repository, Git populates this directory with <code>.sample</code> files demonstrating every available hook. To activate a hook, remove the <code>.sample</code> extension and make it executable.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># View the sample hooks Git provides</span>
+<span class="cmd">$</span> ls .git/hooks/
+<span class="output">applypatch-msg.sample    pre-commit.sample
+commit-msg.sample        pre-merge-commit.sample
+fsmonitor-watchman.sample pre-push.sample
+post-update.sample       pre-rebase.sample
+pre-applypatch.sample    prepare-commit-msg.sample
+pre-receive.sample       update.sample</span>
+
+<span class="comment"># Activate the pre-commit hook (runs before every commit)</span>
+<span class="cmd">$</span> cp .git/hooks/pre-commit.sample .git/hooks/pre-commit
+<span class="cmd">$</span> chmod +x .git/hooks/pre-commit</code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Hook</th>
+                    <th>Fires When</th>
+                    <th>Common Use</th>
+                </tr>
+                <tr>
+                    <td><code>pre-commit</code></td>
+                    <td>Before commit message prompt</td>
+                    <td>Run linter, tests, secret scanner</td>
+                </tr>
+                <tr>
+                    <td><code>commit-msg</code></td>
+                    <td>After message is entered</td>
+                    <td>Enforce message format, block patterns</td>
+                </tr>
+                <tr>
+                    <td><code>pre-push</code></td>
+                    <td>Before <code>git push</code> transfers data</td>
+                    <td>Run full test suite before remote lands</td>
+                </tr>
+                <tr>
+                    <td><code>post-merge</code></td>
+                    <td>After a successful <code>git merge</code></td>
+                    <td>Reinstall dependencies, notify team</td>
+                </tr>
+                <tr>
+                    <td><code>pre-receive</code></td>
+                    <td>On the remote server, before refs update</td>
+                    <td>Server-side policy enforcement</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Hooks Are Not Committed</div>
+                <p>The <code>hooks/</code> directory is inside <code>.git/</code>, which is not tracked by Git. Hooks are local to each clone. To share hooks across a team, store them in the repository itself (e.g., a <code>.githooks/</code> directory) and configure Git to use that path with <code>git config core.hooksPath .githooks</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: info/exclude -->
+        <div class="section">
+            <h3>info/exclude &mdash; Personal Ignores</h3>
+            <p><code>info/exclude</code> uses the same syntax as <code>.gitignore</code> but serves a different purpose. It lets you ignore files <em>locally</em> without modifying the shared <code>.gitignore</code> committed to the repository.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">.gitignore</span>
+                    <span>Committed to the repo. Shared with all contributors. Use for build artifacts, dependencies, and OS files that everyone should ignore.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">info/exclude</span>
+                    <span>Local to your clone only. Not shared, not committed. Use for editor-specific files (e.g., <code>.idea/</code>) or personal scratch files that only you generate.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">~/.gitconfig<br>core.excludesFile</span>
+                    <span>Global ignores that apply across all repositories on your machine. Set with <code>git config --global core.excludesFile ~/.gitignore_global</code>.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: objects/ -->
+        <div class="section">
+            <h3>objects/ &mdash; The Object Database</h3>
+            <p>The <code>objects/</code> directory is where Git stores everything: every version of every file, every directory tree, every commit, and every tag. Git calls these <strong>objects</strong> and addresses them by the SHA-1 hash of their content.</p>
+
+            <p>This is what makes Git a content-addressable filesystem. Two identical files anywhere in the history produce exactly the same hash and are stored only once. Tampering with any object changes its hash, which Git immediately detects.</p>
+
+            <h4>The Four Object Types</h4>
+            <table class="compare">
+                <tr>
+                    <th>Type</th>
+                    <th>What It Stores</th>
+                    <th>Plumbing Command</th>
+                </tr>
+                <tr>
+                    <td><strong>blob</strong></td>
+                    <td>The raw content of a single file (no filename, no metadata)</td>
+                    <td><code>git cat-file -p &lt;sha&gt;</code></td>
+                </tr>
+                <tr>
+                    <td><strong>tree</strong></td>
+                    <td>A directory listing: filenames, permissions, and pointers to blobs or subtrees</td>
+                    <td><code>git ls-tree &lt;sha&gt;</code></td>
+                </tr>
+                <tr>
+                    <td><strong>commit</strong></td>
+                    <td>A pointer to a tree snapshot plus author, committer, timestamp, message, and parent commit(s)</td>
+                    <td><code>git cat-file commit &lt;sha&gt;</code></td>
+                </tr>
+                <tr>
+                    <td><strong>tag</strong></td>
+                    <td>An annotated tag: points to a commit, stores tagger identity and optional message</td>
+                    <td><code>git cat-file tag &lt;sha&gt;</code></td>
+                </tr>
+            </table>
+
+            <h4>Loose Object Storage</h4>
+            <p>New objects start as <strong>loose objects</strong>: individual files inside <code>objects/</code>, organized into subdirectories named by the first two hex characters of the SHA-1. The remaining 38 characters form the filename.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Inspect the objects directory after a few commits</span>
+<span class="cmd">$</span> find .git/objects <span class="flag">-type</span> f
+<span class="output">.git/objects/01/55eb4229851634a0f03eb265b69f5a2d56f341  </span><span class="comment"># tree</span>
+<span class="output">.git/objects/1a/410efbd13591db07496601ebc7a059dd55cfe9  </span><span class="comment"># commit 3</span>
+<span class="output">.git/objects/1f/7a7a472abf3dd9643fd615f6da379c4acb3e3a  </span><span class="comment"># test.txt v2</span>
+<span class="output">.git/objects/83/baae61804e65cc73a7201a7252750c76066a30  </span><span class="comment"># test.txt v1</span>
+<span class="output">.git/objects/ca/c0cab538b970a37ea1e769cbbde608743bc96d  </span><span class="comment"># commit 2</span>
+<span class="output">.git/objects/fd/f4fc3344e67ab068f836878b6c4951e3b15f3d  </span><span class="comment"># commit 1</span>
+
+<span class="comment"># Read any object by its SHA (type -t, content -p, size -s)</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-t</span> 1a410efbd13591db07496601ebc7a059dd55cfe9
+<span class="output">commit</span>
+
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> 1a410efbd13591db07496601ebc7a059dd55cfe9
+<span class="output">tree 3c4e9cd789d88d8d89c1073707c3585e41b0e614
+parent cac0cab538b970a37ea1e769cbbde608743bc96d
+author Scott Chacon &lt;schacon@gmail.com&gt; 1243040974 -0700
+committer Scott Chacon &lt;schacon@gmail.com&gt; 1243040974 -0700
+
+Third commit</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Objects Are Immutable</div>
+                <p>Once written, an object is never modified &mdash; only new objects are created. Amending a commit, rebasing, or rewriting history always produces brand-new objects with new hashes. The old objects remain until garbage collected.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: refs/ -->
+        <div class="section">
+            <h3>refs/ &mdash; Named Pointers</h3>
+            <p>The <code>refs/</code> directory holds the human-readable names for commits. Every branch, tag, and remote-tracking branch is just a text file containing a 40-character SHA-1 hash. This is how Git maps "main" to a specific commit.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># A branch file contains exactly one commit SHA</span>
+<span class="cmd">$</span> cat .git/refs/heads/main
+<span class="output">ab1afef80fac8e34258ff41fc1b867c702daa24b</span>
+
+<span class="comment"># A tag file points to a commit (or tag object for annotated tags)</span>
+<span class="cmd">$</span> cat .git/refs/tags/v1.0
+<span class="output">cac0cab538b970a37ea1e769cbbde608743bc96d</span>
+
+<span class="comment"># A remote-tracking branch records where origin's main was last time you fetched</span>
+<span class="cmd">$</span> cat .git/refs/remotes/origin/main
+<span class="output">ab1afef80fac8e34258ff41fc1b867c702daa24b</span>
+
+<span class="comment"># Git resolves any name via this chain: HEAD -> ref -> SHA</span>
+<span class="cmd">$</span> git rev-parse HEAD
+<span class="output">ab1afef80fac8e34258ff41fc1b867c702daa24b</span></code></pre>
+            </div>
+
+            <h4>refs/ Structure</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>refs/heads/</code> <span class="tag">BRANCHES</span></div>
+                    <p>One file per local branch. The filename is the branch name. Creating a branch creates a new file here.</p>
+                    <div class="example">refs/heads/main<br>refs/heads/feature-auth</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>refs/tags/</code> <span class="tag-blue">TAGS</span></div>
+                    <p>One file per tag. Lightweight tags point directly to commits. Annotated tags point to a tag object, which points to the commit.</p>
+                    <div class="example">refs/tags/v1.0<br>refs/tags/v2.0-rc1</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>refs/remotes/</code> <span class="tag-warn">REMOTES</span></div>
+                    <p>Remote-tracking branches. Subdirectory per remote, one file per branch. Read-only from your perspective &mdash; updated by <code>git fetch</code>.</p>
+                    <div class="example">refs/remotes/origin/main<br>refs/remotes/upstream/dev</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 8: index -->
+        <div class="section">
+            <h3>index &mdash; The Staging Area</h3>
+            <p>The <code>index</code> file (also called the <strong>staging area</strong> or <strong>cache</strong>) is a binary file that tracks what will go into your next commit. It stores a list of file paths with their corresponding blob SHA-1 hashes, permissions, and stat information for fast dirty-checking.</p>
+
+            <p>Every time you run <code>git add</code>, Git writes the file's current content as a blob object and updates the index to reference that blob. When you commit, Git reads the index and builds the tree object from it.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Read the staging area with the plumbing command ls-files</span>
+<span class="cmd">$</span> git ls-files <span class="flag">--stage</span>
+<span class="output">100644 e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 0    README.md
+100644 fa49b077972391ad58037050f2a75f74e3671e92 0    src/main.js
+100755 3b18e512dba79e4c8300dd08aeb37f8e728b8dad 0    scripts/deploy.sh</span>
+
+<span class="comment"># Format: mode   blob-sha   stage-number   path</span>
+<span class="comment"># mode 100644 = regular file, 100755 = executable</span>
+<span class="comment"># stage-number 0 = normal, 1/2/3 = merge conflict markers</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Three-Way Merge and the Index</div>
+                <p>During a merge conflict, the index holds <em>three versions</em> of each conflicted file at stages 1 (common ancestor), 2 (your version), and 3 (their version). Running <code>git add</code> after resolving a conflict collapses all three stages back to stage 0, signaling resolution.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Packfiles -->
+        <div class="section">
+            <h3>Packfiles &mdash; Efficient Object Storage</h3>
+            <p>Loose objects are fast to write but inefficient for large histories. Git periodically consolidates them into <strong>packfiles</strong>: a single binary file containing many objects, paired with an <code>.idx</code> index file for fast lookup.</p>
+
+            <p>Packfiles are where Git's real efficiency comes from. Instead of storing each version of a file as a complete compressed blob, Git identifies similar objects and stores only the <strong>delta</strong> between them &mdash; typically keeping the newest version intact and storing older versions as reverse deltas, since you most often need the latest version quickly.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Trigger packing manually (normally Git does this automatically)</span>
+<span class="cmd">$</span> git gc
+<span class="output">Counting objects: 18, done.
+Delta compression using up to 8 threads.
+Compressing objects: 100% (14/14), done.
+Writing objects: 100% (18/18), done.
+Total 18 (delta 3), reused 0 (delta 0)</span>
+
+<span class="comment"># After gc, loose objects are gone and a packfile appears</span>
+<span class="cmd">$</span> find .git/objects <span class="flag">-type</span> f
+<span class="output">.git/objects/pack/pack-978e03944f5c581011e6998cd0e9e30000905586.idx
+.git/objects/pack/pack-978e03944f5c581011e6998cd0e9e30000905586.pack</span>
+
+<span class="comment"># Inspect what's in a packfile and how much space each object uses</span>
+<span class="cmd">$</span> git verify-pack <span class="flag">-v</span> .git/objects/pack/pack-978e03944f.idx
+<span class="output">b042a60ef7dff760008df33cee372b945b6e884e blob   22054 5799 1463
+033b4468fa6b2a9547a70d88d1bbe8bf3f9ed0d5 blob   9 20 7262 1 \
+  b042a60ef7dff760008df33cee372b945b6e884e</span>
+<span class="comment"># 033b4 is stored as a 9-byte delta against b042a (the newer version stored full)</span></code></pre>
+            </div>
+
+            <h4>Packfile Pair</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>.pack</code> <span class="tag">DATA</span></div>
+                    <p>The binary file containing all packed objects. Objects are zlib-compressed, and similar objects are stored as deltas. The entire repository history can fit in a single pack file.</p>
+                    <div class="example">pack-978e03...9.pack</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>.idx</code> <span class="tag-blue">INDEX</span></div>
+                    <p>A sorted list of SHA-1 hashes with byte offsets into the <code>.pack</code> file. Allows Git to jump directly to any object in the pack without scanning the whole file.</p>
+                    <div class="example">pack-978e03...9.idx</div>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Delta Direction</div>
+                <p>Git stores the newest version of a file in full and older versions as deltas &mdash; the opposite of what you might expect. This ensures that <code>git checkout</code> of the latest commit is fast (no delta reconstruction needed), while historical lookups involve a short chain of delta applications.</p>
+            </div>
+
+            <h4>Measuring Repository Size</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Count objects and disk usage in detail</span>
+<span class="cmd">$</span> git count-objects <span class="flag">-v</span>
+<span class="output">count: 7           </span><span class="comment"># loose objects</span>
+<span class="output">size: 32           </span><span class="comment"># loose object size in KiB</span>
+<span class="output">in-pack: 17        </span><span class="comment"># objects in packfiles</span>
+<span class="output">packs: 1           </span><span class="comment"># number of packfiles</span>
+<span class="output">size-pack: 4868    </span><span class="comment"># packfile size in KiB</span>
+<span class="output">prune-packable: 0  </span><span class="comment"># loose duplicates already in packs</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 10: Data Recovery -->
+        <div class="section">
+            <h3>Data Recovery &mdash; Getting Lost Commits Back</h3>
+            <p>One of Git's most powerful (and underappreciated) properties is that it almost never permanently loses data. Even after a <code>git reset --hard</code>, a deleted branch, or a botched rebase, your commits are almost certainly still in the object database &mdash; just unreachable. Here is how to find them.</p>
+
+            <h4>The Reflog: Git's Safety Net</h4>
+            <p>The <strong>reflog</strong> records every movement of HEAD and branch tips, even across operations that rewrite history. It lives in <code>.git/logs/</code> and is local to your clone. Git keeps reflog entries for 90 days by default.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Scenario: you accidentally hard-reset and lost commits</span>
+<span class="cmd">$</span> git reset <span class="flag">--hard</span> 1a410ef
+<span class="output">HEAD is now at 1a410ef Third commit</span>
+
+<span class="comment"># The commits aren't gone -- check the reflog</span>
+<span class="cmd">$</span> git reflog
+<span class="output">1a410ef HEAD@{0}: reset: moving to 1a410ef
+ab1afef HEAD@{1}: commit: Modify repo.rb a bit
+484a592 HEAD@{2}: commit: Create repo.rb</span>
+
+<span class="comment"># For a more detailed log view with full commit messages</span>
+<span class="cmd">$</span> git log <span class="flag">-g</span>
+<span class="output">commit ab1afef80fac8e34258ff41fc1b867c702daa24b
+Reflog: HEAD@{1} ...
+Author: Scott Chacon &lt;schacon@gmail.com&gt;
+    Modify repo.rb a bit</span>
+
+<span class="comment"># Recover: create a branch at the lost commit SHA</span>
+<span class="cmd">$</span> git branch recover-branch ab1afef
+<span class="cmd">$</span> git log <span class="flag">--pretty=oneline</span> recover-branch
+<span class="output">ab1afef80fac8e34258ff41fc1b867c702daa24b Modify repo.rb a bit
+484a59275031909e19aadb7c92262719cfcdf19a Create repo.rb
+1a410efbd13591db07496601ebc7a059dd55cfe9 Third commit</span></code></pre>
+            </div>
+
+            <h4>git fsck &mdash; Last Resort Recovery</h4>
+            <p>If the reflog was deleted (e.g., someone ran <code>rm -Rf .git/logs/</code>), there is still one option: <code>git fsck</code>. It checks the entire object database for integrity and lists all objects not reachable from any named reference &mdash; called <strong>dangling objects</strong>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Find all unreachable (dangling) objects</span>
+<span class="cmd">$</span> git fsck <span class="flag">--full</span>
+<span class="output">Checking object directories: 100% (256/256), done.
+Checking objects: 100% (18/18), done.
+dangling blob d670460b4b4aece5915caf5c68d12f560a9fe3e4
+dangling commit ab1afef80fac8e34258ff41fc1b867c702daa24b
+dangling tree aea790b9a58f6cf6f2804eeac9f0abbe9631e4c9</span>
+
+<span class="comment"># Inspect the dangling commit to identify it</span>
+<span class="cmd">$</span> git cat-file <span class="flag">-p</span> ab1afef80fac8e34258ff41fc1b867c702daa24b
+<span class="output">tree ...
+author Scott Chacon ...
+    Modify repo.rb a bit</span>
+
+<span class="comment"># Recover it the same way -- create a branch pointing to it</span>
+<span class="cmd">$</span> git branch recovered ab1afef</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Reflog Has an Expiry</div>
+                <p>The reflog is local and time-limited. Remote repositories do not have a reflog for your local operations. The default expiry for unreachable objects is 30 days, and for reachable objects 90 days. Once garbage collected with <code>git prune --expire now</code>, objects are truly gone.</p>
+            </div>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reflog</code> <span class="tag">RECOVER</span></div>
+                    <p>Show HEAD movement history. Use after accidental resets, deleted branches, or failed rebases.</p>
+                    <div class="example">$ git reflog<br>$ git reflog show main</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git log -g</code> <span class="tag">RECOVER</span></div>
+                    <p>Same as <code>reflog</code> but formatted as a standard log with full commit messages &mdash; easier to scan for the right commit.</p>
+                    <div class="example">$ git log -g --oneline</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git fsck --full</code> <span class="tag-blue">INTEGRITY</span></div>
+                    <p>Scan the entire object database and list all dangling objects. Your last resort when the reflog is gone.</p>
+                    <div class="example">$ git fsck --full 2&gt;&amp;1 | grep commit</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git branch &lt;name&gt; &lt;sha&gt;</code> <span class="tag">RECOVER</span></div>
+                    <p>The actual recovery step: create a named branch at a dangling commit SHA to make it reachable again.</p>
+                    <div class="example">$ git branch recovered ab1afef</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 11: Maintenance -->
+        <div class="section">
+            <h3>Maintenance &mdash; Keeping Repositories Healthy</h3>
+            <p>Git is largely self-maintaining. It automatically runs background cleanup tasks when certain thresholds are hit. But for large repositories, CI environments, or repositories with complex history rewrites, manual maintenance is sometimes necessary.</p>
+
+            <h4>git gc &mdash; Garbage Collection</h4>
+            <p><code>git gc</code> (garbage collect) does several things in one pass: it packs loose objects into packfiles, consolidates multiple packfiles into one, removes objects unreachable from any ref that are older than the expiry window, and compacts the <code>refs/</code> directory into <code>packed-refs</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Run garbage collection manually</span>
+<span class="cmd">$</span> git gc
+<span class="output">Counting objects: 17, done.
+Delta compression using up to 8 threads.
+Compressing objects: 100% (13/13), done.
+Writing objects: 100% (17/17), done.
+Total 17 (delta 1), reused 10 (delta 0)</span>
+
+<span class="comment"># Trigger auto-gc check (normally runs automatically -- usually does nothing)</span>
+<span class="cmd">$</span> git gc <span class="flag">--auto</span>
+
+<span class="comment"># Aggressive repack (slower, better compression, good for CI artifact repos)</span>
+<span class="cmd">$</span> git gc <span class="flag">--aggressive</span></code></pre>
+            </div>
+
+            <h4>packed-refs &mdash; Reference Compaction</h4>
+            <p>After <code>git gc</code> runs, individual files in <code>refs/heads/</code> and <code>refs/tags/</code> are moved into a single <code>.git/packed-refs</code> file. This reduces filesystem overhead in repositories with thousands of branches or tags.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># What packed-refs looks like after gc</span>
+<span class="cmd">$</span> cat .git/packed-refs
+<span class="output"># pack-refs with: peeled fully-peeled
+cac0cab538b970a37ea1e769cbbde608743bc96d refs/heads/experiment
+ab1afef80fac8e34258ff41fc1b867c702daa24b refs/heads/master
+cac0cab538b970a37ea1e769cbbde608743bc96d refs/tags/v1.0
+9585191f37f7b0fb9444f35a9bf50de191beadc2 refs/tags/v1.1
+^1a410efbd13591db07496601ebc7a059dd55cfe9</span>
+<span class="comment"># ^ prefix = the commit that the annotated tag above it points to (peeled tag)</span></code></pre>
+            </div>
+
+            <h4>git prune &mdash; Expiring Unreachable Objects</h4>
+            <p><code>git prune</code> removes objects from the object database that are not reachable from any ref and older than the configured expiry (default 2 weeks). It is run automatically by <code>git gc</code>. Use it manually only when you need to immediately reclaim disk space &mdash; for example after using <code>git filter-branch</code> to remove a large file from history.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># After rewriting history to remove a large accidentally-committed file:</span>
+
+<span class="comment"># Step 1: remove original refs that still point to old history</span>
+<span class="cmd">$</span> rm <span class="flag">-Rf</span> .git/refs/original
+<span class="cmd">$</span> rm <span class="flag">-Rf</span> .git/logs/
+
+<span class="comment"># Step 2: run gc to pack remaining objects</span>
+<span class="cmd">$</span> git gc
+
+<span class="comment"># Step 3: prune --expire now to immediately delete unreachable objects</span>
+<span class="cmd">$</span> git prune <span class="flag">--expire</span> now
+
+<span class="comment"># Verify the space savings</span>
+<span class="cmd">$</span> git count-objects <span class="flag">-v</span>
+<span class="output">count: 0
+size: 0
+in-pack: 15
+packs: 1
+size-pack: 8    </span><span class="comment"># down from 4868 KiB -- 5MB large file is gone</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Pruning Is Permanent</div>
+                <p>Once <code>git prune --expire now</code> runs, the pruned objects are deleted from disk. There is no undo. Do not prune unless you are certain you no longer need those commits. Push to a remote before pruning if in doubt &mdash; the remote's copy still has the objects.</p>
+            </div>
+
+            <h4>Auto-GC Thresholds</h4>
+            <p>Git's auto-gc fires when certain conditions are met. You can tune these thresholds in your config:</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Config Key</th>
+                    <th>Default</th>
+                    <th>Meaning</th>
+                </tr>
+                <tr>
+                    <td><code>gc.auto</code></td>
+                    <td>6700</td>
+                    <td>Number of loose objects before auto-gc triggers a full <code>git gc</code></td>
+                </tr>
+                <tr>
+                    <td><code>gc.autoPackLimit</code></td>
+                    <td>50</td>
+                    <td>Number of packfiles before auto-gc consolidates them</td>
+                </tr>
+                <tr>
+                    <td><code>gc.pruneExpire</code></td>
+                    <td>2.weeks.ago</td>
+                    <td>Age at which unreachable objects become eligible for pruning</td>
+                </tr>
+                <tr>
+                    <td><code>gc.reflogExpire</code></td>
+                    <td>90.days.ago</td>
+                    <td>How long reflog entries for reachable commits are kept</td>
+                </tr>
+                <tr>
+                    <td><code>gc.reflogExpireUnreachable</code></td>
+                    <td>30.days.ago</td>
+                    <td>How long reflog entries for <em>unreachable</em> commits are kept</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // File detail data for the interactive directory tree
+        const fileDetails = {
+            'HEAD': {
+                title: '.git/HEAD',
+                desc: 'A plain text file containing a symbolic reference like <code>ref: refs/heads/main</code>. This tells Git which branch you are on. During a detached HEAD, it holds a raw 40-char SHA-1 instead of a ref. Updated every time you checkout a branch or commit.'
+            },
+            'config': {
+                title: '.git/config',
+                desc: 'INI-format configuration file scoped to this repository. Contains remote URLs, branch tracking relationships, and any local overrides to user or system config. Read by Git on every operation. Edit with <code>git config --local</code> or directly with a text editor.'
+            },
+            'description': {
+                title: '.git/description',
+                desc: 'A single line used by the GitWeb web interface to name the repository. Almost universally ignored &mdash; GitHub, GitLab, and modern Git hosting platforms do not read this file. Safe to leave as-is.'
+            },
+            'index': {
+                title: '.git/index',
+                desc: 'The staging area (also called the cache). A binary file that records the tree of files you have staged with <code>git add</code>, including each file\'s mode, SHA-1 blob hash, and stat metadata for dirty-checking. This is what <code>git commit</code> reads to build the tree object.'
+            },
+            'packed-refs': {
+                title: '.git/packed-refs',
+                desc: 'Created by <code>git gc</code> to replace individual files in <code>refs/</code> with a single efficient file. Contains one <code>SHA ref-path</code> entry per ref. Git checks this file as a fallback when it does not find a ref file in <code>refs/</code> directly.'
+            },
+            'hooks': {
+                title: '.git/hooks/',
+                desc: 'Scripts that Git runs automatically at lifecycle events: before a commit, after a merge, before a push, and more. New repos contain <code>.sample</code> files for every available hook. Remove the <code>.sample</code> extension and chmod +x to activate. Hooks are local-only &mdash; not committed to the repo.'
+            },
+            'pre-commit': {
+                title: '.git/hooks/pre-commit.sample',
+                desc: 'A sample hook that runs before Git records a commit. Exit with a non-zero code to abort the commit. Commonly used to run linters, formatters, or security scanners. The sample version checks for trailing whitespace.'
+            },
+            'commit-msg': {
+                title: '.git/hooks/commit-msg.sample',
+                desc: 'Runs after the commit message is written, receiving the message file path as an argument. Use to enforce message format (e.g., require a Jira ticket number, block AI attribution strings). Exit non-zero to reject the commit.'
+            },
+            'info': {
+                title: '.git/info/',
+                desc: 'A directory holding repository-wide metadata. Primarily contains the <code>exclude</code> file. May also contain <code>grafts</code> (legacy) or <code>attributes</code> overrides in some configurations.'
+            },
+            'exclude': {
+                title: '.git/info/exclude',
+                desc: 'Works exactly like <code>.gitignore</code> but is local to this clone and never committed. Use it to ignore files that are specific to your development environment: editor scratch files, personal scripts, OS artifacts. Other contributors never see these patterns.'
+            },
+            'logs': {
+                title: '.git/logs/',
+                desc: 'Stores the reflog: a chronological record of every time HEAD and branch tips moved. Survives resets, rebases, and branch deletions. Used by <code>git reflog</code> and <code>git log -g</code> to recover lost commits. Deleted by <code>git gc</code> for expired entries.'
+            },
+            'reflog': {
+                title: '.git/logs/HEAD',
+                desc: 'The HEAD reflog file. Each line records: old SHA, new SHA, user identity, timestamp, and the operation that caused the move (checkout, commit, reset, etc.). One file per ref in this directory. Reading it directly is rarely needed &mdash; use <code>git reflog</code> instead.'
+            },
+            'objects': {
+                title: '.git/objects/',
+                desc: 'The object database. Every blob (file content), tree (directory), commit, and tag is stored here as a zlib-compressed file. Objects are addressed by their SHA-1 hash. Immutable once written. The entire history of the repository lives here.'
+            },
+            'objects-loose': {
+                title: '.git/objects/{2-char}/   (loose objects)',
+                desc: 'Newly created objects are stored as individual files. The directory name is the first 2 hex chars of the SHA-1, the filename is the remaining 38 chars. This "sharded" layout avoids putting too many files in one directory. After <code>git gc</code>, most loose objects are moved into packfiles.'
+            },
+            'objects-pack': {
+                title: '.git/objects/pack/',
+                desc: 'Contains packfiles (<code>.pack</code>) and their corresponding index files (<code>.idx</code>). A packfile bundles many objects together and stores similar ones as deltas, dramatically reducing disk usage. The <code>.idx</code> maps SHA-1 hashes to byte offsets for fast random access.'
+            },
+            'refs': {
+                title: '.git/refs/',
+                desc: 'Named pointers into the object database. Every branch and tag is just a text file containing a 40-char SHA-1. The directory structure mirrors the ref namespace: <code>heads/</code> for branches, <code>tags/</code> for tags, <code>remotes/</code> for remote-tracking refs.'
+            },
+            'refs-heads': {
+                title: '.git/refs/heads/',
+                desc: 'One file per local branch. The filename is the branch name (supports slashes for namespaced branches like <code>feature/login</code>). Creating a branch creates a file here. Deleting a branch deletes the file. Each file contains exactly one 40-char commit SHA.'
+            },
+            'refs-tags': {
+                title: '.git/refs/tags/',
+                desc: 'One file per tag. Lightweight tags point directly to commit SHAs. Annotated tags point to a tag object SHA (which itself contains the tagger, message, and a pointer to the commit). After <code>git gc</code>, these files are consolidated into <code>packed-refs</code>.'
+            },
+            'refs-remotes': {
+                title: '.git/refs/remotes/',
+                desc: 'Remote-tracking branches, one subdirectory per remote. Updated when you run <code>git fetch</code> or <code>git pull</code>. These are read-only references from your perspective &mdash; they reflect the state of the remote\'s branches the last time you communicated with it.'
+            }
+        };
+
+        // Show file detail on tree click
+        function showFile(key) {
+            var detail = fileDetails[key];
+            if (!detail) return;
+            var el = document.getElementById('fileDetail');
+            el.innerHTML = '<div class="file-detail-title">' + detail.title + '</div><p>' + detail.desc + '</p>';
+        }
+
+        // Copy code button
+        function copyCode(btn) {
+            var code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(function() {
+                btn.textContent = 'Copied!';
+                setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            try {
+                var progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-36'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-36-repo-anatomy', { returnToDashboard: false });
+            }
+
+            var btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Check if already completed on load
+        try {
+            var p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-36']) {
+                var btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

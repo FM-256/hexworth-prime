@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Undoing Things — Reset, Revert, Restore - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-branch.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+        .code-block .warn { color: #f59e0b; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: middle; }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+        .compare .yes { color: var(--forge); font-weight: 700; }
+        .compare .no { color: var(--text-dim); }
+        .compare .danger { color: var(--red); font-weight: 700; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card-head .tag-warn { background: rgba(245,158,11,0.12); color: var(--orange); }
+        .cmd-card-head .tag-danger { background: rgba(239,68,68,0.12); color: var(--red); }
+        .cmd-card-head .tag-safe { background: rgba(59,130,246,0.12); color: var(--blue); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Three-trees visual */
+        .trees-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+        .tree-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 16px; text-align: center; transition: all 0.25s; cursor: pointer; }
+        .tree-node:hover, .tree-node.lit { border-color: var(--forge); box-shadow: 0 0 18px var(--forge-glow); }
+        .tree-node-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 6px; }
+        .tree-node-name { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+        .tree-node-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+        /* Reset mode matrix */
+        .reset-matrix { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+        .reset-matrix th { padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); text-align: center; }
+        .reset-matrix th:first-child { text-align: left; }
+        .reset-matrix td { padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: center; color: var(--text-dim); }
+        .reset-matrix td:first-child { text-align: left; color: #79c0ff; font-family: 'Cascadia Code', monospace; font-size: 12px; font-weight: 700; }
+        .cell-yes { color: var(--forge); font-weight: 700; }
+        .cell-no { color: rgba(255,255,255,0.2); }
+        .cell-danger { color: var(--red); font-weight: 700; }
+
+        /* Status flow */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 110px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+            .trees-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-41</span>
+            <h1>Undoing Things &mdash; Reset, Revert, Restore</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Git Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-branch.webp" alt="">
+            <h2>Undoing Things &mdash; Reset, Revert, Restore</h2>
+            <p class="hero-sub">Git's undo toolkit is powerful but unforgiving. Learn exactly which tool reaches into which layer of Git's three-tree model &mdash; and when each is safe to use.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~40 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-branch.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Map the undo landscape: when to reach for amend, restore, reset, or revert</li>
+                <li>Amend the last commit to fix messages or add forgotten files</li>
+                <li>Unstage files with <code>git restore --staged</code> and the legacy <code>git reset HEAD</code></li>
+                <li>Discard working-directory changes safely with <code>git restore</code></li>
+                <li>Explain Git's three-tree model: HEAD, Index, and Working Directory</li>
+                <li>Apply <code>--soft</code>, <code>--mixed</code>, and <code>--hard</code> reset modes deliberately</li>
+                <li>Use <code>git revert</code> to undo shared history without rewriting it</li>
+                <li>Recover "lost" commits using <code>git reflog</code></li>
+                <li>Squash messy commits with a soft reset and a fresh commit</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: The Undo Landscape -->
+        <div class="section">
+            <h3>1. The Undo Landscape</h3>
+            <p>Git gives you multiple ways to undo changes, but each tool operates at a different level and carries different risk. The critical question before reaching for any undo command is: <strong>where does the change live?</strong> In the working directory, in the staging area (index), or already committed?</p>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Before You Undo Anything</div>
+                <p>Git can almost always recover committed work. But if you discard <em>uncommitted</em> changes with <code>--hard</code> or <code>git restore</code>, those changes are gone permanently. The safety net only exists once something has been committed.</p>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Situation</th>
+                    <th>Modern Command</th>
+                    <th>Legacy Alternative</th>
+                    <th>Risk</th>
+                </tr>
+                <tr>
+                    <td>Fix last commit message or add a file</td>
+                    <td><code>git commit --amend</code></td>
+                    <td>&mdash;</td>
+                    <td>Low (local only)</td>
+                </tr>
+                <tr>
+                    <td>Unstage a staged file</td>
+                    <td><code>git restore --staged &lt;file&gt;</code></td>
+                    <td><code>git reset HEAD &lt;file&gt;</code></td>
+                    <td>None</td>
+                </tr>
+                <tr>
+                    <td>Discard working-directory changes</td>
+                    <td><code>git restore &lt;file&gt;</code></td>
+                    <td><code>git checkout -- &lt;file&gt;</code></td>
+                    <td>High (data loss)</td>
+                </tr>
+                <tr>
+                    <td>Undo commits (local, private branch)</td>
+                    <td><code>git reset --soft / --mixed / --hard</code></td>
+                    <td>&mdash;</td>
+                    <td>Medium to High</td>
+                </tr>
+                <tr>
+                    <td>Undo commits (shared / public branch)</td>
+                    <td><code>git revert &lt;commit&gt;</code></td>
+                    <td>&mdash;</td>
+                    <td>None (additive)</td>
+                </tr>
+                <tr>
+                    <td>Recover "lost" commits after reset</td>
+                    <td><code>git reflog</code></td>
+                    <td>&mdash;</td>
+                    <td>None (read-only)</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Section 2: Amending Commits -->
+        <div class="section">
+            <h3>2. Amending Commits</h3>
+            <p>The most common undo: you committed too early, forgot to include a file, or your commit message has a typo. <code>git commit --amend</code> replaces the last commit entirely with a new, improved one. The old commit is pushed aside and no longer appears in the history.</p>
+
+            <h4>Fixing the Commit Message</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Opens editor pre-filled with last commit message — just edit and save</span>
+<span class="cmd">$</span> git commit <span class="flag">--amend</span></code></pre>
+            </div>
+
+            <h4>Adding a Forgotten File</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Oops — forgot to include config.json in the last commit</span>
+<span class="cmd">$</span> git commit <span class="flag">-m</span> <span class="str">"Add authentication module"</span>
+<span class="cmd">$</span> git add config.json
+<span class="cmd">$</span> git commit <span class="flag">--amend</span> <span class="flag">--no-edit</span>
+<span class="comment"># --no-edit keeps the existing message without opening an editor</span>
+<span class="output">[main 7b3d1e2] Add authentication module
+ 2 files changed, 51 insertions(+), 3 deletions(-)</span></code></pre>
+            </div>
+
+            <p>The result looks like a single clean commit. To an observer, it's as if the mistake never happened. The original commit's SHA-1 is gone and replaced with a new hash reflecting the amended content.</p>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Never Amend Pushed Commits</div>
+                <p>Amending rewrites history by creating a brand new commit object. If you've already pushed the commit to a shared remote, amending will force your local branch out of sync. Pushing it requires <code>--force</code>, which overwrites your collaborators' history. Only amend commits that are still local.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Unstaging Files -->
+        <div class="section">
+            <h3>3. Unstaging Files</h3>
+            <p>You ran <code>git add *</code> and accidentally staged a file you didn't intend to include. Both the legacy and modern commands produce the same result &mdash; the file stays modified in your working directory but is removed from the staging area.</p>
+
+            <h4>Modern Approach (Git 2.23+)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git add *
+<span class="cmd">$</span> git status
+<span class="output">On branch master
+Changes to be committed:
+  (use "git restore --staged &lt;file&gt;..." to unstage)
+    modified:   CONTRIBUTING.md
+    renamed:    README.md -&gt; README</span>
+
+<span class="comment"># Unstage CONTRIBUTING.md but keep the changes in working dir</span>
+<span class="cmd">$</span> git restore <span class="flag">--staged</span> CONTRIBUTING.md
+<span class="cmd">$</span> git status
+<span class="output">Changes to be committed:
+    renamed:    README.md -&gt; README
+
+Changes not staged for commit:
+    modified:   CONTRIBUTING.md</span></code></pre>
+            </div>
+
+            <h4>Legacy Approach (All Git Versions)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Equivalent using git reset — the file in your working directory is not touched</span>
+<span class="cmd">$</span> git reset HEAD CONTRIBUTING.md
+<span class="output">Unstaged changes after reset:
+M   CONTRIBUTING.md</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Safe Operation</div>
+                <p>Unstaging a file does not discard your edits. The file remains modified in your working directory exactly as you left it. Only the staging area is updated.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Discarding Working-Directory Changes -->
+        <div class="section">
+            <h3>4. Discarding Working-Directory Changes</h3>
+            <p>You've made edits to a file and want to throw them away entirely, reverting to the version from the last commit (or the version that was last staged). This is a destructive operation &mdash; your local edits will be gone.</p>
+
+            <h4>Modern Approach (Git 2.23+)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git restore CONTRIBUTING.md
+<span class="comment"># File is now reverted to last committed state — edits are gone</span></code></pre>
+            </div>
+
+            <h4>Legacy Approach</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git checkout <span class="flag">--</span> CONTRIBUTING.md
+<span class="comment"># Same result — reverts file to last staged or committed version</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Data Loss Warning</div>
+                <p>Both <code>git restore &lt;file&gt;</code> and <code>git checkout -- &lt;file&gt;</code> immediately overwrite your working-directory file. There is no undo. If you're unsure, use <code>git stash</code> first to preserve your changes temporarily.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: The Three Trees -->
+        <div class="section">
+            <h3>5. The Three Trees &mdash; Git's Mental Model</h3>
+            <p>To truly understand <code>git reset</code>, you need to understand how Git manages three distinct "trees" (collections of files) at all times. Every major Git operation is really just manipulating one or more of these trees in a predictable order.</p>
+
+            <div class="trees-grid" id="treesGrid">
+                <div class="tree-node" onclick="showTree('head')" id="tree-head">
+                    <div class="tree-node-label">Tree 1</div>
+                    <div class="tree-node-name">HEAD</div>
+                    <div class="tree-node-desc">Last commit snapshot. Parent of the next commit. Points to the tip of the current branch.</div>
+                </div>
+                <div class="tree-node" onclick="showTree('index')" id="tree-index">
+                    <div class="tree-node-label">Tree 2</div>
+                    <div class="tree-node-name">Index</div>
+                    <div class="tree-node-desc">The staging area. Your proposed next commit. What Git looks at when you run <code>git commit</code>.</div>
+                </div>
+                <div class="tree-node" onclick="showTree('workdir')" id="tree-workdir">
+                    <div class="tree-node-label">Tree 3</div>
+                    <div class="tree-node-name">Working Dir</div>
+                    <div class="tree-node-desc">Your sandbox. Actual files on disk. Edit freely before staging and committing.</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="treeDetail">Click a tree above to explore what it contains and how it fits into the Git workflow.</div>
+
+            <h4>How the Trees Work Together</h4>
+            <p>The typical Git workflow is simply moving content through these three trees in sequence:</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Edit</span>
+                    <span>You modify files &mdash; changes exist in the <strong>Working Directory</strong> only. HEAD and Index are unchanged.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">git add</span>
+                    <span>Copies content from Working Directory into the <strong>Index</strong>. HEAD is still unchanged.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">git commit</span>
+                    <span>Takes the Index snapshot, stores it permanently, and moves <strong>HEAD</strong> forward. All three trees now match.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">When All Three Match</div>
+                <p>If HEAD, Index, and Working Directory all contain the same content, <code>git status</code> reports "nothing to commit, working tree clean." Any divergence between trees is what Git reports as a diff or a change.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Reset Modes -->
+        <div class="section">
+            <h3>6. Reset Modes &mdash; Soft, Mixed, Hard</h3>
+            <p><code>git reset</code> is a tool that walks backwards through Git's three trees, stopping at whichever layer you specify. Every reset starts by moving HEAD (and the branch it points to) backward to a target commit. The flag controls how far it continues from there.</p>
+
+            <h4>The Reset Mode Matrix</h4>
+            <table class="reset-matrix">
+                <tr>
+                    <th>Mode</th>
+                    <th>Moves HEAD</th>
+                    <th>Resets Index</th>
+                    <th>Resets Working Dir</th>
+                    <th>Use Case</th>
+                </tr>
+                <tr>
+                    <td>--soft</td>
+                    <td class="cell-yes">Yes</td>
+                    <td class="cell-no">No</td>
+                    <td class="cell-no">No</td>
+                    <td style="text-align: left; color: var(--text-dim); font-size: 12px;">Undo commit, keep everything staged</td>
+                </tr>
+                <tr>
+                    <td>--mixed (default)</td>
+                    <td class="cell-yes">Yes</td>
+                    <td class="cell-yes">Yes</td>
+                    <td class="cell-no">No</td>
+                    <td style="text-align: left; color: var(--text-dim); font-size: 12px;">Undo commit + unstage, keep file edits</td>
+                </tr>
+                <tr>
+                    <td>--hard</td>
+                    <td class="cell-yes">Yes</td>
+                    <td class="cell-yes">Yes</td>
+                    <td class="cell-danger">Yes</td>
+                    <td style="text-align: left; color: var(--text-dim); font-size: 12px;">Nuke everything, restore to that commit</td>
+                </tr>
+            </table>
+
+            <h4>--soft: Move HEAD Only</h4>
+            <p>The gentlest reset. HEAD moves to the target commit, but Index and Working Directory stay exactly as they were. Your changes remain staged, ready for a new commit.</p>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Undo the last commit but keep all changes staged</span>
+<span class="cmd">$</span> git reset <span class="flag">--soft</span> HEAD~1
+<span class="output">$ git status
+Changes to be committed:
+    modified:   auth.js</span>
+<span class="comment"># Changes are still staged — re-commit when ready</span></code></pre>
+            </div>
+
+            <h4>--mixed: Reset HEAD + Index (Default)</h4>
+            <p>The default when you omit the flag. HEAD moves back AND the Index is reset to match the new HEAD. Your file edits are preserved in the working directory, but they're no longer staged.</p>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Equivalent: git reset HEAD~1 and git reset --mixed HEAD~1</span>
+<span class="cmd">$</span> git reset HEAD~1
+<span class="output">Unstaged changes after reset:
+M   auth.js</span>
+<span class="comment"># File edits exist in working dir, but you need to re-stage before committing</span></code></pre>
+            </div>
+
+            <h4>--hard: Full Wipe</h4>
+            <p>All three trees are reset to the target commit. Uncommitted file edits in your working directory are permanently destroyed. This is the one mode where data can truly be lost.</p>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Discard the last commit AND all working directory changes — no recovery without reflog</span>
+<span class="cmd">$</span> git reset <span class="flag">--hard</span> HEAD~1
+<span class="output">HEAD is now at 4a1b2c3 Previous commit message</span>
+
+<span class="comment"># Go back to a specific commit SHA</span>
+<span class="cmd">$</span> git reset <span class="flag">--hard</span> 9e5e6a4</code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">git reset --hard is Irreversible for Uncommitted Work</div>
+                <p><code>--hard</code> is the only reset mode that can genuinely destroy data. Committed work can usually be recovered via <code>git reflog</code> within Git's 90-day expiration window. But if changes were never committed, <code>--hard</code> overwrites them on disk and they are gone. Always confirm you have nothing uncommitted before using <code>--hard</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Reset vs Checkout -->
+        <div class="section">
+            <h3>7. Reset vs Checkout</h3>
+            <p>Both <code>git reset</code> and <code>git checkout</code> manipulate the three trees, but there is one critical difference in how they move HEAD that determines which is safe to use in which context.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reset [commit]</code> <span class="tag tag-warn">MOVES BRANCH</span></div>
+                    <p>Moves the <strong>branch that HEAD points to</strong>. HEAD stays attached to the branch. The branch ref changes, pulling HEAD along with it.</p>
+                    <div class="example">git reset --hard origin/main<br><span style="color:#8b949e"># branch pointer moves, HEAD follows</span></div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git checkout [branch]</code> <span class="tag tag-safe">MOVES HEAD</span></div>
+                    <p>Moves <strong>HEAD itself</strong> to point to another branch. The branch you were on stays where it was. Also working-directory safe &mdash; it checks for unsaved changes first.</p>
+                    <div class="example">git checkout main<br><span style="color:#8b949e"># HEAD detaches from old branch, attaches to main</span></div>
+                </div>
+            </div>
+
+            <p>For example, if you have branches <code>master</code> and <code>develop</code>, and HEAD points to <code>develop</code>:</p>
+            <ul style="padding-left: 20px; font-size: 14px; color: var(--text-dim); margin-bottom: 14px;">
+                <li style="padding: 4px 0;"><code style="color:#79c0ff">git reset master</code> &mdash; moves <code>develop</code> to point at the same commit as <code>master</code>. HEAD still points to <code>develop</code>.</li>
+                <li style="padding: 4px 0;"><code style="color:#79c0ff">git checkout master</code> &mdash; <code>develop</code> does not move. HEAD detaches from <code>develop</code> and now points to <code>master</code>.</li>
+            </ul>
+
+            <table class="compare">
+                <tr>
+                    <th>Behavior</th>
+                    <th>git reset --hard</th>
+                    <th>git checkout</th>
+                </tr>
+                <tr>
+                    <td>What moves?</td>
+                    <td>The branch pointer (HEAD follows)</td>
+                    <td>HEAD itself</td>
+                </tr>
+                <tr>
+                    <td>Working-dir safe?</td>
+                    <td class="danger">No &mdash; overwrites without checking</td>
+                    <td class="yes">Yes &mdash; tries trivial merge first</td>
+                </tr>
+                <tr>
+                    <td>Use when?</td>
+                    <td>Rewinding local branch history</td>
+                    <td>Switching branches or detaching HEAD</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Section 8: git revert -->
+        <div class="section">
+            <h3>8. git revert &mdash; Safe History Undo</h3>
+            <p><code>git revert</code> does not rewrite history. Instead it creates a <strong>new commit</strong> that applies the inverse of a previous commit &mdash; whatever was added gets removed, whatever was removed gets added back. The original bad commit remains in history. This is the correct tool for undoing changes on a shared branch.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># View recent history to find the commit to undo</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span>
+<span class="output">a1b2c3d (HEAD) Deploy broken API endpoint
+9e5e6a4 Add payment processing
+4f7d8e1 Update README</span>
+
+<span class="comment"># Revert the broken deploy commit — creates a new "undo" commit</span>
+<span class="cmd">$</span> git revert a1b2c3d
+<span class="output">[main b4c5d6e] Revert "Deploy broken API endpoint"
+ 1 file changed, 12 deletions(-)</span>
+
+<span class="comment"># History now shows both — the mistake AND the fix are visible</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span>
+<span class="output">b4c5d6e (HEAD) Revert "Deploy broken API endpoint"
+a1b2c3d Deploy broken API endpoint
+9e5e6a4 Add payment processing</span></code></pre>
+            </div>
+
+            <h4>Reverting Without Opening the Editor</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Use --no-edit to accept the auto-generated commit message</span>
+<span class="cmd">$</span> git revert HEAD <span class="flag">--no-edit</span>
+
+<span class="comment"># Revert multiple commits in range (oldest first)</span>
+<span class="cmd">$</span> git revert HEAD~3..HEAD <span class="flag">--no-edit</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Revert is the Right Choice for Shared Branches</div>
+                <p>On <code>main</code> or any branch others are working from, never use <code>git reset</code> to undo. It rewrites history and breaks everyone else's clone. <code>git revert</code> adds to history rather than removing from it, making it safe to push to a shared remote.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Reset vs Revert Comparison -->
+        <div class="section">
+            <h3>9. Reset vs Revert &mdash; The Key Distinction</h3>
+            <p>The fundamental difference: <code>git reset</code> <em>destroys</em> history (rewrites the past), while <code>git revert</code> <em>extends</em> history (adds an undo commit). This distinction determines exactly when each is appropriate.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Dimension</th>
+                    <th>git reset</th>
+                    <th>git revert</th>
+                </tr>
+                <tr>
+                    <td>History effect</td>
+                    <td>Rewrites &mdash; commits disappear from log</td>
+                    <td>Additive &mdash; undo is a new commit in log</td>
+                </tr>
+                <tr>
+                    <td>Safe for shared branches?</td>
+                    <td class="danger">No &mdash; breaks collaborators' history</td>
+                    <td class="yes">Yes &mdash; always safe to push</td>
+                </tr>
+                <tr>
+                    <td>Safe for local-only branches?</td>
+                    <td class="yes">Yes &mdash; ideal before pushing</td>
+                    <td class="yes">Yes &mdash; works here too, but leaves messier log</td>
+                </tr>
+                <tr>
+                    <td>Can undo multiple commits?</td>
+                    <td class="yes">Yes &mdash; <code>git reset HEAD~3</code></td>
+                    <td class="yes">Yes &mdash; one revert commit per original commit</td>
+                </tr>
+                <tr>
+                    <td>Working dir risk?</td>
+                    <td class="danger">High with <code>--hard</code></td>
+                    <td class="yes">None &mdash; working dir is safe</td>
+                </tr>
+                <tr>
+                    <td>Recoverable?</td>
+                    <td>Via reflog (90-day window)</td>
+                    <td class="yes">Always &mdash; just revert the revert</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">The Golden Rule</div>
+                <p>If a commit has been pushed to a remote that others use: <strong>always revert, never reset</strong>. If the commit is still local: use whichever best fits your intent.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Recovering from Reset with Reflog -->
+        <div class="section">
+            <h3>10. Recovering from Reset &mdash; git reflog</h3>
+            <p>Even after a <code>--hard</code> reset, commits are not immediately deleted from Git's object database. Git keeps a <strong>reflog</strong> &mdash; a local log of every position HEAD has pointed to &mdash; for 90 days by default. This is your safety net.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Oops — accidentally wiped commits with --hard</span>
+<span class="cmd">$</span> git reset <span class="flag">--hard</span> HEAD~3
+<span class="output">HEAD is now at 4f7d8e1 Update README</span>
+
+<span class="comment"># Inspect the reflog to find where HEAD was before the reset</span>
+<span class="cmd">$</span> git reflog
+<span class="output">4f7d8e1 HEAD@{0}: reset: moving to HEAD~3
+a1b2c3d HEAD@{1}: commit: Deploy broken API endpoint
+9e5e6a4 HEAD@{2}: commit: Add payment processing
+7e3f1d0 HEAD@{3}: commit: Fix validation logic</span>
+
+<span class="comment"># Recover by resetting back to where HEAD was before the mistake</span>
+<span class="cmd">$</span> git reset <span class="flag">--hard</span> HEAD@{1}
+<span class="output">HEAD is now at a1b2c3d Deploy broken API endpoint</span>
+
+<span class="comment"># Or create a new branch pointing at the recovered commit</span>
+<span class="cmd">$</span> git checkout <span class="flag">-b</span> recovery-branch a1b2c3d</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Reflog is Local Only</div>
+                <p>The reflog only exists on your machine. It is not pushed to remotes. If you've cloned a fresh copy or the 90-day window has expired, the commits may be garbage-collected and truly gone. Commit early and often to ensure work is in the log before doing destructive resets.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Path-Level Reset -->
+        <div class="section">
+            <h3>11. Path-Level Reset</h3>
+            <p>When you provide a file path to <code>git reset</code>, it skips Step 1 (moving HEAD) entirely and only updates the Index for that specific file. This is essentially the opposite of <code>git add</code> &mdash; it copies the file from HEAD back into the staging area without touching the working directory.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Unstage a specific file (copies HEAD version into Index)</span>
+<span class="cmd">$</span> git reset HEAD auth.js
+<span class="comment"># Equivalent to: git reset --mixed HEAD auth.js</span>
+
+<span class="comment"># Pull a specific version of a file from an older commit into the Index</span>
+<span class="comment"># (without touching your working directory)</span>
+<span class="cmd">$</span> git reset eb43bf <span class="flag">--</span> config.json
+<span class="comment"># Next git commit will record config.json as it was at eb43bf</span>
+<span class="comment"># Your working copy of config.json is unchanged</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">What This Enables</div>
+                <p>Pulling a specific file version from an old commit into the Index (without changing the working directory) lets you selectively revert one file in your <em>next</em> commit, while leaving all other work untouched and keeping your working copy as-is.</p>
+            </div>
+
+            <h4>Quick Reference: Path-Level Commands</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reset HEAD &lt;file&gt;</code> <span class="tag">UNSTAGE</span></div>
+                    <p>Copies file from HEAD into Index. Working dir untouched. Equivalent to modern <code>git restore --staged</code>.</p>
+                    <div class="example">$ git reset HEAD package.json</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reset &lt;sha&gt; -- &lt;file&gt;</code> <span class="tag">REVERT FILE</span></div>
+                    <p>Copies file from a specific commit into Index only. Working dir stays at current version.</p>
+                    <div class="example">$ git reset a1b2c3d -- config.js</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git restore --staged &lt;file&gt;</code> <span class="tag">MODERN</span></div>
+                    <p>The modern equivalent of <code>git reset HEAD &lt;file&gt;</code>. Preferred in Git 2.23+.</p>
+                    <div class="example">$ git restore --staged package.json</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git checkout -- &lt;file&gt;</code> <span class="tag tag-warn">LEGACY</span></div>
+                    <p>Updates both Index AND Working Directory from HEAD. Working dir version is overwritten.</p>
+                    <div class="example">$ git checkout -- config.js</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 12: Squashing with Reset -->
+        <div class="section">
+            <h3>12. Squashing Commits with Soft Reset</h3>
+            <p>One of the most practical uses of <code>--soft</code> reset: you have a chain of messy "WIP" or "oops" commits and want to combine them into a single clean commit before pushing. Soft reset rewinds HEAD while leaving all the accumulated changes staged and ready.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># View the messy commit history you want to clean up</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span>
+<span class="output">f1e2d3c (HEAD) forgot to save file lol
+a4b5c6d WIP
+9e5e6a4 WIP
+7a8b9c0 Add user authentication module</span>
+
+<span class="comment"># Soft reset HEAD back 3 commits — all changes stay staged</span>
+<span class="cmd">$</span> git reset <span class="flag">--soft</span> HEAD~3
+
+<span class="comment"># All three commits' changes are now staged as one batch</span>
+<span class="cmd">$</span> git status
+<span class="output">Changes to be committed:
+    modified:   auth.js
+    modified:   auth.test.js
+    new file:   auth.config.json</span>
+
+<span class="comment"># Commit everything as one clean, professional commit</span>
+<span class="cmd">$</span> git commit <span class="flag">-m</span> <span class="str">"Add user authentication module with tests and config"</span>
+<span class="output">[main 3d4e5f6] Add user authentication module with tests and config
+ 3 files changed, 89 insertions(+)</span>
+
+<span class="comment"># Clean linear history — ready to push</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span>
+<span class="output">3d4e5f6 (HEAD) Add user authentication module with tests and config
+7a8b9c0 Add user authentication module</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Squash Before Push</div>
+                <p>Squashing with soft reset is a pre-push workflow. Once you've pushed commits to a shared remote, squashing requires a force push, which disrupts collaborators. Keep your squashing to local-only work.</p>
+            </div>
+
+            <h4>Complete Command Reference</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git commit --amend</code> <span class="tag">AMEND</span></div>
+                    <p>Replace last commit with a new one. Use to fix message or add forgotten files.</p>
+                    <div class="example">$ git commit --amend --no-edit</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git restore --staged</code> <span class="tag">UNSTAGE</span></div>
+                    <p>Remove file from Index. Working dir changes preserved.</p>
+                    <div class="example">$ git restore --staged auth.js</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git restore &lt;file&gt;</code> <span class="tag tag-warn">DISCARD</span></div>
+                    <p>Discard working-dir changes. Destructive &mdash; cannot be undone.</p>
+                    <div class="example">$ git restore auth.js</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reset --soft</code> <span class="tag">SOFT</span></div>
+                    <p>Move HEAD back. Index and working dir untouched. Ideal for squashing.</p>
+                    <div class="example">$ git reset --soft HEAD~3</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reset --mixed</code> <span class="tag">MIXED</span></div>
+                    <p>Move HEAD back and reset Index. Working dir edits preserved but unstaged.</p>
+                    <div class="example">$ git reset HEAD~1</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reset --hard</code> <span class="tag tag-danger">HARD</span></div>
+                    <p>Move HEAD back, reset Index AND working dir. Data loss risk for uncommitted work.</p>
+                    <div class="example">$ git reset --hard HEAD~1</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git revert</code> <span class="tag tag-safe">SAFE</span></div>
+                    <p>Create new "undo" commit. Does not rewrite history. Safe for shared branches.</p>
+                    <div class="example">$ git revert a1b2c3d</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reflog</code> <span class="tag tag-safe">RECOVER</span></div>
+                    <p>View all positions HEAD has occupied. Lifeline after a mistaken hard reset.</p>
+                    <div class="example">$ git reset --hard HEAD@{2}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Three-trees interactive diagram
+        const treeInfo = {
+            head: {
+                title: 'HEAD — Last Commit Snapshot',
+                desc: 'HEAD is a pointer to the current branch reference, which in turn points to the last commit on that branch. It represents your "last known good state." When you run git commit, HEAD advances to the new commit. When you run git reset, HEAD (and its branch) moves backward. Think of HEAD as the snapshot of your last commit.'
+            },
+            index: {
+                title: 'Index — The Staging Area (Proposed Next Commit)',
+                desc: 'The Index holds what will go into your next commit. When you run git add, you are copying file content from the Working Directory into the Index. When you run git commit, Git takes everything in the Index and bakes it into a new commit object. The Index is the intermediary between your edits and your history.'
+            },
+            workdir: {
+                title: 'Working Directory — Your Sandbox',
+                desc: 'The Working Directory is the set of actual files on disk that you edit. Unlike HEAD and the Index (which are stored efficiently inside .git), the Working Directory unpacks content into real files you can open and modify. Changes here are invisible to Git until you git add them to the Index. Think of it as your personal scratch pad.'
+            }
+        };
+
+        function showTree(id) {
+            document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('lit'));
+            document.getElementById('tree-' + id).classList.add('lit');
+            const info = treeInfo[id];
+            document.getElementById('treeDetail').innerHTML =
+                '<strong style="color:#fff">' + info.title + '</strong><br><br>' + info.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Write to forge progress key
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-41'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-41-undoing-things', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-highlight first tree on load
+        showTree('head');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-41']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

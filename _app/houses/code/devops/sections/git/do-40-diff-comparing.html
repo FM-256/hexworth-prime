@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diff &amp; Comparing Changes - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-branch.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+        /* Diff output color tokens */
+        .code-block .diff-add { color: #7ee787; }
+        .code-block .diff-del { color: #ff7b72; }
+        .code-block .diff-hunk { color: #d2a8ff; }
+        .code-block .diff-head { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Format spec table — used for --pretty=format specifiers */
+        .spec-grid { display: grid; grid-template-columns: auto 1fr; gap: 0; margin: 14px 0 18px; font-size: 13px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .spec-grid .spec-row { display: contents; }
+        .spec-grid .spec-key { padding: 8px 14px; background: rgba(0,0,0,0.3); font-family: 'Cascadia Code', monospace; color: #d2a8ff; font-size: 12px; border-bottom: 1px solid var(--border); }
+        .spec-grid .spec-val { padding: 8px 14px; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+        .spec-grid .spec-key:last-of-type,
+        .spec-grid .spec-val:last-of-type { border-bottom: none; }
+
+        /* Three-dot vs two-dot diagram */
+        .dot-diagram { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+        .dot-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .dot-box-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 6px; font-family: 'Cascadia Code', monospace; }
+        .dot-box p { font-size: 12px; color: var(--text-dim); margin: 0; }
+        .dot-box .dot-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px; }
+        .two-dot .dot-label { color: var(--blue); }
+        .three-dot .dot-label { color: var(--purple); }
+        .two-dot { border-color: rgba(59,130,246,0.25); }
+        .three-dot { border-color: rgba(139,92,246,0.25); }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .cmd-grid { grid-template-columns: 1fr; }
+            .dot-diagram { grid-template-columns: 1fr; }
+            .spec-grid { grid-template-columns: 1fr; }
+            .spec-grid .spec-key { border-bottom: none; padding-bottom: 2px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-40</span>
+            <h1>Diff &amp; Comparing Changes</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Git Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-branch.webp" alt="">
+            <h2>Diff &amp; Comparing Changes</h2>
+            <p class="hero-sub">Master git log, git diff, git grep, and git blame &mdash; the four forensic tools that let you read any codebase's history like a timeline.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-branch.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Read and filter commit history with <code>git log</code> and its formatting flags</li>
+                <li>Build custom log output with <code>--pretty=format</code> specifiers</li>
+                <li>Filter commits by author, date, message, and file path</li>
+                <li>Distinguish unstaged vs. staged diffs and compare across commits and branches</li>
+                <li>Interpret two-dot vs. three-dot diff ranges for branch comparisons</li>
+                <li>Use <code>--stat</code>, <code>--word-diff</code>, and summary flags for efficient review</li>
+                <li>Search code with <code>git grep</code> and history with <code>-S</code>, <code>-G</code>, and <code>git blame</code></li>
+            </ul>
+        </div>
+
+        <!-- ============================================================
+             SECTION 1: git log — Basic History
+             ============================================================ -->
+        <div class="section">
+            <h3>git log &mdash; Reading History</h3>
+            <p>The most powerful forensics tool in Git. By default <code>git log</code> lists all commits in reverse-chronological order, showing the SHA-1 checksum, author, date, and message for each entry. You will use it constantly &mdash; the trick is knowing its flags.</p>
+
+            <h4>Basic Log</h4>
+            <p>With no arguments, <code>git log</code> dumps the full commit log. Each entry shows the 40-character SHA-1, author, date, and full message.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git log
+<span class="output">commit ca82a6dff817ec66f44342007202690a93763949
+Author: Scott Chacon &lt;schacon@gee-mail.com&gt;
+Date:   Mon Mar 17 21:52:11 2008 -0700
+
+    Change version number
+
+commit 085bb3bcb608e1e8451d4b2432f8ecbe6306e7e7
+Author: Scott Chacon &lt;schacon@gee-mail.com&gt;
+Date:   Sat Mar 15 16:40:33 2008 -0700
+
+    Remove unnecessary test
+
+commit a11bef06a3f659402fe7563abf99ad00de2209e6
+Author: Scott Chacon &lt;schacon@gee-mail.com&gt;
+Date:   Sat Mar 15 10:31:28 2008 -0700
+
+    Initial commit</span></code></pre>
+            </div>
+
+            <p>The <code>-p</code> (or <code>--patch</code>) flag appends the full diff to each entry &mdash; invaluable for a quick code-review sweep. Add <code>-2</code> to cap the output at the last two commits:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git log <span class="flag">-p</span> <span class="flag">-2</span>
+<span class="output">commit ca82a6dff817ec66f44342007202690a93763949
+Author: Scott Chacon &lt;schacon@gee-mail.com&gt;
+Date:   Mon Mar 17 21:52:11 2008 -0700
+
+    Change version number
+
+</span><span class="diff-head">diff --git a/Rakefile b/Rakefile
+index a874b73..8f94139 100644
+--- a/Rakefile
++++ b/Rakefile</span>
+<span class="diff-hunk">@@ -5,7 +5,7 @@ require 'rake/gempackagetask'</span>
+ spec = Gem::Specification.new do |s|
+     s.name      =   <span class="str">"simplegit"</span>
+<span class="diff-del">-    s.version   =   "0.1.0"</span>
+<span class="diff-add">+    s.version   =   "0.1.1"</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p><code>-p</code> is your fastest path to "what exactly changed in this commit?" Use it liberally. Combine with <code>-1</code> to inspect a single commit's full patch.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 2: Log Formatting
+             ============================================================ -->
+        <div class="section">
+            <h3>Log Formatting</h3>
+            <p>The default log format is verbose. These flags compress it down to what you actually need when scanning history.</p>
+
+            <h4>--oneline, --graph, --all, --decorate</h4>
+            <p><code>--oneline</code> is shorthand for <code>--pretty=oneline --abbrev-commit</code>. Each commit becomes a single line. Add <code>--graph</code> for an ASCII branch diagram and <code>--all</code> to show every branch and tag, not just the current one.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Compact single-line output</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span>
+<span class="output">ca82a6d Change version number
+085bb3b Remove unnecessary test
+a11bef0 Initial commit</span>
+
+<span class="comment"># Full branch graph across all refs</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span> <span class="flag">--graph</span> <span class="flag">--all</span> <span class="flag">--decorate</span>
+<span class="output">* 2d3acf9 (HEAD -&gt; main) Ignore errors from SIGCHLD on trap
+*   5e3ee11 Merge branch 'feature/auth'
+|\
+| * 420eac9 (feature/auth) Add method for getting current branch
+* | 30e367c Timeout code and tests
+* | 5a09431 Add timeout protection
+|/
+* d6016bc Require time for xmlschema</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Daily Driver</div>
+                <p>Most engineers alias <code>git log --oneline --graph --all --decorate</code> to something short like <code>git lg</code>. It gives you the full topology of the repo at a glance.</p>
+            </div>
+
+            <h4>Custom Format &mdash; --pretty=format</h4>
+            <p>The <code>format</code> value lets you define exactly what each line shows. Unlike the built-in presets, custom format output is stable across Git versions, making it safe for scripts and automation.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Short hash + author + relative date + subject</span>
+<span class="cmd">$</span> git log <span class="flag">--pretty=format:</span><span class="str">"%h - %an, %ar : %s"</span>
+<span class="output">ca82a6d - Scott Chacon, 6 years ago : Change version number
+085bb3b - Scott Chacon, 6 years ago : Remove unnecessary test
+a11bef0 - Scott Chacon, 6 years ago : Initial commit</span>
+
+<span class="comment"># Combine with --graph for a visual timeline</span>
+<span class="cmd">$</span> git log <span class="flag">--pretty=format:</span><span class="str">"%h %s"</span> <span class="flag">--graph</span>
+<span class="output">* 2d3acf9 Ignore errors from SIGCHLD on trap
+*   5e3ee11 Merge branch 'master' of github.com:dustin/grit
+|\
+| * 420eac9 Add method for getting the current branch
+* | 30e367c Timeout code and tests
+|/
+* d6016bc Require time for xmlschema</span></code></pre>
+            </div>
+
+            <p>The most useful format specifiers:</p>
+
+            <div class="spec-grid">
+                <div class="spec-key">%H</div><div class="spec-val">Full commit hash</div>
+                <div class="spec-key">%h</div><div class="spec-val">Abbreviated commit hash</div>
+                <div class="spec-key">%an</div><div class="spec-val">Author name</div>
+                <div class="spec-key">%ae</div><div class="spec-val">Author email</div>
+                <div class="spec-key">%ar</div><div class="spec-val">Author date, relative (e.g. "3 days ago")</div>
+                <div class="spec-key">%ad</div><div class="spec-val">Author date (respects --date= option)</div>
+                <div class="spec-key">%cn</div><div class="spec-val">Committer name</div>
+                <div class="spec-key">%cr</div><div class="spec-val">Committer date, relative</div>
+                <div class="spec-key">%s</div><div class="spec-val">Subject (first line of commit message)</div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Author vs. Committer</div>
+                <p>The <strong>author</strong> originally wrote the change. The <strong>committer</strong> is who applied it to the repo. These differ when patches are emailed in and applied by a maintainer &mdash; both get credit.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 3: Filtering Log Output
+             ============================================================ -->
+        <div class="section">
+            <h3>Filtering Log Output</h3>
+            <p>The real power of <code>git log</code> is narrowing thousands of commits to exactly the ones you care about. These flags combine freely.</p>
+
+            <h4>By Date, Author, and Message</h4>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Only commits from the last two weeks</span>
+<span class="cmd">$</span> git log <span class="flag">--since=</span><span class="str">2.weeks</span>
+
+<span class="comment"># Accepts natural language and ISO dates</span>
+<span class="cmd">$</span> git log <span class="flag">--since=</span><span class="str">"2024-01-01"</span> <span class="flag">--until=</span><span class="str">"2024-06-30"</span>
+
+<span class="comment"># Filter by author (partial match is fine)</span>
+<span class="cmd">$</span> git log <span class="flag">--author=</span><span class="str">"Chacon"</span> <span class="flag">--oneline</span>
+
+<span class="comment"># Find commits whose message mentions a keyword</span>
+<span class="cmd">$</span> git log <span class="flag">--grep=</span><span class="str">"authentication"</span> <span class="flag">--oneline</span>
+
+<span class="comment"># Combine: all conditions must match</span>
+<span class="cmd">$</span> git log <span class="flag">--author=</span><span class="str">"Alice"</span> <span class="flag">--grep=</span><span class="str">"login"</span> <span class="flag">--all-match</span> <span class="flag">--oneline</span>
+
+<span class="comment"># Exclude noisy merge commits from the view</span>
+<span class="cmd">$</span> git log <span class="flag">--no-merges</span> <span class="flag">--oneline</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">--all-match Required for AND Logic</div>
+                <p>If you pass multiple <code>--grep</code> or multiple <code>--author</code> flags, Git defaults to OR logic (any match). Add <code>--all-match</code> to require every condition to be true for the same commit.</p>
+            </div>
+
+            <h4>Pickaxe &mdash; -S (String Search in Diffs)</h4>
+            <p>The <code>-S</code> flag (colloquially called the "pickaxe") is unique: instead of searching commit messages, it searches the <em>diff content</em>. It finds commits that changed the number of times a string appears &mdash; i.e., when something was introduced or removed from the codebase.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Find the commit that first introduced (or removed) a function</span>
+<span class="cmd">$</span> git log <span class="flag">-S</span> <span class="str">function_name</span> <span class="flag">--oneline</span>
+
+<span class="comment"># Real example: when was ZLIB_BUF_MAX introduced?</span>
+<span class="cmd">$</span> git log <span class="flag">-S</span> <span class="str">ZLIB_BUF_MAX</span> <span class="flag">--oneline</span>
+<span class="output">e01503b zlib: allow feeding more than 4GB in one go
+ef49a7a zlib: zlib can only process 4GB at a time</span></code></pre>
+            </div>
+
+            <h4>Log for a Specific File</h4>
+            <p>Pass a path after <code>--</code> to limit history to commits that touched that file. The double-dash separator prevents Git from confusing a filename with a branch name.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># History of a single file</span>
+<span class="cmd">$</span> git log <span class="flag">--</span> <span class="file">src/auth.js</span>
+
+<span class="comment"># Compact + stats for every change to that file</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span> <span class="flag">--stat</span> <span class="flag">--</span> <span class="file">src/auth.js</span>
+
+<span class="comment"># Full patch for each change to the file</span>
+<span class="cmd">$</span> git log <span class="flag">-p</span> <span class="flag">--</span> <span class="file">src/auth.js</span></code></pre>
+            </div>
+
+            <p>A practical multi-filter example &mdash; find specific test-file commits by one author in a date range:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git log <span class="flag">--pretty=</span><span class="str">"%h - %s"</span> \
+    <span class="flag">--author=</span><span class="str">'Junio C Hamano'</span> \
+    <span class="flag">--since=</span><span class="str">"2008-10-01"</span> \
+    <span class="flag">--before=</span><span class="str">"2008-11-01"</span> \
+    <span class="flag">--no-merges</span> \
+    <span class="flag">--</span> <span class="file">t/</span>
+<span class="output">5610e3b - Fix testcase failure when extended attributes are in use
+acd3b9e - Enhance hold_lock_file_for_{update,append}() API
+f563754 - demonstrate breakage of detached checkout with symbolic link HEAD
+d1a43f2 - reset --hard/read-tree --reset -u: remove unmerged new paths
+51a94af - Fix "checkout --track -b newbranch" on detached HEAD
+b0ad11e - pull: allow "git pull origin $something:$current_branch" into an unborn branch</span></code></pre>
+            </div>
+
+            <p>Here is a reference of the most useful filtering options:</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Flag</th>
+                    <th>What It Filters</th>
+                </tr>
+                <tr><td><code>-n &lt;num&gt;</code></td><td>Show only the last n commits</td></tr>
+                <tr><td><code>--since</code>, <code>--after</code></td><td>Commits after a date</td></tr>
+                <tr><td><code>--until</code>, <code>--before</code></td><td>Commits before a date</td></tr>
+                <tr><td><code>--author</code></td><td>Author name/email matches string</td></tr>
+                <tr><td><code>--committer</code></td><td>Committer name/email matches string</td></tr>
+                <tr><td><code>--grep</code></td><td>Commit message contains string</td></tr>
+                <tr><td><code>-S</code></td><td>Diff adds or removes an occurrence of string (pickaxe)</td></tr>
+                <tr><td><code>-G</code></td><td>Diff matches a regex pattern</td></tr>
+                <tr><td><code>--no-merges</code></td><td>Exclude merge commits</td></tr>
+                <tr><td><code>-- &lt;path&gt;</code></td><td>Only commits touching that file/directory</td></tr>
+            </table>
+        </div>
+
+        <!-- ============================================================
+             SECTION 4: git diff — Unstaged vs Staged
+             ============================================================ -->
+        <div class="section">
+            <h3>git diff &mdash; Inspecting Changes</h3>
+            <p>While <code>git status</code> names the files that changed, <code>git diff</code> shows the exact lines. The key distinction is <em>which two versions you are comparing</em>.</p>
+
+            <h4>Unstaged vs. Staged</h4>
+            <p>This is the most common point of confusion for new Git users. <code>git diff</code> with no arguments compares the working directory against the staging area &mdash; it shows what you have <em>not yet staged</em>. Once you stage a file, it disappears from <code>git diff</code> output and moves to <code>git diff --staged</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Shows changes NOT yet staged (working dir vs index)</span>
+<span class="cmd">$</span> git diff
+
+<span class="comment"># Shows changes STAGED for the next commit (index vs HEAD)</span>
+<span class="cmd">$</span> git diff <span class="flag">--staged</span>
+<span class="comment"># --cached is a synonym for --staged</span>
+<span class="cmd">$</span> git diff <span class="flag">--cached</span>
+
+<span class="comment"># Shows ALL changes since last commit (staged + unstaged)</span>
+<span class="cmd">$</span> git diff HEAD</code></pre>
+            </div>
+
+            <p>A typical diff for a modified file looks like this:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Diff Output</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="diff-head">diff --git a/src/auth.js b/src/auth.js
+index 3b4a1f2..9c8e7d0 100644
+--- a/src/auth.js
++++ b/src/auth.js</span>
+<span class="diff-hunk">@@ -12,7 +12,9 @@ function login(user, pass) {</span>
+   const hash = sha256(pass);
+<span class="diff-del">-  if (hash === stored) return true;</span>
+<span class="diff-add">+  if (hash === stored) {</span>
+<span class="diff-add">+    logAccess(user);</span>
+<span class="diff-add">+    return true;</span>
+<span class="diff-add">+  }</span>
+   return false;
+ }</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Common Gotcha</div>
+                <p>If you run <code>git add</code> and then <code>git diff</code> with no flags, the output will be empty. The change is staged, so it is no longer in the working-directory diff. Switch to <code>git diff --staged</code> to see it.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 5: Diffing Commits and Branches
+             ============================================================ -->
+        <div class="section">
+            <h3>Diffing Commits &amp; Branches</h3>
+
+            <h4>Between Two Commits</h4>
+            <p>Supply two commit references separated by <code>..</code> to compare them directly. Any valid ref works: SHA, branch name, tag, or <code>HEAD~n</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Between two specific commits</span>
+<span class="cmd">$</span> git diff <span class="str">abc1234</span>..<span class="str">def5678</span>
+
+<span class="comment"># Between current HEAD and three commits ago</span>
+<span class="cmd">$</span> git diff HEAD~3..HEAD
+
+<span class="comment"># Between a tag and current HEAD</span>
+<span class="cmd">$</span> git diff <span class="str">v1.0.0</span>..HEAD</code></pre>
+            </div>
+
+            <h4>Between Branches &mdash; Two-Dot vs. Three-Dot</h4>
+            <p>Branch diffs have two distinct modes. The difference matters a lot when branches have diverged.</p>
+
+            <div class="dot-diagram">
+                <div class="dot-box two-dot">
+                    <div class="dot-label">Two-Dot (..) </div>
+                    <div class="dot-box-title">git diff main..feature</div>
+                    <p>Compares the tip of <code>main</code> against the tip of <code>feature</code>. Shows everything different between the two branch tips, including changes on <code>main</code> that haven't been merged into <code>feature</code>.</p>
+                </div>
+                <div class="dot-box three-dot">
+                    <div class="dot-label">Three-Dot (...)</div>
+                    <div class="dot-box-title">git diff main...feature</div>
+                    <p>Compares the common ancestor of both branches against the tip of <code>feature</code>. Shows only what <code>feature</code> changed since it branched off &mdash; ignoring unrelated changes on <code>main</code>. This is what you usually want for PR review.</p>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># What's different between the two branch tips (two-dot)</span>
+<span class="cmd">$</span> git diff main..feature/login
+
+<span class="comment"># What did feature change since branching from main? (three-dot)</span>
+<span class="cmd">$</span> git diff main...feature/login
+
+<span class="comment"># Limit to a single file across branches</span>
+<span class="cmd">$</span> git diff main..feature/login <span class="flag">--</span> <span class="file">src/auth.js</span></code></pre>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 6: Stat, Summary, and Word Diff
+             ============================================================ -->
+        <div class="section">
+            <h3>Stat, Summary &amp; Word Diff</h3>
+            <p>Full patch output is noisy when you just want a high-level picture of what changed. These flags produce condensed summaries.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>--stat</code> <span class="tag">SUMMARY</span></div>
+                    <p>Shows which files changed and how many lines were added or removed per file</p>
+                    <div class="example">$ git diff --stat HEAD~1</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>--shortstat</code> <span class="tag">ONE LINE</span></div>
+                    <p>Just the totals: N files changed, X insertions, Y deletions</p>
+                    <div class="example">$ git diff --shortstat HEAD~1</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>--name-only</code> <span class="tag">FILES</span></div>
+                    <p>Lists only filenames that changed, one per line &mdash; useful for scripting</p>
+                    <div class="example">$ git diff --name-only main..feature</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>--name-status</code> <span class="tag">STATUS</span></div>
+                    <p>Filenames prefixed with status: A (added), M (modified), D (deleted), R (renamed)</p>
+                    <div class="example">$ git diff --name-status main..feature</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git log <span class="flag">--stat</span>
+<span class="output">commit ca82a6dff817ec66f44342007202690a93763949
+Author: Scott Chacon &lt;schacon@gee-mail.com&gt;
+Date:   Mon Mar 17 21:52:11 2008 -0700
+
+    Change version number
+
+ Rakefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 085bb3bcb608e1e8451d4b2432f8ecbe6306e7e7
+Author: Scott Chacon &lt;schacon@gee-mail.com&gt;
+Date:   Sat Mar 15 16:40:33 2008 -0700
+
+    Remove unnecessary test
+
+ lib/simplegit.rb | 5 -----
+ 1 file changed, 5 deletions(-)</span></code></pre>
+            </div>
+
+            <h4>Word Diff</h4>
+            <p>Standard diff operates line-by-line. For prose, documentation, or config files, <code>--word-diff</code> produces a much more readable output by highlighting only the changed words within a line.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Word-level diff (brackets mark changes)</span>
+<span class="cmd">$</span> git diff <span class="flag">--word-diff</span>
+<span class="output">The quick [-brown-]{+red+} fox jumps over the [-lazy-]{+sleeping+} dog.</span>
+
+<span class="comment"># Color-only word diff (no bracket markers, just color)</span>
+<span class="cmd">$</span> git diff <span class="flag">--color-words</span>
+
+<span class="comment"># Combine with --stat for a full picture</span>
+<span class="cmd">$</span> git diff <span class="flag">--stat</span> <span class="flag">--word-diff</span> main...feature/docs</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">When to Use Word Diff</div>
+                <p>Use <code>--word-diff</code> when reviewing documentation, Markdown files, or any file where the whole paragraph rewrites but only a few words changed. Line-based diff will show the entire paragraph as deleted and re-added, hiding the actual change.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 7: git grep
+             ============================================================ -->
+        <div class="section">
+            <h3>git grep &mdash; Searching the Working Tree</h3>
+            <p>Git ships a built-in <code>grep</code> that searches through tracked files in your working directory (or any commit tree). It is significantly faster than regular <code>grep</code> or <code>ripgrep</code> on large repos because Git already has the file index.</p>
+
+            <h4>Basic Usage</h4>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Find all occurrences of a function, with line numbers</span>
+<span class="cmd">$</span> git grep <span class="flag">-n</span> <span class="str">gmtime_r</span>
+<span class="output">compat/gmtime.c:3:#undef gmtime_r
+compat/gmtime.c:8:      return git_gmtime_r(timep, &amp;result);
+compat/gmtime.c:11:struct tm *git_gmtime_r(const time_t *timep, struct tm *result)
+compat/mingw.c:826:struct tm *gmtime_r(const time_t *timep, struct tm *result)
+date.c:482:             if (gmtime_r(&amp;now, &amp;now_tm))
+date.c:545:             if (gmtime_r(&amp;time, tm)) {
+git-compat-util.h:1138:struct tm *git_gmtime_r(const time_t *, struct tm *);</span>
+
+<span class="comment"># Count matches per file instead of listing lines</span>
+<span class="cmd">$</span> git grep <span class="flag">--count</span> <span class="str">gmtime_r</span>
+<span class="output">compat/gmtime.c:4
+compat/mingw.c:1
+compat/mingw.h:1
+date.c:3
+git-compat-util.h:2</span></code></pre>
+            </div>
+
+            <h4>Context and Function Display</h4>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Show which function each match is inside (-p / --show-function)</span>
+<span class="cmd">$</span> git grep <span class="flag">-p</span> <span class="str">gmtime_r</span> <span class="file">*.c</span>
+<span class="output">date.c=static int match_multi_number(timestamp_t num, ...)
+date.c:         if (gmtime_r(&amp;now, &amp;now_tm))
+date.c=static int match_digit(const char *date, struct tm *tm, ...)
+date.c:         if (gmtime_r(&amp;time, tm)) {</span>
+
+<span class="comment"># Complex: lines that define a constant with LINK or BUF_MAX in name</span>
+<span class="comment"># --break adds a blank line between file groups, --heading shows filename once</span>
+<span class="cmd">$</span> git grep <span class="flag">--break</span> <span class="flag">--heading</span> \
+    <span class="flag">-n</span> <span class="flag">-e</span> <span class="str">'#define'</span> <span class="flag">--and</span> \( <span class="flag">-e</span> <span class="str">LINK</span> <span class="flag">-e</span> <span class="str">BUF_MAX</span> \) <span class="str">v1.8.0</span>
+<span class="output">v1.8.0:builtin/index-pack.c
+62:#define FLAG_LINK (1u&lt;&lt;20)
+
+v1.8.0:zlib.c
+30:/* #define ZLIB_BUF_MAX ((uInt)-1) */
+31:#define ZLIB_BUF_MAX ((uInt) 1024 * 1024 * 1024) /* 1GB */</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Searching Any Commit Tree</div>
+                <p>Pass a commit ref, branch, or tag as the last argument to search files as they existed at that point in history: <code>git grep "validate" v2.0.0</code>. You are not limited to the working directory.</p>
+            </div>
+
+            <h4>Key git grep Flags</h4>
+            <table class="compare">
+                <tr><th>Flag</th><th>Effect</th></tr>
+                <tr><td><code>-n</code>, <code>--line-number</code></td><td>Print line numbers for each match</td></tr>
+                <tr><td><code>-c</code>, <code>--count</code></td><td>Show match count per file, not individual lines</td></tr>
+                <tr><td><code>-p</code>, <code>--show-function</code></td><td>Show the enclosing function name for each match</td></tr>
+                <tr><td><code>--break</code></td><td>Blank line between results from different files</td></tr>
+                <tr><td><code>--heading</code></td><td>Print filename once above its matches (not inline)</td></tr>
+                <tr><td><code>-e &lt;pattern&gt;</code></td><td>Pattern to search for (allows <code>--and</code> chaining)</td></tr>
+                <tr><td><code>--and</code></td><td>Both patterns must match the same line</td></tr>
+                <tr><td><code>-i</code></td><td>Case-insensitive search</td></tr>
+            </table>
+        </div>
+
+        <!-- ============================================================
+             SECTION 8: git log -S and -G (Pickaxe)
+             ============================================================ -->
+        <div class="section">
+            <h3>Pickaxe &mdash; When Was This Code Introduced?</h3>
+            <p><code>git grep</code> tells you where something is now. The pickaxe flags tell you <em>when</em> it appeared or disappeared &mdash; which commit added or removed it. This is the forensic tool for incident timelines and bug archaeology.</p>
+
+            <h4>git log -S &mdash; String Pickaxe</h4>
+            <p><code>-S</code> finds commits that changed the number of times a literal string appears. A commit qualifies if it added or removed at least one occurrence &mdash; not just if the string is present in the diff context.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># When was ZLIB_BUF_MAX introduced to the codebase?</span>
+<span class="cmd">$</span> git log <span class="flag">-S</span> <span class="str">ZLIB_BUF_MAX</span> <span class="flag">--oneline</span>
+<span class="output">e01503b zlib: allow feeding more than 4GB in one go
+ef49a7a zlib: zlib can only process 4GB at a time</span>
+
+<span class="comment"># Inspect the patch to confirm</span>
+<span class="cmd">$</span> git show <span class="str">ef49a7a</span>
+
+<span class="comment"># Find commits that added or removed a specific import</span>
+<span class="cmd">$</span> git log <span class="flag">-S</span> <span class="str">"import bcrypt"</span> <span class="flag">--oneline</span></code></pre>
+            </div>
+
+            <h4>git log -G &mdash; Regex Pickaxe</h4>
+            <p><code>-G</code> is the regex version of <code>-S</code>. It matches any commit where the diff contains a line matching the pattern &mdash; even if the count does not change. Useful for broader searches.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Find commits whose diffs touch any eval() call</span>
+<span class="cmd">$</span> git log <span class="flag">-G</span> <span class="str">"eval\s*\("</span> <span class="flag">--oneline</span>
+
+<span class="comment"># Find commits that added or removed any password field</span>
+<span class="cmd">$</span> git log <span class="flag">-G</span> <span class="str">"password\s*="</span> <span class="flag">--oneline</span> <span class="flag">-p</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">-S vs -G</div>
+                <p><code>-S string</code> fires only when the count of the literal string changes (added for the first time, or fully removed). <code>-G regex</code> fires whenever any line matching the pattern appears in the diff, even if other occurrences remain. Use <code>-S</code> for "when was this introduced?" and <code>-G</code> for "every commit that touched this pattern."</p>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 9: git blame
+             ============================================================ -->
+        <div class="section">
+            <h3>git blame &mdash; Line-Level Attribution</h3>
+            <p><code>git blame</code> annotates every line of a file with the commit that last modified it, the author, and the date. It answers the question: "who wrote this and when?" It is not about assigning fault &mdash; it is about finding context.</p>
+
+            <h4>Basic Usage</h4>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Blame an entire file</span>
+<span class="cmd">$</span> git blame <span class="file">src/auth.js</span>
+<span class="output">^a11bef0 (Scott Chacon  2008-03-15 10:31:28 -0700  1) const crypto = require('crypto');
+ca82a6df (Alice Kim     2024-01-09 14:22:05 -0800  2) const ROUNDS = 12;
+ca82a6df (Alice Kim     2024-01-09 14:22:05 -0800  3)
+085bb3bc (Bob Martinez  2024-02-14 09:10:33 -0800  4) function hashPassword(plain) {
+085bb3bc (Bob Martinez  2024-02-14 09:10:33 -0800  5)   return bcrypt.hash(plain, ROUNDS);
+085bb3bc (Bob Martinez  2024-02-14 09:10:33 -0800  6) }</span>
+
+<span class="comment"># Restrict to a specific line range with -L</span>
+<span class="cmd">$</span> git blame <span class="flag">-L</span> <span class="str">10,25</span> <span class="file">src/auth.js</span>
+
+<span class="comment"># Blame from a specific commit or branch, not current HEAD</span>
+<span class="cmd">$</span> git blame <span class="str">v1.2.0</span> <span class="flag">--</span> <span class="file">src/auth.js</span></code></pre>
+            </div>
+
+            <h4>-C &mdash; Detect Moved or Copied Code</h4>
+            <p>By default, blame shows the commit that last modified each line. If code was copied or moved from another file, blame will credit the copy commit &mdash; not the original author. The <code>-C</code> flag detects code movement and traces back to the real origin.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Detect lines moved from other files in the same commit</span>
+<span class="cmd">$</span> git blame <span class="flag">-C</span> <span class="file">src/utils.js</span>
+
+<span class="comment"># Expand search to any commit that modified the file</span>
+<span class="cmd">$</span> git blame <span class="flag">-C</span> <span class="flag">-C</span> <span class="file">src/utils.js</span>
+
+<span class="comment"># Expand search to all commits in the entire history</span>
+<span class="cmd">$</span> git blame <span class="flag">-C</span> <span class="flag">-C</span> <span class="flag">-C</span> <span class="file">src/utils.js</span></code></pre>
+            </div>
+
+            <h4>git log -L &mdash; Function History</h4>
+            <p>A powerful variation: instead of blaming a file line-by-line, <code>git log -L</code> shows the full diff history of a specific function or line range across all commits. Git attempts to auto-detect function boundaries using language heuristics.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Full history of a named function (Git auto-detects boundaries)</span>
+<span class="cmd">$</span> git log <span class="flag">-L</span> <span class="str">:git_deflate_bound:zlib.c</span>
+<span class="output">commit ef49a7a0126d64359c974b4b3b71d7ad42ee3bca
+Author: Junio C Hamano &lt;gitster@pobox.com&gt;
+Date:   Fri Jun 10 11:52:15 2011 -0700
+
+    zlib: zlib can only process 4GB at a time
+
+</span><span class="diff-head">diff --git a/zlib.c b/zlib.c
+--- a/zlib.c
++++ b/zlib.c</span>
+<span class="diff-hunk">@@ -85,5 +130,5 @@</span>
+<span class="diff-del">-unsigned long git_deflate_bound(z_streamp strm, unsigned long size)</span>
+<span class="diff-add">+unsigned long git_deflate_bound(git_zstream *strm, unsigned long size)</span>
+ {
+<span class="diff-del">-       return deflateBound(strm, size);</span>
+<span class="diff-add">+       return deflateBound(&amp;strm-&gt;z, size);</span>
+ }
+
+<span class="output">commit 225a6f1068f71723a910e8565db4e252b3ca21fa
+Author: Junio C Hamano &lt;gitster@pobox.com&gt;
+Date:   Fri Jun 10 11:18:17 2011 -0700
+
+    zlib: wrap deflateBound() too</span>
+
+<span class="comment"># Use a line range instead of a function name</span>
+<span class="cmd">$</span> git log <span class="flag">-L</span> <span class="str">20,45:src/auth.js</span>
+
+<span class="comment"># Use a regex to identify the function start boundary</span>
+<span class="cmd">$</span> git log <span class="flag">-L</span> <span class="str">'/function hashPassword/',/^}/:src/auth.js</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Blame Workflow</div>
+                <p>Typical flow: <code>git blame</code> to find the commit hash on a suspicious line &rarr; <code>git show &lt;hash&gt;</code> to see the full context of that commit &rarr; <code>git log -L</code> on the function to see the full evolution. Three commands, complete picture.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 10: Quick Reference
+             ============================================================ -->
+        <div class="section">
+            <h3>Quick Reference</h3>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git log --oneline --graph --all</code> <span class="tag">TOPOLOGY</span></div>
+                    <p>Full repo branch map at a glance</p>
+                    <div class="example">alias: git lg</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git log -p -- &lt;file&gt;</code> <span class="tag">FILE HISTORY</span></div>
+                    <p>Every patch that ever touched a file</p>
+                    <div class="example">$ git log -p -- src/auth.js</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git diff main...feature</code> <span class="tag">PR REVIEW</span></div>
+                    <p>What the branch changed vs. its origin point</p>
+                    <div class="example">$ git diff main...feature/login</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git diff --stat HEAD~1</code> <span class="tag">QUICK CHECK</span></div>
+                    <p>Files and line counts in the last commit</p>
+                    <div class="example">$ git diff --stat HEAD~1</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git grep -n &lt;term&gt;</code> <span class="tag">CODE SEARCH</span></div>
+                    <p>Find a term across all tracked files with line numbers</p>
+                    <div class="example">$ git grep -n "TODO"</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git log -S &lt;string&gt;</code> <span class="tag">ARCHAEOLOGY</span></div>
+                    <p>Find when a string was first added or last removed</p>
+                    <div class="example">$ git log -S "eval(" --oneline</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git blame -L 10,30 &lt;file&gt;</code> <span class="tag">ATTRIBUTION</span></div>
+                    <p>Who wrote lines 10-30 and when</p>
+                    <div class="example">$ git blame -L 10,30 src/api.js</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git log -L :fn:file</code> <span class="tag">FN HISTORY</span></div>
+                    <p>Full patch history of a named function</p>
+                    <div class="example">$ git log -L :login:src/auth.js</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Copy code from a code-block to clipboard
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Mark the module complete in localStorage and via ModuleProgress
+        function completeModule() {
+            // Write the forge progress key for legacy compatibility
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-40'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch (e) {}
+
+            // Report via ModuleProgress if the component is available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-40-diff-comparing', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Restore completed state on page load if already done
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-40']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch (e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stashing, Tagging &amp; Cherry-Picking - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-branch.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status flow rows */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 110px; }
+
+        /* Stash stack visual */
+        .stash-stack { display: flex; flex-direction: column; gap: 6px; margin: 16px 0; }
+        .stash-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; font-family: 'Cascadia Code', monospace; color: #79c0ff; }
+        .stash-item .stash-idx { color: var(--forge); font-weight: 700; min-width: 80px; }
+        .stash-item .stash-desc { color: var(--text-dim); font-family: 'Segoe UI', sans-serif; font-size: 12px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-13</span>
+            <h1>Stashing, Tagging &amp; Cherry-Picking</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Git Section</a>
+    </header>
+
+    <main class="content">
+
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-branch.webp" alt="">
+            <h2>Stashing, Tagging &amp; Cherry-Picking</h2>
+            <p class="hero-sub">Suspend work without committing, mark releases with tags, and surgically apply individual commits across branches.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-branch.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Use <code>git stash</code> to safely shelve work-in-progress without committing</li>
+                <li>Name, apply, and discard stashes from the stash stack</li>
+                <li>Create a branch directly from a stash with <code>git stash branch</code></li>
+                <li>Remove untracked files safely using <code>git clean</code></li>
+                <li>Distinguish between lightweight and annotated tags and know when to use each</li>
+                <li>Create, share, and delete tags both locally and on a remote</li>
+                <li>Apply a single commit from another branch using <code>git cherry-pick</code></li>
+                <li>Understand the tradeoffs of cherry-picking versus merging</li>
+            </ul>
+        </div>
+
+        <!-- ==================== SECTION 1: STASHING ==================== -->
+        <div class="section">
+            <h3>What is Stashing?</h3>
+            <p>You are deep in a feature halfway done when you need to drop everything and switch branches &mdash; to fix an urgent bug, review a colleague's PR, or just test something. The problem: your working directory is dirty. You do not want to commit half-done work, and you cannot safely switch branches with uncommitted changes that would conflict.</p>
+
+            <p><code>git stash</code> is the answer. It takes the dirty state of your working directory &mdash; modified tracked files and staged changes &mdash; and saves it on a <strong>stack</strong> of unfinished changes. Your working tree returns to a clean state, so you can switch freely. When you are ready to pick up where you left off, pop the stash back out.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>A stash is a temporary snapshot, not a commit. It does not appear in your branch history and carries no message by default. Think of it as a pocket &mdash; something you stuff work into so your hands are free, not a place you keep things permanently.</p>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 2: BASIC STASH ==================== -->
+        <div class="section">
+            <h3>Basic Stash Workflow</h3>
+            <p>Three commands cover 90% of stash usage: <code>git stash</code> to save, <code>git stash list</code> to see what is saved, and <code>git stash pop</code> to restore.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># You have uncommitted changes and need to switch branches</span>
+<span class="cmd">$</span> git status
+<span class="output">Changes to be committed:
+    modified:   index.html
+
+Changes not staged for commit:
+    modified:   lib/auth.js</span>
+
+<span class="comment"># Stash everything — staging area + working directory</span>
+<span class="cmd">$</span> git stash
+<span class="output">Saved working directory and index state
+  "WIP on main: 049d078 Add login page"
+HEAD is now at 049d078 Add login page</span>
+
+<span class="comment"># Working directory is now clean — safe to switch</span>
+<span class="cmd">$</span> git status
+<span class="output">On branch main
+nothing to commit, working directory clean</span>
+
+<span class="comment"># Do your work on other branches, then come back and pop</span>
+<span class="cmd">$</span> git stash pop
+<span class="output">On branch main
+Changes not staged for commit:
+    modified:   index.html
+    modified:   lib/auth.js
+Dropped refs/stash@{0}</span></code></pre>
+            </div>
+
+            <h4>Viewing the Stash Stack</h4>
+            <p>Every stash is pushed onto a stack. <code>git stash list</code> shows all saved stashes, newest first, indexed by <code>stash@{n}</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git stash list
+<span class="output">stash@{0}: WIP on main: 049d078 Add login page
+stash@{1}: WIP on main: c264051 Revert "Add file_size"
+stash@{2}: WIP on main: 21d80a5 Add number to log</span></code></pre>
+            </div>
+
+            <div class="stash-stack">
+                <div class="stash-item">
+                    <span class="stash-idx">stash@{0}</span>
+                    <span>WIP on main: 049d078 Add login page</span>
+                    <span class="stash-desc">&larr; most recent</span>
+                </div>
+                <div class="stash-item">
+                    <span class="stash-idx">stash@{1}</span>
+                    <span>WIP on main: c264051 Revert "Add file_size"</span>
+                    <span class="stash-desc"></span>
+                </div>
+                <div class="stash-item">
+                    <span class="stash-idx">stash@{2}</span>
+                    <span>WIP on main: 21d80a5 Add number to log</span>
+                    <span class="stash-desc">&larr; oldest</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 3: NAMED STASHES ==================== -->
+        <div class="section">
+            <h3>Named Stashes</h3>
+            <p>The auto-generated stash message (<code>WIP on branch: hash message</code>) gets ambiguous fast when you have multiple stashes. Use <code>git stash push -m</code> to attach a human-readable label. This replaces the old deprecated <code>git stash save</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Push a named stash — use -m for the message</span>
+<span class="cmd">$</span> git stash push <span class="flag">-m</span> <span class="str">"half-done: refactor auth middleware"</span>
+<span class="output">Saved working directory and index state
+  On main: half-done: refactor auth middleware</span>
+
+<span class="comment"># Stash only specific files using pathspec</span>
+<span class="cmd">$</span> git stash push <span class="flag">-m</span> <span class="str">"wip dashboard styles"</span> src/dashboard.css
+
+<span class="comment"># Stash is now easy to identify</span>
+<span class="cmd">$</span> git stash list
+<span class="output">stash@{0}: On main: half-done: refactor auth middleware
+stash@{1}: On main: wip dashboard styles</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Note on git stash save</div>
+                <p><code>git stash save "message"</code> is the old syntax and is deprecated. Use <code>git stash push -m "message"</code> instead. The <code>push</code> form also supports pathspecs, which <code>save</code> does not.</p>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 4: APPLY vs POP ==================== -->
+        <div class="section">
+            <h3>Applying vs Popping</h3>
+            <p>You have two ways to restore a stash. The difference is whether the stash entry is removed from the stack afterwards.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Command</th>
+                    <th>Restores Changes</th>
+                    <th>Removes from Stack</th>
+                    <th>Use When</th>
+                </tr>
+                <tr>
+                    <td><code>git stash pop</code></td>
+                    <td>Yes</td>
+                    <td>Yes &mdash; drops it</td>
+                    <td>Done with the stash, won't need it again</td>
+                </tr>
+                <tr>
+                    <td><code>git stash apply</code></td>
+                    <td>Yes</td>
+                    <td>No &mdash; keeps it</td>
+                    <td>Want to apply it to multiple branches, or keeping it as a backup</td>
+                </tr>
+                <tr>
+                    <td><code>git stash drop stash@{n}</code></td>
+                    <td>No</td>
+                    <td>Yes &mdash; deletes it</td>
+                    <td>Discarding a stash you no longer need</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Apply the most recent stash, keep it on the stack</span>
+<span class="cmd">$</span> git stash apply
+
+<span class="comment"># Apply a specific stash by index</span>
+<span class="cmd">$</span> git stash apply stash@{2}
+
+<span class="comment"># Apply AND restore staging area exactly as it was</span>
+<span class="cmd">$</span> git stash apply <span class="flag">--index</span>
+
+<span class="comment"># Manually drop a stash after applying it</span>
+<span class="cmd">$</span> git stash drop stash@{0}
+<span class="output">Dropped stash@{0} (364e91f3f268f0900bc3ee613f9f733e82aaed43)</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">The --index Flag</div>
+                <p>By default, <code>git stash apply</code> restores file contents but does not re-stage files that were staged when you stashed. Pass <code>--index</code> to restore the staging state exactly as it was. Without it, everything lands in the working directory as unstaged changes.</p>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 5: STASH FLAGS ==================== -->
+        <div class="section">
+            <h3>Stash Options Worth Knowing</h3>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash -u</code> <span class="tag">UNTRACKED</span></div>
+                    <p>Include untracked files in the stash. By default, only tracked (previously committed) files are stashed.</p>
+                    <div class="example">$ git stash push -u -m "include new files"</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash -a</code> <span class="tag">ALL</span></div>
+                    <p>Include untracked <strong>and</strong> ignored files. Useful for a truly clean slate before a build.</p>
+                    <div class="example">$ git stash push -a</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>--keep-index</code> <span class="tag">SELECTIVE</span></div>
+                    <p>Stash only the unstaged changes. Leaves staged changes in place, so you can commit them separately.</p>
+                    <div class="example">$ git stash push --keep-index</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>--patch</code> <span class="tag">INTERACTIVE</span></div>
+                    <p>Interactively choose which hunks to stash. Same hunk-level control as <code>git add -p</code>.</p>
+                    <div class="example">$ git stash push --patch</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 6: STASH BRANCH ==================== -->
+        <div class="section">
+            <h3>Stash Branches</h3>
+            <p>If you stash something, work continues on the branch for a while, and then you try to apply the stash &mdash; you may hit merge conflicts. The files have diverged. The clean solution is <code>git stash branch</code>, which creates a new branch at the exact commit where you stashed, applies the stash cleanly there, and drops the stash entry.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a new branch from the stash's origin commit, apply the stash</span>
+<span class="cmd">$</span> git stash branch feature/auth-refactor
+<span class="output">Switched to a new branch 'feature/auth-refactor'
+On branch feature/auth-refactor
+Changes to be committed:
+    modified:   index.html
+
+Changes not staged for commit:
+    modified:   lib/auth.js
+
+Dropped refs/stash@{0}</span></code></pre>
+            </div>
+
+            <p>This is the cleanest way to resume stashed work that has grown too large for a simple pop. The changes land on an isolated branch where you can develop freely and merge back when ready.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">When to Use stash branch</div>
+                <p>Use it when a stash has aged and the base branch has moved on. Applying the stash to the current HEAD would conflict, but applying it to the original commit is always clean because that is exactly what you had when you stashed.</p>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 7: GIT CLEAN ==================== -->
+        <div class="section">
+            <h3>git clean &mdash; Removing Untracked Files</h3>
+            <p>Stashing handles tracked files. But what about untracked files you simply want to delete &mdash; build artifacts, generated files, temp files left by tools? That is <code>git clean</code>. It removes untracked files from your working directory. This cannot be undone, so always do a dry run first.</p>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Destructive Operation</div>
+                <p>Unlike most Git operations, <code>git clean</code> can permanently destroy files. Untracked files are not in Git's history, so there is nothing to recover them from. Always use <code>-n</code> first. If you are unsure, use <code>git stash --all</code> instead &mdash; it saves everything, including untracked files, to the stash stack before removing them.</p>
+            </div>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git clean -n</code> <span class="tag">DRY RUN</span></div>
+                    <p>Preview what would be deleted. Never skip this step before running for real.</p>
+                    <div class="example">$ git clean -n -d</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git clean -f</code> <span class="tag">FORCE</span></div>
+                    <p>Required flag to actually delete. Git refuses to clean without <code>-f</code> by default.</p>
+                    <div class="example">$ git clean -f -d</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git clean -d</code> <span class="tag">DIRS</span></div>
+                    <p>Also remove untracked directories. Without this, only files are deleted.</p>
+                    <div class="example">$ git clean -f -d</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git clean -x</code> <span class="tag">IGNORED</span></div>
+                    <p>Also remove ignored files (e.g. compiled <code>.o</code> files). Use for a fully clean build.</p>
+                    <div class="example">$ git clean -f -d -x</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Always check first with -n (dry run)</span>
+<span class="cmd">$</span> git clean <span class="flag">-n</span> <span class="flag">-d</span>
+<span class="output">Would remove build.TMP
+Would remove tmp/</span>
+
+<span class="comment"># Also preview ignored files that would be removed</span>
+<span class="cmd">$</span> git clean <span class="flag">-n</span> <span class="flag">-d</span> <span class="flag">-x</span>
+<span class="output">Would remove build.TMP
+Would remove test.o
+Would remove tmp/</span>
+
+<span class="comment"># Once confident, execute the clean</span>
+<span class="cmd">$</span> git clean <span class="flag">-f</span> <span class="flag">-d</span>
+<span class="output">Removing build.TMP
+Removing tmp/</span></code></pre>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 8: WHAT IS A TAG ==================== -->
+        <div class="section">
+            <h3>What is Tagging?</h3>
+            <p>A tag is a permanent label pointing to a specific commit in your repository's history. Unlike branches, tags do not move &mdash; they stay fixed to the commit they were created on. The most common use is marking release points: <code>v1.0</code>, <code>v2.0</code>, <code>v2.1.3</code>.</p>
+
+            <p>Git supports two types: <strong>lightweight</strong> and <strong>annotated</strong>. The difference matters for how much information they carry and how they behave with tools like <code>git describe</code> and remote tag pushing.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># List all existing tags</span>
+<span class="cmd">$</span> git tag
+<span class="output">v1.0
+v1.1
+v2.0</span>
+
+<span class="comment"># Filter tags with a wildcard pattern (-l flag required for patterns)</span>
+<span class="cmd">$</span> git tag <span class="flag">-l</span> <span class="str">"v1.8.5*"</span>
+<span class="output">v1.8.5
+v1.8.5-rc0
+v1.8.5-rc1</span></code></pre>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 9: TAG TYPES ==================== -->
+        <div class="section">
+            <h3>Lightweight vs Annotated Tags</h3>
+            <p>Choose based on whether the tag needs to carry metadata beyond a name.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Property</th>
+                    <th>Lightweight</th>
+                    <th>Annotated</th>
+                </tr>
+                <tr>
+                    <td>Storage</td>
+                    <td>Just a pointer (commit checksum in a file)</td>
+                    <td>Full Git object in the database</td>
+                </tr>
+                <tr>
+                    <td>Tagger info</td>
+                    <td>None</td>
+                    <td>Name, email, date</td>
+                </tr>
+                <tr>
+                    <td>Message</td>
+                    <td>None</td>
+                    <td>Required (or editor opens)</td>
+                </tr>
+                <tr>
+                    <td>GPG signing</td>
+                    <td>No</td>
+                    <td>Yes, with <code>-s</code></td>
+                </tr>
+                <tr>
+                    <td><code>git show</code> output</td>
+                    <td>Shows commit only</td>
+                    <td>Shows tag object + commit</td>
+                </tr>
+                <tr>
+                    <td><code>git push --follow-tags</code></td>
+                    <td>Not pushed</td>
+                    <td>Pushed</td>
+                </tr>
+                <tr>
+                    <td>Best for</td>
+                    <td>Personal bookmarks, temporary markers</td>
+                    <td>Public releases, anything shared with others</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">General Rule</div>
+                <p>Use annotated tags for anything that will be pushed to a remote or shared with a team. They carry auditable metadata (who tagged, when, and why) and are recognized by <code>git describe</code>. Use lightweight tags only for private, temporary local bookmarks.</p>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 10: CREATING TAGS ==================== -->
+        <div class="section">
+            <h3>Creating Tags</h3>
+
+            <h4>Annotated Tags</h4>
+            <p>Use <code>-a</code> to create an annotated tag and <code>-m</code> for the message. If you omit <code>-m</code>, Git opens your editor.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create an annotated tag on the current HEAD</span>
+<span class="cmd">$</span> git tag <span class="flag">-a</span> v1.0 <span class="flag">-m</span> <span class="str">"Release 1.0: initial stable release"</span>
+
+<span class="comment"># Inspect the tag object — shows tagger info + commit</span>
+<span class="cmd">$</span> git show v1.0
+<span class="output">tag v1.0
+Tagger: Alex Chen &lt;alex@example.com&gt;
+Date:   Mon Mar 3 10:22:00 2026 -0500
+
+Release 1.0: initial stable release
+
+commit ca82a6dff817ec66f44342007202690a93763949
+Author: Alex Chen &lt;alex@example.com&gt;
+Date:   Fri Feb 28 14:05:00 2026 -0500
+
+    Finalize auth system</span></code></pre>
+            </div>
+
+            <h4>Lightweight Tags</h4>
+            <p>No flags &mdash; just the tag name. Git stores only a checksum. <code>git show</code> on a lightweight tag goes straight to the commit, skipping any tag object.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a lightweight tag — no -a, -s, or -m flags</span>
+<span class="cmd">$</span> git tag v1.0-lw
+
+<span class="comment"># git show on lightweight goes straight to the commit</span>
+<span class="cmd">$</span> git show v1.0-lw
+<span class="output">commit ca82a6dff817ec66f44342007202690a93763949
+Author: Alex Chen &lt;alex@example.com&gt;
+Date:   Fri Feb 28 14:05:00 2026 -0500
+
+    Finalize auth system</span></code></pre>
+            </div>
+
+            <h4>Tagging a Past Commit</h4>
+            <p>You can tag any commit in history by providing its hash (or enough characters to be unique). Use <code>git log --oneline</code> to find the hash you want.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Find the commit you missed tagging</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span>
+<span class="output">a6b4c97 Add write support
+9fceb02 Update rakefile        &lt;-- should have been v1.2
+0b7434d Add commit function</span>
+
+<span class="comment"># Tag it retroactively using the partial hash</span>
+<span class="cmd">$</span> git tag <span class="flag">-a</span> v1.2 9fceb02 <span class="flag">-m</span> <span class="str">"Release 1.2: retroactive tag"</span></code></pre>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 11: SHARING TAGS ==================== -->
+        <div class="section">
+            <h3>Sharing Tags</h3>
+            <p>Tags are not pushed automatically. <code>git push</code> transfers commits and branch refs, but tag refs are excluded unless you explicitly push them. This is a common gotcha when publishing a release.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Push a single tag to origin</span>
+<span class="cmd">$</span> git push origin v1.0
+<span class="output">Counting objects: 14, done.
+Compressing objects: 100% (12/12), done.
+To git@github.com:user/project.git
+ * [new tag]         v1.0 -> v1.0</span>
+
+<span class="comment"># Push ALL tags to origin at once</span>
+<span class="cmd">$</span> git push origin <span class="flag">--tags</span>
+<span class="output">To git@github.com:user/project.git
+ * [new tag]         v1.0 -> v1.0
+ * [new tag]         v1.0-lw -> v1.0-lw</span>
+
+<span class="comment"># Push ONLY annotated tags (safer — skips local lightweight markers)</span>
+<span class="cmd">$</span> git push origin <span class="flag">--follow-tags</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">--tags vs --follow-tags</div>
+                <p><code>--tags</code> pushes all tags, both lightweight and annotated. <code>--follow-tags</code> pushes only annotated tags that point to commits being pushed. For CI/CD pipelines and release workflows, <code>--follow-tags</code> is the safer choice because it does not pollute the remote with personal local markers.</p>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 12: DELETING TAGS ==================== -->
+        <div class="section">
+            <h3>Deleting Tags</h3>
+            <p>Deleting a local tag does not automatically remove it from the remote. The two operations are separate.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Delete a tag locally</span>
+<span class="cmd">$</span> git tag <span class="flag">-d</span> v1.0-lw
+<span class="output">Deleted tag 'v1.0-lw' (was e7d5add)</span>
+
+<span class="comment"># Delete from remote — method 1: push a null ref</span>
+<span class="cmd">$</span> git push origin :refs/tags/v1.0-lw
+<span class="output">To git@github.com:user/project.git
+ - [deleted]         v1.0-lw</span>
+
+<span class="comment"># Delete from remote — method 2: cleaner --delete syntax</span>
+<span class="cmd">$</span> git push origin <span class="flag">--delete</span> v1.0-lw</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Never Delete Published Release Tags</div>
+                <p>Once a version tag like <code>v2.0.0</code> is pushed and referenced by package managers, changelogs, or other consumers, deleting it causes confusion and broken references. Only delete tags that were pushed accidentally or were never used externally.</p>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 13: CHERRY-PICK ==================== -->
+        <div class="section">
+            <h3>What is Cherry-Picking?</h3>
+            <p>Cherry-picking applies the diff introduced by a single commit onto the current branch. You are not merging a branch &mdash; you are taking one specific commit from somewhere and replaying it where you are now. It generates a new commit with a new hash but the same change content.</p>
+
+            <p>The classic scenario: you fixed a critical bug on <code>main</code> but also need that fix on the <code>release/2.1</code> branch without merging all of <code>main</code>'s newer work into it.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">main branch</span>
+                    <span>A &rarr; B &rarr; C (bug fix) &rarr; D &rarr; E</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">release/2.1</span>
+                    <span>A &rarr; B &rarr; cherry-pick(C) &rarr; ... </span>
+                </div>
+            </div>
+
+            <p>Commit C is applied to <code>release/2.1</code> without pulling in D and E. Both branches now contain the fix, but they have not been merged.</p>
+        </div>
+
+        <!-- ==================== SECTION 14: CHERRY-PICK USAGE ==================== -->
+        <div class="section">
+            <h3>Using git cherry-pick</h3>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Find the commit hash you want to cherry-pick</span>
+<span class="cmd">$</span> git log main <span class="flag">--oneline</span>
+<span class="output">e3f1a2b Fix: null pointer in session handler   &lt;-- want this
+d9c0b71 Add new dashboard feature
+a6f234c Update dependencies</span>
+
+<span class="comment"># Switch to the target branch</span>
+<span class="cmd">$</span> git checkout release/2.1
+
+<span class="comment"># Apply the specific commit</span>
+<span class="cmd">$</span> git cherry-pick e3f1a2b
+<span class="output">[release/2.1 7a9b3c1] Fix: null pointer in session handler
+ Date: Tue Mar 3 10:05:00 2026 -0500
+ 1 file changed, 4 insertions(+), 1 deletion(-)</span>
+
+<span class="comment"># Cherry-pick a range of commits (e3f inclusive through 9b4 inclusive)</span>
+<span class="cmd">$</span> git cherry-pick e3f1a2b^..9b4d2e1</code></pre>
+            </div>
+
+            <h4>Handling Conflicts</h4>
+            <p>If the cherry-picked commit touches code that has diverged on the target branch, Git will pause with a conflict. Resolve it the same way as a merge conflict, then continue.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Cherry-pick paused due to conflict</span>
+<span class="cmd">$</span> git cherry-pick e3f1a2b
+<span class="output">CONFLICT (content): Merge conflict in lib/session.js
+error: could not apply e3f1a2b... Fix: null pointer in session handler
+hint: After resolving the conflicts, mark them with
+hint: "git add &lt;paths&gt;" or "git rm &lt;paths&gt;",
+hint: then run "git cherry-pick --continue".</span>
+
+<span class="comment"># Fix the conflict in your editor, then stage the file</span>
+<span class="cmd">$</span> git add lib/session.js
+
+<span class="comment"># Continue — Git will prompt for or reuse the commit message</span>
+<span class="cmd">$</span> git cherry-pick <span class="flag">--continue</span>
+
+<span class="comment"># Or abort if you changed your mind</span>
+<span class="cmd">$</span> git cherry-pick <span class="flag">--abort</span></code></pre>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 15: CHERRY-PICK vs MERGE ==================== -->
+        <div class="section">
+            <h3>Cherry-Pick vs Merge &mdash; Tradeoffs</h3>
+            <p>Both bring changes from one branch to another. The mechanism and the history they produce are very different.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Aspect</th>
+                    <th>git merge</th>
+                    <th>git cherry-pick</th>
+                </tr>
+                <tr>
+                    <td>What it transfers</td>
+                    <td>All commits on the branch</td>
+                    <td>One specific commit</td>
+                </tr>
+                <tr>
+                    <td>History</td>
+                    <td>Preserves shared ancestry, creates a merge commit</td>
+                    <td>Creates a new commit with a new hash &mdash; duplicates the change</td>
+                </tr>
+                <tr>
+                    <td>Conflict surface</td>
+                    <td>All diverged changes at once</td>
+                    <td>Only the picked commit's changes</td>
+                </tr>
+                <tr>
+                    <td>Future merges</td>
+                    <td>Clean &mdash; Git knows the shared history</td>
+                    <td>Risk of "double" conflicts later &mdash; Git sees two commits with the same diff</td>
+                </tr>
+                <tr>
+                    <td>Best for</td>
+                    <td>Integrating a completed feature branch</td>
+                    <td>Backporting a hotfix, selectively porting one commit</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Duplicate Commit Risk</div>
+                <p>Cherry-picking creates a new commit with the same diff but a different SHA-1. If you later merge the original branch, Git sees two separate commits introducing the same change, which can cause confusing conflicts. Use cherry-pick surgically &mdash; for hotfixes and backports &mdash; not as a substitute for a proper branch merge.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Golden Rule</div>
+                <p>If you will eventually merge the branch anyway, do not cherry-pick &mdash; just merge. Cherry-pick is for situations where you specifically do <em>not</em> want the full branch, only one targeted change.</p>
+            </div>
+        </div>
+
+        <!-- ==================== COMMAND REFERENCE ==================== -->
+        <div class="section">
+            <h3>Full Command Reference</h3>
+
+            <h4>Stash Commands</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash</code> <span class="tag">SAVE</span></div>
+                    <p>Stash all tracked modified and staged files</p>
+                    <div class="example">$ git stash</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash push -m</code> <span class="tag">NAMED</span></div>
+                    <p>Stash with a descriptive label</p>
+                    <div class="example">$ git stash push -m "wip: auth refactor"</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash list</code> <span class="tag">LIST</span></div>
+                    <p>Show all stashes on the stack</p>
+                    <div class="example">$ git stash list</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash pop</code> <span class="tag">RESTORE</span></div>
+                    <p>Apply most recent stash and remove it from stack</p>
+                    <div class="example">$ git stash pop</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash apply</code> <span class="tag">APPLY</span></div>
+                    <p>Apply a stash, keeping it on the stack</p>
+                    <div class="example">$ git stash apply stash@{2}</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash drop</code> <span class="tag">DISCARD</span></div>
+                    <p>Delete a specific stash entry</p>
+                    <div class="example">$ git stash drop stash@{0}</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git stash branch</code> <span class="tag">BRANCH</span></div>
+                    <p>Create a branch from the stash origin and apply it</p>
+                    <div class="example">$ git stash branch feature/wip</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git clean -f -d</code> <span class="tag">CLEAN</span></div>
+                    <p>Remove all untracked files and directories</p>
+                    <div class="example">$ git clean -n -d &amp;&amp; git clean -f -d</div>
+                </div>
+            </div>
+
+            <h4>Tag Commands</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git tag -a v1.0 -m</code> <span class="tag">ANNOTATED</span></div>
+                    <p>Create an annotated tag with a message</p>
+                    <div class="example">$ git tag -a v1.0 -m "Release 1.0"</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git tag v1.0</code> <span class="tag">LIGHTWEIGHT</span></div>
+                    <p>Create a lightweight tag (name only)</p>
+                    <div class="example">$ git tag v1.0-lw</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git tag -a v1.0 &lt;hash&gt;</code> <span class="tag">RETROACTIVE</span></div>
+                    <p>Tag a specific past commit</p>
+                    <div class="example">$ git tag -a v0.9 9fceb02 -m "msg"</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git push origin v1.0</code> <span class="tag">PUSH</span></div>
+                    <p>Push a specific tag to remote</p>
+                    <div class="example">$ git push origin v1.0</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git push --tags</code> <span class="tag">PUSH ALL</span></div>
+                    <p>Push all local tags to remote</p>
+                    <div class="example">$ git push origin --tags</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git tag -d v1.0</code> <span class="tag">DELETE LOCAL</span></div>
+                    <p>Delete a tag from local repository</p>
+                    <div class="example">$ git tag -d v1.0-lw</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git push --delete</code> <span class="tag">DELETE REMOTE</span></div>
+                    <p>Delete a tag from the remote</p>
+                    <div class="example">$ git push origin --delete v1.0-lw</div>
+                </div>
+            </div>
+
+            <h4>Cherry-Pick Commands</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git cherry-pick &lt;hash&gt;</code> <span class="tag">APPLY</span></div>
+                    <p>Apply a single commit onto the current branch</p>
+                    <div class="example">$ git cherry-pick e3f1a2b</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git cherry-pick --continue</code> <span class="tag">RESUME</span></div>
+                    <p>Continue after resolving a conflict</p>
+                    <div class="example">$ git cherry-pick --continue</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git cherry-pick --abort</code> <span class="tag">CANCEL</span></div>
+                    <p>Abort the cherry-pick and restore previous state</p>
+                    <div class="example">$ git cherry-pick --abort</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git cherry-pick A^..B</code> <span class="tag">RANGE</span></div>
+                    <p>Apply a range of commits from A (inclusive) to B</p>
+                    <div class="example">$ git cherry-pick abc123^..def456</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+
+    </main>
+
+    <script>
+        // Copy code block contents to clipboard
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Mark module complete — writes forge progress key and calls ModuleProgress
+        function completeModule() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-13'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch (e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-13-stashing-tagging', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Restore completed state on page load if previously marked complete
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-13']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch (e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

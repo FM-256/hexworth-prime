@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rebasing &amp; Interactive Rebase - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-branch.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 580px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+        .code-block .pick { color: #79c0ff; }
+        .code-block .squash { color: #d2a8ff; }
+        .code-block .reword { color: #f59e0b; }
+        .code-block .fixup { color: #7ee787; }
+        .code-block .drop-cmd { color: #ef4444; }
+        .code-block .edit-cmd { color: #ff7b72; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+        .compare .good { color: #7ee787; }
+        .compare .bad { color: #ef4444; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card-head .tag-warn { background: rgba(245,158,11,0.12); color: var(--orange); }
+        .cmd-card-head .tag-danger { background: rgba(239,68,68,0.12); color: var(--red); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status flow */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+        .status-label { font-weight: 600; color: #fff; min-width: 80px; }
+
+        /* Rebase step visualizer */
+        .rebase-vis { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+        .rebase-vis-title { font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+        .rebase-track { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+        .rebase-track-label { font-size: 11px; color: var(--text-dim); min-width: 64px; text-align: right; padding-right: 8px; font-weight: 600; }
+        .commit-node { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .commit-bubble { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 2px solid; }
+        .commit-line { width: 24px; height: 2px; }
+        .commit-label { font-size: 9px; color: var(--text-dim); }
+        .cb-main { background: rgba(59,130,246,0.15); border-color: var(--blue); color: var(--blue); }
+        .cb-feature { background: rgba(139,92,246,0.15); border-color: var(--purple); color: var(--purple); }
+        .cb-rebased { background: rgba(16,185,129,0.15); border-color: var(--forge); color: var(--forge); }
+        .cl-main { background: var(--blue); }
+        .cl-feature { background: var(--purple); }
+        .cl-rebased { background: var(--forge); }
+        .rebase-arrow { font-size: 22px; color: var(--forge); padding: 0 12px; align-self: center; }
+
+        /* Interactive rebase command reference */
+        .irebase-cmds { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 16px 0; }
+        .irebase-cmd { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+        .irebase-cmd-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; font-family: 'Cascadia Code', monospace; }
+        .irebase-cmd-alias { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+        .irebase-cmd-desc { font-size: 12px; color: var(--text-dim); }
+        .ic-pick { color: #79c0ff; }
+        .ic-reword { color: var(--orange); }
+        .ic-edit { color: #ff7b72; }
+        .ic-squash { color: var(--purple); }
+        .ic-fixup { color: var(--forge); }
+        .ic-drop { color: var(--red); }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+            .irebase-cmds { grid-template-columns: 1fr; }
+            .rebase-track { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-12</span>
+            <h1>Rebasing &amp; Interactive Rebase</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Git Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-branch.webp" alt="">
+            <h2>Rebasing &amp; Interactive Rebase</h2>
+            <p class="hero-sub">Rewrite, reshape, and polish commit history before it goes public. Learn when to rebase, when to merge, and how to wield <code>git rebase -i</code> with precision.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~45 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-branch.webp" alt="" width="14" height="14"> Advanced</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain how rebasing replays commits onto a new base and how it differs from merging</li>
+                <li>Execute a basic <code>git rebase</code> to bring a feature branch up to date</li>
+                <li>Apply the golden rule: never rebase commits that have been shared</li>
+                <li>Open an interactive rebase session with <code>git rebase -i HEAD~N</code></li>
+                <li>Use pick, reword, edit, squash, fixup, and drop to sculpt commit history</li>
+                <li>Squash a series of WIP commits into a single, well-described commit</li>
+                <li>Use <code>git rebase --onto</code> to transplant a branch onto a different base</li>
+                <li>Resolve rebase conflicts and continue, skip, or abort the operation</li>
+                <li>Understand when to reach for <code>filter-branch</code> or <code>git-filter-repo</code></li>
+            </ul>
+        </div>
+
+        <!-- Section 1: What is Rebasing? -->
+        <div class="section">
+            <h3>What is Rebasing?</h3>
+            <p>In Git, there are two main ways to integrate changes from one branch into another: <strong>merge</strong> and <strong>rebase</strong>. You already know merge &mdash; it takes the endpoints of two diverged branches and combines them into a new merge commit. Rebase works differently.</p>
+
+            <p>Rebasing means taking all the commits on your current branch since it diverged from another branch, and <em>replaying them on top of</em> that other branch. Git effectively uproots your commits and re-plants them at a new position in history.</p>
+
+            <h4>How It Works Internally</h4>
+            <p>When you run <code>git rebase main</code> from a feature branch, Git performs these steps in order:</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Step 1</span>
+                    <span>Find the common ancestor of the current branch and the target branch (the point where they diverged)</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Step 2</span>
+                    <span>Save the diff introduced by each commit on the current branch to temporary patch files</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Step 3</span>
+                    <span>Reset the current branch to point at the tip of the target branch</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Step 4</span>
+                    <span>Apply each saved patch in order, creating <em>new</em> commits with new SHA-1 hashes</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Same Content, Different History</div>
+                <p>The end snapshot after a rebase is identical to what you'd get from a merge. The difference is purely in the shape of history. Rebase produces a linear sequence; merge produces a graph with a merge commit.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Basic Rebase -->
+        <div class="section">
+            <h3>Basic Rebase</h3>
+            <p>The most common use of rebase is keeping a feature branch current with the branch it will eventually merge into. Instead of pulling in a merge commit every time <code>main</code> moves forward, you rebase to keep history linear.</p>
+
+            <!-- Visual: before and after rebase -->
+            <div class="rebase-vis">
+                <div class="rebase-vis-title">Before Rebase &mdash; Diverged History</div>
+                <div class="rebase-track">
+                    <span class="rebase-track-label">main</span>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-main">C1</div>
+                        <span class="commit-label">base</span>
+                    </div>
+                    <div class="commit-line cl-main" style="margin-top:-18px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-main">C2</div>
+                        <span class="commit-label">common</span>
+                    </div>
+                    <div class="commit-line cl-main" style="margin-top:-18px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-main">C3</div>
+                        <span class="commit-label">HEAD</span>
+                    </div>
+                </div>
+                <div class="rebase-track" style="margin-top:4px;">
+                    <span class="rebase-track-label">feature</span>
+                    <div style="width:36px;"></div>
+                    <div style="width:24px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-feature" style="visibility:hidden;">C2</div>
+                        <span class="commit-label" style="visibility:hidden;">x</span>
+                    </div>
+                    <div class="commit-line cl-feature" style="margin-top:-18px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-feature">C4</div>
+                        <span class="commit-label">commit</span>
+                    </div>
+                    <div class="commit-line cl-feature" style="margin-top:-18px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-feature">C5</div>
+                        <span class="commit-label">HEAD</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rebase-vis" style="margin-top:0; border-top: none; border-radius: 0 0 10px 10px; border-top: 1px dashed var(--border);">
+                <div class="rebase-vis-title">After <code style="color:var(--forge);">git rebase main</code> &mdash; Linear History</div>
+                <div class="rebase-track">
+                    <span class="rebase-track-label">main</span>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-main">C1</div>
+                        <span class="commit-label">base</span>
+                    </div>
+                    <div class="commit-line cl-main" style="margin-top:-18px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-main">C2</div>
+                        <span class="commit-label">common</span>
+                    </div>
+                    <div class="commit-line cl-main" style="margin-top:-18px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-main">C3</div>
+                        <span class="commit-label">main</span>
+                    </div>
+                    <div class="commit-line cl-rebased" style="margin-top:-18px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-rebased">C4'</div>
+                        <span class="commit-label">replayed</span>
+                    </div>
+                    <div class="commit-line cl-rebased" style="margin-top:-18px;"></div>
+                    <div class="commit-node">
+                        <div class="commit-bubble cb-rebased">C5'</div>
+                        <span class="commit-label">HEAD</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Switch to your feature branch first</span>
+<span class="cmd">$</span> git checkout feature
+<span class="comment"># or with modern Git:</span>
+<span class="cmd">$</span> git switch feature
+
+<span class="comment"># Rebase onto main — replays your commits on top of main's tip</span>
+<span class="cmd">$</span> git rebase main
+<span class="output">First, rewinding head to replay your work on top of it...
+Applying: Add feature implementation
+Applying: Add tests for feature</span>
+
+<span class="comment"># Now fast-forward main (no merge commit needed)</span>
+<span class="cmd">$</span> git checkout main
+<span class="cmd">$</span> git merge feature
+<span class="output">Updating 3a4b5c6..9d8e7f0
+Fast-forward
+ feature.js | 47 ++++++++++++++++++
+ 1 file changed, 47 insertions(+)</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Fast-Forward After Rebase</div>
+                <p>Because the rebased feature branch now starts exactly where <code>main</code> ends, the merge becomes a pure fast-forward &mdash; Git just moves the pointer forward. No merge commit, no divergence. The log reads like everything happened sequentially.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Rebase vs Merge -->
+        <div class="section">
+            <h3>Rebase vs. Merge</h3>
+            <p>Both commands integrate changes. The choice between them is really a choice about how you want the history to read.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Dimension</th>
+                    <th>Merge</th>
+                    <th>Rebase</th>
+                </tr>
+                <tr>
+                    <td><strong>History shape</strong></td>
+                    <td>Preserves the branch topology &mdash; creates a merge commit, shows parallel work</td>
+                    <td>Creates a linear sequence &mdash; looks like work happened serially</td>
+                </tr>
+                <tr>
+                    <td><strong>Commits</strong></td>
+                    <td>Adds one new merge commit; original commits untouched</td>
+                    <td>Creates <em>new</em> commits with different SHA-1 hashes; originals are abandoned</td>
+                </tr>
+                <tr>
+                    <td><strong>Safe to use on shared branches?</strong></td>
+                    <td class="good">Yes &mdash; always safe</td>
+                    <td class="bad">Only on local, unshared commits</td>
+                </tr>
+                <tr>
+                    <td><strong>Conflict handling</strong></td>
+                    <td>Resolve once during the merge</td>
+                    <td>May need to resolve per-commit as each is replayed</td>
+                </tr>
+                <tr>
+                    <td><strong>Log readability</strong></td>
+                    <td>Accurately shows what happened and when</td>
+                    <td>Cleaner, easier to follow with <code>git log --oneline</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Use when</strong></td>
+                    <td>Integrating completed features, preserving context, working on a shared branch</td>
+                    <td>Cleaning up local work before a PR, keeping feature branch current with main</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Two Schools of Thought</div>
+                <p>One view holds that commit history is a factual record &mdash; it should show messy WIP and all. The other view holds that history is documentation &mdash; it should tell a coherent story. Rebase serves the second philosophy. Neither is universally correct; know your team's conventions.</p>
+            </div>
+
+            <h4>The Best of Both Worlds</h4>
+            <p>The practical synthesis used by most experienced teams: <strong>rebase local changes before pushing to clean up your work, but never rebase anything you've already pushed somewhere that others might have pulled.</strong></p>
+        </div>
+
+        <!-- Section 4: The Golden Rule -->
+        <div class="section">
+            <h3>The Golden Rule of Rebasing</h3>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">The Golden Rule &mdash; Read This Twice</div>
+                <p><strong>Do not rebase commits that exist outside your local repository and that other people may have based work on.</strong></p>
+            </div>
+
+            <p>This rule exists because of what rebase actually does: it abandons your existing commits and creates <em>new ones</em> that look similar but have different SHA-1 hashes. If you've pushed commits and others have pulled them, rebasing those commits creates a parallel universe in your repo that Git cannot cleanly reconcile.</p>
+
+            <h4>What Happens If You Break the Rule</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">You push</span>
+                    <span>You push commits A, B, C to the remote. Your teammate pulls them and builds commit D on top of C.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">You rebase</span>
+                    <span>You rebase, creating A', B', C' with new SHA hashes. You <code>git push --force</code> to overwrite the remote.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Teammate pulls</span>
+                    <span>Their repo now has both the old commits (A, B, C) that their D is based on AND the new commits (A', B', C'). History forks. Untangling this is painful.</span>
+                </div>
+            </div>
+
+            <h4>Recovery: <code>git pull --rebase</code></h4>
+            <p>If you or a teammate does force-push rebased history, <code>git pull --rebase</code> gives Git the best chance of sorting out what's unique to each side. Git uses patch-ids (fingerprints of the actual <em>change</em>, not just the SHA) to detect and skip duplicate commits. You can also make this the default:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Use rebase instead of merge when pulling (recommended on teams)</span>
+<span class="cmd">$</span> git config <span class="flag">--global</span> pull.rebase true
+
+<span class="comment"># Pull with rebase explicitly for a one-off</span>
+<span class="cmd">$</span> git pull <span class="flag">--rebase</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Safe Zone Summary</div>
+                <p>You are safe to rebase commits that have <strong>never left your machine</strong>. You are also safe to rebase commits that you've pushed but that <strong>no one else has based work on</strong> (your own feature branch on a remote, for example, before anyone has reviewed or pulled it). Outside these cases: merge.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Interactive Rebase -->
+        <div class="section">
+            <h3>Interactive Rebase</h3>
+            <p>Basic rebase moves your commits to a new base. Interactive rebase &mdash; <code>git rebase -i</code> &mdash; lets you also <em>edit the commits themselves</em> as you replay them. It opens a text editor with a script listing your commits, and you annotate each line with an instruction.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Interactively rebase the last 3 commits</span>
+<span class="cmd">$</span> git rebase <span class="flag">-i</span> HEAD~3
+
+<span class="comment"># Interactively rebase back to a specific commit (exclusive)</span>
+<span class="cmd">$</span> git rebase <span class="flag">-i</span> 710f0f8</code></pre>
+            </div>
+
+            <p>Git opens your <code>$EDITOR</code> (usually vim or nano) with a script that looks like this &mdash; oldest commit at the top, newest at the bottom (the reverse of <code>git log</code>):</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Rebase Script (Editor)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="pick">pick</span> f7f3f6d Change my name a bit
+<span class="pick">pick</span> 310154e Update README formatting and add blame
+<span class="pick">pick</span> a5f4a0d Add cat-file
+
+<span class="comment"># Rebase 710f0f8..a5f4a0d onto 710f0f8</span>
+<span class="comment">#</span>
+<span class="comment"># Commands:</span>
+<span class="comment"># p, pick   = use commit</span>
+<span class="comment"># r, reword = use commit, but edit the commit message</span>
+<span class="comment"># e, edit   = use commit, but stop for amending</span>
+<span class="comment"># s, squash = use commit, but meld into previous commit</span>
+<span class="comment"># f, fixup  = like "squash", but discard this commit's log message</span>
+<span class="comment"># d, drop   = remove commit</span>
+<span class="comment">#</span>
+<span class="comment"># These lines can be re-ordered; they are executed from top to bottom.</span>
+<span class="comment"># If you remove a line here THAT COMMIT WILL BE LOST.</span></code></pre>
+            </div>
+
+            <p>You edit the script, save, and exit. Git replays each commit applying your instructions in sequence.</p>
+
+            <h4>The Interactive Rebase Command Reference</h4>
+            <div class="irebase-cmds">
+                <div class="irebase-cmd">
+                    <div class="irebase-cmd-name ic-pick">pick</div>
+                    <div class="irebase-cmd-alias">alias: p</div>
+                    <div class="irebase-cmd-desc">Use the commit as-is. Default for all commits. Reordering pick lines reorders commits in history.</div>
+                </div>
+                <div class="irebase-cmd">
+                    <div class="irebase-cmd-name ic-reword">reword</div>
+                    <div class="irebase-cmd-alias">alias: r</div>
+                    <div class="irebase-cmd-desc">Use the commit but pause to let you edit the commit message. Useful for fixing typos or improving clarity.</div>
+                </div>
+                <div class="irebase-cmd">
+                    <div class="irebase-cmd-name ic-edit">edit</div>
+                    <div class="irebase-cmd-alias">alias: e</div>
+                    <div class="irebase-cmd-desc">Pause after applying this commit, dropping you to the shell. You can amend the commit, add files, or split it into multiple commits.</div>
+                </div>
+                <div class="irebase-cmd">
+                    <div class="irebase-cmd-name ic-squash">squash</div>
+                    <div class="irebase-cmd-alias">alias: s</div>
+                    <div class="irebase-cmd-desc">Meld this commit into the previous one and open the editor to merge both commit messages into one.</div>
+                </div>
+                <div class="irebase-cmd">
+                    <div class="irebase-cmd-name ic-fixup">fixup</div>
+                    <div class="irebase-cmd-alias">alias: f</div>
+                    <div class="irebase-cmd-desc">Like squash, but silently discards this commit's message. Use for "fix typo" or "oops" commits that add noise.</div>
+                </div>
+                <div class="irebase-cmd">
+                    <div class="irebase-cmd-name ic-drop">drop</div>
+                    <div class="irebase-cmd-alias">alias: d</div>
+                    <div class="irebase-cmd-desc">Remove the commit entirely from history. Equivalent to deleting the line from the script.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Squashing Commits -->
+        <div class="section">
+            <h3>Squashing Commits</h3>
+            <p>Squashing is the most common interactive rebase operation. You accumulate a series of messy WIP commits during development ("wip", "fix typo", "try this", "FINALLY"), then squash them down into a single, well-described commit before the PR lands.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Open interactive rebase for last 4 commits</span>
+<span class="cmd">$</span> git rebase <span class="flag">-i</span> HEAD~4</code></pre>
+            </div>
+
+            <p>Change the script to squash the last three commits into the first:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Rebase Script &mdash; Before and After</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># BEFORE — four separate commits</span>
+<span class="pick">pick</span> a1b2c3d Implement user auth
+<span class="pick">pick</span> e4f5g6h wip
+<span class="pick">pick</span> i7j8k9l fix typo in auth
+<span class="pick">pick</span> m0n1o2p add missing import
+
+<span class="comment"># AFTER — squash the three noisy commits into the first</span>
+<span class="pick">pick</span>   a1b2c3d Implement user auth
+<span class="squash">squash</span> e4f5g6h wip
+<span class="fixup">fixup</span>  i7j8k9l fix typo in auth
+<span class="fixup">fixup</span>  m0n1o2p add missing import</code></pre>
+            </div>
+
+            <p>Git applies the commits, then opens the editor for you to write the final combined message (because <code>squash</code> was used; <code>fixup</code> lines are silent). The result is a single clean commit in history.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Combined Message Editor</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># This is a combination of 4 commits.</span>
+<span class="comment"># The first commit's message is:</span>
+Implement user auth
+
+<span class="comment"># This is the 2nd commit message:</span>
+
+wip
+
+<span class="comment"># --- Delete the WIP lines, write the final message: ---</span>
+Implement user authentication module
+
+Add JWT-based login, session validation, and logout endpoint.
+Includes rate limiting on the /login route.</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">fixup vs squash</div>
+                <p>Use <code>squash</code> when you want to write a new combined message. Use <code>fixup</code> when the previous commit's message already says it all and the fixup commit is just noise ("oops", "fix lint", etc.). <code>fixup</code> skips the editor entirely.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Reordering & Editing Commits -->
+        <div class="section">
+            <h3>Reordering &amp; Editing Commits</h3>
+            <p>The interactive rebase script is just a text file. Reordering lines reorders commits. Deleting a line drops that commit. This gives you surgical control over history before a PR.</p>
+
+            <h4>Reordering and Dropping</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Rebase Script</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># BEFORE — wrong order, broken commit in the middle</span>
+<span class="pick">pick</span> f7f3f6d Update README formatting
+<span class="pick">pick</span> 310154e Add broken experiment (remove this)
+<span class="pick">pick</span> a5f4a0d Add blame command
+
+<span class="comment"># AFTER — reordered and broken commit dropped</span>
+<span class="pick">pick</span> a5f4a0d Add blame command
+<span class="pick">pick</span> f7f3f6d Update README formatting
+<span class="drop-cmd">drop</span> 310154e Add broken experiment (remove this)</code></pre>
+            </div>
+
+            <h4>Editing a Commit &mdash; Amending Mid-Rebase</h4>
+            <p>Mark a commit as <code>edit</code> to pause the rebase at that point. Git drops you to the command line so you can modify the commit, add files, or split it apart.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Script: change pick to edit on the commit you want to modify</span>
+<span class="edit-cmd">edit</span> f7f3f6d Update README formatting and add blame
+
+<span class="comment"># Git pauses and tells you:</span>
+<span class="output">Stopped at f7f3f6d... Update README formatting and add blame
+You can amend the commit now, with
+
+    git commit --amend
+
+Once you're satisfied with your changes, run
+
+    git rebase --continue</span>
+
+<span class="comment"># Split the paused commit into two:</span>
+<span class="cmd">$</span> git reset HEAD^          <span class="comment"># Undo the commit, keep changes unstaged</span>
+<span class="cmd">$</span> git add README.md
+<span class="cmd">$</span> git commit <span class="flag">-m</span> <span class="str">"Update README formatting"</span>
+<span class="cmd">$</span> git add lib/simplegit.rb
+<span class="cmd">$</span> git commit <span class="flag">-m</span> <span class="str">"Add blame command"</span>
+<span class="cmd">$</span> git rebase <span class="flag">--continue</span></code></pre>
+            </div>
+
+            <h4>Rewording a Commit Message</h4>
+            <p>For just fixing a commit message without touching the content, <code>reword</code> is cleaner than <code>edit</code> &mdash; Git pauses only for the editor, then automatically continues.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Rebase Script</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="pick">pick</span>   a1b2c3d Implement user auth
+<span class="reword">reword</span> e4f5g6h Fix the thing     <span class="comment"># &lt;-- bad message, will be prompted to fix</span>
+<span class="pick">pick</span>   i7j8k9l Add tests</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 8: --onto Rebase -->
+        <div class="section">
+            <h3>Advanced: <code>--onto</code> Rebase</h3>
+            <p>The <code>--onto</code> option lets you transplant a slice of commits onto a completely different base, regardless of where they branched from. This is useful when a feature branch was accidentally cut from the wrong branch, or when you want to extract specific commits.</p>
+
+            <h4>The Scenario</h4>
+            <p>You have a <code>server</code> branch off <code>main</code>, and a <code>client</code> branch off <code>server</code>. You want to merge the client changes into <code>main</code> now, but leave the server changes for later &mdash; even though <code>client</code> technically branched from <code>server</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Syntax: git rebase --onto &lt;newbase&gt; &lt;upstream&gt; &lt;branch&gt;</span>
+<span class="comment"># "Take client, find commits since it diverged from server, replay them onto main"</span>
+<span class="cmd">$</span> git rebase <span class="flag">--onto</span> main server client
+
+<span class="comment"># Now fast-forward main to include only the client commits</span>
+<span class="cmd">$</span> git checkout main
+<span class="cmd">$</span> git merge client
+
+<span class="comment"># Later, when server is ready, rebase it onto main normally</span>
+<span class="cmd">$</span> git rebase main server
+<span class="cmd">$</span> git checkout main
+<span class="cmd">$</span> git merge server</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Reading the --onto Syntax</div>
+                <p><code>git rebase --onto A B C</code> reads as: "Take branch C, find all commits since it diverged from B, and replay those commits on top of A." B acts as a fence &mdash; only commits <em>after</em> B (on branch C) are moved. Think of it as transplanting a range rather than an entire branch.</p>
+            </div>
+
+            <h4>Shorthand: Rebase Without Checking Out</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Rebase server onto main WITHOUT switching branches first</span>
+<span class="comment"># git rebase &lt;basebranch&gt; &lt;topicbranch&gt;</span>
+<span class="cmd">$</span> git rebase main server</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 9: Handling Rebase Conflicts -->
+        <div class="section">
+            <h3>Handling Rebase Conflicts</h3>
+            <p>Conflicts during a rebase are more frequent than during a merge because each commit is applied individually. If commit C4 conflicts, you resolve it before C5 is applied. This can mean resolving conflicts at multiple steps, but each conflict is smaller and easier to understand in isolation.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git rebase --continue</code> <span class="tag">PROCEED</span></div>
+                    <p>After resolving conflicts and staging the fixes, continue replaying the remaining commits</p>
+                    <div class="example">$ git add resolved-file.js &amp;&amp; git rebase --continue</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git rebase --skip</code> <span class="tag">SKIP</span></div>
+                    <p>Skip the current commit entirely (use when a conflict means the commit's changes are already present)</p>
+                    <div class="example">$ git rebase --skip</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git rebase --abort</code> <span class="tag tag-warn">ABORT</span></div>
+                    <p>Cancel the entire rebase and restore the branch to its state before you started</p>
+                    <div class="example">$ git rebase --abort</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reflog</code> <span class="tag">RECOVERY</span></div>
+                    <p>If a completed rebase produced bad results, use reflog to find the pre-rebase SHA and reset back to it</p>
+                    <div class="example">$ git reflog &amp;&amp; git reset --hard HEAD@{2}</div>
+                </div>
+            </div>
+
+            <h4>The Conflict Resolution Loop</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> git rebase main
+<span class="output">Auto-merging auth.js
+CONFLICT (content): Merge conflict in auth.js
+error: could not apply 3a4b5c6... Add session validation
+hint: Resolve all conflicts manually, mark them as fixed with
+hint: "git add/rm &lt;conflicted_files&gt;", then run "git rebase --continue".</span>
+
+<span class="comment"># Open auth.js, resolve the conflict markers (&lt;&lt;&lt;&lt;&lt;&lt;&lt; / ======= / &gt;&gt;&gt;&gt;&gt;&gt;&gt;)</span>
+<span class="comment"># Then stage the resolved file</span>
+<span class="cmd">$</span> git add auth.js
+
+<span class="comment"># Do NOT create a new commit — just continue the rebase</span>
+<span class="cmd">$</span> git rebase <span class="flag">--continue</span>
+<span class="output">Applying: Add session validation
+Applying: Add logout endpoint</span>
+
+<span class="comment"># Rebase complete — check the result</span>
+<span class="cmd">$</span> git log <span class="flag">--oneline</span>
+<span class="output">9f8e7d6 Add logout endpoint
+3b2a1c0 Add session validation
+main... (main branch commits below)</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Do Not Commit During Conflict Resolution</div>
+                <p>When resolving a rebase conflict, stage your fixes with <code>git add</code> but do <strong>not</strong> run <code>git commit</code>. Running <code>git rebase --continue</code> after staging is what creates the commit and advances the rebase. Running <code>git commit</code> manually would create an extra commit in the sequence.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: filter-branch / filter-repo -->
+        <div class="section">
+            <h3>Nuclear Option: filter-branch &amp; filter-repo</h3>
+            <p>Interactive rebase is powerful, but it works on a limited range of commits. When you need to rewrite <em>all</em> of history &mdash; removing a secret that was committed 200 commits ago, purging a large binary file, or changing an email address across thousands of commits &mdash; you need a different tool.</p>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Warning: Nuclear-Class Operation</div>
+                <p>These commands rewrite every affected commit SHA across your entire history. All collaborators must re-clone or rebase their local copies afterward. Only run this when the project is not yet public, or when you have communicated and coordinated with all collaborators. Always test on a backup first.</p>
+            </div>
+
+            <h4>git-filter-repo (Recommended)</h4>
+            <p><code>git filter-branch</code> is the built-in tool, but Git itself recommends against it due to performance issues and footguns. The community-maintained <code>git-filter-repo</code> is the modern replacement &mdash; it is faster, safer, and easier to use.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install git-filter-repo (Python-based)</span>
+<span class="cmd">$</span> pip install git-filter-repo
+
+<span class="comment"># Remove a sensitive file from ALL of history</span>
+<span class="cmd">$</span> git filter-repo <span class="flag">--path</span> passwords.txt <span class="flag">--invert-paths</span>
+
+<span class="comment"># Remove all files matching a pattern</span>
+<span class="cmd">$</span> git filter-repo <span class="flag">--path-glob</span> <span class="str">'*.pem'</span> <span class="flag">--invert-paths</span>
+
+<span class="comment"># Rename email across all commits</span>
+<span class="cmd">$</span> git filter-repo <span class="flag">--email-callback</span> <span class="str">'return email.replace(b"old@work.com", b"me@personal.com")'</span></code></pre>
+            </div>
+
+            <h4>git filter-branch (Legacy, Avoid When Possible)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Remove a file from every commit (slow on large repos)</span>
+<span class="cmd">$</span> git filter-branch <span class="flag">--tree-filter</span> <span class="str">'rm -f passwords.txt'</span> HEAD
+<span class="output">Rewrite 6b9b3cf04e7c5686a9cb838c3f36a8cb6a0fc2bd (21/21)
+Ref 'refs/heads/master' was rewritten</span>
+
+<span class="comment"># Make a subdirectory the new project root</span>
+<span class="cmd">$</span> git filter-branch <span class="flag">--subdirectory-filter</span> trunk HEAD
+
+<span class="comment"># Run on ALL branches, not just current</span>
+<span class="cmd">$</span> git filter-branch <span class="flag">--tree-filter</span> <span class="str">'rm -f *.pem'</span> <span class="flag">--all</span></code></pre>
+            </div>
+
+            <h4>After Running Either Tool</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Force-push the rewritten history (coordinate with team first)</span>
+<span class="cmd">$</span> git push <span class="flag">--force</span> <span class="flag">--all</span>
+<span class="cmd">$</span> git push <span class="flag">--force</span> <span class="flag">--tags</span>
+
+<span class="comment"># All collaborators MUST re-clone after this</span>
+<span class="comment"># (or rebase their local branches onto the rewritten ones)</span></code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Tool</th>
+                    <th>Use For</th>
+                    <th>Speed</th>
+                    <th>Recommendation</th>
+                </tr>
+                <tr>
+                    <td><code>git rebase -i</code></td>
+                    <td>Local WIP cleanup, squashing, reordering, editing recent commits</td>
+                    <td>Fast</td>
+                    <td class="good">Preferred for daily use</td>
+                </tr>
+                <tr>
+                    <td><code>git-filter-repo</code></td>
+                    <td>Removing secrets, renaming authors, purging large files across all history</td>
+                    <td>Very fast</td>
+                    <td class="good">Preferred for history surgery</td>
+                </tr>
+                <tr>
+                    <td><code>git filter-branch</code></td>
+                    <td>Same as filter-repo, legacy projects</td>
+                    <td>Slow</td>
+                    <td class="bad">Avoid; use filter-repo instead</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Section 11: Quick Reference -->
+        <div class="section">
+            <h3>Quick Reference</h3>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git rebase main</code> <span class="tag">BASIC</span></div>
+                    <p>Replay current branch commits on top of main</p>
+                    <div class="example">$ git switch feature &amp;&amp; git rebase main</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git rebase -i HEAD~N</code> <span class="tag">INTERACTIVE</span></div>
+                    <p>Open interactive rebase for the last N commits</p>
+                    <div class="example">$ git rebase -i HEAD~5</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git rebase --onto</code> <span class="tag">ADVANCED</span></div>
+                    <p>Transplant a branch range onto a different base</p>
+                    <div class="example">$ git rebase --onto main server client</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git rebase --continue</code> <span class="tag">CONFLICT</span></div>
+                    <p>After resolving conflicts, continue replaying commits</p>
+                    <div class="example">$ git add fixed.js &amp;&amp; git rebase --continue</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git rebase --abort</code> <span class="tag tag-warn">ABORT</span></div>
+                    <p>Cancel and restore branch to pre-rebase state</p>
+                    <div class="example">$ git rebase --abort</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git pull --rebase</code> <span class="tag">PULL</span></div>
+                    <p>Fetch + replay your local commits on top of the fetched branch</p>
+                    <div class="example">$ git pull --rebase origin main</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git reflog</code> <span class="tag">RECOVERY</span></div>
+                    <p>Find the SHA of your branch before a bad rebase, then reset to it</p>
+                    <div class="example">$ git reset --hard HEAD@{3}</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>git commit --amend</code> <span class="tag">AMEND</span></div>
+                    <p>Rewrite only the last commit &mdash; the simplest history edit</p>
+                    <div class="example">$ git commit --amend --no-edit</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Code copy functionality
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion — writes to forge progress and calls ModuleProgress
+        function completeModule() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-12'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-12-rebasing', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Restore completed state on load if already done
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-12']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
