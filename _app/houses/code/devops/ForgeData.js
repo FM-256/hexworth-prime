@@ -195,19 +195,19 @@ const ForgeData = {
             description: 'Container orchestration — pods, deployments, services, scaling, Helm, and production operations.',
             color: '#3b82f6',
             modules: [
-                { id: 'do-19', title: 'Why Kubernetes? — Orchestration Fundamentals', type: 'module', status: 'coming-soon', sprint: 'DO-19' },
-                { id: 'do-57', title: 'Pods & Deployments', type: 'module', status: 'coming-soon', sprint: 'DO-57' },
-                { id: 'do-58', title: 'kubectl Mastery', type: 'module', status: 'coming-soon', sprint: 'DO-58' },
-                { id: 'do-59', title: 'Services & Networking', type: 'module', status: 'coming-soon', sprint: 'DO-59' },
-                { id: 'do-60', title: 'ConfigMaps & Secrets', type: 'module', status: 'coming-soon', sprint: 'DO-60' },
-                { id: 'do-61', title: 'Scaling & Self-Healing', type: 'module', status: 'coming-soon', sprint: 'DO-61' },
-                { id: 'do-62', title: 'Persistent Storage', type: 'module', status: 'coming-soon', sprint: 'DO-62' },
-                { id: 'do-63', title: 'RBAC & Security', type: 'module', status: 'coming-soon', sprint: 'DO-63' },
-                { id: 'do-64', title: 'Helm — Package Management', type: 'module', status: 'coming-soon', sprint: 'DO-64' },
-                { id: 'do-65', title: 'Monitoring & Observability', type: 'module', status: 'coming-soon', sprint: 'DO-65' },
-                { id: 'do-66', title: 'Real-World K8s Patterns', type: 'module', status: 'coming-soon', sprint: 'DO-66' },
-                { id: 'do-20', title: 'Kubernetes Lab — Deploy a Cluster', type: 'lab', status: 'coming-soon', sprint: 'DO-20' },
-                { id: 'do-67', title: 'K8s Tips, Tricks & Dark Arts', type: 'module', status: 'coming-soon', sprint: 'DO-67' }
+                { id: 'do-19', title: 'Why Kubernetes? — Orchestration Fundamentals', type: 'module', status: 'ready', sprint: 'DO-19', href: 'do-19-k8s-fundamentals.html' },
+                { id: 'do-57', title: 'Pods & Deployments', type: 'module', status: 'ready', sprint: 'DO-57', href: 'do-57-pods-deployments.html' },
+                { id: 'do-58', title: 'kubectl Mastery', type: 'module', status: 'ready', sprint: 'DO-58', href: 'do-58-kubectl.html' },
+                { id: 'do-59', title: 'Services & Networking', type: 'module', status: 'ready', sprint: 'DO-59', href: 'do-59-services-networking.html' },
+                { id: 'do-60', title: 'ConfigMaps & Secrets', type: 'module', status: 'ready', sprint: 'DO-60', href: 'do-60-configmaps-secrets.html' },
+                { id: 'do-61', title: 'Scaling & Self-Healing', type: 'module', status: 'ready', sprint: 'DO-61', href: 'do-61-scaling.html' },
+                { id: 'do-62', title: 'Persistent Storage', type: 'module', status: 'ready', sprint: 'DO-62', href: 'do-62-storage.html' },
+                { id: 'do-63', title: 'RBAC & Security', type: 'module', status: 'ready', sprint: 'DO-63', href: 'do-63-rbac-security.html' },
+                { id: 'do-64', title: 'Helm — Package Management', type: 'module', status: 'ready', sprint: 'DO-64', href: 'do-64-helm.html' },
+                { id: 'do-65', title: 'Monitoring & Observability', type: 'module', status: 'ready', sprint: 'DO-65', href: 'do-65-monitoring.html' },
+                { id: 'do-66', title: 'Real-World K8s Patterns', type: 'module', status: 'ready', sprint: 'DO-66', href: 'do-66-k8s-patterns.html' },
+                { id: 'do-20', title: 'Kubernetes Lab — Deploy a Cluster', type: 'lab', status: 'ready', sprint: 'DO-20', href: 'do-20-k8s-lab.html' },
+                { id: 'do-67', title: 'K8s Tips, Tricks & Dark Arts', type: 'module', status: 'ready', sprint: 'DO-67', href: 'do-67-k8s-tips.html' }
             ]
         },
 

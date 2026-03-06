@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RBAC &amp; Security - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-shield.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-63</span>
+            <h1>RBAC &amp; Security</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Kubernetes Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-shield.webp" alt="">
+            <h2>RBAC &amp; Security</h2>
+            <p class="hero-sub">Lock down your cluster from the API layer to the pod runtime. Authentication, authorization, admission control, and the policies that tie them together.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~40 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-shield.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Describe the three-stage Kubernetes security model: authentication, authorization, admission control</li>
+                <li>Create and bind ServiceAccounts for workload identity</li>
+                <li>Write Roles, ClusterRoles, RoleBindings, and ClusterRoleBindings using least-privilege principles</li>
+                <li>Apply Pod Security Standards and configure security contexts to harden pod runtimes</li>
+                <li>Implement NetworkPolicies to segment cluster traffic</li>
+                <li>Enable Secret encryption at rest and enforce image security policies</li>
+                <li>Understand audit logging and CIS Kubernetes Benchmark highlights</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: The Kubernetes Security Model -->
+        <div class="section">
+            <h3>The Kubernetes Security Model</h3>
+            <p>Every request to the Kubernetes API server passes through three sequential gates before it is executed. If any gate rejects the request, processing stops and the caller receives an error.</p>
+
+            <div class="diagram" id="securityDiagram">
+                <div class="diagram-box" onclick="showGate('authn')" id="box-authn">
+                    <div class="diagram-box-title">Authentication</div>
+                    <div class="diagram-box-sub">Who are you?</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showGate('authz')" id="box-authz">
+                    <div class="diagram-box-title">Authorization</div>
+                    <div class="diagram-box-sub">Are you allowed?</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showGate('admit')" id="box-admit">
+                    <div class="diagram-box-title">Admission</div>
+                    <div class="diagram-box-sub">Is the request valid?</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="gateDetail">Click a gate above to learn more about it.</div>
+
+            <h4>Authentication Methods</h4>
+            <table class="compare">
+                <tr><th>Method</th><th>How It Works</th><th>Common Use</th></tr>
+                <tr>
+                    <td>X.509 Client Certs</td>
+                    <td>Certificate CN = username, O = group</td>
+                    <td>Admin kubeconfig, cluster bootstrapping</td>
+                </tr>
+                <tr>
+                    <td>Bearer Tokens</td>
+                    <td>Static token file or ServiceAccount JWT</td>
+                    <td>ServiceAccounts, CI/CD pipelines</td>
+                </tr>
+                <tr>
+                    <td>OIDC</td>
+                    <td>Tokens from an external identity provider</td>
+                    <td>Human users via SSO</td>
+                </tr>
+                <tr>
+                    <td>Webhook Token Auth</td>
+                    <td>API server calls external service to validate</td>
+                    <td>Custom auth backends</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Kubernetes has two categories of identity: <strong>users</strong> (humans, managed externally) and <strong>ServiceAccounts</strong> (workloads, managed by Kubernetes). There is no API to create user objects &mdash; they exist only in the authentication layer.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: ServiceAccounts -->
+        <div class="section">
+            <h3>ServiceAccounts</h3>
+            <p>A ServiceAccount provides an identity for processes running inside pods. Every namespace gets a <code>default</code> ServiceAccount automatically, but best practice is to create dedicated ServiceAccounts with only the permissions each workload needs.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">apiVersion</span>: v1
+<span class="cmd">kind</span>: ServiceAccount
+<span class="cmd">metadata</span>:
+  <span class="flag">name</span>: <span class="str">log-reader</span>
+  <span class="flag">namespace</span>: <span class="str">monitoring</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create imperatively</span>
+<span class="cmd">$</span> kubectl create serviceaccount log-reader <span class="flag">-n</span> monitoring
+
+<span class="comment"># Assign to a pod</span>
+<span class="cmd">$</span> kubectl run reader <span class="flag">--image</span>=<span class="str">busybox</span> <span class="flag">--serviceaccount</span>=<span class="str">log-reader</span> <span class="flag">-n</span> monitoring</code></pre>
+            </div>
+
+            <h4>Disabling Auto-Mounted Tokens</h4>
+            <p>By default, Kubernetes mounts a ServiceAccount token into every pod. If a pod does not need to call the API server, disable this to reduce the blast radius of a compromise.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">apiVersion</span>: v1
+<span class="cmd">kind</span>: ServiceAccount
+<span class="cmd">metadata</span>:
+  <span class="flag">name</span>: <span class="str">no-api-access</span>
+<span class="file">automountServiceAccountToken</span>: <span class="str">false</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Security Note</div>
+                <p>The <code>default</code> ServiceAccount in every namespace typically has no RBAC permissions, but the mounted token can still authenticate to the API server. An attacker who compromises a pod can use that token to probe for misconfigurations. Always use <code>automountServiceAccountToken: false</code> when API access is not needed.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: RBAC Concepts -->
+        <div class="section">
+            <h3>RBAC Concepts</h3>
+            <p>Role-Based Access Control uses four object types that work together in pairs: <strong>Roles define permissions</strong> and <strong>Bindings attach them to subjects</strong>.</p>
+
+            <table class="compare">
+                <tr><th>Object</th><th>Scope</th><th>Purpose</th></tr>
+                <tr><td><code>Role</code></td><td>Namespace</td><td>Defines permissions within a single namespace</td></tr>
+                <tr><td><code>ClusterRole</code></td><td>Cluster-wide</td><td>Permissions across all namespaces or non-namespaced resources</td></tr>
+                <tr><td><code>RoleBinding</code></td><td>Namespace</td><td>Grants a Role (or ClusterRole) to subjects within a namespace</td></tr>
+                <tr><td><code>ClusterRoleBinding</code></td><td>Cluster-wide</td><td>Grants a ClusterRole to subjects across the entire cluster</td></tr>
+            </table>
+
+            <h4>Subjects</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">User</span>
+                    <span>A human identity managed outside Kubernetes (certificates, OIDC tokens). Cannot be created via the API.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Group</span>
+                    <span>A collection of users. Built-in examples: <code>system:masters</code> (full admin), <code>system:authenticated</code>.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">ServiceAccount</span>
+                    <span>A namespaced K8s object. Referenced as <code>system:serviceaccount:&lt;ns&gt;:&lt;name&gt;</code>.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>A ClusterRole can be bound with a <em>RoleBinding</em> to limit its scope to a single namespace. Define permissions once at the cluster level, then grant them namespace-by-namespace.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Creating Roles -->
+        <div class="section">
+            <h3>Creating Roles</h3>
+            <p>A Role defines a set of rules. Each rule specifies <strong>apiGroups</strong> (the API group, <code>""</code> for core), <strong>resources</strong> (pods, services, secrets, etc.), and <strong>verbs</strong> (the allowed actions).</p>
+
+            <h4>RBAC Verbs</h4>
+            <table class="compare">
+                <tr><th>Verb</th><th>HTTP Method</th><th>Description</th></tr>
+                <tr><td><code>get</code></td><td>GET (single)</td><td>Read a specific resource</td></tr>
+                <tr><td><code>list</code></td><td>GET (collection)</td><td>List all resources of a type</td></tr>
+                <tr><td><code>watch</code></td><td>GET (streaming)</td><td>Watch for changes in real time</td></tr>
+                <tr><td><code>create</code></td><td>POST</td><td>Create a new resource</td></tr>
+                <tr><td><code>update</code></td><td>PUT</td><td>Replace an entire resource</td></tr>
+                <tr><td><code>patch</code></td><td>PATCH</td><td>Partially modify a resource</td></tr>
+                <tr><td><code>delete</code></td><td>DELETE</td><td>Delete a specific resource</td></tr>
+            </table>
+
+            <h4>Role + RoleBinding Example</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># A Role that can read pods in the production namespace</span>
+<span class="cmd">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="cmd">kind</span>: Role
+<span class="cmd">metadata</span>:
+  <span class="flag">namespace</span>: <span class="str">production</span>
+  <span class="flag">name</span>: <span class="str">pod-reader</span>
+<span class="cmd">rules</span>:
+- <span class="flag">apiGroups</span>: [<span class="str">""</span>]          <span class="comment"># core API group</span>
+  <span class="flag">resources</span>: [<span class="str">"pods"</span>, <span class="str">"pods/log"</span>]
+  <span class="flag">verbs</span>: [<span class="str">"get"</span>, <span class="str">"list"</span>, <span class="str">"watch"</span>]
+<span class="comment">---</span>
+<span class="comment"># Bind it to a ServiceAccount</span>
+<span class="cmd">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="cmd">kind</span>: RoleBinding
+<span class="cmd">metadata</span>:
+  <span class="flag">name</span>: <span class="str">read-pods</span>
+  <span class="flag">namespace</span>: <span class="str">production</span>
+<span class="cmd">subjects</span>:
+- <span class="flag">kind</span>: ServiceAccount
+  <span class="flag">name</span>: <span class="str">log-reader</span>
+  <span class="flag">namespace</span>: <span class="str">monitoring</span>
+<span class="cmd">roleRef</span>:
+  <span class="flag">kind</span>: Role
+  <span class="flag">name</span>: <span class="str">pod-reader</span>
+  <span class="flag">apiGroup</span>: <span class="str">rbac.authorization.k8s.io</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Verify permissions for a ServiceAccount</span>
+<span class="cmd">$</span> kubectl auth can-i list pods \
+    <span class="flag">--as</span>=<span class="str">system:serviceaccount:monitoring:log-reader</span> \
+    <span class="flag">-n</span> production
+<span class="output">yes</span>
+
+<span class="cmd">$</span> kubectl auth can-i delete pods \
+    <span class="flag">--as</span>=<span class="str">system:serviceaccount:monitoring:log-reader</span> \
+    <span class="flag">-n</span> production
+<span class="output">no</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 5: Least Privilege -->
+        <div class="section">
+            <h3>The Principle of Least Privilege</h3>
+            <p>Least privilege means granting only the minimum permissions required for a subject to perform its function &mdash; nothing more. This principle should guide every RBAC decision you make.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">No Wildcards</span>
+                    <span>Avoid <code>*</code> in verbs, resources, or apiGroups. Enumerate exactly what is needed.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Namespace Scope</span>
+                    <span>Prefer Role + RoleBinding over ClusterRole + ClusterRoleBinding. Limit blast radius.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Dedicated SAs</span>
+                    <span>Never use the <code>default</code> ServiceAccount for workloads. Create purpose-built accounts.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Guard Secrets</span>
+                    <span>Only grant <code>get</code> on Secrets if truly needed. <code>list</code> on Secrets exposes all secrets in a namespace.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Dangerous Permissions</div>
+                <p>These RBAC rules are effectively cluster-admin: <code>create</code> on <code>pods</code> (can mount host filesystem), <code>escalate</code> on <code>roles</code> (can grant yourself any permission), <code>bind</code> on <code>clusterroles</code>, and <code>create</code> on <code>serviceaccounts/token</code>. Grant with extreme caution.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># List all permissions for a user in a namespace</span>
+<span class="cmd">$</span> kubectl auth can-i <span class="flag">--list</span> <span class="flag">--as</span>=<span class="str">jane</span> <span class="flag">-n</span> production
+
+<span class="comment"># Find all ClusterRoleBindings granting cluster-admin</span>
+<span class="cmd">$</span> kubectl get clusterrolebindings <span class="flag">-o</span> json | \
+    jq <span class="str">'.items[] | select(.roleRef.name=="cluster-admin") | .metadata.name'</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 6: Pod Security Standards -->
+        <div class="section">
+            <h3>Pod Security Standards</h3>
+            <p>Pod Security Standards (PSS) define three profiles that govern what a pod is allowed to do at the OS level. They replaced PodSecurityPolicy (removed in v1.25) and are enforced via the built-in Pod Security Admission controller.</p>
+
+            <table class="compare">
+                <tr><th>Profile</th><th>Description</th><th>Use Case</th></tr>
+                <tr>
+                    <td><strong style="color: var(--red)">Privileged</strong></td>
+                    <td>No restrictions. Allows everything including host access.</td>
+                    <td>System-level workloads (CNI, storage drivers)</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: var(--orange)">Baseline</strong></td>
+                    <td>Prevents known privilege escalations. Allows most workloads.</td>
+                    <td>General applications, default for namespaces</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: var(--forge)">Restricted</strong></td>
+                    <td>Hardened best practices. Non-root, drops capabilities.</td>
+                    <td>Security-sensitive, compliance workloads</td>
+                </tr>
+            </table>
+
+            <p>Each namespace can have PSS applied in three modes: <strong>enforce</strong> (reject violating pods), <strong>audit</strong> (allow but log the violation), and <strong>warn</strong> (allow but return a kubectl warning). Start with <code>warn</code> and <code>audit</code>, then progress to <code>enforce</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Apply Restricted PSS to a namespace via labels</span>
+<span class="cmd">apiVersion</span>: v1
+<span class="cmd">kind</span>: Namespace
+<span class="cmd">metadata</span>:
+  <span class="flag">name</span>: <span class="str">secure-apps</span>
+  <span class="flag">labels</span>:
+    <span class="file">pod-security.kubernetes.io/enforce</span>: <span class="str">restricted</span>
+    <span class="file">pod-security.kubernetes.io/enforce-version</span>: <span class="str">latest</span>
+    <span class="file">pod-security.kubernetes.io/audit</span>: <span class="str">restricted</span>
+    <span class="file">pod-security.kubernetes.io/warn</span>: <span class="str">restricted</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Dry-run: check existing pods against a profile</span>
+<span class="cmd">$</span> kubectl label <span class="flag">--dry-run</span>=server <span class="flag">--overwrite</span> ns secure-apps \
+    <span class="str">pod-security.kubernetes.io/enforce=restricted</span>
+<span class="output">Warning: existing pods in namespace "secure-apps" violate the new
+PodSecurity enforce level "restricted:latest"</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 7: Security Contexts -->
+        <div class="section">
+            <h3>Security Contexts</h3>
+            <p>A security context defines privilege and access control settings for a pod or container. These settings control the Linux kernel-level protections applied to your workload at runtime.</p>
+
+            <table class="compare">
+                <tr><th>Field</th><th>Level</th><th>What It Does</th></tr>
+                <tr><td><code>runAsNonRoot</code></td><td>Pod/Container</td><td>Reject the pod if the image runs as UID 0</td></tr>
+                <tr><td><code>runAsUser</code></td><td>Pod/Container</td><td>Sets the UID. Use 1000+ to avoid system UIDs</td></tr>
+                <tr><td><code>readOnlyRootFilesystem</code></td><td>Container</td><td>Mount root FS as read-only. Prevents writing malicious binaries</td></tr>
+                <tr><td><code>allowPrivilegeEscalation</code></td><td>Container</td><td>Blocks child processes from gaining more privileges. Set <code>false</code></td></tr>
+                <tr><td><code>capabilities.drop</code></td><td>Container</td><td>Linux capabilities to remove. Drop <code>ALL</code>, add back selectively</td></tr>
+                <tr><td><code>seccompProfile</code></td><td>Pod/Container</td><td><code>RuntimeDefault</code> blocks ~50 dangerous syscalls</td></tr>
+            </table>
+
+            <h4>Hardened Pod Example</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">apiVersion</span>: v1
+<span class="cmd">kind</span>: Pod
+<span class="cmd">metadata</span>:
+  <span class="flag">name</span>: <span class="str">hardened-app</span>
+<span class="cmd">spec</span>:
+  <span class="file">securityContext</span>:
+    <span class="flag">runAsNonRoot</span>: <span class="str">true</span>
+    <span class="flag">runAsUser</span>: <span class="str">1000</span>
+    <span class="flag">runAsGroup</span>: <span class="str">3000</span>
+    <span class="flag">fsGroup</span>: <span class="str">2000</span>
+    <span class="flag">seccompProfile</span>:
+      <span class="flag">type</span>: <span class="str">RuntimeDefault</span>
+  <span class="file">containers</span>:
+  - <span class="flag">name</span>: <span class="str">app</span>
+    <span class="flag">image</span>: <span class="str">myregistry/app:1.2.0</span>
+    <span class="file">securityContext</span>:
+      <span class="flag">allowPrivilegeEscalation</span>: <span class="str">false</span>
+      <span class="flag">readOnlyRootFilesystem</span>: <span class="str">true</span>
+      <span class="flag">capabilities</span>:
+        <span class="flag">drop</span>: [<span class="str">"ALL"</span>]
+    <span class="file">volumeMounts</span>:
+    - <span class="flag">name</span>: <span class="str">tmp</span>
+      <span class="flag">mountPath</span>: <span class="str">/tmp</span>
+  <span class="file">volumes</span>:
+  - <span class="flag">name</span>: <span class="str">tmp</span>
+    <span class="flag">emptyDir</span>: {}</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Read-Only Root Filesystem</div>
+                <p>Many applications write to <code>/tmp</code> or cache directories. When you enable <code>readOnlyRootFilesystem</code>, mount <code>emptyDir</code> volumes at those paths so the app can still write to temporary locations without access to the full filesystem.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Network Policies -->
+        <div class="section">
+            <h3>Network Policies for Security</h3>
+            <p>By default, all pods can communicate with every other pod without restriction. NetworkPolicies act as a pod-level firewall, controlling ingress and egress traffic based on labels, namespaces, and IP blocks. They are additive: once any policy selects a pod, only explicitly allowed traffic is permitted.</p>
+
+            <h4>Default Deny + Allow Pattern</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Step 1: Block ALL incoming traffic in namespace</span>
+<span class="cmd">apiVersion</span>: networking.k8s.io/v1
+<span class="cmd">kind</span>: NetworkPolicy
+<span class="cmd">metadata</span>:
+  <span class="flag">name</span>: <span class="str">deny-all-ingress</span>
+  <span class="flag">namespace</span>: <span class="str">production</span>
+<span class="cmd">spec</span>:
+  <span class="flag">podSelector</span>: {}       <span class="comment"># selects ALL pods</span>
+  <span class="flag">policyTypes</span>:
+  - <span class="str">Ingress</span>
+<span class="comment">---</span>
+<span class="comment"># Step 2: Allow frontend to reach backend on port 8080</span>
+<span class="cmd">apiVersion</span>: networking.k8s.io/v1
+<span class="cmd">kind</span>: NetworkPolicy
+<span class="cmd">metadata</span>:
+  <span class="flag">name</span>: <span class="str">allow-frontend-to-backend</span>
+  <span class="flag">namespace</span>: <span class="str">production</span>
+<span class="cmd">spec</span>:
+  <span class="flag">podSelector</span>:
+    <span class="flag">matchLabels</span>:
+      <span class="file">app</span>: <span class="str">backend</span>
+  <span class="flag">policyTypes</span>:
+  - <span class="str">Ingress</span>
+  <span class="flag">ingress</span>:
+  - <span class="flag">from</span>:
+    - <span class="flag">podSelector</span>:
+        <span class="flag">matchLabels</span>:
+          <span class="file">app</span>: <span class="str">frontend</span>
+    <span class="flag">ports</span>:
+    - <span class="flag">protocol</span>: <span class="str">TCP</span>
+      <span class="flag">port</span>: <span class="str">8080</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">CNI Requirement</div>
+                <p>NetworkPolicies require a CNI plugin that supports them (Calico, Cilium, Weave). The default <code>kubenet</code> and some Flannel configurations silently ignore NetworkPolicy objects &mdash; the YAML is accepted but never enforced.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Secret Encryption at Rest -->
+        <div class="section">
+            <h3>Secret Encryption at Rest</h3>
+            <p>By default, Kubernetes Secrets are stored as base64-encoded plaintext in etcd. Anyone with etcd access can decode every Secret in the cluster. Encryption at rest ensures data is encrypted before being written to etcd.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># /etc/kubernetes/encryption-config.yaml</span>
+<span class="cmd">apiVersion</span>: apiserver.config.k8s.io/v1
+<span class="cmd">kind</span>: EncryptionConfiguration
+<span class="cmd">resources</span>:
+- <span class="flag">resources</span>:
+  - <span class="str">secrets</span>
+  <span class="flag">providers</span>:
+  - <span class="flag">aescbc</span>:                  <span class="comment"># encrypt with AES-CBC</span>
+      <span class="flag">keys</span>:
+      - <span class="flag">name</span>: <span class="str">key1</span>
+        <span class="flag">secret</span>: <span class="str">&lt;base64-encoded-32-byte-key&gt;</span>
+  - <span class="flag">identity</span>: {}              <span class="comment"># fallback: read unencrypted</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Generate a 32-byte encryption key</span>
+<span class="cmd">$</span> head -c 32 /dev/urandom | base64
+
+<span class="comment"># Add to kube-apiserver manifest:</span>
+<span class="comment">#   --encryption-provider-config=/etc/kubernetes/encryption-config.yaml</span>
+
+<span class="comment"># Re-encrypt all existing Secrets after enabling</span>
+<span class="cmd">$</span> kubectl get secrets <span class="flag">--all-namespaces</span> <span class="flag">-o</span> json | kubectl replace <span class="flag">-f</span> -</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Provider Options</div>
+                <p><code>aescbc</code> is the most common self-managed option. <code>aesgcm</code> is faster but requires manual key rotation. <code>kms</code> (v2) integrates with external key management (AWS KMS, Azure Key Vault, HashiCorp Vault) &mdash; the most secure option for production.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Image Security -->
+        <div class="section">
+            <h3>Image Security</h3>
+            <p>Controlling which container images can run is a critical security boundary. A single malicious or vulnerable image can compromise the entire node.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Private Registries</code> <span class="tag">PULL SECRETS</span></div>
+                    <p>Use <code>imagePullSecrets</code> to authenticate. Never pull from unauthenticated sources in production.</p>
+                    <div class="example">imagePullSecrets:
+  - name: registry-creds</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Image Digests</code> <span class="tag">IMMUTABLE</span></div>
+                    <p>Pin images by SHA256 digest. Tags are mutable &mdash; <code>:latest</code> can change without warning.</p>
+                    <div class="example">image: nginx@sha256:abc123...</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Admission Webhooks</code> <span class="tag">ENFORCE</span></div>
+                    <p>Reject pods with disallowed images via OPA Gatekeeper, Kyverno, or Sigstore policy controllers.</p>
+                    <div class="example">Reject unless: ^myregistry.io/</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Image Scanning</code> <span class="tag">DETECT</span></div>
+                    <p>Scan for known CVEs before and after deployment. Integrate into CI/CD.</p>
+                    <div class="example">$ trivy image myapp:1.0</div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Never Use :latest in Production</div>
+                <p>The <code>:latest</code> tag is mutable &mdash; it can point to a different image at any time. Your deployment could silently pull a compromised or broken image on the next restart. Always use explicit version tags or SHA256 digests.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Audit Logging -->
+        <div class="section">
+            <h3>Audit Logging</h3>
+            <p>Kubernetes audit logs record every request to the API server: who made it, what they did, when, and whether it succeeded. Essential for security investigations, compliance, and anomaly detection.</p>
+
+            <h4>Audit Levels</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--text-dim)"></div>
+                    <span class="status-label">None</span>
+                    <span>Do not log this event at all.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Metadata</span>
+                    <span>Log who, when, what resource, and what verb &mdash; but not request or response bodies.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Request</span>
+                    <span>Log metadata and the request body, but not the response body.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">RequestResponse</span>
+                    <span>Log everything: metadata, request body, and response body. Highest verbosity.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># /etc/kubernetes/audit-policy.yaml</span>
+<span class="cmd">apiVersion</span>: audit.k8s.io/v1
+<span class="cmd">kind</span>: Policy
+<span class="cmd">rules</span>:
+<span class="comment"># Skip noisy read-only requests</span>
+- <span class="flag">level</span>: <span class="str">None</span>
+  <span class="flag">resources</span>:
+  - <span class="flag">group</span>: <span class="str">""</span>
+    <span class="flag">resources</span>: [<span class="str">"endpoints"</span>, <span class="str">"nodes"</span>]
+  <span class="flag">verbs</span>: [<span class="str">"get"</span>, <span class="str">"list"</span>, <span class="str">"watch"</span>]
+<span class="comment"># Log Secret access at Metadata (never log contents!)</span>
+- <span class="flag">level</span>: <span class="str">Metadata</span>
+  <span class="flag">resources</span>:
+  - <span class="flag">group</span>: <span class="str">""</span>
+    <span class="flag">resources</span>: [<span class="str">"secrets"</span>]
+<span class="comment"># Log all write operations at Request level</span>
+- <span class="flag">level</span>: <span class="str">Request</span>
+  <span class="flag">verbs</span>: [<span class="str">"create"</span>, <span class="str">"update"</span>, <span class="str">"patch"</span>, <span class="str">"delete"</span>]
+<span class="comment"># Catch-all</span>
+- <span class="flag">level</span>: <span class="str">Metadata</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Audit Secrets Carefully</div>
+                <p>Never log Secret contents at <code>Request</code> or <code>RequestResponse</code> level. The audit log itself becomes a security risk if it contains plaintext secrets. Always use <code>Metadata</code> level for Secret resources.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: CIS Kubernetes Benchmark -->
+        <div class="section">
+            <h3>CIS Kubernetes Benchmark Highlights</h3>
+            <p>The Center for Internet Security publishes a comprehensive benchmark for hardening Kubernetes clusters. It covers the API server, etcd, controller manager, scheduler, worker nodes, and policies. Here are the most impactful recommendations.</p>
+
+            <h4>Control Plane</h4>
+            <table class="compare">
+                <tr><th>Area</th><th>Recommendation</th><th>Why</th></tr>
+                <tr><td>API Server</td><td>Disable anonymous auth (<code>--anonymous-auth=false</code>)</td><td>Prevents unauthenticated API probing</td></tr>
+                <tr><td>API Server</td><td>Enable RBAC (<code>--authorization-mode=RBAC,Node</code>)</td><td>Default in modern clusters, but verify</td></tr>
+                <tr><td>etcd</td><td>Enable client certificate authentication</td><td>etcd holds all cluster state; unauthorized access = full compromise</td></tr>
+                <tr><td>etcd</td><td>Encrypt data at rest</td><td>Protects Secrets if etcd storage is accessed directly</td></tr>
+                <tr><td>Kubelet</td><td>Disable anonymous auth on the kubelet API</td><td>Kubelet API can exec into containers and read logs</td></tr>
+            </table>
+
+            <h4>Workload Hardening</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Namespaces</span>
+                    <span>Never run workloads in <code>default</code>. Use dedicated namespaces with RBAC and NetworkPolicies.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Limits</span>
+                    <span>Set CPU and memory limits on all pods to prevent resource exhaustion attacks.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Non-Root</span>
+                    <span>Run all containers as non-root with <code>runAsNonRoot: true</code> and drop all capabilities.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Host Isolation</span>
+                    <span>Disable <code>hostNetwork</code>, <code>hostPID</code>, <code>hostIPC</code>, and <code>hostPath</code> for all standard workloads.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Run CIS benchmark checks with kube-bench</span>
+<span class="cmd">$</span> kubectl apply <span class="flag">-f</span> https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job.yaml
+
+<span class="comment"># View results</span>
+<span class="cmd">$</span> kubectl logs job/kube-bench
+<span class="output">[INFO] 1 Control Plane Security Configuration
+[PASS] 1.1.1 Ensure API server pod spec file permissions are set to 600
+[PASS] 1.1.2 Ensure API server pod spec file ownership is root:root
+[WARN] 1.1.3 Ensure controller manager pod spec permissions are 600
+...</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Defense in Depth</div>
+                <p>A well-secured cluster combines all twelve topics in this module: authentication at the gate, RBAC for authorization, admission controllers for policy, ServiceAccounts for workload identity, Pod Security Standards for runtime, security contexts for kernel-level controls, NetworkPolicies for segmentation, encryption for data at rest, image policies for supply chain, and audit logging for visibility. No single layer is sufficient &mdash; defense in depth is the only viable strategy.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Security gate diagram interaction
+        const gates = {
+            authn: {
+                title: 'Authentication (Who are you?)',
+                desc: 'The API server verifies the caller\'s identity using configured authenticators: X.509 certificates, bearer tokens, OIDC, or webhooks. If none succeed, the request is rejected with 401 Unauthorized.'
+            },
+            authz: {
+                title: 'Authorization (Are you allowed?)',
+                desc: 'Once identity is established, the API server checks whether this subject can perform the requested action. RBAC is the most common mode. Others include ABAC, Node authorization, and webhook. A deny returns 403 Forbidden.'
+            },
+            admit: {
+                title: 'Admission Control (Is the request valid?)',
+                desc: 'After authorization, the request passes through admission controllers that can validate or mutate it. Mutating controllers run first (inject sidecars, set defaults), then validating controllers (enforce policies, check quotas). Pod Security Admission, ResourceQuota, and LimitRanger are built-in examples.'
+            }
+        };
+
+        function showGate(id) {
+            document.querySelectorAll('.diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const g = gates[id];
+            document.getElementById('gateDetail').innerHTML = '<strong>' + g.title + '</strong><br>' + g.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-63'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-63-rbac-security', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first gate
+        showGate('authn');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-63']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-World K8s Patterns - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-gear.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cm { color: #79c0ff; } .code-block .fl { color: #d2a8ff; }
+        .code-block .st { color: #a5d6ff; } .code-block .co { color: #8b949e; }
+        .code-block .ou { color: #7ee787; } .code-block .fi { color: #ffa657; }
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warn { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warn .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+        .checklist { list-style: none; margin: 14px 0; }
+        .checklist li { padding: 7px 0; font-size: 13px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid var(--border); }
+        .checklist li:last-child { border-bottom: none; }
+        .checklist .ck { color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 1px; }
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #1d4ed8); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-66</span>
+            <h1>Real-World K8s Patterns</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Kubernetes Section</a>
+    </header>
+
+    <main class="content">
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-gear.webp" alt="">
+            <h2>Real-World K8s Patterns</h2>
+            <p class="hero-sub">Production patterns that separate a tutorial cluster from infrastructure you can bet your company on. GitOps, deployment strategies, operators, and multi-tenancy.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~45 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-gear.webp" alt="" width="14" height="14"> Intermediate-Advanced</span>
+            </div>
+        </div>
+
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Implement GitOps workflows with ArgoCD and FluxCD using a pull-based model</li>
+                <li>Execute blue/green and canary deployment strategies on Kubernetes</li>
+                <li>Configure Jobs, CronJobs, and DaemonSets for batch and node-level workloads</li>
+                <li>Understand the Operator pattern &mdash; CRDs, controllers, and when to build one</li>
+                <li>Design multi-tenant clusters with namespaces, ResourceQuotas, and LimitRanges</li>
+                <li>Achieve zero-downtime deployments with preStop hooks and graceful shutdown</li>
+                <li>Control pod placement with affinity, anti-affinity, taints, and tolerations</li>
+                <li>Manage configuration with Kustomize overlays and compare against Helm</li>
+                <li>Evaluate multi-cluster strategies and build a production readiness checklist</li>
+            </ul>
+        </div>
+
+        <!-- 1. GitOps -->
+        <div class="section">
+            <h3>1. GitOps</h3>
+            <p>GitOps takes DevOps best practices &mdash; version control, collaboration, CI/CD &mdash; and applies them to infrastructure. The core idea: <strong>Git is the single source of truth for your desired cluster state.</strong></p>
+
+            <h4>Push vs Pull Model</h4>
+            <p>Traditional CI/CD uses a <strong>push</strong> model: the pipeline authenticates to the cluster and applies manifests. GitOps uses a <strong>pull</strong> model: an agent inside the cluster watches a Git repo and reconciles drift automatically.</p>
+
+            <div class="diagram" id="gitopsDiagram">
+                <div class="diagram-box" onclick="showGitOps('push')" id="box-push">
+                    <div class="diagram-box-title">Push Model</div>
+                    <div class="diagram-box-sub">CI/CD Pipeline</div>
+                </div>
+                <div class="diagram-arrow">vs</div>
+                <div class="diagram-box" onclick="showGitOps('pull')" id="box-pull">
+                    <div class="diagram-box-title">Pull Model</div>
+                    <div class="diagram-box-sub">GitOps Agent</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="gitopsDetail">Click a model above to compare push vs pull deployment approaches.</div>
+
+            <h4>ArgoCD Application</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># ArgoCD watches a Git repo and syncs to cluster</span>
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: <span class="st">my-app</span>
+  namespace: <span class="st">argocd</span>
+spec:
+  source:
+    repoURL: <span class="st">https://github.com/org/k8s-manifests.git</span>
+    targetRevision: <span class="st">main</span>
+    path: <span class="st">apps/my-app/overlays/production</span>
+  destination:
+    server: <span class="st">https://kubernetes.default.svc</span>
+    namespace: <span class="st">production</span>
+  syncPolicy:
+    automated:
+      prune: <span class="st">true</span>      <span class="co"># Delete resources removed from Git</span>
+      selfHeal: <span class="st">true</span>   <span class="co"># Revert manual kubectl edits</span></code></pre>
+            </div>
+
+            <h4>FluxCD</h4>
+            <p>FluxCD takes a composable approach with separate controllers &mdash; source-controller, kustomize-controller, helm-controller &mdash; each handling a specific reconciliation concern.</p>
+
+            <table class="compare">
+                <tr><th>Aspect</th><th>ArgoCD</th><th>FluxCD</th></tr>
+                <tr><td>Architecture</td><td>Monolithic (controller + built-in UI)</td><td>Composable (multiple controllers)</td></tr>
+                <tr><td>UI</td><td>Rich built-in web dashboard</td><td>CLI-first, optional Weave GitOps UI</td></tr>
+                <tr><td>Multi-tenancy</td><td>AppProjects with RBAC</td><td>Native namespace-based tenancy</td></tr>
+                <tr><td>Best for</td><td>Teams wanting visibility and UI</td><td>Teams wanting composability and GitOps purity</td></tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The pull model is more secure &mdash; your CI pipeline never needs cluster credentials. The agent pulls changes from Git. If someone runs <code>kubectl edit</code> manually, the agent reverts it. Rollback is just <code>git revert</code>.</p>
+            </div>
+        </div>
+
+        <!-- 2. Blue/Green -->
+        <div class="section">
+            <h3>2. Blue/Green Deployments</h3>
+            <p>Run two identical environments. "Blue" serves live traffic; "Green" is the new version. Once green passes validation, update the Service selector to switch instantly. If anything breaks, switch back.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># Service selector controls which deployment gets traffic</span>
+apiVersion: v1
+kind: Service
+metadata:
+  name: <span class="st">my-app</span>
+spec:
+  selector:
+    app: <span class="st">my-app</span>
+    version: <span class="st">blue</span>       <span class="co"># Change to "green" for cutover</span>
+  ports:
+    - port: <span class="st">80</span>
+      targetPort: <span class="st">8080</span>
+<span class="co">---</span>
+<span class="co"># Deploy blue (v1) and green (v2) side by side</span>
+<span class="co"># Each Deployment uses matching version labels</span>
+<span class="co"># Blue: version=blue, image=my-app:1.0.0</span>
+<span class="co"># Green: version=green, image=my-app:2.0.0</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># Cutover: switch from blue to green</span>
+<span class="cm">$</span> kubectl patch svc my-app <span class="fl">-p</span> <span class="st">'{"spec":{"selector":{"version":"green"}}}'</span>
+
+<span class="co"># Rollback: switch back to blue</span>
+<span class="cm">$</span> kubectl patch svc my-app <span class="fl">-p</span> <span class="st">'{"spec":{"selector":{"version":"blue"}}}'</span></code></pre>
+            </div>
+
+            <div class="callout callout-warn">
+                <div class="callout-title">Cost Trade-Off</div>
+                <p>Blue/green requires <strong>double the resources</strong> during deployment. Both environments run simultaneously. For large deployments, canary (next section) uses fewer additional resources but provides a slower rollout.</p>
+            </div>
+        </div>
+
+        <!-- 3. Canary -->
+        <div class="section">
+            <h3>3. Canary Deployments with Argo Rollouts</h3>
+            <p>Route a small percentage of traffic to the new version first. If metrics stay healthy, gradually increase. If anything breaks, roll back &mdash; only a fraction of users were affected. Argo Rollouts provides a <code>Rollout</code> CRD with native canary support and automated analysis.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: <span class="st">my-app</span>
+spec:
+  replicas: <span class="st">5</span>
+  strategy:
+    canary:
+      steps:
+        - setWeight: <span class="st">10</span>       <span class="co"># 10% traffic to canary</span>
+        - pause: { duration: <span class="st">5m</span> }
+        - setWeight: <span class="st">30</span>
+        - pause: { duration: <span class="st">5m</span> }
+        - setWeight: <span class="st">60</span>
+        - pause: { duration: <span class="st">5m</span> }
+        - setWeight: <span class="st">100</span>      <span class="co"># Full rollout</span>
+      analysis:
+        templates:
+          - templateName: <span class="st">success-rate</span>
+        startingStep: <span class="st">1</span>      <span class="co"># Begin checking metrics after first step</span></code></pre>
+            </div>
+
+            <p>The <code>AnalysisTemplate</code> queries Prometheus (or Datadog, New Relic, etc.) for success rate, latency, or error metrics. If the metric falls below the threshold, the rollout automatically aborts and reverts.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cm">$</span> kubectl argo rollouts get rollout my-app <span class="fl">--watch</span>  <span class="co"># Monitor</span>
+<span class="cm">$</span> kubectl argo rollouts promote my-app              <span class="co"># Skip to next step</span>
+<span class="cm">$</span> kubectl argo rollouts abort my-app                <span class="co"># Rollback</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Traffic Splitting</div>
+                <p>Argo Rollouts integrates with NGINX Ingress, Istio, or AWS ALB for precise weighted traffic splitting. Without a traffic manager, it approximates percentages by scaling replica counts.</p>
+            </div>
+        </div>
+
+        <!-- 4. Jobs and CronJobs -->
+        <div class="section">
+            <h3>4. Jobs and CronJobs</h3>
+            <p>Not all workloads are long-running services. <strong>Jobs</strong> run a task to completion and exit. <strong>CronJobs</strong> schedule Jobs on a repeating cron schedule &mdash; essential for batch processing, database migrations, reports, and cleanup.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>apiVersion: batch/v1
+kind: Job
+metadata:
+  name: <span class="st">db-migration</span>
+spec:
+  backoffLimit: <span class="st">3</span>              <span class="co"># Retry up to 3 times</span>
+  activeDeadlineSeconds: <span class="st">600</span>   <span class="co"># Kill after 10 min</span>
+  ttlSecondsAfterFinished: <span class="st">3600</span> <span class="co"># Clean up after 1 hour</span>
+  template:
+    spec:
+      restartPolicy: <span class="st">Never</span>
+      containers:
+        - name: <span class="st">migrate</span>
+          image: <span class="st">my-app:2.0.0</span>
+          command: <span class="st">["./migrate.sh", "--target", "v2"]</span>
+<span class="co">---</span>
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: <span class="st">nightly-backup</span>
+spec:
+  schedule: <span class="st">"0 2 * * *"</span>           <span class="co"># 2 AM daily</span>
+  concurrencyPolicy: <span class="st">Forbid</span>       <span class="co"># Skip if previous still running</span>
+  successfulJobsHistoryLimit: <span class="st">3</span>
+  failedJobsHistoryLimit: <span class="st">5</span>
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: <span class="st">OnFailure</span>
+          containers:
+            - name: <span class="st">backup</span>
+              image: <span class="st">backup-tool:latest</span>
+              command: <span class="st">["/bin/sh", "-c", "pg_dump $DB | gzip | aws s3 cp - s3://backups/$(date +%F).sql.gz"]</span></code></pre>
+            </div>
+
+            <table class="compare">
+                <tr><th>ConcurrencyPolicy</th><th>Behavior</th></tr>
+                <tr><td><code>Allow</code></td><td>Multiple jobs can run simultaneously (default)</td></tr>
+                <tr><td><code>Forbid</code></td><td>Skip new run if previous is still active</td></tr>
+                <tr><td><code>Replace</code></td><td>Kill the running job and start the new one</td></tr>
+            </table>
+        </div>
+
+        <!-- 5. DaemonSets -->
+        <div class="section">
+            <h3>5. DaemonSets</h3>
+            <p>A DaemonSet ensures a copy of a pod runs on <strong>every node</strong> (or a subset). When nodes join, the pod is scheduled automatically. When removed, it is garbage collected. Essential for cluster-wide infrastructure.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Log Collection</span>
+                    <span>Fluentd, Fluent Bit, or Filebeat shipping container logs from every node</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Monitoring</span>
+                    <span>Prometheus Node Exporter or Datadog agent collecting node-level metrics</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Networking</span>
+                    <span>CNI plugins (Calico, Cilium) and kube-proxy on every node</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: <span class="st">fluentbit</span>
+  namespace: <span class="st">logging</span>
+spec:
+  selector:
+    matchLabels: { app: <span class="st">fluentbit</span> }
+  template:
+    metadata:
+      labels: { app: <span class="st">fluentbit</span> }
+    spec:
+      tolerations:              <span class="co"># Run on ALL nodes, including control plane</span>
+        - key: <span class="st">node-role.kubernetes.io/control-plane</span>
+          effect: <span class="st">NoSchedule</span>
+      containers:
+        - name: <span class="st">fluentbit</span>
+          image: <span class="st">fluent/fluent-bit:latest</span>
+          resources:
+            limits: { memory: <span class="st">200Mi</span>, cpu: <span class="st">200m</span> }
+          volumeMounts:
+            - { name: <span class="st">varlog</span>, mountPath: <span class="st">/var/log</span>, readOnly: <span class="st">true</span> }
+      volumes:
+        - { name: <span class="st">varlog</span>, hostPath: { path: <span class="st">/var/log</span> } }</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>DaemonSets bypass the default scheduler and use node affinity internally. They can run on nodes that would normally reject pods due to taints &mdash; as long as matching tolerations are specified.</p>
+            </div>
+        </div>
+
+        <!-- 6. Operator Pattern -->
+        <div class="section">
+            <h3>6. The Operator Pattern</h3>
+            <p>An Operator packages, deploys, and manages a Kubernetes application using custom resources (CRDs) and controllers. It encodes operational knowledge &mdash; the runbooks a human would follow &mdash; into software running inside the cluster.</p>
+
+            <div class="diagram" id="operatorDiagram">
+                <div class="diagram-box" onclick="showOp('crd')" id="box-crd">
+                    <div class="diagram-box-title">CRD</div>
+                    <div class="diagram-box-sub">Custom Resource Def</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showOp('ctrl')" id="box-ctrl">
+                    <div class="diagram-box-title">Controller</div>
+                    <div class="diagram-box-sub">Reconciliation Loop</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showOp('res')" id="box-res">
+                    <div class="diagram-box-title">Managed Resources</div>
+                    <div class="diagram-box-sub">Pods, Services, PVCs</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="opDetail">Click a component above to understand the Operator pattern.</div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># The operator turns this simple CR into a full Postgres cluster</span>
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: <span class="st">my-postgres</span>
+spec:
+  instances: <span class="st">3</span>              <span class="co"># 1 primary + 2 replicas</span>
+  storage: { size: <span class="st">50Gi</span> }
+  postgresql:
+    parameters: { max_connections: <span class="st">"200"</span>, shared_buffers: <span class="st">"512MB"</span> }
+  backup:
+    barmanObjectStore:
+      destinationPath: <span class="st">s3://backups/postgres/</span>
+    retentionPolicy: <span class="st">"30d"</span></code></pre>
+            </div>
+
+            <p>From this single manifest, the operator creates StatefulSets, Services, PVCs, ConfigMaps, Secrets, handles failover, manages backups, and performs rolling upgrades automatically.</p>
+
+            <table class="compare">
+                <tr><th>Build an Operator When</th><th>Do Not Build When</th></tr>
+                <tr><td>Complex stateful app with day-2 ops (backup, failover, scaling)</td><td>A Helm chart or Kustomize overlay is sufficient</td></tr>
+                <tr><td>Many teams need the same app provisioned consistently</td><td>The app is stateless and Deployments work fine</td></tr>
+                <tr><td>Self-healing beyond pod restart is required</td><td>Standard K8s health checks are enough</td></tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Operator Frameworks</div>
+                <p><strong>Operator SDK</strong> (Go, Ansible, or Helm), <strong>Kubebuilder</strong> (Go, official K8s SIG), and <strong>Metacontroller</strong> (any language via webhooks). Most production operators use Go with Kubebuilder scaffolding.</p>
+            </div>
+        </div>
+
+        <!-- 7. Multi-Tenancy -->
+        <div class="section">
+            <h3>7. Multi-Tenancy</h3>
+            <p>Multi-tenancy means sharing a cluster between teams, projects, or customers. Kubernetes provides several isolation mechanisms, but none are perfect alone &mdash; defense in depth is the strategy.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># ResourceQuota: cap total resources per namespace</span>
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: <span class="st">team-alpha-quota</span>
+  namespace: <span class="st">team-alpha</span>
+spec:
+  hard:
+    requests.cpu: <span class="st">"10"</span>
+    requests.memory: <span class="st">20Gi</span>
+    limits.cpu: <span class="st">"20"</span>
+    limits.memory: <span class="st">40Gi</span>
+    pods: <span class="st">"50"</span>
+<span class="co">---</span>
+<span class="co"># LimitRange: per-container defaults and boundaries</span>
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: <span class="st">default-limits</span>
+  namespace: <span class="st">team-alpha</span>
+spec:
+  limits:
+    - type: <span class="st">Container</span>
+      default: { cpu: <span class="st">"500m"</span>, memory: <span class="st">"512Mi"</span> }
+      defaultRequest: { cpu: <span class="st">"100m"</span>, memory: <span class="st">"128Mi"</span> }
+      max: { cpu: <span class="st">"2"</span>, memory: <span class="st">"4Gi"</span> }
+<span class="co">---</span>
+<span class="co"># NetworkPolicy: default deny all ingress</span>
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: <span class="st">deny-all</span>
+  namespace: <span class="st">team-alpha</span>
+spec:
+  podSelector: {}
+  policyTypes: [<span class="st">Ingress</span>, <span class="st">Egress</span>]
+  ingress: []
+  egress:
+    - to:                       <span class="co"># Allow DNS only</span>
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels: { k8s-app: <span class="st">kube-dns</span> }
+      ports: [{ port: <span class="st">53</span>, protocol: <span class="st">UDP</span> }]</code></pre>
+            </div>
+
+            <div class="callout callout-warn">
+                <div class="callout-title">Namespaces Are Not Security Boundaries</div>
+                <p>Namespaces provide <em>soft</em> isolation. They share the API server, etcd, and control plane. For hard multi-tenancy (untrusted tenants), use <strong>vCluster</strong> (virtual clusters) or separate physical clusters. Network policies require a CNI that supports them (Calico, Cilium) &mdash; default kubenet does not enforce them.</p>
+            </div>
+        </div>
+
+        <!-- 8. Zero-Downtime -->
+        <div class="section">
+            <h3>8. Zero-Downtime Deployments</h3>
+            <p>When Kubernetes terminates a pod, two things happen simultaneously: (1) the pod is removed from Endpoints, and (2) it receives SIGTERM. But Endpoints updates take time to propagate. During that window, traffic is still routed to a dying pod.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>apiVersion: apps/v1
+kind: Deployment
+spec:
+  replicas: <span class="st">3</span>
+  strategy:
+    rollingUpdate:
+      maxSurge: <span class="st">1</span>
+      maxUnavailable: <span class="st">0</span>         <span class="co"># Never reduce below desired count</span>
+  template:
+    spec:
+      terminationGracePeriodSeconds: <span class="st">60</span>
+      containers:
+        - name: <span class="st">api</span>
+          image: <span class="st">my-api:2.0.0</span>
+          readinessProbe:
+            httpGet: { path: <span class="st">/healthz</span>, port: <span class="st">8080</span> }
+            initialDelaySeconds: <span class="st">5</span>
+            periodSeconds: <span class="st">5</span>
+          lifecycle:
+            preStop:
+              exec:
+                command: <span class="st">["/bin/sh", "-c", "sleep 15"]</span>  <span class="co"># Wait for LB drain</span></code></pre>
+            </div>
+
+            <h4>The Shutdown Sequence</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Step 1</span>
+                    <span>Pod marked for termination. Removed from Endpoints (async, takes seconds to propagate).</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Step 2</span>
+                    <span><code>preStop</code> hook runs. The <code>sleep 15</code> gives load balancers time to stop sending traffic.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Step 3</span>
+                    <span>SIGTERM sent. Application finishes in-flight requests, closes connections gracefully.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Step 4</span>
+                    <span>After <code>terminationGracePeriodSeconds</code> expires, SIGKILL forces termination.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Critical Rule</div>
+                <p>Always set <code>maxUnavailable: 0</code>. This ensures K8s creates the new pod, waits for readiness, then terminates the old one. Combined with <code>preStop</code> sleep and graceful SIGTERM handling, this eliminates dropped requests.</p>
+            </div>
+        </div>
+
+        <!-- 9. Pod Topology -->
+        <div class="section">
+            <h3>9. Pod Topology</h3>
+            <p>The scheduler places pods wherever resources are available by default. In production, you need control: spread replicas across zones, co-locate for performance, or reserve nodes for specific workloads.</p>
+
+            <h4>Node Affinity &amp; Pod Anti-Affinity</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>affinity:
+  <span class="co"># Node affinity: constrain WHICH nodes</span>
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: <span class="st">topology.kubernetes.io/zone</span>
+              operator: <span class="st">In</span>
+              values: [<span class="st">"us-east-1a"</span>, <span class="st">"us-east-1b"</span>]
+  <span class="co"># Pod anti-affinity: spread replicas across nodes</span>
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - { key: <span class="st">app</span>, operator: <span class="st">In</span>, values: [<span class="st">"my-api"</span>] }
+        topologyKey: <span class="st">kubernetes.io/hostname</span>  <span class="co"># One pod per node</span></code></pre>
+            </div>
+
+            <h4>Taints and Tolerations</h4>
+            <p>Taints <strong>repel</strong> all pods that do not tolerate them. Used to reserve nodes for specific workloads (GPU, high-memory) or drain nodes for maintenance.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># Taint a node: only GPU workloads allowed</span>
+<span class="cm">$</span> kubectl taint nodes gpu-01 <span class="st">hardware=gpu:NoSchedule</span>
+<span class="co"># Remove a taint (trailing minus)</span>
+<span class="cm">$</span> kubectl taint nodes gpu-01 <span class="st">hardware=gpu:NoSchedule-</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># Pod that tolerates the GPU taint</span>
+tolerations:
+  - key: <span class="st">"hardware"</span>
+    operator: <span class="st">"Equal"</span>
+    value: <span class="st">"gpu"</span>
+    effect: <span class="st">"NoSchedule"</span></code></pre>
+            </div>
+
+            <table class="compare">
+                <tr><th>Taint Effect</th><th>Behavior</th></tr>
+                <tr><td><code>NoSchedule</code></td><td>New pods without matching toleration are not scheduled</td></tr>
+                <tr><td><code>PreferNoSchedule</code></td><td>Scheduler tries to avoid but may place if necessary</td></tr>
+                <tr><td><code>NoExecute</code></td><td>Evict running pods that do not tolerate (for drain/maintenance)</td></tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Affinity attracts pods <em>toward</em> nodes. Taints repel pods <em>away from</em> nodes. Use both together: taint GPU nodes, then add a toleration + node affinity to ML pods. Only GPU workloads land on expensive GPU hardware.</p>
+            </div>
+        </div>
+
+        <!-- 10. Kustomize -->
+        <div class="section">
+            <h3>10. Kustomize</h3>
+            <p>Kustomize customizes raw YAML without templates or variable substitution. It layers <strong>overlays</strong> on a <strong>base</strong>, applying patches, labels, image tag changes, and merges &mdash; without modifying original files.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Directory Layout</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="fi">my-app/</span>
+  <span class="fi">base/</span>
+    <span class="fi">deployment.yaml</span>  <span class="fi">service.yaml</span>  <span class="fi">kustomization.yaml</span>
+  <span class="fi">overlays/</span>
+    <span class="fi">dev/</span>         <span class="co"># 1 replica, dev image</span>
+    <span class="fi">staging/</span>     <span class="co"># 2 replicas, staging config</span>
+    <span class="fi">production/</span>  <span class="co"># 5 replicas, prod secrets, HPA</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># overlays/production/kustomization.yaml</span>
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - <span class="st">../../base</span>
+  - <span class="st">hpa.yaml</span>
+namespace: <span class="st">production</span>
+images:
+  - name: <span class="st">my-app</span>
+    newTag: <span class="st">v2.1.0</span>
+replicas:
+  - name: <span class="st">my-app</span>
+    count: <span class="st">5</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cm">$</span> kubectl kustomize overlays/production    <span class="co"># Preview rendered YAML</span>
+<span class="cm">$</span> kubectl apply <span class="fl">-k</span> overlays/production     <span class="co"># Apply directly</span></code></pre>
+            </div>
+
+            <h4>Kustomize vs Helm</h4>
+            <table class="compare">
+                <tr><th>Aspect</th><th>Kustomize</th><th>Helm</th></tr>
+                <tr><td>Approach</td><td>Overlay patches on plain YAML</td><td>Go templates with values files</td></tr>
+                <tr><td>Learning curve</td><td>Low (just YAML)</td><td>Medium (Go template syntax)</td></tr>
+                <tr><td>Packaging</td><td>No package format (directories)</td><td>Charts with versioning and repos</td></tr>
+                <tr><td>Lifecycle</td><td>Just renders YAML</td><td>Install, upgrade, rollback, uninstall</td></tr>
+                <tr><td>Built into kubectl</td><td>Yes (<code>-k</code> flag)</td><td>No (separate <code>helm</code> CLI)</td></tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Use Both</div>
+                <p>Many teams use Helm for third-party charts (NGINX Ingress, Prometheus) and Kustomize for their own apps. ArgoCD and FluxCD support both natively. They are complementary, not competitors.</p>
+            </div>
+        </div>
+
+        <!-- 11. Multi-Cluster -->
+        <div class="section">
+            <h3>11. Multi-Cluster Strategies</h3>
+            <p>A single cluster is simple. Multiple clusters add complexity but solve critical problems: blast radius isolation, geographic distribution, regulatory compliance, and environment separation.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Environment</span>
+                    <span>Separate clusters for dev/staging/production. Simplest model, clear blast radius.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Regional</span>
+                    <span>Cluster per region (us-east, eu-west, ap-southeast) for latency and data residency.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Functional</span>
+                    <span>Separate by function &mdash; APIs, data workloads, ML training in dedicated clusters.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Hybrid</span>
+                    <span>On-premises + cloud clusters. Cloud bursting for peak demand. Requires service mesh.</span>
+                </div>
+            </div>
+
+            <table class="compare">
+                <tr><th>Tool</th><th>Purpose</th></tr>
+                <tr><td><code>kubectx/kubens</code></td><td>CLI shortcuts for switching clusters and namespaces</td></tr>
+                <tr><td><code>ArgoCD</code></td><td>Single instance managing apps across multiple clusters</td></tr>
+                <tr><td><code>Istio</code> multi-cluster</td><td>Cross-cluster service discovery and traffic management</td></tr>
+                <tr><td><code>Cluster API</code></td><td>Declarative cluster provisioning on any infrastructure</td></tr>
+            </table>
+
+            <div class="callout callout-warn">
+                <div class="callout-title">Complexity Warning</div>
+                <p>Multi-cluster multiplies every operational concern: monitoring, logging, secrets, RBAC, upgrades. Start with the fewest clusters that solve your actual problems. Do not adopt multi-cluster for problems that namespaces can solve.</p>
+            </div>
+        </div>
+
+        <!-- 12. Production Checklist -->
+        <div class="section">
+            <h3>12. Production Readiness Checklist</h3>
+            <p>Before promoting a workload to production, walk through this checklist. Each item addresses a failure mode that will eventually surface at scale.</p>
+
+            <h4>Resource Management</h4>
+            <ul class="checklist">
+                <li><span class="ck">&#9654;</span> CPU and memory requests set on every container</li>
+                <li><span class="ck">&#9654;</span> CPU and memory limits set to prevent runaway processes</li>
+                <li><span class="ck">&#9654;</span> ResourceQuotas on namespaces, LimitRanges for defaults</li>
+            </ul>
+
+            <h4>Health Checks</h4>
+            <ul class="checklist">
+                <li><span class="ck">&#9654;</span> <strong>Liveness</strong> probe to restart deadlocked processes (not too aggressive)</li>
+                <li><span class="ck">&#9654;</span> <strong>Readiness</strong> probe to gate traffic until truly ready</li>
+                <li><span class="ck">&#9654;</span> <strong>Startup</strong> probe for slow-starting apps (prevents liveness killing during boot)</li>
+            </ul>
+
+            <h4>Availability</h4>
+            <ul class="checklist">
+                <li><span class="ck">&#9654;</span> Minimum 2 replicas (3+ for critical services)</li>
+                <li><span class="ck">&#9654;</span> PodDisruptionBudget prevents voluntary disruptions from killing too many pods</li>
+                <li><span class="ck">&#9654;</span> Pod anti-affinity spreading replicas across nodes/zones</li>
+                <li><span class="ck">&#9654;</span> Rolling update with <code>maxUnavailable: 0</code></li>
+            </ul>
+
+            <h4>Security</h4>
+            <ul class="checklist">
+                <li><span class="ck">&#9654;</span> Run as non-root (<code>runAsNonRoot: true</code>)</li>
+                <li><span class="ck">&#9654;</span> Read-only root filesystem, no privilege escalation</li>
+                <li><span class="ck">&#9654;</span> Network policies restricting ingress and egress</li>
+                <li><span class="ck">&#9654;</span> Image from trusted registry, scanned for CVEs, pinned to digest (not <code>:latest</code>)</li>
+            </ul>
+
+            <h4>Graceful Lifecycle</h4>
+            <ul class="checklist">
+                <li><span class="ck">&#9654;</span> <code>preStop</code> hook with sleep for endpoint propagation</li>
+                <li><span class="ck">&#9654;</span> Application handles SIGTERM and drains connections</li>
+                <li><span class="ck">&#9654;</span> <code>terminationGracePeriodSeconds</code> long enough for drain</li>
+            </ul>
+
+            <h4>Observability</h4>
+            <ul class="checklist">
+                <li><span class="ck">&#9654;</span> Structured logging to stdout/stderr (collected by DaemonSet)</li>
+                <li><span class="ck">&#9654;</span> Prometheus metrics exposed on <code>/metrics</code></li>
+                <li><span class="ck">&#9654;</span> Alerting on error rate, latency p99, restarts, OOMKills</li>
+                <li><span class="ck">&#9654;</span> Distributed tracing headers propagated (OpenTelemetry)</li>
+            </ul>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="co"># PodDisruptionBudget + Security Context</span>
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: <span class="st">my-api-pdb</span>
+spec:
+  minAvailable: <span class="st">2</span>
+  selector:
+    matchLabels: { app: <span class="st">my-api</span> }
+<span class="co">---</span>
+<span class="co"># Security hardening in Deployment spec</span>
+securityContext:
+  runAsNonRoot: <span class="st">true</span>
+  runAsUser: <span class="st">1000</span>
+containers:
+  - name: <span class="st">api</span>
+    securityContext:
+      allowPrivilegeEscalation: <span class="st">false</span>
+      readOnlyRootFilesystem: <span class="st">true</span>
+      capabilities: { drop: [<span class="st">"ALL"</span>] }</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>This checklist is not aspirational &mdash; it is the minimum bar. Every item addresses a real production incident. Skip an item and you accept the risk of that failure mode hitting you unmitigated.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        const gitopsModels = {
+            push: { title: 'Push Model (Traditional CI/CD)', desc: 'The CI pipeline authenticates to the cluster and runs <code>kubectl apply</code>. Credentials live outside the cluster. If CI is compromised, the attacker has cluster access. No automatic drift correction &mdash; manual changes persist until the next pipeline run.' },
+            pull: { title: 'Pull Model (GitOps)', desc: 'An agent inside the cluster polls the Git repo and reconciles state. Cluster credentials never leave the cluster. Manual changes are automatically reverted. Git history is your audit log. Rollback = <code>git revert</code>.' }
+        };
+        function showGitOps(id) {
+            document.querySelectorAll('#gitopsDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const m = gitopsModels[id];
+            document.getElementById('gitopsDetail').innerHTML = '<strong>' + m.title + '</strong><br>' + m.desc;
+        }
+
+        const opParts = {
+            crd: { title: 'Custom Resource Definition (CRD)', desc: 'Extends the K8s API with your own resource types. Users declare intent in a high-level CR like <code>kind: PostgresCluster</code>. The API server validates and stores it like any native resource.' },
+            ctrl: { title: 'Controller (Reconciliation Loop)', desc: 'A control loop that watches for CR changes and drives actual state toward desired state. Creates, updates, and deletes underlying K8s objects and handles operational tasks like failover, backup, and upgrades.' },
+            res: { title: 'Managed Resources', desc: 'The native K8s objects (StatefulSets, Services, PVCs, Secrets) that the controller creates and manages. Users never touch these directly &mdash; they only interact with the custom resource.' }
+        };
+        function showOp(id) {
+            document.querySelectorAll('#operatorDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const p = opParts[id];
+            document.getElementById('opDetail').innerHTML = '<strong>' + p.title + '</strong><br>' + p.desc;
+        }
+
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        function completeModule() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-66'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-66-k8s-patterns', { returnToDashboard: false });
+            }
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        showGitOps('pull');
+        showOp('crd');
+
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-66']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

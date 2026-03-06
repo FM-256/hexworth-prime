@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persistent Storage - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-gear.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-62</span>
+            <h1>Persistent Storage</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Kubernetes Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-gear.webp" alt="">
+            <h2>Persistent Storage</h2>
+            <p class="hero-sub">Containers are ephemeral by design. Learn how Kubernetes manages persistent data through volumes, claims, storage classes, and the Container Storage Interface.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-gear.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Distinguish between ephemeral container storage and persistent Kubernetes volumes</li>
+                <li>Use built-in volume types including <code>emptyDir</code>, <code>hostPath</code>, <code>configMap</code>, and <code>secret</code></li>
+                <li>Provision durable storage with PersistentVolumes and PersistentVolumeClaims</li>
+                <li>Enable dynamic provisioning through StorageClasses</li>
+                <li>Understand access modes and their impact on multi-node workloads</li>
+                <li>Map cloud provider storage (EBS, Persistent Disk, Azure Disk) into Kubernetes</li>
+                <li>Configure StatefulSets with <code>volumeClaimTemplates</code> for stateful workloads</li>
+                <li>Describe the Container Storage Interface (CSI) and backup strategies</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Ephemeral vs Persistent Storage -->
+        <div class="section">
+            <h3>1. Ephemeral vs Persistent Storage</h3>
+            <p>Every container starts with a writable layer provided by the container runtime. When the container restarts or is rescheduled to a different node, that layer is destroyed and recreated from the image. Any data written to the container filesystem is gone.</p>
+
+            <p>This is by design. Containers are meant to be disposable. But real applications &mdash; databases, file uploads, ML model checkpoints &mdash; need data that survives container lifecycle events. Kubernetes solves this with <strong>volumes</strong>: directories backed by external storage that are mounted into containers and outlive the container process.</p>
+
+            <div class="diagram" id="storageDiagram">
+                <div class="diagram-box" onclick="showStorage('ephemeral')" id="box-ephemeral">
+                    <div class="diagram-box-title">Ephemeral</div>
+                    <div class="diagram-box-sub">Container Layer</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showStorage('pod-volume')" id="box-pod-volume">
+                    <div class="diagram-box-title">Pod Volume</div>
+                    <div class="diagram-box-sub">emptyDir / configMap</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showStorage('persistent')" id="box-persistent">
+                    <div class="diagram-box-title">Persistent</div>
+                    <div class="diagram-box-sub">PV / PVC</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="storageDetail">Click a storage tier above to learn more about it.</div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The fundamental question for every workload: <strong>does this data need to survive a pod restart?</strong> If yes, you need a volume. If the data must survive pod <em>deletion</em>, you need a PersistentVolume.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Volume Types -->
+        <div class="section">
+            <h3>2. Volume Types</h3>
+            <p>Kubernetes supports many volume types out of the box. These are defined in the pod spec and mounted into one or more containers. Unlike PersistentVolumes, pod-level volumes are tied to the pod lifecycle.</p>
+
+            <h4>emptyDir</h4>
+            <p>Created when a pod is assigned to a node, destroyed when the pod is removed. All containers in the pod share it. Commonly used for scratch space, caches, and inter-container data exchange.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">spec:</span>
+  <span class="file">containers:</span>
+  - <span class="file">name:</span> <span class="str">writer</span>
+    <span class="file">image:</span> <span class="str">busybox</span>
+    <span class="file">volumeMounts:</span>
+    - <span class="file">name:</span> <span class="str">shared</span>
+      <span class="file">mountPath:</span> <span class="str">/data</span>
+  - <span class="file">name:</span> <span class="str">reader</span>
+    <span class="file">image:</span> <span class="str">busybox</span>
+    <span class="file">volumeMounts:</span>
+    - <span class="file">name:</span> <span class="str">shared</span>
+      <span class="file">mountPath:</span> <span class="str">/data</span>
+  <span class="file">volumes:</span>
+  - <span class="file">name:</span> <span class="str">shared</span>
+    <span class="file">emptyDir:</span> {}</code></pre>
+            </div>
+
+            <h4>hostPath</h4>
+            <p>Mounts a file or directory from the host node's filesystem into the pod. Useful for node-level daemons (log collectors, monitoring agents) but dangerous in production &mdash; it ties the pod to a specific node and creates security risks.</p>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Security Warning</div>
+                <p><code>hostPath</code> volumes can read and write to the host filesystem. In multi-tenant clusters, Pod Security Standards should restrict or block <code>hostPath</code> usage entirely. Never use it for application data.</p>
+            </div>
+
+            <h4>configMap and secret</h4>
+            <p>Both inject Kubernetes API objects as files into the container. ConfigMaps carry plain-text configuration; Secrets carry base64-encoded sensitive data. Both can be mounted as volumes or exposed as environment variables.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">volumes:</span>
+- <span class="file">name:</span> <span class="str">app-config</span>
+  <span class="file">configMap:</span>
+    <span class="file">name:</span> <span class="str">my-config</span>
+- <span class="file">name:</span> <span class="str">app-secrets</span>
+  <span class="file">secret:</span>
+    <span class="file">secretName:</span> <span class="str">my-secret</span></code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Volume Type</th>
+                    <th>Lifetime</th>
+                    <th>Use Case</th>
+                    <th>Shared Across Pods</th>
+                </tr>
+                <tr>
+                    <td><code>emptyDir</code></td>
+                    <td>Pod lifetime</td>
+                    <td>Scratch space, caches, sidecar sharing</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td><code>hostPath</code></td>
+                    <td>Node lifetime</td>
+                    <td>Node agents, log collection</td>
+                    <td>Same-node only</td>
+                </tr>
+                <tr>
+                    <td><code>configMap</code></td>
+                    <td>Pod lifetime (auto-updated)</td>
+                    <td>App configuration files</td>
+                    <td>Yes (read-only)</td>
+                </tr>
+                <tr>
+                    <td><code>secret</code></td>
+                    <td>Pod lifetime (auto-updated)</td>
+                    <td>Credentials, TLS certs, tokens</td>
+                    <td>Yes (read-only)</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Section 3: PersistentVolumes -->
+        <div class="section">
+            <h3>3. PersistentVolumes (PV)</h3>
+            <p>A PersistentVolume is a cluster-level resource (not namespaced) representing real storage &mdash; an NFS share, an AWS EBS volume, a GCP Persistent Disk, or a local SSD. It exists independently of any pod and has its own lifecycle.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">apiVersion:</span> v1
+<span class="file">kind:</span> PersistentVolume
+<span class="file">metadata:</span>
+  <span class="file">name:</span> <span class="str">pv-nfs-data</span>
+<span class="file">spec:</span>
+  <span class="file">capacity:</span>
+    <span class="file">storage:</span> <span class="str">10Gi</span>
+  <span class="file">accessModes:</span> [<span class="str">"ReadWriteOnce"</span>]
+  <span class="file">persistentVolumeReclaimPolicy:</span> <span class="str">Retain</span>
+  <span class="file">storageClassName:</span> <span class="str">slow</span>
+  <span class="file">nfs:</span>
+    <span class="file">server:</span> <span class="str">192.168.1.100</span>
+    <span class="file">path:</span> <span class="str">/exports/data</span></code></pre>
+            </div>
+
+            <h4>PV Lifecycle Phases</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Available</span>
+                    <span>The PV exists but no PVC has claimed it yet. It is free to be bound.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Bound</span>
+                    <span>A PVC has been matched and bound to this PV. The volume is now reserved for that claim.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Released</span>
+                    <span>The PVC was deleted, but the PV retains data. Reclaim policy determines what happens next.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Failed</span>
+                    <span>Automatic reclamation failed. Manual intervention required.</span>
+                </div>
+            </div>
+
+            <h4>Reclaim Policies</h4>
+            <table class="compare">
+                <tr>
+                    <th>Policy</th>
+                    <th>Behavior</th>
+                    <th>Use Case</th>
+                </tr>
+                <tr>
+                    <td><code>Retain</code></td>
+                    <td>PV keeps data after PVC is deleted. Admin must manually clean up.</td>
+                    <td>Production databases, critical data</td>
+                </tr>
+                <tr>
+                    <td><code>Delete</code></td>
+                    <td>PV and underlying storage are deleted when PVC is deleted.</td>
+                    <td>Dynamic provisioning, ephemeral workloads</td>
+                </tr>
+                <tr>
+                    <td><code>Recycle</code></td>
+                    <td>Basic scrub (<code>rm -rf /volume/*</code>) then made available again. Deprecated.</td>
+                    <td>Legacy only &mdash; use dynamic provisioning instead</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Section 4: PersistentVolumeClaims -->
+        <div class="section">
+            <h3>4. PersistentVolumeClaims (PVC)</h3>
+            <p>A PVC is a <strong>request for storage</strong> by a user. It specifies the size, access mode, and optionally a StorageClass. Kubernetes finds a matching PV and binds them together. The PVC is namespaced &mdash; it belongs to the pod's namespace.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># 1. Create the claim</span>
+<span class="file">apiVersion:</span> v1
+<span class="file">kind:</span> PersistentVolumeClaim
+<span class="file">metadata:</span>
+  <span class="file">name:</span> <span class="str">data-claim</span>
+<span class="file">spec:</span>
+  <span class="file">accessModes:</span> [<span class="str">"ReadWriteOnce"</span>]
+  <span class="file">resources:</span>
+    <span class="file">requests:</span>
+      <span class="file">storage:</span> <span class="str">5Gi</span>
+  <span class="file">storageClassName:</span> <span class="str">slow</span>
+<span class="comment">---</span>
+<span class="comment"># 2. Mount it in a pod</span>
+<span class="file">apiVersion:</span> v1
+<span class="file">kind:</span> Pod
+<span class="file">metadata:</span>
+  <span class="file">name:</span> <span class="str">app-with-storage</span>
+<span class="file">spec:</span>
+  <span class="file">containers:</span>
+  - <span class="file">name:</span> <span class="str">app</span>
+    <span class="file">image:</span> <span class="str">nginx:1.25</span>
+    <span class="file">volumeMounts:</span>
+    - <span class="file">name:</span> <span class="str">data</span>
+      <span class="file">mountPath:</span> <span class="str">/usr/share/nginx/html</span>
+  <span class="file">volumes:</span>
+  - <span class="file">name:</span> <span class="str">data</span>
+    <span class="file">persistentVolumeClaim:</span>
+      <span class="file">claimName:</span> <span class="str">data-claim</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Binding Rules</div>
+                <p>Kubernetes matches PVCs to PVs based on: access mode, requested capacity (PV must be &gt;= PVC), StorageClass name, and label selectors if specified. A PV with 50Gi can satisfy a 5Gi claim, but the remaining space is wasted &mdash; each PV binds to exactly one PVC.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>PVs are cluster-scoped resources (no namespace). PVCs are namespaced. A PVC in namespace <code>prod</code> cannot bind to a PVC in namespace <code>staging</code> &mdash; but both can bind to the same pool of PVs.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: StorageClasses -->
+        <div class="section">
+            <h3>5. StorageClasses</h3>
+            <p>Manually creating PVs for every storage request does not scale. StorageClasses solve this with <strong>dynamic provisioning</strong>: when a PVC requests a StorageClass, Kubernetes automatically creates a matching PV using the provisioner defined in that class.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">apiVersion:</span> storage.k8s.io/v1
+<span class="file">kind:</span> StorageClass
+<span class="file">metadata:</span>
+  <span class="file">name:</span> <span class="str">fast-ssd</span>
+<span class="file">provisioner:</span> <span class="str">kubernetes.io/aws-ebs</span>
+<span class="file">parameters:</span>
+  <span class="file">type:</span> <span class="str">gp3</span>
+  <span class="file">iopsPerGB:</span> <span class="str">"50"</span>
+  <span class="file">encrypted:</span> <span class="str">"true"</span>
+<span class="file">reclaimPolicy:</span> <span class="str">Delete</span>
+<span class="file">allowVolumeExpansion:</span> <span class="str">true</span>
+<span class="file">volumeBindingMode:</span> <span class="str">WaitForFirstConsumer</span></code></pre>
+            </div>
+
+            <h4>Volume Binding Modes</h4>
+            <table class="compare">
+                <tr>
+                    <th>Mode</th>
+                    <th>Behavior</th>
+                    <th>When to Use</th>
+                </tr>
+                <tr>
+                    <td><code>Immediate</code></td>
+                    <td>PV is provisioned as soon as PVC is created</td>
+                    <td>Single-zone clusters, NFS</td>
+                </tr>
+                <tr>
+                    <td><code>WaitForFirstConsumer</code></td>
+                    <td>PV is provisioned only when a pod using the PVC is scheduled</td>
+                    <td>Multi-zone clusters (prevents zone mismatch)</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Default StorageClass</div>
+                <p>Most managed Kubernetes clusters ship with a default StorageClass. If a PVC does not specify <code>storageClassName</code>, the default class is used. Run <code>kubectl get sc</code> to see what your cluster provides. Annotate a class with <code>storageclass.kubernetes.io/is-default-class: "true"</code> to make it the default.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># List all StorageClasses</span>
+<span class="cmd">$</span> kubectl get storageclass
+<span class="output">NAME              PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE
+gp2 (default)     kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer
+fast-ssd          kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer
+nfs-slow          nfs.csi.k8s.io          Retain          Immediate</span>
+
+<span class="comment"># Check PVC status</span>
+<span class="cmd">$</span> kubectl get pvc
+<span class="output">NAME         STATUS   VOLUME          CAPACITY   ACCESS MODES   STORAGECLASS
+data-claim   Bound    pvc-a1b2c3d4    5Gi        RWO            fast-ssd</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 6: Access Modes -->
+        <div class="section">
+            <h3>6. Access Modes</h3>
+            <p>Access modes define how a volume can be mounted by nodes. They are constraints on simultaneous access, not filesystem-level permissions. The underlying storage backend must support the requested mode.</p>
+
+            <table class="compare">
+                <tr><th>Mode</th><th>Short</th><th>Description</th><th>Typical Backends</th></tr>
+                <tr><td><code>ReadWriteOnce</code></td><td>RWO</td><td>Read-write by a <strong>single node</strong></td><td>EBS, GCE PD, Azure Disk</td></tr>
+                <tr><td><code>ReadOnlyMany</code></td><td>ROX</td><td>Read-only by <strong>many nodes</strong></td><td>NFS, CephFS, GlusterFS</td></tr>
+                <tr><td><code>ReadWriteMany</code></td><td>RWX</td><td>Read-write by <strong>many nodes</strong></td><td>NFS, CephFS, EFS, Azure Files</td></tr>
+                <tr><td><code>ReadWriteOncePod</code></td><td>RWOP</td><td>Read-write by a <strong>single pod</strong> (K8s 1.27+)</td><td>CSI drivers that support it</td></tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>RWO means one <em>node</em>, not one <em>pod</em>. Multiple pods on the same node can mount an RWO volume simultaneously. If you need strict single-pod access, use RWOP (requires Kubernetes 1.27+ and a supporting CSI driver).</p>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Common Pitfall</div>
+                <p>Deploying a Deployment with replicas &gt; 1 using an RWO volume will fail when pods land on different nodes. The second pod will be stuck in <code>Pending</code> with a <code>Multi-Attach error</code>. Use a StatefulSet or switch to an RWX-capable backend.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Cloud Storage -->
+        <div class="section">
+            <h3>7. Cloud Provider Storage</h3>
+            <p>Each major cloud provider has native block and file storage that integrates with Kubernetes via CSI drivers. Dynamic provisioning via StorageClasses is the recommended approach.</p>
+
+            <table class="compare">
+                <tr><th>Provider</th><th>Block Storage</th><th>File (RWX)</th><th>CSI Driver</th></tr>
+                <tr><td>AWS</td><td>EBS (gp3, io2)</td><td>EFS</td><td><code>ebs.csi.aws.com</code></td></tr>
+                <tr><td>GCP</td><td>Persistent Disk (pd-ssd)</td><td>Filestore</td><td><code>pd.csi.storage.gke.io</code></td></tr>
+                <tr><td>Azure</td><td>Azure Disk (Premium SSD)</td><td>Azure Files</td><td><code>disk.csi.azure.com</code></td></tr>
+            </table>
+
+            <h4>Cloud StorageClass Example (AWS EBS)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">apiVersion:</span> storage.k8s.io/v1
+<span class="file">kind:</span> StorageClass
+<span class="file">metadata:</span>
+  <span class="file">name:</span> <span class="str">ebs-gp3</span>
+<span class="file">provisioner:</span> <span class="str">ebs.csi.aws.com</span>
+<span class="file">parameters:</span>
+  <span class="file">type:</span> <span class="str">gp3</span>
+  <span class="file">encrypted:</span> <span class="str">"true"</span>
+<span class="file">reclaimPolicy:</span> <span class="str">Delete</span>
+<span class="file">volumeBindingMode:</span> <span class="str">WaitForFirstConsumer</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Zone Affinity</div>
+                <p>Cloud block storage is zone-local. An EBS volume in <code>us-east-1a</code> cannot attach to a node in <code>us-east-1b</code>. Always use <code>WaitForFirstConsumer</code> to co-locate the PV with the consuming pod.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: StatefulSets and Storage -->
+        <div class="section">
+            <h3>8. StatefulSets and Storage</h3>
+            <p>A Deployment treats all replicas as interchangeable. A StatefulSet gives each pod a stable identity (ordinal index, stable hostname, and its own PVC). This is essential for databases, message queues, and distributed systems that need consistent storage per instance.</p>
+
+            <h4>volumeClaimTemplates</h4>
+            <p>Instead of referencing a pre-existing PVC, a StatefulSet uses <code>volumeClaimTemplates</code> to dynamically create one PVC per pod. When the StatefulSet scales from 3 to 5 replicas, two new PVCs are created automatically.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">apiVersion:</span> apps/v1
+<span class="file">kind:</span> StatefulSet
+<span class="file">metadata:</span>
+  <span class="file">name:</span> <span class="str">postgres</span>
+<span class="file">spec:</span>
+  <span class="file">serviceName:</span> <span class="str">postgres</span>
+  <span class="file">replicas:</span> <span class="str">3</span>
+  <span class="file">selector:</span>
+    <span class="file">matchLabels:</span> { <span class="file">app:</span> <span class="str">postgres</span> }
+  <span class="file">template:</span>
+    <span class="file">metadata:</span>
+      <span class="file">labels:</span> { <span class="file">app:</span> <span class="str">postgres</span> }
+    <span class="file">spec:</span>
+      <span class="file">containers:</span>
+      - <span class="file">name:</span> <span class="str">postgres</span>
+        <span class="file">image:</span> <span class="str">postgres:16</span>
+        <span class="file">volumeMounts:</span>
+        - <span class="file">name:</span> <span class="str">pgdata</span>
+          <span class="file">mountPath:</span> <span class="str">/var/lib/postgresql/data</span>
+  <span class="file">volumeClaimTemplates:</span>
+  - <span class="file">metadata:</span>
+      <span class="file">name:</span> <span class="str">pgdata</span>
+    <span class="file">spec:</span>
+      <span class="file">accessModes:</span> [<span class="str">"ReadWriteOnce"</span>]
+      <span class="file">storageClassName:</span> <span class="str">fast-ssd</span>
+      <span class="file">resources:</span>
+        <span class="file">requests:</span>
+          <span class="file">storage:</span> <span class="str">20Gi</span></code></pre>
+            </div>
+
+            <p>This creates PVCs named <code>pgdata-postgres-0</code>, <code>pgdata-postgres-1</code>, and <code>pgdata-postgres-2</code>. Each pod always remounts its own PVC, even after rescheduling.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Scaling a StatefulSet <em>down</em> does not delete PVCs. The data persists so it can be reattached when scaling back up. You must manually delete orphaned PVCs if you want to reclaim the storage.</p>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Pod Identity</div>
+                <p>StatefulSet pods get predictable names: <code>postgres-0</code>, <code>postgres-1</code>, <code>postgres-2</code>. Each gets a stable DNS record via the headless service: <code>postgres-0.postgres.default.svc.cluster.local</code>. This stable identity is what makes stateful workloads possible on Kubernetes.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: CSI -->
+        <div class="section">
+            <h3>9. Container Storage Interface (CSI)</h3>
+            <p>Before CSI, every storage vendor had to contribute code directly into the Kubernetes source tree. This was slow, coupled, and hard to maintain. CSI is a standard interface that decouples storage drivers from Kubernetes, letting vendors ship and update their plugins independently.</p>
+
+            <h4>How CSI Works</h4>
+            <p>A CSI driver has two components: a <strong>controller plugin</strong> (Deployment) that handles provisioning, attach/detach, and snapshots via gRPC; and a <strong>node plugin</strong> (DaemonSet) on every node that handles mount/unmount on the local filesystem. Both expose an identity service that reports capabilities to Kubernetes.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> kubectl get csidrivers
+<span class="output">NAME                  ATTACHREQUIRED   PODINFOONMOUNT   MODES
+ebs.csi.aws.com       true             false            Persistent
+efs.csi.aws.com       false            false            Persistent</span></code></pre>
+            </div>
+
+            <h4>Common CSI Drivers</h4>
+            <table class="compare">
+                <tr>
+                    <th>Driver</th>
+                    <th>Type</th>
+                    <th>Provisioner</th>
+                </tr>
+                <tr>
+                    <td>AWS EBS CSI</td>
+                    <td>Block</td>
+                    <td><code>ebs.csi.aws.com</code></td>
+                </tr>
+                <tr>
+                    <td>AWS EFS CSI</td>
+                    <td>File (RWX)</td>
+                    <td><code>efs.csi.aws.com</code></td>
+                </tr>
+                <tr>
+                    <td>Longhorn</td>
+                    <td>Distributed block</td>
+                    <td><code>driver.longhorn.io</code></td>
+                </tr>
+                <tr>
+                    <td>Rook-Ceph</td>
+                    <td>Block, file, object</td>
+                    <td><code>rook-ceph.rbd.csi.ceph.com</code></td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">CSI Snapshots</div>
+                <p>CSI introduced VolumeSnapshot, VolumeSnapshotContent, and VolumeSnapshotClass resources. These let you take point-in-time snapshots of PVs and restore them into new PVCs &mdash; similar to how StorageClass enables dynamic provisioning of volumes.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Backup Strategies -->
+        <div class="section">
+            <h3>10. Backup Strategies</h3>
+            <p>Persistent storage is only as valuable as your ability to restore it. Kubernetes does not provide built-in backup tooling, so you need external solutions.</p>
+
+            <h4>Velero</h4>
+            <p>Velero (formerly Heptio Ark) is the most widely used Kubernetes backup tool. It backs up cluster resources (YAML manifests) and persistent volume data to object storage (S3, GCS, Azure Blob).</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a full cluster backup</span>
+<span class="cmd">$</span> velero backup create <span class="str">full-backup</span>
+
+<span class="comment"># Back up only a specific namespace</span>
+<span class="cmd">$</span> velero backup create <span class="str">prod-backup</span> <span class="flag">--include-namespaces</span> production
+
+<span class="comment"># Schedule daily backups with 7-day retention</span>
+<span class="cmd">$</span> velero schedule create <span class="str">daily</span> <span class="flag">--schedule</span> <span class="str">"0 2 * * *"</span> <span class="flag">--ttl</span> 168h
+
+<span class="comment"># Restore from backup</span>
+<span class="cmd">$</span> velero restore create <span class="flag">--from-backup</span> <span class="str">full-backup</span></code></pre>
+            </div>
+
+            <h4>CSI Volume Snapshots</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Take a snapshot of an existing PVC</span>
+<span class="file">apiVersion:</span> snapshot.storage.k8s.io/v1
+<span class="file">kind:</span> VolumeSnapshot
+<span class="file">metadata:</span>
+  <span class="file">name:</span> <span class="str">pgdata-snap-20260305</span>
+<span class="file">spec:</span>
+  <span class="file">volumeSnapshotClassName:</span> <span class="str">csi-ebs-snapclass</span>
+  <span class="file">source:</span>
+    <span class="file">persistentVolumeClaimName:</span> <span class="str">pgdata-postgres-0</span></code></pre>
+            </div>
+
+            <p>To restore, create a new PVC with <code>dataSource</code> referencing the snapshot name, kind <code>VolumeSnapshot</code>, and apiGroup <code>snapshot.storage.k8s.io</code>. The new PVC will be pre-populated with the snapshot data.</p>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Backup Is Not Optional</div>
+                <p>Snapshots are not backups. A snapshot stored in the same cloud region can be lost in a regional outage. Velero copies data to object storage, which can be cross-region or cross-account replicated. Use both: snapshots for fast recovery, Velero for disaster recovery.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Storage Best Practices -->
+        <div class="section">
+            <h3>11. Storage Best Practices</h3>
+
+            <table class="compare">
+                <tr><th>Practice</th><th>Details</th></tr>
+                <tr><td><strong>Right-size</strong></td><td>Request only what you need. Enable <code>allowVolumeExpansion: true</code> to resize later.</td></tr>
+                <tr><td><strong>Encrypt at rest</strong></td><td>Set <code>encrypted: "true"</code> in StorageClass parameters. Every cloud CSI driver supports KMS.</td></tr>
+                <tr><td><strong>WaitForFirstConsumer</strong></td><td>Prevents zone mismatches in multi-AZ clusters. Always use for cloud block storage.</td></tr>
+                <tr><td><strong>Reclaim wisely</strong></td><td><code>Retain</code> for production. <code>Delete</code> for dev/test.</td></tr>
+                <tr><td><strong>Monitor usage</strong></td><td>Alert on <code>kubelet_volume_stats_used_bytes</code> via Prometheus. Full disks crash apps silently.</td></tr>
+                <tr><td><strong>Label PVCs</strong></td><td>Tag with app, team, and environment. Orphaned PVCs are expensive and hard to trace.</td></tr>
+                <tr><td><strong>Test restores</strong></td><td>A backup you have never restored is not a backup. Schedule regular drills.</td></tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Storage is the hardest part of Kubernetes. Compute is stateless and can be rescheduled anywhere. Storage is physical, bound to zones, and slow to move. Design your architecture to minimize stateful components, and treat the ones you keep with extreme care.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Databases on Kubernetes -->
+        <div class="section">
+            <h3>12. Databases on Kubernetes</h3>
+            <p>Running databases on Kubernetes was once considered risky. With mature CSI drivers, operators, and StatefulSets, it is now a well-understood pattern &mdash; but it requires more operational discipline than stateless workloads.</p>
+
+            <h4>Operator Pattern</h4>
+            <p>Database operators encode DBA knowledge into software. They manage the full lifecycle: provisioning, scaling, failover, backups, and upgrades. Instead of writing StatefulSet YAML by hand, you declare a high-level custom resource.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Operator</th>
+                    <th>Database</th>
+                    <th>Custom Resource</th>
+                </tr>
+                <tr>
+                    <td>CloudNativePG</td>
+                    <td>PostgreSQL</td>
+                    <td><code>Cluster</code> (cnpg.io/v1)</td>
+                </tr>
+                <tr>
+                    <td>Percona Operator</td>
+                    <td>MySQL / XtraDB</td>
+                    <td><code>PerconaXtraDBCluster</code></td>
+                </tr>
+                <tr>
+                    <td>Strimzi</td>
+                    <td>Apache Kafka</td>
+                    <td><code>Kafka</code> (strimzi.io/v1beta2)</td>
+                </tr>
+                <tr>
+                    <td>Redis Operator</td>
+                    <td>Redis</td>
+                    <td><code>RedisFailover</code></td>
+                </tr>
+            </table>
+
+            <h4>CloudNativePG Example</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">apiVersion:</span> postgresql.cnpg.io/v1
+<span class="file">kind:</span> Cluster
+<span class="file">metadata:</span>
+  <span class="file">name:</span> <span class="str">app-db</span>
+<span class="file">spec:</span>
+  <span class="file">instances:</span> <span class="str">3</span>
+  <span class="file">storage:</span>
+    <span class="file">storageClass:</span> <span class="str">fast-ssd</span>
+    <span class="file">size:</span> <span class="str">50Gi</span>
+  <span class="file">backup:</span>
+    <span class="file">barmanObjectStore:</span>
+      <span class="file">destinationPath:</span> <span class="str">s3://my-db-backups/app-db</span>
+    <span class="file">retentionPolicy:</span> <span class="str">"30d"</span></code></pre>
+            </div>
+
+            <h4>When to Run Databases on Kubernetes</h4>
+            <p>Use K8s databases for dev/staging (matches prod, easy teardown) and multi-cloud/on-prem (no vendor lock-in). Use managed services (RDS, Cloud SQL) when you want zero operational overhead. Use dedicated hardware for extreme performance requirements where K8s networking and storage layers add unacceptable latency.</p>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Operational Readiness</div>
+                <p>Before running a database on Kubernetes in production, verify: automated backups are working and tested, failover has been rehearsed, monitoring covers replication lag and disk usage, and your team understands both the database <em>and</em> the operator. An operator automates operations &mdash; it does not eliminate the need to understand them.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Storage diagram interaction
+        const storageStates = {
+            ephemeral: {
+                title: 'Ephemeral (Container Layer)',
+                desc: 'The default writable layer in every container. Data lives only as long as the container process. When the container restarts, crashes, or gets rescheduled, everything written here is lost. Suitable for temp files, caches that can be rebuilt, and scratch computations.'
+            },
+            'pod-volume': {
+                title: 'Pod Volume (emptyDir / configMap)',
+                desc: 'Volumes defined in the pod spec that share the pod\'s lifecycle. An <code>emptyDir</code> survives container restarts within the same pod but is deleted when the pod is removed from the node. <code>configMap</code> and <code>secret</code> volumes inject configuration data and auto-update when the source changes.'
+            },
+            persistent: {
+                title: 'Persistent (PV / PVC)',
+                desc: 'Storage that outlives pods entirely. A PersistentVolume represents real storage infrastructure (cloud disks, NFS, SAN). A PersistentVolumeClaim is the pod\'s request for that storage. The PV persists even after the pod and PVC are deleted (depending on reclaim policy), making it suitable for databases and critical data.'
+            }
+        };
+
+        function showStorage(id) {
+            document.querySelectorAll('.diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const s = storageStates[id];
+            document.getElementById('storageDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-62'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-62-storage', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first state
+        showStorage('ephemeral');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-62']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

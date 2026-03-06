@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helm — Package Management - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-gear.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-64</span>
+            <h1>Helm &mdash; Package Management</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Kubernetes Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-gear.webp" alt="">
+            <h2>Helm &mdash; Package Management</h2>
+            <p class="hero-sub">The package manager for Kubernetes. Define, install, and upgrade complex applications using reusable, version-controlled chart packages.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~40 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-gear.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Understand what Helm is and the problems it solves for Kubernetes deployments</li>
+                <li>Describe the structure of a Helm chart including <code>Chart.yaml</code>, templates, and <code>values.yaml</code></li>
+                <li>Install Helm and manage chart repositories including Artifact Hub</li>
+                <li>Install, upgrade, rollback, and uninstall releases with the Helm CLI</li>
+                <li>Use Go template syntax, built-in objects, and template functions to generate manifests</li>
+                <li>Apply flow control structures and named templates for DRY chart authoring</li>
+                <li>Create custom charts, manage dependencies, and integrate Helm into CI/CD pipelines</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: What is Helm -->
+        <div class="section">
+            <h3>1. What is Helm?</h3>
+            <p>Deploying applications to Kubernetes means writing and managing dozens of YAML manifests &mdash; Deployments, Services, ConfigMaps, Secrets, Ingresses, and more. For a single microservice this is manageable. For a production system with 15 services, each needing dev, staging, and prod variants, it becomes a maintenance nightmare.</p>
+
+            <p>Helm is the package manager for Kubernetes. It groups all the manifests an application needs into a single distributable unit called a <strong>chart</strong>, applies user-supplied configuration values at install time, and tracks each deployment as a versioned <strong>release</strong> that can be upgraded or rolled back atomically.</p>
+
+            <h4>The Three Big Concepts</h4>
+            <div class="diagram" id="helmConcepts">
+                <div class="diagram-box" onclick="showConcept('chart')" id="box-chart">
+                    <div class="diagram-box-title">Chart</div>
+                    <div class="diagram-box-sub">Package</div>
+                </div>
+                <div class="diagram-arrow">+</div>
+                <div class="diagram-box" onclick="showConcept('values')" id="box-values">
+                    <div class="diagram-box-title">Values</div>
+                    <div class="diagram-box-sub">Configuration</div>
+                </div>
+                <div class="diagram-arrow">=</div>
+                <div class="diagram-box" onclick="showConcept('release')" id="box-release">
+                    <div class="diagram-box-title">Release</div>
+                    <div class="diagram-box-sub">Running Instance</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="conceptDetail">Click a concept above to learn more about it.</div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Think of a chart like an <code>apt</code> package or an <code>npm</code> module &mdash; except instead of installing software on a single machine, it installs a full application stack into a Kubernetes cluster. The same chart can be installed multiple times, each as its own independent release.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Chart Structure -->
+        <div class="section">
+            <h3>2. Anatomy of a Helm Chart</h3>
+            <p>A chart is a directory with a specific structure. Every chart must have a <code>Chart.yaml</code> and a <code>templates/</code> directory. Everything else is optional but conventional.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Directory Structure</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">my-app/</span>
+  <span class="file">Chart.yaml</span>          <span class="comment"># Chart metadata (name, version, description)</span>
+  <span class="file">values.yaml</span>         <span class="comment"># Default configuration values</span>
+  <span class="file">charts/</span>             <span class="comment"># Dependency charts (subcharts)</span>
+  <span class="file">templates/</span>          <span class="comment"># Kubernetes manifest templates</span>
+    <span class="file">deployment.yaml</span>
+    <span class="file">service.yaml</span>
+    <span class="file">_helpers.tpl</span>    <span class="comment"># Named template definitions</span>
+    <span class="file">NOTES.txt</span>       <span class="comment"># Post-install usage notes</span>
+  <span class="file">.helmignore</span>         <span class="comment"># Patterns to exclude from packaging</span></code></pre>
+            </div>
+
+            <h4>Chart.yaml</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">apiVersion</span>: v2
+<span class="cmd">name</span>: my-app
+<span class="cmd">description</span>: <span class="str">A Helm chart for my application</span>
+<span class="cmd">type</span>: application          <span class="comment"># 'application' or 'library'</span>
+<span class="cmd">version</span>: 0.1.0             <span class="comment"># Chart version (SemVer)</span>
+<span class="cmd">appVersion</span>: <span class="str">"1.16.0"</span>      <span class="comment"># Version of the app being deployed</span></code></pre>
+            </div>
+
+            <h4>values.yaml</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">replicaCount</span>: 3
+<span class="cmd">image</span>:
+  <span class="cmd">repository</span>: <span class="str">nginx</span>
+  <span class="cmd">tag</span>: <span class="str">"1.25"</span>
+  <span class="cmd">pullPolicy</span>: <span class="str">IfNotPresent</span>
+<span class="cmd">service</span>:
+  <span class="cmd">type</span>: <span class="str">ClusterIP</span>
+  <span class="cmd">port</span>: 80
+<span class="cmd">resources</span>:
+  <span class="cmd">limits</span>:
+    <span class="cmd">cpu</span>: <span class="str">500m</span>
+    <span class="cmd">memory</span>: <span class="str">128Mi</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Version vs AppVersion</div>
+                <p><code>version</code> is the chart's own version &mdash; bump it when templates or defaults change. <code>appVersion</code> is the version of the software being deployed. They change independently.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Installing Helm -->
+        <div class="section">
+            <h3>3. Installing Helm</h3>
+            <p>Helm is a single binary with no server-side component (Helm 3 removed Tiller). It talks directly to the Kubernetes API using your kubeconfig.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># macOS</span>
+<span class="cmd">$</span> brew install helm
+
+<span class="comment"># Linux</span>
+<span class="cmd">$</span> curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+<span class="comment"># Verify</span>
+<span class="cmd">$</span> helm version
+<span class="output">version.BuildInfo{Version:"v3.14.0", GitCommit:"..."}</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Prerequisites</div>
+                <p>Helm requires a working <code>kubectl</code> configuration. It reads <code>~/.kube/config</code> to find the cluster and credentials. If <code>kubectl get pods</code> works, Helm will work too.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Using Charts -->
+        <div class="section">
+            <h3>4. Using Charts &mdash; The Release Lifecycle</h3>
+            <p>Every <code>helm install</code> creates a <strong>release</strong> &mdash; a specific instance of a chart running in your cluster.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>helm install</code> <span class="tag">CREATE</span></div>
+                    <p>Deploy a chart as a new release</p>
+                    <div class="example">$ helm install my-release bitnami/nginx</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>helm upgrade</code> <span class="tag">UPDATE</span></div>
+                    <p>Apply new values or chart version to an existing release</p>
+                    <div class="example">$ helm upgrade my-release bitnami/nginx --set replicaCount=5</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>helm rollback</code> <span class="tag">UNDO</span></div>
+                    <p>Revert a release to a previous revision</p>
+                    <div class="example">$ helm rollback my-release 1</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>helm uninstall</code> <span class="tag">DELETE</span></div>
+                    <p>Remove all resources for a release</p>
+                    <div class="example">$ helm uninstall my-release</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install with custom values file</span>
+<span class="cmd">$</span> helm install my-app ./my-chart <span class="flag">-f</span> <span class="file">production-values.yaml</span>
+
+<span class="comment"># Install into a specific namespace (create if missing)</span>
+<span class="cmd">$</span> helm install my-app ./my-chart <span class="flag">-n</span> production <span class="flag">--create-namespace</span>
+
+<span class="comment"># Dry run — render templates without installing</span>
+<span class="cmd">$</span> helm install my-app ./my-chart <span class="flag">--dry-run</span> <span class="flag">--debug</span>
+
+<span class="comment"># List all releases</span>
+<span class="cmd">$</span> helm list
+<span class="output">NAME      NAMESPACE  REVISION  STATUS    CHART          APP VERSION
+my-app    default    1         deployed  my-chart-0.1.0 1.16.0</span>
+
+<span class="comment"># View release history</span>
+<span class="cmd">$</span> helm history my-app
+<span class="output">REVISION  STATUS      CHART          DESCRIPTION
+1         superseded  my-chart-0.1.0 Install complete
+2         deployed    my-chart-0.2.0 Upgrade complete</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The <code>--dry-run</code> flag renders all templates with your values and prints the resulting YAML without touching the cluster. Always dry-run before applying to production.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Helm Repositories -->
+        <div class="section">
+            <h3>5. Helm Repositories</h3>
+            <p>A chart repository is an HTTP server hosting packaged charts (<code>.tgz</code> files) and an <code>index.yaml</code> manifest. Artifact Hub (<code>artifacthub.io</code>) is the central discovery portal &mdash; it aggregates charts from hundreds of repos into a searchable catalog.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Add a repository</span>
+<span class="cmd">$</span> helm repo add bitnami https://charts.bitnami.com/bitnami
+
+<span class="comment"># Update local cache</span>
+<span class="cmd">$</span> helm repo update
+
+<span class="comment"># Search repos for a chart</span>
+<span class="cmd">$</span> helm search repo nginx
+<span class="output">NAME           CHART VERSION  APP VERSION  DESCRIPTION
+bitnami/nginx  15.4.0         1.25.3       NGINX Open Source...</span>
+
+<span class="comment"># Search Artifact Hub</span>
+<span class="cmd">$</span> helm search hub prometheus
+
+<span class="comment"># List / remove repos</span>
+<span class="cmd">$</span> helm repo list
+<span class="cmd">$</span> helm repo remove bitnami</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">OCI Registries</div>
+                <p>Helm 3 also supports OCI-based registries (Docker Hub, GHCR, ECR). Instead of <code>helm repo add</code>, pull directly: <code>helm install my-app oci://ghcr.io/org/chart --version 1.0.0</code>. This is the modern approach replacing traditional HTTP repos.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Values and Templating -->
+        <div class="section">
+            <h3>6. Values and Templating</h3>
+            <p>Helm templates are Kubernetes manifests with Go template directives. At render time, Helm evaluates the templates, substitutes values, and produces plain YAML.</p>
+
+            <h4>Built-in Objects</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">.Values</span>
+                    <span>Data from <code>values.yaml</code> and <code>--set</code> overrides. Access with dot notation: <code>.Values.image.tag</code></span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">.Release</span>
+                    <span>Release metadata: <code>.Release.Name</code>, <code>.Release.Namespace</code>, <code>.Release.Revision</code></span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">.Chart</span>
+                    <span>Contents of <code>Chart.yaml</code>: <code>.Chart.Name</code>, <code>.Chart.Version</code>, <code>.Chart.AppVersion</code></span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">.Template</span>
+                    <span>Current template info: <code>.Template.Name</code>, <code>.Template.BasePath</code></span>
+                </div>
+            </div>
+
+            <h4>Template Example</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">templates/deployment.yaml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">apiVersion</span>: apps/v1
+<span class="cmd">kind</span>: Deployment
+<span class="cmd">metadata</span>:
+  <span class="cmd">name</span>: <span class="str">{{ .Release.Name }}-{{ .Chart.Name }}</span>
+  <span class="cmd">labels</span>:
+    <span class="str">{{- include "my-app.labels" . | nindent 4 }}</span>
+<span class="cmd">spec</span>:
+  <span class="cmd">replicas</span>: <span class="str">{{ .Values.replicaCount }}</span>
+  <span class="cmd">selector</span>:
+    <span class="cmd">matchLabels</span>:
+      <span class="str">{{- include "my-app.selectorLabels" . | nindent 6 }}</span>
+  <span class="cmd">template</span>:
+    <span class="cmd">spec</span>:
+      <span class="cmd">containers</span>:
+        - <span class="cmd">name</span>: <span class="str">{{ .Chart.Name }}</span>
+          <span class="cmd">image</span>: <span class="str">"{{ .Values.image.repository }}:{{ .Values.image.tag }}"</span>
+          <span class="cmd">ports</span>:
+            - <span class="cmd">containerPort</span>: <span class="str">{{ .Values.service.port }}</span></code></pre>
+            </div>
+
+            <h4>Value Precedence (Lowest to Highest)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># 1. values.yaml in the chart (lowest)</span>
+<span class="comment"># 2. Parent chart's values.yaml</span>
+<span class="comment"># 3. Values files passed with -f (left-to-right, last wins)</span>
+<span class="cmd">$</span> helm install app ./chart <span class="flag">-f</span> base.yaml <span class="flag">-f</span> prod.yaml
+<span class="comment"># 4. --set flags (highest)</span>
+<span class="cmd">$</span> helm install app ./chart <span class="flag">-f</span> prod.yaml <span class="flag">--set</span> <span class="str">replicaCount=10</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Watch Your Whitespace</div>
+                <p>YAML is whitespace-sensitive and Go templates produce whitespace. Use <code>{{-</code> (trim left) and <code>-}}</code> (trim right) to consume surrounding whitespace. The <code>nindent</code> function controls indentation. Getting this wrong is the number one source of Helm template bugs.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Template Functions -->
+        <div class="section">
+            <h3>7. Template Functions</h3>
+            <p>Helm includes the full Sprig template library plus its own functions for transforming and formatting data within templates.</p>
+
+            <table class="compare">
+                <tr><th>Function</th><th>Purpose</th><th>Example</th></tr>
+                <tr><td><code>include</code></td><td>Render a named template as a pipeable string</td><td><code>{{ include "app.labels" . | nindent 4 }}</code></td></tr>
+                <tr><td><code>tpl</code></td><td>Evaluate a string as a template</td><td><code>{{ tpl .Values.annotation . }}</code></td></tr>
+                <tr><td><code>toYaml</code></td><td>Convert a value to YAML string</td><td><code>{{ toYaml .Values.resources | nindent 8 }}</code></td></tr>
+                <tr><td><code>nindent</code></td><td>Indent text N spaces with leading newline</td><td><code>{{ include "tpl" . | nindent 4 }}</code></td></tr>
+                <tr><td><code>default</code></td><td>Provide a fallback if value is empty</td><td><code>{{ .Values.env | default "production" }}</code></td></tr>
+                <tr><td><code>required</code></td><td>Fail rendering if value is missing</td><td><code>{{ required "host needed" .Values.host }}</code></td></tr>
+                <tr><td><code>quote</code></td><td>Wrap a value in double quotes</td><td><code>{{ .Values.name | quote }}</code></td></tr>
+                <tr><td><code>lookup</code></td><td>Query the Kubernetes API from a template</td><td><code>{{ lookup "v1" "Secret" "ns" "name" }}</code></td></tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Go Template</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># toYaml — inject complex values as YAML</span>
+<span class="cmd">resources</span>:
+  <span class="str">{{- toYaml .Values.resources | nindent 2 }}</span>
+
+<span class="comment"># default — fallback to appVersion if tag not set</span>
+<span class="cmd">image</span>: <span class="str">"{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"</span>
+
+<span class="comment"># required — fail fast on missing values</span>
+<span class="cmd">host</span>: <span class="str">{{ required "ingress.host is required" .Values.ingress.host }}</span>
+
+<span class="comment"># String manipulation (Sprig library)</span>
+<span class="cmd">name</span>: <span class="str">{{ .Values.name | lower | trunc 63 | trimSuffix "-" }}</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">include vs template</div>
+                <p>Both render named templates, but <code>include</code> returns a string you can pipe through functions. The <code>template</code> action inserts output directly with no piping. Always prefer <code>include</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Flow Control -->
+        <div class="section">
+            <h3>8. Flow Control</h3>
+            <p>Go templates support conditionals, loops, and scope changes &mdash; essential for writing charts that adapt to different configurations.</p>
+
+            <h4>if / else</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Go Template</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="str">{{- if .Values.ingress.enabled }}</span>
+<span class="cmd">apiVersion</span>: networking.k8s.io/v1
+<span class="cmd">kind</span>: Ingress
+<span class="cmd">metadata</span>:
+  <span class="cmd">name</span>: <span class="str">{{ .Release.Name }}-ingress</span>
+<span class="cmd">spec</span>:
+  <span class="cmd">rules</span>:
+    - <span class="cmd">host</span>: <span class="str">{{ .Values.ingress.host }}</span>
+      <span class="cmd">http</span>:
+        <span class="cmd">paths</span>:
+          - <span class="cmd">path</span>: /
+            <span class="cmd">pathType</span>: Prefix
+            <span class="cmd">backend</span>:
+              <span class="cmd">service</span>:
+                <span class="cmd">name</span>: <span class="str">{{ .Release.Name }}-svc</span>
+                <span class="cmd">port</span>:
+                  <span class="cmd">number</span>: <span class="str">{{ .Values.service.port }}</span>
+<span class="str">{{- end }}</span></code></pre>
+            </div>
+
+            <h4>range (Loops)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Go Template</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Iterate over a list</span>
+<span class="cmd">env</span>:
+<span class="str">{{- range .Values.env }}</span>
+  - <span class="cmd">name</span>: <span class="str">{{ .name }}</span>
+    <span class="cmd">value</span>: <span class="str">{{ .value | quote }}</span>
+<span class="str">{{- end }}</span>
+
+<span class="comment"># Iterate over a map</span>
+<span class="cmd">annotations</span>:
+<span class="str">{{- range $key, $val := .Values.annotations }}</span>
+  <span class="str">{{ $key }}</span>: <span class="str">{{ $val | quote }}</span>
+<span class="str">{{- end }}</span></code></pre>
+            </div>
+
+            <h4>with (Scope Change)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Go Template</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># 'with' changes the scope of '.' inside the block</span>
+<span class="str">{{- with .Values.nodeSelector }}</span>
+<span class="cmd">nodeSelector</span>:
+  <span class="str">{{- toYaml . | nindent 2 }}</span>
+<span class="str">{{- end }}</span>
+
+<span class="comment"># Use $ to access root scope inside with/range blocks</span>
+<span class="str">{{- with .Values.config }}</span>
+  <span class="cmd">name</span>: <span class="str">{{ $.Release.Name }}-config</span>   <span class="comment"># $ = root</span>
+  <span class="cmd">data</span>: <span class="str">{{ .key }}</span>                      <span class="comment"># . = .Values.config</span>
+<span class="str">{{- end }}</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Both <code>with</code> and <code>range</code> change the scope of <code>.</code> (dot). Inside these blocks, <code>.</code> refers to the current item. Use <code>$</code> to access the root scope when you need release or chart data.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Named Templates -->
+        <div class="section">
+            <h3>9. Named Templates (_helpers.tpl)</h3>
+            <p>Named templates let you define reusable blocks. By convention they live in <code>_helpers.tpl</code> &mdash; the underscore prefix tells Helm not to render it as a standalone manifest.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">templates/_helpers.tpl</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">{{/* Generate full name: release-chart (truncated to 63 chars) */}}</span>
+<span class="str">{{- define "my-app.fullname" -}}</span>
+<span class="str">{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}</span>
+<span class="str">{{- end -}}</span>
+
+<span class="comment">{{/* Common labels applied to every resource */}}</span>
+<span class="str">{{- define "my-app.labels" -}}</span>
+<span class="cmd">helm.sh/chart</span>: <span class="str">{{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}</span>
+<span class="str">{{ include "my-app.selectorLabels" . }}</span>
+<span class="cmd">app.kubernetes.io/managed-by</span>: <span class="str">{{ .Release.Service }}</span>
+<span class="str">{{- end -}}</span>
+
+<span class="comment">{{/* Selector labels for Deployment and Service */}}</span>
+<span class="str">{{- define "my-app.selectorLabels" -}}</span>
+<span class="cmd">app.kubernetes.io/name</span>: <span class="str">{{ .Chart.Name }}</span>
+<span class="cmd">app.kubernetes.io/instance</span>: <span class="str">{{ .Release.Name }}</span>
+<span class="str">{{- end -}}</span></code></pre>
+            </div>
+
+            <h4>Using Named Templates</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">templates/service.yaml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">apiVersion</span>: v1
+<span class="cmd">kind</span>: Service
+<span class="cmd">metadata</span>:
+  <span class="cmd">name</span>: <span class="str">{{ include "my-app.fullname" . }}</span>
+  <span class="cmd">labels</span>:
+    <span class="str">{{- include "my-app.labels" . | nindent 4 }}</span>
+<span class="cmd">spec</span>:
+  <span class="cmd">type</span>: <span class="str">{{ .Values.service.type }}</span>
+  <span class="cmd">ports</span>:
+    - <span class="cmd">port</span>: <span class="str">{{ .Values.service.port }}</span>
+      <span class="cmd">targetPort</span>: http
+  <span class="cmd">selector</span>:
+    <span class="str">{{- include "my-app.selectorLabels" . | nindent 4 }}</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Naming Convention</div>
+                <p>Named templates are globally scoped. To avoid collisions between charts and subcharts, prefix every template name with the chart name: <code>my-app.fullname</code>, not just <code>fullname</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Creating Your Own Chart -->
+        <div class="section">
+            <h3>10. Creating Your Own Chart</h3>
+            <p>The <code>helm create</code> command scaffolds a complete chart with sensible defaults &mdash; a working nginx deployment out of the box.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Scaffold a new chart</span>
+<span class="cmd">$</span> helm create my-api
+<span class="output">Creating my-api</span>
+
+<span class="comment"># Lint for errors</span>
+<span class="cmd">$</span> helm lint my-api/
+
+<span class="comment"># Render templates locally (no cluster needed)</span>
+<span class="cmd">$</span> helm template my-release my-api/
+
+<span class="comment"># Package for distribution</span>
+<span class="cmd">$</span> helm package my-api/
+<span class="output">Successfully packaged chart and saved it to: my-api-0.1.0.tgz</span></code></pre>
+            </div>
+
+            <h4>Best Practices</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Naming</span>
+                    <span>Lowercase, hyphenated chart names. SemVer 2 for versions. Use <code>appVersion</code> for the app, <code>version</code> for the chart.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Values</span>
+                    <span>Document every value with comments. Use <code>required</code> for mandatory values. Flat is better than deeply nested.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Labels</span>
+                    <span>Always include Kubernetes recommended labels: <code>app.kubernetes.io/name</code>, <code>instance</code>, <code>version</code>, <code>managed-by</code>.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Testing</span>
+                    <span>Include test pods in <code>templates/tests/</code>. Run <code>helm test</code> after install. Lint with <code>helm lint</code> in CI.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Common Mistakes</div>
+                <p>Hardcoding the namespace (use <code>.Release.Namespace</code>). Forgetting to quote values YAML interprets as booleans (<code>"yes"</code>, <code>"3.0"</code>). Not setting resource requests/limits. Ignoring <code>helm lint</code> warnings.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Chart Dependencies -->
+        <div class="section">
+            <h3>11. Chart Dependencies (Subcharts)</h3>
+            <p>Real applications depend on other services. Helm handles this through chart dependencies defined in <code>Chart.yaml</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Chart.yaml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">dependencies</span>:
+  - <span class="cmd">name</span>: <span class="str">postgresql</span>
+    <span class="cmd">version</span>: <span class="str">"12.x.x"</span>
+    <span class="cmd">repository</span>: <span class="str">https://charts.bitnami.com/bitnami</span>
+  - <span class="cmd">name</span>: <span class="str">redis</span>
+    <span class="cmd">version</span>: <span class="str">"17.x.x"</span>
+    <span class="cmd">repository</span>: <span class="str">https://charts.bitnami.com/bitnami</span>
+    <span class="cmd">condition</span>: <span class="str">redis.enabled</span>   <span class="comment"># Only include if true</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Download dependencies into charts/ directory</span>
+<span class="cmd">$</span> helm dependency update my-api/
+
+<span class="comment"># List dependencies and status</span>
+<span class="cmd">$</span> helm dependency list my-api/
+<span class="output">NAME         VERSION  REPOSITORY                              STATUS
+postgresql   12.5.8   https://charts.bitnami.com/bitnami      ok
+redis        17.11.3  https://charts.bitnami.com/bitnami      ok</span></code></pre>
+            </div>
+
+            <h4>Passing Values to Subcharts</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">values.yaml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Values for the postgresql subchart (namespaced by chart name)</span>
+<span class="cmd">postgresql</span>:
+  <span class="cmd">auth</span>:
+    <span class="cmd">username</span>: <span class="str">myuser</span>
+    <span class="cmd">database</span>: <span class="str">mydb</span>
+  <span class="cmd">primary</span>:
+    <span class="cmd">persistence</span>:
+      <span class="cmd">size</span>: <span class="str">10Gi</span>
+
+<span class="comment"># Global values are shared across ALL charts and subcharts</span>
+<span class="cmd">global</span>:
+  <span class="cmd">storageClass</span>: <span class="str">fast-ssd</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Subchart values are namespaced by the dependency name. Setting <code>postgresql.auth.username</code> in the parent is identical to setting <code>auth.username</code> in the postgresql chart's own values. Values under the <code>global:</code> key are shared across all charts.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Helm in CI/CD -->
+        <div class="section">
+            <h3>12. Helm in CI/CD</h3>
+            <p>Helm becomes significantly more powerful when integrated into automated pipelines. Two tools dominate: Helmfile for declarative multi-release management, and Argo CD for GitOps-driven delivery.</p>
+
+            <h4>Helmfile</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">helmfile.yaml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">repositories</span>:
+  - <span class="cmd">name</span>: <span class="str">bitnami</span>
+    <span class="cmd">url</span>: <span class="str">https://charts.bitnami.com/bitnami</span>
+
+<span class="cmd">releases</span>:
+  - <span class="cmd">name</span>: <span class="str">my-api</span>
+    <span class="cmd">namespace</span>: <span class="str">production</span>
+    <span class="cmd">chart</span>: <span class="str">./charts/my-api</span>
+    <span class="cmd">values</span>:
+      - <span class="str">values/production.yaml</span>
+  - <span class="cmd">name</span>: <span class="str">database</span>
+    <span class="cmd">namespace</span>: <span class="str">production</span>
+    <span class="cmd">chart</span>: <span class="str">bitnami/postgresql</span>
+    <span class="cmd">version</span>: <span class="str">12.5.8</span>
+    <span class="cmd">values</span>:
+      - <span class="str">values/database.yaml</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> helmfile diff      <span class="comment"># Preview changes</span>
+<span class="cmd">$</span> helmfile apply     <span class="comment"># Apply all releases</span>
+<span class="cmd">$</span> helmfile destroy   <span class="comment"># Tear down everything</span></code></pre>
+            </div>
+
+            <h4>Argo CD Integration</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">argocd-application.yaml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">apiVersion</span>: argoproj.io/v1alpha1
+<span class="cmd">kind</span>: Application
+<span class="cmd">metadata</span>:
+  <span class="cmd">name</span>: <span class="str">my-api</span>
+  <span class="cmd">namespace</span>: <span class="str">argocd</span>
+<span class="cmd">spec</span>:
+  <span class="cmd">source</span>:
+    <span class="cmd">repoURL</span>: <span class="str">https://github.com/org/helm-charts.git</span>
+    <span class="cmd">targetRevision</span>: <span class="str">main</span>
+    <span class="cmd">path</span>: <span class="str">charts/my-api</span>
+    <span class="cmd">helm</span>:
+      <span class="cmd">valueFiles</span>:
+        - <span class="str">values-production.yaml</span>
+  <span class="cmd">destination</span>:
+    <span class="cmd">server</span>: <span class="str">https://kubernetes.default.svc</span>
+    <span class="cmd">namespace</span>: <span class="str">production</span>
+  <span class="cmd">syncPolicy</span>:
+    <span class="cmd">automated</span>:
+      <span class="cmd">prune</span>: true
+      <span class="cmd">selfHeal</span>: true</code></pre>
+            </div>
+
+            <h4>CI Pipeline Pattern</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Lint</span>
+                    <span><code>helm lint</code> and <code>helm template</code> in CI to catch syntax errors before merge.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Test</span>
+                    <span><code>helm install --dry-run</code> against staging. Run <code>helm test</code> to execute in-chart test pods.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Package</span>
+                    <span><code>helm package</code> the chart. Push to an OCI registry or chart repository.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Deploy</span>
+                    <span><code>helm upgrade --install --atomic</code> &mdash; idempotent deploy with auto-rollback on failure.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions (excerpt)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">steps</span>:
+  - <span class="cmd">name</span>: <span class="str">Lint chart</span>
+    <span class="cmd">run</span>: <span class="str">helm lint charts/my-api/</span>
+
+  - <span class="cmd">name</span>: <span class="str">Deploy to production</span>
+    <span class="cmd">run</span>: |
+      helm upgrade <span class="flag">--install</span> my-api charts/my-api/ \
+        <span class="flag">-f</span> values/prod.yaml \
+        <span class="flag">--namespace</span> production \
+        <span class="flag">--atomic</span> \
+        <span class="flag">--timeout</span> 5m \
+        <span class="flag">--set</span> image.tag=${{ github.sha }}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p><code>helm upgrade --install</code> is the idempotent deploy command &mdash; installs if missing, upgrades if present. Combined with <code>--atomic</code>, a failed upgrade automatically rolls back to the previous revision.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Helm concepts diagram interaction
+        const concepts = {
+            chart: {
+                title: 'Chart (Package)',
+                desc: 'A collection of files describing a related set of Kubernetes resources. Contains templates, default values, metadata, and optional dependencies. Think of it as a blueprint that can be instantiated many times with different configurations.'
+            },
+            values: {
+                title: 'Values (Configuration)',
+                desc: 'The configuration knobs for a chart. They come from <code>values.yaml</code> defaults, user-supplied <code>-f</code> files, and <code>--set</code> overrides. Values are injected into templates at render time, allowing the same chart to produce different manifests for dev, staging, and production.'
+            },
+            release: {
+                title: 'Release (Running Instance)',
+                desc: 'A specific instance of a chart running in a cluster with a particular configuration. Each release has a unique name, a revision history, and can be independently upgraded or rolled back. You can install the same chart multiple times &mdash; each creates a separate release.'
+            }
+        };
+
+        function showConcept(id) {
+            document.querySelectorAll('.diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const c = concepts[id];
+            document.getElementById('conceptDetail').innerHTML = '<strong>' + c.title + '</strong><br>' + c.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-64'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-64-helm', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first concept
+        showConcept('chart');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-64']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
