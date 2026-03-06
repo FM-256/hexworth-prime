@@ -270,20 +270,20 @@ const ForgeData = {
             description: 'Agentless automation mastery — inventory, playbooks, roles, vault, AWX, and real-world patterns.',
             color: '#f59e0b',
             modules: [
-                { id: 'do-83', title: 'Automation Landscape — Ansible, Chef, Puppet & Salt', type: 'module', status: 'coming-soon', sprint: 'DO-83' },
-                { id: 'do-82', title: 'Ansible Fundamentals — Agentless Automation', type: 'module', status: 'coming-soon', sprint: 'DO-82' },
-                { id: 'do-88', title: 'Ansible Inventory — Know Your Fleet', type: 'module', status: 'coming-soon', sprint: 'DO-88' },
-                { id: 'do-89', title: 'Ansible Playbooks — Automating Everything', type: 'module', status: 'coming-soon', sprint: 'DO-89' },
-                { id: 'do-90', title: 'Ansible Modules & Collections', type: 'module', status: 'coming-soon', sprint: 'DO-90' },
-                { id: 'do-91', title: 'Ansible Roles — Reusable Automation', type: 'module', status: 'coming-soon', sprint: 'DO-91' },
-                { id: 'do-92', title: 'Variables & Facts — Data-Driven Automation', type: 'module', status: 'coming-soon', sprint: 'DO-92' },
-                { id: 'do-93', title: 'Templates & Jinja2', type: 'module', status: 'coming-soon', sprint: 'DO-93' },
-                { id: 'do-94', title: 'Ansible Vault — Secrets Management', type: 'module', status: 'coming-soon', sprint: 'DO-94' },
-                { id: 'do-95', title: 'AWX & Automation Platform', type: 'module', status: 'coming-soon', sprint: 'DO-95' },
-                { id: 'do-96', title: 'Ansible for Cloud & Networking', type: 'module', status: 'coming-soon', sprint: 'DO-96' },
-                { id: 'do-97', title: 'Testing & CI Integration', type: 'module', status: 'coming-soon', sprint: 'DO-97' },
-                { id: 'do-98', title: 'Real-World Patterns & Lab', type: 'lab', status: 'coming-soon', sprint: 'DO-98' },
-                { id: 'do-99', title: 'Ansible Tips, Tricks & Dark Arts', type: 'module', status: 'coming-soon', sprint: 'DO-99' }
+                { id: 'do-83', title: 'Automation Landscape — Ansible, Chef, Puppet & Salt', type: 'module', status: 'ready', sprint: 'DO-83', href: 'do-83-automation-landscape.html' },
+                { id: 'do-82', title: 'Ansible Fundamentals — Agentless Automation', type: 'module', status: 'ready', sprint: 'DO-82', href: 'do-82-ansible-fundamentals.html' },
+                { id: 'do-88', title: 'Ansible Inventory — Know Your Fleet', type: 'module', status: 'ready', sprint: 'DO-88', href: 'do-88-ansible-inventory.html' },
+                { id: 'do-89', title: 'Ansible Playbooks — Automating Everything', type: 'module', status: 'ready', sprint: 'DO-89', href: 'do-89-ansible-playbooks.html' },
+                { id: 'do-90', title: 'Ansible Modules & Collections', type: 'module', status: 'ready', sprint: 'DO-90', href: 'do-90-ansible-modules.html' },
+                { id: 'do-91', title: 'Ansible Roles — Reusable Automation', type: 'module', status: 'ready', sprint: 'DO-91', href: 'do-91-ansible-roles.html' },
+                { id: 'do-92', title: 'Variables & Facts — Data-Driven Automation', type: 'module', status: 'ready', sprint: 'DO-92', href: 'do-92-ansible-variables.html' },
+                { id: 'do-93', title: 'Templates & Jinja2', type: 'module', status: 'ready', sprint: 'DO-93', href: 'do-93-ansible-templates.html' },
+                { id: 'do-94', title: 'Ansible Vault — Secrets Management', type: 'module', status: 'ready', sprint: 'DO-94', href: 'do-94-ansible-vault.html' },
+                { id: 'do-95', title: 'AWX & Automation Platform', type: 'module', status: 'ready', sprint: 'DO-95', href: 'do-95-awx-platform.html' },
+                { id: 'do-96', title: 'Ansible for Cloud & Networking', type: 'module', status: 'ready', sprint: 'DO-96', href: 'do-96-ansible-cloud.html' },
+                { id: 'do-97', title: 'Testing & CI Integration', type: 'module', status: 'ready', sprint: 'DO-97', href: 'do-97-ansible-testing.html' },
+                { id: 'do-98', title: 'Real-World Patterns & Lab', type: 'lab', status: 'ready', sprint: 'DO-98', href: 'do-98-ansible-lab.html' },
+                { id: 'do-99', title: 'Ansible Tips, Tricks & Dark Arts', type: 'module', status: 'ready', sprint: 'DO-99', href: 'do-99-ansible-tips.html' }
             ]
         },
 
@@ -298,7 +298,7 @@ const ForgeData = {
             description: 'The human side of DevOps — collaboration, post-mortems, SRE, and organizational transformation.',
             color: '#8b5cf6',
             modules: [
-                { id: 'do-25', title: 'DevOps Culture — Teams, Communication & Blameless Post-Mortems', type: 'module', status: 'coming-soon', sprint: 'DO-25' }
+                { id: 'do-25', title: 'DevOps Culture — Teams, Communication & Blameless Post-Mortems', type: 'module', status: 'ready', sprint: 'DO-25', href: 'do-25-devops-culture.html' }
             ]
         },
 
@@ -313,9 +313,9 @@ const ForgeData = {
             description: 'Quizzes, review games, and knowledge checks across all DevOps domains.',
             color: '#8b5cf6',
             modules: [
-                { id: 'do-26', title: 'DevOps Fundamentals Quiz', type: 'quiz', status: 'coming-soon', sprint: 'DO-26' },
-                { id: 'do-27', title: 'CI/CD & IaC Quiz', type: 'quiz', status: 'coming-soon', sprint: 'DO-27' },
-                { id: 'do-28', title: 'DevOps Jeopardy Review', type: 'game', status: 'coming-soon', sprint: 'DO-28' }
+                { id: 'do-26', title: 'DevOps Fundamentals Quiz', type: 'quiz', status: 'ready', sprint: 'DO-26', href: 'do-26-fundamentals-quiz.html' },
+                { id: 'do-27', title: 'CI/CD & IaC Quiz', type: 'quiz', status: 'ready', sprint: 'DO-27', href: 'do-27-cicd-iac-quiz.html' },
+                { id: 'do-28', title: 'DevOps Jeopardy Review', type: 'game', status: 'ready', sprint: 'DO-28', href: 'do-28-devops-jeopardy.html' }
             ]
         },
 
@@ -330,7 +330,7 @@ const ForgeData = {
             description: 'Certification alignment — map your progress to industry certifications.',
             color: '#8b5cf6',
             modules: [
-                { id: 'do-29', title: 'Cert Alignment — AWS, Azure, CKA, Terraform', type: 'module', status: 'coming-soon', sprint: 'DO-29' }
+                { id: 'do-29', title: 'Cert Alignment — AWS, Azure, CKA, Terraform', type: 'module', status: 'ready', sprint: 'DO-29', href: 'do-29-cert-alignment.html' }
             ]
         }
     ],

@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing & CI Integration - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-robot.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #f59e0b; --forge-dim: rgba(245, 158, 11, 0.12); --forge-glow: rgba(245, 158, 11, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(245,158,11,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(245,158,11,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #d97706); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-97</span>
+            <h1>Testing & CI Integration</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Ansible Track</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-robot.webp" alt="">
+            <h2>Testing & CI Integration</h2>
+            <p class="hero-sub">Catch broken playbooks before they hit production. Build confidence with linting, Molecule, and automated CI pipelines that test your infrastructure code on every push.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~30 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-gear.webp" alt="" width="14" height="14"> Intermediate-Advanced</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Understand why automated testing is critical for infrastructure as code</li>
+                <li>Configure and run <code>ansible-lint</code> with custom rules and pre-commit hooks</li>
+                <li>Use Molecule to create, converge, verify, and destroy test environments for roles</li>
+                <li>Write test assertions with Testinfra, Goss, and Ansible's own verifier</li>
+                <li>Design a testing strategy: unit (lint) &rarr; integration (Molecule) &rarr; acceptance (staging)</li>
+                <li>Build CI pipelines in GitHub Actions and GitLab CI for Ansible automation</li>
+                <li>Apply test-driven development practices to infrastructure code</li>
+                <li>Profile and optimize slow playbooks for performance at scale</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Why Test Automation? -->
+        <div class="section">
+            <h3>Why Test Automation?</h3>
+            <p>It's 3 AM. Your pager fires. A routine playbook run just bricked the database servers in production. The playbook worked fine last week, but someone pushed a "small fix" on Friday afternoon that introduced a subtle YAML indentation error. The <code>when</code> condition that was supposed to skip the destructive task? It evaluated to <code>true</code> on every host.</p>
+
+            <p>This is not hypothetical. Untested infrastructure code causes real outages. Unlike application code where a bug might show a wrong number on a dashboard, a broken playbook can wipe filesystems, misconfigure firewalls, or corrupt databases across hundreds of machines simultaneously.</p>
+
+            <h4>What Testing Gives You</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Confidence</span>
+                    <span>Push changes knowing they've been validated against real environments, not just "it looks right"</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Refactoring</span>
+                    <span>Restructure roles and playbooks without fear &mdash; tests catch regressions instantly</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Speed</span>
+                    <span>Automated checks run in minutes. Manual verification of 50+ roles across environments takes days</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Documentation</span>
+                    <span>Tests serve as executable documentation of what your roles are <em>supposed</em> to do</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Principle</div>
+                <p>Infrastructure code deserves the same testing rigor as application code. A broken Ansible role is not "just a config change" &mdash; it's a production risk multiplied by every host in your inventory.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Ansible Lint -->
+        <div class="section">
+            <h3>Ansible Lint</h3>
+            <p>Ansible Lint is the first line of defense. It catches common mistakes, enforces best practices, and flags deprecated syntax before your playbooks ever touch a real machine. Think of it as the spell checker for your automation code.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install ansible-lint</span>
+<span class="cmd">$</span> pip install ansible-lint
+
+<span class="comment"># Run against a playbook</span>
+<span class="cmd">$</span> ansible-lint site.yml
+
+<span class="comment"># Run against all YAML files in a directory</span>
+<span class="cmd">$</span> ansible-lint roles/</code></pre>
+            </div>
+
+            <h4>Configuration</h4>
+            <p>Create a <code>.ansible-lint</code> file in your project root to customize behavior. This keeps your team aligned on which rules matter.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.ansible-lint</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># .ansible-lint configuration</span>
+<span class="file">profile</span>: <span class="str">production</span>
+
+<span class="file">exclude_paths</span>:
+  - <span class="str">.cache/</span>
+  - <span class="str">tests/</span>
+  - <span class="str">.github/</span>
+
+<span class="file">skip_list</span>:
+  - <span class="str">yaml[line-length]</span>    <span class="comment"># Allow long lines in tasks</span>
+  - <span class="str">name[template]</span>       <span class="comment"># Allow Jinja2 in task names</span>
+
+<span class="file">warn_list</span>:
+  - <span class="str">experimental</span>         <span class="comment"># Don't fail on experimental rules</span>
+
+<span class="file">enable_list</span>:
+  - <span class="str">no-same-owner</span>       <span class="comment"># Enforce owner on file operations</span></code></pre>
+            </div>
+
+            <h4>Common Rules</h4>
+            <table class="compare">
+                <tr>
+                    <th>Rule</th>
+                    <th>What It Catches</th>
+                    <th>Severity</th>
+                </tr>
+                <tr>
+                    <td><code>yaml[truthy]</code></td>
+                    <td>Using <code>yes/no</code> instead of <code>true/false</code></td>
+                    <td>Warning</td>
+                </tr>
+                <tr>
+                    <td><code>no-changed-when</code></td>
+                    <td><code>command</code>/<code>shell</code> tasks missing <code>changed_when</code></td>
+                    <td>Error</td>
+                </tr>
+                <tr>
+                    <td><code>risky-shell-pipe</code></td>
+                    <td>Shell pipes without <code>set -o pipefail</code></td>
+                    <td>Error</td>
+                </tr>
+                <tr>
+                    <td><code>fqcn[action-core]</code></td>
+                    <td>Using short module names instead of FQCN</td>
+                    <td>Warning</td>
+                </tr>
+                <tr>
+                    <td><code>name[missing]</code></td>
+                    <td>Tasks without a <code>name</code> field</td>
+                    <td>Error</td>
+                </tr>
+            </table>
+
+            <h4>Pre-Commit Integration</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.pre-commit-config.yaml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">repos</span>:
+  - <span class="file">repo</span>: <span class="str">https://github.com/ansible/ansible-lint</span>
+    <span class="file">rev</span>: <span class="str">v24.10.0</span>
+    <span class="file">hooks</span>:
+      - <span class="file">id</span>: <span class="str">ansible-lint</span>
+        <span class="file">additional_dependencies</span>:
+          - <span class="str">ansible-core>=2.16</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Profiles</div>
+                <p>Ansible Lint ships with built-in profiles: <code>min</code>, <code>basic</code>, <code>moderate</code>, <code>safety</code>, <code>shared</code>, and <code>production</code>. Each level includes all rules from the levels below it. Start with <code>moderate</code> and work your way up as your team matures.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Molecule -->
+        <div class="section">
+            <h3>Molecule</h3>
+            <p>Molecule is the standard testing framework for Ansible roles. It spins up real instances (containers, VMs, or cloud resources), applies your role, verifies the result, and tears everything down. It answers the question: "Does this role actually <em>work</em>?"</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install Molecule with the Docker driver</span>
+<span class="cmd">$</span> pip install molecule molecule-docker
+
+<span class="comment"># Initialize Molecule in an existing role</span>
+<span class="cmd">$</span> cd roles/nginx
+<span class="cmd">$</span> molecule init scenario <span class="flag">--driver-name</span> docker
+
+<span class="comment"># What got created</span>
+<span class="cmd">$</span> tree molecule/default/
+<span class="output">molecule/default/
+  ├── converge.yml      # The playbook that applies your role
+  ├── molecule.yml      # Configuration: driver, platforms, verifier
+  └── verify.yml        # Assertions to check the result</span></code></pre>
+            </div>
+
+            <h4>Drivers</h4>
+            <table class="compare">
+                <tr>
+                    <th>Driver</th>
+                    <th>Backend</th>
+                    <th>Speed</th>
+                    <th>Best For</th>
+                </tr>
+                <tr>
+                    <td><code>docker</code></td>
+                    <td>Docker containers</td>
+                    <td>Fast (seconds)</td>
+                    <td>CI pipelines, quick iteration</td>
+                </tr>
+                <tr>
+                    <td><code>podman</code></td>
+                    <td>Podman containers</td>
+                    <td>Fast (seconds)</td>
+                    <td>Rootless testing, RHEL environments</td>
+                </tr>
+                <tr>
+                    <td><code>vagrant</code></td>
+                    <td>Full VMs (VirtualBox, libvirt)</td>
+                    <td>Slow (minutes)</td>
+                    <td>Systemd, kernel modules, networking</td>
+                </tr>
+                <tr>
+                    <td><code>delegated</code></td>
+                    <td>You manage the instances</td>
+                    <td>Varies</td>
+                    <td>Cloud instances, bare metal, custom setups</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Containers vs VMs</div>
+                <p>Docker containers share the host kernel, so roles that require <code>systemd</code>, modify kernel parameters, or manage network interfaces may not test correctly. Use Vagrant or the delegated driver for system-level testing. For everything else, Docker is fastest.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Molecule Workflow -->
+        <div class="section">
+            <h3>Molecule Workflow</h3>
+            <p>Molecule follows a predictable lifecycle. Understanding each phase is essential for writing effective tests and debugging failures.</p>
+
+            <div class="diagram" id="moleculeDiagram">
+                <div class="diagram-box" onclick="showPhase('create')" id="box-create">
+                    <div class="diagram-box-title">Create</div>
+                    <div class="diagram-box-sub">Spin up instances</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showPhase('converge')" id="box-converge">
+                    <div class="diagram-box-title">Converge</div>
+                    <div class="diagram-box-sub">Apply the role</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showPhase('verify')" id="box-verify">
+                    <div class="diagram-box-title">Verify</div>
+                    <div class="diagram-box-sub">Run assertions</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showPhase('destroy')" id="box-destroy">
+                    <div class="diagram-box-title">Destroy</div>
+                    <div class="diagram-box-sub">Tear down</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="phaseDetail">Click a phase above to learn more about it.</div>
+
+            <h4>molecule.yml Configuration</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># molecule/default/molecule.yml</span>
+<span class="file">driver</span>:
+  <span class="file">name</span>: <span class="str">docker</span>
+
+<span class="file">platforms</span>:
+  - <span class="file">name</span>: <span class="str">ubuntu-jammy</span>
+    <span class="file">image</span>: <span class="str">geerlingguy/docker-ubuntu2204-ansible</span>
+    <span class="file">pre_build_image</span>: <span class="str">true</span>
+    <span class="file">privileged</span>: <span class="str">true</span>
+  - <span class="file">name</span>: <span class="str">rocky-9</span>
+    <span class="file">image</span>: <span class="str">geerlingguy/docker-rockylinux9-ansible</span>
+    <span class="file">pre_build_image</span>: <span class="str">true</span>
+
+<span class="file">provisioner</span>:
+  <span class="file">name</span>: <span class="str">ansible</span>
+
+<span class="file">verifier</span>:
+  <span class="file">name</span>: <span class="str">ansible</span></code></pre>
+            </div>
+
+            <h4>Running Molecule</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Full test cycle (create → converge → verify → destroy)</span>
+<span class="cmd">$</span> molecule test
+
+<span class="comment"># Individual phases for development</span>
+<span class="cmd">$</span> molecule create       <span class="comment"># Spin up instances only</span>
+<span class="cmd">$</span> molecule converge     <span class="comment"># Apply the role (re-run safe)</span>
+<span class="cmd">$</span> molecule verify       <span class="comment"># Run assertions only</span>
+<span class="cmd">$</span> molecule destroy      <span class="comment"># Tear down instances</span>
+
+<span class="comment"># Debug: log into the test instance</span>
+<span class="cmd">$</span> molecule login <span class="flag">--host</span> ubuntu-jammy
+
+<span class="comment"># Run idempotence check (converge twice, fail on changes)</span>
+<span class="cmd">$</span> molecule idempotence</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Development Loop</div>
+                <p>During development, use <code>molecule converge</code> and <code>molecule verify</code> separately. Only run the full <code>molecule test</code> (which destroys between runs) when you want a clean-room validation &mdash; like what CI will do.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Verifiers -->
+        <div class="section">
+            <h3>Verifiers &amp; Test Assertions</h3>
+            <p>The verifier phase is where you prove your role actually did what it claims. Molecule supports multiple verifier backends, each with different strengths.</p>
+
+            <h4>Ansible Verifier (Default)</h4>
+            <p>Uses standard Ansible modules to assert state. No extra dependencies &mdash; if you know Ansible, you know the verifier.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">verify.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># molecule/default/verify.yml</span>
+---
+- <span class="file">name</span>: <span class="str">Verify nginx role</span>
+  <span class="file">hosts</span>: <span class="str">all</span>
+  <span class="file">gather_facts</span>: <span class="str">false</span>
+  <span class="file">tasks</span>:
+    - <span class="file">name</span>: <span class="str">Check nginx is installed</span>
+      <span class="cmd">ansible.builtin.package_facts</span>:
+        <span class="file">manager</span>: <span class="str">auto</span>
+
+    - <span class="file">name</span>: <span class="str">Assert nginx package is present</span>
+      <span class="cmd">ansible.builtin.assert</span>:
+        <span class="file">that</span>:
+          - <span class="str">"'nginx' in ansible_facts.packages"</span>
+        <span class="file">fail_msg</span>: <span class="str">"nginx is not installed"</span>
+
+    - <span class="file">name</span>: <span class="str">Check nginx service is running</span>
+      <span class="cmd">ansible.builtin.service_facts</span>:
+
+    - <span class="file">name</span>: <span class="str">Assert nginx is active</span>
+      <span class="cmd">ansible.builtin.assert</span>:
+        <span class="file">that</span>:
+          - <span class="str">"ansible_facts.services['nginx.service'].state == 'running'"</span>
+
+    - <span class="file">name</span>: <span class="str">Check config file content</span>
+      <span class="cmd">ansible.builtin.slurp</span>:
+        <span class="file">src</span>: <span class="str">/etc/nginx/nginx.conf</span>
+      <span class="file">register</span>: <span class="str">nginx_conf</span>
+
+    - <span class="file">name</span>: <span class="str">Assert worker_processes is set</span>
+      <span class="cmd">ansible.builtin.assert</span>:
+        <span class="file">that</span>:
+          - <span class="str">"'worker_processes auto' in (nginx_conf.content | b64decode)"</span></code></pre>
+            </div>
+
+            <h4>Testinfra (Python)</h4>
+            <p>Write assertions in Python using pytest. More expressive for complex checks like parsing config files or testing network connectivity.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Python</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># molecule/default/tests/test_default.py</span>
+<span class="cmd">import</span> pytest
+
+<span class="cmd">def</span> <span class="file">test_nginx_installed</span>(host):
+    nginx = host.package(<span class="str">"nginx"</span>)
+    <span class="cmd">assert</span> nginx.is_installed
+
+<span class="cmd">def</span> <span class="file">test_nginx_running</span>(host):
+    svc = host.service(<span class="str">"nginx"</span>)
+    <span class="cmd">assert</span> svc.is_running
+    <span class="cmd">assert</span> svc.is_enabled
+
+<span class="cmd">def</span> <span class="file">test_nginx_listening</span>(host):
+    socket = host.socket(<span class="str">"tcp://0.0.0.0:80"</span>)
+    <span class="cmd">assert</span> socket.is_listening
+
+<span class="cmd">def</span> <span class="file">test_config_file</span>(host):
+    cfg = host.file(<span class="str">"/etc/nginx/nginx.conf"</span>)
+    <span class="cmd">assert</span> cfg.exists
+    <span class="cmd">assert</span> cfg.user == <span class="str">"root"</span>
+    <span class="cmd">assert</span> cfg.contains(<span class="str">"worker_processes auto"</span>)</code></pre>
+            </div>
+
+            <h4>Goss</h4>
+            <p>A YAML-based server testing tool. Fast, simple, and easy for teams not comfortable with Python. Define expected state as YAML (packages installed, services running, ports listening, file contents) and Goss validates it in seconds. Integrates with Molecule via the <code>molecule-goss</code> plugin.</p>
+        </div>
+
+        <!-- Section 6: Testing Strategies -->
+        <div class="section">
+            <h3>Testing Strategies</h3>
+            <p>Not all tests are created equal. A layered strategy catches different classes of bugs at different costs. The testing pyramid applies to infrastructure code just like application code.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Unit</span>
+                    <span><strong>Ansible Lint + YAML validation.</strong> Catches syntax errors, deprecated modules, bad practices. Runs in seconds. Should block every commit.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Integration</span>
+                    <span><strong>Molecule with Docker/Podman.</strong> Applies role to real OS images, verifies state. Runs in minutes. Should run on every PR.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Acceptance</span>
+                    <span><strong>Full playbook in staging.</strong> Tests multi-role interactions, networking, load balancers, DNS. Runs in 10-30 minutes. Before production deploys.</span>
+                </div>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Layer</th>
+                    <th>Tool</th>
+                    <th>Speed</th>
+                    <th>Catches</th>
+                    <th>When</th>
+                </tr>
+                <tr>
+                    <td>Unit</td>
+                    <td><code>ansible-lint</code>, <code>yamllint</code></td>
+                    <td>Seconds</td>
+                    <td>Syntax, style, deprecated usage</td>
+                    <td>Pre-commit, every push</td>
+                </tr>
+                <tr>
+                    <td>Integration</td>
+                    <td>Molecule + Docker</td>
+                    <td>Minutes</td>
+                    <td>Logic errors, missing deps, idempotence</td>
+                    <td>Every PR</td>
+                </tr>
+                <tr>
+                    <td>Acceptance</td>
+                    <td>Staging environment</td>
+                    <td>10-30 min</td>
+                    <td>Cross-role interactions, networking</td>
+                    <td>Pre-deploy</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Idempotence Test</div>
+                <p>Run your playbook twice. If the second run reports zero changes, your role is idempotent. This is the single most important property of well-written Ansible code. Molecule's <code>idempotence</code> command automates this check.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: GitHub Actions for Ansible -->
+        <div class="section">
+            <h3>GitHub Actions for Ansible</h3>
+            <p>GitHub Actions is the most common CI platform for open-source Ansible roles. Here's a production-ready workflow that runs lint, Molecule tests across multiple OS targets, and caches dependencies.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.github/workflows/ci.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">name</span>: <span class="str">CI</span>
+<span class="file">on</span>: [<span class="str">push</span>, <span class="str">pull_request</span>]
+
+<span class="file">jobs</span>:
+  <span class="file">lint</span>:
+    <span class="file">runs-on</span>: <span class="str">ubuntu-latest</span>
+    <span class="file">steps</span>:
+      - <span class="file">uses</span>: <span class="str">actions/checkout@v4</span>
+      - <span class="file">uses</span>: <span class="str">actions/setup-python@v5</span>
+        <span class="file">with</span>: { <span class="file">python-version</span>: <span class="str">"3.12"</span> }
+      - <span class="file">run</span>: <span class="str">pip install ansible-lint && ansible-lint</span>
+
+  <span class="file">molecule</span>:
+    <span class="file">needs</span>: <span class="str">lint</span>
+    <span class="file">runs-on</span>: <span class="str">ubuntu-latest</span>
+    <span class="file">strategy</span>:
+      <span class="file">matrix</span>:
+        <span class="file">distro</span>: [<span class="str">ubuntu2204</span>, <span class="str">rockylinux9</span>, <span class="str">debian12</span>]
+      <span class="file">fail-fast</span>: <span class="str">false</span>
+    <span class="file">steps</span>:
+      - <span class="file">uses</span>: <span class="str">actions/checkout@v4</span>
+      - <span class="file">uses</span>: <span class="str">actions/setup-python@v5</span>
+        <span class="file">with</span>: { <span class="file">python-version</span>: <span class="str">"3.12"</span> }
+      - <span class="file">run</span>: <span class="str">pip install molecule molecule-docker ansible-core</span>
+      - <span class="file">run</span>: <span class="str">molecule test</span>
+        <span class="file">env</span>:
+          <span class="file">MOLECULE_DISTRO</span>: <span class="str">${{ matrix.distro }}</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Matrix Testing</div>
+                <p>The <code>strategy.matrix</code> feature runs your Molecule tests in parallel across multiple distros. Combined with <code>fail-fast: false</code>, you get full visibility into which platforms pass and which fail, rather than stopping at the first failure.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: GitLab CI for Ansible -->
+        <div class="section">
+            <h3>GitLab CI for Ansible</h3>
+            <p>GitLab CI uses Docker-in-Docker or socket mounting for container-based Molecule tests. The pipeline structure maps cleanly to lint, test, and deploy stages.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.gitlab-ci.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">stages</span>:
+  - <span class="str">lint</span>
+  - <span class="str">test</span>
+  - <span class="str">deploy</span>
+
+<span class="file">ansible-lint</span>:
+  <span class="file">stage</span>: <span class="str">lint</span>
+  <span class="file">image</span>: <span class="str">python:3.12-slim</span>
+  <span class="file">script</span>:
+    - <span class="str">pip install ansible-lint</span>
+    - <span class="str">ansible-lint</span>
+
+<span class="file">molecule</span>:
+  <span class="file">stage</span>: <span class="str">test</span>
+  <span class="file">image</span>: <span class="str">python:3.12-slim</span>
+  <span class="file">services</span>:
+    - <span class="str">docker:dind</span>
+  <span class="file">variables</span>:
+    <span class="file">DOCKER_HOST</span>: <span class="str">tcp://docker:2375</span>
+  <span class="file">before_script</span>:
+    - <span class="str">pip install molecule molecule-docker ansible-core</span>
+  <span class="file">script</span>:
+    - <span class="str">molecule test</span>
+
+<span class="file">deploy-staging</span>:
+  <span class="file">stage</span>: <span class="str">deploy</span>
+  <span class="file">image</span>: <span class="str">python:3.12-slim</span>
+  <span class="file">script</span>:
+    - <span class="str">pip install ansible-core</span>
+    - <span class="str">ansible-playbook -i inventory/staging site.yml</span>
+  <span class="file">environment</span>:
+    <span class="file">name</span>: <span class="str">staging</span>
+  <span class="file">rules</span>:
+    - <span class="file">if</span>: <span class="str">'$CI_COMMIT_BRANCH == "main"'</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Docker-in-Docker Security</div>
+                <p>Running Docker-in-Docker (<code>docker:dind</code>) requires privileged mode. For production GitLab runners, consider socket binding (<code>/var/run/docker.sock</code>) or Podman as alternatives to avoid privileged containers in your CI infrastructure.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Testing Playbooks -->
+        <div class="section">
+            <h3>Testing Playbooks (Not Just Roles)</h3>
+            <p>Molecule was designed for roles, but real-world automation often lives in playbooks that orchestrate multiple roles with complex variable hierarchies. Testing at the playbook level requires different tactics.</p>
+
+            <h4>Check Mode in CI</h4>
+            <p>Ansible's <code>--check</code> mode simulates a playbook run without making changes. It won't catch everything (commands and scripts can't be simulated), but it validates variable resolution, template rendering, and conditional logic.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Dry run against staging inventory</span>
+<span class="cmd">$</span> ansible-playbook site.yml <span class="flag">-i</span> inventory/staging <span class="flag">--check</span> <span class="flag">--diff</span>
+
+<span class="comment"># Check mode with syntax check first</span>
+<span class="cmd">$</span> ansible-playbook site.yml <span class="flag">--syntax-check</span> && \
+  ansible-playbook site.yml <span class="flag">-i</span> inventory/staging <span class="flag">--check</span></code></pre>
+            </div>
+
+            <h4>Playbook-Level Molecule Scenarios</h4>
+            <p>You can configure Molecule to test full playbooks instead of individual roles. The key is overriding the <code>converge.yml</code> to import your actual playbook.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">molecule.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># molecule/playbook-test/molecule.yml</span>
+<span class="file">driver</span>:
+  <span class="file">name</span>: <span class="str">docker</span>
+
+<span class="file">platforms</span>:
+  - <span class="file">name</span>: <span class="str">webserver</span>
+    <span class="file">image</span>: <span class="str">geerlingguy/docker-ubuntu2204-ansible</span>
+    <span class="file">pre_build_image</span>: <span class="str">true</span>
+    <span class="file">groups</span>:
+      - <span class="str">webservers</span>
+  - <span class="file">name</span>: <span class="str">dbserver</span>
+    <span class="file">image</span>: <span class="str">geerlingguy/docker-ubuntu2204-ansible</span>
+    <span class="file">pre_build_image</span>: <span class="str">true</span>
+    <span class="file">groups</span>:
+      - <span class="str">databases</span>
+
+<span class="file">provisioner</span>:
+  <span class="file">name</span>: <span class="str">ansible</span>
+  <span class="file">playbooks</span>:
+    <span class="file">converge</span>: <span class="str">../../site.yml</span>   <span class="comment"># Test the real playbook</span>
+  <span class="file">inventory</span>:
+    <span class="file">group_vars</span>:
+      <span class="file">all</span>:
+        <span class="file">env</span>: <span class="str">test</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Multi-Host Testing</div>
+                <p>Molecule supports multi-container scenarios. Define multiple platforms with different group memberships to test playbooks that target <code>webservers</code>, <code>databases</code>, <code>loadbalancers</code>, etc. This catches issues like cross-host variable dependencies and delegation problems.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Test-Driven Development -->
+        <div class="section">
+            <h3>Test-Driven Development for Infra</h3>
+            <p>TDD isn't just for application developers. Writing tests before writing the role forces you to think about the desired end state before worrying about implementation details. The cycle is the same: <strong>Red &rarr; Green &rarr; Refactor</strong>.</p>
+
+            <h4>The TDD Workflow</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>1. Red</code> <span class="tag">WRITE TEST</span></div>
+                    <p>Write a verify.yml that asserts the desired state. Run it &mdash; it should fail because nothing is implemented yet.</p>
+                    <div class="example">$ molecule verify  # FAILS</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>2. Green</code> <span class="tag">IMPLEMENT</span></div>
+                    <p>Write the minimum Ansible tasks to make the test pass. Don't optimize yet, just make it work.</p>
+                    <div class="example">$ molecule converge && molecule verify  # PASSES</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>3. Refactor</code> <span class="tag">IMPROVE</span></div>
+                    <p>Clean up the role: extract variables, improve idempotence, simplify conditionals. Tests ensure you don't break anything.</p>
+                    <div class="example">$ molecule test  # STILL PASSES</div>
+                </div>
+            </div>
+
+            <p>Example: for an SSH hardening role, write a <code>verify.yml</code> first that asserts <code>PermitRootLogin no</code>, <code>PasswordAuthentication no</code>, and the SSH port is non-default. Run <code>molecule verify</code> &mdash; it fails (Red). Implement the role tasks to satisfy those assertions (Green). Then refactor the role for variables, handlers, and multi-OS support while the tests keep you safe (Refactor).</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Why TDD Works for Infrastructure</div>
+                <p>Infrastructure is inherently stateful and destructive. Writing the test first forces you to define the expected end state precisely. It prevents scope creep, ensures you only implement what's needed, and the tests become living documentation of your security and compliance requirements.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Performance Testing -->
+        <div class="section">
+            <h3>Performance Testing</h3>
+            <p>A playbook that works against 5 hosts may fall apart at 500. Performance testing identifies bottlenecks before they become production emergencies. The three main levers are parallelism, strategy, and profiling.</p>
+
+            <h4>Parallelism with Forks</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">ansible.cfg</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># ansible.cfg</span>
+[<span class="file">defaults</span>]
+<span class="file">forks</span> = <span class="str">50</span>              <span class="comment"># Default is 5 — way too low for large inventories</span>
+<span class="file">pipelining</span> = <span class="str">True</span>       <span class="comment"># Reduces SSH operations per task</span>
+<span class="file">gathering</span> = <span class="str">smart</span>       <span class="comment"># Cache facts, don't re-gather every play</span>
+
+[<span class="file">ssh_connection</span>]
+<span class="file">ssh_args</span> = <span class="str">-o ControlMaster=auto -o ControlPersist=60s</span>
+<span class="file">pipelining</span> = <span class="str">True</span></code></pre>
+            </div>
+
+            <h4>Execution Strategies</h4>
+            <table class="compare">
+                <tr>
+                    <th>Strategy</th>
+                    <th>Behavior</th>
+                    <th>Best For</th>
+                </tr>
+                <tr>
+                    <td><code>linear</code></td>
+                    <td>Default. All hosts complete task N before starting task N+1</td>
+                    <td>Ordered, predictable execution</td>
+                </tr>
+                <tr>
+                    <td><code>free</code></td>
+                    <td>Each host runs as fast as it can, independently</td>
+                    <td>Independent hosts, maximum throughput</td>
+                </tr>
+                <tr>
+                    <td><code>mitogen_linear</code></td>
+                    <td>Replaces SSH with a Python-based RPC channel</td>
+                    <td>Massive speedups (2-7x) on large inventories</td>
+                </tr>
+            </table>
+
+            <h4>Profiling Slow Playbooks</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Enable the timer callback to see task durations</span>
+<span class="cmd">$</span> ANSIBLE_CALLBACKS_ENABLED=timer,profile_tasks \
+  ansible-playbook site.yml <span class="flag">-i</span> inventory/prod
+
+<span class="comment"># Output shows per-task timing</span>
+<span class="output">TASK [Install packages] ************************** 45.23s
+TASK [Template config] **************************** 2.11s
+TASK [Restart service] **************************** 1.89s
+===============================================
+Playbook run took 0 days, 0 hours, 0 minutes, 49 seconds</span>
+
+<span class="comment"># Enable profile_roles for role-level timing</span>
+<span class="cmd">$</span> ANSIBLE_CALLBACKS_ENABLED=profile_roles \
+  ansible-playbook site.yml <span class="flag">-i</span> inventory/prod</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Common Bottlenecks</div>
+                <p><code>package</code> tasks are almost always the slowest &mdash; apt/yum need to resolve dependencies and download. Use <code>async</code> for long-running tasks, cache facts with <code>fact_caching</code>, and avoid <code>gather_facts: true</code> when you don't need system facts. A single unnecessary <code>setup</code> module call across 500 hosts can add minutes.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Complete CI/CD Pipeline -->
+        <div class="section">
+            <h3>Complete CI/CD Pipeline</h3>
+            <p>Putting it all together: a production-grade pipeline that takes Ansible code from commit to deployed infrastructure with gates at every stage. No human intervention required for staging; production requires manual approval.</p>
+
+            <div class="diagram" id="pipelineDiagram">
+                <div class="diagram-box" onclick="showPipeline('lint')" id="box-lint">
+                    <div class="diagram-box-title">Lint</div>
+                    <div class="diagram-box-sub">Seconds</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showPipeline('test')" id="box-test">
+                    <div class="diagram-box-title">Test</div>
+                    <div class="diagram-box-sub">Minutes</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showPipeline('staging')" id="box-staging">
+                    <div class="diagram-box-title">Staging</div>
+                    <div class="diagram-box-sub">Deploy + Validate</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showPipeline('prod')" id="box-prod">
+                    <div class="diagram-box-title">Production</div>
+                    <div class="diagram-box-sub">Canary + Full</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="pipelineDetail">Click a stage above to learn more about it.</div>
+
+            <h4>Pipeline Configuration</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.github/workflows/deploy.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">name</span>: <span class="str">Deploy Pipeline</span>
+<span class="file">on</span>: { <span class="file">push</span>: { <span class="file">branches</span>: [<span class="str">main</span>] } }
+
+<span class="file">jobs</span>:
+  <span class="file">lint</span>:
+    <span class="file">runs-on</span>: <span class="str">ubuntu-latest</span>
+    <span class="file">steps</span>:
+      - <span class="file">uses</span>: <span class="str">actions/checkout@v4</span>
+      - <span class="file">run</span>: <span class="str">pip install ansible-lint yamllint && yamllint . && ansible-lint</span>
+
+  <span class="file">molecule-test</span>:
+    <span class="file">needs</span>: <span class="str">lint</span>
+    <span class="file">runs-on</span>: <span class="str">ubuntu-latest</span>
+    <span class="file">strategy</span>:
+      <span class="file">matrix</span>:
+        <span class="file">role</span>: [<span class="str">nginx</span>, <span class="str">postgres</span>, <span class="str">hardening</span>]
+    <span class="file">steps</span>:
+      - <span class="file">uses</span>: <span class="str">actions/checkout@v4</span>
+      - <span class="file">run</span>: <span class="str">pip install molecule molecule-docker ansible-core</span>
+      - <span class="file">run</span>: <span class="str">cd roles/${{ matrix.role }} && molecule test</span>
+
+  <span class="file">deploy-staging</span>:
+    <span class="file">needs</span>: <span class="str">molecule-test</span>
+    <span class="file">runs-on</span>: <span class="str">ubuntu-latest</span>
+    <span class="file">environment</span>: <span class="str">staging</span>
+    <span class="file">steps</span>:
+      - <span class="file">uses</span>: <span class="str">actions/checkout@v4</span>
+      - <span class="file">run</span>: <span class="str">pip install ansible-core</span>
+      - <span class="file">run</span>: <span class="str">ansible-playbook -i inventory/staging site.yml</span>
+      - <span class="file">run</span>: <span class="str">ansible-playbook -i inventory/staging tests/smoke.yml</span>
+
+  <span class="file">deploy-production</span>:
+    <span class="file">needs</span>: <span class="str">deploy-staging</span>
+    <span class="file">runs-on</span>: <span class="str">ubuntu-latest</span>
+    <span class="file">environment</span>: { <span class="file">name</span>: <span class="str">production</span> }
+    <span class="file">steps</span>:
+      - <span class="file">uses</span>: <span class="str">actions/checkout@v4</span>
+      - <span class="file">run</span>: <span class="str">pip install ansible-core</span>
+      - <span class="file">name</span>: <span class="str">Canary deploy (10% of hosts)</span>
+        <span class="file">run</span>: <span class="str">ansible-playbook -i inventory/prod site.yml --limit "webservers[0]:databases[0]"</span>
+      - <span class="file">run</span>: <span class="str">ansible-playbook -i inventory/prod tests/smoke.yml</span>
+      - <span class="file">name</span>: <span class="str">Full production deploy</span>
+        <span class="file">run</span>: <span class="str">ansible-playbook -i inventory/prod site.yml</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Production Safety</div>
+                <p>Always use GitHub Environments with required reviewers for production deploys. The canary pattern deploys to a small subset first, validates, then proceeds. If the canary fails, the pipeline stops before touching the rest of your fleet. Never skip this step.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Complete Testing Stack</div>
+                <p>Pre-commit hooks catch lint errors locally. CI runs Molecule on every PR. Staging validates the full playbook against real (non-production) infrastructure. Production uses canary deploys with automated smoke tests. Each layer catches bugs the previous layer missed &mdash; and the cost of fixing bugs increases exponentially the later you catch them.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Molecule phase diagram interaction
+        const phases = {
+            create: {
+                title: 'Create Phase',
+                desc: 'Molecule spins up the test instances defined in <code>platforms</code>. For Docker, it pulls images and starts containers. For Vagrant, it boots VMs. The instances are configured with SSH access so Ansible can reach them. This phase runs once at the start.'
+            },
+            converge: {
+                title: 'Converge Phase',
+                desc: 'The <code>converge.yml</code> playbook runs against the test instances, applying your role. This is where your actual Ansible code executes. You can run <code>molecule converge</code> repeatedly during development without destroying instances &mdash; it\'s idempotent by design.'
+            },
+            verify: {
+                title: 'Verify Phase',
+                desc: 'Assertions run against the converged instances to confirm the role produced the expected state. Uses your chosen verifier (Ansible, Testinfra, or Goss). This is the "did it actually work?" check. Failures here mean your role ran but didn\'t achieve the desired outcome.'
+            },
+            destroy: {
+                title: 'Destroy Phase',
+                desc: 'All test instances are torn down and cleaned up. Containers are stopped and removed, VMs are halted and deleted. This ensures each test run starts from a clean state. In CI, destroy always runs (even on failure) to avoid orphaned resources.'
+            }
+        };
+
+        function showPhase(id) {
+            document.querySelectorAll('#moleculeDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const p = phases[id];
+            document.getElementById('phaseDetail').innerHTML = '<strong>' + p.title + '</strong><br>' + p.desc;
+        }
+
+        // Pipeline diagram interaction
+        const pipeline = {
+            lint: {
+                title: 'Lint Stage',
+                desc: '<code>yamllint</code> and <code>ansible-lint</code> run in seconds. Catches syntax errors, deprecated modules, and style violations. If this fails, nothing else runs. This is your cheapest, fastest gate &mdash; it should also run as a pre-commit hook locally.'
+            },
+            test: {
+                title: 'Test Stage',
+                desc: 'Molecule tests run against each role in parallel using a build matrix. Docker containers spin up, the role converges, assertions verify the result, and containers are destroyed. Takes 3-10 minutes depending on role complexity and the number of target platforms.'
+            },
+            staging: {
+                title: 'Staging Deploy',
+                desc: 'The full <code>site.yml</code> playbook runs against staging infrastructure that mirrors production. After deployment, automated smoke tests validate critical paths: HTTP endpoints respond, services are running, certificates are valid, databases accept connections.'
+            },
+            prod: {
+                title: 'Production Deploy',
+                desc: 'Requires manual approval via GitHub Environments. Deploys first to a canary subset (e.g., 1-2 hosts per group), validates with smoke tests, then proceeds to the full fleet. If the canary fails, the pipeline halts and alerts the team. Rolling back means re-running the previous successful pipeline.'
+            }
+        };
+
+        function showPipeline(id) {
+            document.querySelectorAll('#pipelineDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const p = pipeline[id];
+            document.getElementById('pipelineDetail').innerHTML = '<strong>' + p.title + '</strong><br>' + p.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-97'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-97-ansible-testing', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(245,158,11,0.2)';
+            btn.style.color = '#f59e0b';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first items in diagrams
+        showPhase('create');
+        showPipeline('lint');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-97']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(245,158,11,0.2)';
+                btn.style.color = '#f59e0b';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
