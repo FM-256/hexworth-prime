@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Formats: YAML, JSON, TOML - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-gear.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+            --yaml: #10b981; --json: #3b82f6; --toml: #f59e0b;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 860px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 580px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.7; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+
+        /* YAML syntax tokens */
+        .code-block .key  { color: #79c0ff; }   /* keys / directives */
+        .code-block .val  { color: #a5d6ff; }   /* scalar values */
+        .code-block .str  { color: #a5d6ff; }   /* string literals */
+        .code-block .num  { color: #f2cc60; }   /* numbers */
+        .code-block .bool { color: #ff7b72; }   /* booleans / null */
+        .code-block .comment { color: #8b949e; font-style: italic; }
+        .code-block .anchor { color: #d2a8ff; } /* anchors & aliases */
+        .code-block .op   { color: #7ee787; }   /* operators, special chars */
+        .code-block .cmd  { color: #79c0ff; }   /* shell commands */
+        .code-block .output { color: #7ee787; } /* shell output */
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+        .compare tr:last-child td { border-bottom: none; }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Format badge */
+        .fmt-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.5px; margin-right: 4px; }
+        .fmt-yaml { background: rgba(16,185,129,0.15); color: var(--yaml); }
+        .fmt-json { background: rgba(59,130,246,0.15); color: var(--json); }
+        .fmt-toml { background: rgba(245,158,11,0.15); color: var(--toml); }
+
+        /* Side-by-side code panel */
+        .triple-panel { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 14px 0 22px; }
+        .panel-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .panel-header .code-lang { font-weight: 700; }
+        .panel-header.yaml-header { border-bottom-color: rgba(16,185,129,0.3); }
+        .panel-header.json-header { border-bottom-color: rgba(59,130,246,0.3); }
+        .panel-header.toml-header { border-bottom-color: rgba(245,158,11,0.3); }
+        .panel-block pre { padding: 12px 14px; font-size: 12px; line-height: 1.7; overflow-x: auto; }
+
+        /* Status flow (for gotchas list) */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+        .status-label { font-weight: 700; color: #fff; min-width: 130px; flex-shrink: 0; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 14px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Interactive format selector tabs */
+        .format-tabs { display: flex; gap: 8px; margin-bottom: 0; }
+        .format-tab { padding: 8px 18px; border-radius: 6px 6px 0 0; border: 1px solid var(--border); border-bottom: none; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-dim); background: var(--bg-card); transition: all 0.2s; }
+        .format-tab.active-yaml { color: var(--yaml); border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); }
+        .format-tab.active-json { color: var(--json); border-color: rgba(59,130,246,0.4); background: rgba(59,130,246,0.08); }
+        .format-tab.active-toml { color: var(--toml); border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
+        .format-panel { display: none; }
+        .format-panel.active { display: block; }
+        .format-panel .code-block { border-radius: 0 8px 8px 8px; margin-top: 0; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .hero h2 { font-size: 24px; }
+            .triple-panel { grid-template-columns: 1fr; }
+            .cmd-grid { grid-template-columns: 1fr; }
+            .format-tabs { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-68</span>
+            <h1>Data Formats &mdash; YAML, JSON, TOML</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Foundation</a>
+    </header>
+
+    <main class="content">
+
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-gear.webp" alt="">
+            <h2>Data Formats &mdash; YAML, JSON, TOML</h2>
+            <p class="hero-sub">The three configuration languages that power modern infrastructure. Know when to reach for each one, and how to avoid the traps.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~30 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-gear.webp" alt="" width="14" height="14"> Beginner</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain the purpose and origin of YAML, JSON, and TOML</li>
+                <li>Read and write valid syntax in all three formats</li>
+                <li>Identify YAML's multi-line string operators, anchors, and type coercion traps</li>
+                <li>Understand JSON's strict rules and how JSON Schema enforces them</li>
+                <li>Use TOML tables and arrays-of-tables for structured config files</li>
+                <li>Compare the same config side-by-side across all three formats</li>
+                <li>Select the right format for K8s manifests, API payloads, and project config files</li>
+                <li>Use <code>yq</code>, <code>jq</code>, and Python one-liners to convert between formats</li>
+            </ul>
+        </div>
+
+        <!-- ================================================================
+             SECTION 1: YAML Basics
+             ================================================================ -->
+        <div class="section">
+            <h3>1. YAML Basics</h3>
+            <p>YAML stands for <strong>YAML Ain't Markup Language</strong> &mdash; a recursive acronym that signals it was designed as a data serialization format, not a document format like XML or HTML. The goal: be human-readable above all else.</p>
+            <p>First published in 2001, YAML became the lingua franca of infrastructure configuration. Kubernetes manifests, Docker Compose files, GitHub Actions workflows, Ansible playbooks, and most CI/CD pipelines are YAML. If you work in DevOps, you will write a lot of it.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Core Design Goal</div>
+                <p>YAML prioritizes human readability over machine parsability. The result is an expressive format with a surprisingly complex spec. Most users only need 20% of its features.</p>
+            </div>
+
+            <h4>What YAML Looks Like</h4>
+            <p>Structure is expressed through indentation. There are no braces, brackets, or closing tags &mdash; whitespace IS the structure.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Scalars: strings, numbers, booleans</span>
+<span class="key">name</span>: <span class="val">Hexworth Prime</span>
+<span class="key">version</span>: <span class="num">5</span>
+<span class="key">active</span>: <span class="bool">true</span>
+<span class="key">description</span>: <span class="val">null</span>   <span class="comment"># explicit null</span>
+
+<span class="comment"># Mapping (dictionary / object)</span>
+<span class="key">database</span>:
+  <span class="key">host</span>: <span class="val">db.internal</span>
+  <span class="key">port</span>: <span class="num">5432</span>
+  <span class="key">name</span>: <span class="val">hexworth</span>
+
+<span class="comment"># Sequence (list / array)</span>
+<span class="key">allowed_hosts</span>:
+  - <span class="val">localhost</span>
+  - <span class="val">app.hexworth.io</span>
+  - <span class="val">*.hexworth.io</span></code></pre>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 2: YAML Syntax Deep Dive
+             ================================================================ -->
+        <div class="section">
+            <h3>2. YAML Syntax</h3>
+
+            <h4>Scalars</h4>
+            <p>A scalar is a single value. YAML auto-detects types based on value shape. Strings do not need quotes &mdash; unless the value could be misinterpreted as another type.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; Scalar Types</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Strings (bare, single-quoted, double-quoted)</span>
+<span class="key">plan</span>: <span class="val">enterprise</span>
+<span class="key">path</span>: <span class="val">'/usr/local/bin'</span>           <span class="comment"># single-quotes: no escapes</span>
+<span class="key">msg</span>:  <span class="str">"Hello\nWorld"</span>              <span class="comment"># double-quotes: escape sequences processed</span>
+
+<span class="comment"># Numbers</span>
+<span class="key">port</span>: <span class="num">8080</span>
+<span class="key">ratio</span>: <span class="num">3.14</span>
+<span class="key">max_conn</span>: <span class="num">1_000_000</span>             <span class="comment"># underscores for readability</span>
+<span class="key">timeout_ms</span>: <span class="num">2.5e3</span>              <span class="comment"># scientific notation = 2500</span>
+
+<span class="comment"># Booleans (YAML 1.1 vs 1.2 differ here - see Gotchas)</span>
+<span class="key">debug</span>: <span class="bool">true</span>
+<span class="key">verbose</span>: <span class="bool">false</span>
+
+<span class="comment"># Null</span>
+<span class="key">cache_dir</span>: <span class="bool">null</span>
+<span class="key">backup_host</span>:               <span class="comment"># empty value is also null</span></code></pre>
+            </div>
+
+            <h4>Sequences (Lists)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; Sequences</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Block sequence (one item per line)</span>
+<span class="key">services</span>:
+  - <span class="val">nginx</span>
+  - <span class="val">postgres</span>
+  - <span class="val">redis</span>
+
+<span class="comment"># Flow sequence (inline, JSON-style)</span>
+<span class="key">tags</span>: <span class="op">[</span><span class="val">web</span>, <span class="val">api</span>, <span class="val">v2</span><span class="op">]</span>
+
+<span class="comment"># Sequence of mappings (list of objects)</span>
+<span class="key">volumes</span>:
+  - <span class="key">name</span>: <span class="val">data-vol</span>
+    <span class="key">path</span>: <span class="val">/mnt/data</span>
+  - <span class="key">name</span>: <span class="val">log-vol</span>
+    <span class="key">path</span>: <span class="val">/mnt/logs</span></code></pre>
+            </div>
+
+            <h4>Multi-Line Strings</h4>
+            <p>YAML provides two block scalar operators for embedding long strings cleanly. This is used constantly in Kubernetes for embedded scripts and certificates.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; Block Scalars</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Literal block (|) — preserves newlines exactly</span>
+<span class="key">startup_script</span>: <span class="op">|</span>
+  <span class="val">#!/bin/bash</span>
+  <span class="val">set -euo pipefail</span>
+  <span class="val">echo "Starting service..."</span>
+  <span class="val">systemctl start hexworth</span>
+
+<span class="comment"># Folded block (>) — newlines become spaces (paragraph mode)</span>
+<span class="key">description</span>: <span class="op">></span>
+  <span class="val">This is a very long description that wraps across</span>
+  <span class="val">multiple lines for readability but will be parsed</span>
+  <span class="val">as a single space-separated string.</span>
+
+<span class="comment"># Chomping modifiers: | keeps trailing newline (default)</span>
+<span class="comment"># |- strips trailing newline, |+ keeps all trailing newlines</span>
+<span class="key">cert</span>: <span class="op">|-</span>
+  <span class="val">-----BEGIN CERTIFICATE-----</span>
+  <span class="val">MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...</span>
+  <span class="val">-----END CERTIFICATE-----</span></code></pre>
+            </div>
+
+            <h4>Anchors &amp; Aliases</h4>
+            <p>YAML has a built-in DRY mechanism: define a value once with an <strong>anchor</strong> (<code>&amp;name</code>), then reuse it with an <strong>alias</strong> (<code>*name</code>). This is heavily used in CI/CD pipelines to share job templates.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; Anchors &amp; Aliases</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Define an anchor</span>
+<span class="key">defaults</span>: <span class="anchor">&amp;default_settings</span>
+  <span class="key">timeout</span>: <span class="num">30</span>
+  <span class="key">retries</span>: <span class="num">3</span>
+  <span class="key">log_level</span>: <span class="val">info</span>
+
+<span class="comment"># Merge anchor into another mapping with &lt;&lt;</span>
+<span class="key">production</span>:
+  <span class="op">&lt;&lt;</span>: <span class="anchor">*default_settings</span>    <span class="comment"># merge all keys from defaults</span>
+  <span class="key">log_level</span>: <span class="val">warn</span>           <span class="comment"># override one key</span>
+  <span class="key">host</span>: <span class="val">prod.hexworth.io</span>
+
+<span class="key">staging</span>:
+  <span class="op">&lt;&lt;</span>: <span class="anchor">*default_settings</span>
+  <span class="key">host</span>: <span class="val">staging.hexworth.io</span>
+
+<span class="comment"># Result for production:</span>
+<span class="comment"># timeout: 30, retries: 3, log_level: warn, host: prod.hexworth.io</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Comments</div>
+                <p>YAML supports line comments starting with <code>#</code>. This is a major advantage over JSON. Comments can appear anywhere a value is not expected &mdash; at the end of lines or on their own lines.</p>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 3: YAML Gotchas
+             ================================================================ -->
+        <div class="section">
+            <h3>3. YAML Gotchas</h3>
+            <p>YAML's readability comes at a cost: a complex implicit type system and whitespace sensitivity create a class of bugs that are notoriously hard to spot. Every DevOps engineer has been burned by at least one of these.</p>
+
+            <h4>The Norway Problem</h4>
+            <p>Under YAML 1.1 (used by many parsers including PyYAML by default), certain two-letter strings are automatically coerced to booleans. The most infamous is the ISO 3166 country code for Norway.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; Implicit Boolean Coercion (YAML 1.1)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># These are all parsed as booleans in YAML 1.1!</span>
+<span class="key">country_code</span>: <span class="bool">NO</span>     <span class="comment"># parsed as false  (Norway problem)</span>
+<span class="key">answer</span>: <span class="bool">yes</span>          <span class="comment"># parsed as true</span>
+<span class="key">enabled</span>: <span class="bool">on</span>          <span class="comment"># parsed as true</span>
+<span class="key">active</span>: <span class="bool">off</span>          <span class="comment"># parsed as false</span>
+<span class="key">flag</span>: <span class="bool">y</span>              <span class="comment"># parsed as true</span>
+<span class="key">flag</span>: <span class="bool">n</span>              <span class="comment"># parsed as false</span>
+
+<span class="comment"># Fix: always quote string values that look like booleans</span>
+<span class="key">country_code</span>: <span class="str">"NO"</span>   <span class="comment"># now correctly a string</span>
+<span class="key">answer</span>: <span class="str">"yes"</span>        <span class="comment"># now correctly a string</span>
+
+<span class="comment"># YAML 1.2 (stricter) only accepts: true, false, null</span>
+<span class="comment"># Use a YAML 1.2 parser (e.g. ruamel.yaml) to avoid this class of bugs</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Real-World Impact</div>
+                <p>A Kubernetes config with <code>country: NO</code> will pass validation but set the value to <code>false</code> at runtime. This exact bug has caused production outages. When in doubt, quote string values.</p>
+            </div>
+
+            <h4>All Common Gotchas</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Tabs vs Spaces</span>
+                    <span>YAML prohibits tab characters for indentation. Many editors insert tabs by default. A tab in a YAML file causes a parse error. Configure your editor to use spaces.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Indentation Depth</span>
+                    <span>Children must be indented more than their parent &mdash; but by how many spaces is up to you (2 or 4 are conventional). Inconsistency within a file causes errors.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Colon in Values</span>
+                    <span>A bare <code>:</code> in a value starts a mapping. Values like URLs (<code>https://example.com</code>) must be quoted: <code>url: "https://example.com"</code>.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Octal Literals</span>
+                    <span>Numbers starting with <code>0</code> are treated as octal. <code>port: 0755</code> parses as decimal 493. Use a string or avoid leading zeros.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Duplicate Keys</span>
+                    <span>YAML allows duplicate keys; behavior is parser-defined. The second key usually wins silently. Linters catch this &mdash; use <code>yamllint</code> in CI.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 4: JSON Basics
+             ================================================================ -->
+        <div class="section">
+            <h3>4. JSON Basics</h3>
+            <p><strong>JSON</strong> (JavaScript Object Notation) was formalized by Douglas Crockford in the early 2000s as a lightweight data interchange format. It is a strict subset of JavaScript syntax, but is language-independent. Today it is the universal format for web APIs, configuration files, and inter-process communication.</p>
+            <p>JSON has zero ambiguity. There is exactly one way to represent every value. Parsers are simple to implement, making JSON support universal &mdash; every language has a built-in JSON library.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Why JSON Won</div>
+                <p>JSON replaced XML in most web APIs because it is smaller, easier to read, and maps directly to native data structures in every programming language. REST APIs, GraphQL, Firebase, and most modern databases natively speak JSON.</p>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 5: JSON Syntax
+             ================================================================ -->
+        <div class="section">
+            <h3>5. JSON Syntax</h3>
+            <p>JSON has exactly six value types. The rules are strict and unambiguous &mdash; that strictness is a feature.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">JSON &mdash; All Value Types</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="comment">// INVALID: JSON does not allow comments. This is shown for illustration only.</span>
+
+  <span class="comment">// String: MUST use double quotes. Single quotes are a syntax error.</span>
+  <span class="key">"name"</span>: <span class="str">"Hexworth Prime"</span>,
+
+  <span class="comment">// Number: integer or float, no quoting needed</span>
+  <span class="key">"version"</span>: <span class="num">5</span>,
+  <span class="key">"uptime_ratio"</span>: <span class="num">99.97</span>,
+
+  <span class="comment">// Boolean: lowercase only</span>
+  <span class="key">"active"</span>: <span class="bool">true</span>,
+  <span class="key">"deprecated"</span>: <span class="bool">false</span>,
+
+  <span class="comment">// Null</span>
+  <span class="key">"backup_host"</span>: <span class="bool">null</span>,
+
+  <span class="comment">// Object (mapping)</span>
+  <span class="key">"database"</span>: {
+    <span class="key">"host"</span>: <span class="str">"db.internal"</span>,
+    <span class="key">"port"</span>: <span class="num">5432</span>,
+    <span class="key">"name"</span>: <span class="str">"hexworth"</span>
+  },
+
+  <span class="comment">// Array (sequence)</span>
+  <span class="key">"allowed_hosts"</span>: [
+    <span class="str">"localhost"</span>,
+    <span class="str">"app.hexworth.io"</span>
+  ]
+}</code></pre>
+            </div>
+
+            <h4>Strict Rules You Will Break</h4>
+            <table class="compare">
+                <tr><th>Rule</th><th>Valid</th><th>Invalid</th></tr>
+                <tr>
+                    <td>String quotes</td>
+                    <td><code>"hello"</code></td>
+                    <td><code>'hello'</code></td>
+                </tr>
+                <tr>
+                    <td>Trailing commas</td>
+                    <td><code>[1, 2, 3]</code></td>
+                    <td><code>[1, 2, 3,]</code></td>
+                </tr>
+                <tr>
+                    <td>Comments</td>
+                    <td><em>none allowed</em></td>
+                    <td><code>// comment</code> or <code>/* comment */</code></td>
+                </tr>
+                <tr>
+                    <td>NaN / Infinity</td>
+                    <td><code>null</code> (substitute)</td>
+                    <td><code>NaN</code>, <code>Infinity</code></td>
+                </tr>
+                <tr>
+                    <td>Unquoted keys</td>
+                    <td><code>"port": 80</code></td>
+                    <td><code>port: 80</code></td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">JSONC and JSON5</div>
+                <p>Some tooling (VS Code, TypeScript's <code>tsconfig.json</code>) accepts JSONC (JSON with Comments) or JSON5, which relax trailing comma and comment rules. These are not standard JSON &mdash; do not rely on them in APIs or interop scenarios.</p>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 6: JSON Schema
+             ================================================================ -->
+        <div class="section">
+            <h3>6. JSON Schema</h3>
+            <p>JSON Schema is a vocabulary for annotating and validating JSON documents. You define a schema that describes what valid data looks like, then validate any JSON document against it. It is the primary mechanism for API contract enforcement, configuration validation, and IDE autocompletion.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">JSON Schema &mdash; server-config.schema.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="key">"$schema"</span>: <span class="str">"https://json-schema.org/draft/2020-12/schema"</span>,
+  <span class="key">"title"</span>: <span class="str">"Server Config"</span>,
+  <span class="key">"type"</span>: <span class="str">"object"</span>,
+  <span class="key">"required"</span>: [<span class="str">"name"</span>, <span class="str">"port"</span>, <span class="str">"database"</span>],
+  <span class="key">"properties"</span>: {
+    <span class="key">"name"</span>: {
+      <span class="key">"type"</span>: <span class="str">"string"</span>,
+      <span class="key">"minLength"</span>: <span class="num">1</span>
+    },
+    <span class="key">"port"</span>: {
+      <span class="key">"type"</span>: <span class="str">"integer"</span>,
+      <span class="key">"minimum"</span>: <span class="num">1</span>,
+      <span class="key">"maximum"</span>: <span class="num">65535</span>
+    },
+    <span class="key">"debug"</span>: {
+      <span class="key">"type"</span>: <span class="str">"boolean"</span>,
+      <span class="key">"default"</span>: <span class="bool">false</span>
+    },
+    <span class="key">"database"</span>: {
+      <span class="key">"type"</span>: <span class="str">"object"</span>,
+      <span class="key">"required"</span>: [<span class="str">"host"</span>, <span class="str">"port"</span>],
+      <span class="key">"properties"</span>: {
+        <span class="key">"host"</span>: { <span class="key">"type"</span>: <span class="str">"string"</span> },
+        <span class="key">"port"</span>: { <span class="key">"type"</span>: <span class="str">"integer"</span> },
+        <span class="key">"name"</span>: { <span class="key">"type"</span>: <span class="str">"string"</span> }
+      },
+      <span class="key">"additionalProperties"</span>: <span class="bool">false</span>
+    },
+    <span class="key">"allowed_hosts"</span>: {
+      <span class="key">"type"</span>: <span class="str">"array"</span>,
+      <span class="key">"items"</span>: { <span class="key">"type"</span>: <span class="str">"string"</span> }
+    }
+  },
+  <span class="key">"additionalProperties"</span>: <span class="bool">false</span>
+}</code></pre>
+            </div>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>type</code> <span class="tag">CONSTRAINT</span></div>
+                    <p>Enforce value type: <code>"string"</code>, <code>"integer"</code>, <code>"number"</code>, <code>"boolean"</code>, <code>"array"</code>, <code>"object"</code>, <code>"null"</code></p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>required</code> <span class="tag">CONSTRAINT</span></div>
+                    <p>Array of property names that must be present. Validation fails if any are missing.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>additionalProperties</code> <span class="tag">CONSTRAINT</span></div>
+                    <p>Set to <code>false</code> to reject unknown keys &mdash; essential for strict API contracts.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>$ref</code> <span class="tag">REUSE</span></div>
+                    <p>Reference another schema definition to avoid repetition. Enables schema composition.</p>
+                    <div class="example">{ "$ref": "#/$defs/Address" }</div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">VS Code Integration</div>
+                <p>Add <code>"$schema"</code> to the top of any JSON file and VS Code will validate it in real-time and provide autocompletion. The SchemaStore project (<code>schemastore.org</code>) hosts schemas for thousands of common config files (<code>package.json</code>, <code>docker-compose.json</code>, etc.).</p>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 7: TOML Basics
+             ================================================================ -->
+        <div class="section">
+            <h3>7. TOML Basics</h3>
+            <p><strong>TOML</strong> (Tom's Obvious Minimal Language) was created by Tom Preston-Werner, co-founder of GitHub, specifically to address the gap between JSON's strictness and YAML's complexity. TOML is designed to be an obvious config file format that maps unambiguously to a hash table.</p>
+            <p>TOML's killer feature: it looks like a classic <code>.ini</code> file but has a full type system. It supports comments (unlike JSON), is not whitespace-sensitive (unlike YAML), and has zero implicit type coercion (unlike YAML).</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Where You Find TOML</div>
+                <p>Rust's <code>Cargo.toml</code>, Python's <code>pyproject.toml</code>, Hugo's site config, Gitea, and many CLI tools use TOML for project configuration. It is the default choice when you control both the writer and reader.</p>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 8: TOML Syntax
+             ================================================================ -->
+        <div class="section">
+            <h3>8. TOML Syntax</h3>
+
+            <h4>Key-Value Pairs and Tables</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">TOML &mdash; Keys, Tables, Types</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Top-level key-value pairs</span>
+<span class="key">name</span> = <span class="str">"Hexworth Prime"</span>
+<span class="key">version</span> = <span class="num">5</span>
+<span class="key">active</span> = <span class="bool">true</span>
+<span class="key">ratio</span> = <span class="num">99.97</span>
+
+<span class="comment"># Dates and times (first-class types, unlike YAML/JSON)</span>
+<span class="key">launched_at</span> = <span class="num">2024-01-15T09:00:00Z</span>
+<span class="key">release_date</span> = <span class="num">2024-03-01</span>
+
+<span class="comment"># Table (equivalent to an object/dict)</span>
+<span class="comment"># Declared with [header] syntax</span>
+<span class="op">[database]</span>
+<span class="key">host</span> = <span class="str">"db.internal"</span>
+<span class="key">port</span> = <span class="num">5432</span>
+<span class="key">name</span> = <span class="str">"hexworth"</span>
+
+<span class="comment"># Nested table using dot notation</span>
+<span class="op">[database.credentials]</span>
+<span class="key">user</span> = <span class="str">"app_user"</span>
+<span class="key">password</span> = <span class="str">"${DB_PASS}"</span>    <span class="comment"># TOML doesn't expand vars — your app must</span>
+
+<span class="comment"># Inline table (one-liner, no trailing comma)</span>
+<span class="key">server</span> = <span class="op">{</span><span class="key">host</span> = <span class="str">"0.0.0.0"</span>, <span class="key">port</span> = <span class="num">8080</span><span class="op">}</span></code></pre>
+            </div>
+
+            <h4>Arrays and Arrays of Tables</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">TOML &mdash; Arrays and [[array-of-tables]]</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Simple array (items must be same type)</span>
+<span class="key">allowed_hosts</span> = [<span class="str">"localhost"</span>, <span class="str">"app.hexworth.io"</span>]
+<span class="key">ports</span> = [<span class="num">80</span>, <span class="num">443</span>, <span class="num">8080</span>]
+
+<span class="comment"># Multi-line array</span>
+<span class="key">tags</span> = [
+  <span class="str">"web"</span>,
+  <span class="str">"api"</span>,
+  <span class="str">"v2"</span>,   <span class="comment"># trailing comma is allowed in arrays</span>
+]
+
+<span class="comment"># Array of tables: [[double brackets]] creates a list of objects</span>
+<span class="comment"># Each [[volumes]] header appends a new entry to the array</span>
+<span class="op">[[volumes]]</span>
+<span class="key">name</span> = <span class="str">"data-vol"</span>
+<span class="key">path</span> = <span class="str">"/mnt/data"</span>
+<span class="key">read_only</span> = <span class="bool">false</span>
+
+<span class="op">[[volumes]]</span>
+<span class="key">name</span> = <span class="str">"log-vol"</span>
+<span class="key">path</span> = <span class="str">"/mnt/logs"</span>
+<span class="key">read_only</span> = <span class="bool">true</span></code></pre>
+            </div>
+
+            <h4>Strings in TOML</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">TOML &mdash; String Types</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Basic string: double quotes, escape sequences processed</span>
+<span class="key">msg</span> = <span class="str">"Hello\nWorld"</span>
+
+<span class="comment"># Literal string: single quotes, no escape processing</span>
+<span class="key">path</span> = <span class="str">'\usr\local\bin'</span>    <span class="comment"># backslashes are literal</span>
+
+<span class="comment"># Multi-line basic string: triple double-quotes</span>
+<span class="key">script</span> = <span class="str">"""
+#!/bin/bash
+set -euo pipefail
+echo "Starting..."
+"""</span>
+
+<span class="comment"># Multi-line literal string: triple single-quotes</span>
+<span class="key">regex</span> = <span class="str">'''
+^(\d{1,3}\.){3}\d{1,3}$
+'''</span></code></pre>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 9: Side-by-Side Comparison
+             ================================================================ -->
+        <div class="section">
+            <h3>9. The Same Config in All Three Formats</h3>
+            <p>Here is an identical server configuration expressed in YAML, JSON, and TOML. This is the clearest way to see each format's personality.</p>
+
+            <!-- Interactive tab selector -->
+            <div class="format-tabs" id="fmtTabs">
+                <button class="format-tab active-yaml" onclick="switchFormat('yaml')">YAML</button>
+                <button class="format-tab" onclick="switchFormat('json')">JSON</button>
+                <button class="format-tab" onclick="switchFormat('toml')">TOML</button>
+            </div>
+
+            <div id="panel-yaml" class="format-panel active">
+                <div class="code-block">
+                    <div class="code-header"><span class="code-lang" style="color: var(--yaml);">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                    <pre><code><span class="comment"># server-config.yaml</span>
+<span class="key">name</span>: <span class="val">api-gateway</span>
+<span class="key">version</span>: <span class="num">3</span>
+<span class="key">debug</span>: <span class="bool">false</span>
+
+<span class="key">server</span>:
+  <span class="key">host</span>: <span class="val">0.0.0.0</span>
+  <span class="key">port</span>: <span class="num">8080</span>
+  <span class="key">tls</span>: <span class="bool">true</span>
+
+<span class="key">database</span>:
+  <span class="key">host</span>: <span class="val">db.internal</span>
+  <span class="key">port</span>: <span class="num">5432</span>
+  <span class="key">name</span>: <span class="val">hexworth</span>
+  <span class="key">pool_size</span>: <span class="num">10</span>
+
+<span class="key">logging</span>:
+  <span class="key">level</span>: <span class="val">info</span>
+  <span class="key">format</span>: <span class="val">json</span>
+  <span class="key">outputs</span>:
+    - <span class="val">stdout</span>
+    - <span class="val">/var/log/api.log</span>
+
+<span class="key">allowed_hosts</span>:
+  - <span class="val">localhost</span>
+  - <span class="val">app.hexworth.io</span>
+  - <span class="val">api.hexworth.io</span></code></pre>
+                </div>
+            </div>
+
+            <div id="panel-json" class="format-panel">
+                <div class="code-block">
+                    <div class="code-header"><span class="code-lang" style="color: var(--json);">JSON</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                    <pre><code><span class="comment">// server-config.json</span>
+{
+  <span class="key">"name"</span>: <span class="str">"api-gateway"</span>,
+  <span class="key">"version"</span>: <span class="num">3</span>,
+  <span class="key">"debug"</span>: <span class="bool">false</span>,
+  <span class="key">"server"</span>: {
+    <span class="key">"host"</span>: <span class="str">"0.0.0.0"</span>,
+    <span class="key">"port"</span>: <span class="num">8080</span>,
+    <span class="key">"tls"</span>: <span class="bool">true</span>
+  },
+  <span class="key">"database"</span>: {
+    <span class="key">"host"</span>: <span class="str">"db.internal"</span>,
+    <span class="key">"port"</span>: <span class="num">5432</span>,
+    <span class="key">"name"</span>: <span class="str">"hexworth"</span>,
+    <span class="key">"pool_size"</span>: <span class="num">10</span>
+  },
+  <span class="key">"logging"</span>: {
+    <span class="key">"level"</span>: <span class="str">"info"</span>,
+    <span class="key">"format"</span>: <span class="str">"json"</span>,
+    <span class="key">"outputs"</span>: [
+      <span class="str">"stdout"</span>,
+      <span class="str">"/var/log/api.log"</span>
+    ]
+  },
+  <span class="key">"allowed_hosts"</span>: [
+    <span class="str">"localhost"</span>,
+    <span class="str">"app.hexworth.io"</span>,
+    <span class="str">"api.hexworth.io"</span>
+  ]
+}</code></pre>
+                </div>
+            </div>
+
+            <div id="panel-toml" class="format-panel">
+                <div class="code-block">
+                    <div class="code-header"><span class="code-lang" style="color: var(--toml);">TOML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                    <pre><code><span class="comment"># server-config.toml</span>
+<span class="key">name</span>    = <span class="str">"api-gateway"</span>
+<span class="key">version</span> = <span class="num">3</span>
+<span class="key">debug</span>   = <span class="bool">false</span>
+
+<span class="key">allowed_hosts</span> = [
+  <span class="str">"localhost"</span>,
+  <span class="str">"app.hexworth.io"</span>,
+  <span class="str">"api.hexworth.io"</span>,
+]
+
+<span class="op">[server]</span>
+<span class="key">host</span> = <span class="str">"0.0.0.0"</span>
+<span class="key">port</span> = <span class="num">8080</span>
+<span class="key">tls</span>  = <span class="bool">true</span>
+
+<span class="op">[database]</span>
+<span class="key">host</span>      = <span class="str">"db.internal"</span>
+<span class="key">port</span>      = <span class="num">5432</span>
+<span class="key">name</span>      = <span class="str">"hexworth"</span>
+<span class="key">pool_size</span> = <span class="num">10</span>
+
+<span class="op">[logging]</span>
+<span class="key">level</span>   = <span class="str">"info"</span>
+<span class="key">format</span>  = <span class="str">"json"</span>
+<span class="key">outputs</span> = [<span class="str">"stdout"</span>, <span class="str">"/var/log/api.log"</span>]</code></pre>
+                </div>
+            </div>
+
+            <p style="margin-top: 8px;">Notice how the three formats make different trade-offs. YAML is the most concise and readable. JSON is the most explicit and machine-friendly. TOML reads like a well-organized config file with clear section boundaries.</p>
+        </div>
+
+        <!-- ================================================================
+             SECTION 10: Where Each Shines
+             ================================================================ -->
+        <div class="section">
+            <h3>10. Format Comparison</h3>
+
+            <table class="compare">
+                <tr>
+                    <th>Property</th>
+                    <th><span class="fmt-badge fmt-yaml">YAML</span></th>
+                    <th><span class="fmt-badge fmt-json">JSON</span></th>
+                    <th><span class="fmt-badge fmt-toml">TOML</span></th>
+                </tr>
+                <tr>
+                    <td>Comments</td>
+                    <td><code>#</code> supported</td>
+                    <td>Not supported</td>
+                    <td><code>#</code> supported</td>
+                </tr>
+                <tr>
+                    <td>Whitespace sensitivity</td>
+                    <td>Yes &mdash; indentation IS structure</td>
+                    <td>No &mdash; whitespace is cosmetic</td>
+                    <td>No &mdash; newlines separate pairs</td>
+                </tr>
+                <tr>
+                    <td>Implicit type coercion</td>
+                    <td>Yes (YAML 1.1) / Limited (1.2)</td>
+                    <td>None &mdash; types are explicit</td>
+                    <td>None &mdash; types are explicit</td>
+                </tr>
+                <tr>
+                    <td>Native date/time</td>
+                    <td>Yes (parsed as dates)</td>
+                    <td>No (strings only)</td>
+                    <td>Yes (RFC 3339, first-class)</td>
+                </tr>
+                <tr>
+                    <td>DRY/reuse mechanism</td>
+                    <td>Anchors &amp; aliases</td>
+                    <td>None (use <code>$ref</code> in schemas)</td>
+                    <td>None</td>
+                </tr>
+                <tr>
+                    <td>Strictness</td>
+                    <td>Low &mdash; many ways to write the same thing</td>
+                    <td>High &mdash; one canonical form</td>
+                    <td>Medium &mdash; clear rules, no ambiguity</td>
+                </tr>
+                <tr>
+                    <td>Multi-line strings</td>
+                    <td>Excellent (<code>|</code> and <code>&gt;</code>)</td>
+                    <td>Awkward (escape <code>\n</code>)</td>
+                    <td>Good (triple-quote strings)</td>
+                </tr>
+                <tr>
+                    <td>Human writability</td>
+                    <td>High (once you know the gotchas)</td>
+                    <td>Medium (quotes and commas everywhere)</td>
+                    <td>High (ini-style familiarity)</td>
+                </tr>
+                <tr>
+                    <td>API / wire format</td>
+                    <td>Rarely</td>
+                    <td>Universal standard</td>
+                    <td>Never</td>
+                </tr>
+                <tr>
+                    <td>Spec complexity</td>
+                    <td>High (80+ page spec)</td>
+                    <td>Low (2-page spec)</td>
+                    <td>Medium (readable spec)</td>
+                </tr>
+            </table>
+
+            <h4>Primary Use Cases</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--yaml)"></div>
+                    <span class="status-label">YAML</span>
+                    <span>Kubernetes manifests, Docker Compose, GitHub Actions, GitLab CI, Ansible playbooks, Helm charts, ArgoCD, OpenAPI specs. Any infrastructure config where humans write the files.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--json)"></div>
+                    <span class="status-label">JSON</span>
+                    <span>REST API payloads, GraphQL responses, <code>package.json</code>, <code>tsconfig.json</code>, Firebase rules, AWS/GCP config, webhook events. Anywhere machines exchange data.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--toml)"></div>
+                    <span class="status-label">TOML</span>
+                    <span><code>Cargo.toml</code> (Rust), <code>pyproject.toml</code> (Python packaging), Hugo, Gitea, Forgejo, Zola, many CLI tools and desktop apps. Project-level config owned by developers.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SECTION 11: Conversion Tools
+             ================================================================ -->
+        <div class="section">
+            <h3>11. Conversion Tools</h3>
+            <p>You will regularly need to convert between these formats &mdash; transforming a YAML config for a JSON API, extracting values from a TOML manifest, or prettifying a minified JSON response. Three tools cover almost every scenario.</p>
+
+            <h4>jq &mdash; JSON Processor</h4>
+            <p><code>jq</code> is the de-facto standard for querying and transforming JSON from the command line. Think of it as <code>sed</code> and <code>awk</code> for JSON data.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal &mdash; jq</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Prettify minified JSON</span>
+<span class="cmd">$</span> cat data.json | jq <span class="str">'.'</span>
+
+<span class="comment"># Extract a specific field</span>
+<span class="cmd">$</span> cat server-config.json | jq <span class="str">'.database.host'</span>
+<span class="output">"db.internal"</span>
+
+<span class="comment"># Extract an array element</span>
+<span class="cmd">$</span> cat server-config.json | jq <span class="str">'.allowed_hosts[0]'</span>
+<span class="output">"localhost"</span>
+
+<span class="comment"># Filter an array of objects</span>
+<span class="cmd">$</span> kubectl get pods -o json | jq <span class="str">'.items[] | select(.status.phase=="Running") | .metadata.name'</span>
+
+<span class="comment"># Transform JSON structure</span>
+<span class="cmd">$</span> cat config.json | jq <span class="str">'{ host: .database.host, port: .database.port }'</span>
+
+<span class="comment"># Convert JSON array to compact CSV-like output</span>
+<span class="cmd">$</span> cat config.json | jq <span class="str">'.allowed_hosts | join(",")'</span>
+<span class="output">"localhost,app.hexworth.io,api.hexworth.io"</span></code></pre>
+            </div>
+
+            <h4>yq &mdash; YAML Processor</h4>
+            <p><code>yq</code> is <code>jq</code> for YAML. The Mike Farah version (<code>mikefarah/yq</code>) is the most feature-complete and can convert between YAML, JSON, TOML, and XML.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal &mdash; yq</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Read a value from YAML</span>
+<span class="cmd">$</span> yq <span class="str">'.database.host'</span> server-config.yaml
+<span class="output">db.internal</span>
+
+<span class="comment"># Convert YAML to JSON</span>
+<span class="cmd">$</span> yq <span class="flag">-o=json</span> server-config.yaml
+<span class="cmd">$</span> yq <span class="flag">-o=json</span> server-config.yaml > server-config.json
+
+<span class="comment"># Convert JSON to YAML</span>
+<span class="cmd">$</span> yq <span class="flag">-P</span> server-config.json           <span class="comment"># -P for pretty YAML output</span>
+
+<span class="comment"># Convert YAML to TOML</span>
+<span class="cmd">$</span> yq <span class="flag">-o=toml</span> server-config.yaml
+
+<span class="comment"># In-place edit a YAML field</span>
+<span class="cmd">$</span> yq <span class="flag">-i</span> <span class="str">'.server.port = 9090'</span> server-config.yaml
+
+<span class="comment"># Merge two YAML files</span>
+<span class="cmd">$</span> yq <span class="str">'. *= load("overrides.yaml")'</span> base.yaml</code></pre>
+            </div>
+
+            <h4>Python One-Liners</h4>
+            <p>Python's standard library includes JSON and TOML (3.11+) parsers. With <code>pip install pyyaml</code>, you can convert between all three formats in a single command.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal &mdash; Python</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Prettify / validate JSON</span>
+<span class="cmd">$</span> python3 <span class="flag">-m</span> json.tool data.json
+
+<span class="comment"># JSON → YAML (requires: pip install pyyaml)</span>
+<span class="cmd">$</span> python3 <span class="flag">-c</span> <span class="str">"import json,yaml,sys; yaml.dump(json.load(sys.stdin), sys.stdout, default_flow_style=False)"</span> &lt; config.json
+
+<span class="comment"># YAML → JSON (compact)</span>
+<span class="cmd">$</span> python3 <span class="flag">-c</span> <span class="str">"import json,yaml,sys; print(json.dumps(yaml.safe_load(sys.stdin), indent=2))"</span> &lt; config.yaml
+
+<span class="comment"># TOML → JSON (Python 3.11+ tomllib is built-in)</span>
+<span class="cmd">$</span> python3 <span class="flag">-c</span> <span class="str">"import tomllib,json,sys; print(json.dumps(tomllib.loads(sys.stdin.read()), indent=2))"</span> &lt; config.toml
+
+<span class="comment"># Validate YAML syntax (exit code 0 = valid, 1 = error)</span>
+<span class="cmd">$</span> python3 <span class="flag">-c</span> <span class="str">"import yaml,sys; yaml.safe_load(open(sys.argv[1]))"</span> config.yaml && echo "Valid"</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">yaml.load() vs yaml.safe_load()</div>
+                <p>Always use <code>yaml.safe_load()</code> when parsing YAML from untrusted sources. <code>yaml.load()</code> with the default loader can execute arbitrary Python objects embedded in the YAML &mdash; a known deserialization attack vector (CVE class: unsafe deserialization).</p>
+            </div>
+
+            <h4>Quick Reference: Install &amp; Use</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal &mdash; Install Tools</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># jq</span>
+<span class="cmd">$</span> sudo apt install jq             <span class="comment"># Debian/Ubuntu</span>
+<span class="cmd">$</span> brew install jq                 <span class="comment"># macOS</span>
+
+<span class="comment"># yq (Mike Farah version - the recommended one)</span>
+<span class="cmd">$</span> sudo wget -qO /usr/local/bin/yq \
+    https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+<span class="cmd">$</span> sudo chmod +x /usr/local/bin/yq
+
+<span class="comment"># yamllint (YAML linter)</span>
+<span class="cmd">$</span> pip install yamllint
+<span class="cmd">$</span> yamllint config.yaml
+
+<span class="comment"># PyYAML</span>
+<span class="cmd">$</span> pip install pyyaml</code></pre>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // --- Format tab switcher ---
+        // Switches the visible code panel and updates tab active state
+        function switchFormat(fmt) {
+            // Hide all panels
+            document.querySelectorAll('.format-panel').forEach(p => p.classList.remove('active'));
+            // Show selected panel
+            document.getElementById('panel-' + fmt).classList.add('active');
+
+            // Reset all tab active classes
+            document.querySelectorAll('.format-tab').forEach(tab => {
+                tab.className = 'format-tab';
+            });
+            // Activate the clicked tab with its format-specific color class
+            const activeTab = event.currentTarget;
+            activeTab.classList.add('active-' + fmt);
+        }
+
+        // --- Code copy button ---
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // --- Module completion ---
+        function completeModule() {
+            // Write to the Forge progress key used by the dashboard
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-68'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Report through ModuleProgress (fires Firestore sync + XP)
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-68-data-formats', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // --- Restore completed state on load ---
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-68']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

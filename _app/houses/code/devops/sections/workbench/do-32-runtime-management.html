@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runtime Management - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-wrench.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 130px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+        .compare tr:last-child td { border-bottom: none; }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+        .compare .check { color: var(--forge); font-weight: 700; }
+        .compare .cross { color: var(--red); }
+        .compare .partial { color: var(--orange); }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 13px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); white-space: nowrap; }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status flow */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+        .status-label { font-weight: 600; color: #fff; min-width: 100px; flex-shrink: 0; }
+
+        /* Tool tabs */
+        .tab-nav { display: flex; gap: 4px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+        .tab-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-dim); cursor: pointer; transition: all 0.2s; margin-bottom: -1px; }
+        .tab-btn.active { color: var(--forge); border-bottom-color: var(--forge); }
+        .tab-btn:hover { color: var(--text); }
+        .tab-panel { display: none; padding-top: 20px; }
+        .tab-panel.active { display: block; }
+
+        /* Shim diagram */
+        .shim-diagram { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+        .shim-row { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+        .shim-box { text-align: center; padding: 10px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+        .shim-box-cmd { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; }
+        .shim-box-shim { background: var(--forge-dim); border: 1px solid rgba(16,185,129,0.3); color: var(--forge); }
+        .shim-box-ver { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: #fcd34d; }
+        .shim-arrow { color: var(--text-dim); font-size: 18px; }
+        .shim-label { font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 4px; }
+
+        /* File callout */
+        .file-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin: 12px 0; }
+        .file-block-header { font-size: 11px; color: var(--orange); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .file-block pre { font-size: 13px; font-family: 'Cascadia Code', monospace; color: #a5d6ff; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+            .shim-row { flex-direction: column; }
+            .tab-nav { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-32</span>
+            <h1>Runtime Management</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Workbench</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-wrench.webp" alt="">
+            <h2>Runtime Management</h2>
+            <p class="hero-sub">nvm, pyenv, rbenv, asdf, and mise &mdash; control which version of every runtime every project uses, without fighting your OS.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~30 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-wrench.webp" alt="" width="14" height="14"> Beginner</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain why system-installed runtimes break real projects and why version managers exist</li>
+                <li>Understand the shim-based architecture that all major version managers share</li>
+                <li>Install and use nvm to manage Node.js versions with <code>.nvmrc</code> pinning</li>
+                <li>Install and use pyenv for Python with global, local, and shell scoping</li>
+                <li>Install and use rbenv for Ruby with <code>.ruby-version</code> project pinning</li>
+                <li>Identify the right tool for Java (sdkman), Rust (rustup), and Go (goenv)</li>
+                <li>Use asdf as a single polyglot version manager across all runtimes</li>
+                <li>Use mise as the modern, faster asdf-compatible alternative</li>
+                <li>Apply version pinning best practices for team consistency and CI parity</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: The Version Problem -->
+        <div class="section">
+            <h3>The Version Problem</h3>
+            <p>Every operating system ships with runtime interpreters pre-installed. Ubuntu might ship Python 3.10. macOS ships Python 3.9 (or still Python 2). The problem is these are <strong>system runtimes</strong> &mdash; they belong to the OS, not to you.</p>
+
+            <p>Real projects don't care what your OS chose. Project A requires Node 18. Project B requires Node 20. A legacy app is stuck on Python 3.8 because a critical dependency hasn't been updated. If you only have one runtime version installed, you can't work on all of them at the same time.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">System runtime</span>
+                    <span>Shared across the entire OS. Upgrading it can break system tools. You often need <code>sudo</code> to install packages globally. Different projects clash.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Homebrew / apt</span>
+                    <span>Better, but still one version at a time. Switching versions is manual and system-wide. Still not per-project.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Version manager</span>
+                    <span>Install and switch between unlimited versions. Per-project pinning via a dotfile. No <code>sudo</code> needed. CI can read the same dotfile.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">The Three Classic Failure Modes</div>
+                <p><strong>1.</strong> "Works on my machine" &mdash; your system Python is 3.11, the server runs 3.8.<br>
+                <strong>2.</strong> Upgrading a global package for one project silently breaks another.<br>
+                <strong>3.</strong> You need <code>sudo pip install</code>, which pollutes system Python and can break OS tools.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Shim Architecture -->
+        <div class="section">
+            <h3>How Version Managers Work: Shims</h3>
+            <p>Every major version manager (nvm, pyenv, rbenv, asdf) uses the same fundamental trick: <strong>shims</strong>. Instead of calling the real runtime directly, your shell calls a small wrapper script that decides which version to forward the call to.</p>
+
+            <div class="shim-diagram">
+                <div class="shim-row">
+                    <div>
+                        <div class="shim-box shim-box-cmd">You type: <code>node app.js</code></div>
+                        <div class="shim-label">Your terminal</div>
+                    </div>
+                    <div class="shim-arrow">&rarr;</div>
+                    <div>
+                        <div class="shim-box shim-box-shim">~/.nvm/shims/node</div>
+                        <div class="shim-label">Shim (a tiny script)</div>
+                    </div>
+                    <div class="shim-arrow">&rarr;</div>
+                    <div>
+                        <div class="shim-box shim-box-ver">Node 20.11.0</div>
+                        <div class="shim-label">Actual binary</div>
+                    </div>
+                </div>
+            </div>
+
+            <p>The shim reads a cascade of sources to decide which version to activate: a shell-level override, then a project-level dotfile (like <code>.nvmrc</code>), then a global default. This happens in milliseconds on every invocation &mdash; you never notice the overhead.</p>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Why PATH Order Matters</div>
+                <p>Version managers work by prepending their shim directory to your <code>$PATH</code>. When you run <code>node</code>, your shell finds the shim first. This is why version manager init code (<code>eval "$(pyenv init -)"</code>) must appear <em>at the end</em> of your shell profile &mdash; it must win the PATH race.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: nvm -->
+        <div class="section">
+            <h3>nvm &mdash; Node Version Manager</h3>
+            <p>nvm is the de facto standard for managing Node.js versions. It is a shell function (not a compiled binary), loaded into every shell session from your profile.</p>
+
+            <h4>Installation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install nvm (check github.com/nvm-sh/nvm for the latest version)</span>
+<span class="cmd">$</span> curl <span class="flag">-o-</span> https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+<span class="comment"># The installer appends init code to your ~/.bashrc or ~/.zshrc</span>
+<span class="comment"># Reload your shell to activate it</span>
+<span class="cmd">$</span> source ~/.bashrc
+
+<span class="comment"># Verify</span>
+<span class="cmd">$</span> nvm <span class="flag">--version</span>
+<span class="output">0.39.7</span></code></pre>
+            </div>
+
+            <h4>Essential Commands</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>nvm install &lt;version&gt;</code> <span class="tag">INSTALL</span></div>
+                    <p>Download and install a specific Node version</p>
+                    <div class="example">$ nvm install 20.11.0<br>$ nvm install 18   # latest 18.x LTS</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>nvm use &lt;version&gt;</code> <span class="tag">SWITCH</span></div>
+                    <p>Activate a version for the current shell session</p>
+                    <div class="example">$ nvm use 20.11.0<br>$ nvm use 18</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>nvm alias default</code> <span class="tag">DEFAULT</span></div>
+                    <p>Set the version used in every new shell</p>
+                    <div class="example">$ nvm alias default 20.11.0</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>nvm ls</code> <span class="tag">LIST</span></div>
+                    <p>Show all installed versions and the active one</p>
+                    <div class="example">$ nvm ls</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>nvm ls-remote</code> <span class="tag">AVAILABLE</span></div>
+                    <p>List all versions available to install from Node.js</p>
+                    <div class="example">$ nvm ls-remote --lts</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>nvm current</code> <span class="tag">STATUS</span></div>
+                    <p>Print the currently active version</p>
+                    <div class="example">$ nvm current<br>v20.11.0</div>
+                </div>
+            </div>
+
+            <h4>The .nvmrc File</h4>
+            <p>Place a <code>.nvmrc</code> file in your project root to declare which Node version the project requires. Any developer (or CI runner) can then activate it with a single command.</p>
+
+            <div class="file-block">
+                <div class="file-block-header">.nvmrc</div>
+                <pre>20.11.0</pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Inside a project with .nvmrc, run:</span>
+<span class="cmd">$</span> nvm use
+<span class="output">Found '/home/user/my-project/.nvmrc' with version &lt;20.11.0&gt;
+Now using node v20.11.0 (npm v10.2.4)</span>
+
+<span class="comment"># Install the pinned version if not already installed</span>
+<span class="cmd">$</span> nvm install  <span class="comment"># reads .nvmrc automatically</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Auto-Switching .nvmrc on cd</div>
+                <p>Add a shell hook to your <code>~/.bashrc</code> or <code>~/.zshrc</code> so nvm automatically switches versions when you <code>cd</code> into a directory with a <code>.nvmrc</code>. The nvm docs include a ready-to-paste snippet for both bash and zsh at <code>github.com/nvm-sh/nvm#deeper-shell-integration</code>.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Full Workflow Example</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Check what's installed</span>
+<span class="cmd">$</span> nvm ls
+<span class="output">       v18.19.0
+->     v20.11.0
+         system
+default -> 20.11.0 (-> v20.11.0)
+lts/* -> lts/iron (-> v20.11.0)</span>
+
+<span class="comment"># Switch to an older project</span>
+<span class="cmd">$</span> cd ~/legacy-app
+<span class="cmd">$</span> nvm use 18
+<span class="output">Now using node v18.19.0 (npm v10.2.3)</span>
+
+<span class="comment"># Confirm</span>
+<span class="cmd">$</span> node <span class="flag">--version</span>
+<span class="output">v18.19.0</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 4: pyenv -->
+        <div class="section">
+            <h3>pyenv &mdash; Python Version Manager</h3>
+            <p>pyenv lets you install and switch between multiple Python versions without touching the system Python. It uses the shim approach and supports three distinct scoping levels, giving you fine-grained control.</p>
+
+            <h4>Installation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install build dependencies first (Debian/Ubuntu)</span>
+<span class="cmd">$</span> sudo apt-get install <span class="flag">-y</span> make build-essential libssl-dev zlib1g-dev \
+    libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+    libffi-dev liblzma-dev
+
+<span class="comment"># Install pyenv</span>
+<span class="cmd">$</span> curl https://pyenv.run | bash
+
+<span class="comment"># Add to ~/.bashrc (the installer also tells you this)</span>
+<span class="cmd">$</span> echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
+<span class="cmd">$</span> echo '[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+<span class="cmd">$</span> echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+
+<span class="comment"># Reload</span>
+<span class="cmd">$</span> source ~/.bashrc
+
+<span class="comment"># Verify</span>
+<span class="cmd">$</span> pyenv <span class="flag">--version</span>
+<span class="output">pyenv 2.4.0</span></code></pre>
+            </div>
+
+            <h4>Installing and Listing Versions</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># List all installable Python versions</span>
+<span class="cmd">$</span> pyenv install <span class="flag">--list</span> | grep <span class="str">" 3\."</span>
+
+<span class="comment"># Install specific versions</span>
+<span class="cmd">$</span> pyenv install 3.12.2
+<span class="cmd">$</span> pyenv install 3.10.13
+
+<span class="comment"># List installed versions</span>
+<span class="cmd">$</span> pyenv versions
+<span class="output">  system
+  3.10.13
+* 3.12.2 (set by /home/user/.pyenv/version)</span></code></pre>
+            </div>
+
+            <h4>Three Scoping Levels</h4>
+            <p>pyenv resolves which Python to use by checking these sources in order, from highest to lowest priority:</p>
+
+            <div class="diagram" id="scopeDiagram">
+                <div class="diagram-box" onclick="showScope('shell')" id="box-shell">
+                    <div class="diagram-box-title">Shell</div>
+                    <div class="diagram-box-sub">$PYENV_VERSION</div>
+                </div>
+                <div class="diagram-arrow">&gt;</div>
+                <div class="diagram-box" onclick="showScope('local')" id="box-local">
+                    <div class="diagram-box-title">Local</div>
+                    <div class="diagram-box-sub">.python-version</div>
+                </div>
+                <div class="diagram-arrow">&gt;</div>
+                <div class="diagram-box" onclick="showScope('global')" id="box-global">
+                    <div class="diagram-box-title">Global</div>
+                    <div class="diagram-box-sub">~/.pyenv/version</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="scopeDetail">Click a scope above to learn when to use it.</div>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>pyenv global 3.12.2</code> <span class="tag">GLOBAL</span></div>
+                    <p>Set the system-wide default. Used when no local or shell override exists.</p>
+                    <div class="example">$ pyenv global 3.12.2</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>pyenv local 3.10.13</code> <span class="tag">PROJECT</span></div>
+                    <p>Write <code>.python-version</code> into the current directory. pyenv auto-activates on every <code>cd</code>.</p>
+                    <div class="example">$ cd ~/legacy-app<br>$ pyenv local 3.10.13</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>pyenv shell 3.12.2</code> <span class="tag">SESSION</span></div>
+                    <p>Override for the current shell session only. Cleared when the shell exits.</p>
+                    <div class="example">$ pyenv shell 3.12.2</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>pyenv version</code> <span class="tag">STATUS</span></div>
+                    <p>Show the currently active version and which source set it.</p>
+                    <div class="example">$ pyenv version<br>3.10.13 (set by .python-version)</div>
+                </div>
+            </div>
+
+            <h4>The .python-version File</h4>
+            <p>When you run <code>pyenv local</code>, it creates a <code>.python-version</code> file in the current directory. Commit this file with your project.</p>
+
+            <div class="file-block">
+                <div class="file-block-header">.python-version</div>
+                <pre>3.10.13</pre>
+            </div>
+
+            <h4>Virtual Environments with pyenv-virtualenv</h4>
+            <p>Install the <code>pyenv-virtualenv</code> plugin to create isolated virtual environments tied to a specific pyenv-managed Python version.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install plugin (if using pyenv.run it's included)</span>
+<span class="cmd">$</span> git clone https://github.com/pyenv/pyenv-virtualenv.git \
+    $(pyenv root)/plugins/pyenv-virtualenv
+
+<span class="comment"># Create a virtualenv using Python 3.10.13</span>
+<span class="cmd">$</span> pyenv virtualenv 3.10.13 my-project-env
+
+<span class="comment"># Activate it locally (writes .python-version)</span>
+<span class="cmd">$</span> pyenv local my-project-env
+
+<span class="comment"># pyenv auto-activates it when you cd into the directory</span>
+<span class="cmd">$</span> python <span class="flag">--version</span>
+<span class="output">Python 3.10.13</span>
+
+<span class="comment"># List all virtualenvs</span>
+<span class="cmd">$</span> pyenv virtualenvs
+
+<span class="comment"># Delete one</span>
+<span class="cmd">$</span> pyenv virtualenv-delete my-project-env</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">pyenv + venv vs pyenv-virtualenv</div>
+                <p>You can also use the standard <code>python -m venv .venv</code> after activating a pyenv version &mdash; that's perfectly valid and simpler. pyenv-virtualenv is useful when you want named, globally accessible envs that auto-activate on <code>cd</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: rbenv -->
+        <div class="section">
+            <h3>rbenv &mdash; Ruby Version Manager</h3>
+            <p>rbenv follows the same shim pattern as pyenv but for Ruby. It pairs with the <code>ruby-build</code> plugin (usually installed together) which handles actually compiling Ruby versions.</p>
+
+            <h4>Installation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install build dependencies</span>
+<span class="cmd">$</span> sudo apt-get install <span class="flag">-y</span> autoconf patch build-essential rustc \
+    libssl-dev libyaml-dev libreadline6-dev zlib1g-dev libgmp-dev \
+    libncurses5-dev libffi-dev libgdbm6 libgdbm-dev libdb-dev uuid-dev
+
+<span class="comment"># Install rbenv and ruby-build</span>
+<span class="cmd">$</span> curl -fsSL https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer | bash
+
+<span class="comment"># Add to ~/.bashrc</span>
+<span class="cmd">$</span> echo 'eval "$(~/.rbenv/bin/rbenv init - bash)"' >> ~/.bashrc
+<span class="cmd">$</span> source ~/.bashrc
+
+<span class="comment"># Verify</span>
+<span class="cmd">$</span> rbenv <span class="flag">--version</span>
+<span class="output">rbenv 1.3.0</span></code></pre>
+            </div>
+
+            <h4>Essential Commands</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>rbenv install 3.3.0</code> <span class="tag">INSTALL</span></div>
+                    <p>Compile and install a specific Ruby version</p>
+                    <div class="example">$ rbenv install 3.3.0<br>$ rbenv install --list</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>rbenv global 3.3.0</code> <span class="tag">GLOBAL</span></div>
+                    <p>Set the system-wide default Ruby version</p>
+                    <div class="example">$ rbenv global 3.3.0</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>rbenv local 3.2.3</code> <span class="tag">PROJECT</span></div>
+                    <p>Pin a version for the current directory via <code>.ruby-version</code></p>
+                    <div class="example">$ cd ~/rails-app<br>$ rbenv local 3.2.3</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>rbenv versions</code> <span class="tag">LIST</span></div>
+                    <p>Show all installed Ruby versions</p>
+                    <div class="example">$ rbenv versions<br>  3.2.3<br>* 3.3.0 (set by global)</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>rbenv rehash</code> <span class="tag">SHIMS</span></div>
+                    <p>Rebuild shims after installing a new gem with executables</p>
+                    <div class="example">$ gem install rails<br>$ rbenv rehash</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>rbenv which ruby</code> <span class="tag">DEBUG</span></div>
+                    <p>Show the full path of the currently active binary</p>
+                    <div class="example">$ rbenv which ruby<br>/home/user/.rbenv/versions/3.3.0/bin/ruby</div>
+                </div>
+            </div>
+
+            <div class="file-block">
+                <div class="file-block-header">.ruby-version</div>
+                <pre>3.2.3</pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">rbenv rehash</div>
+                <p>Unlike nvm and pyenv, rbenv requires you to run <code>rbenv rehash</code> after installing gems that include executables (like <code>rails</code>, <code>rspec</code>, <code>rubocop</code>). This regenerates the shims for the new binaries. Forgetting this is the most common rbenv gotcha.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Other Version Managers -->
+        <div class="section">
+            <h3>Other Language-Specific Managers</h3>
+            <p>The version manager pattern extends to almost every major language ecosystem. These are the tools you will encounter most often.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Tool</th>
+                    <th>Language</th>
+                    <th>Install</th>
+                    <th>Key Commands</th>
+                </tr>
+                <tr>
+                    <td><strong>sdkman</strong></td>
+                    <td>Java, Kotlin, Gradle, Maven, Scala</td>
+                    <td><code>curl -s "https://get.sdkman.io" | bash</code></td>
+                    <td><code>sdk install java 21-tem</code>, <code>sdk use java 17-tem</code>, <code>sdk list java</code></td>
+                </tr>
+                <tr>
+                    <td><strong>rustup</strong></td>
+                    <td>Rust</td>
+                    <td><code>curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</code></td>
+                    <td><code>rustup install stable</code>, <code>rustup override set 1.75.0</code>, <code>rustup toolchain list</code></td>
+                </tr>
+                <tr>
+                    <td><strong>goenv</strong></td>
+                    <td>Go</td>
+                    <td><code>git clone https://github.com/go-nv/goenv ~/.goenv</code></td>
+                    <td><code>goenv install 1.22.0</code>, <code>goenv global 1.22.0</code>, <code>goenv local 1.21.0</code></td>
+                </tr>
+                <tr>
+                    <td><strong>tfenv</strong></td>
+                    <td>Terraform</td>
+                    <td><code>git clone https://github.com/tfutils/tfenv.git ~/.tfenv</code></td>
+                    <td><code>tfenv install 1.7.0</code>, <code>tfenv use 1.7.0</code>, <code>tfenv list</code></td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">rustup Is Special</div>
+                <p>Rust's official installer <em>is</em> its version manager. The Rust team ships <code>rustup</code> as the canonical install method &mdash; you are not expected to install Rust any other way. It manages toolchains (stable, beta, nightly) and cross-compilation targets from a single tool.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: asdf -->
+        <div class="section">
+            <h3>asdf &mdash; The Universal Version Manager</h3>
+            <p>Managing five separate version managers is overhead. asdf solves this with a plugin architecture: one tool, one configuration file, every language. It uses the same shim model as pyenv and rbenv, but the plugin ecosystem provides support for 500+ tools.</p>
+
+            <h4>Installation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Clone asdf</span>
+<span class="cmd">$</span> git clone https://github.com/asdf-vm/asdf.git ~/.asdf <span class="flag">--branch</span> v0.14.0
+
+<span class="comment"># Add to ~/.bashrc</span>
+<span class="cmd">$</span> echo '. "$HOME/.asdf/asdf.sh"' >> ~/.bashrc
+<span class="cmd">$</span> source ~/.bashrc</code></pre>
+            </div>
+
+            <h4>Plugins and Versions</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Add plugins for the languages you need</span>
+<span class="cmd">$</span> asdf plugin add nodejs https://github.com/asdf-vm/asdf-nodejs.git
+<span class="cmd">$</span> asdf plugin add python
+<span class="cmd">$</span> asdf plugin add ruby https://github.com/asdf-vm/asdf-ruby.git
+<span class="cmd">$</span> asdf plugin add golang https://github.com/asdf-community/asdf-golang.git
+
+<span class="comment"># List available plugins (partial list)</span>
+<span class="cmd">$</span> asdf plugin list all | head <span class="flag">-20</span>
+
+<span class="comment"># Install a version</span>
+<span class="cmd">$</span> asdf install nodejs 20.11.0
+<span class="cmd">$</span> asdf install python 3.12.2
+
+<span class="comment"># Set global defaults</span>
+<span class="cmd">$</span> asdf global nodejs 20.11.0
+<span class="cmd">$</span> asdf global python 3.12.2
+
+<span class="comment"># Set project-level versions (writes .tool-versions)</span>
+<span class="cmd">$</span> asdf local nodejs 18.19.0
+<span class="cmd">$</span> asdf local python 3.10.13
+
+<span class="comment"># List installed versions for all tools</span>
+<span class="cmd">$</span> asdf list
+
+<span class="comment"># Show what's active right now</span>
+<span class="cmd">$</span> asdf current
+<span class="output">nodejs          20.11.0         /home/user/my-project/.tool-versions
+python          3.10.13         /home/user/my-project/.tool-versions</span></code></pre>
+            </div>
+
+            <h4>The .tool-versions File</h4>
+            <p>asdf consolidates all version pins into a single <code>.tool-versions</code> file. This single file replaces <code>.nvmrc</code>, <code>.python-version</code>, and <code>.ruby-version</code>.</p>
+
+            <div class="file-block">
+                <div class="file-block-header">.tool-versions</div>
+                <pre>nodejs 20.11.0
+python 3.10.13
+ruby 3.2.3
+golang 1.22.0
+terraform 1.7.0</pre>
+            </div>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>asdf install</code> <span class="tag">BATCH</span></div>
+                    <p>Install all versions listed in the nearest <code>.tool-versions</code> file</p>
+                    <div class="example">$ asdf install</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>asdf plugin update --all</code> <span class="tag">UPDATE</span></div>
+                    <p>Update all installed plugins to fetch newly available versions</p>
+                    <div class="example">$ asdf plugin update --all</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>asdf which node</code> <span class="tag">DEBUG</span></div>
+                    <p>Show the full resolved path for a binary</p>
+                    <div class="example">$ asdf which node<br>/home/user/.asdf/installs/nodejs/20.11.0/bin/node</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>asdf reshim nodejs</code> <span class="tag">SHIMS</span></div>
+                    <p>Rebuild shims for a tool after installing new global packages</p>
+                    <div class="example">$ npm install -g pnpm<br>$ asdf reshim nodejs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 8: mise -->
+        <div class="section">
+            <h3>mise &mdash; The Modern Alternative</h3>
+            <p>mise (formerly rtx) is a Rust-rewrite of asdf's core, built for speed and compatibility. It reads the same <code>.tool-versions</code> files as asdf, making migration seamless. It also supports <code>mise.toml</code> for more expressive configuration.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">~10x faster</span>
+                    <span>Written in Rust, no shell function overhead. Shim resolution and version switching are noticeably faster, especially on slower machines.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">asdf compatible</span>
+                    <span>Reads <code>.tool-versions</code> natively. Use asdf plugins directly. Teams can mix asdf and mise without changing config files.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">mise.toml</span>
+                    <span>Optional TOML config with environment variable management, tasks, and hooks built in. More powerful than a bare <code>.tool-versions</code>.</span>
+                </div>
+            </div>
+
+            <h4>Installation and Setup</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install mise</span>
+<span class="cmd">$</span> curl https://mise.run | sh
+
+<span class="comment"># Add to ~/.bashrc</span>
+<span class="cmd">$</span> echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
+<span class="cmd">$</span> source ~/.bashrc
+
+<span class="comment"># Verify</span>
+<span class="cmd">$</span> mise <span class="flag">--version</span>
+<span class="output">mise 2024.3.3</span></code></pre>
+            </div>
+
+            <h4>mise Commands</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install and use Node 20</span>
+<span class="cmd">$</span> mise install node@20.11.0
+<span class="cmd">$</span> mise use <span class="flag">--global</span> node@20.11.0
+
+<span class="comment"># Pin version for a project</span>
+<span class="cmd">$</span> mise use node@18.19.0     <span class="comment"># writes mise.toml or .tool-versions</span>
+
+<span class="comment"># Install all pinned versions from config</span>
+<span class="cmd">$</span> mise install
+
+<span class="comment"># Show active versions</span>
+<span class="cmd">$</span> mise current
+<span class="output">node  20.11.0 ~/.config/mise/config.toml
+python 3.12.2 ~/.config/mise/config.toml</span>
+
+<span class="comment"># List available versions for a plugin</span>
+<span class="cmd">$</span> mise ls-remote node | tail
+
+<span class="comment"># Run a command with a specific version, no activation needed</span>
+<span class="cmd">$</span> mise exec node@18.19.0 <span class="flag">--</span> node <span class="flag">--version</span>
+<span class="output">v18.19.0</span></code></pre>
+            </div>
+
+            <h4>mise.toml &mdash; The Power Config</h4>
+            <div class="file-block">
+                <div class="file-block-header">mise.toml</div>
+                <pre>[tools]
+node = "20.11.0"
+python = "3.12.2"
+ruby = "3.3.0"
+
+[env]
+DATABASE_URL = "postgres://localhost/dev"
+NODE_ENV = "development"
+
+[tasks.dev]
+run = "npm run dev"
+
+[tasks.test]
+run = "pytest tests/"</pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">mise vs asdf: When to Choose Which</div>
+                <p>If you are starting fresh, use <strong>mise</strong> &mdash; it is faster, actively developed, and fully compatible with the asdf ecosystem. If your team already has asdf and <code>.tool-versions</code> files everywhere, stay on asdf or migrate gradually. Both tools read the same config files.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Project-Level Pinning -->
+        <div class="section">
+            <h3>Project-Level Version Pinning</h3>
+            <p>Version managers are only useful if teams use them consistently. The mechanism that enforces consistency is the version dotfile. Every project that uses a runtime should have one committed to source control.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>File</th>
+                    <th>Tool</th>
+                    <th>Commit It?</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td><code>.nvmrc</code></td>
+                    <td>nvm</td>
+                    <td class="check">Yes</td>
+                    <td>Pin Node.js version for all contributors</td>
+                </tr>
+                <tr>
+                    <td><code>.python-version</code></td>
+                    <td>pyenv</td>
+                    <td class="check">Yes</td>
+                    <td>Pin Python version; also activates pyenv-virtualenv envs</td>
+                </tr>
+                <tr>
+                    <td><code>.ruby-version</code></td>
+                    <td>rbenv, rvm</td>
+                    <td class="check">Yes</td>
+                    <td>Pin Ruby version; read by rbenv, rvm, chruby automatically</td>
+                </tr>
+                <tr>
+                    <td><code>.tool-versions</code></td>
+                    <td>asdf, mise</td>
+                    <td class="check">Yes</td>
+                    <td>Pin all runtimes in one file; polyglot projects benefit most</td>
+                </tr>
+                <tr>
+                    <td><code>mise.toml</code></td>
+                    <td>mise</td>
+                    <td class="check">Yes</td>
+                    <td>Pin versions plus env vars and task definitions in one file</td>
+                </tr>
+                <tr>
+                    <td><code>.node-version</code></td>
+                    <td>Volta, fnm</td>
+                    <td class="check">Yes</td>
+                    <td>Alternative to <code>.nvmrc</code>; read by Volta and fnm</td>
+                </tr>
+            </table>
+
+            <h4>Why Pinning Matters for Teams</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Scenario: Three Developers, Three Node Versions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Developer A (no pinning)</span>
+<span class="cmd">$</span> node <span class="flag">--version</span>
+<span class="output">v16.20.0</span>
+<span class="output">npm WARN deprecated: package requires Node >= 18</span>
+
+<span class="comment"># Developer B (no pinning)</span>
+<span class="cmd">$</span> node <span class="flag">--version</span>
+<span class="output">v22.0.0</span>
+<span class="output">Error: crypto.hash is not a function</span>  <span class="comment"># API changed in v22</span>
+
+<span class="comment"># Developer C (with .nvmrc pinning)</span>
+<span class="cmd">$</span> cat .nvmrc
+<span class="output">20.11.0</span>
+<span class="cmd">$</span> nvm use
+<span class="output">Now using node v20.11.0</span>
+<span class="cmd">$</span> npm install <span class="flag">&&</span> npm test
+<span class="output">All 247 tests passed.</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">CI Must Read the Same Dotfile</div>
+                <p>Your GitHub Actions, GitLab CI, or Jenkins pipelines should read the same version dotfile your developers use. Most CI systems have native actions for this. For example, the <code>actions/setup-node@v4</code> action accepts a <code>node-version-file: '.nvmrc'</code> input, which makes CI and local environments automatically stay in sync.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.github/workflows/ci.yml (excerpt)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Read the version from .nvmrc — single source of truth</span>
+- <span class="file">uses</span>: actions/setup-node@v4
+  <span class="file">with</span>:
+    node-version-file: <span class="str">'.nvmrc'</span>
+
+<span class="comment"># Or for Python — reads .python-version</span>
+- <span class="file">uses</span>: actions/setup-python@v5
+  <span class="file">with</span>:
+    python-version-file: <span class="str">'.python-version'</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 10: Version Manager Comparison -->
+        <div class="section">
+            <h3>Full Comparison: Which Tool for What</h3>
+
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="switchTab('quick')">Quick Reference</button>
+                <button class="tab-btn" onclick="switchTab('tradeoffs')">Tradeoffs</button>
+                <button class="tab-btn" onclick="switchTab('choose')">Decision Guide</button>
+            </div>
+
+            <div class="tab-panel active" id="tab-quick">
+                <table class="compare">
+                    <tr>
+                        <th>Manager</th>
+                        <th>Language(s)</th>
+                        <th>Dotfile</th>
+                        <th>Speed</th>
+                        <th>Maturity</th>
+                    </tr>
+                    <tr>
+                        <td><strong>nvm</strong></td>
+                        <td>Node.js only</td>
+                        <td><code>.nvmrc</code></td>
+                        <td>Moderate (shell function)</td>
+                        <td>Very mature, ubiquitous</td>
+                    </tr>
+                    <tr>
+                        <td><strong>pyenv</strong></td>
+                        <td>Python only</td>
+                        <td><code>.python-version</code></td>
+                        <td>Fast</td>
+                        <td>Very mature, standard</td>
+                    </tr>
+                    <tr>
+                        <td><strong>rbenv</strong></td>
+                        <td>Ruby only</td>
+                        <td><code>.ruby-version</code></td>
+                        <td>Fast</td>
+                        <td>Mature, widely adopted</td>
+                    </tr>
+                    <tr>
+                        <td><strong>sdkman</strong></td>
+                        <td>JVM ecosystem</td>
+                        <td><code>.sdkmanrc</code></td>
+                        <td>Moderate</td>
+                        <td>Mature, Java-world standard</td>
+                    </tr>
+                    <tr>
+                        <td><strong>rustup</strong></td>
+                        <td>Rust only</td>
+                        <td><code>rust-toolchain.toml</code></td>
+                        <td>Fast</td>
+                        <td>Official tool, always use it</td>
+                    </tr>
+                    <tr>
+                        <td><strong>asdf</strong></td>
+                        <td>500+ via plugins</td>
+                        <td><code>.tool-versions</code></td>
+                        <td>Moderate (shell script)</td>
+                        <td>Mature, polyglot standard</td>
+                    </tr>
+                    <tr>
+                        <td><strong>mise</strong></td>
+                        <td>500+ via plugins</td>
+                        <td><code>.tool-versions</code> / <code>mise.toml</code></td>
+                        <td>Fast (Rust binary)</td>
+                        <td>Modern, actively developed</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="tab-panel" id="tab-tradeoffs">
+                <table class="compare">
+                    <tr>
+                        <th>Manager</th>
+                        <th>Strengths</th>
+                        <th>Weaknesses</th>
+                    </tr>
+                    <tr>
+                        <td><strong>nvm</strong></td>
+                        <td>Zero-friction Node.js workflow, every tutorial assumes it, great LTS alias support</td>
+                        <td>Shell-function load time, Node-only, no native Windows support</td>
+                    </tr>
+                    <tr>
+                        <td><strong>pyenv</strong></td>
+                        <td>Three-level scoping is flexible, integrates cleanly with virtualenvs</td>
+                        <td>Python-only, requires build deps, slow on first install</td>
+                    </tr>
+                    <tr>
+                        <td><strong>rbenv</strong></td>
+                        <td>Simple design, respects <code>.ruby-version</code> that other tools also read</td>
+                        <td>Requires manual <code>rbenv rehash</code>, Ruby-only</td>
+                    </tr>
+                    <tr>
+                        <td><strong>asdf</strong></td>
+                        <td>One tool for everything, huge plugin ecosystem, <code>.tool-versions</code> is widely supported</td>
+                        <td>Shell script core can be slow, plugin quality varies</td>
+                    </tr>
+                    <tr>
+                        <td><strong>mise</strong></td>
+                        <td>Fastest of all listed, env var management, task runner built in, backward-compatible</td>
+                        <td>Newer, smaller community than asdf, some edge-case plugin incompatibilities</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="tab-panel" id="tab-choose">
+                <div class="status-flow">
+                    <div class="status-row">
+                        <div class="status-dot" style="background: var(--blue)"></div>
+                        <span class="status-label">Node-only project</span>
+                        <span>Use <strong>nvm</strong>. Every Node.js developer has it, every tutorial assumes it. Simple, reliable, universally understood.</span>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-dot" style="background: var(--blue)"></div>
+                        <span class="status-label">Python project</span>
+                        <span>Use <strong>pyenv</strong>. The three-level scoping (global/local/shell) maps perfectly to how Python projects work. Pair with virtualenvs.</span>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-dot" style="background: var(--blue)"></div>
+                        <span class="status-label">Ruby / Rails</span>
+                        <span>Use <strong>rbenv</strong>. The Rails community standardized on it. Heroku, Render, and most Rails tutorials assume rbenv.</span>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-dot" style="background: var(--forge)"></div>
+                        <span class="status-label">Polyglot project</span>
+                        <span>Use <strong>mise</strong> if starting fresh. Use <strong>asdf</strong> if your team already has a <code>.tool-versions</code> workflow. Both replace all language-specific managers.</span>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-dot" style="background: var(--purple)"></div>
+                        <span class="status-label">Java / JVM</span>
+                        <span>Use <strong>sdkman</strong>. Nothing else covers OpenJDK distributions, GraalVM, Gradle, and Maven under one roof the way sdkman does.</span>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-dot" style="background: var(--orange)"></div>
+                        <span class="status-label">Rust</span>
+                        <span>Use <strong>rustup</strong>. It is the only supported way to install Rust. Not optional &mdash; just use it.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 11: Best Practices -->
+        <div class="section">
+            <h3>Best Practices</h3>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Rule 1: Never Use the System Runtime for Development</div>
+                <p>The system Python, Node, or Ruby exists for the operating system. Treat it as read-only. Never <code>sudo pip install</code>, never <code>sudo npm install -g</code>. Install a version manager, install your runtime through it, then install packages without <code>sudo</code>.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Rule 2: Always Pin in the Project Root</div>
+                <p>Every project that touches a runtime should have a version dotfile (<code>.nvmrc</code>, <code>.python-version</code>, <code>.tool-versions</code>) committed to source control. Zero exceptions. This is the contract between your local machine, your teammates, and your CI pipeline.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Rule 3: CI Must Match Local</div>
+                <p>Your CI pipeline should read the same version dotfile. If <code>github.com/actions/setup-node</code> is hardcoded to <code>node-version: 18</code> and your <code>.nvmrc</code> says <code>20.11.0</code>, you will spend hours debugging environment drift. Use the <code>node-version-file</code> input instead.</p>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Rule 4: Do Not Mix Version Managers for the Same Language</div>
+                <p>Having both nvm and asdf managing Node.js will result in PATH conflicts and confusing behavior. Pick one approach and document it in your project README. If migrating from language-specific tools to asdf/mise, remove the old tool from your shell profile entirely.</p>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Rule 5: Update the Manager, Then the Versions</div>
+                <p>Run <code>nvm install-latest-npm</code> or <code>mise self-update</code> periodically to keep your manager current. Then update your pinned runtime versions in line with your project's support policy. Version managers do not auto-update your pinned versions &mdash; that is intentional.</p>
+            </div>
+
+            <h4>The Minimal Team Setup Checklist</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">New Developer Onboarding Commands</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># 1. Install mise (or asdf) once per machine</span>
+<span class="cmd">$</span> curl https://mise.run | sh
+
+<span class="comment"># 2. Clone the project</span>
+<span class="cmd">$</span> git clone git@github.com:org/my-project.git
+<span class="cmd">$</span> cd my-project
+
+<span class="comment"># 3. Install all pinned runtimes from .tool-versions in one command</span>
+<span class="cmd">$</span> mise install
+<span class="output">mise Installing node@20.11.0...
+mise Installing python@3.10.13...
+mise Installing ruby@3.2.3...</span>
+
+<span class="comment"># 4. Verify active versions</span>
+<span class="cmd">$</span> mise current
+<span class="output">node   20.11.0  /home/dev/my-project/.tool-versions
+python 3.10.13  /home/dev/my-project/.tool-versions
+ruby   3.2.3    /home/dev/my-project/.tool-versions</span>
+
+<span class="comment"># Everything is ready. No manual version hunting. No "works on my machine".</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" id="completeBtn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Pyenv scope diagram interaction
+        const scopes = {
+            shell: {
+                title: 'Shell Scope — pyenv shell <version>',
+                desc: 'Highest priority. Sets the PYENV_VERSION environment variable in the current shell session. Overrides everything else. Cleared when the shell closes. Use this for one-off testing: "I just need Python 3.12 for this one command."'
+            },
+            local: {
+                title: 'Local Scope — pyenv local <version>',
+                desc: 'Project-level. Writes a .python-version file in the current directory. pyenv reads this file automatically whenever you are in that directory or any subdirectory. Commit this file. This is what your team and CI use.'
+            },
+            global: {
+                title: 'Global Scope — pyenv global <version>',
+                desc: 'System-wide fallback. Written to ~/.pyenv/version. Used whenever no shell or local override is found. Set this to your everyday Python version. Think of it as the machine-wide default, not the project default.'
+            }
+        };
+
+        function showScope(id) {
+            document.querySelectorAll('.diagram-box').forEach(function(b) { b.classList.remove('active'); });
+            document.getElementById('box-' + id).classList.add('active');
+            var s = scopes[id];
+            document.getElementById('scopeDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Tab switching for the comparison section
+        function switchTab(id) {
+            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById('tab-' + id).classList.add('active');
+            // Mark the clicked button active
+            var btns = document.querySelectorAll('.tab-btn');
+            var tabMap = { quick: 0, tradeoffs: 1, choose: 2 };
+            btns[tabMap[id]].classList.add('active');
+        }
+
+        // Code copy utility
+        function copyCode(btn) {
+            var code = btn.closest('.code-block').querySelector('code, pre').textContent;
+            navigator.clipboard.writeText(code).then(function() {
+                btn.textContent = 'Copied!';
+                setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Write to localStorage progress key
+            try {
+                var progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-32'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-32-runtime-management', { returnToDashboard: false });
+            }
+
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first scope on load
+        showScope('local');
+
+        // Check if already completed and update button state
+        try {
+            var p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-32']) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

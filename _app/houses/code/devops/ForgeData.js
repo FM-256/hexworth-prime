@@ -78,11 +78,11 @@ const ForgeData = {
             description: 'What is DevOps, the culture shift, and the toolchain landscape.',
             color: '#10b981',
             modules: [
-                { id: 'do-1', title: 'What is DevOps?', type: 'module', status: 'coming-soon', sprint: 'DO-1' },
-                { id: 'do-2', title: 'The DevOps Toolchain', type: 'module', status: 'coming-soon', sprint: 'DO-2' },
-                { id: 'do-3', title: 'DevOps in Practice — Real-World Pipelines', type: 'module', status: 'coming-soon', sprint: 'DO-3' },
-                { id: 'do-68', title: 'Data Formats — YAML, JSON, TOML', type: 'module', status: 'coming-soon', sprint: 'DO-68' },
-                { id: 'do-69', title: 'Config Formats — XML, INI, ENV, HCL', type: 'module', status: 'coming-soon', sprint: 'DO-69' }
+                { id: 'do-1', title: 'What is DevOps?', type: 'module', status: 'ready', sprint: 'DO-1', href: 'do-1-what-is-devops.html' },
+                { id: 'do-2', title: 'The DevOps Toolchain', type: 'module', status: 'ready', sprint: 'DO-2', href: 'do-2-devops-toolchain.html' },
+                { id: 'do-3', title: 'DevOps in Practice — Real-World Pipelines', type: 'module', status: 'ready', sprint: 'DO-3', href: 'do-3-real-world-pipelines.html' },
+                { id: 'do-68', title: 'Data Formats — YAML, JSON, TOML', type: 'module', status: 'ready', sprint: 'DO-68', href: 'do-68-data-formats.html' },
+                { id: 'do-69', title: 'Config Formats — XML, INI, ENV, HCL', type: 'module', status: 'ready', sprint: 'DO-69', href: 'do-69-config-formats.html' }
             ]
         },
 
@@ -97,12 +97,12 @@ const ForgeData = {
             description: 'Set up your environment like a professional — OS, shell, SSH, runtimes, secrets, containers, networking.',
             color: '#10b981',
             modules: [
-                { id: 'do-30', title: 'OS & Shell Setup', type: 'module', status: 'coming-soon', sprint: 'DO-30' },
-                { id: 'do-31', title: 'SSH, GPG & Dotfiles', type: 'module', status: 'coming-soon', sprint: 'DO-31' },
-                { id: 'do-32', title: 'Runtime Management — nvm, pyenv, rbenv', type: 'module', status: 'coming-soon', sprint: 'DO-32' },
-                { id: 'do-33', title: 'Environment Variables & Secrets', type: 'module', status: 'coming-soon', sprint: 'DO-33' },
-                { id: 'do-34', title: 'Dev Containers & Reproducible Environments', type: 'module', status: 'coming-soon', sprint: 'DO-34' },
-                { id: 'do-35', title: 'Networking Basics for DevOps', type: 'module', status: 'coming-soon', sprint: 'DO-35' }
+                { id: 'do-30', title: 'OS & Shell Setup', type: 'module', status: 'ready', sprint: 'DO-30', href: 'do-30-os-shell-setup.html' },
+                { id: 'do-31', title: 'SSH, GPG & Dotfiles', type: 'module', status: 'ready', sprint: 'DO-31', href: 'do-31-ssh-gpg-dotfiles.html' },
+                { id: 'do-32', title: 'Runtime Management — nvm, pyenv, rbenv', type: 'module', status: 'ready', sprint: 'DO-32', href: 'do-32-runtime-management.html' },
+                { id: 'do-33', title: 'Environment Variables & Secrets', type: 'module', status: 'ready', sprint: 'DO-33', href: 'do-33-env-vars-secrets.html' },
+                { id: 'do-34', title: 'Dev Containers & Reproducible Environments', type: 'module', status: 'ready', sprint: 'DO-34', href: 'do-34-dev-containers.html' },
+                { id: 'do-35', title: 'Networking Basics for DevOps', type: 'module', status: 'ready', sprint: 'DO-35', href: 'do-35-networking-basics.html' }
             ]
         },
 
