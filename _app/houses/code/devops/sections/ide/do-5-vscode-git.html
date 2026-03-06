@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VS Code — Git Integration - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-branch.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-5</span>
+            <h1>VS Code &mdash; Git Integration</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; IDE Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-branch.webp" alt="">
+            <h2>VS Code &mdash; Git Integration</h2>
+            <p class="hero-sub">VS Code ships with powerful Git support out of the box. Master the Source Control panel, inline diffs, merge conflict resolution, and the extensions that turn VS Code into a full Git GUI.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-branch.webp" alt="" width="14" height="14"> Beginner-Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Navigate the Source Control panel to stage, unstage, and commit changes</li>
+                <li>Read gutter indicators and file badges to understand Git status at a glance</li>
+                <li>Stage individual lines and hunks for precise, atomic commits</li>
+                <li>Create branches, switch branches, and compare branches from the status bar</li>
+                <li>Resolve merge conflicts using the built-in 3-way merge editor</li>
+                <li>Use the diff viewer in side-by-side and inline modes</li>
+                <li>Install and configure Git Graph, GitLens, and GitHub Pull Requests extensions</li>
+                <li>Apply Git-related keyboard shortcuts and <code>settings.json</code> tweaks for an optimized workflow</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Source Control View -->
+        <div class="section">
+            <h3>1. Source Control View</h3>
+            <p>The Source Control panel is your primary interface for Git operations inside VS Code. Open it with <code>Ctrl+Shift+G</code> (or click the branch icon in the Activity Bar). When a folder containing a <code>.git</code> directory is open, VS Code automatically detects it and populates the panel.</p>
+
+            <h4>Panel Anatomy</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Message Box</span>
+                    <span>The text input at the top where you type your commit message. Press <code>Ctrl+Enter</code> to commit.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Staged Changes</span>
+                    <span>Files explicitly added to the staging area. These will be included in your next commit.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Changes</span>
+                    <span>Modified, added, or deleted files that are <em>not yet staged</em>. Hover a file to see stage/discard icons.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Merge Changes</span>
+                    <span>Only appears during an active merge. Shows files with unresolved conflicts.</span>
+                </div>
+            </div>
+
+            <h4>Staging and Unstaging</h4>
+            <p>Hover over any file in the Changes section to reveal action icons. Click the <strong>+</strong> icon to stage it (moves it to Staged Changes). Click the <strong>-</strong> icon on a staged file to unstage it. You can also stage or unstage all files at once using the icons at the section header level.</p>
+
+            <h4>Inline Diffs</h4>
+            <p>Click any changed file in the Source Control panel to open a diff view. VS Code shows a side-by-side comparison with additions highlighted in green and deletions in red. This is one of the fastest ways to review what you are about to commit.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The Source Control panel is equivalent to running <code>git status</code>, <code>git add</code>, <code>git reset</code>, and <code>git commit</code> from the terminal &mdash; but with a visual interface that makes it harder to miss changes.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Git Status in the Editor -->
+        <div class="section">
+            <h3>2. Git Status in the Editor</h3>
+            <p>VS Code provides real-time Git status feedback directly in the editor &mdash; no need to check the Source Control panel or run <code>git status</code>.</p>
+
+            <h4>Gutter Indicators</h4>
+            <p>The thin colored bar in the left gutter of the editor shows line-level changes compared to the last commit:</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: #3fb950"></div>
+                    <span class="status-label">Green Bar</span>
+                    <span>New lines added. These lines do not exist in the last commit.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: #58a6ff"></div>
+                    <span class="status-label">Blue Bar</span>
+                    <span>Modified lines. The content at these line numbers has changed since the last commit.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: #f85149"></div>
+                    <span class="status-label">Red Triangle</span>
+                    <span>Deleted lines. A small red arrow in the gutter marks where lines were removed.</span>
+                </div>
+            </div>
+
+            <p>Click on any gutter indicator to see an inline diff popup showing exactly what changed. From that popup you can revert the change back to the committed version with a single click.</p>
+
+            <h4>File Badges in the Explorer</h4>
+            <p>The Explorer sidebar shows letter badges next to modified files:</p>
+
+            <table class="compare">
+                <tr><th>Badge</th><th>Meaning</th><th>Color</th></tr>
+                <tr><td><code>M</code></td><td>Modified &mdash; file has been changed</td><td>Yellow/Orange</td></tr>
+                <tr><td><code>U</code></td><td>Untracked &mdash; new file not yet added to Git</td><td>Green</td></tr>
+                <tr><td><code>A</code></td><td>Added &mdash; new file staged for commit</td><td>Green</td></tr>
+                <tr><td><code>D</code></td><td>Deleted &mdash; file removed</td><td>Red</td></tr>
+                <tr><td><code>C</code></td><td>Conflict &mdash; file has merge conflicts</td><td>Red</td></tr>
+                <tr><td><code>R</code></td><td>Renamed &mdash; file was renamed</td><td>Green</td></tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Status Bar Branch Indicator</div>
+                <p>The bottom-left corner of the status bar always shows the current Git branch. Click it to switch branches, create a new branch, or check out a tag. If the branch indicator shows a sync icon with numbers (e.g., <code>0 &#8595; 2 &#8593;</code>), it means you have unpushed commits or unpulled changes.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Staging & Committing -->
+        <div class="section">
+            <h3>3. Staging &amp; Committing</h3>
+            <p>VS Code goes beyond simple file-level staging. You can stage individual lines or hunks within a file &mdash; giving you surgical control over what goes into each commit.</p>
+
+            <h4>Stage Individual Lines or Hunks</h4>
+            <p>Open a diff view by clicking a changed file in Source Control. In the diff editor, you can:</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Stage Hunk</span>
+                    <span>Hover over a change block (hunk) in the diff. Click the <strong>Stage Hunk</strong> icon that appears in the gutter to stage just that block.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Stage Lines</span>
+                    <span>Select specific lines in the diff, then right-click and choose <strong>Stage Selected Ranges</strong>. Only those lines will be staged.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Revert Hunk</span>
+                    <span>Click the revert icon on a hunk to discard that change and restore the committed version of those lines.</span>
+                </div>
+            </div>
+
+            <h4>Writing Commit Messages</h4>
+            <p>Type your message in the Source Control input box and press <code>Ctrl+Enter</code> to commit. For multiline messages, press <code>Enter</code> for a new line (the setting <code>git.inputValidationSubjectLength</code> warns you if the first line exceeds 72 characters).</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">settings.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+    <span class="comment">// Warn if commit subject exceeds 72 characters</span>
+    <span class="str">"git.inputValidationSubjectLength"</span>: <span class="file">72</span>,
+
+    <span class="comment">// Use full-width editor for commit messages (instead of input box)</span>
+    <span class="str">"git.useEditorAsCommitInput"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Show staged changes count in SCM badge</span>
+    <span class="str">"git.countBadge"</span>: <span class="str">"tracked"</span>
+}</code></pre>
+            </div>
+
+            <h4>Amending Commits</h4>
+            <p>To amend the last commit (add more changes or fix the message), click the dropdown arrow next to the Commit button and choose <strong>Commit (Amend)</strong>. This is equivalent to <code>git commit --amend</code>. The previous commit message populates the input box so you can edit it.</p>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Amend Warning</div>
+                <p>Amending rewrites the last commit. If you have already pushed that commit to a remote, you will need to force-push (<code>git push --force</code>), which can cause problems for collaborators. Only amend commits that haven't been shared.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Branching from VS Code -->
+        <div class="section">
+            <h3>4. Branching from VS Code</h3>
+            <p>Branching is one of Git's greatest strengths, and VS Code makes it accessible without touching the terminal.</p>
+
+            <h4>The Branch Picker</h4>
+            <p>Click the branch name in the bottom-left status bar to open the branch picker. From here you can:</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Switch Branch</code> <span class="tag">CHECKOUT</span></div>
+                    <p>Select any existing local or remote branch to switch to it</p>
+                    <div class="example">Status Bar > Click branch > Select target</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Create Branch</code> <span class="tag">NEW</span></div>
+                    <p>Type a new branch name to create and switch to it in one step</p>
+                    <div class="example">Status Bar > Click branch > Create new branch...</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Create From...</code> <span class="tag">FORK</span></div>
+                    <p>Create a new branch based on a specific existing branch or tag</p>
+                    <div class="example">Status Bar > Create new branch from...</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Checkout Tag</code> <span class="tag">TAG</span></div>
+                    <p>Check out a specific tag for reviewing a release</p>
+                    <div class="example">Command Palette > Git: Checkout to... > tags/v1.0</div>
+                </div>
+            </div>
+
+            <h4>Branch Comparison</h4>
+            <p>Use the Command Palette (<code>Ctrl+Shift+P</code>) and type <strong>Git: Compare</strong> to diff the current branch against another. This shows all files that differ between the two branches, which is useful before opening a pull request.</p>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Remote Branches</div>
+                <p>Remote branches appear in the branch picker with their remote prefix (e.g., <code>origin/feature-auth</code>). Checking one out creates a local tracking branch automatically. Run <code>Git: Fetch</code> from the Command Palette if you don't see the latest remote branches.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Merge Conflicts in VS Code -->
+        <div class="section">
+            <h3>5. Merge Conflicts in VS Code</h3>
+            <p>When a merge, rebase, or cherry-pick produces conflicts, VS Code detects them automatically and provides a rich UI for resolution. No more manually searching for <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> markers.</p>
+
+            <h4>The 3-Way Merge Editor</h4>
+            <p>VS Code's 3-way merge editor shows three panes:</p>
+
+            <div class="diagram" id="mergeDiagram">
+                <div class="diagram-box" onclick="showMerge('incoming')" id="box-incoming">
+                    <div class="diagram-box-title">Incoming</div>
+                    <div class="diagram-box-sub">Their Changes</div>
+                </div>
+                <div class="diagram-arrow">+</div>
+                <div class="diagram-box" onclick="showMerge('current')" id="box-current">
+                    <div class="diagram-box-title">Current</div>
+                    <div class="diagram-box-sub">Your Changes</div>
+                </div>
+                <div class="diagram-arrow">=</div>
+                <div class="diagram-box" onclick="showMerge('result')" id="box-result">
+                    <div class="diagram-box-title">Result</div>
+                    <div class="diagram-box-sub">Final Output</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="mergeDetail">Click a pane above to learn what it shows.</div>
+
+            <h4>Conflict Resolution Actions</h4>
+            <p>For each conflict block, VS Code shows clickable actions directly above the conflict markers:</p>
+
+            <table class="compare">
+                <tr><th>Action</th><th>What It Does</th></tr>
+                <tr><td><strong>Accept Current Change</strong></td><td>Keep your version, discard theirs</td></tr>
+                <tr><td><strong>Accept Incoming Change</strong></td><td>Keep their version, discard yours</td></tr>
+                <tr><td><strong>Accept Both Changes</strong></td><td>Include both versions stacked (current first, then incoming)</td></tr>
+                <tr><td><strong>Compare Changes</strong></td><td>Open a diff view to examine both versions in detail</td></tr>
+            </table>
+
+            <p>In the 3-way merge editor, you can also manually edit the Result pane to craft a custom resolution that combines elements from both sides. When you are satisfied, save the file and click <strong>Complete Merge</strong>.</p>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">After Resolving</div>
+                <p>Once all conflicts in a file are resolved, you must stage the file (<code>git add</code> or click + in Source Control) and then commit. VS Code pre-fills a merge commit message for you. Do not forget this step &mdash; unresolved files block the merge.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Diff Viewer -->
+        <div class="section">
+            <h3>6. Diff Viewer</h3>
+            <p>The built-in diff viewer is one of VS Code's strongest Git features. It supports multiple viewing modes and can compare across branches, commits, or arbitrary files.</p>
+
+            <h4>Side-by-Side vs Inline</h4>
+            <table class="compare">
+                <tr><th>Mode</th><th>How to Activate</th><th>Best For</th></tr>
+                <tr>
+                    <td><strong>Side-by-Side</strong> (default)</td>
+                    <td>Click any changed file in Source Control</td>
+                    <td>Reviewing large changes where context matters</td>
+                </tr>
+                <tr>
+                    <td><strong>Inline</strong></td>
+                    <td>Click the <strong>...</strong> menu in the diff editor toolbar and select <strong>Inline View</strong></td>
+                    <td>Narrow screens or small, scattered changes</td>
+                </tr>
+            </table>
+
+            <h4>Comparing Branches</h4>
+            <p>Use the Command Palette to compare across branches:</p>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Command Palette</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Compare current branch with another</span>
+<span class="cmd">Ctrl+Shift+P</span> > <span class="str">Git: Compare HEAD with...</span>
+
+<span class="comment"># Compare a specific file with another branch</span>
+<span class="cmd">Ctrl+Shift+P</span> > <span class="str">File: Compare Active File With...</span>
+
+<span class="comment"># Compare with the clipboard content</span>
+<span class="cmd">Ctrl+Shift+P</span> > <span class="str">File: Compare Active File with Clipboard</span></code></pre>
+            </div>
+
+            <h4>Comparing Commits</h4>
+            <p>With the Timeline view (bottom of the Explorer sidebar), you can click any past commit for the current file and VS Code opens a diff between that commit and the current version. This is a fast way to trace when a specific change was introduced.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">settings.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+    <span class="comment">// Default to inline diff instead of side-by-side</span>
+    <span class="str">"diffEditor.renderSideBySide"</span>: <span class="cmd">false</span>,
+
+    <span class="comment">// Ignore whitespace changes in diffs</span>
+    <span class="str">"diffEditor.ignoreTrimWhitespace"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Show diff decorations in the minimap</span>
+    <span class="str">"diffEditor.renderIndicators"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Word-level diff highlighting (very useful)</span>
+    <span class="str">"diffEditor.wordWrap"</span>: <span class="str">"on"</span>
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The diff viewer is not read-only. In the right pane (the current version), you can edit code directly. Changes are saved to the working file. This lets you review and fix issues in the same view without switching contexts.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Git Graph Extension -->
+        <div class="section">
+            <h3>7. Git Graph Extension</h3>
+            <p>VS Code's built-in Git support covers day-to-day operations, but it lacks a visual commit history. The <strong>Git Graph</strong> extension by mhutchie fills that gap with an interactive, graphical view of your repository's branch topology.</p>
+
+            <h4>Installation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Command Palette</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install from the Extensions panel</span>
+<span class="cmd">Ctrl+Shift+X</span> > Search <span class="str">"Git Graph"</span> > Install
+
+<span class="comment"># Or from the terminal</span>
+<span class="cmd">$</span> code --install-extension mhutchie.git-graph</code></pre>
+            </div>
+
+            <h4>What It Shows</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Branch Lines</span>
+                    <span>Color-coded lines showing branch topology &mdash; where branches diverge and merge back together.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Commit Nodes</span>
+                    <span>Each commit as a dot on the graph with hash, message, author, and date. Click to see full details.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Tag &amp; Ref Labels</span>
+                    <span>Tags, HEAD, and remote tracking refs displayed as colored labels on their respective commits.</span>
+                </div>
+            </div>
+
+            <h4>Key Actions from the Graph</h4>
+            <p>Right-click any commit in the graph to access actions like: cherry-pick, revert, create branch from here, create tag, reset current branch to here, and copy commit hash. This makes Git Graph a lightweight alternative to tools like GitKraken or SourceTree.</p>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Opening Git Graph</div>
+                <p>After installation, a new icon appears in the Source Control panel title bar. Click it to open the graph view. You can also use the Command Palette: <code>Ctrl+Shift+P</code> then type <strong>Git Graph: View Git Graph</strong>.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: GitLens Extension -->
+        <div class="section">
+            <h3>8. GitLens Extension</h3>
+            <p><strong>GitLens</strong> by GitKraken supercharges VS Code's Git capabilities with blame annotations, rich file history, and contributor insights. It is one of the most-installed VS Code extensions for a reason.</p>
+
+            <h4>Installation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> code --install-extension eamodio.gitlens</code></pre>
+            </div>
+
+            <h4>Core Features</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Inline Blame</code> <span class="tag">ANNOTATION</span></div>
+                    <p>Shows who last modified each line, when, and the commit message &mdash; faded text at the end of the current line</p>
+                    <div class="example">John Doe, 3 days ago - Fix null check in auth</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>File History</code> <span class="tag">TIMELINE</span></div>
+                    <p>View every commit that touched the current file, with diffs for each change</p>
+                    <div class="example">GitLens sidebar > File History</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Line History</code> <span class="tag">DEEP DIVE</span></div>
+                    <p>Track the complete history of a specific line or selection across renames and moves</p>
+                    <div class="example">Right-click > GitLens > Open Line History</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Contributors</code> <span class="tag">TEAM</span></div>
+                    <p>See who contributed to the repo, how much, and when their last commit was</p>
+                    <div class="example">GitLens sidebar > Contributors</div>
+                </div>
+            </div>
+
+            <h4>GitLens Settings to Know</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">settings.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+    <span class="comment">// Show blame annotation at end of current line</span>
+    <span class="str">"gitlens.currentLine.enabled"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Format for the inline blame annotation</span>
+    <span class="str">"gitlens.currentLine.format"</span>: <span class="str">"${author}, ${agoOrDate} - ${message|50?}"</span>,
+
+    <span class="comment">// Show code lens above functions/classes with recent change info</span>
+    <span class="str">"gitlens.codeLens.enabled"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Disable GitLens welcome/what's new on update (optional)</span>
+    <span class="str">"gitlens.showWelcomeOnInstall"</span>: <span class="cmd">false</span>,
+    <span class="str">"gitlens.showWhatsNewAfterUpgrades"</span>: <span class="cmd">false</span>
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>GitLens answers the question <em>"why does this line exist?"</em> instantly. Instead of running <code>git log -L</code> or <code>git blame</code> in the terminal, you hover over a line and see the full commit context. This alone saves significant time during code reviews and debugging.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: GitHub Pull Requests Extension -->
+        <div class="section">
+            <h3>9. GitHub Pull Requests Extension</h3>
+            <p>The official <strong>GitHub Pull Requests and Issues</strong> extension by GitHub lets you create, review, and merge pull requests without leaving VS Code. If your team uses GitHub, this is essential.</p>
+
+            <h4>Installation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> code --install-extension GitHub.vscode-pull-request-github</code></pre>
+            </div>
+
+            <h4>What You Can Do</h4>
+            <table class="compare">
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><strong>Create PRs</strong></td><td>Open a PR directly from VS Code after pushing a branch. Set title, description, reviewers, labels, and target branch.</td></tr>
+                <tr><td><strong>Review PRs</strong></td><td>Check out a PR branch, view file changes with inline diffs, and approve or request changes.</td></tr>
+                <tr><td><strong>Inline Comments</strong></td><td>Add review comments on specific lines of code, just like on github.com. Start threads, suggest changes.</td></tr>
+                <tr><td><strong>Merge PRs</strong></td><td>Merge, squash-merge, or rebase-merge a PR after approval &mdash; all from the sidebar.</td></tr>
+                <tr><td><strong>Issues</strong></td><td>View, create, and manage GitHub issues. Link issues to PRs with keywords like <code>Fixes #42</code>.</td></tr>
+            </table>
+
+            <h4>Workflow: Create a PR from VS Code</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Steps</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># 1. Create and switch to a new branch</span>
+<span class="cmd">Status Bar</span> > Click branch > <span class="str">Create new branch</span> > <span class="str">feature/auth-flow</span>
+
+<span class="comment"># 2. Make changes, stage, and commit</span>
+<span class="cmd">Source Control</span> > Stage files > Write message > <span class="str">Ctrl+Enter</span>
+
+<span class="comment"># 3. Push the branch</span>
+<span class="cmd">Status Bar</span> > Click sync icon (or <span class="str">Git: Push</span> from Command Palette)
+
+<span class="comment"># 4. Create the PR</span>
+<span class="cmd">GitHub PR sidebar</span> > <span class="str">Create Pull Request</span> > Fill in details > Submit</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Authentication</div>
+                <p>The extension uses VS Code's built-in GitHub authentication. The first time you use it, VS Code prompts you to sign in to GitHub via the browser. The token is stored securely in VS Code's credential store &mdash; you only sign in once.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Git Keyboard Shortcuts -->
+        <div class="section">
+            <h3>10. Git Keyboard Shortcuts</h3>
+            <p>Efficient Git usage in VS Code means keeping your hands on the keyboard. These are the essential shortcuts to memorize.</p>
+
+            <table class="compare">
+                <tr><th>Shortcut</th><th>Action</th><th>Context</th></tr>
+                <tr><td><code>Ctrl+Shift+G</code></td><td>Open Source Control panel</td><td>Global</td></tr>
+                <tr><td><code>Ctrl+Enter</code></td><td>Commit staged changes</td><td>Source Control input box focused</td></tr>
+                <tr><td><code>Ctrl+Shift+P</code> then <code>git</code></td><td>Access all Git commands</td><td>Global</td></tr>
+                <tr><td><code>Ctrl+K Ctrl+C</code></td><td>Stage selected ranges in diff</td><td>Diff editor (custom keybinding)</td></tr>
+                <tr><td><code>Alt+F5</code></td><td>Navigate to next change in diff</td><td>Diff editor</td></tr>
+                <tr><td><code>Shift+Alt+F5</code></td><td>Navigate to previous change in diff</td><td>Diff editor</td></tr>
+                <tr><td><code>Ctrl+K Ctrl+Shift+S</code></td><td>Stage the current file</td><td>Editor (custom keybinding)</td></tr>
+            </table>
+
+            <h4>Custom Keybindings for Git</h4>
+            <p>Add these to your <code>keybindings.json</code> (<code>Ctrl+Shift+P</code> > <strong>Preferences: Open Keyboard Shortcuts (JSON)</strong>) for faster Git operations:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">keybindings.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>[
+    <span class="comment">// Stage the current file quickly</span>
+    {
+        <span class="str">"key"</span>: <span class="str">"ctrl+shift+s"</span>,
+        <span class="str">"command"</span>: <span class="str">"git.stage"</span>,
+        <span class="str">"when"</span>: <span class="str">"editorTextFocus"</span>
+    },
+    <span class="comment">// Unstage the current file</span>
+    {
+        <span class="str">"key"</span>: <span class="str">"ctrl+shift+u"</span>,
+        <span class="str">"command"</span>: <span class="str">"git.unstage"</span>,
+        <span class="str">"when"</span>: <span class="str">"editorTextFocus"</span>
+    },
+    <span class="comment">// Open Git Graph quickly</span>
+    {
+        <span class="str">"key"</span>: <span class="str">"ctrl+shift+g g"</span>,
+        <span class="str">"command"</span>: <span class="str">"git-graph.view"</span>
+    }
+]</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The Command Palette (<code>Ctrl+Shift+P</code>) is your fallback for any Git operation. Type <code>git</code> and you will see every available command: stash, rebase, cherry-pick, clean, and more. You do not need to memorize shortcuts for rare operations.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: settings.json for Git -->
+        <div class="section">
+            <h3>11. settings.json for Git</h3>
+            <p>VS Code's Git behavior is highly configurable through <code>settings.json</code>. These are the settings that experienced developers tune first.</p>
+
+            <h4>Recommended Git Configuration</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">settings.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+    <span class="comment">// --- Fetch & Sync ---</span>
+
+    <span class="comment">// Auto-fetch from remote every 60 seconds (default: false)</span>
+    <span class="str">"git.autofetch"</span>: <span class="cmd">true</span>,
+    <span class="str">"git.autofetchPeriod"</span>: <span class="file">60</span>,
+
+    <span class="comment">// Confirm before syncing (push/pull)</span>
+    <span class="str">"git.confirmSync"</span>: <span class="cmd">false</span>,
+
+    <span class="comment">// Default branch name for new repos</span>
+    <span class="str">"git.defaultBranchName"</span>: <span class="str">"main"</span>,
+
+
+    <span class="comment">// --- Commit Behavior ---</span>
+
+    <span class="comment">// Prompt to stage all changes if nothing is staged before commit</span>
+    <span class="str">"git.enableSmartCommit"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Open full editor for commit messages</span>
+    <span class="str">"git.useEditorAsCommitInput"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Post-commit action: sync after committing</span>
+    <span class="str">"git.postCommitCommand"</span>: <span class="str">"sync"</span>,
+
+
+    <span class="comment">// --- Diff & Merge ---</span>
+
+    <span class="comment">// Use VS Code as the default diff tool</span>
+    <span class="str">"diffEditor.renderSideBySide"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Ignore whitespace in diffs</span>
+    <span class="str">"diffEditor.ignoreTrimWhitespace"</span>: <span class="cmd">false</span>,
+
+    <span class="comment">// Enable the 3-way merge editor for conflicts</span>
+    <span class="str">"git.mergeEditor"</span>: <span class="cmd">true</span>,
+
+
+    <span class="comment">// --- UI & Display ---</span>
+
+    <span class="comment">// Show git decorations in the Explorer</span>
+    <span class="str">"git.decorations.enabled"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Show the timeline view for file history</span>
+    <span class="str">"timeline.showUncommitted"</span>: <span class="cmd">true</span>,
+
+    <span class="comment">// Badge count mode: "all", "tracked", or "off"</span>
+    <span class="str">"git.countBadge"</span>: <span class="str">"tracked"</span>
+}</code></pre>
+            </div>
+
+            <h4>Setting VS Code as Your Git Editor and Diff Tool</h4>
+            <p>You can configure Git itself (not just VS Code) to use VS Code for editing commit messages, interactive rebases, and diffs:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Set VS Code as your default Git editor</span>
+<span class="cmd">$</span> git config <span class="flag">--global</span> core.editor <span class="str">"code --wait"</span>
+
+<span class="comment"># Set VS Code as your diff tool</span>
+<span class="cmd">$</span> git config <span class="flag">--global</span> diff.tool vscode
+<span class="cmd">$</span> git config <span class="flag">--global</span> difftool.vscode.cmd <span class="str">"code --wait --diff \$LOCAL \$REMOTE"</span>
+
+<span class="comment"># Set VS Code as your merge tool</span>
+<span class="cmd">$</span> git config <span class="flag">--global</span> merge.tool vscode
+<span class="cmd">$</span> git config <span class="flag">--global</span> mergetool.vscode.cmd <span class="str">"code --wait --merge \$REMOTE \$LOCAL \$BASE \$MERGED"</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">The --wait Flag</div>
+                <p>The <code>--wait</code> flag tells the terminal to pause until you close the VS Code tab. Without it, Git thinks you finished instantly and aborts the operation. Always include <code>--wait</code> when using VS Code as a Git editor.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Tips & Workflows -->
+        <div class="section">
+            <h3>12. Tips &amp; Workflows</h3>
+
+            <h4>Commit Message Best Practices</h4>
+            <p>Good commit messages are the difference between a useful history and a useless one. Follow this structure:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Commit Message Format</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="str">Short summary in imperative mood (50 chars or less)</span>
+
+<span class="comment">Blank line separates subject from body.</span>
+
+<span class="str">More detailed explanation if needed. Wrap at 72 characters.
+Explain the WHY, not the WHAT. The diff shows what changed.
+Reference issue numbers at the bottom.</span>
+
+<span class="str">Fixes #42</span>
+<span class="str">Related: #38, #41</span></code></pre>
+            </div>
+
+            <table class="compare">
+                <tr><th>Rule</th><th>Good Example</th><th>Bad Example</th></tr>
+                <tr><td>Imperative mood</td><td><code>Add login validation</code></td><td><code>Added login validation</code></td></tr>
+                <tr><td>50 char subject</td><td><code>Fix null pointer in auth module</code></td><td><code>Fixed the bug where auth module crashes when user object is null on line 247</code></td></tr>
+                <tr><td>Explain why</td><td><code>Increase timeout to handle slow DB queries</code></td><td><code>Change timeout from 5 to 30</code></td></tr>
+                <tr><td>No trailing period</td><td><code>Update dependencies</code></td><td><code>Update dependencies.</code></td></tr>
+            </table>
+
+            <h4>.gitignore from VS Code</h4>
+            <p>Right-click any file in the Explorer and select <strong>Add to .gitignore</strong> to append it to your <code>.gitignore</code> file. If the file doesn't exist yet, VS Code creates it. You can also install the <strong>gitignore</strong> extension (by CodeZombie) to pull templates from GitHub's gitignore collection directly from the Command Palette.</p>
+
+            <h4>Git Stash from VS Code</h4>
+            <p>Stashing lets you shelve uncommitted changes and return to a clean working directory. VS Code has full stash support through the Command Palette:</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Git: Stash</code> <span class="tag">SAVE</span></div>
+                    <p>Stash all uncommitted changes with an optional message</p>
+                    <div class="example">Ctrl+Shift+P > Git: Stash</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Git: Stash (Include Untracked)</code> <span class="tag">FULL SAVE</span></div>
+                    <p>Stash everything, including new files that Git is not yet tracking</p>
+                    <div class="example">Ctrl+Shift+P > Git: Stash (Include Untracked)</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Git: Pop Stash</code> <span class="tag">RESTORE</span></div>
+                    <p>Re-apply the most recent stash and remove it from the stash list</p>
+                    <div class="example">Ctrl+Shift+P > Git: Pop Stash</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Git: Apply Stash</code> <span class="tag">RESTORE + KEEP</span></div>
+                    <p>Re-apply a stash but keep it in the stash list for later use</p>
+                    <div class="example">Ctrl+Shift+P > Git: Apply Stash</div>
+                </div>
+            </div>
+
+            <h4>Terminal vs GUI: When to Use Which</h4>
+            <table class="compare">
+                <tr><th>Use the GUI (Source Control Panel)</th><th>Use the Terminal</th></tr>
+                <tr><td>Staging and committing changes</td><td>Complex rebasing or interactive rebase</td></tr>
+                <tr><td>Reviewing diffs before committing</td><td>Resetting to a specific commit</td></tr>
+                <tr><td>Resolving merge conflicts</td><td>Reflog recovery and advanced troubleshooting</td></tr>
+                <tr><td>Creating and switching branches</td><td>Bisecting to find a bug-introducing commit</td></tr>
+                <tr><td>Stashing and unstashing work</td><td>Scripting and automation (CI/CD pipelines)</td></tr>
+                <tr><td>Reviewing blame and file history</td><td>Submodule management</td></tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The VS Code Git GUI and the terminal are not competing tools &mdash; they are complementary. Use the GUI for visual tasks (diffs, staging hunks, conflict resolution) and the terminal for everything that requires precision or scripting. The best Git users are fluent in both.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Merge diagram interaction
+        const mergeStates = {
+            incoming: {
+                title: 'Incoming (Their Changes)',
+                desc: 'The left pane shows the changes coming from the branch you are merging in. This is the version from the other branch (theirs). It highlights what they changed relative to the common ancestor.'
+            },
+            current: {
+                title: 'Current (Your Changes)',
+                desc: 'The right pane shows your version &mdash; the changes on your current branch. It highlights what you changed relative to the common ancestor. Conflicts appear where both sides modified the same lines.'
+            },
+            result: {
+                title: 'Result (Final Output)',
+                desc: 'The bottom pane is the merge result. This is what the file will look like after you resolve all conflicts. You can click checkboxes to accept incoming or current changes, or edit the result directly for a custom resolution.'
+            }
+        };
+
+        function showMerge(id) {
+            document.querySelectorAll('#mergeDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const s = mergeStates[id];
+            document.getElementById('mergeDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-5'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-5-vscode-git', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first merge state
+        showMerge('incoming');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-5']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

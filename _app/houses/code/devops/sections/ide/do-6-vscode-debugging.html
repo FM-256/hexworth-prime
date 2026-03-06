@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VS Code — Debugging & Tasks - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-terminal.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-6</span>
+            <h1>VS Code &mdash; Debugging &amp; Tasks</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; IDE Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-terminal.webp" alt="">
+            <h2>VS Code &mdash; Debugging &amp; Tasks</h2>
+            <p class="hero-sub">Stop guessing with <code>console.log</code>. Learn to set breakpoints, inspect state, automate builds, and debug anything from Node.js to Docker containers.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~40 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-target.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Navigate the Run and Debug panel and understand launch configurations</li>
+                <li>Set regular, conditional, logpoint, and exception breakpoints</li>
+                <li>Use debug controls to step through code execution precisely</li>
+                <li>Inspect variables, watch expressions, and the call stack</li>
+                <li>Write <code>launch.json</code> configurations for Node.js, Python, browsers, and Docker</li>
+                <li>Configure compound launches to debug multi-process applications</li>
+                <li>Build <code>tasks.json</code> configurations for shell commands, build scripts, and test runners</li>
+                <li>Chain pre-launch tasks to compile or build before debugging</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: The Debug View -->
+        <div class="section">
+            <h3>1. The Debug View</h3>
+            <p>The Run and Debug panel is your command center for interactive debugging. Open it with <code>Ctrl+Shift+D</code> (or <code>Cmd+Shift+D</code> on macOS). If you have never configured debugging for a workspace, you will see a "Run and Debug" button and a link to create a <code>launch.json</code> file.</p>
+
+            <h4>Panel Anatomy</h4>
+            <p>The sidebar is divided into collapsible sections, each showing a different dimension of your program's runtime state.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Variables</span>
+                    <span>Local, closure, and global variables for the current scope</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Watch</span>
+                    <span>Custom expressions you want to monitor across execution</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Call Stack</span>
+                    <span>The chain of function calls that led to the current line</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Breakpoints</span>
+                    <span>All breakpoints across your workspace, togglable from here</span>
+                </div>
+            </div>
+
+            <h4>The Debug Console</h4>
+            <p>Below the editor (or in the panel area), the Debug Console provides a REPL tied to the paused execution context. You can evaluate expressions, call functions, and even modify variables at runtime. Open it with <code>Ctrl+Shift+Y</code>.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The Debug Console evaluates expressions in the current scope of the paused frame. If you are stopped inside a function, you have access to that function's local variables, closures, and <code>this</code> context &mdash; just like the code itself would.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Breakpoints -->
+        <div class="section">
+            <h3>2. Breakpoints</h3>
+            <p>A breakpoint tells the debugger to pause execution at a specific line. Click in the gutter (the margin left of line numbers) to toggle a red dot. But VS Code supports far more than simple line breakpoints.</p>
+
+            <h4>Breakpoint Types</h4>
+            <table class="compare">
+                <tr><th>Type</th><th>How to Set</th><th>Behavior</th></tr>
+                <tr><td><strong>Regular</strong></td><td>Click gutter or <code>F9</code></td><td>Pauses every time execution hits that line</td></tr>
+                <tr><td><strong>Conditional</strong></td><td>Right-click gutter &rarr; "Conditional Breakpoint"</td><td>Pauses only when expression is <code>true</code></td></tr>
+                <tr><td><strong>Hit Count</strong></td><td>Right-click gutter &rarr; "Hit Count"</td><td>Pauses after N hits</td></tr>
+                <tr><td><strong>Logpoint</strong></td><td>Right-click gutter &rarr; "Add Logpoint"</td><td>Logs to Debug Console without pausing</td></tr>
+                <tr><td><strong>Exception</strong></td><td>Breakpoints panel &rarr; checkboxes</td><td>Pauses on caught, uncaught, or all exceptions</td></tr>
+                <tr><td><strong>Function</strong></td><td>Breakpoints panel &rarr; "+" &rarr; enter name</td><td>Pauses when the named function is called</td></tr>
+                <tr><td><strong>Inline</strong></td><td><code>Shift+F9</code> on multi-statement lines</td><td>Breaks at a specific expression in a chain</td></tr>
+            </table>
+
+            <h4>Conditional Breakpoints in Practice</h4>
+            <p>Conditional breakpoints are indispensable for debugging loops. Instead of stepping through 500 iterations looking for the bad one, set a condition:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Breakpoint Condition</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// Pause only when i === 247</span>
+<span class="str">i === 247</span>
+
+<span class="comment">// Pause when user object has no email</span>
+<span class="str">user.email === undefined</span>
+
+<span class="comment">// Pause when array length exceeds expected max</span>
+<span class="str">results.length > 100</span>
+
+<span class="comment">// Pause on a specific HTTP status</span>
+<span class="str">response.status === 500</span></code></pre>
+            </div>
+
+            <h4>Logpoints &mdash; printf Debugging Without the Mess</h4>
+            <p>Logpoints let you inject log statements into running code without modifying files. The message supports curly-brace expressions that are evaluated at runtime:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Logpoint Message</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// Logpoint on line 42 of server.js</span>
+<span class="str">Request: {req.method} {req.url} from {req.ip}</span>
+
+<span class="comment">// Logpoint inside a loop</span>
+<span class="str">Processing item {i}/{items.length}: {items[i].name}</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">When to Use Logpoints</div>
+                <p>Logpoints are ideal for production-like environments or when pausing execution would cause timeouts (WebSocket servers, real-time apps). They output to the Debug Console without stopping the process.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Debug Controls -->
+        <div class="section">
+            <h3>3. Debug Controls</h3>
+            <p>When execution is paused at a breakpoint, a floating toolbar appears at the top of the editor with six controls. Mastering these is the difference between effective debugging and aimless stepping.</p>
+
+            <table class="compare">
+                <tr><th>Control</th><th>Shortcut</th><th>What It Does</th></tr>
+                <tr><td><strong>Continue</strong></td><td><code>F5</code></td><td>Resume until next breakpoint or end</td></tr>
+                <tr><td><strong>Step Over</strong></td><td><code>F10</code></td><td>Execute current line, skip into functions</td></tr>
+                <tr><td><strong>Step Into</strong></td><td><code>F11</code></td><td>Jump inside the function being called</td></tr>
+                <tr><td><strong>Step Out</strong></td><td><code>Shift+F11</code></td><td>Finish current function, pause at caller</td></tr>
+                <tr><td><strong>Restart</strong></td><td><code>Ctrl+Shift+F5</code></td><td>Stop and start a fresh session</td></tr>
+                <tr><td><strong>Stop</strong></td><td><code>Shift+F5</code></td><td>Terminate the debug session</td></tr>
+            </table>
+
+            <div class="diagram" id="controlsDiagram">
+                <div class="diagram-box" onclick="showControl('stepover')" id="box-stepover">
+                    <div class="diagram-box-title">Step Over</div>
+                    <div class="diagram-box-sub">F10</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showControl('stepinto')" id="box-stepinto">
+                    <div class="diagram-box-title">Step Into</div>
+                    <div class="diagram-box-sub">F11</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showControl('stepout')" id="box-stepout">
+                    <div class="diagram-box-title">Step Out</div>
+                    <div class="diagram-box-sub">Shift+F11</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="controlDetail">Click a control above to see when to use it.</div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Mental Model</div>
+                <p><strong>Step Over</strong> = stay at the same depth. <strong>Step Into</strong> = go deeper. <strong>Step Out</strong> = come back up. Think of it as navigating the call stack &mdash; you choose whether to descend, stay, or ascend.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Variables & Watch -->
+        <div class="section">
+            <h3>4. Variables &amp; Watch</h3>
+            <p>When paused, the Variables panel shows every variable in scope, grouped by category and updating in real time as you step.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Local</span>
+                    <span>Variables declared in the current function or block</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Closure</span>
+                    <span>Variables captured from enclosing scopes</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Global</span>
+                    <span>Top-level variables (<code>window</code>, <code>global</code>, <code>process</code>)</span>
+                </div>
+            </div>
+
+            <p>While paused, <strong>hover</strong> over any variable in the editor to see its value in a tooltip &mdash; works for nested properties like <code>user.address.city</code>. <strong>Double-click</strong> a variable's value in the panel to edit it inline, letting you test "what if" scenarios without restarting.</p>
+
+            <h4>Watch Expressions</h4>
+            <p>The Watch panel tracks custom expressions that re-evaluate every time execution pauses:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Watch Expression Examples</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="str">user.roles.length</span>                                    <span class="comment">// property</span>
+<span class="str">items.filter(i => i.status === 'active').length</span>      <span class="comment">// computed</span>
+<span class="str">Object.keys(config)</span>                                  <span class="comment">// shape</span>
+<span class="str">typeof response.data</span>                                 <span class="comment">// type check</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Side Effects in Watch</div>
+                <p>Expressions with side effects run on every pause. Adding <code>array.pop()</code> to Watch will remove an element on every step &mdash; stick to read-only expressions.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Call Stack -->
+        <div class="section">
+            <h3>5. Call Stack</h3>
+            <p>The Call Stack panel shows the chain of function calls that led to the current execution point. Each entry (called a "frame") represents one function invocation. Click any frame to jump to that location and inspect its local variables.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Example Call Stack</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// Reading bottom-to-top (most recent call at the top):</span>
+
+<span class="output">validateEmail          </span>  <span class="file">validators.js:34</span>   <span class="comment">&larr; paused here</span>
+<span class="output">processRegistration    </span>  <span class="file">auth.js:112</span>
+<span class="output">handleFormSubmit       </span>  <span class="file">form.js:78</span>
+<span class="output">addEventListener       </span>  <span class="file">[native code]</span>
+
+<span class="comment">// The submit handler called processRegistration,</span>
+<span class="comment">// which called validateEmail, where we hit a breakpoint.</span></code></pre>
+            </div>
+
+            <h4>Navigating Frames</h4>
+            <p>When you click a different frame in the Call Stack, the Variables panel and editor both update to show that frame's context. This lets you trace backward: "What arguments did the calling function pass?" &mdash; without adding breakpoints everywhere.</p>
+
+            <h4>Multi-Session Debugging</h4>
+            <p>When running compound launch configurations (covered in section 7), the Call Stack panel shows separate threads for each debug session. Each session has its own collapsible section with independent frames, and you can switch between them freely.</p>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Grayed-Out Frames</div>
+                <p>Some frames appear grayed out &mdash; these are from external libraries or internal runtime code. VS Code dims them because they are usually not code you wrote. You can still click them to inspect, but <strong>Step Into</strong> will skip these by default unless you uncheck "Skip Stepping Through Library Code" in settings.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: launch.json Deep Dive -->
+        <div class="section">
+            <h3>6. launch.json Deep Dive</h3>
+            <p>The <code>.vscode/launch.json</code> file defines how VS Code starts and connects to your program. Each entry in the <code>configurations</code> array is a named debug profile that appears in the dropdown at the top of the Run and Debug panel.</p>
+
+            <h4>Node.js &mdash; Launch</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">launch.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"version"</span>: <span class="str">"0.2.0"</span>,
+  <span class="str">"configurations"</span>: [
+    {
+      <span class="str">"name"</span>: <span class="str">"Launch Node App"</span>,
+      <span class="str">"type"</span>: <span class="str">"node"</span>,
+      <span class="str">"request"</span>: <span class="str">"launch"</span>,
+      <span class="str">"program"</span>: <span class="str">"${workspaceFolder}/src/index.js"</span>,
+      <span class="str">"cwd"</span>: <span class="str">"${workspaceFolder}"</span>,
+      <span class="str">"env"</span>: {
+        <span class="str">"NODE_ENV"</span>: <span class="str">"development"</span>,
+        <span class="str">"PORT"</span>: <span class="str">"3000"</span>
+      },
+      <span class="str">"console"</span>: <span class="str">"integratedTerminal"</span>,
+      <span class="str">"skipFiles"</span>: [<span class="str">"&lt;node_internals&gt;/**"</span>]
+    }
+  ]
+}</code></pre>
+            </div>
+
+            <h4>Node.js &mdash; Attach</h4>
+            <p>Instead of launching a new process, attach to one that is already running with <code>--inspect</code>:</p>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">launch.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"name"</span>: <span class="str">"Attach to Node"</span>,
+  <span class="str">"type"</span>: <span class="str">"node"</span>,
+  <span class="str">"request"</span>: <span class="str">"attach"</span>,
+  <span class="str">"port"</span>: <span class="flag">9229</span>,
+  <span class="str">"restart"</span>: <span class="flag">true</span>,
+  <span class="str">"skipFiles"</span>: [<span class="str">"&lt;node_internals&gt;/**"</span>]
+}</code></pre>
+            </div>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Start your app with the inspect flag</span>
+<span class="cmd">$</span> node <span class="flag">--inspect</span> src/index.js
+<span class="output">Debugger listening on ws://127.0.0.1:9229/...</span>
+
+<span class="comment"># Or with nodemon for auto-restart</span>
+<span class="cmd">$</span> nodemon <span class="flag">--inspect</span> src/index.js</code></pre>
+            </div>
+
+            <h4>Python</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">launch.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"name"</span>: <span class="str">"Python: Current File"</span>,
+  <span class="str">"type"</span>: <span class="str">"debugpy"</span>,
+  <span class="str">"request"</span>: <span class="str">"launch"</span>,
+  <span class="str">"program"</span>: <span class="str">"${file}"</span>,
+  <span class="str">"console"</span>: <span class="str">"integratedTerminal"</span>,
+  <span class="str">"justMyCode"</span>: <span class="flag">true</span>,
+  <span class="str">"args"</span>: [<span class="str">"--verbose"</span>, <span class="str">"--config"</span>, <span class="str">"dev.yaml"</span>]
+}</code></pre>
+            </div>
+
+            <h4>Browser JavaScript (Chrome)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">launch.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"name"</span>: <span class="str">"Launch Chrome"</span>,
+  <span class="str">"type"</span>: <span class="str">"chrome"</span>,
+  <span class="str">"request"</span>: <span class="str">"launch"</span>,
+  <span class="str">"url"</span>: <span class="str">"http://localhost:3000"</span>,
+  <span class="str">"webRoot"</span>: <span class="str">"${workspaceFolder}/src"</span>,
+  <span class="str">"sourceMaps"</span>: <span class="flag">true</span>,
+  <span class="str">"sourceMapPathOverrides"</span>: {
+    <span class="str">"webpack:///src/*"</span>: <span class="str">"${webRoot}/*"</span>
+  }
+}</code></pre>
+            </div>
+
+            <h4>Docker Attach</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">launch.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"name"</span>: <span class="str">"Docker: Attach to Node"</span>,
+  <span class="str">"type"</span>: <span class="str">"node"</span>,
+  <span class="str">"request"</span>: <span class="str">"attach"</span>,
+  <span class="str">"port"</span>: <span class="flag">9229</span>,
+  <span class="str">"address"</span>: <span class="str">"localhost"</span>,
+  <span class="str">"localRoot"</span>: <span class="str">"${workspaceFolder}"</span>,
+  <span class="str">"remoteRoot"</span>: <span class="str">"/app"</span>,
+  <span class="str">"restart"</span>: <span class="flag">true</span>,
+  <span class="str">"skipFiles"</span>: [<span class="str">"&lt;node_internals&gt;/**"</span>]
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Properties Explained</div>
+                <p><code>request</code>: either <code>"launch"</code> (VS Code starts the process) or <code>"attach"</code> (connect to a running process). <code>skipFiles</code>: glob patterns for code the debugger should step over. <code>${workspaceFolder}</code>: VS Code variable for the opened folder root. <code>localRoot</code>/<code>remoteRoot</code>: path mapping for Docker/remote debugging.</p>
+            </div>
+
+            <h4>Common Variables in launch.json</h4>
+            <table class="compare">
+                <tr><th>Variable</th><th>Resolves To</th></tr>
+                <tr><td><code>${workspaceFolder}</code></td><td>Root path of the opened workspace</td></tr>
+                <tr><td><code>${file}</code></td><td>The currently open file</td></tr>
+                <tr><td><code>${fileBasename}</code></td><td>Filename without the path</td></tr>
+                <tr><td><code>${fileDirname}</code></td><td>Directory of the current file</td></tr>
+                <tr><td><code>${env:VAR_NAME}</code></td><td>Environment variable from your shell</td></tr>
+                <tr><td><code>${input:name}</code></td><td>Prompts the user for input when launching</td></tr>
+            </table>
+        </div>
+
+        <!-- Section 7: Compound Launch -->
+        <div class="section">
+            <h3>7. Compound Launch Configurations</h3>
+            <p>Real applications often require multiple processes: a backend API, a frontend dev server, a worker queue, a database watcher. Compound configurations launch them all at once.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">launch.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"version"</span>: <span class="str">"0.2.0"</span>,
+  <span class="str">"configurations"</span>: [
+    {
+      <span class="str">"name"</span>: <span class="str">"API Server"</span>,
+      <span class="str">"type"</span>: <span class="str">"node"</span>,
+      <span class="str">"request"</span>: <span class="str">"launch"</span>,
+      <span class="str">"program"</span>: <span class="str">"${workspaceFolder}/api/server.js"</span>,
+      <span class="str">"env"</span>: { <span class="str">"PORT"</span>: <span class="str">"4000"</span> }
+    },
+    {
+      <span class="str">"name"</span>: <span class="str">"Frontend Dev"</span>,
+      <span class="str">"type"</span>: <span class="str">"chrome"</span>,
+      <span class="str">"request"</span>: <span class="str">"launch"</span>,
+      <span class="str">"url"</span>: <span class="str">"http://localhost:3000"</span>,
+      <span class="str">"webRoot"</span>: <span class="str">"${workspaceFolder}/client/src"</span>
+    },
+    {
+      <span class="str">"name"</span>: <span class="str">"Worker"</span>,
+      <span class="str">"type"</span>: <span class="str">"node"</span>,
+      <span class="str">"request"</span>: <span class="str">"launch"</span>,
+      <span class="str">"program"</span>: <span class="str">"${workspaceFolder}/worker/index.js"</span>
+    }
+  ],
+  <span class="str">"compounds"</span>: [
+    {
+      <span class="str">"name"</span>: <span class="str">"Full Stack"</span>,
+      <span class="str">"configurations"</span>: [<span class="str">"API Server"</span>, <span class="str">"Frontend Dev"</span>, <span class="str">"Worker"</span>],
+      <span class="str">"stopAll"</span>: <span class="flag">true</span>
+    }
+  ]
+}</code></pre>
+            </div>
+
+            <p>Select "Full Stack" from the debug dropdown and press <code>F5</code>. VS Code launches all three configurations simultaneously. The <code>stopAll: true</code> property means stopping any session stops them all &mdash; clean teardown.</p>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Compound + preLaunchTask</div>
+                <p>Each individual configuration inside a compound can have its own <code>preLaunchTask</code>. This means your API server can compile TypeScript before starting, while the frontend launches instantly. Each runs its own task chain independently.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Debug Console -->
+        <div class="section">
+            <h3>8. Debug Console &mdash; The Runtime REPL</h3>
+            <p>The Debug Console (<code>Ctrl+Shift+Y</code>) is a full REPL that executes in the context of your paused program. Anything you can do in code, you can do here interactively.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Inspect values</code> <span class="tag">READ</span></div>
+                    <p>Type any variable name or expression to see its value</p>
+                    <div class="example">user.permissions</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Call functions</code> <span class="tag">EXECUTE</span></div>
+                    <p>Invoke any function in scope, including your own</p>
+                    <div class="example">validateInput(testData)</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Modify state</code> <span class="tag">WRITE</span></div>
+                    <p>Change variables to test different code paths</p>
+                    <div class="example">isAdmin = true</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Evaluate complex</code> <span class="tag">COMPUTE</span></div>
+                    <p>Run multi-step computations to understand state</p>
+                    <div class="example">arr.filter(x => x > 10).map(x => x * 2)</div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Debug Console vs Terminal</div>
+                <p>The Debug Console runs <em>inside</em> the debugged process. The integrated terminal is a separate shell. OS commands go in the terminal; live program interaction goes in the Debug Console.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Tasks System -->
+        <div class="section">
+            <h3>9. The Tasks System</h3>
+            <p>Tasks automate repetitive shell commands: building, testing, linting, deploying. Instead of switching to the terminal and typing <code>npm run build</code>, define it once in <code>.vscode/tasks.json</code> and run it with a keyboard shortcut or the command palette.</p>
+
+            <p>Open the tasks runner with <code>Ctrl+Shift+B</code> (default build task) or <code>Ctrl+Shift+P</code> &rarr; "Tasks: Run Task" for the full list.</p>
+
+            <h4>Basic tasks.json</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">tasks.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"version"</span>: <span class="str">"2.0.0"</span>,
+  <span class="str">"tasks"</span>: [
+    {
+      <span class="str">"label"</span>: <span class="str">"Build TypeScript"</span>,
+      <span class="str">"type"</span>: <span class="str">"shell"</span>,
+      <span class="str">"command"</span>: <span class="str">"npx tsc --build"</span>,
+      <span class="str">"group"</span>: {
+        <span class="str">"kind"</span>: <span class="str">"build"</span>,
+        <span class="str">"isDefault"</span>: <span class="flag">true</span>
+      },
+      <span class="str">"presentation"</span>: {
+        <span class="str">"reveal"</span>: <span class="str">"silent"</span>,
+        <span class="str">"panel"</span>: <span class="str">"shared"</span>
+      },
+      <span class="str">"problemMatcher"</span>: [<span class="str">"$tsc"</span>]
+    },
+    {
+      <span class="str">"label"</span>: <span class="str">"Run Tests"</span>,
+      <span class="str">"type"</span>: <span class="str">"shell"</span>,
+      <span class="str">"command"</span>: <span class="str">"npm test"</span>,
+      <span class="str">"group"</span>: <span class="str">"test"</span>,
+      <span class="str">"problemMatcher"</span>: []
+    },
+    {
+      <span class="str">"label"</span>: <span class="str">"Lint"</span>,
+      <span class="str">"type"</span>: <span class="str">"shell"</span>,
+      <span class="str">"command"</span>: <span class="str">"npx eslint src/ --format stylish"</span>,
+      <span class="str">"problemMatcher"</span>: [<span class="str">"$eslint-stylish"</span>]
+    }
+  ]
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Problem Matchers</div>
+                <p>Problem matchers parse task output and create entries in the Problems panel. Use built-in matchers like <code>$tsc</code>, <code>$eslint-stylish</code>, <code>$gcc</code>, or define custom regex patterns. When a task reports errors through a problem matcher, you can click the error to jump directly to the offending line.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Task Types -->
+        <div class="section">
+            <h3>10. Task Types &amp; Configuration</h3>
+            <p>VS Code supports several task types, each optimized for different workflows.</p>
+
+            <table class="compare">
+                <tr><th>Type</th><th>Description</th><th>Example</th></tr>
+                <tr><td><code>shell</code></td><td>Runs in system shell (bash, cmd, PowerShell)</td><td><code>"command": "gcc -o app main.c"</code></td></tr>
+                <tr><td><code>process</code></td><td>Direct process, no shell interpretation</td><td><code>"command": "node", "args": ["build.js"]</code></td></tr>
+                <tr><td><code>npm</code></td><td>npm script (auto-detected from package.json)</td><td><code>"script": "build"</code></td></tr>
+                <tr><td><code>typescript</code></td><td>Built-in TS compilation</td><td>Auto-detected from <code>tsconfig.json</code></td></tr>
+            </table>
+
+            <h4>Presentation &amp; Background Tasks</h4>
+            <p>Control how the task terminal behaves with the <code>presentation</code> object. For long-running watchers, set <code>isBackground: true</code>:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">tasks.json — Background Task</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"label"</span>: <span class="str">"Watch Mode"</span>,
+  <span class="str">"type"</span>: <span class="str">"shell"</span>,
+  <span class="str">"command"</span>: <span class="str">"npm run watch"</span>,
+  <span class="str">"isBackground"</span>: <span class="flag">true</span>,
+  <span class="str">"presentation"</span>: {
+    <span class="str">"reveal"</span>: <span class="str">"always"</span>,    <span class="comment">// always | silent | never</span>
+    <span class="str">"panel"</span>: <span class="str">"dedicated"</span>,   <span class="comment">// shared | dedicated | new</span>
+    <span class="str">"clear"</span>: <span class="flag">true</span>
+  },
+  <span class="str">"problemMatcher"</span>: [<span class="str">"$tsc-watch"</span>]
+}</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 11: Pre-Launch Tasks -->
+        <div class="section">
+            <h3>11. Pre-Launch Tasks</h3>
+            <p>The <code>preLaunchTask</code> property in <code>launch.json</code> links a task to a debug configuration. The task runs first &mdash; and if it fails, the debug session does not start. This is how you compile TypeScript, build Docker images, or run database migrations before debugging.</p>
+
+            <h4>TypeScript Compile-Then-Debug</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">tasks.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"version"</span>: <span class="str">"2.0.0"</span>,
+  <span class="str">"tasks"</span>: [
+    {
+      <span class="str">"label"</span>: <span class="str">"tsc-compile"</span>,
+      <span class="str">"type"</span>: <span class="str">"shell"</span>,
+      <span class="str">"command"</span>: <span class="str">"npx tsc --build"</span>,
+      <span class="str">"group"</span>: <span class="str">"build"</span>,
+      <span class="str">"problemMatcher"</span>: [<span class="str">"$tsc"</span>]
+    }
+  ]
+}</code></pre>
+            </div>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">launch.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"name"</span>: <span class="str">"Debug TS App"</span>,
+  <span class="str">"type"</span>: <span class="str">"node"</span>,
+  <span class="str">"request"</span>: <span class="str">"launch"</span>,
+  <span class="str">"program"</span>: <span class="str">"${workspaceFolder}/dist/index.js"</span>,
+  <span class="str">"preLaunchTask"</span>: <span class="str">"tsc-compile"</span>,
+  <span class="str">"outFiles"</span>: [<span class="str">"${workspaceFolder}/dist/**/*.js"</span>],
+  <span class="str">"sourceMaps"</span>: <span class="flag">true</span>
+}</code></pre>
+            </div>
+
+            <h4>Docker Build-Then-Attach</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">tasks.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"version"</span>: <span class="str">"2.0.0"</span>,
+  <span class="str">"tasks"</span>: [
+    {
+      <span class="str">"label"</span>: <span class="str">"docker-build-run"</span>,
+      <span class="str">"type"</span>: <span class="str">"shell"</span>,
+      <span class="str">"command"</span>: <span class="str">"docker compose up -d --build api"</span>,
+      <span class="str">"problemMatcher"</span>: [],
+      <span class="str">"isBackground"</span>: <span class="flag">true</span>,
+      <span class="str">"presentation"</span>: { <span class="str">"reveal"</span>: <span class="str">"silent"</span> }
+    }
+  ]
+}</code></pre>
+            </div>
+
+            <h4>Task Dependencies (Chaining)</h4>
+            <p>Tasks can depend on other tasks. Use <code>dependsOn</code> to create chains that execute sequentially or in parallel:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">tasks.json — Task Chain</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"label"</span>: <span class="str">"Full Build"</span>,
+  <span class="str">"dependsOn"</span>: [<span class="str">"Clean"</span>, <span class="str">"Compile"</span>, <span class="str">"Copy Assets"</span>],
+  <span class="str">"dependsOrder"</span>: <span class="str">"sequence"</span>,  <span class="comment">// or "parallel"</span>
+  <span class="str">"problemMatcher"</span>: []
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Full Pipeline</div>
+                <p>A typical professional setup: <code>preLaunchTask</code> points to a compound task that cleans the dist folder, compiles TypeScript, copies static assets, and runs a health check &mdash; all in sequence. Only when every step succeeds does the debugger start.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Debugging Tips -->
+        <div class="section">
+            <h3>12. Debugging Tips &amp; Common Gotchas</h3>
+
+            <h4>Attach vs Launch</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Launch</span>
+                    <span>VS Code starts the process. Full control over environment, arguments, and lifecycle. Best for local development.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Attach</span>
+                    <span>VS Code connects to an already-running process. Required for Docker, remote servers, and processes started by other tools.</span>
+                </div>
+            </div>
+
+            <h4>Source Maps</h4>
+            <p>If you are debugging compiled code (TypeScript, bundled JavaScript, transpiled JSX), source maps are essential. Without them, breakpoints land in the compiled output, not your source files.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">tsconfig.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"compilerOptions"</span>: {
+    <span class="str">"sourceMap"</span>: <span class="flag">true</span>,
+    <span class="str">"outDir"</span>: <span class="str">"./dist"</span>,
+    <span class="str">"rootDir"</span>: <span class="str">"./src"</span>
+  }
+}</code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Breakpoints Not Binding</div>
+                <p>If breakpoints turn gray and say "Unverified", check: (1) Source maps are enabled and generated. (2) <code>outFiles</code> in launch.json points to the compiled output. (3) The <code>webRoot</code> or <code>localRoot</code> path matches your project structure. (4) You are not setting breakpoints in a file the runtime never actually loads.</p>
+            </div>
+
+            <h4>Remote Debugging</h4>
+            <p>To debug a Node.js process on a remote server, forward the debug port over SSH and attach locally:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># On the remote server, start with --inspect</span>
+<span class="cmd">$</span> node <span class="flag">--inspect=0.0.0.0:9229</span> app.js
+
+<span class="comment"># On your local machine, forward the port</span>
+<span class="cmd">$</span> ssh <span class="flag">-L</span> 9229:localhost:9229 user@remote-server
+
+<span class="comment"># Then use an "attach" configuration pointing to localhost:9229</span></code></pre>
+            </div>
+
+            <h4>Common Gotchas</h4>
+            <table class="compare">
+                <tr><th>Problem</th><th>Cause</th><th>Fix</th></tr>
+                <tr><td>Breakpoints gray / unverified</td><td>Source maps missing or path mismatch</td><td>Enable <code>sourceMap: true</code>, check <code>outFiles</code></td></tr>
+                <tr><td>Breakpoints hit wrong line</td><td>Stale compiled output</td><td>Clean <code>dist/</code> and recompile</td></tr>
+                <tr><td>Variables show "undefined"</td><td>Code optimized by compiler</td><td>Disable minification in dev builds</td></tr>
+                <tr><td>Cannot attach to Docker</td><td>Debug port not exposed</td><td>Add <code>ports: ["9229:9229"]</code> in docker-compose</td></tr>
+                <tr><td>"connect ECONNREFUSED"</td><td>No <code>--inspect</code> flag</td><td>Add <code>--inspect</code> or use launch mode</td></tr>
+                <tr><td>preLaunchTask fails silently</td><td>Task label mismatch</td><td>Verify <code>label</code> in tasks.json matches exactly</td></tr>
+            </table>
+
+            <h4>Essential Keyboard Shortcuts</h4>
+            <table class="compare">
+                <tr><th>Action</th><th>Shortcut</th></tr>
+                <tr><td>Start / Continue</td><td><code>F5</code></td></tr>
+                <tr><td>Stop</td><td><code>Shift+F5</code></td></tr>
+                <tr><td>Restart</td><td><code>Ctrl+Shift+F5</code></td></tr>
+                <tr><td>Toggle Breakpoint</td><td><code>F9</code></td></tr>
+                <tr><td>Inline Breakpoint</td><td><code>Shift+F9</code></td></tr>
+                <tr><td>Step Over / Into / Out</td><td><code>F10</code> / <code>F11</code> / <code>Shift+F11</code></td></tr>
+                <tr><td>Debug Console</td><td><code>Ctrl+Shift+Y</code></td></tr>
+                <tr><td>Run Build Task</td><td><code>Ctrl+Shift+B</code></td></tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Debugging Mindset</div>
+                <p>The debugger is not a last resort &mdash; it is your first tool. Before adding <code>console.log</code>, set a breakpoint. Before guessing at state, inspect it. Before rewriting code, step through it. The ten minutes you spend learning the debugger will save you hundreds of hours of guessing.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Debug controls diagram interaction
+        const controls = {
+            stepover: {
+                title: 'Step Over (F10)',
+                desc: 'Executes the current line in full and stops at the next line. If the current line calls a function, that function runs to completion without stopping inside it. Use this when you trust the called function and want to stay at the same depth in the call stack.'
+            },
+            stepinto: {
+                title: 'Step Into (F11)',
+                desc: 'If the current line calls a function, the debugger jumps inside that function and pauses at its first line. Use this when you need to understand what happens inside a specific function call &mdash; particularly useful for tracing data transformations or finding where a value goes wrong.'
+            },
+            stepout: {
+                title: 'Step Out (Shift+F11)',
+                desc: 'Runs the rest of the current function and pauses at the line that called it. Use this when you have stepped into a function, seen what you needed, and want to return to the calling context without manually stepping through every remaining line.'
+            }
+        };
+
+        function showControl(id) {
+            document.querySelectorAll('#controlsDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const c = controls[id];
+            document.getElementById('controlDetail').innerHTML = '<strong>' + c.title + '</strong><br>' + c.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-6'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-6-vscode-debugging', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first control
+        showControl('stepover');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-6']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

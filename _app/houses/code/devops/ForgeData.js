@@ -117,14 +117,14 @@ const ForgeData = {
             description: 'Master your editor — VS Code deep dive, extensions, remote development, and terminal integration.',
             color: '#10b981',
             modules: [
-                { id: 'do-4', title: 'VS Code — Interface & Core Features', type: 'module', status: 'coming-soon', sprint: 'DO-4' },
-                { id: 'do-5', title: 'VS Code — Git Integration', type: 'module', status: 'coming-soon', sprint: 'DO-5' },
-                { id: 'do-6', title: 'VS Code — Debugging & Tasks', type: 'module', status: 'coming-soon', sprint: 'DO-6' },
-                { id: 'do-43', title: 'File Management & Project Structure', type: 'module', status: 'coming-soon', sprint: 'DO-43' },
-                { id: 'do-44', title: 'File Types, Extensions & Language Support', type: 'module', status: 'coming-soon', sprint: 'DO-44' },
-                { id: 'do-45', title: 'Remote Development — SSH, WSL, Containers', type: 'module', status: 'coming-soon', sprint: 'DO-45' },
-                { id: 'do-46', title: 'DevOps Extensions Toolkit', type: 'module', status: 'coming-soon', sprint: 'DO-46' },
-                { id: 'do-47', title: 'VS Code Tips, Tricks & Shortcuts', type: 'module', status: 'coming-soon', sprint: 'DO-47' }
+                { id: 'do-4', title: 'VS Code — Interface & Core Features', type: 'module', status: 'ready', sprint: 'DO-4', href: 'do-4-vscode-interface.html' },
+                { id: 'do-5', title: 'VS Code — Git Integration', type: 'module', status: 'ready', sprint: 'DO-5', href: 'do-5-vscode-git.html' },
+                { id: 'do-6', title: 'VS Code — Debugging & Tasks', type: 'module', status: 'ready', sprint: 'DO-6', href: 'do-6-vscode-debugging.html' },
+                { id: 'do-43', title: 'File Management & Project Structure', type: 'module', status: 'ready', sprint: 'DO-43', href: 'do-43-file-management.html' },
+                { id: 'do-44', title: 'File Types, Extensions & Language Support', type: 'module', status: 'ready', sprint: 'DO-44', href: 'do-44-file-types.html' },
+                { id: 'do-45', title: 'Remote Development — SSH, WSL, Containers', type: 'module', status: 'ready', sprint: 'DO-45', href: 'do-45-remote-dev.html' },
+                { id: 'do-46', title: 'DevOps Extensions Toolkit', type: 'module', status: 'ready', sprint: 'DO-46', href: 'do-46-devops-extensions.html' },
+                { id: 'do-47', title: 'VS Code Tips, Tricks & Shortcuts', type: 'module', status: 'ready', sprint: 'DO-47', href: 'do-47-vscode-tips.html' }
             ]
         },
 

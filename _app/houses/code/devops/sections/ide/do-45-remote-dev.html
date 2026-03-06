@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Development — SSH, WSL, Containers - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-network.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #10b981; --forge-dim: rgba(16, 185, 129, 0.12); --forge-glow: rgba(16, 185, 129, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(16,185,129,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #059669); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-45</span>
+            <h1>Remote Development</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; IDE Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-network.webp" alt="">
+            <h2>Remote Development</h2>
+            <p class="hero-sub">Edit locally, run remotely. Consistent environments across SSH, WSL, containers, and cloud-hosted workspaces &mdash; all from a single editor window.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~40 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-network.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain the VS Code Remote architecture and how it separates UI from execution</li>
+                <li>Connect to remote machines via SSH with proper key-based authentication</li>
+                <li>Develop inside WSL with awareness of file system boundaries and performance</li>
+                <li>Build and use Dev Containers with <code>devcontainer.json</code> configuration</li>
+                <li>Set up VS Code Tunnels for browser-based access from anywhere</li>
+                <li>Provision GitHub Codespaces with prebuilds and dotfile integration</li>
+                <li>Configure port forwarding, extension management, and file system mounts for remote workflows</li>
+                <li>Choose the right remote strategy for a given use case based on cost, latency, and isolation needs</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Why Remote Development? -->
+        <div class="section">
+            <h3>1. Why Remote Development?</h3>
+            <p>Traditional development assumes your code runs on the same machine where you write it. That model breaks down quickly in the real world. Your production servers run Linux, but your laptop runs Windows. The project needs CUDA drivers you cannot install locally. The codebase is 40 GB and indexing it on your laptop melts your SSD. Your team of twelve people needs identical environments so that "works on my machine" stops being the default bug report.</p>
+
+            <p>Remote development solves these problems by decoupling <strong>where you edit</strong> from <strong>where you execute</strong>. Your editor runs locally for responsiveness &mdash; syntax highlighting, keybindings, cursor movements are all instant. But file I/O, language servers, linters, debuggers, and terminal commands run on a remote target with the correct OS, hardware, and dependencies.</p>
+
+            <h4>Core Benefits</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Consistency</span>
+                    <span>Every developer gets the exact same toolchain, runtime versions, and OS. No drift between machines.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Power</span>
+                    <span>Offload compilation, testing, and ML training to machines with 64 cores, 256 GB RAM, or GPUs &mdash; while coding from a thin client.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Security</span>
+                    <span>Source code never leaves the remote machine. Developers can contribute without cloning sensitive repos to personal devices.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Portability</span>
+                    <span>Switch between your desktop, laptop, and tablet without resetting up your environment. The workspace lives on the remote.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: VS Code Remote Architecture -->
+        <div class="section">
+            <h3>2. VS Code Remote Architecture</h3>
+            <p>VS Code is split into two halves. The <strong>UI client</strong> renders the editor, handles keyboard input, and manages themes. The <strong>server</strong> handles everything else: file system access, terminal processes, language servers, debuggers, and extensions that need runtime access. In a remote setup, these two halves communicate over a secure channel.</p>
+
+            <div class="diagram" id="archDiagram">
+                <div class="diagram-box" onclick="showArch('client')" id="box-client">
+                    <div class="diagram-box-title">Local Client</div>
+                    <div class="diagram-box-sub">Your Machine</div>
+                </div>
+                <div class="diagram-arrow">&harr;</div>
+                <div class="diagram-box" onclick="showArch('channel')" id="box-channel">
+                    <div class="diagram-box-title">Secure Channel</div>
+                    <div class="diagram-box-sub">SSH / WebSocket</div>
+                </div>
+                <div class="diagram-arrow">&harr;</div>
+                <div class="diagram-box" onclick="showArch('server')" id="box-server">
+                    <div class="diagram-box-title">VS Code Server</div>
+                    <div class="diagram-box-sub">Remote Target</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="archDetail">Click a component above to learn what it handles.</div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The VS Code Server is a lightweight, headless process that the client automatically installs on the remote when you first connect. It runs as your user, manages extensions server-side, and handles all file and process operations. You never interact with it directly.</p>
+            </div>
+
+            <h4>What Runs Where</h4>
+            <table class="compare">
+                <tr>
+                    <th>Local (UI Client)</th>
+                    <th>Remote (VS Code Server)</th>
+                </tr>
+                <tr>
+                    <td>Editor rendering, themes, keybindings</td>
+                    <td>File system reads/writes</td>
+                </tr>
+                <tr>
+                    <td>UI extensions (themes, icon packs)</td>
+                    <td>Language servers (IntelliSense, linting)</td>
+                </tr>
+                <tr>
+                    <td>Settings Sync</td>
+                    <td>Debugger processes</td>
+                </tr>
+                <tr>
+                    <td>Local terminal (optional)</td>
+                    <td>Integrated terminal sessions</td>
+                </tr>
+                <tr>
+                    <td>Extension marketplace UI</td>
+                    <td>Workspace extensions (Git, formatters, test runners)</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Section 3: Remote - SSH -->
+        <div class="section">
+            <h3>3. Remote &mdash; SSH</h3>
+            <p>The Remote - SSH extension lets you open any folder on a remote machine with an SSH server. VS Code installs its server component automatically on first connect, then every file operation, terminal command, and extension runs on that machine. You get the full VS Code experience as if the remote file system were local.</p>
+
+            <h4>Prerequisites</h4>
+            <p>You need an OpenSSH-compatible client on your local machine (built into macOS, Linux, and Windows 10+) and an SSH server running on the remote. Key-based authentication is strongly recommended &mdash; password prompts interrupt the connection flow.</p>
+
+            <h4>SSH Config File</h4>
+            <p>The SSH config file (<code>~/.ssh/config</code>) is the foundation of efficient remote work. Instead of typing full connection strings, you define named hosts with all their parameters.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">~/.ssh/config</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Development server</span>
+<span class="cmd">Host</span> <span class="str">dev-server</span>
+    <span class="flag">HostName</span> 10.0.1.50
+    <span class="flag">User</span> deploy
+    <span class="flag">Port</span> 22
+    <span class="flag">IdentityFile</span> <span class="file">~/.ssh/id_ed25519</span>
+    <span class="flag">ForwardAgent</span> yes
+
+<span class="comment"># Cloud VM via jump host (bastion)</span>
+<span class="cmd">Host</span> <span class="str">prod-worker</span>
+    <span class="flag">HostName</span> 172.16.0.42
+    <span class="flag">User</span> ubuntu
+    <span class="flag">IdentityFile</span> <span class="file">~/.ssh/aws-key.pem</span>
+    <span class="flag">ProxyJump</span> bastion
+
+<span class="comment"># Bastion / Jump Host</span>
+<span class="cmd">Host</span> <span class="str">bastion</span>
+    <span class="flag">HostName</span> bastion.example.com
+    <span class="flag">User</span> ops
+    <span class="flag">IdentityFile</span> <span class="file">~/.ssh/id_ed25519</span>
+
+<span class="comment"># Shared defaults for all hosts</span>
+<span class="cmd">Host</span> <span class="str">*</span>
+    <span class="flag">ServerAliveInterval</span> 60
+    <span class="flag">ServerAliveCountMax</span> 3
+    <span class="flag">AddKeysToAgent</span> yes</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Connection Flow</div>
+                <p>When you select a host in VS Code, it runs <code>ssh dev-server</code> behind the scenes, uploads the VS Code Server binary if needed, starts it, and opens a new window connected to the remote file system. All of this typically takes 5-15 seconds on first connect, and 2-3 seconds on subsequent connections.</p>
+            </div>
+
+            <h4>Port Forwarding via SSH Config</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">~/.ssh/config</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Always forward port 3000 from dev-server</span>
+<span class="cmd">Host</span> <span class="str">dev-server</span>
+    <span class="flag">LocalForward</span> 3000 localhost:3000
+    <span class="flag">LocalForward</span> 5432 localhost:5432</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Security Note</div>
+                <p>Never use <code>ForwardAgent yes</code> on hosts you do not fully trust. Agent forwarding exposes your local SSH keys to the remote machine's admin. For untrusted jump hosts, prefer <code>ProxyJump</code> over <code>ProxyCommand</code> with agent forwarding.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Remote - WSL -->
+        <div class="section">
+            <h3>4. Remote &mdash; WSL</h3>
+            <p>Windows Subsystem for Linux runs a real Linux kernel alongside Windows. The Remote - WSL extension connects VS Code to a WSL distribution so you get native Linux tooling (gcc, make, Python, Node) while keeping the Windows UI experience. This is the fastest on-ramp for Windows developers who need Linux compatibility.</p>
+
+            <h4>How It Works</h4>
+            <p>When you open a WSL folder, VS Code launches its server inside the WSL distribution. All terminal commands, extensions, and file operations execute in Linux. The editor UI stays on the Windows side. There is no SSH overhead &mdash; communication uses an internal IPC channel that is significantly faster.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>code .</code> <span class="tag">FROM WSL</span></div>
+                    <p>Open the current WSL directory in VS Code. Fastest way to start.</p>
+                    <div class="example">$ cd ~/projects/api && code .</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Command Palette</code> <span class="tag">FROM WINDOWS</span></div>
+                    <p>Run "WSL: Connect to WSL" from the VS Code command palette to pick a distro.</p>
+                    <div class="example">Ctrl+Shift+P &rarr; WSL: Connect to WSL</div>
+                </div>
+            </div>
+
+            <h4>File System Performance</h4>
+            <p>This is the single most important thing to understand about WSL development. The Linux and Windows file systems are bridged, but cross-filesystem access is <strong>dramatically slower</strong>.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Path</th>
+                    <th>Filesystem</th>
+                    <th>Performance</th>
+                </tr>
+                <tr>
+                    <td><code>~/projects/</code></td>
+                    <td>Linux (ext4)</td>
+                    <td>Native speed &mdash; always use this</td>
+                </tr>
+                <tr>
+                    <td><code>/mnt/c/Users/...</code></td>
+                    <td>Windows (NTFS via 9P)</td>
+                    <td>5-10x slower for file-heavy operations (npm install, git status)</td>
+                </tr>
+                <tr>
+                    <td><code>\\wsl$\Ubuntu\home\...</code></td>
+                    <td>Linux from Windows Explorer</td>
+                    <td>Fine for occasional file browsing, slow for builds</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Golden Rule</div>
+                <p>Always store your project files inside the WSL filesystem (<code>~/projects/</code>), not on <code>/mnt/c/</code>. Running <code>npm install</code> on a project stored at <code>/mnt/c/dev/myapp</code> can take 3-5x longer than the same operation at <code>~/dev/myapp</code>. Hot-reload watchers like Vite and webpack also struggle with cross-filesystem file change events.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Remote - Containers (Dev Containers) -->
+        <div class="section">
+            <h3>5. Remote &mdash; Containers (Dev Containers)</h3>
+            <p>Dev Containers let you define your entire development environment as code. Instead of a README that says "install Node 20, PostgreSQL 15, and Redis 7," you ship a <code>devcontainer.json</code> that builds a Docker container with everything pre-configured. Every developer on the team gets an identical setup with zero manual steps.</p>
+
+            <h4>devcontainer.json Anatomy</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.devcontainer/devcontainer.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"name"</span>: <span class="str">"Node.js + PostgreSQL"</span>,
+  <span class="str">"image"</span>: <span class="str">"mcr.microsoft.com/devcontainers/javascript-node:20"</span>,
+
+  <span class="comment">// Additional services via Docker Compose</span>
+  <span class="str">"features"</span>: {
+    <span class="str">"ghcr.io/devcontainers/features/docker-in-docker:2"</span>: {},
+    <span class="str">"ghcr.io/devcontainers/features/git:1"</span>: {}
+  },
+
+  <span class="comment">// Port forwarding</span>
+  <span class="str">"forwardPorts"</span>: [3000, 5432],
+
+  <span class="comment">// Extensions to install inside the container</span>
+  <span class="str">"customizations"</span>: {
+    <span class="str">"vscode"</span>: {
+      <span class="str">"extensions"</span>: [
+        <span class="str">"dbaeumer.vscode-eslint"</span>,
+        <span class="str">"esbenp.prettier-vscode"</span>,
+        <span class="str">"ms-azuretools.vscode-docker"</span>
+      ],
+      <span class="str">"settings"</span>: {
+        <span class="str">"editor.formatOnSave"</span>: <span class="cmd">true</span>,
+        <span class="str">"editor.defaultFormatter"</span>: <span class="str">"esbenp.prettier-vscode"</span>
+      }
+    }
+  },
+
+  <span class="comment">// Run after container creation</span>
+  <span class="str">"postCreateCommand"</span>: <span class="str">"npm install"</span>,
+
+  <span class="comment">// Mount local SSH keys for git operations</span>
+  <span class="str">"mounts"</span>: [
+    <span class="str">"source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,readonly"</span>
+  ],
+
+  <span class="comment">// Run as non-root user</span>
+  <span class="str">"remoteUser"</span>: <span class="str">"node"</span>
+}</code></pre>
+            </div>
+
+            <h4>Lifecycle Hooks</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">onCreate</span>
+                    <span>Runs once when the container is first created. Use for one-time setup (database migrations, large downloads).</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">postCreate</span>
+                    <span>Runs after creation and after every rebuild. Ideal for <code>npm install</code> or <code>pip install -r requirements.txt</code>.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">postStart</span>
+                    <span>Runs every time the container starts (including restarts). Good for launching background services.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">postAttach</span>
+                    <span>Runs every time VS Code attaches. Use for user-specific setup that should run on each session.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Dev Containers solve "works on my machine" permanently. The <code>devcontainer.json</code> file is version-controlled alongside your code. When a new team member clones the repo and opens it in VS Code, they get a fully configured environment in under a minute &mdash; no wiki, no Slack messages, no "did you install version X?"</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Remote - Tunnels -->
+        <div class="section">
+            <h3>6. Remote &mdash; Tunnels</h3>
+            <p>VS Code Tunnels create a secure connection to a machine without requiring SSH access, public IP addresses, or firewall configuration. You install the VS Code CLI on the remote, start a tunnel, and access that machine from anywhere &mdash; including a web browser via <code>vscode.dev</code>.</p>
+
+            <h4>Setting Up a Tunnel</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal (Remote Machine)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Install VS Code CLI (standalone, no GUI needed)</span>
+<span class="cmd">$</span> curl -Lk <span class="str">'https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64'</span> \
+    --output vscode_cli.tar.gz
+<span class="cmd">$</span> tar -xf vscode_cli.tar.gz
+
+<span class="comment"># Start a tunnel (authenticates via GitHub/Microsoft)</span>
+<span class="cmd">$</span> ./code tunnel
+<span class="output">*
+* Visual Studio Code Server
+*
+* By using the software, you agree to the
+* Visual Studio Code Server License Terms
+*
+* To grant access to the server, please log into
+* https://github.com/login/device
+* and use code: ABCD-1234
+*</span>
+
+<span class="comment"># Name the tunnel for easier identification</span>
+<span class="cmd">$</span> ./code tunnel <span class="flag">--name</span> <span class="str">"home-lab"</span>
+
+<span class="comment"># Run as a background service</span>
+<span class="cmd">$</span> ./code tunnel service install
+<span class="cmd">$</span> ./code tunnel service start</code></pre>
+            </div>
+
+            <h4>Connecting to a Tunnel</h4>
+            <p>Once the tunnel is running, you can access it two ways:</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>vscode.dev</code> <span class="tag">BROWSER</span></div>
+                    <p>Open <code>https://vscode.dev/tunnel/home-lab</code> in any browser. Full VS Code experience with no local install required.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Desktop App</code> <span class="tag">LOCAL</span></div>
+                    <p>Install the Remote - Tunnels extension. The tunnel appears in the Remote Explorer sidebar.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">When to Use Tunnels</div>
+                <p>Tunnels are ideal when you cannot open SSH ports (corporate firewalls, NAT, CGNAT) or need quick access from a machine where you cannot install software. The connection is routed through Microsoft's relay service, so latency is higher than direct SSH. For sustained development work on a known machine, SSH is still faster.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: GitHub Codespaces -->
+        <div class="section">
+            <h3>7. GitHub Codespaces</h3>
+            <p>Codespaces are cloud-hosted Dev Containers managed by GitHub. You click a button on a repository and get a full VS Code environment in 30-90 seconds, running on a VM with your chosen CPU and RAM. No local Docker, no manual setup, no infrastructure management.</p>
+
+            <h4>Machine Types and Pricing</h4>
+            <table class="compare">
+                <tr>
+                    <th>Machine</th>
+                    <th>Specs</th>
+                    <th>Cost (per hour)</th>
+                    <th>Best For</th>
+                </tr>
+                <tr>
+                    <td>2-core</td>
+                    <td>2 vCPU, 8 GB RAM, 32 GB SSD</td>
+                    <td>$0.18</td>
+                    <td>Docs, small scripts, code review</td>
+                </tr>
+                <tr>
+                    <td>4-core</td>
+                    <td>4 vCPU, 16 GB RAM, 32 GB SSD</td>
+                    <td>$0.36</td>
+                    <td>Web apps, APIs, most projects</td>
+                </tr>
+                <tr>
+                    <td>8-core</td>
+                    <td>8 vCPU, 32 GB RAM, 64 GB SSD</td>
+                    <td>$0.72</td>
+                    <td>Large codebases, compilers</td>
+                </tr>
+                <tr>
+                    <td>16-core</td>
+                    <td>16 vCPU, 64 GB RAM, 128 GB SSD</td>
+                    <td>$1.44</td>
+                    <td>Monorepos, ML workloads</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Cost Management</div>
+                <p>Free GitHub accounts get 120 core-hours per month (60 hours on a 2-core machine). Codespaces auto-stop after 30 minutes of inactivity by default. Always set a spending limit in GitHub settings and configure auto-delete for inactive codespaces (default is 30 days).</p>
+            </div>
+
+            <h4>Prebuilds</h4>
+            <p>Prebuilds run your <code>devcontainer.json</code> setup steps on every push to specified branches. When a developer creates a codespace, they skip the build step entirely and start with a ready-to-code environment in seconds instead of minutes.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.devcontainer/devcontainer.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"name"</span>: <span class="str">"My Project"</span>,
+  <span class="str">"image"</span>: <span class="str">"mcr.microsoft.com/devcontainers/typescript-node:20"</span>,
+  <span class="str">"postCreateCommand"</span>: <span class="str">"npm ci && npm run build"</span>,
+  <span class="str">"forwardPorts"</span>: [3000],
+
+  <span class="comment">// Dotfiles repo - personal config synced into every codespace</span>
+  <span class="comment">// (configured in GitHub settings, not here)</span>
+  <span class="comment">// Settings &rarr; Codespaces &rarr; Dotfiles repository</span>
+}</code></pre>
+            </div>
+
+            <h4>Dotfiles Integration</h4>
+            <p>Point Codespaces at your dotfiles repository in GitHub settings. On every codespace creation, GitHub clones that repo and runs an <code>install.sh</code> script (or symlinks dotfiles automatically). Your shell aliases, git config, tmux settings, and Vim config follow you into every cloud workspace.</p>
+        </div>
+
+        <!-- Section 8: SSH Key Setup for Remote -->
+        <div class="section">
+            <h3>8. SSH Key Setup for Cloud VMs</h3>
+            <p>Every cloud provider &mdash; AWS, Azure, GCP &mdash; uses SSH keys for VM access. The workflow is similar across all of them: generate a key pair, register the public key with the provider, and configure your local SSH client.</p>
+
+            <h4>Generating Keys</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Ed25519 (preferred - smaller, faster, more secure)</span>
+<span class="cmd">$</span> ssh-keygen <span class="flag">-t</span> ed25519 <span class="flag">-C</span> <span class="str">"dev@example.com"</span>
+<span class="output">Generating public/private ed25519 key pair.
+Enter file in which to save the key: ~/.ssh/id_ed25519
+Enter passphrase (empty for no passphrase): ********</span>
+
+<span class="comment"># RSA 4096 (for systems that don't support Ed25519)</span>
+<span class="cmd">$</span> ssh-keygen <span class="flag">-t</span> rsa <span class="flag">-b</span> 4096 <span class="flag">-C</span> <span class="str">"dev@example.com"</span>
+
+<span class="comment"># Verify the key was created</span>
+<span class="cmd">$</span> ls -la ~/.ssh/
+<span class="output">-rw-------  1 user user  411 Mar  5 10:00 id_ed25519
+-rw-r--r--  1 user user   97 Mar  5 10:00 id_ed25519.pub</span></code></pre>
+            </div>
+
+            <h4>Provider-Specific Setup</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">~/.ssh/config</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># AWS EC2 instance</span>
+<span class="cmd">Host</span> <span class="str">aws-dev</span>
+    <span class="flag">HostName</span> ec2-54-123-45-67.us-east-1.compute.amazonaws.com
+    <span class="flag">User</span> ec2-user
+    <span class="flag">IdentityFile</span> <span class="file">~/.ssh/aws-dev.pem</span>
+
+<span class="comment"># Azure VM</span>
+<span class="cmd">Host</span> <span class="str">azure-dev</span>
+    <span class="flag">HostName</span> 20.85.100.42
+    <span class="flag">User</span> azureuser
+    <span class="flag">IdentityFile</span> <span class="file">~/.ssh/id_ed25519</span>
+
+<span class="comment"># GCP Compute Engine</span>
+<span class="cmd">Host</span> <span class="str">gcp-dev</span>
+    <span class="flag">HostName</span> 35.200.50.10
+    <span class="flag">User</span> dev
+    <span class="flag">IdentityFile</span> <span class="file">~/.ssh/google_compute_engine</span>
+
+<span class="comment"># Jump host pattern for private subnet VMs</span>
+<span class="cmd">Host</span> <span class="str">private-worker</span>
+    <span class="flag">HostName</span> 10.128.0.5
+    <span class="flag">User</span> deploy
+    <span class="flag">ProxyJump</span> bastion-host
+    <span class="flag">IdentityFile</span> <span class="file">~/.ssh/id_ed25519</span>
+
+<span class="cmd">Host</span> <span class="str">bastion-host</span>
+    <span class="flag">HostName</span> bastion.example.com
+    <span class="flag">User</span> ops
+    <span class="flag">IdentityFile</span> <span class="file">~/.ssh/id_ed25519</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Always use <code>ProxyJump</code> for bastion/jump host patterns instead of manually opening two SSH sessions. VS Code supports <code>ProxyJump</code> natively &mdash; it will tunnel through the bastion and connect directly to the target. The bastion never sees your private key when you avoid agent forwarding.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Remote Extension Management -->
+        <div class="section">
+            <h3>9. Remote Extension Management</h3>
+            <p>In a remote session, extensions run in one of two places: <strong>locally</strong> (UI extensions) or <strong>remotely</strong> (workspace extensions). Understanding this split is critical for avoiding confusion about why an extension "isn't working" in a remote session.</p>
+
+            <h4>Extension Categories</h4>
+            <table class="compare">
+                <tr>
+                    <th>Category</th>
+                    <th>Runs On</th>
+                    <th>Examples</th>
+                </tr>
+                <tr>
+                    <td>UI Extensions</td>
+                    <td>Local (always)</td>
+                    <td>Themes, icon packs, keymaps, UI customizations</td>
+                </tr>
+                <tr>
+                    <td>Workspace Extensions</td>
+                    <td>Remote (VS Code Server)</td>
+                    <td>ESLint, Prettier, Python, Go, debuggers, Git Lens</td>
+                </tr>
+                <tr>
+                    <td>Hybrid Extensions</td>
+                    <td>Both (split across client/server)</td>
+                    <td>Live Share, some test explorers</td>
+                </tr>
+            </table>
+
+            <p>When you install an extension while connected to a remote, VS Code automatically determines where it should run. If the extension needs file system or process access, it installs on the remote. If it only modifies the UI, it installs locally.</p>
+
+            <h4>Forcing Extensions Remote-Side</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">settings.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="comment">// Force specific extensions to always run on the remote</span>
+  <span class="str">"remote.extensionKind"</span>: {
+    <span class="str">"ms-python.python"</span>: [<span class="str">"workspace"</span>],
+    <span class="str">"dbaeumer.vscode-eslint"</span>: [<span class="str">"workspace"</span>]
+  },
+
+  <span class="comment">// Extensions to always install on the remote</span>
+  <span class="str">"remote.SSH.defaultExtensions"</span>: [
+    <span class="str">"dbaeumer.vscode-eslint"</span>,
+    <span class="str">"esbenp.prettier-vscode"</span>,
+    <span class="str">"eamodio.gitlens"</span>
+  ]
+}</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Extension Packs for Remote</div>
+                <p>Create a custom extension pack (<code>.vsix</code>) that bundles all the workspace extensions your team needs. List it in your <code>devcontainer.json</code> or SSH default extensions so every remote session has the full toolset without manual installs.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Port Forwarding -->
+        <div class="section">
+            <h3>10. Port Forwarding</h3>
+            <p>When your application starts a server on the remote machine, you need that port accessible on your local machine to view it in a browser or test with local tools. VS Code handles this automatically in most cases and provides manual controls for everything else.</p>
+
+            <h4>Automatic Forwarding</h4>
+            <p>VS Code watches terminal output for patterns like <code>Listening on port 3000</code> and automatically creates a forwarded port. A notification appears with a button to open the URL in your browser. This works out of the box for most web frameworks.</p>
+
+            <h4>Manual Port Forwarding</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">VS Code Command Palette</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Open the Ports panel</span>
+<span class="cmd">Ctrl+Shift+P</span> &rarr; <span class="str">"Ports: Focus on Ports View"</span>
+
+<span class="comment"># Or use the bottom panel</span>
+<span class="cmd">View</span> &rarr; <span class="str">"Terminal"</span> &rarr; <span class="str">"Ports"</span> tab
+
+<span class="comment"># Add a port manually</span>
+Click <span class="str">"Add Port"</span> &rarr; enter <span class="str">8080</span></code></pre>
+            </div>
+
+            <h4>Port Visibility Settings</h4>
+            <table class="compare">
+                <tr>
+                    <th>Visibility</th>
+                    <th>Access</th>
+                    <th>Use Case</th>
+                </tr>
+                <tr>
+                    <td><code>Private</code></td>
+                    <td>Only your machine (localhost)</td>
+                    <td>Default. Local development and testing.</td>
+                </tr>
+                <tr>
+                    <td><code>Public</code></td>
+                    <td>Anyone with the URL</td>
+                    <td>Sharing a preview with a colleague. Codespaces generates a unique URL.</td>
+                </tr>
+                <tr>
+                    <td><code>Organization</code></td>
+                    <td>Members of your GitHub org (Codespaces only)</td>
+                    <td>Internal demos without exposing to the public internet.</td>
+                </tr>
+            </table>
+
+            <h4>Port Forwarding in settings.json</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">settings.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="comment">// Auto-forward detected ports</span>
+  <span class="str">"remote.autoForwardPorts"</span>: <span class="cmd">true</span>,
+
+  <span class="comment">// Source of port detection</span>
+  <span class="str">"remote.autoForwardPortsSource"</span>: <span class="str">"hybrid"</span>,
+
+  <span class="comment">// Ports to always forward</span>
+  <span class="str">"remote.otherPortsAttributes"</span>: {
+    <span class="str">"onAutoForward"</span>: <span class="str">"notify"</span>
+  },
+
+  <span class="comment">// Exclude noisy ports from auto-forward</span>
+  <span class="str">"remote.autoForwardPortsFallback"</span>: 0
+}</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 11: File System Considerations -->
+        <div class="section">
+            <h3>11. File System Considerations</h3>
+            <p>Performance in remote development is dominated by file system access patterns. The editor needs to read, watch, and index thousands of files for IntelliSense, search, and git status. Understanding how files are stored and accessed in each remote mode prevents the most common performance pitfalls.</p>
+
+            <h4>Performance by Remote Type</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">SSH</span>
+                    <span>Files live on the remote disk. Performance matches native local speed on the remote machine. Network latency only affects the VS Code UI channel, not file operations.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">WSL</span>
+                    <span>Native ext4 performance inside WSL. Accessing <code>/mnt/c/</code> incurs a 5-10x penalty. Always store projects in the Linux filesystem.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Containers</span>
+                    <span>Files in the container overlay are fast. Bind mounts from the host can be slower on macOS/Windows due to filesystem translation layers.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Codespaces</span>
+                    <span>Cloud SSD performance. Fast for all operations. The VM's disk is ephemeral &mdash; persist important data via git push.</span>
+                </div>
+            </div>
+
+            <h4>Volume Strategies for Containers</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.devcontainer/devcontainer.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="comment">// Named volume for node_modules (faster than bind mount)</span>
+  <span class="str">"mounts"</span>: [
+    <span class="str">"source=myproject-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume"</span>
+  ],
+
+  <span class="comment">// Bind mount for source code (editable from host)</span>
+  <span class="comment">// This is the default - your repo is bind-mounted automatically</span>
+
+  <span class="comment">// Exclude heavy directories from file watcher</span>
+  <span class="str">"customizations"</span>: {
+    <span class="str">"vscode"</span>: {
+      <span class="str">"settings"</span>: {
+        <span class="str">"files.watcherExclude"</span>: {
+          <span class="str">"**/node_modules/**"</span>: <span class="cmd">true</span>,
+          <span class="str">"**/.git/objects/**"</span>: <span class="cmd">true</span>,
+          <span class="str">"**/dist/**"</span>: <span class="cmd">true</span>
+        }
+      }
+    }
+  }
+}</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">macOS and Windows: Bind Mount Performance</div>
+                <p>On macOS and Windows, Docker Desktop uses a Linux VM internally. Bind mounts require filesystem translation (via gRPC FUSE or VirtioFS) which adds latency. For large projects with thousands of files, use a named Docker volume for dependency directories like <code>node_modules</code> and keep only source files bind-mounted. On Linux hosts, bind mounts are native and this is not an issue.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Comparison Table -->
+        <div class="section">
+            <h3>12. Choosing the Right Approach</h3>
+            <p>Each remote development method has distinct trade-offs. The right choice depends on your infrastructure, team size, security requirements, and the nature of the project.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Dimension</th>
+                    <th>SSH</th>
+                    <th>WSL</th>
+                    <th>Dev Containers</th>
+                    <th>Codespaces</th>
+                </tr>
+                <tr>
+                    <td><strong>Cost</strong></td>
+                    <td>Your hardware / existing VMs</td>
+                    <td>Free (Windows only)</td>
+                    <td>Your hardware + Docker</td>
+                    <td>$0.18 - $1.44/hr</td>
+                </tr>
+                <tr>
+                    <td><strong>Latency</strong></td>
+                    <td>Low (LAN) to medium (WAN)</td>
+                    <td>Negligible</td>
+                    <td>Negligible (local Docker)</td>
+                    <td>Medium (cloud)</td>
+                </tr>
+                <tr>
+                    <td><strong>Isolation</strong></td>
+                    <td>OS-level user isolation</td>
+                    <td>Kernel-level (VM isolation)</td>
+                    <td>Container-level (namespaces)</td>
+                    <td>Full VM isolation</td>
+                </tr>
+                <tr>
+                    <td><strong>Reproducibility</strong></td>
+                    <td>Manual setup / Ansible</td>
+                    <td>Manual or exported distro</td>
+                    <td>Fully declarative (devcontainer.json)</td>
+                    <td>Fully declarative + prebuilds</td>
+                </tr>
+                <tr>
+                    <td><strong>Onboarding</strong></td>
+                    <td>SSH config + key exchange</td>
+                    <td>Enable WSL feature</td>
+                    <td>Install Docker + VS Code</td>
+                    <td>Click a button on GitHub</td>
+                </tr>
+                <tr>
+                    <td><strong>Offline</strong></td>
+                    <td>No (need network)</td>
+                    <td>Yes</td>
+                    <td>Yes (after pull)</td>
+                    <td>No (cloud-only)</td>
+                </tr>
+                <tr>
+                    <td><strong>Best For</strong></td>
+                    <td>Powerful remote servers, GPU access, existing infra</td>
+                    <td>Windows devs needing Linux tools</td>
+                    <td>Team standardization, microservices</td>
+                    <td>OSS contributions, quick starts, education</td>
+                </tr>
+            </table>
+
+            <h4>Decision Framework</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Use SSH</span>
+                    <span>When you have existing servers (on-prem or cloud), need GPU access, or work with large datasets that cannot be containerized easily.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Use WSL</span>
+                    <span>When you are on Windows and need Linux for your toolchain (Node.js, Python, Docker, kubectl). Zero cost, near-native performance.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Use Containers</span>
+                    <span>When the team needs identical environments, the project has complex dependencies, or you develop microservices with per-service toolchains.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Use Codespaces</span>
+                    <span>When onboarding friction must be zero, contributors are external (open source), or you need ephemeral environments that self-destruct.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>These approaches are not mutually exclusive. A common production pattern: Dev Containers for local development (reproducibility), SSH for staging server debugging (direct access), and Codespaces for external contributors (zero-setup onboarding). Match the tool to the workflow, not the other way around.</p>
+            </div>
+
+            <h4>Recommended settings.json for Remote Work</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">settings.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="comment">// -- Remote: General --</span>
+  <span class="str">"remote.autoForwardPorts"</span>: <span class="cmd">true</span>,
+  <span class="str">"remote.autoForwardPortsSource"</span>: <span class="str">"hybrid"</span>,
+  <span class="str">"remote.restoreForwardedPorts"</span>: <span class="cmd">true</span>,
+
+  <span class="comment">// -- Remote: SSH --</span>
+  <span class="str">"remote.SSH.remotePlatform"</span>: {
+    <span class="str">"dev-server"</span>: <span class="str">"linux"</span>,
+    <span class="str">"aws-dev"</span>: <span class="str">"linux"</span>
+  },
+  <span class="str">"remote.SSH.connectTimeout"</span>: 30,
+  <span class="str">"remote.SSH.defaultExtensions"</span>: [
+    <span class="str">"dbaeumer.vscode-eslint"</span>,
+    <span class="str">"esbenp.prettier-vscode"</span>
+  ],
+
+  <span class="comment">// -- Remote: Containers --</span>
+  <span class="str">"dev.containers.dockerPath"</span>: <span class="str">"docker"</span>,
+  <span class="str">"dev.containers.defaultExtensions"</span>: [
+    <span class="str">"dbaeumer.vscode-eslint"</span>
+  ],
+
+  <span class="comment">// -- Performance: File watchers --</span>
+  <span class="str">"files.watcherExclude"</span>: {
+    <span class="str">"**/.git/objects/**"</span>: <span class="cmd">true</span>,
+    <span class="str">"**/node_modules/**"</span>: <span class="cmd">true</span>,
+    <span class="str">"**/dist/**"</span>: <span class="cmd">true</span>,
+    <span class="str">"**/.next/**"</span>: <span class="cmd">true</span>
+  },
+  <span class="str">"search.exclude"</span>: {
+    <span class="str">"**/node_modules"</span>: <span class="cmd">true</span>,
+    <span class="str">"**/dist"</span>: <span class="cmd">true</span>
+  }
+}</code></pre>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Architecture diagram interaction
+        const archParts = {
+            client: {
+                title: 'Local Client (Your Machine)',
+                desc: 'The VS Code desktop application or browser-based editor at <code>vscode.dev</code>. Handles all rendering: the editor surface, sidebar panels, themes, keybindings, and UI extensions. Communicates with the server over a secure channel. All input (keystrokes, mouse clicks, command palette actions) is processed here, then relayed as operations to the remote server.'
+            },
+            channel: {
+                title: 'Secure Channel (SSH / WebSocket)',
+                desc: 'The communication layer between client and server. For SSH remotes, this is a standard SSH tunnel. For WSL, it is a local IPC socket. For Tunnels and Codespaces, it is a WebSocket connection routed through Microsoft\'s relay infrastructure. All traffic is encrypted. The protocol is optimized for low bandwidth &mdash; only deltas and operations are sent, not full file contents on every keystroke.'
+            },
+            server: {
+                title: 'VS Code Server (Remote Target)',
+                desc: 'A headless Node.js process running on the remote machine. It owns the file system, runs language servers (IntelliSense, linting), manages the integrated terminal, executes debugger sessions, and hosts workspace extensions. The server is installed automatically on first connect and updates itself to match your local VS Code version.'
+            }
+        };
+
+        function showArch(id) {
+            document.querySelectorAll('#archDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const part = archParts[id];
+            document.getElementById('archDetail').innerHTML = '<strong>' + part.title + '</strong><br>' + part.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-45'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-45-remote-dev', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(16,185,129,0.2)';
+            btn.style.color = '#10b981';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first architecture diagram box
+        showArch('client');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-45']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(16,185,129,0.2)';
+                btn.style.color = '#10b981';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
