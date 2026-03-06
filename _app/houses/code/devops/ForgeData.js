@@ -82,7 +82,8 @@ const ForgeData = {
                 { id: 'do-2', title: 'The DevOps Toolchain', type: 'module', status: 'ready', sprint: 'DO-2', href: 'do-2-devops-toolchain.html' },
                 { id: 'do-3', title: 'DevOps in Practice — Real-World Pipelines', type: 'module', status: 'ready', sprint: 'DO-3', href: 'do-3-real-world-pipelines.html' },
                 { id: 'do-68', title: 'Data Formats — YAML, JSON, TOML', type: 'module', status: 'ready', sprint: 'DO-68', href: 'do-68-data-formats.html' },
-                { id: 'do-69', title: 'Config Formats — XML, INI, ENV, HCL', type: 'module', status: 'ready', sprint: 'DO-69', href: 'do-69-config-formats.html' }
+                { id: 'do-69', title: 'Config Formats — XML, INI, ENV, HCL', type: 'module', status: 'ready', sprint: 'DO-69', href: 'do-69-config-formats.html' },
+                { id: 'do-100', title: 'Foundation Lab — Data Formats Workshop', type: 'lab', status: 'ready', sprint: 'DO-100', href: 'do-100-foundation-lab.html' }
             ]
         },
 
@@ -102,7 +103,8 @@ const ForgeData = {
                 { id: 'do-32', title: 'Runtime Management — nvm, pyenv, rbenv', type: 'module', status: 'ready', sprint: 'DO-32', href: 'do-32-runtime-management.html' },
                 { id: 'do-33', title: 'Environment Variables & Secrets', type: 'module', status: 'ready', sprint: 'DO-33', href: 'do-33-env-vars-secrets.html' },
                 { id: 'do-34', title: 'Dev Containers & Reproducible Environments', type: 'module', status: 'ready', sprint: 'DO-34', href: 'do-34-dev-containers.html' },
-                { id: 'do-35', title: 'Networking Basics for DevOps', type: 'module', status: 'ready', sprint: 'DO-35', href: 'do-35-networking-basics.html' }
+                { id: 'do-35', title: 'Networking Basics for DevOps', type: 'module', status: 'ready', sprint: 'DO-35', href: 'do-35-networking-basics.html' },
+                { id: 'do-101', title: 'Workbench Lab — Environment Setup Workshop', type: 'lab', status: 'ready', sprint: 'DO-101', href: 'do-101-workbench-lab.html' }
             ]
         },
 
@@ -124,7 +126,8 @@ const ForgeData = {
                 { id: 'do-44', title: 'File Types, Extensions & Language Support', type: 'module', status: 'ready', sprint: 'DO-44', href: 'do-44-file-types.html' },
                 { id: 'do-45', title: 'Remote Development — SSH, WSL, Containers', type: 'module', status: 'ready', sprint: 'DO-45', href: 'do-45-remote-dev.html' },
                 { id: 'do-46', title: 'DevOps Extensions Toolkit', type: 'module', status: 'ready', sprint: 'DO-46', href: 'do-46-devops-extensions.html' },
-                { id: 'do-47', title: 'VS Code Tips, Tricks & Shortcuts', type: 'module', status: 'ready', sprint: 'DO-47', href: 'do-47-vscode-tips.html' }
+                { id: 'do-47', title: 'VS Code Tips, Tricks & Shortcuts', type: 'module', status: 'ready', sprint: 'DO-47', href: 'do-47-vscode-tips.html' },
+                { id: 'do-102', title: 'IDE Lab — VS Code Productivity Workshop', type: 'lab', status: 'ready', sprint: 'DO-102', href: 'do-102-ide-lab.html' }
             ]
         },
 
