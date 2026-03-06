@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IaC Tips, Tricks &amp; War Stories - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-construction.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-87</span>
+            <h1>IaC Tips, Tricks &amp; War Stories</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Infrastructure as Code</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-construction.webp" alt="">
+            <h2>IaC Tips, Tricks &amp; War Stories</h2>
+            <p class="hero-sub">Hard-won lessons from the trenches of infrastructure automation. Speed hacks, debugging patterns, cost traps, and state surgery stories that will save you hours.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~25 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-construction.webp" alt="" width="14" height="14"> All Levels</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Speed up Terraform plans and applies with targeted runs and parallelism tuning</li>
+                <li>Import existing infrastructure into Terraform state without recreating resources</li>
+                <li>Refactor Terraform code safely using moved blocks and state surgery</li>
+                <li>Diagnose and fix the most common Terraform errors quickly</li>
+                <li>Write advanced HCL patterns: dynamic blocks, conditional creation, and for_each with maps</li>
+                <li>Choose between workspaces and directory structures for environment isolation</li>
+                <li>Identify cloud resources that silently rack up costs</li>
+                <li>Recover from state corruption using real-world techniques</li>
+                <li>Architect multi-account AWS strategies with provider aliases</li>
+                <li>Bootstrap secrets management and solve the Secret Zero problem</li>
+                <li>Integrate essential CLI tools into your Terraform workflow</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Terraform Speed Hacks -->
+        <div class="section">
+            <h3>1. Terraform Speed Hacks</h3>
+            <p>A full <code>terraform plan</code> on a large codebase can take minutes. Every API call to your cloud provider adds latency. Here are the levers you can pull to make things faster.</p>
+
+            <h4>Target Specific Resources</h4>
+            <p>The <code>-target</code> flag tells Terraform to only plan and apply changes for specific resources. This is your single biggest speed win during development.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Only plan a single resource</span>
+<span class="cmd">$</span> terraform plan <span class="flag">-target</span>=<span class="str">aws_instance.web</span>
+
+<span class="comment"># Target an entire module</span>
+<span class="cmd">$</span> terraform plan <span class="flag">-target</span>=<span class="str">module.networking</span>
+
+<span class="comment"># Target multiple resources</span>
+<span class="cmd">$</span> terraform apply <span class="flag">-target</span>=<span class="str">aws_security_group.web</span> \
+    <span class="flag">-target</span>=<span class="str">aws_instance.web</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Target is for development only</div>
+                <p><code>-target</code> skips dependency checks and can leave your state inconsistent. Always run a full <code>terraform plan</code> before merging to main. Terraform itself warns you every time you use it.</p>
+            </div>
+
+            <h4>Skip the Refresh</h4>
+            <p>By default, Terraform refreshes the state of every resource before planning. If you know nothing changed outside Terraform, skip it.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Skip the state refresh entirely</span>
+<span class="cmd">$</span> terraform plan <span class="flag">-refresh=false</span>
+
+<span class="comment"># Combine with target for maximum speed</span>
+<span class="cmd">$</span> terraform plan <span class="flag">-refresh=false</span> <span class="flag">-target</span>=<span class="str">module.app</span></code></pre>
+            </div>
+
+            <h4>Parallelism Tuning</h4>
+            <p>Terraform creates and updates resources in parallel when there are no dependencies between them. The default parallelism is 10. You can crank it up or dial it back.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Increase parallelism for large, independent resource sets</span>
+<span class="cmd">$</span> terraform apply <span class="flag">-parallelism</span>=<span class="str">30</span>
+
+<span class="comment"># Decrease when hitting API rate limits</span>
+<span class="cmd">$</span> terraform apply <span class="flag">-parallelism</span>=<span class="str">2</span></code></pre>
+            </div>
+
+            <h4>State Filtering with list and show</h4>
+            <p>When debugging, you do not always need a full plan. Use <code>terraform state list</code> and <code>terraform state show</code> to query state directly without any API calls.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># List all resources in state (instant, no API calls)</span>
+<span class="cmd">$</span> terraform state list
+
+<span class="comment"># Filter by resource type</span>
+<span class="cmd">$</span> terraform state list | grep aws_instance
+
+<span class="comment"># Show full details of a resource from state</span>
+<span class="cmd">$</span> terraform state show <span class="str">aws_instance.web</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 2: Import Existing Resources -->
+        <div class="section">
+            <h3>2. Import Existing Resources</h3>
+            <p>You have a pile of manually-created AWS resources and you want to bring them under Terraform management without destroying and recreating them. The <code>terraform import</code> command maps an existing cloud resource to a Terraform resource address.</p>
+
+            <h4>The Classic Import Workflow</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Step 1: Write an empty resource block</span>
+<span class="comment"># main.tf</span>
+<span class="cmd">resource</span> <span class="str">"aws_instance"</span> <span class="str">"legacy_web"</span> {
+  <span class="comment"># config will be filled in after import</span>
+}
+
+<span class="comment"># Step 2: Import the real resource by its cloud ID</span>
+<span class="cmd">$</span> terraform import <span class="str">aws_instance.legacy_web</span> <span class="str">i-0abc123def456789</span>
+
+<span class="comment"># Step 3: Generate the config from state</span>
+<span class="cmd">$</span> terraform state show <span class="str">aws_instance.legacy_web</span>
+
+<span class="comment"># Step 4: Copy the output into your resource block</span>
+<span class="comment"># Step 5: Run plan to verify zero diff</span>
+<span class="cmd">$</span> terraform plan
+<span class="output">No changes. Infrastructure is up-to-date.</span></code></pre>
+            </div>
+
+            <h4>Import Blocks (Terraform 1.5+)</h4>
+            <p>Newer Terraform versions support declarative import blocks. Instead of running CLI commands, you declare what to import in your config and Terraform generates the resource code for you.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># imports.tf</span>
+<span class="cmd">import</span> {
+  <span class="flag">to</span> = <span class="str">aws_instance.legacy_web</span>
+  <span class="flag">id</span> = <span class="str">"i-0abc123def456789"</span>
+}
+
+<span class="comment"># Generate config automatically</span>
+<span class="comment"># $ terraform plan -generate-config-out=generated.tf</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Pro tip</div>
+                <p>The generated config will be verbose &mdash; it includes every attribute, including computed ones and defaults. Clean it up manually, removing any attributes that match provider defaults. Your future self will thank you.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Moved Blocks -->
+        <div class="section">
+            <h3>3. Refactoring Without Destroy</h3>
+            <p>Renaming a Terraform resource normally causes a destroy-and-recreate. In production, that is unacceptable. Moved blocks and state surgery let you refactor safely.</p>
+
+            <h4>Moved Blocks (Terraform 1.1+)</h4>
+            <p>Declare your refactoring intent directly in code. Terraform sees the move and updates state without touching the real resource.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Rename a resource</span>
+<span class="cmd">moved</span> {
+  <span class="flag">from</span> = <span class="str">aws_instance.web</span>
+  <span class="flag">to</span>   = <span class="str">aws_instance.web_server</span>
+}
+
+<span class="comment"># Move into a module</span>
+<span class="cmd">moved</span> {
+  <span class="flag">from</span> = <span class="str">aws_security_group.app</span>
+  <span class="flag">to</span>   = <span class="str">module.networking.aws_security_group.app</span>
+}
+
+<span class="comment"># Refactor from count to for_each</span>
+<span class="cmd">moved</span> {
+  <span class="flag">from</span> = <span class="str">aws_subnet.private[0]</span>
+  <span class="flag">to</span>   = <span class="str">aws_subnet.private["us-east-1a"]</span>
+}</code></pre>
+            </div>
+
+            <h4>Manual State Surgery</h4>
+            <p>For older Terraform versions or complex refactors, you can move resources directly in state.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Rename in state</span>
+<span class="cmd">$</span> terraform state mv <span class="str">aws_instance.web</span> <span class="str">aws_instance.web_server</span>
+
+<span class="comment"># Move into a module</span>
+<span class="cmd">$</span> terraform state mv <span class="str">aws_rds_cluster.main</span> <span class="str">module.database.aws_rds_cluster.main</span>
+
+<span class="comment"># Remove from state (but don't destroy the real resource)</span>
+<span class="cmd">$</span> terraform state rm <span class="str">aws_instance.temp_debug</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Always back up state first</div>
+                <p>Before any state surgery, pull a local copy: <code>terraform state pull > backup.tfstate</code>. If something goes wrong, you can restore with <code>terraform state push backup.tfstate</code>. Remote state backends with versioning (S3) give you automatic protection.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Common Terraform Errors -->
+        <div class="section">
+            <h3>4. Common Terraform Errors</h3>
+            <p>Every Terraform practitioner hits the same errors. Here is what they mean and how to fix them fast.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label" style="min-width: 140px;">Cycle Detected</span>
+                    <span>Two resources reference each other. Break the cycle by extracting one reference into a <code>depends_on</code> or restructuring the dependency chain. Use <code>terraform graph | dot -Tsvg > graph.svg</code> to visualize.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label" style="min-width: 140px;">State Lock</span>
+                    <span>Another process holds the lock. If it is genuinely stale: <code>terraform force-unlock &lt;LOCK_ID&gt;</code>. If a CI run crashed, check your pipeline before force-unlocking.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label" style="min-width: 140px;">Provider Auth</span>
+                    <span>Invalid or expired credentials. Check <code>AWS_PROFILE</code>, <code>AWS_ACCESS_KEY_ID</code>, or your <code>~/.aws/credentials</code> file. For assume-role: verify the trust policy allows your caller identity.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label" style="min-width: 140px;">Dependency</span>
+                    <span>Resource A needs an output from Resource B, but B has not been created yet. Use <code>depends_on</code> for implicit ordering, or reference the output attribute directly so Terraform builds the graph correctly.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label" style="min-width: 140px;">For Each Map</span>
+                    <span><code>for_each</code> requires a map or set of strings, not a list. Use <code>toset()</code> to convert lists, or restructure your data as a map with meaningful keys.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Debug mode</div>
+                <p>Set <code>TF_LOG=DEBUG</code> for extremely verbose output. Use <code>TF_LOG=TRACE</code> for even more detail, including HTTP requests. Pipe to a file: <code>TF_LOG=DEBUG terraform plan 2>debug.log</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: HCL Power Patterns -->
+        <div class="section">
+            <h3>5. HCL Power Patterns</h3>
+            <p>These patterns separate the beginners from the practitioners. Each one solves a specific problem that comes up repeatedly in real infrastructure code.</p>
+
+            <h4>Dynamic Blocks</h4>
+            <p>When a resource has a repeating nested block (like <code>ingress</code> rules), use <code>dynamic</code> to generate them from a variable.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">variable</span> <span class="str">"ingress_rules"</span> {
+  <span class="flag">type</span> = list(object({
+    port        = number
+    description = string
+  }))
+}
+
+<span class="cmd">resource</span> <span class="str">"aws_security_group"</span> <span class="str">"web"</span> {
+  name = <span class="str">"web-sg"</span>
+
+  <span class="cmd">dynamic</span> <span class="str">"ingress"</span> {
+    <span class="flag">for_each</span> = var.ingress_rules
+    <span class="flag">content</span> {
+      from_port   = ingress.value.port
+      to_port     = ingress.value.port
+      protocol    = <span class="str">"tcp"</span>
+      cidr_blocks = [<span class="str">"0.0.0.0/0"</span>]
+      description = ingress.value.description
+    }
+  }
+}</code></pre>
+            </div>
+
+            <h4>for_each with Maps</h4>
+            <p>Maps give each resource instance a stable, meaningful key instead of a numeric index. This prevents the cascading destroy-and-recreate that happens when you insert or remove items from a list.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">variable</span> <span class="str">"buckets"</span> {
+  <span class="flag">default</span> = {
+    logs    = { versioning = true,  lifecycle_days = 90  }
+    backups = { versioning = true,  lifecycle_days = 365 }
+    assets  = { versioning = false, lifecycle_days = 0   }
+  }
+}
+
+<span class="cmd">resource</span> <span class="str">"aws_s3_bucket"</span> <span class="str">"this"</span> {
+  <span class="flag">for_each</span> = var.buckets
+  bucket   = <span class="str">"mycompany-${each.key}"</span>
+}</code></pre>
+            </div>
+
+            <h4>Conditional Resource Creation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create resource only in production</span>
+<span class="cmd">resource</span> <span class="str">"aws_cloudwatch_metric_alarm"</span> <span class="str">"cpu"</span> {
+  <span class="flag">count</span> = var.environment == <span class="str">"production"</span> ? 1 : 0
+  <span class="comment"># ... alarm configuration</span>
+}
+
+<span class="comment"># Conditional module instantiation</span>
+<span class="cmd">module</span> <span class="str">"monitoring"</span> {
+  <span class="flag">count</span>  = var.enable_monitoring ? 1 : 0
+  <span class="flag">source</span> = <span class="str">"./modules/monitoring"</span>
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Count vs for_each</div>
+                <p>Use <code>count</code> for on/off toggles (0 or 1). Use <code>for_each</code> for collections. Never use <code>count</code> with a list of items &mdash; removing an item from the middle renumbers everything downstream and causes unnecessary destroys.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Workspaces vs Directories -->
+        <div class="section">
+            <h3>6. Workspaces vs Directory Structure</h3>
+            <p>Terraform workspaces and separate directories both solve the same problem: running the same infrastructure definition against different environments. The right choice depends on how different your environments actually are.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Factor</th>
+                    <th>Workspaces</th>
+                    <th>Separate Directories</th>
+                </tr>
+                <tr>
+                    <td>Best when</td>
+                    <td>Environments are nearly identical (same config, different variables)</td>
+                    <td>Environments differ significantly (different resources, providers, backends)</td>
+                </tr>
+                <tr>
+                    <td>State isolation</td>
+                    <td>Same backend, different state files</td>
+                    <td>Completely separate backends</td>
+                </tr>
+                <tr>
+                    <td>Blast radius</td>
+                    <td>Higher &mdash; one <code>terraform destroy</code> typo with wrong workspace selected</td>
+                    <td>Lower &mdash; physically separated, harder to accidentally cross-contaminate</td>
+                </tr>
+                <tr>
+                    <td>Code duplication</td>
+                    <td>None &mdash; same code, different <code>.tfvars</code></td>
+                    <td>Some &mdash; mitigated by shared modules</td>
+                </tr>
+                <tr>
+                    <td>CI/CD complexity</td>
+                    <td>Simpler &mdash; one pipeline with workspace selection</td>
+                    <td>More pipelines, but each is straightforward</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Workspace approach</span>
+<span class="cmd">$</span> terraform workspace new staging
+<span class="cmd">$</span> terraform workspace new production
+<span class="cmd">$</span> terraform workspace select staging
+<span class="cmd">$</span> terraform apply <span class="flag">-var-file</span>=<span class="str">"staging.tfvars"</span>
+
+<span class="comment"># Directory approach</span>
+<span class="file">infra/</span>
+<span class="file">  modules/           </span><span class="comment"># shared modules</span>
+<span class="file">  environments/</span>
+<span class="file">    staging/          </span><span class="comment"># own backend, own vars</span>
+<span class="file">    production/       </span><span class="comment"># own backend, own vars</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">The workspace footgun</div>
+                <p>There is no visual indicator in your terminal showing which workspace is active. A common mistake: engineer runs <code>terraform destroy</code> thinking they are in staging, but they are in production. If using workspaces, always run <code>terraform workspace show</code> first, and encode the workspace name in your resource naming/tags.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Cost Traps -->
+        <div class="section">
+            <h3>7. Cloud Cost Traps</h3>
+            <p>Some cloud resources cost money in ways that are not obvious from the Terraform config. These are the ones that show up on your bill and make your finance team unhappy.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Resource</th>
+                    <th>The Trap</th>
+                    <th>Mitigation</th>
+                </tr>
+                <tr>
+                    <td><code>aws_nat_gateway</code></td>
+                    <td>$0.045/hr + $0.045/GB processed. A single NAT gateway costs ~$32/month before any data transfer.</td>
+                    <td>Use one per AZ only if HA is required. In dev, use one for the whole VPC.</td>
+                </tr>
+                <tr>
+                    <td><code>aws_eip</code></td>
+                    <td>Free while attached, $0.005/hr when unattached. Forgotten EIPs from destroyed instances add up.</td>
+                    <td>Clean up unattached EIPs. Set lifecycle rules or alerts.</td>
+                </tr>
+                <tr>
+                    <td><code>aws_vpc_endpoint</code></td>
+                    <td>Interface endpoints cost ~$7.20/month each per AZ. A VPC with 6 endpoints across 3 AZs = $130/month.</td>
+                    <td>Only create endpoints for services you actually call frequently. Gateway endpoints (S3, DynamoDB) are free.</td>
+                </tr>
+                <tr>
+                    <td><code>aws_cloudwatch_log_group</code></td>
+                    <td>Ingestion: $0.50/GB. With no retention policy, logs grow forever.</td>
+                    <td>Always set <code>retention_in_days</code>. 14 or 30 days is usually enough for non-compliance workloads.</td>
+                </tr>
+                <tr>
+                    <td><code>aws_rds_instance</code></td>
+                    <td>Multi-AZ doubles the cost. Storage auto-scaling can surprise you with allocated IOPS charges.</td>
+                    <td>Use single-AZ for dev/staging. Set <code>max_allocated_storage</code> explicitly.</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Use infracost</div>
+                <p>Run <code>infracost breakdown --path .</code> before every apply. It shows the monthly cost impact of your changes. Integrate it into CI to catch cost surprises before they merge. See Section 11 for setup details.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: State Surgery Stories -->
+        <div class="section">
+            <h3>8. State Surgery War Stories</h3>
+            <p>These are anonymized stories from real production incidents involving Terraform state corruption and recovery. Every infrastructure team accumulates a collection of these.</p>
+
+            <h4>The Accidental terraform destroy</h4>
+            <p>An engineer ran <code>terraform destroy</code> in what they thought was the staging workspace. It was production. The RDS instance, three Lambda functions, and a DynamoDB table were deleted. The resolution: restore the database from the latest automated snapshot (35 minutes of data loss), re-import all other resources from CloudTrail logs showing their IDs, and rebuild state manually. Total recovery time: 4 hours. The fix: workspace-specific backend configs with separate IAM roles, so staging credentials physically cannot touch production.</p>
+
+            <h4>The State File That Grew to 200MB</h4>
+            <p>A team used a single Terraform state for their entire AWS account &mdash; 2,000+ resources. Plans took 12 minutes. An interrupted <code>terraform apply</code> left the state locked in DynamoDB for 6 hours before anyone noticed. The fix: split the monolith into service-level state files using <code>terraform state mv</code> across 40+ targeted moves over a weekend. Plans dropped to under 30 seconds.</p>
+
+            <h4>The Corrupted S3 State</h4>
+            <p>A CI pipeline crashed mid-write. The state file in S3 was truncated to 0 bytes. The team had S3 versioning enabled. Recovery: navigate to the S3 console, find the previous version of the state file, restore it, force-unlock the DynamoDB lock, run <code>terraform plan</code> to verify. Total downtime: 20 minutes. Without versioning, this would have been catastrophic.</p>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Non-negotiable state backend settings</div>
+                <p>If you use S3 for state: enable versioning, enable server-side encryption, block public access, and use a DynamoDB table for locking. These are not optional. They are your safety net for every story above.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">terraform</span> {
+  <span class="cmd">backend</span> <span class="str">"s3"</span> {
+    bucket         = <span class="str">"mycompany-terraform-state"</span>
+    key            = <span class="str">"prod/network/terraform.tfstate"</span>
+    region         = <span class="str">"us-east-1"</span>
+    encrypt        = <span class="flag">true</span>
+    dynamodb_table = <span class="str">"terraform-locks"</span>
+  }
+}</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 9: Multi-Account Strategy -->
+        <div class="section">
+            <h3>9. Multi-Account Strategy</h3>
+            <p>Running everything in one AWS account is a ticking time bomb. A single compromised IAM key, a misconfigured security group, or a runaway Lambda can affect your entire organization. AWS Organizations and multi-account architecture solve this by creating blast-radius boundaries.</p>
+
+            <h4>Common Account Structure</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label" style="min-width: 110px;">Management</span>
+                    <span>Root account. AWS Organizations, billing, SCPs, CloudTrail org trail. No workloads run here.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label" style="min-width: 110px;">Security</span>
+                    <span>GuardDuty, Security Hub, Config aggregator, audit logs. Read-only cross-account access.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label" style="min-width: 110px;">Shared Services</span>
+                    <span>Transit Gateway, DNS (Route 53), VPN, shared container registries. Used by all workload accounts.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: #7ee787"></div>
+                    <span class="status-label" style="min-width: 110px;">Workload</span>
+                    <span>Separate accounts for dev, staging, production. Each has its own VPC, IAM roles, and resource quotas.</span>
+                </div>
+            </div>
+
+            <h4>Cross-Account Provider Aliases</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Default provider: workload account</span>
+<span class="cmd">provider</span> <span class="str">"aws"</span> {
+  region = <span class="str">"us-east-1"</span>
+}
+
+<span class="comment"># Assume role into the shared services account</span>
+<span class="cmd">provider</span> <span class="str">"aws"</span> {
+  <span class="flag">alias</span>  = <span class="str">"shared"</span>
+  region = <span class="str">"us-east-1"</span>
+  <span class="cmd">assume_role</span> {
+    role_arn = <span class="str">"arn:aws:iam::123456789012:role/TerraformCrossAccount"</span>
+  }
+}
+
+<span class="comment"># Use the alias on specific resources</span>
+<span class="cmd">resource</span> <span class="str">"aws_route53_record"</span> <span class="str">"app"</span> {
+  <span class="flag">provider</span> = <span class="str">aws.shared</span>
+  zone_id  = data.aws_route53_zone.main.zone_id
+  name     = <span class="str">"app.example.com"</span>
+  type     = <span class="str">"A"</span>
+  <span class="comment"># ...</span>
+}</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Trust policies</div>
+                <p>The cross-account role must have a trust policy that allows the source account to assume it. Use <code>Condition</code> blocks with <code>aws:PrincipalOrgID</code> to restrict assume-role to accounts within your organization only.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Secret Zero Problem -->
+        <div class="section">
+            <h3>10. The Secret Zero Problem</h3>
+            <p>You want to use Vault (or AWS Secrets Manager, or any secrets manager) to store your secrets. But Terraform needs credentials to talk to the secrets manager. And those credentials are themselves a secret. This is the chicken-and-egg of infrastructure security: how do you bootstrap the first secret?</p>
+
+            <h4>Common Approaches</h4>
+            <table class="compare">
+                <tr>
+                    <th>Approach</th>
+                    <th>How It Works</th>
+                    <th>Trade-off</th>
+                </tr>
+                <tr>
+                    <td>Environment Variables</td>
+                    <td>CI/CD platform injects <code>VAULT_TOKEN</code> or <code>AWS_ACCESS_KEY_ID</code> at runtime</td>
+                    <td>Secrets stored in CI/CD platform settings. Acceptable if the platform is trusted.</td>
+                </tr>
+                <tr>
+                    <td>IAM Instance Roles</td>
+                    <td>EC2/ECS/Lambda gets credentials via instance metadata. No static keys.</td>
+                    <td>Best for AWS-native workloads. Does not help with third-party services.</td>
+                </tr>
+                <tr>
+                    <td>OIDC Federation</td>
+                    <td>GitHub Actions / GitLab CI assumes an AWS role via OIDC. No long-lived keys.</td>
+                    <td>Best for CI/CD. Requires OIDC identity provider setup in IAM.</td>
+                </tr>
+                <tr>
+                    <td>Sealed/Auto-Unseal</td>
+                    <td>Vault auto-unseal using AWS KMS. KMS key access controlled by IAM.</td>
+                    <td>Shifts the secret zero to IAM policy. Good trade &mdash; IAM is auditable and revocable.</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># OIDC provider for GitHub Actions (no static keys)</span>
+<span class="cmd">resource</span> <span class="str">"aws_iam_openid_connect_provider"</span> <span class="str">"github"</span> {
+  url             = <span class="str">"https://token.actions.githubusercontent.com"</span>
+  client_id_list  = [<span class="str">"sts.amazonaws.com"</span>]
+  thumbprint_list = [<span class="str">"6938fd4d98bab03faadb97b34396831e3780aea1"</span>]
+}
+
+<span class="comment"># Role that GitHub Actions can assume</span>
+<span class="cmd">resource</span> <span class="str">"aws_iam_role"</span> <span class="str">"github_actions"</span> {
+  name = <span class="str">"github-actions-deploy"</span>
+  assume_role_policy = jsonencode({
+    Version = <span class="str">"2012-10-17"</span>
+    Statement = [{
+      Effect = <span class="str">"Allow"</span>
+      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Action = <span class="str">"sts:AssumeRoleWithWebIdentity"</span>
+      Condition = {
+        StringLike = {
+          <span class="str">"token.actions.githubusercontent.com:sub"</span> =
+            <span class="str">"repo:myorg/infra:ref:refs/heads/main"</span>
+        }
+      }
+    }]
+  })
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The golden rule</div>
+                <p>Never put secrets in Terraform code, <code>.tfvars</code> files, or state. Use <code>data</code> sources to read secrets from a secrets manager at plan/apply time, and mark sensitive outputs with <code>sensitive = true</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Essential CLI Tools -->
+        <div class="section">
+            <h3>11. Essential CLI Tools</h3>
+            <p>The Terraform CLI alone is not enough for professional workflows. These tools fill the gaps in security scanning, cost estimation, documentation, and version management.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>tfenv</code> <span class="tag">VERSION MGMT</span></div>
+                    <p>Terraform version manager. Switch between versions per project using a <code>.terraform-version</code> file. Essential when different repos pin different Terraform versions.</p>
+                    <div class="example">$ tfenv install 1.7.0 && tfenv use 1.7.0</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>tfsec</code> <span class="tag">SECURITY</span></div>
+                    <p>Static analysis for Terraform code. Finds security misconfigurations: public S3 buckets, unencrypted RDS, overly permissive security groups. Now part of Trivy.</p>
+                    <div class="example">$ tfsec . --minimum-severity HIGH</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>infracost</code> <span class="tag">COST</span></div>
+                    <p>Shows the monthly cost impact of your Terraform changes. Integrates with CI to post cost diffs on pull requests. Supports AWS, Azure, GCP.</p>
+                    <div class="example">$ infracost breakdown --path . --format table</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>terraform-docs</code> <span class="tag">DOCS</span></div>
+                    <p>Auto-generates documentation from your module inputs, outputs, and descriptions. Injects markdown into your README between marker comments.</p>
+                    <div class="example">$ terraform-docs markdown table . > README.md</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>pre-commit</code> <span class="tag">HOOKS</span></div>
+                    <p>Run <code>terraform fmt</code>, <code>terraform validate</code>, <code>tfsec</code>, and <code>terraform-docs</code> automatically before every commit. Catches issues before they reach CI.</p>
+                    <div class="example">$ pre-commit install && pre-commit run --all-files</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>tflint</code> <span class="tag">LINTING</span></div>
+                    <p>Pluggable Terraform linter. Catches invalid instance types, deprecated syntax, naming convention violations, and provider-specific best practices.</p>
+                    <div class="example">$ tflint --init && tflint .</div>
+                </div>
+            </div>
+
+            <h4>Pre-commit Configuration</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># .pre-commit-config.yaml</span>
+<span class="cmd">repos:</span>
+  - <span class="flag">repo:</span> <span class="str">https://github.com/antonbabenko/pre-commit-terraform</span>
+    <span class="flag">rev:</span> <span class="str">v1.88.0</span>
+    <span class="flag">hooks:</span>
+      - <span class="flag">id:</span> <span class="str">terraform_fmt</span>
+      - <span class="flag">id:</span> <span class="str">terraform_validate</span>
+      - <span class="flag">id:</span> <span class="str">terraform_tfsec</span>
+      - <span class="flag">id:</span> <span class="str">terraform_docs</span>
+        <span class="flag">args:</span>
+          - <span class="str">'--args=--lockfile=false'</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 12: Cheat Sheet -->
+        <div class="section">
+            <h3>12. Cheat Sheet</h3>
+            <p>Quick reference for the commands and patterns you will use most often. Keep this bookmarked.</p>
+
+            <h4>Core Terraform Commands</h4>
+            <table class="compare">
+                <tr><th>Command</th><th>What It Does</th></tr>
+                <tr><td><code>terraform init</code></td><td>Download providers and initialize backend. Run first, and after adding providers/modules.</td></tr>
+                <tr><td><code>terraform plan</code></td><td>Preview changes without applying. Always review before <code>apply</code>.</td></tr>
+                <tr><td><code>terraform apply</code></td><td>Apply changes. Use <code>-auto-approve</code> in CI only, never interactively.</td></tr>
+                <tr><td><code>terraform destroy</code></td><td>Tear down all managed resources. Use <code>-target</code> for selective destruction.</td></tr>
+                <tr><td><code>terraform fmt</code></td><td>Auto-format HCL files. Use <code>-recursive</code> for all subdirectories.</td></tr>
+                <tr><td><code>terraform validate</code></td><td>Check syntax and internal consistency. Does not call any APIs.</td></tr>
+                <tr><td><code>terraform output</code></td><td>Show output values. Use <code>-json</code> for machine-readable format.</td></tr>
+                <tr><td><code>terraform console</code></td><td>Interactive expression evaluator. Test functions and interpolation.</td></tr>
+            </table>
+
+            <h4>State Commands</h4>
+            <table class="compare">
+                <tr><th>Command</th><th>What It Does</th></tr>
+                <tr><td><code>terraform state list</code></td><td>List all resources in state.</td></tr>
+                <tr><td><code>terraform state show &lt;addr&gt;</code></td><td>Show attributes of a single resource.</td></tr>
+                <tr><td><code>terraform state mv &lt;src&gt; &lt;dst&gt;</code></td><td>Rename or move a resource in state.</td></tr>
+                <tr><td><code>terraform state rm &lt;addr&gt;</code></td><td>Remove a resource from state (does NOT destroy the real resource).</td></tr>
+                <tr><td><code>terraform state pull</code></td><td>Download remote state to stdout. Pipe to file for backup.</td></tr>
+                <tr><td><code>terraform state push</code></td><td>Upload a local state file to the remote backend. Use for recovery.</td></tr>
+                <tr><td><code>terraform import &lt;addr&gt; &lt;id&gt;</code></td><td>Bring an existing resource under Terraform management.</td></tr>
+                <tr><td><code>terraform force-unlock &lt;id&gt;</code></td><td>Release a stuck state lock. Use only when you are sure the lock is stale.</td></tr>
+            </table>
+
+            <h4>Common HCL Patterns</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Lookup map value with default</span>
+<span class="flag">instance_type</span> = lookup(var.instance_sizes, var.env, <span class="str">"t3.micro"</span>)
+
+<span class="comment"># Conditional value</span>
+<span class="flag">cidr_block</span> = var.env == <span class="str">"prod"</span> ? <span class="str">"10.0.0.0/16"</span> : <span class="str">"10.1.0.0/16"</span>
+
+<span class="comment"># Merge maps</span>
+<span class="flag">tags</span> = merge(var.default_tags, { Name = <span class="str">"web-${var.env}"</span> })
+
+<span class="comment"># Flatten nested structures</span>
+<span class="flag">locals</span> {
+  subnet_pairs = flatten([
+    for vpc_key, vpc in var.vpcs : [
+      for subnet_key, cidr in vpc.subnets : {
+        vpc_key    = vpc_key
+        subnet_key = subnet_key
+        cidr       = cidr
+      }
+    ]
+  ])
+}
+
+<span class="comment"># Template file rendering</span>
+<span class="flag">user_data</span> = templatefile(<span class="str">"${path.module}/init.sh.tpl"</span>, {
+  db_host = aws_rds_instance.main.endpoint
+  region  = var.region
+})
+
+<span class="comment"># Try/can for graceful failures (Terraform 1.6+)</span>
+<span class="flag">vpc_id</span> = try(data.aws_vpc.existing.id, aws_vpc.new[0].id)</code></pre>
+            </div>
+
+            <h4>Provider Snippets</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Pin provider version</span>
+<span class="cmd">terraform</span> {
+  <span class="cmd">required_providers</span> {
+    aws = {
+      <span class="flag">source</span>  = <span class="str">"hashicorp/aws"</span>
+      <span class="flag">version</span> = <span class="str">"~> 5.0"</span>
+    }
+  }
+  <span class="flag">required_version</span> = <span class="str">">= 1.5.0"</span>
+}
+
+<span class="comment"># Default tags applied to all resources</span>
+<span class="cmd">provider</span> <span class="str">"aws"</span> {
+  region = var.region
+  <span class="cmd">default_tags</span> {
+    <span class="flag">tags</span> = {
+      Environment = var.environment
+      ManagedBy   = <span class="str">"terraform"</span>
+      Project     = var.project_name
+    }
+  }
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Final advice</div>
+                <p>Treat your Terraform code like application code. Use version control, pull request reviews, automated testing, and CI/CD pipelines. Infrastructure that only one person understands is infrastructure that will break at 3 AM when that person is on vacation.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-87'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-87-iac-tips', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-87']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

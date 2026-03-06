@@ -222,17 +222,17 @@ const ForgeData = {
             description: 'Continuous Integration and Deployment — GitHub Actions, testing, deployment strategies, and monitoring.',
             color: '#3b82f6',
             modules: [
-                { id: 'do-70', title: 'CI/CD Fundamentals — Why Automate Everything', type: 'module', status: 'coming-soon', sprint: 'DO-70' },
-                { id: 'do-71', title: 'Pipeline Architecture — Stages, Jobs & Dependencies', type: 'module', status: 'coming-soon', sprint: 'DO-71' },
-                { id: 'do-72', title: 'Testing in Pipelines — Quality Gates & Coverage', type: 'module', status: 'coming-soon', sprint: 'DO-72' },
-                { id: 'do-73', title: 'Build & Artifact Management', type: 'module', status: 'coming-soon', sprint: 'DO-73' },
-                { id: 'do-74', title: 'Deployment Strategies — Zero-Downtime Releases', type: 'module', status: 'coming-soon', sprint: 'DO-74' },
-                { id: 'do-75', title: 'Secrets & Environment Management', type: 'module', status: 'coming-soon', sprint: 'DO-75' },
-                { id: 'do-76', title: 'CI/CD Platforms — GitLab CI, Jenkins & Beyond', type: 'module', status: 'coming-soon', sprint: 'DO-76' },
-                { id: 'do-21', title: 'GitHub Actions Deep Dive', type: 'module', status: 'coming-soon', sprint: 'DO-21' },
-                { id: 'do-22', title: 'CI/CD Capstone Lab', type: 'lab', status: 'coming-soon', sprint: 'DO-22' },
-                { id: 'do-77', title: 'Pipeline Monitoring & Observability', type: 'module', status: 'coming-soon', sprint: 'DO-77' },
-                { id: 'do-78', title: 'CI/CD Tips, Tricks & Battle Scars', type: 'module', status: 'coming-soon', sprint: 'DO-78' }
+                { id: 'do-70', title: 'CI/CD Fundamentals — Why Automate Everything', type: 'module', status: 'ready', sprint: 'DO-70', href: 'do-70-cicd-fundamentals.html' },
+                { id: 'do-71', title: 'Pipeline Architecture — Stages, Jobs & Dependencies', type: 'module', status: 'ready', sprint: 'DO-71', href: 'do-71-pipeline-architecture.html' },
+                { id: 'do-72', title: 'Testing in Pipelines — Quality Gates & Coverage', type: 'module', status: 'ready', sprint: 'DO-72', href: 'do-72-testing-pipelines.html' },
+                { id: 'do-73', title: 'Build & Artifact Management', type: 'module', status: 'ready', sprint: 'DO-73', href: 'do-73-build-artifacts.html' },
+                { id: 'do-74', title: 'Deployment Strategies — Zero-Downtime Releases', type: 'module', status: 'ready', sprint: 'DO-74', href: 'do-74-deployment-strategies.html' },
+                { id: 'do-75', title: 'Secrets & Environment Management', type: 'module', status: 'ready', sprint: 'DO-75', href: 'do-75-secrets-environments.html' },
+                { id: 'do-76', title: 'CI/CD Platforms — GitLab CI, Jenkins & Beyond', type: 'module', status: 'ready', sprint: 'DO-76', href: 'do-76-cicd-platforms.html' },
+                { id: 'do-21', title: 'GitHub Actions Deep Dive', type: 'module', status: 'ready', sprint: 'DO-21', href: 'do-21-github-actions.html' },
+                { id: 'do-22', title: 'CI/CD Capstone Lab', type: 'lab', status: 'ready', sprint: 'DO-22', href: 'do-22-cicd-lab.html' },
+                { id: 'do-77', title: 'Pipeline Monitoring & Observability', type: 'module', status: 'ready', sprint: 'DO-77', href: 'do-77-pipeline-monitoring.html' },
+                { id: 'do-78', title: 'CI/CD Tips, Tricks & Battle Scars', type: 'module', status: 'ready', sprint: 'DO-78', href: 'do-78-cicd-tips.html' }
             ]
         },
 
@@ -247,15 +247,15 @@ const ForgeData = {
             description: 'Terraform, Ansible provisioning, state management, modules, testing, and GitOps workflows.',
             color: '#3b82f6',
             modules: [
-                { id: 'do-79', title: 'IaC Fundamentals — Why Code Your Cloud', type: 'module', status: 'coming-soon', sprint: 'DO-79' },
-                { id: 'do-23', title: 'Terraform Deep Dive — HCL & Resources', type: 'module', status: 'coming-soon', sprint: 'DO-23' },
-                { id: 'do-80', title: 'Terraform State — The Source of Truth', type: 'module', status: 'coming-soon', sprint: 'DO-80' },
-                { id: 'do-81', title: 'Terraform Modules — Reusable Infrastructure', type: 'module', status: 'coming-soon', sprint: 'DO-81' },
-                { id: 'do-84', title: 'IaC Platforms — CloudFormation, Pulumi & CDK', type: 'module', status: 'coming-soon', sprint: 'DO-84' },
-                { id: 'do-85', title: 'IaC Testing & Policy — Validate Before You Apply', type: 'module', status: 'coming-soon', sprint: 'DO-85' },
-                { id: 'do-86', title: 'GitOps for Infrastructure', type: 'module', status: 'coming-soon', sprint: 'DO-86' },
-                { id: 'do-24', title: 'IaC Capstone Lab — Provision & Configure', type: 'lab', status: 'coming-soon', sprint: 'DO-24' },
-                { id: 'do-87', title: 'IaC Tips, Tricks & War Stories', type: 'module', status: 'coming-soon', sprint: 'DO-87' }
+                { id: 'do-79', title: 'IaC Fundamentals — Why Code Your Cloud', type: 'module', status: 'ready', sprint: 'DO-79', href: 'do-79-iac-fundamentals.html' },
+                { id: 'do-23', title: 'Terraform Deep Dive — HCL & Resources', type: 'module', status: 'ready', sprint: 'DO-23', href: 'do-23-terraform.html' },
+                { id: 'do-80', title: 'Terraform State — The Source of Truth', type: 'module', status: 'ready', sprint: 'DO-80', href: 'do-80-terraform-state.html' },
+                { id: 'do-81', title: 'Terraform Modules — Reusable Infrastructure', type: 'module', status: 'ready', sprint: 'DO-81', href: 'do-81-terraform-modules.html' },
+                { id: 'do-84', title: 'IaC Platforms — CloudFormation, Pulumi & CDK', type: 'module', status: 'ready', sprint: 'DO-84', href: 'do-84-iac-platforms.html' },
+                { id: 'do-85', title: 'IaC Testing & Policy — Validate Before You Apply', type: 'module', status: 'ready', sprint: 'DO-85', href: 'do-85-iac-testing.html' },
+                { id: 'do-86', title: 'GitOps for Infrastructure', type: 'module', status: 'ready', sprint: 'DO-86', href: 'do-86-gitops-infrastructure.html' },
+                { id: 'do-24', title: 'IaC Capstone Lab — Provision & Configure', type: 'lab', status: 'ready', sprint: 'DO-24', href: 'do-24-iac-lab.html' },
+                { id: 'do-87', title: 'IaC Tips, Tricks & War Stories', type: 'module', status: 'ready', sprint: 'DO-87', href: 'do-87-iac-tips.html' }
             ]
         },
 

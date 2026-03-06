@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing in Pipelines - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-controls.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+        .code-block .key { color: #ff7b72; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-72</span>
+            <h1>Testing in Pipelines</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; CI/CD Pipelines</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-controls.webp" alt="">
+            <h2>Testing in Pipelines</h2>
+            <p class="hero-sub">Quality Gates &amp; Coverage &mdash; build confidence in every commit by automating tests, analysis, and security scans inside your CI/CD pipeline.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-controls.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain the testing pyramid and the cost/speed tradeoffs at each layer</li>
+                <li>Configure unit, integration, and end-to-end tests inside CI pipelines</li>
+                <li>Integrate static analysis tools &mdash; linters, formatters, and SAST scanners</li>
+                <li>Enforce code coverage thresholds and generate coverage reports</li>
+                <li>Implement quality gates that block merges on test failures</li>
+                <li>Add dependency and container security scanning to the pipeline</li>
+                <li>Detect, quarantine, and manage flaky tests</li>
+                <li>Produce machine-readable test reports with JUnit XML, badges, and PR comments</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: The Testing Pyramid -->
+        <div class="section">
+            <h3>1. The Testing Pyramid</h3>
+            <p>The testing pyramid is a mental model for structuring automated tests. The idea: you should have many fast, cheap tests at the bottom and fewer slow, expensive tests at the top. Get this balance wrong and your pipeline will either be too slow or too fragile.</p>
+
+            <div class="diagram" id="pyramidDiagram">
+                <div class="diagram-box" onclick="showLayer('e2e')" id="box-e2e">
+                    <div class="diagram-box-title">E2E Tests</div>
+                    <div class="diagram-box-sub">Few &middot; Slow &middot; Expensive</div>
+                </div>
+                <div class="diagram-arrow">&larr;</div>
+                <div class="diagram-box" onclick="showLayer('integration')" id="box-integration">
+                    <div class="diagram-box-title">Integration Tests</div>
+                    <div class="diagram-box-sub">Medium &middot; Moderate</div>
+                </div>
+                <div class="diagram-arrow">&larr;</div>
+                <div class="diagram-box" onclick="showLayer('unit')" id="box-unit">
+                    <div class="diagram-box-title">Unit Tests</div>
+                    <div class="diagram-box-sub">Many &middot; Fast &middot; Cheap</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="layerDetail">Click a layer above to learn about its role in the pyramid.</div>
+
+            <table class="compare">
+                <tr>
+                    <th>Layer</th>
+                    <th>Speed</th>
+                    <th>Cost to Write</th>
+                    <th>Confidence</th>
+                    <th>Ratio</th>
+                </tr>
+                <tr>
+                    <td><strong>Unit</strong></td>
+                    <td>Milliseconds</td>
+                    <td>Low</td>
+                    <td>Individual functions</td>
+                    <td>~70%</td>
+                </tr>
+                <tr>
+                    <td><strong>Integration</strong></td>
+                    <td>Seconds</td>
+                    <td>Medium</td>
+                    <td>Component interaction</td>
+                    <td>~20%</td>
+                </tr>
+                <tr>
+                    <td><strong>E2E</strong></td>
+                    <td>Minutes</td>
+                    <td>High</td>
+                    <td>Full user workflows</td>
+                    <td>~10%</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The pyramid is a guideline, not a law. Some teams use a "testing trophy" (more integration, fewer unit) or a "testing diamond." What matters is: fast feedback first, expensive validation last.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Unit Tests in CI -->
+        <div class="section">
+            <h3>2. Unit Tests in CI</h3>
+            <p>Unit tests are the foundation of any pipeline. They test individual functions or classes in isolation, run in milliseconds, and should be the first thing that executes after code is checked out.</p>
+
+            <h4>Fail-Fast Philosophy</h4>
+            <p>If unit tests fail, nothing else should run. This saves CI minutes and gives developers the fastest possible feedback. Most CI systems stop a job immediately when a step returns a non-zero exit code.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="key">name:</span> <span class="str">CI</span>
+<span class="key">on:</span> [<span class="str">push</span>, <span class="str">pull_request</span>]
+
+<span class="key">jobs:</span>
+  <span class="key">test:</span>
+    <span class="key">runs-on:</span> <span class="str">ubuntu-latest</span>
+    <span class="key">steps:</span>
+      - <span class="key">uses:</span> <span class="str">actions/checkout@v4</span>
+      - <span class="key">uses:</span> <span class="str">actions/setup-node@v4</span>
+        <span class="key">with:</span>
+          <span class="key">node-version:</span> <span class="str">20</span>
+          <span class="key">cache:</span> <span class="str">npm</span>
+
+      - <span class="key">run:</span> <span class="str">npm ci</span>             <span class="comment"># Clean install</span>
+      - <span class="key">run:</span> <span class="str">npm test</span>            <span class="comment"># Fail-fast: pipeline stops here on failure</span>
+      - <span class="key">run:</span> <span class="str">npm run build</span>        <span class="comment"># Only runs if tests pass</span></code></pre>
+            </div>
+
+            <h4>Collecting Test Results</h4>
+            <p>Raw console output works for local development but becomes useless at scale. Configure your test runner to output machine-readable results (JUnit XML) so CI can render them in the UI.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Jest Config</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// jest.config.js</span>
+<span class="key">module.exports</span> = {
+  <span class="key">reporters:</span> [
+    <span class="str">'default'</span>,                      <span class="comment">// Console output for developers</span>
+    [<span class="str">'jest-junit'</span>, {
+      <span class="key">outputDirectory:</span> <span class="str">'reports'</span>,
+      <span class="key">outputName:</span> <span class="str">'junit.xml'</span>,      <span class="comment">// Machine-readable for CI</span>
+    }]
+  ]
+};</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">CI Minute Economics</div>
+                <p>On GitHub Actions, a Linux runner costs $0.008/minute. Running a 5-minute test suite on every push across a team of 10 engineers making 5 pushes/day = ~$6/month. Cheap. But if you run E2E suites on every push without fail-fast, that number can 10x.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Integration Testing -->
+        <div class="section">
+            <h3>3. Integration Testing</h3>
+            <p>Integration tests verify that components work together &mdash; your API talks to the database correctly, services call each other with the right payloads, middleware chains execute in order. They are slower than unit tests because they need real (or realistic) dependencies.</p>
+
+            <h4>Service Containers</h4>
+            <p>Most CI platforms let you spin up Docker containers alongside your test runner. Need a PostgreSQL database? A Redis cache? Define them as services and your tests connect to them over localhost.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="key">jobs:</span>
+  <span class="key">integration:</span>
+    <span class="key">runs-on:</span> <span class="str">ubuntu-latest</span>
+    <span class="key">services:</span>
+      <span class="key">postgres:</span>
+        <span class="key">image:</span> <span class="str">postgres:16</span>
+        <span class="key">env:</span>
+          <span class="key">POSTGRES_DB:</span> <span class="str">testdb</span>
+          <span class="key">POSTGRES_USER:</span> <span class="str">ci</span>
+          <span class="key">POSTGRES_PASSWORD:</span> <span class="str">ci_password</span>
+        <span class="key">ports:</span> [<span class="str">'5432:5432'</span>]
+        <span class="key">options:</span> <span class="str">--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5</span>
+
+    <span class="key">steps:</span>
+      - <span class="key">uses:</span> <span class="str">actions/checkout@v4</span>
+      - <span class="key">run:</span> <span class="str">npm ci</span>
+      - <span class="key">run:</span> <span class="str">npm run test:integration</span>
+        <span class="key">env:</span>
+          <span class="key">DATABASE_URL:</span> <span class="str">postgres://ci:ci_password@localhost:5432/testdb</span></code></pre>
+            </div>
+
+            <h4>API Mocking</h4>
+            <p>External APIs (Stripe, Twilio, AWS) should never be called from CI. Use mocking libraries or contract testing to simulate them.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>MSW</code> <span class="tag">HTTP MOCK</span></div>
+                    <p>Mock Service Worker intercepts HTTP requests at the network level. Works in Node and browsers.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Testcontainers</code> <span class="tag">DOCKER</span></div>
+                    <p>Programmatically start Docker containers for databases, message queues, or any service your tests need.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Pact</code> <span class="tag">CONTRACT</span></div>
+                    <p>Consumer-driven contract testing. Ensures API producer and consumer agree on the interface without live calls.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>WireMock</code> <span class="tag">STUB SERVER</span></div>
+                    <p>Standalone HTTP stub server. Record real API responses, then replay them deterministically in CI.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Test Databases</div>
+                <p>Always use a separate database for CI. Never point integration tests at staging or production. Use migrations to create the schema fresh, seed with test fixtures, and tear down after each suite. Container-based databases make this trivial &mdash; every run starts clean.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: End-to-End Testing -->
+        <div class="section">
+            <h3>4. End-to-End Testing</h3>
+            <p>E2E tests simulate real user behavior: clicking buttons, filling forms, navigating pages. They are the most expensive tests to write and maintain, but they catch the bugs that nothing else will &mdash; broken CSS selectors, failed API integrations, race conditions in the UI.</p>
+
+            <h4>Headless Browsers in CI</h4>
+            <p>CI runners have no display server. E2E frameworks run browsers in headless mode &mdash; everything works the same, but no window is rendered. Both Cypress and Playwright support this natively.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions &mdash; Playwright</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="key">jobs:</span>
+  <span class="key">e2e:</span>
+    <span class="key">runs-on:</span> <span class="str">ubuntu-latest</span>
+    <span class="key">steps:</span>
+      - <span class="key">uses:</span> <span class="str">actions/checkout@v4</span>
+      - <span class="key">uses:</span> <span class="str">actions/setup-node@v4</span>
+        <span class="key">with:</span> { <span class="key">node-version:</span> <span class="str">20</span> }
+      - <span class="key">run:</span> <span class="str">npm ci</span>
+      - <span class="key">run:</span> <span class="str">npx playwright install --with-deps</span>   <span class="comment"># Install browsers + OS deps</span>
+      - <span class="key">run:</span> <span class="str">npx playwright test</span>
+
+      <span class="comment"># Upload video/screenshot artifacts on failure</span>
+      - <span class="key">uses:</span> <span class="str">actions/upload-artifact@v4</span>
+        <span class="key">if:</span> <span class="str">failure()</span>
+        <span class="key">with:</span>
+          <span class="key">name:</span> <span class="str">playwright-report</span>
+          <span class="key">path:</span> <span class="str">playwright-report/</span>
+          <span class="key">retention-days:</span> <span class="str">7</span></code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Framework</th>
+                    <th>Language</th>
+                    <th>Browsers</th>
+                    <th>Strengths</th>
+                </tr>
+                <tr>
+                    <td><strong>Playwright</strong></td>
+                    <td>JS, Python, Java, .NET</td>
+                    <td>Chromium, Firefox, WebKit</td>
+                    <td>Multi-browser, auto-wait, trace viewer</td>
+                </tr>
+                <tr>
+                    <td><strong>Cypress</strong></td>
+                    <td>JavaScript</td>
+                    <td>Chrome, Firefox, Edge</td>
+                    <td>Time-travel debugging, excellent DX</td>
+                </tr>
+                <tr>
+                    <td><strong>Selenium</strong></td>
+                    <td>Many</td>
+                    <td>All major</td>
+                    <td>Industry standard, huge ecosystem</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Video Artifacts</div>
+                <p>Configure Playwright/Cypress to record video on failure. When a test breaks in CI, you can download the video and watch exactly what happened &mdash; no guessing, no "works on my machine." Store artifacts for 7-14 days to save storage.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Static Analysis -->
+        <div class="section">
+            <h3>5. Static Analysis</h3>
+            <p>Static analysis examines code without executing it. Linters catch style violations, formatters enforce consistency, and SAST (Static Application Security Testing) tools find vulnerabilities before the code ever runs in production.</p>
+
+            <h4>Linting &amp; Formatting</h4>
+            <p>Run linters early in the pipeline. They are fast, catch obvious bugs, and enforce team conventions. Pair them with auto-formatters so code style arguments become irrelevant.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="key">steps:</span>
+  - <span class="key">name:</span> <span class="str">Lint</span>
+    <span class="key">run:</span> <span class="str">npx eslint . --max-warnings 0</span>   <span class="comment"># Zero tolerance for warnings</span>
+
+  - <span class="key">name:</span> <span class="str">Format Check</span>
+    <span class="key">run:</span> <span class="str">npx prettier --check .</span>          <span class="comment"># Fail if unformatted files found</span>
+
+  - <span class="key">name:</span> <span class="str">Type Check</span>
+    <span class="key">run:</span> <span class="str">npx tsc --noEmit</span>                <span class="comment"># TypeScript type checking (no output)</span></code></pre>
+            </div>
+
+            <h4>SAST Tools</h4>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>SonarQube</code> <span class="tag">SAST</span></div>
+                    <p>Comprehensive code quality platform. Detects bugs, vulnerabilities, code smells, and technical debt. Supports 30+ languages.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Semgrep</code> <span class="tag">SAST</span></div>
+                    <p>Lightweight, fast, and easy to write custom rules. Pattern-based scanning that developers actually like using.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>CodeQL</code> <span class="tag">SAST</span></div>
+                    <p>GitHub-native analysis engine. Treats code as data and runs queries against it. Free for public repos.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Bandit</code> <span class="tag">PYTHON</span></div>
+                    <p>Python-specific security linter. Finds common issues like hardcoded passwords, SQL injection, and insecure function calls.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Shift Left</div>
+                <p>"Shift left" means moving testing and security earlier in the development lifecycle. Static analysis is the ultimate shift-left: it finds problems before the code is even compiled or deployed. The earlier you catch a bug, the cheaper it is to fix.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Code Coverage -->
+        <div class="section">
+            <h3>6. Code Coverage</h3>
+            <p>Code coverage measures what percentage of your code is exercised by tests. It does not guarantee your tests are good &mdash; but low coverage guarantees you have blind spots.</p>
+
+            <h4>Coverage Thresholds</h4>
+            <p>Set minimum coverage thresholds in your test runner. When coverage drops below the threshold, the pipeline fails. This prevents coverage from slowly eroding over time.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Jest Config</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// jest.config.js</span>
+<span class="key">module.exports</span> = {
+  <span class="key">collectCoverage:</span> <span class="str">true</span>,
+  <span class="key">coverageDirectory:</span> <span class="str">'coverage'</span>,
+  <span class="key">coverageReporters:</span> [<span class="str">'text'</span>, <span class="str">'lcov'</span>, <span class="str">'json-summary'</span>],
+  <span class="key">coverageThreshold:</span> {
+    <span class="key">global:</span> {
+      <span class="key">branches:</span>   <span class="str">80</span>,
+      <span class="key">functions:</span>  <span class="str">80</span>,
+      <span class="key">lines:</span>      <span class="str">80</span>,
+      <span class="key">statements:</span> <span class="str">80</span>
+    }
+  }
+};</code></pre>
+            </div>
+
+            <h4>Coverage Metrics</h4>
+            <table class="compare">
+                <tr>
+                    <th>Metric</th>
+                    <th>What It Measures</th>
+                    <th>Useful For</th>
+                </tr>
+                <tr>
+                    <td><strong>Line</strong></td>
+                    <td>% of code lines executed</td>
+                    <td>Quick overview</td>
+                </tr>
+                <tr>
+                    <td><strong>Branch</strong></td>
+                    <td>% of if/else paths taken</td>
+                    <td>Finding untested edge cases</td>
+                </tr>
+                <tr>
+                    <td><strong>Function</strong></td>
+                    <td>% of functions called</td>
+                    <td>Spotting dead code</td>
+                </tr>
+                <tr>
+                    <td><strong>Statement</strong></td>
+                    <td>% of statements executed</td>
+                    <td>Most granular measurement</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">The 100% Trap</div>
+                <p>Chasing 100% coverage leads to brittle, test-heavy codebases where tests test nothing meaningful. Aim for 80% as a floor, focus on critical paths, and remember: 80% meaningful coverage beats 100% shallow coverage every time.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Quality Gates -->
+        <div class="section">
+            <h3>7. Quality Gates</h3>
+            <p>A quality gate is a set of conditions that must pass before code can be merged. Failed tests, low coverage, linting errors, security vulnerabilities &mdash; any of these can block a pull request from merging.</p>
+
+            <h4>Branch Protection Rules</h4>
+            <p>GitHub, GitLab, and Bitbucket all support branch protection: rules that prevent direct pushes to important branches and require status checks to pass before merging.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Required Checks</span>
+                    <span>Specify which CI jobs must pass. The Merge button stays disabled until all required checks are green.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Review Required</span>
+                    <span>Require 1+ code reviews before merging. Combines human judgment with automated validation.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Up-to-Date</span>
+                    <span>Require the branch to be up-to-date with the base branch. Prevents "merge skew" where tests pass on a stale branch.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">No Force Push</span>
+                    <span>Prevent history rewriting on protected branches. Keeps the audit trail intact.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Branch Protection (via API)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Set required status checks for the main branch</span>
+<span class="cmd">$</span> gh api repos/{owner}/{repo}/branches/main/protection \
+    <span class="flag">--method</span> PUT \
+    <span class="flag">-f</span> <span class="str">'required_status_checks[strict]=true'</span> \
+    <span class="flag">-f</span> <span class="str">'required_status_checks[contexts][]=ci/tests'</span> \
+    <span class="flag">-f</span> <span class="str">'required_status_checks[contexts][]=ci/lint'</span> \
+    <span class="flag">-f</span> <span class="str">'required_status_checks[contexts][]=ci/coverage'</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Gate, Don't Warn</div>
+                <p>Warnings get ignored. If something matters, make it a blocker. If you care about linting, fail the build on lint errors. If coverage matters, set a threshold and enforce it. A quality gate that does not block is just noise.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Security Scanning -->
+        <div class="section">
+            <h3>8. Security Scanning</h3>
+            <p>Your code may be secure, but your dependencies might not be. Security scanning in CI catches vulnerable packages, leaked secrets, and misconfigured containers before they reach production.</p>
+
+            <h4>Dependency Scanning</h4>
+            <p>Open-source dependencies are the biggest attack surface for most applications. Automated scanners check your dependency tree against known vulnerability databases (CVE, NVD) on every commit.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Dependabot</code> <span class="tag">GITHUB</span></div>
+                    <p>GitHub-native. Automatically opens PRs to update vulnerable dependencies. Zero config for public repos.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Snyk</code> <span class="tag">SCA</span></div>
+                    <p>Software composition analysis. Scans dependencies, containers, and IaC. Provides fix recommendations and auto-PRs.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>npm audit</code> <span class="tag">BUILT-IN</span></div>
+                    <p>Built into npm. Run <code>npm audit</code> to check for known vulnerabilities. Use <code>--audit-level=high</code> to only fail on high/critical.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>OWASP Dep-Check</code> <span class="tag">JAVA/.NET</span></div>
+                    <p>Open-source dependency checker. Scans project dependencies against the NVD. Supports Java, .NET, Python, Ruby, and more.</p>
+                </div>
+            </div>
+
+            <h4>Container Scanning</h4>
+            <p>If you ship Docker containers, scan the images for OS-level vulnerabilities. A single outdated system library in your base image can expose your entire application.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions &mdash; Trivy</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="key">steps:</span>
+  - <span class="key">name:</span> <span class="str">Build Docker Image</span>
+    <span class="key">run:</span> <span class="str">docker build -t myapp:${{ github.sha }} .</span>
+
+  - <span class="key">name:</span> <span class="str">Scan with Trivy</span>
+    <span class="key">uses:</span> <span class="str">aquasecurity/trivy-action@master</span>
+    <span class="key">with:</span>
+      <span class="key">image-ref:</span> <span class="str">myapp:${{ github.sha }}</span>
+      <span class="key">severity:</span> <span class="str">HIGH,CRITICAL</span>
+      <span class="key">exit-code:</span> <span class="str">1</span>              <span class="comment"># Fail the build on high/critical</span>
+      <span class="key">format:</span> <span class="str">sarif</span>
+      <span class="key">output:</span> <span class="str">trivy-results.sarif</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Secret Scanning</div>
+                <p>Never commit secrets. Use tools like <code>gitleaks</code> or <code>trufflehog</code> in your CI pipeline to scan for accidentally committed API keys, passwords, and tokens. GitHub also has built-in secret scanning for common provider formats. A single leaked AWS key can cost thousands in minutes.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Performance Testing -->
+        <div class="section">
+            <h3>9. Performance Testing</h3>
+            <p>Performance regressions are silent killers. A function that was 50ms becomes 500ms after a refactor, and nobody notices until users complain. Catching this in CI requires benchmarks with baseline comparisons.</p>
+
+            <h4>Types of Performance Tests</h4>
+            <table class="compare">
+                <tr>
+                    <th>Type</th>
+                    <th>Purpose</th>
+                    <th>When to Run</th>
+                </tr>
+                <tr>
+                    <td><strong>Benchmarks</strong></td>
+                    <td>Measure execution time of specific functions</td>
+                    <td>Every PR (fast, targeted)</td>
+                </tr>
+                <tr>
+                    <td><strong>Load Tests</strong></td>
+                    <td>Simulate concurrent users hitting the application</td>
+                    <td>Nightly or pre-release</td>
+                </tr>
+                <tr>
+                    <td><strong>Stress Tests</strong></td>
+                    <td>Push the system beyond expected limits to find the breaking point</td>
+                    <td>Pre-release only</td>
+                </tr>
+                <tr>
+                    <td><strong>Soak Tests</strong></td>
+                    <td>Run under normal load for hours to find memory leaks</td>
+                    <td>Weekly or pre-release</td>
+                </tr>
+            </table>
+
+            <h4>Regression Detection</h4>
+            <p>Store benchmark results from the base branch and compare them against the PR branch. If a function is more than N% slower, fail the check and flag it for review.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions &mdash; k6 Load Test</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="key">steps:</span>
+  - <span class="key">name:</span> <span class="str">Run Load Test</span>
+    <span class="key">uses:</span> <span class="str">grafana/k6-action@v0.3.1</span>
+    <span class="key">with:</span>
+      <span class="key">filename:</span> <span class="str">tests/load/api-test.js</span>
+      <span class="key">flags:</span> <span class="str">--out json=results.json</span>
+
+  - <span class="key">name:</span> <span class="str">Check Thresholds</span>
+    <span class="key">run:</span> |
+      <span class="comment"># k6 exits non-zero if thresholds are breached</span>
+      <span class="comment"># Thresholds defined in the test script:</span>
+      <span class="comment"># http_req_duration: ['p(95) < 500']  -- 95th percentile under 500ms</span>
+      <span class="comment"># http_req_failed: ['rate < 0.01']     -- less than 1% failure rate</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">CI Runners are Noisy</div>
+                <p>Shared CI runners have variable performance &mdash; the same benchmark can fluctuate 10-20% between runs. Use relative comparisons (this PR vs base branch) rather than absolute thresholds. For precise benchmarks, use dedicated self-hosted runners with consistent hardware.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Test Parallelization -->
+        <div class="section">
+            <h3>10. Test Parallelization</h3>
+            <p>A 30-minute test suite is not acceptable for developer productivity. Parallelization splits tests across multiple runners so the entire suite finishes in the time of the slowest shard.</p>
+
+            <h4>Matrix Strategies</h4>
+            <p>CI platforms let you run the same job across multiple configurations simultaneously. Combine this with test sharding to distribute the test suite across parallel runners.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions &mdash; Sharding</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="key">jobs:</span>
+  <span class="key">test:</span>
+    <span class="key">runs-on:</span> <span class="str">ubuntu-latest</span>
+    <span class="key">strategy:</span>
+      <span class="key">matrix:</span>
+        <span class="key">shard:</span> [<span class="str">1</span>, <span class="str">2</span>, <span class="str">3</span>, <span class="str">4</span>]    <span class="comment"># 4 parallel runners</span>
+    <span class="key">steps:</span>
+      - <span class="key">uses:</span> <span class="str">actions/checkout@v4</span>
+      - <span class="key">run:</span> <span class="str">npm ci</span>
+      - <span class="key">run:</span> <span class="str">npx playwright test --shard=${{ matrix.shard }}/4</span></code></pre>
+            </div>
+
+            <h4>Parallelization Strategies</h4>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">File-Based</span>
+                    <span>Split test files evenly across shards. Simple but can be unbalanced if some files have many more tests.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Time-Based</span>
+                    <span>Use historical run times to distribute tests so each shard finishes at roughly the same time. Tools like <code>knapsack</code> do this.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Dynamic</span>
+                    <span>Workers pull tests from a shared queue. When a runner finishes a test, it grabs the next one. No idle runners.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Math</div>
+                <p>4 shards do not give you 4x speedup. There is overhead: checkout, dependency install, container startup. A 20-minute suite split across 4 shards might finish in 6-7 minutes, not 5. Still worth it &mdash; but cache aggressively and keep setup steps fast.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Flaky Tests -->
+        <div class="section">
+            <h3>11. Flaky Tests</h3>
+            <p>A flaky test is one that passes and fails intermittently without any code change. Flaky tests erode trust in the pipeline &mdash; when developers stop believing failures are real, they start ignoring all failures.</p>
+
+            <h4>Common Causes</h4>
+            <table class="compare">
+                <tr>
+                    <th>Cause</th>
+                    <th>Example</th>
+                    <th>Fix</th>
+                </tr>
+                <tr>
+                    <td><strong>Race conditions</strong></td>
+                    <td>Test reads data before async write completes</td>
+                    <td>Use explicit waits, not <code>sleep()</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Shared state</strong></td>
+                    <td>Test A creates data that test B relies on</td>
+                    <td>Isolate tests, use unique fixtures</td>
+                </tr>
+                <tr>
+                    <td><strong>Time-dependent</strong></td>
+                    <td>Test fails on the 1st of the month or at midnight</td>
+                    <td>Mock <code>Date.now()</code>, freeze time</td>
+                </tr>
+                <tr>
+                    <td><strong>Network calls</strong></td>
+                    <td>External API times out or rate-limits CI</td>
+                    <td>Mock all external calls</td>
+                </tr>
+                <tr>
+                    <td><strong>Order-dependent</strong></td>
+                    <td>Tests pass in sequence but fail when shuffled</td>
+                    <td>Randomize test order, fix shared state</td>
+                </tr>
+            </table>
+
+            <h4>Quarantine Strategy</h4>
+            <p>When a test is identified as flaky: move it to a quarantine suite, track it in a dashboard, and fix it within a sprint. Quarantined tests should still run but should not block the pipeline.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Jest &mdash; Quarantine Tagging</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// Tag flaky tests so they can be excluded from gate checks</span>
+describe(<span class="str">'Payment processing'</span>, () => {
+  <span class="comment">// This test is flaky due to Stripe sandbox timeouts</span>
+  <span class="comment">// Quarantined: 2026-03-01 | Owner: @team-payments</span>
+  it.skip(<span class="str">'processes refund within 30 seconds'</span>, async () => {
+    <span class="comment">// ...</span>
+  });
+});
+
+<span class="comment">// Or use a custom tag system:</span>
+<span class="comment">// jest --testPathIgnorePatterns='quarantine'</span>
+<span class="comment">// Quarantined tests live in __tests__/quarantine/</span></code></pre>
+            </div>
+
+            <h4>Retry Strategies</h4>
+            <p>Some frameworks support automatic retries. Use them sparingly &mdash; retries mask the root cause. If you enable retries, always log and track which tests needed them.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Playwright Config</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// playwright.config.ts</span>
+<span class="key">export default</span> defineConfig({
+  <span class="key">retries:</span> process.env.CI ? <span class="str">2</span> : <span class="str">0</span>,   <span class="comment">// Retry twice in CI, never locally</span>
+  <span class="key">reporter:</span> [
+    [<span class="str">'html'</span>],
+    [<span class="str">'json'</span>, { <span class="key">outputFile:</span> <span class="str">'results.json'</span> }]
+  ]
+});</code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">The Flaky Tax</div>
+                <p>Google published research showing that 1.5% of their tests were flaky, yet those tests caused 16% of all test infrastructure costs. Flaky tests waste CI minutes (retries), developer time (investigating false failures), and team trust (ignoring real failures). Treat flaky tests as bugs with the same priority as production issues.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Test Reporting -->
+        <div class="section">
+            <h3>12. Test Reporting</h3>
+            <p>Tests that produce results nobody sees are wasted effort. Good reporting makes test outcomes visible, actionable, and historical &mdash; from PR comments to dashboards to coverage badges in the README.</p>
+
+            <h4>JUnit XML &mdash; The Universal Format</h4>
+            <p>Nearly every CI platform can parse JUnit XML. Configure your test runner to output it and the CI will render pass/fail counts, durations, and failure messages directly in the UI.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">JUnit XML Structure</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">&lt;!-- Standard JUnit XML format --&gt;</span>
+<span class="cmd">&lt;testsuites</span> <span class="flag">tests=</span><span class="str">"142"</span> <span class="flag">failures=</span><span class="str">"2"</span> <span class="flag">time=</span><span class="str">"14.3"</span><span class="cmd">&gt;</span>
+  <span class="cmd">&lt;testsuite</span> <span class="flag">name=</span><span class="str">"auth.test.js"</span> <span class="flag">tests=</span><span class="str">"8"</span> <span class="flag">failures=</span><span class="str">"1"</span><span class="cmd">&gt;</span>
+    <span class="cmd">&lt;testcase</span> <span class="flag">name=</span><span class="str">"validates JWT token"</span> <span class="flag">time=</span><span class="str">"0.045"</span> <span class="cmd">/&gt;</span>
+    <span class="cmd">&lt;testcase</span> <span class="flag">name=</span><span class="str">"rejects expired token"</span> <span class="flag">time=</span><span class="str">"0.032"</span><span class="cmd">&gt;</span>
+      <span class="key">&lt;failure</span> <span class="flag">message=</span><span class="str">"Expected 401, got 200"</span><span class="key">&gt;</span>
+        <span class="file">Error: Token validation did not reject expired token</span>
+        <span class="file">  at Object.test (auth.test.js:42:5)</span>
+      <span class="key">&lt;/failure&gt;</span>
+    <span class="cmd">&lt;/testcase&gt;</span>
+  <span class="cmd">&lt;/testsuite&gt;</span>
+<span class="cmd">&lt;/testsuites&gt;</span></code></pre>
+            </div>
+
+            <h4>Coverage Badges</h4>
+            <p>Generate a dynamic badge from your coverage report. Display it in your README so coverage is always visible. Services like Codecov and Coveralls do this automatically, or you can self-host with shields.io.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions &mdash; Coverage Upload</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="key">steps:</span>
+  - <span class="key">name:</span> <span class="str">Run Tests with Coverage</span>
+    <span class="key">run:</span> <span class="str">npm test -- --coverage</span>
+
+  - <span class="key">name:</span> <span class="str">Upload to Codecov</span>
+    <span class="key">uses:</span> <span class="str">codecov/codecov-action@v4</span>
+    <span class="key">with:</span>
+      <span class="key">files:</span> <span class="str">coverage/lcov.info</span>
+      <span class="key">fail_ci_if_error:</span> <span class="str">true</span>
+      <span class="key">token:</span> <span class="str">${{ secrets.CODECOV_TOKEN }}</span></code></pre>
+            </div>
+
+            <h4>PR Comments</h4>
+            <p>The best reporting surfaces results exactly where developers already look: the pull request. Use bots or actions to post test summaries, coverage diffs, and security findings as PR comments.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Tool</th>
+                    <th>What It Reports</th>
+                    <th>Where</th>
+                </tr>
+                <tr>
+                    <td><strong>Codecov</strong></td>
+                    <td>Coverage diff, file-by-file changes, sunburst chart</td>
+                    <td>PR comment + status check</td>
+                </tr>
+                <tr>
+                    <td><strong>Danger JS</strong></td>
+                    <td>Custom messages based on PR content (file size, missing tests, etc.)</td>
+                    <td>PR comment</td>
+                </tr>
+                <tr>
+                    <td><strong>SonarQube</strong></td>
+                    <td>Code quality gate status, new issues, coverage</td>
+                    <td>PR decoration + dashboard</td>
+                </tr>
+                <tr>
+                    <td><strong>Allure</strong></td>
+                    <td>Interactive test report with history, categories, and trends</td>
+                    <td>GitHub Pages + PR link</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Build a Culture of Visibility</div>
+                <p>Put dashboards on a TV in the office. Post weekly test health summaries in Slack. Make coverage trends visible in sprint retrospectives. When testing metrics are visible, teams naturally improve them. When they are hidden in CI logs, they rot.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Testing pyramid interaction
+        const layers = {
+            unit: {
+                title: 'Unit Tests (Base Layer)',
+                desc: 'Fast, isolated tests that validate individual functions, methods, or classes. They mock all dependencies and run in milliseconds. You should have the most of these &mdash; they are cheap to write, fast to run, and catch logic errors immediately. Aim for ~70% of your total test count.'
+            },
+            integration: {
+                title: 'Integration Tests (Middle Layer)',
+                desc: 'Tests that verify multiple components working together &mdash; API endpoints hitting a real database, services communicating over HTTP, middleware chains. Slower than unit tests because they need real dependencies (databases, caches, queues), but they catch wiring bugs that unit tests miss.'
+            },
+            e2e: {
+                title: 'End-to-End Tests (Top Layer)',
+                desc: 'Full-stack tests that simulate real user behavior through a browser. They are the slowest and most expensive to maintain, but they catch bugs that nothing else can &mdash; broken layouts, misconfigured routing, failed third-party integrations. Keep these focused on critical user paths only.'
+            }
+        };
+
+        function showLayer(id) {
+            document.querySelectorAll('.diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const l = layers[id];
+            document.getElementById('layerDetail').innerHTML = '<strong>' + l.title + '</strong><br>' + l.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-72'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-72-testing-pipelines', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first pyramid layer
+        showLayer('unit');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-72']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

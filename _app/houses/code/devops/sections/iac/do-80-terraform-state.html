@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terraform State - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-construction.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+        .code-block .key { color: #ff7b72; }
+        .code-block .val { color: #a5d6ff; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-80</span>
+            <h1>Terraform State</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Infrastructure as Code</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-construction.webp" alt="">
+            <h2>Terraform State</h2>
+            <p class="hero-sub">The source of truth &mdash; how Terraform tracks what it manages, why state matters, and how to protect it in production.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-construction.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain why Terraform needs a state file and what it contains</li>
+                <li>Compare local vs remote state backends and when to use each</li>
+                <li>Configure remote backends with S3, Azure Storage, or GCS</li>
+                <li>Implement state locking to prevent concurrent corruption</li>
+                <li>Use <code>terraform state</code> commands to inspect and manipulate resources</li>
+                <li>Migrate state between backends without losing resources</li>
+                <li>Protect sensitive data that lands in state files</li>
+                <li>Split monolith state into smaller, team-scoped units</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: What is Terraform State? -->
+        <div class="section">
+            <h3>What is Terraform State?</h3>
+            <p>When you run <code>terraform apply</code>, Terraform creates real infrastructure &mdash; VMs, networks, databases. But how does it know what already exists the next time you run it? That is the job of the <strong>state file</strong>.</p>
+
+            <p>The state file (<code>terraform.tfstate</code>) is a JSON document that maps your configuration to the real-world resources it manages. Without it, Terraform would have no idea what it created previously and would try to create everything from scratch on every apply.</p>
+
+            <h4>What State Does</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Mapping</span>
+                    <span>Links each <code>resource</code> block in your config to a real resource ID in the cloud provider.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Metadata</span>
+                    <span>Tracks resource dependencies so Terraform knows the correct order of operations.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Performance</span>
+                    <span>Caches attribute values so <code>terraform plan</code> does not have to query every resource from the API.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Sync</span>
+                    <span>Detects drift &mdash; differences between what your config declares and what actually exists.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>State is the source of truth for Terraform. It is the bridge between your <code>.tf</code> configuration files and the real infrastructure running in your cloud account. If the state file is lost or corrupted, Terraform loses track of everything it manages.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: State File Anatomy -->
+        <div class="section">
+            <h3>State File Anatomy</h3>
+            <p>The state file is plain JSON. Understanding its structure helps when you need to debug issues or perform advanced operations.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">JSON &mdash; terraform.tfstate</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="key">"version"</span>: <span class="val">4</span>,
+  <span class="key">"terraform_version"</span>: <span class="val">"1.7.4"</span>,
+  <span class="key">"serial"</span>: <span class="val">12</span>,
+  <span class="key">"lineage"</span>: <span class="val">"a1b2c3d4-e5f6-7890-abcd-ef1234567890"</span>,
+  <span class="key">"outputs"</span>: {
+    <span class="key">"vpc_id"</span>: {
+      <span class="key">"value"</span>: <span class="val">"vpc-0a1b2c3d4e5f6"</span>,
+      <span class="key">"type"</span>: <span class="val">"string"</span>
+    }
+  },
+  <span class="key">"resources"</span>: [
+    {
+      <span class="key">"mode"</span>: <span class="val">"managed"</span>,
+      <span class="key">"type"</span>: <span class="val">"aws_instance"</span>,
+      <span class="key">"name"</span>: <span class="val">"web"</span>,
+      <span class="key">"provider"</span>: <span class="val">"provider[\"registry.terraform.io/hashicorp/aws\"]"</span>,
+      <span class="key">"instances"</span>: [
+        {
+          <span class="key">"attributes"</span>: {
+            <span class="key">"id"</span>: <span class="val">"i-0abc123def456"</span>,
+            <span class="key">"ami"</span>: <span class="val">"ami-0c55b159cbfafe1f0"</span>,
+            <span class="key">"instance_type"</span>: <span class="val">"t3.micro"</span>
+          }
+        }
+      ]
+    }
+  ]
+}</code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Field</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td><code>version</code></td>
+                    <td>State format version (currently 4). Terraform uses this for backward compatibility.</td>
+                </tr>
+                <tr>
+                    <td><code>serial</code></td>
+                    <td>Increments on every write. Used for conflict detection with remote backends.</td>
+                </tr>
+                <tr>
+                    <td><code>lineage</code></td>
+                    <td>A UUID generated on first <code>terraform init</code>. Prevents accidentally mixing state from different environments.</td>
+                </tr>
+                <tr>
+                    <td><code>outputs</code></td>
+                    <td>Values exported by <code>output</code> blocks, available to other configs via <code>terraform_remote_state</code>.</td>
+                </tr>
+                <tr>
+                    <td><code>resources</code></td>
+                    <td>The core mapping &mdash; every managed resource, its type, provider, and all known attribute values.</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Never Edit State Manually</div>
+                <p>The state file is machine-managed. Editing it by hand risks corruption, inconsistent serial numbers, and orphaned resources. Always use <code>terraform state</code> commands or <code>terraform import</code> instead.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Local vs Remote State -->
+        <div class="section">
+            <h3>Local vs Remote State</h3>
+            <p>By default, Terraform stores state in a local file called <code>terraform.tfstate</code> in your working directory. This works for learning but breaks down the moment a second person touches the project.</p>
+
+            <div class="diagram" id="stateDiagram">
+                <div class="diagram-box" onclick="showBackend('local')" id="box-local">
+                    <div class="diagram-box-title">Local State</div>
+                    <div class="diagram-box-sub">terraform.tfstate</div>
+                </div>
+                <div class="diagram-arrow">vs</div>
+                <div class="diagram-box" onclick="showBackend('remote')" id="box-remote">
+                    <div class="diagram-box-title">Remote State</div>
+                    <div class="diagram-box-sub">S3 / Azure / GCS</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="backendDetail">Click a backend type above to compare.</div>
+
+            <h4>The Three Problems With Local State</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">No Sharing</span>
+                    <span>Teammates cannot access the file on your laptop. No collaboration without copying files around.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">No Locking</span>
+                    <span>Two people can run <code>terraform apply</code> simultaneously, overwriting each other's changes.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">No Durability</span>
+                    <span>If your disk fails, the state is gone. You lose the mapping between config and real resources.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Remote state solves all three problems: shared access, locking, and durability. Every team project should use a remote backend from day one &mdash; migrating later is possible but adds unnecessary risk.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Remote Backends -->
+        <div class="section">
+            <h3>Remote Backends</h3>
+            <p>A backend defines <em>where</em> Terraform stores state and <em>how</em> operations are executed. The most common production backends pair object storage with a locking mechanism.</p>
+
+            <h4>AWS &mdash; S3 + DynamoDB</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL &mdash; backend.tf</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">terraform</span> {
+  <span class="cmd">backend</span> <span class="str">"s3"</span> {
+    <span class="flag">bucket</span>         = <span class="str">"mycompany-terraform-state"</span>
+    <span class="flag">key</span>            = <span class="str">"prod/network/terraform.tfstate"</span>
+    <span class="flag">region</span>         = <span class="str">"us-east-1"</span>
+    <span class="flag">encrypt</span>        = <span class="val">true</span>
+    <span class="flag">dynamodb_table</span> = <span class="str">"terraform-locks"</span>
+  }
+}</code></pre>
+            </div>
+
+            <h4>Azure &mdash; Azure Storage</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL &mdash; backend.tf</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">terraform</span> {
+  <span class="cmd">backend</span> <span class="str">"azurerm"</span> {
+    <span class="flag">resource_group_name</span>  = <span class="str">"rg-terraform"</span>
+    <span class="flag">storage_account_name</span> = <span class="str">"stterraformstate"</span>
+    <span class="flag">container_name</span>       = <span class="str">"tfstate"</span>
+    <span class="flag">key</span>                  = <span class="str">"prod.terraform.tfstate"</span>
+  }
+}</code></pre>
+            </div>
+
+            <h4>GCP &mdash; Google Cloud Storage</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL &mdash; backend.tf</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">terraform</span> {
+  <span class="cmd">backend</span> <span class="str">"gcs"</span> {
+    <span class="flag">bucket</span> = <span class="str">"mycompany-terraform-state"</span>
+    <span class="flag">prefix</span> = <span class="str">"prod/network"</span>
+  }
+}</code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Backend</th>
+                    <th>Storage</th>
+                    <th>Locking</th>
+                    <th>Encryption</th>
+                </tr>
+                <tr>
+                    <td>S3</td>
+                    <td>S3 bucket</td>
+                    <td>DynamoDB table</td>
+                    <td>SSE-S3 or SSE-KMS</td>
+                </tr>
+                <tr>
+                    <td>azurerm</td>
+                    <td>Blob container</td>
+                    <td>Built-in blob lease</td>
+                    <td>Azure Storage encryption</td>
+                </tr>
+                <tr>
+                    <td>gcs</td>
+                    <td>GCS bucket</td>
+                    <td>Built-in object locking</td>
+                    <td>Google-managed or CMEK</td>
+                </tr>
+                <tr>
+                    <td>Terraform Cloud</td>
+                    <td>HashiCorp managed</td>
+                    <td>Built-in</td>
+                    <td>Built-in at rest</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Terraform Cloud and HCP</div>
+                <p>HashiCorp Cloud Platform (HCP) Terraform provides managed state storage, locking, run history, and policy enforcement out of the box. It is the simplest option for teams that do not want to manage their own backend infrastructure.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: State Locking -->
+        <div class="section">
+            <h3>State Locking</h3>
+            <p>When two engineers run <code>terraform apply</code> at the same time against the same state, one will overwrite the other's changes. State locking prevents this by acquiring an exclusive lock before any write operation.</p>
+
+            <h4>How Locking Works</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># When you run apply, Terraform first acquires the lock</span>
+<span class="cmd">$</span> terraform apply
+<span class="output">Acquiring state lock. This may take a few moments...</span>
+
+<span class="comment"># If someone else is already holding the lock</span>
+<span class="cmd">$</span> terraform apply
+<span class="output">Error: Error locking state: Error acquiring the state lock
+Lock Info:
+  ID:        a1b2c3d4-5678-90ab-cdef
+  Path:      prod/network/terraform.tfstate
+  Operation: OperationTypeApply
+  Who:       alice@workstation
+  Created:   2026-03-05 14:22:01 UTC</span></code></pre>
+            </div>
+
+            <h4>DynamoDB Lock Table (AWS)</h4>
+            <p>For the S3 backend, you need a DynamoDB table with a partition key named <code>LockID</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL &mdash; lock-table.tf</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">resource</span> <span class="str">"aws_dynamodb_table"</span> <span class="str">"terraform_locks"</span> {
+  <span class="flag">name</span>         = <span class="str">"terraform-locks"</span>
+  <span class="flag">billing_mode</span> = <span class="str">"PAY_PER_REQUEST"</span>
+  <span class="flag">hash_key</span>     = <span class="str">"LockID"</span>
+
+  <span class="cmd">attribute</span> {
+    <span class="flag">name</span> = <span class="str">"LockID"</span>
+    <span class="flag">type</span> = <span class="str">"S"</span>
+  }
+}</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Force Unlock</div>
+                <p>If a process crashes mid-apply and the lock is stuck, you can run <code>terraform force-unlock &lt;LOCK_ID&gt;</code>. Only do this when you are certain no other operation is running &mdash; forcing an unlock while another apply is active will cause state corruption.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: State Commands -->
+        <div class="section">
+            <h3>State Commands</h3>
+            <p>The <code>terraform state</code> subcommands let you inspect and manipulate state without editing the JSON file directly. These are your surgical tools for state management.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>state list</code> <span class="tag">READ</span></div>
+                    <p>List all resources tracked in state</p>
+                    <div class="example">$ terraform state list</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>state show</code> <span class="tag">READ</span></div>
+                    <p>Show all attributes of a specific resource</p>
+                    <div class="example">$ terraform state show aws_instance.web</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>state mv</code> <span class="tag">WRITE</span></div>
+                    <p>Rename a resource in state (refactoring without destroy/recreate)</p>
+                    <div class="example">$ terraform state mv aws_instance.web aws_instance.app</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>state rm</code> <span class="tag">WRITE</span></div>
+                    <p>Remove a resource from state (keeps real resource, Terraform forgets it)</p>
+                    <div class="example">$ terraform state rm aws_instance.legacy</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>state pull</code> <span class="tag">READ</span></div>
+                    <p>Download remote state to stdout as JSON</p>
+                    <div class="example">$ terraform state pull > backup.tfstate</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>state push</code> <span class="tag">WRITE</span></div>
+                    <p>Upload a local state file to the remote backend</p>
+                    <div class="example">$ terraform state push backup.tfstate</div>
+                </div>
+            </div>
+
+            <h4>Importing Existing Resources</h4>
+            <p>When infrastructure already exists but is not managed by Terraform, <code>import</code> brings it under management.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Step 1: Write the resource block in your config</span>
+<span class="comment"># Step 2: Import the existing resource into state</span>
+<span class="cmd">$</span> terraform import aws_instance.web i-0abc123def456
+<span class="output">aws_instance.web: Importing from ID "i-0abc123def456"...
+aws_instance.web: Import prepared!
+aws_instance.web: Refreshing state...
+
+Import successful!</span>
+
+<span class="comment"># Step 3: Run plan to see if config matches reality</span>
+<span class="cmd">$</span> terraform plan
+<span class="comment"># Adjust your config until plan shows no changes</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Import Blocks (Terraform 1.5+)</div>
+                <p>Instead of the CLI command, you can now declare imports in configuration with <code>import { to = aws_instance.web; id = "i-0abc123def456" }</code>. This is plannable, reviewable, and version-controlled.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: State Migration -->
+        <div class="section">
+            <h3>State Migration</h3>
+            <p>Moving state from one backend to another is a common operation &mdash; usually when transitioning from local development to a shared remote backend.</p>
+
+            <h4>Local to S3 Migration</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># 1. Back up your current state</span>
+<span class="cmd">$</span> cp terraform.tfstate terraform.tfstate.backup
+
+<span class="comment"># 2. Add the backend block to your configuration</span>
+<span class="comment">#    (see the S3 backend example from Section 4)</span>
+
+<span class="comment"># 3. Re-initialize &mdash; Terraform detects the backend change</span>
+<span class="cmd">$</span> terraform init
+<span class="output">Initializing the backend...
+Do you want to copy existing state to the new backend?
+  Enter a value: yes
+
+Successfully configured the backend "s3"!</span>
+
+<span class="comment"># 4. Verify state was migrated</span>
+<span class="cmd">$</span> terraform state list
+<span class="output">aws_instance.web
+aws_vpc.main
+aws_subnet.public</span></code></pre>
+            </div>
+
+            <h4>Partial Configuration</h4>
+            <p>You often want to keep secrets (bucket names, credentials) out of your committed code. Use <code>-backend-config</code> flags or a separate file.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Option 1: CLI flags</span>
+<span class="cmd">$</span> terraform init \
+    <span class="flag">-backend-config</span>=<span class="str">"bucket=mycompany-tf-state"</span> \
+    <span class="flag">-backend-config</span>=<span class="str">"key=prod/terraform.tfstate"</span> \
+    <span class="flag">-backend-config</span>=<span class="str">"region=us-east-1"</span>
+
+<span class="comment"># Option 2: Config file (not committed to VCS)</span>
+<span class="cmd">$</span> terraform init <span class="flag">-backend-config</span>=<span class="str">"backend.hcl"</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Always Back Up Before Migration</div>
+                <p>State migration is a one-way door if something goes wrong. Always create a local backup with <code>cp terraform.tfstate terraform.tfstate.backup</code> or <code>terraform state pull > backup.tfstate</code> before changing backends.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: State Sensitive Data -->
+        <div class="section">
+            <h3>Sensitive Data in State</h3>
+            <p>This is one of the most overlooked security risks in Terraform. <strong>State files contain secrets in plaintext.</strong> Database passwords, API keys, TLS certificates &mdash; if a resource attribute holds a secret, it is stored in the state file exactly as-is.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL &mdash; Example: Secrets Land in State</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">resource</span> <span class="str">"aws_db_instance"</span> <span class="str">"main"</span> {
+  <span class="flag">engine</span>               = <span class="str">"postgres"</span>
+  <span class="flag">instance_class</span>       = <span class="str">"db.t3.micro"</span>
+  <span class="flag">username</span>             = <span class="str">"admin"</span>
+  <span class="flag">password</span>             = <span class="val">var.db_password</span>  <span class="comment"># This ends up in state!</span>
+}
+
+<span class="comment"># Even with sensitive = true on the variable,</span>
+<span class="comment"># the VALUE is still stored in terraform.tfstate</span></code></pre>
+            </div>
+
+            <h4>Protection Strategies</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Encrypt at Rest</span>
+                    <span>Enable server-side encryption on your state bucket (SSE-S3, SSE-KMS, Azure Storage encryption).</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Restrict Access</span>
+                    <span>Use IAM policies to limit who can read the state bucket. State access = secret access.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Never Commit</span>
+                    <span>Add <code>*.tfstate</code> and <code>*.tfstate.backup</code> to <code>.gitignore</code>. State files must never be in version control.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">External Secrets</span>
+                    <span>Use a secrets manager (Vault, AWS Secrets Manager) and read values via data sources instead of passing them as variables.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Critical Security Rule</div>
+                <p>Never store <code>terraform.tfstate</code> in a Git repository. Even a private repo is a risk &mdash; anyone with repo access can read every secret in your infrastructure. Use a remote backend with encryption and strict IAM policies.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Workspaces -->
+        <div class="section">
+            <h3>Workspaces</h3>
+            <p>Terraform workspaces let you maintain multiple state files for the same configuration. The most common use case is managing separate environments (dev, staging, prod) from a single codebase.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># List workspaces (* marks current)</span>
+<span class="cmd">$</span> terraform workspace list
+<span class="output">* default
+  staging
+  production</span>
+
+<span class="comment"># Create and switch to a new workspace</span>
+<span class="cmd">$</span> terraform workspace new staging
+<span class="output">Created and switched to workspace "staging"!</span>
+
+<span class="comment"># Switch between workspaces</span>
+<span class="cmd">$</span> terraform workspace select production
+
+<span class="comment"># Use workspace name in your config for isolation</span>
+<span class="comment"># terraform.workspace returns the current name</span></code></pre>
+            </div>
+
+            <h4>Using Workspace Names in Config</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">resource</span> <span class="str">"aws_instance"</span> <span class="str">"web"</span> {
+  <span class="flag">ami</span>           = <span class="val">var.ami_id</span>
+  <span class="flag">instance_type</span> = <span class="val">terraform.workspace</span> == <span class="str">"production"</span> ? <span class="str">"t3.large"</span> : <span class="str">"t3.micro"</span>
+
+  <span class="flag">tags</span> = {
+    <span class="flag">Name</span>        = <span class="str">"web-${terraform.workspace}"</span>
+    <span class="flag">Environment</span> = <span class="val">terraform.workspace</span>
+  }
+}</code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Workspace Feature</th>
+                    <th>Detail</th>
+                </tr>
+                <tr>
+                    <td>State isolation</td>
+                    <td>Each workspace gets its own state file. Changes in <code>staging</code> do not affect <code>production</code>.</td>
+                </tr>
+                <tr>
+                    <td>S3 key path</td>
+                    <td>Remote backends store workspace state at <code>env:/&lt;workspace&gt;/&lt;key&gt;</code>.</td>
+                </tr>
+                <tr>
+                    <td>Default workspace</td>
+                    <td>Named <code>default</code>. Cannot be deleted. Created automatically.</td>
+                </tr>
+                <tr>
+                    <td>Naming convention</td>
+                    <td>Use clear names: <code>dev</code>, <code>staging</code>, <code>production</code>. Avoid abbreviations.</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Workspaces vs Separate Directories</div>
+                <p>Workspaces share the same configuration but diverge in state. If your environments need different configurations (different modules, different providers), use separate directories instead. Workspaces work best when environments are structurally identical but differ only in variable values.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: State Splitting -->
+        <div class="section">
+            <h3>State Splitting</h3>
+            <p>As your infrastructure grows, a single state file managing everything becomes a bottleneck. Plans take minutes, blast radius is enormous, and every team blocks on the same lock.</p>
+
+            <h4>When to Split</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Slow Plans</span>
+                    <span><code>terraform plan</code> takes more than 30 seconds because it refreshes hundreds of resources.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Lock Contention</span>
+                    <span>Multiple teams are constantly waiting on each other's state locks.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Blast Radius</span>
+                    <span>A bad <code>apply</code> in the networking module could destroy the database because they share state.</span>
+                </div>
+            </div>
+
+            <h4>Split by Layer</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Directory Structure</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">infrastructure/</span>
+  <span class="file">network/</span>          <span class="comment"># VPC, subnets, route tables  (own state)</span>
+    main.tf
+    outputs.tf       <span class="comment"># Exports vpc_id, subnet_ids</span>
+  <span class="file">database/</span>         <span class="comment"># RDS, ElastiCache             (own state)</span>
+    main.tf
+    data.tf          <span class="comment"># Reads network state outputs</span>
+  <span class="file">application/</span>      <span class="comment"># ECS, ALB, ASG                (own state)</span>
+    main.tf
+    data.tf          <span class="comment"># Reads network + database outputs</span></code></pre>
+            </div>
+
+            <h4>Cross-State References</h4>
+            <p>Use <code>terraform_remote_state</code> data sources or output-based data sources to pass values between state files.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">HCL &mdash; database/data.tf</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Read outputs from the network layer's state</span>
+<span class="cmd">data</span> <span class="str">"terraform_remote_state"</span> <span class="str">"network"</span> {
+  <span class="flag">backend</span> = <span class="str">"s3"</span>
+
+  <span class="cmd">config</span> = {
+    <span class="flag">bucket</span> = <span class="str">"mycompany-terraform-state"</span>
+    <span class="flag">key</span>    = <span class="str">"prod/network/terraform.tfstate"</span>
+    <span class="flag">region</span> = <span class="str">"us-east-1"</span>
+  }
+}
+
+<span class="comment"># Use the values</span>
+<span class="cmd">resource</span> <span class="str">"aws_db_subnet_group"</span> <span class="str">"main"</span> {
+  <span class="flag">subnet_ids</span> = <span class="val">data.terraform_remote_state.network.outputs.private_subnet_ids</span>
+}</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Split state by blast radius, not by resource count. The question is: "if this <code>apply</code> goes wrong, what is the worst thing that can be destroyed?" Put things that must survive independently into separate state files.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Disaster Recovery -->
+        <div class="section">
+            <h3>Disaster Recovery</h3>
+            <p>State loss is an operational emergency. Without state, Terraform cannot manage existing resources &mdash; it treats them as if they do not exist and will try to create duplicates or leave orphans behind.</p>
+
+            <h4>Backup Strategies</h4>
+            <table class="compare">
+                <tr>
+                    <th>Strategy</th>
+                    <th>How</th>
+                    <th>Recovery Time</th>
+                </tr>
+                <tr>
+                    <td>S3 Versioning</td>
+                    <td>Enable versioning on the state bucket. Every write creates a new version.</td>
+                    <td>Minutes &mdash; restore the previous version from S3</td>
+                </tr>
+                <tr>
+                    <td>Automated Snapshots</td>
+                    <td>CI/CD pipeline runs <code>terraform state pull > backup-$(date).json</code> before every apply</td>
+                    <td>Minutes &mdash; push the backup file back</td>
+                </tr>
+                <tr>
+                    <td>Cross-Region Replication</td>
+                    <td>S3 CRR or GCS dual-region buckets replicate state to a second region</td>
+                    <td>Minutes &mdash; switch backend to the replica</td>
+                </tr>
+                <tr>
+                    <td>Terraform Cloud</td>
+                    <td>Built-in state versioning with full history and rollback UI</td>
+                    <td>Seconds &mdash; one-click rollback in the dashboard</td>
+                </tr>
+            </table>
+
+            <h4>Recovering Corrupted State</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Option 1: Restore from S3 versioning</span>
+<span class="cmd">$</span> aws s3api list-object-versions \
+    <span class="flag">--bucket</span> mycompany-terraform-state \
+    <span class="flag">--prefix</span> prod/network/terraform.tfstate
+
+<span class="cmd">$</span> aws s3api get-object \
+    <span class="flag">--bucket</span> mycompany-terraform-state \
+    <span class="flag">--key</span> prod/network/terraform.tfstate \
+    <span class="flag">--version-id</span> <span class="str">"abc123"</span> \
+    restored.tfstate
+
+<span class="cmd">$</span> terraform state push restored.tfstate
+
+<span class="comment"># Option 2: Rebuild from scratch with import</span>
+<span class="comment"># Last resort &mdash; import each resource individually</span>
+<span class="cmd">$</span> terraform import aws_vpc.main vpc-0a1b2c3d
+<span class="cmd">$</span> terraform import aws_subnet.public subnet-0e1f2a3b
+<span class="comment"># ... repeat for every resource</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Prevention Over Recovery</div>
+                <p>Rebuilding state via <code>terraform import</code> for a large project can take days of painstaking work. Enable S3 versioning and automated backups from the start &mdash; recovery should never require reimporting hundreds of resources.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: State Best Practices -->
+        <div class="section">
+            <h3>State Best Practices</h3>
+            <p>State management is where Terraform projects succeed or fail at scale. These practices distill the lessons from the previous sections into actionable rules.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Remote First</span>
+                    <span>Configure a remote backend before your first <code>apply</code>. Migrating later adds risk for zero benefit.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Always Lock</span>
+                    <span>Never disable state locking. The few seconds of lock acquisition prevent hours of state corruption recovery.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Encrypt</span>
+                    <span>Enable encryption at rest on your state backend. State files contain secrets in plaintext.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Version</span>
+                    <span>Enable bucket versioning so you can roll back to any previous state snapshot.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Gitignore</span>
+                    <span>Add <code>*.tfstate</code>, <code>*.tfstate.backup</code>, and <code>.terraform/</code> to <code>.gitignore</code> in every project.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Minimal Touching</span>
+                    <span>Avoid <code>state mv</code>, <code>state rm</code>, and <code>state push</code> unless absolutely necessary. Every manual state operation is a risk.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Split Early</span>
+                    <span>Separate state by blast radius before the monolith becomes painful. Network, database, and application layers deserve their own state.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Least Privilege</span>
+                    <span>Only CI/CD pipelines and senior engineers should have write access to the state bucket. Read access = secret access.</span>
+                </div>
+            </div>
+
+            <h4>The Terraform State Gitignore</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.gitignore</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Terraform state &mdash; NEVER commit</span>
+<span class="file">*.tfstate</span>
+<span class="file">*.tfstate.backup</span>
+<span class="file">*.tfstate.*.backup</span>
+
+<span class="comment"># Terraform working directory</span>
+<span class="file">.terraform/</span>
+
+<span class="comment"># Backend partial config (may contain secrets)</span>
+<span class="file">*.backend.hcl</span>
+
+<span class="comment"># Variable files with secrets</span>
+<span class="file">*.tfvars</span>
+<span class="file">!example.tfvars</span>
+
+<span class="comment"># Crash logs</span>
+<span class="file">crash.log</span>
+<span class="file">crash.*.log</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Summary</div>
+                <p>Terraform state is the invisible backbone of your infrastructure management. Treat it like a production database: remote, encrypted, locked, versioned, backed up, and accessed by as few people as possible. Get this right and Terraform scales to thousands of resources. Get it wrong and a single mistake can orphan your entire cloud account.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Backend comparison interaction
+        const backends = {
+            local: {
+                title: 'Local State (terraform.tfstate)',
+                desc: 'State is stored as a JSON file on your local disk. Simple and zero-config, but it cannot be shared between team members, has no locking to prevent concurrent writes, and is lost if the disk fails. Suitable only for solo learning and experimentation.'
+            },
+            remote: {
+                title: 'Remote State (S3, Azure, GCS, Terraform Cloud)',
+                desc: 'State is stored in a shared, durable location accessible to the entire team. Supports locking to prevent concurrent writes, encryption at rest for security, and versioning for rollback. This is the only acceptable option for team and production environments.'
+            }
+        };
+
+        function showBackend(id) {
+            document.querySelectorAll('.diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const b = backends[id];
+            document.getElementById('backendDetail').innerHTML = '<strong>' + b.title + '</strong><br>' + b.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-80'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-80-terraform-state', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first backend
+        showBackend('local');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-80']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

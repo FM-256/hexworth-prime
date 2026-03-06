@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build & Artifact Management - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-controls.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-73</span>
+            <h1>Build & Artifact Management</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; CI/CD Pipelines</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-controls.webp" alt="">
+            <h2>Build & Artifact Management</h2>
+            <p class="hero-sub">From source code to deployable artifacts &mdash; understand the build pipeline, artifact registries, versioning strategies, and supply chain security.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~30 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-controls.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Describe each stage of the build process: compilation, transpilation, bundling, and containerization</li>
+                <li>Compare build tools across ecosystems: Make, Gradle, Maven, npm scripts, Webpack, Vite</li>
+                <li>Apply build optimization techniques including caching, incremental builds, and parallelism</li>
+                <li>Identify artifact types and choose the right registry for each</li>
+                <li>Implement semantic versioning and immutable tagging strategies</li>
+                <li>Construct multi-stage Docker builds with layer caching in CI pipelines</li>
+                <li>Publish packages to public and private registries</li>
+                <li>Sign artifacts and generate SBOMs for supply chain security</li>
+                <li>Design retention policies and cross-platform build matrices</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Build Process -->
+        <div class="section">
+            <h3>1. The Build Process</h3>
+            <p>A build transforms source code into a deployable artifact. The exact steps depend on your language and target platform, but every build pipeline follows the same pattern: take human-readable source, process it, and produce machine-ready output.</p>
+
+            <div class="diagram" id="buildDiagram">
+                <div class="diagram-box" onclick="showBuildStage('compile')" id="box-compile">
+                    <div class="diagram-box-title">Compile</div>
+                    <div class="diagram-box-sub">Source &rarr; Binary</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showBuildStage('transpile')" id="box-transpile">
+                    <div class="diagram-box-title">Transpile</div>
+                    <div class="diagram-box-sub">Lang &rarr; Lang</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showBuildStage('bundle')" id="box-bundle">
+                    <div class="diagram-box-title">Bundle</div>
+                    <div class="diagram-box-sub">Modules &rarr; Package</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showBuildStage('containerize')" id="box-containerize">
+                    <div class="diagram-box-title">Containerize</div>
+                    <div class="diagram-box-sub">App &rarr; Image</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="buildDetail">Click a stage above to learn more about it.</div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Not every project uses all four stages. A Go microservice compiles and containerizes. A React app transpiles, bundles, and containerizes. A Python script might only containerize. Know which stages apply to your stack.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Build Tools -->
+        <div class="section">
+            <h3>2. Build Tools</h3>
+            <p>Every ecosystem has its own build tool, but they all solve the same problem: define tasks, manage dependencies between them, and execute them efficiently.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Tool</th>
+                    <th>Ecosystem</th>
+                    <th>Config File</th>
+                    <th>Strengths</th>
+                </tr>
+                <tr>
+                    <td><code>make</code></td>
+                    <td>C/C++, general</td>
+                    <td><code>Makefile</code></td>
+                    <td>Universal, dependency-based, incremental by default</td>
+                </tr>
+                <tr>
+                    <td><code>gradle</code></td>
+                    <td>Java, Kotlin, Android</td>
+                    <td><code>build.gradle</code></td>
+                    <td>Declarative + scripting, build cache, daemon process</td>
+                </tr>
+                <tr>
+                    <td><code>maven</code></td>
+                    <td>Java</td>
+                    <td><code>pom.xml</code></td>
+                    <td>Convention over configuration, massive plugin ecosystem</td>
+                </tr>
+                <tr>
+                    <td><code>npm scripts</code></td>
+                    <td>Node.js</td>
+                    <td><code>package.json</code></td>
+                    <td>Zero install, composable, pre/post hooks</td>
+                </tr>
+                <tr>
+                    <td><code>webpack</code></td>
+                    <td>Frontend JS</td>
+                    <td><code>webpack.config.js</code></td>
+                    <td>Code splitting, loaders, tree shaking, HMR</td>
+                </tr>
+                <tr>
+                    <td><code>vite</code></td>
+                    <td>Frontend JS</td>
+                    <td><code>vite.config.js</code></td>
+                    <td>ESM-native, instant dev server, Rollup-based production</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Makefile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Classic C build with Make</span>
+<span class="file">CC</span> = gcc
+<span class="file">CFLAGS</span> = -Wall -O2
+
+<span class="cmd">app</span>: main.o utils.o
+	$(CC) $(CFLAGS) -o app main.o utils.o
+
+<span class="cmd">%.o</span>: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+<span class="cmd">clean</span>:
+	rm -f *.o app</code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">package.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"scripts"</span>: {
+    <span class="str">"build"</span>: <span class="str">"vite build"</span>,
+    <span class="str">"test"</span>: <span class="str">"vitest run"</span>,
+    <span class="str">"lint"</span>: <span class="str">"eslint src/"</span>,
+    <span class="str">"prebuild"</span>: <span class="str">"npm run lint && npm run test"</span>,
+    <span class="str">"docker"</span>: <span class="str">"docker build -t myapp ."</span>
+  }
+}</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Pro Tip</div>
+                <p>Many teams use a <code>Makefile</code> as a thin wrapper around language-specific tools. This gives every project a consistent interface: <code>make build</code>, <code>make test</code>, <code>make deploy</code> &mdash; regardless of whether the actual tools are npm, gradle, or cargo underneath.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Build Optimization -->
+        <div class="section">
+            <h3>3. Build Optimization</h3>
+            <p>A fast build loop is a force multiplier. Every second shaved off the build is multiplied by every developer and every CI run. Slow builds kill velocity.</p>
+
+            <h4>Caching</h4>
+            <p>Most build systems support caching intermediate results. When inputs haven't changed, the cached output is reused instead of rebuilding from scratch.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Cache node_modules between CI runs</span>
+- <span class="cmd">uses</span>: actions/cache@v4
+  <span class="cmd">with</span>:
+    <span class="file">path</span>: node_modules
+    <span class="file">key</span>: <span class="str">${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}</span>
+    <span class="file">restore-keys</span>: |
+      <span class="str">${{ runner.os }}-node-</span></code></pre>
+            </div>
+
+            <h4>Incremental Builds</h4>
+            <p>Instead of rebuilding everything, incremental builds only recompile files that changed. This requires the build tool to track dependencies between files.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Gradle</span>
+                    <span>Tracks input/output fingerprints per task &mdash; skips tasks whose inputs haven't changed</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">TypeScript</span>
+                    <span><code>tsc --incremental</code> saves a <code>.tsbuildinfo</code> file to skip unchanged modules</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Docker</span>
+                    <span>Layer caching &mdash; unchanged layers are reused, only modified layers rebuild</span>
+                </div>
+            </div>
+
+            <h4>Parallel Compilation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Make: use all available cores</span>
+<span class="cmd">$</span> make <span class="flag">-j$(nproc)</span>
+
+<span class="comment"># Gradle: parallel project builds</span>
+<span class="cmd">$</span> gradle build <span class="flag">--parallel</span>
+
+<span class="comment"># Rust: parallel codegen units (default)</span>
+<span class="cmd">$</span> cargo build <span class="flag">--jobs 8</span>
+
+<span class="comment"># npm: run independent scripts concurrently</span>
+<span class="cmd">$</span> npx concurrently <span class="str">"npm run lint"</span> <span class="str">"npm run test"</span> <span class="str">"npm run typecheck"</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Diminishing Returns</div>
+                <p>Parallelism helps most when tasks are independent. If your build has a long serial critical path (e.g., code generation that must complete before compilation), throwing more cores at it won't help. Profile your build to find the real bottleneck.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Artifact Types -->
+        <div class="section">
+            <h3>4. Artifact Types</h3>
+            <p>An artifact is any file produced by a build that is needed for deployment or distribution. The type of artifact depends on your runtime environment and delivery mechanism.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Binaries</code> <span class="tag">COMPILED</span></div>
+                    <p>Native executables, .jar files, .dll/.so shared libraries. Produced by compiled languages like Go, Rust, Java, C++.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Docker Images</code> <span class="tag">CONTAINER</span></div>
+                    <p>Layered filesystem snapshots containing app + dependencies + runtime. The universal deployment unit for cloud-native.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Packages</code> <span class="tag">LIBRARY</span></div>
+                    <p>npm tarballs, Python wheels, NuGet packages, Ruby gems. Distributed through language-specific registries.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Static Assets</code> <span class="tag">FRONTEND</span></div>
+                    <p>Bundled JS, CSS, images, fonts. Output of Webpack/Vite/esbuild for CDN deployment.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Helm Charts</code> <span class="tag">K8S</span></div>
+                    <p>Templated Kubernetes manifests packaged as versioned tarballs. Define how an app is deployed to a cluster.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>VM Images</code> <span class="tag">INFRA</span></div>
+                    <p>AMIs, VMDK, QCOW2 &mdash; full machine images built with Packer. Used for immutable infrastructure patterns.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>A single application often produces multiple artifact types. A microservice build might output a Go binary, a Docker image wrapping that binary, and a Helm chart describing how to deploy the image. Each artifact has its own registry and versioning.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Artifact Registries -->
+        <div class="section">
+            <h3>5. Artifact Registries</h3>
+            <p>A registry is a versioned storage system for artifacts. It's how you distribute builds to other teams, CI pipelines, and production environments. Choosing the right registry depends on your artifact type and security requirements.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Registry</th>
+                    <th>Artifact Types</th>
+                    <th>Hosting</th>
+                    <th>Best For</th>
+                </tr>
+                <tr>
+                    <td><code>Docker Hub</code></td>
+                    <td>Container images</td>
+                    <td>SaaS</td>
+                    <td>Public/open-source images</td>
+                </tr>
+                <tr>
+                    <td><code>GitHub Packages</code></td>
+                    <td>npm, Docker, Maven, NuGet</td>
+                    <td>SaaS</td>
+                    <td>Monorepo teams already on GitHub</td>
+                </tr>
+                <tr>
+                    <td><code>AWS ECR</code></td>
+                    <td>Container images</td>
+                    <td>Cloud</td>
+                    <td>AWS-native deployments (ECS, EKS)</td>
+                </tr>
+                <tr>
+                    <td><code>JFrog Artifactory</code></td>
+                    <td>Universal (all types)</td>
+                    <td>SaaS / Self-hosted</td>
+                    <td>Enterprise, multi-format, audit trails</td>
+                </tr>
+                <tr>
+                    <td><code>Sonatype Nexus</code></td>
+                    <td>Maven, npm, Docker, PyPI</td>
+                    <td>Self-hosted</td>
+                    <td>On-prem, caching proxy, air-gapped</td>
+                </tr>
+                <tr>
+                    <td><code>Google Artifact Registry</code></td>
+                    <td>Docker, Maven, npm, Python</td>
+                    <td>Cloud</td>
+                    <td>GCP-native workloads</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Push a Docker image to GitHub Container Registry</span>
+<span class="cmd">$</span> docker tag myapp:latest <span class="str">ghcr.io/myorg/myapp:1.2.0</span>
+<span class="cmd">$</span> docker push <span class="str">ghcr.io/myorg/myapp:1.2.0</span>
+
+<span class="comment"># Push to AWS ECR</span>
+<span class="cmd">$</span> aws ecr get-login-password | docker login <span class="flag">--username</span> AWS <span class="flag">--password-stdin</span> <span class="str">123456789.dkr.ecr.us-east-1.amazonaws.com</span>
+<span class="cmd">$</span> docker push <span class="str">123456789.dkr.ecr.us-east-1.amazonaws.com/myapp:1.2.0</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Registry as Cache</div>
+                <p>Tools like Nexus and Artifactory can act as <strong>proxy caches</strong> for public registries. Your CI pulls from the proxy, which caches packages locally. This reduces external network calls, speeds up builds, and protects against upstream outages or supply chain attacks.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Versioning Artifacts -->
+        <div class="section">
+            <h3>6. Versioning Artifacts</h3>
+            <p>Every artifact needs a version. The version tells consumers exactly which build they're running and whether an upgrade is safe. A disciplined versioning strategy prevents "works on my machine" and makes rollbacks trivial.</p>
+
+            <h4>Semantic Versioning (SemVer)</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">MAJOR</span>
+                    <span>Breaking changes. Consumers must update their code. <code>1.x.x &rarr; 2.0.0</code></span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">MINOR</span>
+                    <span>New features, backward compatible. Safe to upgrade. <code>1.2.x &rarr; 1.3.0</code></span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">PATCH</span>
+                    <span>Bug fixes only, backward compatible. Always safe. <code>1.2.3 &rarr; 1.2.4</code></span>
+                </div>
+            </div>
+
+            <h4>Tagging Strategies</h4>
+            <table class="compare">
+                <tr>
+                    <th>Strategy</th>
+                    <th>Example</th>
+                    <th>Use Case</th>
+                </tr>
+                <tr>
+                    <td>SemVer tag</td>
+                    <td><code>myapp:1.2.3</code></td>
+                    <td>Release artifacts, public packages</td>
+                </tr>
+                <tr>
+                    <td>Git SHA</td>
+                    <td><code>myapp:a1b2c3d</code></td>
+                    <td>CI builds, exact traceability to commit</td>
+                </tr>
+                <tr>
+                    <td>Build number</td>
+                    <td><code>myapp:build-4521</code></td>
+                    <td>CI/CD pipelines, sequential ordering</td>
+                </tr>
+                <tr>
+                    <td>Branch + SHA</td>
+                    <td><code>myapp:main-a1b2c3d</code></td>
+                    <td>Feature branch deploys, PR previews</td>
+                </tr>
+                <tr>
+                    <td>Date-based</td>
+                    <td><code>myapp:20260305</code></td>
+                    <td>Nightly builds, rolling releases</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Never Use :latest in Production</div>
+                <p>The <code>:latest</code> tag is mutable &mdash; it points to whatever was pushed last. Two deployments using <code>:latest</code> can run completely different code. Always use immutable, specific tags in production. Reserve <code>:latest</code> for local development only.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Docker Image Builds in CI -->
+        <div class="section">
+            <h3>7. Docker Image Builds in CI</h3>
+            <p>Building Docker images inside CI pipelines requires careful attention to layer caching, image size, and security. A well-structured Dockerfile can cut build times by 80% and image sizes by 90%.</p>
+
+            <h4>Multi-Stage Builds</h4>
+            <p>Multi-stage builds use multiple <code>FROM</code> statements. The build stage has all the tooling (compilers, dev dependencies), while the final stage only contains the runtime artifact. Everything else is discarded.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Stage 1: Build</span>
+<span class="cmd">FROM</span> node:20-alpine <span class="flag">AS</span> builder
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> package*.json ./
+<span class="cmd">RUN</span> npm ci <span class="flag">--production=false</span>
+<span class="cmd">COPY</span> . .
+<span class="cmd">RUN</span> npm run build
+
+<span class="comment"># Stage 2: Production</span>
+<span class="cmd">FROM</span> node:20-alpine
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> <span class="flag">--from=builder</span> /app/dist ./dist
+<span class="cmd">COPY</span> <span class="flag">--from=builder</span> /app/node_modules ./node_modules
+<span class="cmd">COPY</span> package*.json ./
+<span class="cmd">USER</span> node
+<span class="cmd">EXPOSE</span> 3000
+<span class="cmd">CMD</span> [<span class="str">"node"</span>, <span class="str">"dist/server.js"</span>]</code></pre>
+            </div>
+
+            <h4>Layer Caching in CI</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># BuildKit cache with GitHub Actions cache backend</span>
+- <span class="cmd">uses</span>: docker/build-push-action@v5
+  <span class="cmd">with</span>:
+    <span class="file">context</span>: .
+    <span class="file">push</span>: true
+    <span class="file">tags</span>: <span class="str">ghcr.io/myorg/myapp:${{ github.sha }}</span>
+    <span class="file">cache-from</span>: <span class="str">type=gha</span>
+    <span class="file">cache-to</span>: <span class="str">type=gha,mode=max</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Layer Order Matters</div>
+                <p>Docker caches layers top-down. If a layer changes, all subsequent layers are invalidated. Always order your Dockerfile from least-changing to most-changing: OS packages first, then dependency lock files, then source code last. This maximizes cache hit rates.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Package Publishing -->
+        <div class="section">
+            <h3>8. Package Publishing</h3>
+            <p>When your artifact is a library rather than a service, you publish it to a language-specific registry so other projects can depend on it. Each ecosystem has its own publishing workflow and conventions.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>npm</code> <span class="tag">NODE.JS</span></div>
+                    <p>Publish to npmjs.com or private registry. Scoped packages use <code>@org/pkg</code> namespace.</p>
+                    <div class="example">$ npm publish --access public</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>PyPI</code> <span class="tag">PYTHON</span></div>
+                    <p>Build wheels with <code>build</code>, upload with <code>twine</code>. Use TestPyPI for dry runs.</p>
+                    <div class="example">$ python -m twine upload dist/*</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>NuGet</code> <span class="tag">.NET</span></div>
+                    <p>Pack into <code>.nupkg</code> files and push to nuget.org or private feeds.</p>
+                    <div class="example">$ dotnet nuget push *.nupkg -s nuget.org</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Maven Central</code> <span class="tag">JAVA</span></div>
+                    <p>Publish JARs via Sonatype OSSRH. Requires GPG signing and metadata validation.</p>
+                    <div class="example">$ mvn deploy -P release</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Automated npm publish on release tag</span>
+<span class="cmd">name</span>: Publish Package
+<span class="cmd">on</span>:
+  <span class="file">push</span>:
+    <span class="file">tags</span>: [<span class="str">'v*'</span>]
+
+<span class="cmd">jobs</span>:
+  <span class="file">publish</span>:
+    <span class="file">runs-on</span>: ubuntu-latest
+    <span class="file">permissions</span>:
+      <span class="file">contents</span>: read
+      <span class="file">id-token</span>: write
+    <span class="file">steps</span>:
+      - <span class="cmd">uses</span>: actions/checkout@v4
+      - <span class="cmd">uses</span>: actions/setup-node@v4
+        <span class="cmd">with</span>:
+          <span class="file">node-version</span>: 20
+          <span class="file">registry-url</span>: <span class="str">'https://registry.npmjs.org'</span>
+      - <span class="cmd">run</span>: npm ci && npm publish <span class="flag">--provenance</span> <span class="flag">--access public</span>
+        <span class="cmd">env</span>:
+          <span class="file">NODE_AUTH_TOKEN</span>: <span class="str">${{ secrets.NPM_TOKEN }}</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Provenance</div>
+                <p>npm's <code>--provenance</code> flag generates a signed SLSA provenance attestation, linking the published package to its exact source commit and CI workflow. This lets consumers verify the package was built from the claimed source code.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Artifact Signing & Supply Chain Security -->
+        <div class="section">
+            <h3>9. Artifact Signing & Supply Chain Security</h3>
+            <p>How do you know the artifact you're deploying is the same one your CI pipeline built? Artifact signing creates a cryptographic chain of trust from source code to production. After SolarWinds, Codecov, and the xz backdoor, supply chain security is no longer optional.</p>
+
+            <h4>Signing Tools</h4>
+            <table class="compare">
+                <tr>
+                    <th>Tool</th>
+                    <th>What It Signs</th>
+                    <th>How It Works</th>
+                </tr>
+                <tr>
+                    <td><code>cosign</code></td>
+                    <td>Container images, blobs</td>
+                    <td>Keyless signing via OIDC (Sigstore). No key management needed.</td>
+                </tr>
+                <tr>
+                    <td><code>Notary / TUF</code></td>
+                    <td>Container images</td>
+                    <td>Docker Content Trust. Key-based, delegation model.</td>
+                </tr>
+                <tr>
+                    <td><code>GPG</code></td>
+                    <td>Packages, commits, tarballs</td>
+                    <td>Traditional public-key signing. Required by Maven Central.</td>
+                </tr>
+                <tr>
+                    <td><code>SLSA</code></td>
+                    <td>Build provenance</td>
+                    <td>Framework proving who built what, where, from which source.</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Sign a container image with cosign (keyless)</span>
+<span class="cmd">$</span> cosign sign <span class="str">ghcr.io/myorg/myapp:1.2.0</span>
+
+<span class="comment"># Verify the signature</span>
+<span class="cmd">$</span> cosign verify <span class="str">ghcr.io/myorg/myapp:1.2.0</span> \
+    <span class="flag">--certificate-identity</span> <span class="str">https://github.com/myorg/myapp/.github/workflows/build.yml@refs/tags/v1.2.0</span> \
+    <span class="flag">--certificate-oidc-issuer</span> <span class="str">https://token.actions.githubusercontent.com</span></code></pre>
+            </div>
+
+            <h4>SBOM Generation</h4>
+            <p>A Software Bill of Materials (SBOM) lists every dependency in your artifact. When a vulnerability is disclosed, you can instantly check if you're affected.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Generate SBOM from a container image</span>
+<span class="cmd">$</span> syft <span class="str">ghcr.io/myorg/myapp:1.2.0</span> <span class="flag">-o</span> spdx-json > sbom.spdx.json
+
+<span class="comment"># Scan SBOM for known vulnerabilities</span>
+<span class="cmd">$</span> grype sbom:sbom.spdx.json
+
+<span class="comment"># Attach SBOM to container image as attestation</span>
+<span class="cmd">$</span> cosign attest <span class="flag">--predicate</span> sbom.spdx.json <span class="flag">--type</span> spdxjson <span class="str">ghcr.io/myorg/myapp:1.2.0</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Real-World Impact</div>
+                <p>The 2024 xz utils backdoor (CVE-2024-3094) was caught because a developer noticed a 500ms SSH latency regression. An SBOM and provenance verification pipeline would have flagged the compromised build artifacts automatically. Supply chain security is detective work automated.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Artifact Retention -->
+        <div class="section">
+            <h3>10. Artifact Retention & Promotion</h3>
+            <p>Artifacts accumulate fast. A busy CI pipeline can produce hundreds of images per week. Without retention policies, storage costs grow unbounded and registries become impossible to navigate.</p>
+
+            <h4>Retention Strategies</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Keep N latest</span>
+                    <span>Retain the most recent 10-20 images per repository. Delete older untagged manifests.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">TTL-based</span>
+                    <span>Dev/feature branch artifacts expire after 7-14 days. Release tags are kept indefinitely.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Promotion</span>
+                    <span>Artifacts start in <code>dev</code> registry, promote to <code>staging</code>, then <code>prod</code>. Only promoted artifacts are retained long-term.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Automated cleanup of old container images</span>
+- <span class="cmd">uses</span>: actions/delete-package-versions@v5
+  <span class="cmd">with</span>:
+    <span class="file">package-name</span>: <span class="str">'myapp'</span>
+    <span class="file">package-type</span>: <span class="str">'container'</span>
+    <span class="file">min-versions-to-keep</span>: 10
+    <span class="file">delete-only-untagged-versions</span>: <span class="str">'true'</span></code></pre>
+            </div>
+
+            <h4>Promotion Pipeline</h4>
+            <div class="diagram" id="promoDiagram">
+                <div class="diagram-box" onclick="showPromo('dev')" id="box-dev">
+                    <div class="diagram-box-title">Dev Registry</div>
+                    <div class="diagram-box-sub">Every CI build</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showPromo('staging')" id="box-staging">
+                    <div class="diagram-box-title">Staging</div>
+                    <div class="diagram-box-sub">Tests pass</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showPromo('prod')" id="box-prod">
+                    <div class="diagram-box-title">Production</div>
+                    <div class="diagram-box-sub">Approved release</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="promoDetail">Click a stage above to see retention details.</div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Cost Awareness</div>
+                <p>Container image storage on cloud registries typically costs $0.10/GB/month. A 500MB image rebuilt 20 times/day across 5 microservices = 50GB/day = 1.5TB/month = $150/month in storage alone. Retention policies aren't just hygiene &mdash; they're cost control.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Reproducible Builds -->
+        <div class="section">
+            <h3>11. Reproducible Builds</h3>
+            <p>A build is reproducible when the same source code, build environment, and build instructions always produce bit-for-bit identical output. This is the gold standard for build integrity &mdash; and it's harder than it sounds.</p>
+
+            <h4>Sources of Non-Determinism</h4>
+            <table class="compare">
+                <tr>
+                    <th>Problem</th>
+                    <th>Example</th>
+                    <th>Fix</th>
+                </tr>
+                <tr>
+                    <td>Floating dependencies</td>
+                    <td><code>"lodash": "^4.0.0"</code> resolves differently over time</td>
+                    <td>Lock files: <code>package-lock.json</code>, <code>poetry.lock</code>, <code>go.sum</code></td>
+                </tr>
+                <tr>
+                    <td>Timestamps</td>
+                    <td>Build embeds current date/time in binary</td>
+                    <td>Use <code>SOURCE_DATE_EPOCH</code> environment variable</td>
+                </tr>
+                <tr>
+                    <td>Non-deterministic ordering</td>
+                    <td>File glob order varies across OS/filesystem</td>
+                    <td>Sort inputs explicitly in build scripts</td>
+                </tr>
+                <tr>
+                    <td>Unpinned base images</td>
+                    <td><code>FROM ubuntu:latest</code> changes over time</td>
+                    <td>Pin by digest: <code>FROM ubuntu@sha256:abc...</code></td>
+                </tr>
+                <tr>
+                    <td>Network fetches</td>
+                    <td><code>curl</code> in Dockerfile pulls latest version</td>
+                    <td>Vendor dependencies, pin URLs with checksums</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Pin base image by digest for reproducibility</span>
+<span class="cmd">FROM</span> node:20-alpine@sha256:7a91aa397f2e2dfbfcdad2e2d72599f36e0b800c <span class="flag">AS</span> builder
+
+<span class="comment"># Use ci (not install) for deterministic installs</span>
+<span class="cmd">COPY</span> package.json package-lock.json ./
+<span class="cmd">RUN</span> npm ci
+
+<span class="comment"># Set reproducible timestamp</span>
+<span class="cmd">ENV</span> SOURCE_DATE_EPOCH=0
+
+<span class="cmd">COPY</span> . .
+<span class="cmd">RUN</span> npm run build</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Why It Matters</div>
+                <p>If you can rebuild the same artifact from the same source, you can verify that a production binary was actually built from the claimed source code. This is the foundation of supply chain security and a requirement for SLSA Level 3+ compliance.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Build Matrix -->
+        <div class="section">
+            <h3>12. Build Matrix</h3>
+            <p>A build matrix runs your build across multiple combinations of OS, language version, architecture, or configuration. It's how you ensure a library or tool works everywhere it claims to &mdash; not just on the developer's laptop.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">strategy</span>:
+  <span class="file">matrix</span>:
+    <span class="file">os</span>: [ubuntu-latest, macos-latest, windows-latest]
+    <span class="file">node-version</span>: [18, 20, 22]
+    <span class="file">exclude</span>:
+      - <span class="file">os</span>: windows-latest
+        <span class="file">node-version</span>: 18     <span class="comment"># Skip EOL combo</span>
+    <span class="file">include</span>:
+      - <span class="file">os</span>: ubuntu-latest
+        <span class="file">node-version</span>: 22
+        <span class="file">experimental</span>: true   <span class="comment"># Extra config for specific combo</span>
+
+<span class="cmd">steps</span>:
+  - <span class="cmd">uses</span>: actions/checkout@v4
+  - <span class="cmd">uses</span>: actions/setup-node@v4
+    <span class="cmd">with</span>:
+      <span class="file">node-version</span>: <span class="str">${{ matrix.node-version }}</span>
+  - <span class="cmd">run</span>: npm ci && npm test</code></pre>
+            </div>
+
+            <p>This matrix produces 3 OS x 3 Node versions = 9 jobs, minus 1 exclusion = <strong>8 parallel jobs</strong>. Each job runs independently on its own runner.</p>
+
+            <h4>Multi-Architecture Docker Builds</h4>
+            <p>Modern deployments target both <code>amd64</code> (Intel/AMD) and <code>arm64</code> (AWS Graviton, Apple Silicon, Raspberry Pi). Docker Buildx creates multi-arch images in a single manifest.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a buildx builder with multi-arch support</span>
+<span class="cmd">$</span> docker buildx create <span class="flag">--name</span> multiarch <span class="flag">--use</span>
+
+<span class="comment"># Build and push for both amd64 and arm64</span>
+<span class="cmd">$</span> docker buildx build \
+    <span class="flag">--platform</span> <span class="str">linux/amd64,linux/arm64</span> \
+    <span class="flag">--tag</span> <span class="str">ghcr.io/myorg/myapp:1.2.0</span> \
+    <span class="flag">--push</span> .
+
+<span class="comment"># Inspect the multi-arch manifest</span>
+<span class="cmd">$</span> docker manifest inspect <span class="str">ghcr.io/myorg/myapp:1.2.0</span>
+<span class="output">{
+  "manifests": [
+    { "platform": { "architecture": "amd64", "os": "linux" } },
+    { "platform": { "architecture": "arm64", "os": "linux" } }
+  ]
+}</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Full multi-arch build in CI</span>
+- <span class="cmd">uses</span>: docker/setup-qemu-action@v3     <span class="comment"># ARM emulation</span>
+- <span class="cmd">uses</span>: docker/setup-buildx-action@v3    <span class="comment"># Buildx builder</span>
+- <span class="cmd">uses</span>: docker/build-push-action@v5
+  <span class="cmd">with</span>:
+    <span class="file">platforms</span>: <span class="str">linux/amd64,linux/arm64</span>
+    <span class="file">push</span>: true
+    <span class="file">tags</span>: <span class="str">ghcr.io/myorg/myapp:${{ github.ref_name }}</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">QEMU Performance</div>
+                <p>Cross-architecture builds using QEMU emulation are 3-10x slower than native builds. For production pipelines, consider using native ARM runners (GitHub's <code>ubuntu-24.04-arm</code>, or self-hosted Graviton instances) instead of emulated builds.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Matrix Best Practices</div>
+                <p>Use <code>fail-fast: false</code> so one failing combination doesn't cancel the rest. Use <code>exclude</code> to skip known-broken combinations. Use <code>include</code> to add specific configurations that don't fit the cartesian product. Keep matrix size reasonable &mdash; 20+ jobs per PR slows down the feedback loop.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Build stage diagram interaction
+        const buildStages = {
+            compile: {
+                title: 'Compilation',
+                desc: 'Source code is translated into machine code or bytecode. C/C++ compiles to native binaries. Java compiles to JVM bytecode (.class files). Go compiles to a single static binary. Compilation catches syntax and type errors before runtime.'
+            },
+            transpile: {
+                title: 'Transpilation',
+                desc: 'Source-to-source compilation. TypeScript transpiles to JavaScript. Babel converts modern JS to ES5 for older browsers. Sass/SCSS compiles to CSS. The output is still human-readable source code, but in a different language or version.'
+            },
+            bundle: {
+                title: 'Bundling',
+                desc: 'Multiple source files and their dependencies are combined into optimized output bundles. Webpack, Rollup, and esbuild resolve imports, tree-shake unused code, split chunks for lazy loading, and minify the result. Critical for frontend performance.'
+            },
+            containerize: {
+                title: 'Containerization',
+                desc: 'The application, its runtime, dependencies, and configuration are packaged into a Docker image. The image is a portable, self-contained unit that runs identically on any machine with a container runtime. This eliminates "works on my machine" problems.'
+            }
+        };
+
+        function showBuildStage(id) {
+            document.querySelectorAll('#buildDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const s = buildStages[id];
+            document.getElementById('buildDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Promotion pipeline diagram interaction
+        const promoStages = {
+            dev: {
+                title: 'Dev Registry',
+                desc: 'Every CI build pushes an image tagged with the git SHA. Retention: 7 days or last 20 versions. Feature branch images are automatically cleaned up after the branch is merged or deleted.'
+            },
+            staging: {
+                title: 'Staging Registry',
+                desc: 'Images that pass all automated tests are re-tagged and pushed to the staging registry. Retention: 30 days or last 50 versions. QA and integration testing happen against these artifacts.'
+            },
+            prod: {
+                title: 'Production Registry',
+                desc: 'Only approved releases are promoted to production. These artifacts receive SemVer tags and are retained indefinitely. Signed with cosign and accompanied by SBOM attestations. Rollback targets are always available.'
+            }
+        };
+
+        function showPromo(id) {
+            document.querySelectorAll('#promoDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const s = promoStages[id];
+            document.getElementById('promoDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-73'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-73-build-artifacts', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first diagram state
+        showBuildStage('compile');
+        showPromo('dev');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-73']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

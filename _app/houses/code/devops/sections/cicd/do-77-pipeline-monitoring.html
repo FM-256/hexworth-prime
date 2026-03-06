@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Monitoring & Observability - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-controls.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-77</span>
+            <h1>Pipeline Monitoring & Observability</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; CI/CD Pipelines</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-controls.webp" alt="">
+            <h2>Pipeline Monitoring & Observability</h2>
+            <p class="hero-sub">Building pipelines is only half the job. Learn to measure, monitor, and continuously improve your CI/CD systems with metrics, dashboards, and incident processes.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~30 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-controls.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain the four DORA metrics and classify team performance against industry benchmarks</li>
+                <li>Design build health dashboards for team-level and organization-level visibility</li>
+                <li>Implement structured logging and log aggregation for pipeline troubleshooting</li>
+                <li>Configure smart notification strategies that prevent alert fatigue</li>
+                <li>Identify pipeline bottlenecks through queue time and stage duration analysis</li>
+                <li>Establish post-deploy verification with smoke tests and synthetic monitoring</li>
+                <li>Build incident management workflows with escalation paths and on-call rotations</li>
+                <li>Maintain compliance audit trails for SOC2, HIPAA, and regulatory requirements</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Why Monitor Pipelines? -->
+        <div class="section">
+            <h3>Why Monitor Pipelines?</h3>
+            <p>A pipeline that works is not the same as a pipeline that works <em>well</em>. Without visibility, slow builds quietly drain productivity, flaky tests erode developer trust, and failed deployments catch teams off guard. Pipeline monitoring transforms your CI/CD system from a black box into a feedback loop.</p>
+
+            <p>The DevOps Research and Assessment (DORA) program identified four key metrics that reliably predict software delivery performance. These metrics have become the industry standard for measuring how effective a team's CI/CD practices are.</p>
+
+            <h4>The Four DORA Metrics</h4>
+            <div class="diagram" id="doraDiagram">
+                <div class="diagram-box" onclick="showDora('df')" id="box-df">
+                    <div class="diagram-box-title">Deployment Frequency</div>
+                    <div class="diagram-box-sub">How often you ship</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showDora('lt')" id="box-lt">
+                    <div class="diagram-box-title">Lead Time</div>
+                    <div class="diagram-box-sub">Commit to production</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showDora('mttr')" id="box-mttr">
+                    <div class="diagram-box-title">MTTR</div>
+                    <div class="diagram-box-sub">Recovery speed</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showDora('cfr')" id="box-cfr">
+                    <div class="diagram-box-title">Change Failure Rate</div>
+                    <div class="diagram-box-sub">Deploys that break</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="doraDetail">Click a metric above to see its definition, measurement approach, and performance benchmarks.</div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>DORA metrics prove that speed and stability are not trade-offs. Elite teams deploy more frequently <em>and</em> have lower failure rates. Monitoring is what makes this possible &mdash; you cannot improve what you do not measure.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Build Metrics -->
+        <div class="section">
+            <h3>Build Metrics</h3>
+            <p>Before looking at high-level delivery metrics, start with the fundamentals: how your builds behave day to day. Build metrics are the foundation of pipeline observability &mdash; they surface problems before they become patterns.</p>
+
+            <h4>Essential Build Metrics</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Duration</span>
+                    <span>Track p50, p90, and p99 build times. A climbing p90 signals infrastructure degradation or test suite bloat long before anyone complains.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Success Rate</span>
+                    <span>Percentage of builds that pass. Healthy teams target 85%+ on the default branch. Below 70% means the pipeline is a bottleneck, not a tool.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Flaky Tests</span>
+                    <span>Tests that pass and fail without code changes. Track flake rate per test &mdash; quarantine anything above 5% flake frequency.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Queue Time</span>
+                    <span>Time a build waits for a runner before execution starts. High queue time means you need more capacity or better scheduling.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; GitHub Actions Duration Tracking</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Record build duration as a custom metric</span>
+<span class="cmd">steps:</span>
+  - <span class="flag">name:</span> <span class="str">Record build start</span>
+    <span class="flag">run:</span> <span class="str">echo "BUILD_START=$(date +%s)" >> $GITHUB_ENV</span>
+
+  <span class="comment"># ... your build steps ...</span>
+
+  - <span class="flag">name:</span> <span class="str">Report build duration</span>
+    <span class="flag">if:</span> <span class="str">always()</span>
+    <span class="flag">run:</span> |
+      <span class="cmd">BUILD_END</span>=$(date +%s)
+      <span class="cmd">DURATION</span>=$(( BUILD_END - BUILD_START ))
+      <span class="output">echo "Build completed in ${DURATION}s"</span>
+      <span class="comment"># Send to your metrics backend</span>
+      curl -X POST <span class="str">"https://metrics.example.com/api/v1/series"</span> \
+        -d <span class="str">"{\"metric\":\"ci.build.duration\",\"value\":${DURATION}}"</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Flaky Test Debt</div>
+                <p>A single flaky test that fails 10% of the time will cause 1 in 10 pipeline runs to fail for no real reason. With 20 flaky tests, nearly every run fails spuriously. Treat flaky tests as high-priority bugs &mdash; they silently destroy pipeline trust.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: DORA Metrics Deep Dive -->
+        <div class="section">
+            <h3>DORA Metrics Deep Dive</h3>
+            <p>The DORA metrics are not just abstract concepts &mdash; they require concrete measurement strategies. Here is how to collect each metric and where your team falls on the performance spectrum.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Metric</th>
+                    <th>Elite</th>
+                    <th>High</th>
+                    <th>Medium</th>
+                    <th>Low</th>
+                </tr>
+                <tr>
+                    <td>Deployment Frequency</td>
+                    <td>On-demand (multiple/day)</td>
+                    <td>Once per week to once per month</td>
+                    <td>Once per month to once every 6 months</td>
+                    <td>Less than once every 6 months</td>
+                </tr>
+                <tr>
+                    <td>Lead Time for Changes</td>
+                    <td>Less than 1 hour</td>
+                    <td>1 day to 1 week</td>
+                    <td>1 week to 1 month</td>
+                    <td>1 to 6 months</td>
+                </tr>
+                <tr>
+                    <td>Mean Time to Recovery</td>
+                    <td>Less than 1 hour</td>
+                    <td>Less than 1 day</td>
+                    <td>1 day to 1 week</td>
+                    <td>More than 6 months</td>
+                </tr>
+                <tr>
+                    <td>Change Failure Rate</td>
+                    <td>0&ndash;15%</td>
+                    <td>16&ndash;30%</td>
+                    <td>16&ndash;30%</td>
+                    <td>46&ndash;60%</td>
+                </tr>
+            </table>
+
+            <h4>Measuring Lead Time</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Shell &mdash; Lead Time Calculation</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Lead time = time from first commit to production deploy</span>
+<span class="comment"># Step 1: Get the first commit timestamp on a feature branch</span>
+<span class="cmd">FIRST_COMMIT</span>=$(git log --reverse --format="%ct" origin/main..HEAD | head -1)
+
+<span class="comment"># Step 2: Record deployment timestamp</span>
+<span class="cmd">DEPLOY_TIME</span>=$(date +%s)
+
+<span class="comment"># Step 3: Calculate lead time in hours</span>
+<span class="cmd">LEAD_TIME_HOURS</span>=$(( (DEPLOY_TIME - FIRST_COMMIT) / 3600 ))
+<span class="output">echo "Lead time: ${LEAD_TIME_HOURS} hours"</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Measurement Tools</div>
+                <p>Tools like Sleuth, LinearB, Jellyfish, and the open-source Four Keys project (by Google) can automatically calculate DORA metrics from your Git history and deployment events. Start simple with scripts, then adopt dedicated tooling as the practice matures.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Notification Strategies -->
+        <div class="section">
+            <h3>Notification Strategies</h3>
+            <p>Bad notifications are worse than no notifications. If every build failure triggers a Slack message, the team stops reading them within a week. Smart notification design is about routing the right signal to the right person at the right time.</p>
+
+            <h4>Notification Tiers</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Tier 1: Author Only</code> <span class="tag">LOW NOISE</span></div>
+                    <p>Feature branch failures notify only the commit author. No channel noise. This is the default for individual work.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Tier 2: Team Channel</code> <span class="tag">AWARENESS</span></div>
+                    <p>Main branch failures post to the team channel. Everyone should know if the trunk is broken &mdash; but use threading, not top-level messages.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Tier 3: Pager / On-Call</code> <span class="tag">URGENT</span></div>
+                    <p>Production deploy failures or post-deploy health check failures page the on-call engineer. Reserved for real incidents.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Tier 4: Digest</code> <span class="tag">SUMMARY</span></div>
+                    <p>Daily or weekly build health summaries sent to leads. Trends, not individual failures. Shows success rate, average duration, flake count.</p>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; Smart Slack Notification</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Only notify on main branch failures, not feature branches</span>
+<span class="cmd">- name:</span> <span class="str">Notify on failure</span>
+  <span class="flag">if:</span> <span class="str">failure() && github.ref == 'refs/heads/main'</span>
+  <span class="flag">uses:</span> <span class="str">slackapi/slack-github-action@v1</span>
+  <span class="flag">with:</span>
+    <span class="flag">channel-id:</span> <span class="str">'C0123BUILDS'</span>
+    <span class="flag">slack-message:</span> |
+      <span class="output">Build failed on main</span>
+      <span class="output">Commit: ${{ github.sha }}</span>
+      <span class="output">Author: ${{ github.actor }}</span>
+      <span class="output">Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Alert Fatigue Kills Response</div>
+                <p>Studies show that when more than 30% of alerts are non-actionable, responders begin ignoring all alerts. Audit your notifications monthly. If nobody acts on an alert type, delete it. A smaller set of meaningful alerts is always better than comprehensive noise.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Dashboard Design -->
+        <div class="section">
+            <h3>Dashboard Design</h3>
+            <p>Dashboards are the single-pane-of-glass for pipeline health. A good dashboard answers three questions instantly: Is the pipeline healthy right now? Is it getting better or worse? Where should we invest improvement effort?</p>
+
+            <h4>Team-Level Dashboard</h4>
+            <p>Designed for daily use by the development team. Shows the current state and recent trends that affect their daily work.</p>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Build Status</span>
+                    <span>Current state of the main branch pipeline &mdash; green/red indicator with last build timestamp and duration.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Success Rate</span>
+                    <span>7-day rolling success rate as a percentage. Show trend arrow (up/down) compared to previous 7 days.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Duration Trend</span>
+                    <span>Line chart of p50 and p90 build times over the past 30 days. Highlights regressions visually.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Flaky Tests</span>
+                    <span>Top 5 flakiest tests with their flake rates. Direct links to test files for quick triage.</span>
+                </div>
+            </div>
+
+            <h4>Organization-Level Dashboard</h4>
+            <p>Built for engineering leadership. Aggregates data across teams to show systemic patterns and investment priorities.</p>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">DORA Scorecard</span>
+                    <span>All four DORA metrics per team, color-coded against Elite/High/Medium/Low benchmarks.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Cost Summary</span>
+                    <span>Monthly CI/CD spend per team, cost per build, and trend vs. budget allocation.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Deploy Calendar</span>
+                    <span>Heatmap of deployment frequency across teams. Surfaces teams that deploy rarely or cluster deploys at risky times.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Dashboard Principle</div>
+                <p>Every element on a dashboard should drive a specific action. If a widget does not change anyone's behavior, remove it. Dashboards that try to show everything end up communicating nothing.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Pipeline Logs -->
+        <div class="section">
+            <h3>Pipeline Logs</h3>
+            <p>When a build fails, logs are your forensic evidence. Unstructured logs force engineers to scroll through thousands of lines searching for the needle. Structured logging transforms that haystack into a searchable database.</p>
+
+            <h4>Structured vs. Unstructured</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Comparison</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Unstructured (hard to parse, search, or aggregate)</span>
+<span class="output">2024-03-15 14:22:01 Building project... done in 45s</span>
+<span class="output">2024-03-15 14:22:46 Running tests... 3 failed</span>
+<span class="output">2024-03-15 14:22:47 ERROR: TestUserAuth failed - timeout</span>
+
+<span class="comment"># Structured JSON (machine-readable, searchable, filterable)</span>
+<span class="str">{"ts":"2024-03-15T14:22:01Z","stage":"build","status":"success","duration_s":45}</span>
+<span class="str">{"ts":"2024-03-15T14:22:46Z","stage":"test","status":"failure","failed":3,"total":248}</span>
+<span class="str">{"ts":"2024-03-15T14:22:47Z","stage":"test","test":"TestUserAuth","error":"timeout","duration_s":30}</span></code></pre>
+            </div>
+
+            <h4>Log Aggregation Pipeline</h4>
+            <p>Ship pipeline logs to a central system where they can be searched across all builds, all branches, and all time. Common stacks include the ELK stack (Elasticsearch, Logstash, Kibana), Grafana Loki, and Datadog.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; Shipping Logs to Loki</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">- name:</span> <span class="str">Ship build logs</span>
+  <span class="flag">if:</span> <span class="str">always()</span>
+  <span class="flag">run:</span> |
+    <span class="comment"># Collect build output and send to Loki</span>
+    curl -X POST <span class="str">"https://loki.example.com/loki/api/v1/push"</span> \
+      -H <span class="str">"Content-Type: application/json"</span> \
+      -d <span class="str">"{
+        \"streams\": [{
+          \"stream\": {
+            \"job\": \"ci\",
+            \"repo\": \"$GITHUB_REPOSITORY\",
+            \"branch\": \"$GITHUB_REF_NAME\",
+            \"run_id\": \"$GITHUB_RUN_ID\"
+          },
+          \"values\": [[\"$(date +%s)000000000\", \"$(cat build.log)\"]]
+        }]
+      }"</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Log Retention</div>
+                <p>Most CI providers retain logs for 30-90 days. If you need longer retention for compliance or analysis, ship logs to your own storage. Compressed structured logs are surprisingly small &mdash; a year of build logs for a mid-size team fits in under 10 GB.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Cost Monitoring -->
+        <div class="section">
+            <h3>Cost Monitoring</h3>
+            <p>CI/CD costs scale with team size, build frequency, and pipeline complexity. Without monitoring, costs creep up invisibly until someone notices a spike on the monthly invoice. Proactive cost tracking prevents surprise bills and identifies optimization opportunities.</p>
+
+            <h4>Where CI/CD Money Goes</h4>
+            <table class="compare">
+                <tr>
+                    <th>Cost Driver</th>
+                    <th>Typical Impact</th>
+                    <th>Optimization</th>
+                </tr>
+                <tr>
+                    <td>Build minutes</td>
+                    <td>40&ndash;60% of total CI spend</td>
+                    <td>Caching, parallelization, skipping unchanged modules</td>
+                </tr>
+                <tr>
+                    <td>Self-hosted runners</td>
+                    <td>Fixed infrastructure cost</td>
+                    <td>Autoscaling, spot/preemptible instances, right-sizing</td>
+                </tr>
+                <tr>
+                    <td>Artifact storage</td>
+                    <td>5&ndash;15% of spend</td>
+                    <td>Retention policies, compression, deduplication</td>
+                </tr>
+                <tr>
+                    <td>Test environments</td>
+                    <td>15&ndash;30% of spend</td>
+                    <td>Ephemeral environments, teardown on merge, shared staging</td>
+                </tr>
+                <tr>
+                    <td>Third-party scans</td>
+                    <td>Per-scan licensing</td>
+                    <td>Run on merge only (not every commit), cache results</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Shell &mdash; GitHub Actions Usage Report</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Query GitHub API for Actions billing data</span>
+<span class="cmd">$</span> gh api /orgs/<span class="str">YOUR_ORG</span>/settings/billing/actions \
+    --jq <span class="str">'{
+      total_minutes_used: .total_minutes_used,
+      total_paid_minutes_used: .total_paid_minutes_used,
+      included_minutes: .included_minutes,
+      overage_cost: ((.total_paid_minutes_used - .included_minutes) * 0.008)
+    }'</span>
+
+<span class="output">{
+  "total_minutes_used": 48250,
+  "total_paid_minutes_used": 45000,
+  "included_minutes": 50000,
+  "overage_cost": 0
+}</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">The Caching Multiplier</div>
+                <p>A well-configured dependency cache can cut build times by 30&ndash;60%. In GitHub Actions, <code>actions/cache</code> can save <code>node_modules</code>, Docker layers, compiled binaries, and test databases. The ROI on caching configuration is almost always positive &mdash; it saves both time and money.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Pipeline Analytics -->
+        <div class="section">
+            <h3>Pipeline Analytics</h3>
+            <p>Analytics go beyond dashboards. While dashboards show current state, analytics answer deeper questions: Which stage is the bottleneck? What changed when builds got slower? Where does time actually go in the pipeline?</p>
+
+            <h4>Bottleneck Detection</h4>
+            <p>Break down every pipeline run into its constituent stages and track their durations independently. The slowest stage is not always the bottleneck &mdash; the stage with the most variance is often more damaging because it makes pipeline duration unpredictable.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Example &mdash; Stage Duration Breakdown</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Typical pipeline stage analysis output</span>
+<span class="output">Stage               p50     p90     p99     % of Total</span>
+<span class="output">---------------------------------------------------</span>
+<span class="output">Checkout            4s      6s      12s       2%</span>
+<span class="output">Install Deps       28s     45s     120s      14%</span>
+<span class="output">Lint                8s     12s      18s       4%</span>
+<span class="output">Unit Tests         62s     95s     180s      31%</span>   <span class="comment">&larr; bottleneck</span>
+<span class="output">Build              45s     58s      72s      22%</span>
+<span class="output">Integration Tests  38s     85s     210s      19%</span>   <span class="comment">&larr; high variance</span>
+<span class="output">Deploy             14s     18s      24s       7%</span>
+<span class="output">---------------------------------------------------</span>
+<span class="output">Total             199s    319s     636s     100%</span></code></pre>
+            </div>
+
+            <h4>Queue Time Analysis</h4>
+            <p>Queue time is the hidden tax on every pipeline run. It is the gap between "build triggered" and "runner picked it up." High queue times signal runner capacity problems or scheduling inefficiencies.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Peak Hours</code> <span class="tag">PATTERN</span></div>
+                    <p>Plot queue time by hour of day. Many teams see spikes at 9-10 AM when everyone pushes morning work. Add runner capacity or stagger builds.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Runner Utilization</code> <span class="tag">CAPACITY</span></div>
+                    <p>Track what percentage of time runners are busy vs. idle. Below 50% means you are over-provisioned. Above 85% means queue times will spike.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The 80/20 Rule</div>
+                <p>In most codebases, 80% of pipeline time is spent in 20% of stages. Find and optimize those stages first. A 30% improvement to a stage that takes 60% of the pipeline is worth more than eliminating three stages that take 5% each.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Post-Deploy Verification -->
+        <div class="section">
+            <h3>Post-Deploy Verification</h3>
+            <p>Deployment is not done when the code ships &mdash; it is done when you have confirmed it works in production. Post-deploy verification closes the feedback loop and catches issues that tests cannot simulate.</p>
+
+            <h4>Verification Layers</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Smoke Tests</span>
+                    <span>Quick HTTP checks against critical endpoints. Does the app start? Can users log in? Do API health checks pass? Run within 60 seconds of deploy.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Synthetic Monitoring</span>
+                    <span>Scripted user journeys (sign up, purchase, search) that run continuously. Detect regressions in user-facing flows within minutes.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Canary Analysis</span>
+                    <span>Route a small percentage of traffic to the new version. Compare error rates, latency, and business metrics against the old version. Auto-rollback on degradation.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Metric Watches</span>
+                    <span>Set automated watches on key production metrics (error rate, p99 latency, CPU usage) for 15-30 minutes after deploy. Alert if thresholds are breached.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Shell &mdash; Post-Deploy Smoke Test</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">#!/bin/bash</span>
+<span class="comment"># Run after deployment completes</span>
+<span class="cmd">ENDPOINTS</span>=(<span class="str">"/health"</span> <span class="str">"/api/v1/status"</span> <span class="str">"/login"</span>)
+<span class="cmd">BASE_URL</span>=<span class="str">"https://app.example.com"</span>
+<span class="cmd">FAILURES</span>=0
+
+for <span class="cmd">endpoint</span> in "${ENDPOINTS[@]}"; do
+  <span class="cmd">STATUS</span>=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}${endpoint}")
+  if [ "$STATUS" -ne 200 ]; then
+    <span class="output">echo "FAIL: ${endpoint} returned ${STATUS}"</span>
+    <span class="cmd">FAILURES</span>=$((FAILURES + 1))
+  else
+    <span class="output">echo "PASS: ${endpoint}"</span>
+  fi
+done
+
+if [ "$FAILURES" -gt 0 ]; then
+  <span class="output">echo "Smoke tests failed. Triggering rollback."</span>
+  <span class="comment"># ./rollback.sh</span>
+  exit 1
+fi</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Canary Best Practice</div>
+                <p>Start canary deployments at 1-5% of traffic. Wait at least 10 minutes before expanding. Use automated statistical comparison (not human eyeballing) to decide whether to promote or rollback. Tools like Kayenta (by Netflix) and Flagger (for Kubernetes) automate this analysis.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Incident Management -->
+        <div class="section">
+            <h3>Incident Management</h3>
+            <p>When a pipeline breaks production, the team's response matters more than the technology. Without clear processes, incidents become blame sessions. With good incident management, they become learning opportunities.</p>
+
+            <h4>Build Break Policies</h4>
+            <p>Establish clear, agreed-upon rules for what happens when the main branch breaks. These should be documented, not assumed.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Policy</th>
+                    <th>When to Use</th>
+                    <th>How It Works</th>
+                </tr>
+                <tr>
+                    <td><strong>Stop the Line</strong></td>
+                    <td>Small teams, trunk-based development</td>
+                    <td>No one merges until the break is fixed. The person who broke it fixes it (or reverts) immediately.</td>
+                </tr>
+                <tr>
+                    <td><strong>Revert Fast</strong></td>
+                    <td>Large teams, high deploy frequency</td>
+                    <td>Auto-revert the offending commit. Fix in a new PR. Never leave main broken for more than 15 minutes.</td>
+                </tr>
+                <tr>
+                    <td><strong>Fix Forward</strong></td>
+                    <td>When revert is risky (database migrations, etc.)</td>
+                    <td>Push a fix rather than reverting. Only when the fix is faster and safer than a rollback.</td>
+                </tr>
+            </table>
+
+            <h4>On-Call for CI/CD</h4>
+            <p>For teams that depend heavily on their pipelines, a dedicated CI/CD on-call rotation ensures someone is always responsible for pipeline health. This is separate from production on-call.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Rotation</code> <span class="tag">WEEKLY</span></div>
+                    <p>Rotate the CI/CD on-call weekly. Responsible for monitoring build health, triaging flaky tests, and responding to pipeline outages.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Escalation</code> <span class="tag">PATH</span></div>
+                    <p>CI/CD on-call (5 min) &rarr; Team lead (15 min) &rarr; Platform engineering (30 min). Clear timeboxes prevent issues from stalling.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Blameless Post-Mortems</div>
+                <p>After any incident that impacts the pipeline for more than 30 minutes, run a blameless post-mortem. Focus on: What happened? What was the timeline? What could we change to prevent recurrence? Document and share the findings. Blame kills the willingness to report problems early.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Compliance & Audit -->
+        <div class="section">
+            <h3>Compliance & Audit</h3>
+            <p>Regulated industries need more than working pipelines &mdash; they need <em>provable</em> pipelines. Compliance frameworks like SOC2, HIPAA, PCI-DSS, and FedRAMP require evidence that deployments follow controlled, auditable processes.</p>
+
+            <h4>What Auditors Want</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Who</span>
+                    <span>Identity of every person who approved and deployed a change. Linked to authenticated accounts, not shared credentials.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">What</span>
+                    <span>Exact diff of what changed, which artifacts were deployed, and to which environment. Immutable records, not editable logs.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">When</span>
+                    <span>Timestamps for every stage: commit, review, approval, build, test, deploy. Ideally with cryptographic proof (signed commits, signed artifacts).</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Controls</span>
+                    <span>Evidence that required gates passed: code review, automated tests, security scans, manual approval for production.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">YAML &mdash; Audit Trail in Pipeline</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Generate a deployment manifest with audit metadata</span>
+<span class="cmd">- name:</span> <span class="str">Create deployment record</span>
+  <span class="flag">run:</span> |
+    <span class="cmd">cat</span> > deployment-record.json << <span class="str">EOF</span>
+    {
+      <span class="str">"version"</span>: <span class="str">"${{ github.sha }}"</span>,
+      <span class="str">"deployer"</span>: <span class="str">"${{ github.actor }}"</span>,
+      <span class="str">"timestamp"</span>: <span class="str">"$(date -u +%Y-%m-%dT%H:%M:%SZ)"</span>,
+      <span class="str">"environment"</span>: <span class="str">"production"</span>,
+      <span class="str">"approvers"</span>: <span class="str">"${{ github.event.review.user.login }}"</span>,
+      <span class="str">"tests_passed"</span>: true,
+      <span class="str">"security_scan"</span>: <span class="str">"clean"</span>,
+      <span class="str">"pipeline_run"</span>: <span class="str">"${{ github.run_id }}"</span>
+    }
+    <span class="str">EOF</span>
+
+    <span class="comment"># Store in immutable audit log (S3 with Object Lock, or a DB)</span>
+    aws s3 cp deployment-record.json \
+      <span class="str">s3://audit-logs/deploys/$(date +%Y/%m/%d)/${{ github.sha }}.json</span></code></pre>
+            </div>
+
+            <h4>Compliance Framework Mapping</h4>
+            <table class="compare">
+                <tr>
+                    <th>Requirement</th>
+                    <th>SOC2</th>
+                    <th>HIPAA</th>
+                    <th>Pipeline Control</th>
+                </tr>
+                <tr>
+                    <td>Change management</td>
+                    <td>CC8.1</td>
+                    <td>164.312(e)</td>
+                    <td>Required PR approvals, branch protection rules</td>
+                </tr>
+                <tr>
+                    <td>Access controls</td>
+                    <td>CC6.1</td>
+                    <td>164.312(a)</td>
+                    <td>RBAC on deployment environments, secrets management</td>
+                </tr>
+                <tr>
+                    <td>Audit logging</td>
+                    <td>CC7.2</td>
+                    <td>164.312(b)</td>
+                    <td>Immutable deployment records, signed artifacts</td>
+                </tr>
+                <tr>
+                    <td>Testing evidence</td>
+                    <td>CC8.1</td>
+                    <td>164.308(a)(8)</td>
+                    <td>Test reports stored as build artifacts, required gate checks</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Signed Commits & Artifacts</div>
+                <p>For high-security environments, require GPG-signed commits and sign your build artifacts (container images, binaries). This creates a cryptographic chain from developer identity to deployed code. Tools like Sigstore and Cosign make artifact signing practical at scale.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Continuous Improvement -->
+        <div class="section">
+            <h3>Continuous Improvement</h3>
+            <p>A pipeline is never "done." Code changes, dependencies evolve, team size shifts, and new tools emerge. The best teams treat their CI/CD system as a product &mdash; with its own backlog, retrospectives, and improvement roadmap.</p>
+
+            <h4>Pipeline Retrospectives</h4>
+            <p>Run a dedicated pipeline retrospective monthly (separate from sprint retros). Review the data and decide what to improve next.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Review Metrics</code> <span class="tag">DATA</span></div>
+                    <p>Pull DORA metrics, build duration trends, flaky test counts, and cost data. Let the numbers guide the conversation, not opinions.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Identify Pain Points</code> <span class="tag">TEAM INPUT</span></div>
+                    <p>Ask developers: What slowed you down this month? What pipeline behavior surprised you? What did you work around instead of fixing?</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Prioritize Fixes</code> <span class="tag">ACTION</span></div>
+                    <p>Pick 1-2 improvements for the next sprint. Small, measurable changes. "Reduce p90 build time by 20%" beats "make builds faster."</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Track Outcomes</code> <span class="tag">VERIFY</span></div>
+                    <p>After implementing changes, measure the impact. Did the metric actually improve? If not, understand why before moving on.</p>
+                </div>
+            </div>
+
+            <h4>Optimization Sprints</h4>
+            <p>Dedicate one sprint per quarter exclusively to pipeline improvements. This creates space for larger changes that do not fit into regular feature work.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Example &mdash; Optimization Sprint Backlog</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Sample pipeline optimization sprint backlog</span>
+
+<span class="output">Priority  Task                                    Impact Estimate</span>
+<span class="output">----------------------------------------------------------------------</span>
+<span class="output">P0        Add dependency caching (npm/pip)         -40% build time</span>
+<span class="output">P0        Quarantine top 5 flaky tests             -15% false failures</span>
+<span class="output">P1        Parallelize unit and lint stages          -25% wall clock</span>
+<span class="output">P1        Add post-deploy smoke tests              +100% deploy confidence</span>
+<span class="output">P2        Set up DORA metrics dashboard            Visibility</span>
+<span class="output">P2        Configure artifact retention policy       -30% storage cost</span>
+<span class="output">P3        Evaluate self-hosted runners vs cloud     Cost analysis</span>
+<span class="output">P3        Add build duration alerts (>2x baseline) Early warning</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Compound Effect</div>
+                <p>A 10% improvement to build speed each quarter compounds to a 35% improvement over a year. Small, consistent investments in pipeline health pay off dramatically. The teams that maintain fast, reliable pipelines are the teams that ship confidently and recover quickly.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // DORA diagram interaction
+        const doraMetrics = {
+            df: {
+                title: 'Deployment Frequency',
+                desc: 'How often your team successfully releases to production. Measured by counting production deployments over a time period (weekly, monthly). Elite teams deploy on demand, multiple times per day. This metric reflects the batch size of your work &mdash; smaller batches mean higher frequency and lower risk per deploy.'
+            },
+            lt: {
+                title: 'Lead Time for Changes',
+                desc: 'The time from code commit to code running in production. Measured by tracking the timestamp of the first commit in a change set versus the production deployment timestamp. Elite teams achieve less than one hour. Long lead times indicate slow reviews, manual gates, or heavy pipeline overhead.'
+            },
+            mttr: {
+                title: 'Mean Time to Recovery (MTTR)',
+                desc: 'How quickly your team can restore service after an incident or outage caused by a deployment. Measured from the moment an incident is detected to the moment service is fully restored. Elite teams recover in less than one hour, usually through automated rollbacks or rapid fix-forward workflows.'
+            },
+            cfr: {
+                title: 'Change Failure Rate',
+                desc: 'The percentage of deployments that cause a failure in production &mdash; requiring a hotfix, rollback, or patch. Measured by dividing failed deployments by total deployments. Elite teams keep this below 15%. A high change failure rate signals insufficient testing, poor code review, or missing pre-production validation.'
+            }
+        };
+
+        function showDora(id) {
+            document.querySelectorAll('#doraDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const m = doraMetrics[id];
+            document.getElementById('doraDetail').innerHTML = '<strong>' + m.title + '</strong><br>' + m.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-77'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-77-pipeline-monitoring', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first DORA metric
+        showDora('df');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-77']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
