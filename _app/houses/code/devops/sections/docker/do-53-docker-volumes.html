@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Volumes & Storage - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-gear.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-53</span>
+            <h1>Docker Volumes &amp; Storage</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Docker Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-gear.webp" alt="">
+            <h2>Docker Volumes &amp; Storage</h2>
+            <p class="hero-sub">Containers are ephemeral &mdash; your data shouldn't be. Master Docker's storage primitives to persist, share, and protect data across container lifecycles.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-gear.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Understand why containers need external storage and how Docker handles data persistence</li>
+                <li>Compare Docker volumes, bind mounts, and tmpfs mounts &mdash; when to use each</li>
+                <li>Create, inspect, and manage Docker volumes with CLI commands</li>
+                <li>Mount host directories into containers for development workflows</li>
+                <li>Use tmpfs mounts for sensitive or temporary in-memory data</li>
+                <li>Share data between multiple containers using named volumes</li>
+                <li>Back up, restore, and migrate volume data</li>
+                <li>Apply production best practices for database volumes and storage lifecycle</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Why Persistent Storage? -->
+        <div class="section">
+            <h3>Why Persistent Storage?</h3>
+            <p>Every Docker container gets its own writable layer on top of the image's read-only layers. When the container is removed, that writable layer is deleted with it &mdash; everything is gone. This is by design: containers are meant to be disposable. But real applications need to persist data: databases store records, web apps save uploads, log collectors accumulate entries. Without a storage strategy, you lose all of it on every <code>docker rm</code>.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Ephemeral</span>
+                    <span>Container's writable layer is tightly coupled to the host machine and the container lifecycle. Removing the container destroys the layer.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Performance</span>
+                    <span>The writable layer uses a storage driver (union filesystem) that adds overhead. Direct writes to the host or a volume bypass this.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Portability</span>
+                    <span>Data inside a container can't easily be extracted, shared with other containers, or moved to another host.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Docker provides three mechanisms to persist data beyond a container's lifetime: <strong>volumes</strong>, <strong>bind mounts</strong>, and <strong>tmpfs mounts</strong>. Volumes are the preferred mechanism for most use cases.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Storage Types -->
+        <div class="section">
+            <h3>Storage Types</h3>
+            <p>Docker offers three distinct mount types. Each stores data differently and serves different purposes. Understanding the tradeoffs is essential to picking the right one.</p>
+
+            <div class="diagram" id="storageDiagram">
+                <div class="diagram-box" onclick="showStorage('volume')" id="box-volume">
+                    <div class="diagram-box-title">Volume</div>
+                    <div class="diagram-box-sub">/var/lib/docker/volumes/</div>
+                </div>
+                <div class="diagram-arrow">|</div>
+                <div class="diagram-box" onclick="showStorage('bind')" id="box-bind">
+                    <div class="diagram-box-title">Bind Mount</div>
+                    <div class="diagram-box-sub">Any host path</div>
+                </div>
+                <div class="diagram-arrow">|</div>
+                <div class="diagram-box" onclick="showStorage('tmpfs')" id="box-tmpfs">
+                    <div class="diagram-box-title">tmpfs Mount</div>
+                    <div class="diagram-box-sub">Host memory only</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="storageDetail">Click a storage type above to learn how it works.</div>
+
+            <h4>Comparison Table</h4>
+            <table class="compare">
+                <tr>
+                    <th>Feature</th>
+                    <th>Volume</th>
+                    <th>Bind Mount</th>
+                    <th>tmpfs</th>
+                </tr>
+                <tr>
+                    <td>Location on host</td>
+                    <td>Docker-managed area</td>
+                    <td>Anywhere on host filesystem</td>
+                    <td>Host memory (RAM)</td>
+                </tr>
+                <tr>
+                    <td>Survives container removal</td>
+                    <td>Yes</td>
+                    <td>Yes (it's on the host)</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td>Shareable between containers</td>
+                    <td>Yes</td>
+                    <td>Yes</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td>Managed by Docker CLI</td>
+                    <td>Yes (<code>docker volume</code>)</td>
+                    <td>No</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td>Works on all OS</td>
+                    <td>Yes</td>
+                    <td>Path format varies</td>
+                    <td>Linux only</td>
+                </tr>
+                <tr>
+                    <td>Best for</td>
+                    <td>Databases, persistent app data</td>
+                    <td>Source code, config files (dev)</td>
+                    <td>Secrets, temp data, caches</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">The --mount vs -v Syntax</div>
+                <p>Docker supports two syntaxes for mounting: <code>-v</code> (short, positional) and <code>--mount</code> (verbose, key=value). The <code>--mount</code> syntax is recommended for clarity, especially when dealing with multiple options. Both are functionally equivalent for volumes and bind mounts.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Docker Volumes -->
+        <div class="section">
+            <h3>Docker Volumes</h3>
+            <p>Volumes are the preferred mechanism for persisting data. Docker manages the storage location (typically <code>/var/lib/docker/volumes/</code> on Linux) and handles permissions, cleanup, and driver integration. You interact with volumes through the CLI &mdash; you never need to know the exact host path.</p>
+
+            <h4>Named vs Anonymous Volumes</h4>
+            <p>A <strong>named volume</strong> has an explicit name you assign. An <strong>anonymous volume</strong> gets a random hash. Named volumes are easier to manage, reference, and back up. Anonymous volumes are typically created by <code>VOLUME</code> instructions in Dockerfiles.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker volume create</code> <span class="tag">CREATE</span></div>
+                    <p>Create a new named volume</p>
+                    <div class="example">$ docker volume create app-data</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker volume ls</code> <span class="tag">LIST</span></div>
+                    <p>List all volumes on the host</p>
+                    <div class="example">$ docker volume ls</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker volume inspect</code> <span class="tag">INSPECT</span></div>
+                    <p>Show detailed volume metadata as JSON</p>
+                    <div class="example">$ docker volume inspect app-data</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker volume rm</code> <span class="tag">REMOVE</span></div>
+                    <p>Delete a specific volume (must not be in use)</p>
+                    <div class="example">$ docker volume rm app-data</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker volume prune</code> <span class="tag">CLEANUP</span></div>
+                    <p>Remove all unused volumes at once</p>
+                    <div class="example">$ docker volume prune</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a named volume</span>
+<span class="cmd">$</span> docker volume create pgdata
+<span class="output">pgdata</span>
+
+<span class="comment"># Run a container with the volume mounted</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> db \
+    <span class="flag">-v</span> <span class="str">pgdata:/var/lib/postgresql/data</span> \
+    postgres:16
+
+<span class="comment"># Inspect volume details</span>
+<span class="cmd">$</span> docker volume inspect pgdata
+<span class="output">[
+    {
+        "CreatedAt": "2026-03-05T10:00:00Z",
+        "Driver": "local",
+        "Labels": {},
+        "Mountpoint": "/var/lib/docker/volumes/pgdata/_data",
+        "Name": "pgdata",
+        "Options": {},
+        "Scope": "local"
+    }
+]</span>
+
+<span class="comment"># Same mount using --mount syntax (recommended)</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> db \
+    <span class="flag">--mount</span> <span class="str">source=pgdata,target=/var/lib/postgresql/data</span> \
+    postgres:16</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Volume Prune Warning</div>
+                <p><code>docker volume prune</code> deletes <strong>all</strong> volumes not currently attached to a running container. This includes volumes from stopped containers. Always verify with <code>docker volume ls</code> before pruning. Use <code>--filter</code> to limit scope.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Bind Mounts -->
+        <div class="section">
+            <h3>Bind Mounts</h3>
+            <p>A bind mount maps a specific host file or directory directly into the container. Unlike volumes, bind mounts depend on the host's directory structure and Docker does not manage them &mdash; ideal for development, less portable for production.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Mount current directory into container (development workflow)</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> web \
+    <span class="flag">-v</span> <span class="str">$(pwd):/app</span> \
+    <span class="flag">-p</span> 3000:3000 \
+    node:20
+
+<span class="comment"># Using --mount syntax (more explicit)</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> web \
+    <span class="flag">--mount</span> <span class="str">type=bind,source=$(pwd),target=/app</span> \
+    <span class="flag">-p</span> 3000:3000 \
+    node:20
+
+<span class="comment"># Mount a single config file</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> nginx \
+    <span class="flag">-v</span> <span class="str">/home/user/nginx.conf:/etc/nginx/nginx.conf:ro</span> \
+    <span class="flag">-p</span> 80:80 \
+    nginx:alpine</code></pre>
+            </div>
+
+            <h4>Development Use Cases</h4>
+            <p>Bind mounts shine during development because changes on the host are immediately reflected inside the container &mdash; no rebuild needed.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">services:</span>
+  <span class="file">web:</span>
+    <span class="cmd">image:</span> node:20
+    <span class="cmd">working_dir:</span> /app
+    <span class="cmd">volumes:</span>
+      <span class="str">- ./src:/app/src</span>          <span class="comment"># Source code (live reload)</span>
+      <span class="str">- ./package.json:/app/package.json</span>
+      <span class="str">- node_modules:/app/node_modules</span>  <span class="comment"># Named volume for deps</span>
+    <span class="cmd">ports:</span>
+      <span class="str">- "3000:3000"</span>
+    <span class="cmd">command:</span> npm run dev
+
+<span class="file">volumes:</span>
+  <span class="file">node_modules:</span>              <span class="comment"># Prevents overwriting host node_modules</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Bind Mount Gotchas</div>
+                <p>With <code>-v</code>, if the host path doesn't exist, Docker silently creates it as an empty directory. With <code>--mount</code>, Docker raises an error instead &mdash; safer because it fails fast. Also: bind mounts require <strong>absolute paths</strong> on the host side. Use <code>$(pwd)</code> in the shell. Relative paths in <code>-v</code> tell Docker to look for a <em>named volume</em>, not a host directory.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: tmpfs Mounts -->
+        <div class="section">
+            <h3>tmpfs Mounts</h3>
+            <p>A tmpfs mount stores data in the host's <strong>memory</strong> (RAM) &mdash; nothing is written to disk. When the container stops, the tmpfs mount is removed and the data is gone. Perfect for sensitive data that should never be persisted or for high-performance temporary storage.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Simple tmpfs mount</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> secure-app \
+    <span class="flag">--tmpfs</span> <span class="str">/run/secrets</span> \
+    myapp:latest
+
+<span class="comment"># With size limit and permissions via --mount</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> cache-app \
+    <span class="flag">--mount</span> <span class="str">type=tmpfs,destination=/tmp/cache,tmpfs-size=256m,tmpfs-mode=1770</span> \
+    myapp:latest</code></pre>
+            </div>
+
+            <h4>When to Use tmpfs</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Secrets</span>
+                    <span>API keys, tokens, and credentials that should never touch disk.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Temp Data</span>
+                    <span>Scratch space for intermediate computations, build artifacts, or session data.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Performance</span>
+                    <span>RAM-backed storage is orders of magnitude faster than disk I/O &mdash; ideal for caches.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Linux Only</div>
+                <p>tmpfs mounts are only available on Linux hosts. On Docker Desktop (macOS/Windows), the Docker VM runs Linux internally so tmpfs works, but it uses the VM's memory allocation.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Volume Drivers -->
+        <div class="section">
+            <h3>Volume Drivers</h3>
+            <p>By default, Docker volumes use the <code>local</code> driver, which stores data on the host filesystem. Volume drivers extend this to support network-attached storage, cloud providers, and distributed systems. You specify the driver when creating a volume.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create volume with local driver (default)</span>
+<span class="cmd">$</span> docker volume create <span class="flag">--driver</span> local app-data
+
+<span class="comment"># Create NFS-backed volume</span>
+<span class="cmd">$</span> docker volume create <span class="flag">--driver</span> local \
+    <span class="flag">--opt</span> <span class="str">type=nfs</span> \
+    <span class="flag">--opt</span> <span class="str">o=addr=192.168.1.100,rw</span> \
+    <span class="flag">--opt</span> <span class="str">device=:/exports/data</span> \
+    nfs-data
+
+<span class="comment"># Install a third-party volume plugin (AWS EBS example)</span>
+<span class="cmd">$</span> docker plugin install rexray/ebs
+<span class="cmd">$</span> docker volume create <span class="flag">--driver</span> rexray/ebs <span class="flag">--opt</span> <span class="str">size=50</span> ebs-data</code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Driver</th>
+                    <th>Storage Backend</th>
+                    <th>Use Case</th>
+                </tr>
+                <tr>
+                    <td><code>local</code></td>
+                    <td>Host filesystem</td>
+                    <td>Single-host development and production</td>
+                </tr>
+                <tr>
+                    <td><code>local</code> (NFS opts)</td>
+                    <td>NFS share</td>
+                    <td>Shared storage across multiple Docker hosts</td>
+                </tr>
+                <tr>
+                    <td><code>rexray/ebs</code></td>
+                    <td>AWS Elastic Block Store</td>
+                    <td>Cloud-native persistent storage on AWS</td>
+                </tr>
+                <tr>
+                    <td><code>azure/azurefile</code></td>
+                    <td>Azure Files</td>
+                    <td>Managed file shares on Azure</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Kubernetes Note</div>
+                <p>In Kubernetes, volume management uses PersistentVolumes (PV) and PersistentVolumeClaims (PVC) with CSI drivers. Understand Docker volumes first, then map the concepts to K8s storage classes.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Read-Only Volumes -->
+        <div class="section">
+            <h3>Read-Only Volumes</h3>
+            <p>Appending <code>:ro</code> to a volume mount makes it read-only inside the container. The container can read the data but cannot modify it. This is a simple but effective security measure &mdash; it enforces the principle of least privilege at the filesystem level.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Mount config file as read-only</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> web \
+    <span class="flag">-v</span> <span class="str">./nginx.conf:/etc/nginx/nginx.conf:ro</span> \
+    nginx:alpine
+
+<span class="comment"># Read-only named volume</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> reader \
+    <span class="flag">--mount</span> <span class="str">source=shared-data,target=/data,readonly</span> \
+    alpine cat /data/report.txt
+
+<span class="comment"># Read-only root filesystem + writable volume for logs</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> hardened \
+    <span class="flag">--read-only</span> \
+    <span class="flag">-v</span> <span class="str">app-logs:/var/log</span> \
+    <span class="flag">--tmpfs</span> <span class="str">/tmp</span> \
+    myapp:latest</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Hardened Container Pattern</div>
+                <p>Set the entire root filesystem to read-only with <code>--read-only</code>, then mount writable volumes only for <code>/tmp</code>, <code>/var/log</code>, and app data directories. Configuration files, static assets, and certificates should always be <code>:ro</code>. This limits the attack surface dramatically &mdash; compromised processes can't alter settings or write to disk.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Sharing Data Between Containers -->
+        <div class="section">
+            <h3>Sharing Data Between Containers</h3>
+            <p>Multiple containers can mount the same named volume simultaneously &mdash; a web server reading files from a background worker, or replicas sharing a cache.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a shared volume</span>
+<span class="cmd">$</span> docker volume create shared-logs
+
+<span class="comment"># Container 1: Writer (app writes logs)</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> app \
+    <span class="flag">-v</span> <span class="str">shared-logs:/var/log/app</span> \
+    myapp:latest
+
+<span class="comment"># Container 2: Reader (log shipper reads logs)</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> log-shipper \
+    <span class="flag">-v</span> <span class="str">shared-logs:/logs:ro</span> \
+    logstash:latest</code></pre>
+            </div>
+
+            <h4>Docker Compose Multi-Container Volumes</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">services:</span>
+  <span class="file">web:</span>
+    <span class="cmd">image:</span> nginx:alpine
+    <span class="cmd">volumes:</span>
+      <span class="str">- static-files:/usr/share/nginx/html:ro</span>
+
+  <span class="file">builder:</span>
+    <span class="cmd">image:</span> node:20
+    <span class="cmd">volumes:</span>
+      <span class="str">- static-files:/output</span>
+    <span class="cmd">command:</span> npm run build -- --output /output
+
+<span class="file">volumes:</span>
+  <span class="file">static-files:</span>          <span class="comment"># Shared between web and builder</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Concurrent Write Safety</div>
+                <p>Docker does not provide file locking on shared volumes. If multiple containers write to the same files simultaneously, you risk data corruption. Use application-level locking, a database, or design your containers so only one writes while others read.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Backup & Restore -->
+        <div class="section">
+            <h3>Backup &amp; Restore</h3>
+            <p>Docker volumes are not automatically backed up. The standard approach: mount the volume in a temporary container and use <code>tar</code> to archive the contents.</p>
+
+            <h4>Backing Up a Volume</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Back up the pgdata volume to a tar file</span>
+<span class="cmd">$</span> docker run <span class="flag">--rm</span> \
+    <span class="flag">-v</span> <span class="str">pgdata:/source:ro</span> \
+    <span class="flag">-v</span> <span class="str">$(pwd):/backup</span> \
+    alpine tar czf /backup/pgdata-backup.tar.gz -C /source .
+
+<span class="comment"># Verify the backup</span>
+<span class="cmd">$</span> tar tzf pgdata-backup.tar.gz | head
+<span class="output">./
+./PG_VERSION
+./postgresql.conf
+./pg_hba.conf
+./base/
+...</span></code></pre>
+            </div>
+
+            <h4>Restoring a Volume</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a new volume for the restore</span>
+<span class="cmd">$</span> docker volume create pgdata-restored
+
+<span class="comment"># Restore from backup</span>
+<span class="cmd">$</span> docker run <span class="flag">--rm</span> \
+    <span class="flag">-v</span> <span class="str">pgdata-restored:/target</span> \
+    <span class="flag">-v</span> <span class="str">$(pwd):/backup:ro</span> \
+    alpine tar xzf /backup/pgdata-backup.tar.gz -C /target
+
+<span class="comment"># Start the database with the restored volume</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> db-restored \
+    <span class="flag">-v</span> <span class="str">pgdata-restored:/var/lib/postgresql/data</span> \
+    postgres:16</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Migration and Backup Strategy</div>
+                <p>To move a volume to another host: back up to tar, transfer (scp/rsync/S3), restore on target. For databases, prefer native dump tools (<code>pg_dump</code>, <code>mysqldump</code>) over raw volume backups. Automate with cron, tag backups with timestamps, and test your restores regularly &mdash; a backup you've never restored is just a wish.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Docker Storage Driver -->
+        <div class="section">
+            <h3>Docker Storage Driver</h3>
+            <p>The storage driver controls how Docker stores image layers and the container's writable layer. Volumes bypass the storage driver entirely &mdash; one reason they perform better for persistent data.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Check current storage driver</span>
+<span class="cmd">$</span> docker info | grep "Storage Driver"
+<span class="output"> Storage Driver: overlay2</span>
+
+<span class="comment"># View disk usage by Docker</span>
+<span class="cmd">$</span> docker system df
+<span class="output">TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          12        5         3.42GB    1.87GB (54%)
+Containers      8         3         245.1MB   180.3MB (73%)
+Local Volumes   6         4         1.23GB    512MB (41%)
+Build Cache     22        0         890MB     890MB (100%)</span>
+
+<span class="comment"># Nuclear cleanup: remove everything unused</span>
+<span class="cmd">$</span> docker system prune <span class="flag">-a</span> <span class="flag">--volumes</span></code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Storage Driver</th>
+                    <th>Filesystem</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td><code>overlay2</code></td>
+                    <td>ext4, xfs</td>
+                    <td>Default on modern Linux &mdash; fast, stable, recommended</td>
+                </tr>
+                <tr>
+                    <td><code>fuse-overlayfs</code></td>
+                    <td>Any (FUSE)</td>
+                    <td>Rootless Docker &mdash; required when running without root</td>
+                </tr>
+                <tr>
+                    <td><code>btrfs</code> / <code>zfs</code></td>
+                    <td>btrfs / ZFS</td>
+                    <td>Native snapshots and COW &mdash; requires matching host filesystem</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">overlay2 is the Answer</div>
+                <p>Unless you have specific infrastructure requirements (ZFS arrays, btrfs filesystems), use <code>overlay2</code>. It's the default, the most tested, and the best performing driver for the vast majority of workloads.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Database Volumes -->
+        <div class="section">
+            <h3>Database Volumes</h3>
+            <p>Databases are the most common reason to use Docker volumes. Every major database engine has a well-known data directory that must be persisted &mdash; losing a database volume means losing production data.</p>
+
+            <h4>Common Database Patterns</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal &mdash; PostgreSQL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> postgres \
+    <span class="flag">-e</span> <span class="str">POSTGRES_PASSWORD=secretpass</span> \
+    <span class="flag">-e</span> <span class="str">POSTGRES_DB=myapp</span> \
+    <span class="flag">-v</span> <span class="str">pgdata:/var/lib/postgresql/data</span> \
+    <span class="flag">-p</span> 5432:5432 \
+    postgres:16</code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal &mdash; MySQL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> mysql \
+    <span class="flag">-e</span> <span class="str">MYSQL_ROOT_PASSWORD=secretpass</span> \
+    <span class="flag">-e</span> <span class="str">MYSQL_DATABASE=myapp</span> \
+    <span class="flag">-v</span> <span class="str">mysqldata:/var/lib/mysql</span> \
+    <span class="flag">-p</span> 3306:3306 \
+    mysql:8</code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal &mdash; MongoDB</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> mongo \
+    <span class="flag">-e</span> <span class="str">MONGO_INITDB_ROOT_USERNAME=admin</span> \
+    <span class="flag">-e</span> <span class="str">MONGO_INITDB_ROOT_PASSWORD=secretpass</span> \
+    <span class="flag">-v</span> <span class="str">mongodata:/data/db</span> \
+    <span class="flag">-p</span> 27017:27017 \
+    mongo:7</code></pre>
+            </div>
+
+            <h4>Initialization Scripts</h4>
+            <p>Most database images run initialization scripts on first startup. Mount SQL or shell scripts into <code>/docker-entrypoint-initdb.d/</code> &mdash; they execute alphabetically only when the data volume is empty.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> postgres \
+    <span class="flag">-e</span> <span class="str">POSTGRES_PASSWORD=secretpass</span> \
+    <span class="flag">-v</span> <span class="str">pgdata:/var/lib/postgresql/data</span> \
+    <span class="flag">-v</span> <span class="str">./init-scripts:/docker-entrypoint-initdb.d:ro</span> \
+    postgres:16
+<span class="comment"># init-scripts/01-schema.sql runs first, 02-seed-data.sql second</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Init Scripts Only Run Once</div>
+                <p>Init scripts only execute when the data directory is empty (first run). To re-run them, remove the volume first: <code>docker volume rm pgdata</code>. This prevents accidental conflicts with existing data.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Best Practices -->
+        <div class="section">
+            <h3>Best Practices</h3>
+            <p>These patterns prevent data loss, performance surprises, and maintenance headaches.</p>
+
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Named Volumes</span>
+                    <span>Always use named volumes over anonymous ones. Named volumes are self-documenting, easier to back up, and won't be accidentally pruned.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Volumes > Binds</span>
+                    <span>Prefer volumes over bind mounts in production. Volumes are managed by Docker, portable across hosts, and work consistently across operating systems.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Read-Only</span>
+                    <span>Mount volumes as read-only (<code>:ro</code>) whenever the container only needs to read data. Reduces attack surface and prevents accidental writes.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Lifecycle</span>
+                    <span>Volumes outlive containers. Plan your cleanup strategy: periodic prune jobs, monitoring with <code>docker system df</code>, and clear naming conventions.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Backups</span>
+                    <span>Automate volume backups for anything you can't afford to lose. Test restores quarterly. Use database-native dump tools when possible.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">No App Data in Images</span>
+                    <span>Never store user data or database files inside the image. Images are immutable templates &mdash; runtime data belongs in volumes.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Labels</span>
+                    <span>Use <code>--label</code> when creating volumes to tag them with project names, environments, or purposes. Makes filtering and cleanup much easier.</span>
+                </div>
+            </div>
+
+            <h4>Cleanup Strategy</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Find dangling (anonymous, unused) volumes</span>
+<span class="cmd">$</span> docker volume ls <span class="flag">-f</span> <span class="str">dangling=true</span>
+
+<span class="comment"># Prune only dangling volumes (safe)</span>
+<span class="cmd">$</span> docker volume prune
+
+<span class="comment"># Create labeled volumes for easy filtering and cleanup</span>
+<span class="cmd">$</span> docker volume create <span class="flag">--label</span> <span class="str">project=myapp</span> <span class="flag">--label</span> <span class="str">env=staging</span> myapp-data
+<span class="cmd">$</span> docker volume ls <span class="flag">--filter</span> <span class="str">label=project=myapp</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Golden Rule</div>
+                <p>Treat containers as cattle, volumes as pets. Containers should be disposable &mdash; destroy and recreate them freely. Volumes hold your state and must be protected, backed up, and named deliberately. If you can't afford to lose it, it belongs in a named volume with a backup schedule.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Storage type diagram interaction
+        const storageTypes = {
+            volume: {
+                title: 'Docker Volume',
+                desc: 'Stored in Docker\'s managed area on the host (<code>/var/lib/docker/volumes/</code>). Docker handles the filesystem location, permissions, and lifecycle. Volumes survive container removal, can be shared between containers, and support remote storage drivers. This is the <strong>recommended</strong> approach for persistent data.'
+            },
+            bind: {
+                title: 'Bind Mount',
+                desc: 'Maps a specific file or directory from the <strong>host filesystem</strong> directly into the container. The host path must exist (or Docker creates it as an empty directory). Changes on either side are immediately visible to the other. Ideal for development but less portable &mdash; depends on host directory structure.'
+            },
+            tmpfs: {
+                title: 'tmpfs Mount',
+                desc: 'Stored entirely in the host\'s <strong>RAM</strong> &mdash; nothing touches disk. Data is lost when the container stops. Cannot be shared between containers. Use for sensitive data (secrets, tokens) that should never be persisted, or for high-performance temporary storage. Linux-only feature.'
+            }
+        };
+
+        function showStorage(id) {
+            document.querySelectorAll('.diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const s = storageTypes[id];
+            document.getElementById('storageDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-53'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-53-docker-volumes', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first storage type
+        showStorage('volume');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-53']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

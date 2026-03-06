@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-World Docker Patterns - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-gear.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-55</span>
+            <h1>Real-World Docker Patterns</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Docker Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-gear.webp" alt="">
+            <h2>Real-World Docker Patterns</h2>
+            <p class="hero-sub">Battle-tested container patterns used in production microservices, CI/CD pipelines, and enterprise deployments. From multi-stage builds to graceful shutdown.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~40 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-gear.webp" alt="" width="14" height="14"> Intermediate-Advanced</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Design multi-stage Dockerfiles that separate build, test, and runtime concerns</li>
+                <li>Apply the sidecar, ambassador, and init container patterns to real workloads</li>
+                <li>Implement health checks that distinguish startup from liveness failures</li>
+                <li>Configure structured logging with appropriate log drivers</li>
+                <li>Build development workflows with hot reload, debug, and test containers</li>
+                <li>Apply CI/CD image tagging strategies and layer caching for fast pipelines</li>
+                <li>Understand Docker-in-Docker vs socket mounting and their security tradeoffs</li>
+                <li>Deploy production containers with restart policies, resource limits, and graceful shutdown</li>
+                <li>Containerize legacy applications using the strangler fig migration pattern</li>
+            </ul>
+        </div>
+        <!-- Section 1: Multi-Stage Build Patterns -->
+        <div class="section">
+            <h3>1. Multi-Stage Build Patterns</h3>
+            <p>A multi-stage build uses multiple <code>FROM</code> statements in a single Dockerfile. Each <code>FROM</code> begins a new build stage. You selectively copy artifacts from one stage to another, leaving behind everything you do not need in the final image. This is the single most impactful pattern for reducing image size and attack surface.</p>
+
+            <h4>The Builder Pattern</h4>
+            <p>Compile in one stage, copy only the output into a minimal runtime image. Your final image never contains compilers, build tools, or source code.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Stage 1: Build</span>
+<span class="cmd">FROM</span> node:20-alpine <span class="flag">AS</span> <span class="str">builder</span>
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> package*.json ./
+<span class="cmd">RUN</span> npm ci --production=false
+<span class="cmd">COPY</span> . .
+<span class="cmd">RUN</span> npm run build
+
+<span class="comment"># Stage 2: Test (optional gate)</span>
+<span class="cmd">FROM</span> builder <span class="flag">AS</span> <span class="str">test</span>
+<span class="cmd">RUN</span> npm run test -- --ci --coverage
+
+<span class="comment"># Stage 3: Production runtime</span>
+<span class="cmd">FROM</span> node:20-alpine <span class="flag">AS</span> <span class="str">production</span>
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> --from=builder /app/dist ./dist
+<span class="cmd">COPY</span> --from=builder /app/node_modules ./node_modules
+<span class="cmd">COPY</span> --from=builder /app/package.json ./
+<span class="cmd">ENV</span> NODE_ENV=production
+<span class="cmd">EXPOSE</span> 3000
+<span class="cmd">USER</span> node
+<span class="cmd">CMD</span> [<span class="str">"node"</span>, <span class="str">"dist/server.js"</span>]</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Multi-stage builds let you keep your build toolchain (compilers, test frameworks, dev dependencies) completely out of your production image. A Node.js app that builds at 1.2 GB can ship as a 150 MB image. A Go service can ship under 10 MB.</p>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Base Image</th>
+                    <th>Size</th>
+                    <th>Use Case</th>
+                </tr>
+                <tr>
+                    <td><code>scratch</code></td>
+                    <td>0 MB</td>
+                    <td>Static binaries (Go, Rust)</td>
+                </tr>
+                <tr>
+                    <td><code>alpine</code></td>
+                    <td>~5 MB</td>
+                    <td>Minimal Linux with package manager</td>
+                </tr>
+                <tr>
+                    <td><code>distroless</code></td>
+                    <td>~15 MB</td>
+                    <td>No shell, no package manager &mdash; maximum security</td>
+                </tr>
+                <tr>
+                    <td><code>debian-slim</code></td>
+                    <td>~80 MB</td>
+                    <td>When you need glibc and standard tools</td>
+                </tr>
+            </table>
+        </div>
+        <!-- Section 2: Microservices Architecture -->
+        <div class="section">
+            <h3>2. Microservices Architecture</h3>
+            <p>The core rule: <strong>one process per container</strong>. Each container runs a single concern &mdash; an API, a worker, a database. This is how orchestrators (Kubernetes, Docker Swarm) expect to manage your workload.</p>
+
+            <h4>Service Composition with Docker Compose</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">services:</span>
+  <span class="file">api:</span>
+    <span class="cmd">build:</span> ./services/api
+    <span class="cmd">ports:</span> [<span class="str">"3000:3000"</span>]
+    <span class="cmd">depends_on:</span>
+      db: { <span class="cmd">condition:</span> service_healthy }
+    <span class="cmd">environment:</span> [DATABASE_URL=postgres://user:pass@db:5432/app]
+  <span class="file">worker:</span>
+    <span class="cmd">build:</span> ./services/worker
+    <span class="cmd">depends_on:</span> [redis]
+    <span class="cmd">environment:</span> [REDIS_URL=redis://redis:6379]
+  <span class="file">db:</span>
+    <span class="cmd">image:</span> postgres:16-alpine
+    <span class="cmd">volumes:</span> [pgdata:/var/lib/postgresql/data]
+    <span class="cmd">healthcheck:</span>
+      <span class="cmd">test:</span> [<span class="str">"CMD-SHELL"</span>, <span class="str">"pg_isready -U user"</span>]
+      <span class="cmd">interval:</span> 5s
+      <span class="cmd">retries:</span> 5
+  <span class="file">redis:</span>
+    <span class="cmd">image:</span> redis:7-alpine
+<span class="cmd">volumes:</span>
+  pgdata:</code></pre>
+            </div>
+
+            <h4>Inter-Service Communication</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">DNS</span>
+                    <span>Containers on the same Docker network resolve each other by service name. <code>api</code> reaches the database at <code>db:5432</code>.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">HTTP/gRPC</span>
+                    <span>Synchronous request-response between services. Use for real-time queries and commands.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Message Queue</span>
+                    <span>Asynchronous communication via Redis, RabbitMQ, or Kafka. Use for background jobs and event-driven flows.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Common Mistake</div>
+                <p>Do not use <code>links:</code> in Docker Compose &mdash; it is a legacy feature. Use <code>networks:</code> instead. All services on the same network can already communicate by service name via Docker's built-in DNS.</p>
+            </div>
+        </div>
+        <!-- Section 3: Sidecar Pattern -->
+        <div class="section">
+            <h3>3. Sidecar Pattern</h3>
+            <p>A sidecar is a helper container that runs alongside your main application container, sharing the same network namespace (in Kubernetes) or the same Docker network. It extends or enhances the main container without modifying it. Think of it as bolting on functionality from the outside.</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Log Shipper</code> <span class="tag">LOGGING</span></div>
+                    <p>Reads log files from a shared volume and forwards them to a centralized logging system like Elasticsearch or Splunk.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Metrics Exporter</code> <span class="tag">MONITORING</span></div>
+                    <p>Scrapes application metrics and exposes them in Prometheus format on a separate port.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Proxy Sidecar</code> <span class="tag">NETWORKING</span></div>
+                    <p>Handles TLS termination, mTLS, or circuit breaking. Envoy and Istio sidecar proxies are the canonical example.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Config Reloader</code> <span class="tag">CONFIG</span></div>
+                    <p>Watches for configuration changes in a ConfigMap or Vault and signals the main container to reload.</p>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">services:</span>
+  <span class="file">app:</span>
+    <span class="cmd">build:</span> .
+    <span class="cmd">volumes:</span> [app-logs:/var/log/app]
+  <span class="comment"># Sidecar: ships logs to Elasticsearch</span>
+  <span class="file">log-shipper:</span>
+    <span class="cmd">image:</span> elastic/filebeat:8.12.0
+    <span class="cmd">volumes:</span>
+      - app-logs:/var/log/app:ro
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    <span class="cmd">depends_on:</span> [app]
+<span class="cmd">volumes:</span>
+  app-logs:</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The sidecar pattern keeps your application container focused on business logic. Cross-cutting concerns like logging, monitoring, and security are handled by separate containers that can be updated, scaled, or replaced independently.</p>
+            </div>
+        </div>
+        <!-- Section 4: Ambassador Pattern -->
+        <div class="section">
+            <h3>4. Ambassador Pattern</h3>
+            <p>An ambassador container acts as a proxy between your application and external services. The app connects to <code>localhost</code>, and the ambassador handles routing, load balancing, and protocol translation. This decouples your app from service discovery and failover. In dev, the ambassador points to a local database; in production, it routes to a managed cloud service.</p>
+
+            <div class="diagram" id="ambassadorDiagram">
+                <div class="diagram-box" onclick="showAmbassador('app')" id="box-app">
+                    <div class="diagram-box-title">Application</div>
+                    <div class="diagram-box-sub">Connects to localhost</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showAmbassador('ambassador')" id="box-ambassador">
+                    <div class="diagram-box-title">Ambassador</div>
+                    <div class="diagram-box-sub">Proxy / Router</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showAmbassador('external')" id="box-external">
+                    <div class="diagram-box-title">External Service</div>
+                    <div class="diagram-box-sub">Database / API / Cache</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="ambassadorDetail">Click a component above to learn more about its role.</div>
+
+            <h4>Service Mesh Concepts</h4>
+            <p>At scale, every service gets an ambassador proxy (usually Envoy). The collection of all these proxies forms a <strong>service mesh</strong>. Istio and Linkerd are the two dominant implementations.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Feature</th>
+                    <th>Without Mesh</th>
+                    <th>With Service Mesh</th>
+                </tr>
+                <tr>
+                    <td>mTLS</td>
+                    <td>Each service manages its own certs</td>
+                    <td>Automatic, transparent encryption</td>
+                </tr>
+                <tr>
+                    <td>Retries / Timeouts</td>
+                    <td>Coded into every service</td>
+                    <td>Configured per-route in mesh policy</td>
+                </tr>
+                <tr>
+                    <td>Observability + Traffic</td>
+                    <td>Manual instrumentation, LB-level splitting</td>
+                    <td>Automatic metrics/traces, canary routing</td>
+                </tr>
+            </table>
+        </div>
+        <!-- Section 5: Init Container Pattern -->
+        <div class="section">
+            <h3>5. Init Container Pattern</h3>
+            <p>An init container runs <strong>before</strong> the main application container starts. It runs to completion, and only then does the main container launch. Use it for tasks that must finish before the application can function: database migrations, config file generation, waiting for dependent services, or downloading secrets from a vault.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">services:</span>
+  <span class="file">migrate:</span>                              <span class="comment"># init: runs to completion first</span>
+    <span class="cmd">build:</span> .
+    <span class="cmd">command:</span> [<span class="str">"npx"</span>, <span class="str">"prisma"</span>, <span class="str">"migrate"</span>, <span class="str">"deploy"</span>]
+    <span class="cmd">depends_on:</span>
+      db: { <span class="cmd">condition:</span> service_healthy }
+  <span class="file">app:</span>
+    <span class="cmd">build:</span> .
+    <span class="cmd">command:</span> [<span class="str">"node"</span>, <span class="str">"server.js"</span>]
+    <span class="cmd">depends_on:</span>
+      migrate: { <span class="cmd">condition:</span> service_completed_successfully }
+  <span class="file">db:</span>
+    <span class="cmd">image:</span> postgres:16-alpine
+    <span class="cmd">healthcheck:</span>
+      <span class="cmd">test:</span> [<span class="str">"CMD-SHELL"</span>, <span class="str">"pg_isready"</span>]
+      <span class="cmd">interval:</span> 5s
+      <span class="cmd">retries:</span> 5</code></pre>
+            </div>
+
+            <h4>Common Init Tasks</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Migration</span>
+                    <span>Run <code>ALTER TABLE</code> or ORM migrations so the schema is ready before the app queries it.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Config Gen</span>
+                    <span>Render config templates from environment variables or pull secrets from Vault/AWS SSM.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Wait</span>
+                    <span>Block until a dependency (database, message broker) is reachable. Prevents crash-loop-backoff scenarios.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Seed Data</span>
+                    <span>Populate initial data (admin users, lookup tables) on first deployment.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Docker Compose vs Kubernetes</div>
+                <p>In Docker Compose, init containers are simulated using <code>depends_on</code> with <code>condition: service_completed_successfully</code>. In Kubernetes, init containers are a first-class concept with <code>initContainers:</code> in the Pod spec &mdash; they share volumes with the main container and run sequentially.</p>
+            </div>
+        </div>
+        <!-- Section 6: Health Check Patterns -->
+        <div class="section">
+            <h3>6. Health Check Patterns</h3>
+            <p>Health checks tell Docker whether your container is actually functional, not just running. A container can be "up" but completely broken (deadlocked, OOM, lost database). Health checks catch these states.</p>
+
+            <h4>Three Types of Checks</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># HTTP health check (most common for web services)</span>
+<span class="cmd">HEALTHCHECK</span> --interval=30s --timeout=5s --retries=3 --start-period=10s \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+<span class="comment"># TCP check (for services without HTTP)</span>
+<span class="cmd">HEALTHCHECK</span> --interval=30s --timeout=3s --retries=3 \
+  CMD nc -z localhost 5432 || exit 1
+
+<span class="comment"># Command check (for custom validation)</span>
+<span class="cmd">HEALTHCHECK</span> --interval=30s --timeout=10s --retries=3 \
+  CMD node /app/healthcheck.js || exit 1</code></pre>
+            </div>
+
+            <h4>Startup vs Liveness vs Readiness</h4>
+            <p>These distinctions matter most in Kubernetes, but the concepts apply everywhere.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Check Type</th>
+                    <th>Question It Answers</th>
+                    <th>Failure Action</th>
+                </tr>
+                <tr>
+                    <td><strong>Startup</strong></td>
+                    <td>Has the application finished initializing?</td>
+                    <td>Wait longer (do not kill yet)</td>
+                </tr>
+                <tr>
+                    <td><strong>Liveness</strong></td>
+                    <td>Is the application still functioning?</td>
+                    <td>Kill and restart the container</td>
+                </tr>
+                <tr>
+                    <td><strong>Readiness</strong></td>
+                    <td>Can the application handle traffic right now?</td>
+                    <td>Stop sending requests (but keep running)</td>
+                </tr>
+            </table>
+
+            <h4>Writing a Good Health Endpoint</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">JavaScript</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// Express health endpoint &mdash; check critical deps, return 503 on failure</span>
+app.get(<span class="str">'/health'</span>, async (req, res) => {
+  <span class="cmd">const</span> checks = { uptime: process.uptime(), db: <span class="str">'ok'</span>, redis: <span class="str">'ok'</span> };
+  <span class="cmd">try</span> { await db.query(<span class="str">'SELECT 1'</span>); }
+  <span class="cmd">catch</span> (e) { checks.db = <span class="str">'down'</span>; <span class="cmd">return</span> res.status(503).json(checks); }
+  <span class="cmd">try</span> { await redis.ping(); }
+  <span class="cmd">catch</span> (e) { checks.redis = <span class="str">'down'</span>; <span class="cmd">return</span> res.status(503).json(checks); }
+  res.json(checks);
+});</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Do Not Over-Check</div>
+                <p>A health check that queries the database on every call can itself become a performance problem under load. Keep checks fast and lightweight. Check that the process is responsive and critical dependencies are reachable &mdash; do not run expensive queries or computations.</p>
+            </div>
+        </div>
+        <!-- Section 7: Logging Patterns -->
+        <div class="section">
+            <h3>7. Logging Patterns</h3>
+            <p>The Docker logging philosophy: <strong>applications should write to stdout and stderr, period</strong>. Docker captures these streams via log drivers and routes them wherever you need. Do not write log files inside the container &mdash; containers are ephemeral and those files will vanish.</p>
+
+            <h4>Log Drivers</h4>
+            <table class="compare">
+                <tr>
+                    <th>Driver</th>
+                    <th>Destination</th>
+                    <th>When to Use</th>
+                </tr>
+                <tr>
+                    <td><code>json-file</code></td>
+                    <td>Local JSON files (default)</td>
+                    <td>Development, small deployments</td>
+                </tr>
+                <tr>
+                    <td><code>fluentd</code></td>
+                    <td>Fluentd / Fluent Bit</td>
+                    <td>Production aggregation to Elasticsearch</td>
+                </tr>
+                <tr>
+                    <td><code>awslogs</code></td>
+                    <td>AWS CloudWatch</td>
+                    <td>ECS / Fargate deployments</td>
+                </tr>
+                <tr>
+                    <td><code>none</code></td>
+                    <td>Discards all logs</td>
+                    <td>High-throughput containers where logs are handled elsewhere</td>
+                </tr>
+            </table>
+
+            <h4>Structured Logging</h4>
+            <p>Structured logs (JSON) are machine-parseable. Instead of <code>console.log(`User ${id} logged in`)</code>, emit <code>JSON.stringify({ level: 'info', event: 'user_login', userId: id })</code>. Configure log rotation in Compose with <code>logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }</code>.</p>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Disk Space Killer</div>
+                <p>The default <code>json-file</code> log driver has <strong>no size limit</strong>. A chatty container can fill your disk in hours. Always set <code>max-size</code> and <code>max-file</code> in production, or configure log rotation globally in <code>/etc/docker/daemon.json</code>.</p>
+            </div>
+        </div>
+        <!-- Section 8: Development Workflow -->
+        <div class="section">
+            <h3>8. Development Workflow</h3>
+            <p>Development containers should optimize for fast iteration: instant code reloading, accessible debuggers, and parity with production. The key tool is <strong>bind mounts</strong> &mdash; mounting your local source code into the container so changes are reflected immediately.</p>
+
+            <h4>Hot Reload with Volumes</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.dev.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">services:</span>
+  <span class="file">app:</span>
+    <span class="cmd">build:</span> { <span class="cmd">context:</span> ., <span class="cmd">dockerfile:</span> Dockerfile.dev }
+    <span class="cmd">volumes:</span>
+      - .:/app              <span class="comment"># bind mount for hot reload</span>
+      - /app/node_modules   <span class="comment"># anonymous vol preserves deps from image</span>
+    <span class="cmd">ports:</span> [<span class="str">"3000:3000"</span>, <span class="str">"9229:9229"</span>]
+    <span class="cmd">environment:</span> [NODE_ENV=development]
+    <span class="cmd">command:</span> npx nodemon --inspect=0.0.0.0:9229 server.js</code></pre>
+            </div>
+
+            <h4>Debug and Test Containers</h4>
+            <p>The dev compose file above exposes the Node.js inspector on port 9229 &mdash; your IDE connects to <code>localhost:9229</code> as if the process were local. For ad-hoc troubleshooting, use <code>docker exec -it app_container sh</code> or spin up an ephemeral network debug container with <code>docker run --rm -it --network app_backend nicolaka/netshoot</code>.</p>
+
+            <p>For test containers, use the multi-stage build's <code>test</code> target with <code>docker compose -f docker-compose.test.yml up</code>. Mount test databases on <code>tmpfs</code> so data lives in memory, tests run faster, and nothing persists after the container stops.</p>
+        </div>
+        <!-- Section 9: CI/CD Patterns -->
+        <div class="section">
+            <h3>9. CI/CD Patterns</h3>
+            <p>Docker in CI/CD follows one principle: <strong>build once, deploy everywhere</strong>. Build from the commit SHA, push to a registry, deploy that exact image to every environment. No rebuilding.</p>
+
+            <h4>Image Tagging Strategies</h4>
+            <table class="compare">
+                <tr>
+                    <th>Strategy</th>
+                    <th>Tag Format</th>
+                    <th>Use Case</th>
+                </tr>
+                <tr>
+                    <td>Git SHA</td>
+                    <td><code>app:a1b2c3d</code></td>
+                    <td>Immutable, traceable to exact commit</td>
+                </tr>
+                <tr>
+                    <td>Semver</td>
+                    <td><code>app:1.4.2</code></td>
+                    <td>Release versions for external consumers</td>
+                </tr>
+                <tr>
+                    <td>Branch</td>
+                    <td><code>app:main</code>, <code>app:feature-x</code></td>
+                    <td>Mutable, latest from branch (dev/staging)</td>
+                </tr>
+                <tr>
+                    <td>Combined</td>
+                    <td><code>app:1.4.2-a1b2c3d</code></td>
+                    <td>Best of both: human-readable + traceable</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Never Use :latest in Production</div>
+                <p>The <code>:latest</code> tag is mutable &mdash; it points to whatever was pushed last. You cannot roll back to <code>:latest</code> because it keeps changing. Always tag production images with an immutable identifier (SHA or semver).</p>
+            </div>
+
+            <h4>Layer Caching in CI</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Cache Docker layers between CI runs</span>
+- <span class="cmd">name:</span> Build and push
+  <span class="cmd">uses:</span> docker/build-push-action@v5
+  <span class="cmd">with:</span>
+    <span class="cmd">context:</span> .
+    <span class="cmd">push:</span> true
+    <span class="cmd">tags:</span> <span class="str">registry.io/app:${{ github.sha }}</span>
+    <span class="cmd">cache-from:</span> <span class="str">type=gha</span>
+    <span class="cmd">cache-to:</span> <span class="str">type=gha,mode=max</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Build Once, Deploy Everywhere</div>
+                <p>CI builds and pushes the image once (<code>docker build -t registry.io/app:a1b2c3d .</code>). That same image deploys to staging, QA, and production &mdash; only environment variables and mounted config files change. This guarantees what you tested in staging is exactly what runs in production.</p>
+            </div>
+        </div>
+        <!-- Section 10: Docker-in-Docker vs Docker Socket -->
+        <div class="section">
+            <h3>10. Docker-in-Docker vs Docker Socket</h3>
+            <p>CI/CD systems often need to build Docker images inside a Docker container. Two approaches, each with significant tradeoffs:</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Docker-in-Docker: full daemon isolation (requires --privileged)</span>
+<span class="cmd">$</span> docker run <span class="flag">--privileged</span> <span class="flag">-d</span> <span class="flag">--name</span> dind docker:dind
+<span class="cmd">$</span> docker exec dind docker build <span class="flag">-t</span> myapp .
+
+<span class="comment"># Socket Mount: shares host daemon (fast, but full host access)</span>
+<span class="cmd">$</span> docker run <span class="flag">-v</span> /var/run/docker.sock:/var/run/docker.sock \
+  docker:cli docker build <span class="flag">-t</span> myapp .</code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Approach</th>
+                    <th>Isolation</th>
+                    <th>Performance</th>
+                    <th>Security Risk</th>
+                </tr>
+                <tr>
+                    <td><strong>DinD</strong></td>
+                    <td>Full isolation (separate daemon)</td>
+                    <td>Slower (nested storage drivers)</td>
+                    <td><code>--privileged</code> grants kernel access</td>
+                </tr>
+                <tr>
+                    <td><strong>Socket Mount</strong></td>
+                    <td>None (shares host daemon)</td>
+                    <td>Fast (uses host cache)</td>
+                    <td>Container can control all host containers</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Security Warning</div>
+                <p>Both approaches carry serious security implications. <code>--privileged</code> gives a container almost the same access as root on the host. Socket mounting lets a container stop, start, or inspect any container on the host &mdash; including itself. In production CI, prefer rootless Docker or dedicated build services like Kaniko that build images without a Docker daemon.</p>
+            </div>
+
+            <h4>Rootless Alternatives</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Kaniko</code> <span class="tag">ROOTLESS</span></div>
+                    <p>Builds images in unprivileged containers. No Docker daemon needed. Designed for Kubernetes CI.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Buildah</code> <span class="tag">DAEMONLESS</span></div>
+                    <p>OCI-compliant image builder. No daemon, no root. Works with Podman ecosystem.</p>
+                </div>
+            </div>
+        </div>
+        <!-- Section 11: Production Patterns -->
+        <div class="section">
+            <h3>11. Production Patterns</h3>
+            <p>Production containers need to be resilient, resource-bounded, and capable of shutting down cleanly. These patterns are the difference between a container that runs for months and one that crashes at 3 AM.</p>
+
+            <h4>Restart Policies</h4>
+            <table class="compare">
+                <tr>
+                    <th>Policy</th>
+                    <th>Behavior</th>
+                    <th>When to Use</th>
+                </tr>
+                <tr>
+                    <td><code>no</code></td>
+                    <td>Never restart (default)</td>
+                    <td>One-off tasks, migrations</td>
+                </tr>
+                <tr>
+                    <td><code>on-failure:5</code></td>
+                    <td>Restart on non-zero exit, max 5 times</td>
+                    <td>Services that should recover but not loop forever</td>
+                </tr>
+                <tr>
+                    <td><code>always</code></td>
+                    <td>Always restart, including after host reboot</td>
+                    <td>Long-running services in production</td>
+                </tr>
+                <tr>
+                    <td><code>unless-stopped</code></td>
+                    <td>Like <code>always</code>, but not after manual stop</td>
+                    <td>Services that respect explicit stops</td>
+                </tr>
+            </table>
+
+            <h4>Resource Limits</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">services:</span>
+  <span class="file">app:</span>
+    <span class="cmd">image:</span> registry.io/app:1.4.2
+    <span class="cmd">restart:</span> unless-stopped
+    <span class="cmd">deploy:</span>
+      <span class="cmd">resources:</span>
+        <span class="cmd">limits:</span>   { <span class="cmd">cpus:</span> <span class="str">'1.0'</span>,  <span class="cmd">memory:</span> 512M }
+        <span class="cmd">reservations:</span> { <span class="cmd">cpus:</span> <span class="str">'0.25'</span>, <span class="cmd">memory:</span> 128M }</code></pre>
+            </div>
+
+            <h4>Graceful Shutdown (SIGTERM Handling)</h4>
+            <p>When Docker stops a container, it sends <code>SIGTERM</code> and waits 10 seconds (configurable). If the process has not exited, it sends <code>SIGKILL</code>. Your app must catch <code>SIGTERM</code> and shut down cleanly &mdash; close connections, finish in-flight requests, flush buffers.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">JavaScript</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">const</span> server = app.listen(3000);
+
+process.on(<span class="str">'SIGTERM'</span>, () => {
+  console.log(<span class="str">'SIGTERM received, shutting down...'</span>);
+  server.close(() => {           <span class="comment">// Stop accepting new connections</span>
+    db.end().then(() => {         <span class="comment">// Close database pool</span>
+      process.exit(0);
+    });
+  });
+  setTimeout(() => process.exit(1), 8000);  <span class="comment">// Force exit after 8s</span>
+});</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">PID 1 Problem</div>
+                <p>If your process is not PID 1 in the container (common with shell form <code>CMD node app.js</code>), it will not receive SIGTERM. The shell intercepts it. Always use exec form: <code>CMD ["node", "server.js"]</code>. Alternatively, use <code>tini</code> as an init process (<code>ENTRYPOINT ["/sbin/tini", "--"]</code>) or run with <code>docker run --init</code>.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>Without resource limits, a single container can consume all available CPU and memory on the host, starving other containers. Always set memory limits. If the container exceeds its memory limit, Docker kills it with OOM (Out Of Memory) rather than letting it degrade the entire host.</p>
+            </div>
+        </div>
+        <!-- Section 12: Migration Patterns -->
+        <div class="section">
+            <h3>12. Migration Patterns</h3>
+            <p>Most containerization projects are not greenfield. You are wrapping existing applications &mdash; often messy, stateful, and deeply coupled to the host OS. These patterns help you migrate incrementally.</p>
+
+            <h4>Containerizing a Legacy Application</h4>
+            <p>Start with "lift and shift" &mdash; wrap the existing app in a container with minimal changes for portability before refactoring.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Lift-and-shift: wrap legacy PHP app in a container</span>
+<span class="cmd">FROM</span> php:8.2-apache
+<span class="cmd">RUN</span> docker-php-ext-install mysqli pdo pdo_mysql && a2enmod rewrite
+<span class="cmd">COPY</span> . /var/www/html/
+<span class="cmd">COPY</span> apache-vhost.conf /etc/apache2/sites-available/000-default.conf
+<span class="cmd">RUN</span> chown -R www-data:www-data /var/www/html/uploads /var/www/html/cache
+<span class="cmd">EXPOSE</span> 80</code></pre>
+            </div>
+
+            <h4>The Strangler Fig Pattern</h4>
+            <p>Named after a fig vine that gradually envelops a tree, this pattern lets you replace a monolith piece by piece. New features are built as microservices in containers. A reverse proxy routes requests to either the legacy monolith or the new services based on URL path or header.</p>
+
+            <div class="diagram" id="stranglerDiagram">
+                <div class="diagram-box" onclick="showStrangler('proxy')" id="box-proxy">
+                    <div class="diagram-box-title">Reverse Proxy</div>
+                    <div class="diagram-box-sub">Nginx / Envoy</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showStrangler('legacy')" id="box-legacy">
+                    <div class="diagram-box-title">Legacy Monolith</div>
+                    <div class="diagram-box-sub">Shrinking over time</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showStrangler('new')" id="box-new">
+                    <div class="diagram-box-title">New Services</div>
+                    <div class="diagram-box-sub">Growing over time</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="stranglerDetail">Click a component above to learn more about its role in the migration.</div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">nginx.conf</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Strangler fig: route migrated paths to new services</span>
+<span class="cmd">upstream</span> legacy       { server monolith:8080; }
+<span class="cmd">upstream</span> users_svc    { server users-api:3000; }
+<span class="cmd">upstream</span> orders_svc   { server orders-api:3000; }
+
+<span class="cmd">server</span> {
+  listen 80;
+  <span class="cmd">location</span> /api/users  { proxy_pass http://users_svc; }   <span class="comment"># migrated</span>
+  <span class="cmd">location</span> /api/orders { proxy_pass http://orders_svc; }  <span class="comment"># migrated</span>
+  <span class="cmd">location</span> /           { proxy_pass http://legacy; }      <span class="comment"># everything else</span>
+}</code></pre>
+            </div>
+
+            <h4>Hybrid Deployment Strategies</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Phase 1</span>
+                    <span>Containerize the monolith as-is. Gain portability and CI/CD benefits without code changes.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Phase 2</span>
+                    <span>Extract the first microservice (usually auth or a high-churn module). Route via proxy. Both systems run simultaneously.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Phase 3</span>
+                    <span>Continue extracting services. The monolith shrinks with each migration. Shared state moves to dedicated data services.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Phase 4</span>
+                    <span>Decommission the monolith when no routes point to it. The strangler fig has fully replaced the tree.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The strangler fig de-risks migration by letting you move incrementally &mdash; the system is fully functional at every phase. The hard part is not the code extraction; it is the <em>data</em>. The monolith's database has foreign keys spanning every domain. Plan the data migration (views, CDC, event sourcing) before the code migration.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Ambassador diagram interaction
+        const ambassadorStates = {
+            app: {
+                title: 'Application Container',
+                desc: 'Your application connects to what it thinks is a local service (localhost or a well-known hostname). It has no knowledge of the real service location, protocol, or failover logic. This keeps the app code simple and environment-agnostic.'
+            },
+            ambassador: {
+                title: 'Ambassador Proxy',
+                desc: 'The ambassador intercepts the connection and routes it to the real service. It can handle connection pooling, retry logic, TLS termination, protocol translation, and service discovery. In a service mesh, every pod gets an ambassador (sidecar proxy) automatically.'
+            },
+            external: {
+                title: 'External Service',
+                desc: 'The actual database, API, or cache. In dev, this might be a local container. In production, it could be a managed cloud service (RDS, ElastiCache) in a different region. The application never changes &mdash; only the ambassador configuration does.'
+            }
+        };
+
+        function showAmbassador(id) {
+            document.querySelectorAll('#ambassadorDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const s = ambassadorStates[id];
+            document.getElementById('ambassadorDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Strangler fig diagram interaction
+        const stranglerStates = {
+            proxy: {
+                title: 'Reverse Proxy (Nginx / Envoy)',
+                desc: 'The single entry point for all traffic. It inspects each request and routes it to either the legacy monolith or the appropriate new microservice based on URL path, headers, or other criteria. As services are extracted, you update routing rules &mdash; no client changes needed.'
+            },
+            legacy: {
+                title: 'Legacy Monolith',
+                desc: 'The original application, containerized as-is. It still handles all routes that have not yet been migrated. With each extracted service, the monolith handles less traffic and can have unused code removed. It shrinks over time until it can be decommissioned.'
+            },
+            new: {
+                title: 'New Microservices',
+                desc: 'Purpose-built containerized services that replace specific monolith functionality. Each service owns its data, has its own CI/CD pipeline, and can be scaled, deployed, and updated independently. They grow in number as the migration progresses.'
+            }
+        };
+
+        function showStrangler(id) {
+            document.querySelectorAll('#stranglerDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const s = stranglerStates[id];
+            document.getElementById('stranglerDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-55'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-55-docker-patterns', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first diagram items
+        showAmbassador('app');
+        showStrangler('proxy');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-55']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Networking - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-network.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-52</span>
+            <h1>Docker Networking</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Docker Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-network.webp" alt="">
+            <h2>Docker Networking</h2>
+            <p class="hero-sub">Containers are isolated by default &mdash; networking is how they talk to each other and the outside world. Master the drivers, DNS, and security that make it all work.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~35 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-network.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain Docker's Container Network Model (CNM) and how libnetwork implements it</li>
+                <li>Compare the five built-in network drivers and know when to use each</li>
+                <li>Create custom bridge networks with automatic DNS-based service discovery</li>
+                <li>Connect containers across networks and publish ports to the host</li>
+                <li>Understand overlay networking for multi-host Docker Swarm deployments</li>
+                <li>Troubleshoot container networking with <code>inspect</code>, <code>exec</code>, and standard Linux tools</li>
+                <li>Secure container communication with network isolation, internal networks, and iptables awareness</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Docker Network Overview -->
+        <div class="section">
+            <h3>Docker Network Overview</h3>
+            <p>Docker networking is built on the <strong>Container Network Model (CNM)</strong>, a specification that defines how containers get their own network stack while still communicating with each other and the outside world.</p>
+
+            <h4>The Container Network Model (CNM)</h4>
+            <p>CNM defines three building blocks. Every network operation maps back to these primitives.</p>
+
+            <div class="diagram" id="cnmDiagram">
+                <div class="diagram-box" onclick="showCNM('sandbox')" id="box-sandbox">
+                    <div class="diagram-box-title">Sandbox</div>
+                    <div class="diagram-box-sub">Container Network Stack</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showCNM('endpoint')" id="box-endpoint">
+                    <div class="diagram-box-title">Endpoint</div>
+                    <div class="diagram-box-sub">Virtual NIC</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showCNM('network')" id="box-network">
+                    <div class="diagram-box-title">Network</div>
+                    <div class="diagram-box-sub">Group of Endpoints</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="cnmDetail">Click a component above to learn more about it.</div>
+
+            <h4>libnetwork</h4>
+            <p><strong>libnetwork</strong> is Docker's Go implementation of CNM. It turns abstract concepts into Linux network namespaces, veth pairs, bridges, and iptables rules. Every <code>docker network</code> command talks to libnetwork.</p>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>CNM is the <em>specification</em>. libnetwork is the <em>implementation</em>. Network drivers are <em>plugins</em> that create the actual infrastructure.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Network Drivers -->
+        <div class="section">
+            <h3>Network Drivers</h3>
+            <p>Docker ships with five built-in network drivers, each with different isolation, performance, and scope characteristics.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Driver</th>
+                    <th>Scope</th>
+                    <th>Use Case</th>
+                    <th>DNS</th>
+                    <th>Isolation</th>
+                </tr>
+                <tr>
+                    <td><code>bridge</code></td>
+                    <td>Single host</td>
+                    <td>Default for standalone containers; most common driver</td>
+                    <td>User-defined only</td>
+                    <td>High</td>
+                </tr>
+                <tr>
+                    <td><code>host</code></td>
+                    <td>Single host</td>
+                    <td>Performance-critical apps; container shares host network stack</td>
+                    <td>Host DNS</td>
+                    <td>None</td>
+                </tr>
+                <tr>
+                    <td><code>overlay</code></td>
+                    <td>Multi-host</td>
+                    <td>Swarm services spanning multiple Docker nodes</td>
+                    <td>Yes</td>
+                    <td>High</td>
+                </tr>
+                <tr>
+                    <td><code>macvlan</code></td>
+                    <td>Single host</td>
+                    <td>Containers needing real IPs on the physical network (legacy apps)</td>
+                    <td>No</td>
+                    <td>Medium</td>
+                </tr>
+                <tr>
+                    <td><code>none</code></td>
+                    <td>Single host</td>
+                    <td>Completely isolated containers; no network access at all</td>
+                    <td>No</td>
+                    <td>Total</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># List all networks on the Docker host</span>
+<span class="cmd">$</span> docker network ls
+<span class="output">NETWORK ID     NAME      DRIVER    SCOPE
+a1b2c3d4e5f6   bridge    bridge    local
+f6e5d4c3b2a1   host      host      local
+9a8b7c6d5e4f   none      null      local</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Default Networks</div>
+                <p>Docker creates three networks on installation: <code>bridge</code>, <code>host</code>, and <code>none</code>. Every container connects to the default <code>bridge</code> network unless you specify otherwise with <code>--network</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Bridge Networks -->
+        <div class="section">
+            <h3>Bridge Networks</h3>
+            <p>A bridge network creates an isolated Layer 2 segment on the Docker host. Containers on the same bridge can communicate, and the Docker host acts as the gateway to the outside world.</p>
+
+            <h4>Default Bridge vs User-Defined Bridge</h4>
+            <p>Docker creates a default bridge (backed by the <code>docker0</code> Linux bridge), but you should almost always create your own.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Feature</th>
+                    <th>Default Bridge</th>
+                    <th>User-Defined Bridge</th>
+                </tr>
+                <tr>
+                    <td>Automatic DNS</td>
+                    <td>No &mdash; containers can only reach each other by IP</td>
+                    <td>Yes &mdash; containers resolve each other by name</td>
+                </tr>
+                <tr>
+                    <td>Isolation</td>
+                    <td>All containers share one network unless manually configured</td>
+                    <td>Each network is isolated; you control which containers join</td>
+                </tr>
+                <tr>
+                    <td>Live connect/disconnect</td>
+                    <td>Must stop container to disconnect</td>
+                    <td>Can connect/disconnect running containers</td>
+                </tr>
+                <tr>
+                    <td>Configuration</td>
+                    <td>Requires restarting Docker daemon to change</td>
+                    <td>Each network has its own configurable options</td>
+                </tr>
+                <tr>
+                    <td>Link support</td>
+                    <td>Supports legacy <code>--link</code> (deprecated)</td>
+                    <td>No legacy links needed &mdash; DNS handles everything</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Best Practice</div>
+                <p>Always use user-defined bridge networks. The default bridge lacks DNS, so containers can only communicate by IP &mdash; fragile since IPs change on restart.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Default bridge: containers must use IPs</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">web1</span> nginx
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">web2</span> nginx
+<span class="cmd">$</span> docker exec web2 ping web1
+<span class="output">ping: web1: Name or service not known</span>
+
+<span class="comment"># User-defined bridge: DNS works automatically</span>
+<span class="cmd">$</span> docker network create my-net
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">app1</span> <span class="flag">--network</span> my-net nginx
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">app2</span> <span class="flag">--network</span> my-net nginx
+<span class="cmd">$</span> docker exec app2 ping app1
+<span class="output">PING app1 (172.18.0.2): 56 data bytes
+64 bytes from 172.18.0.2: seq=0 ttl=64 time=0.089 ms</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 4: Creating Custom Networks -->
+        <div class="section">
+            <h3>Creating Custom Networks</h3>
+            <p>Use <code>docker network create</code> for full control over subnet, gateway, IP range, and driver options.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Basic creation with defaults</span>
+<span class="cmd">$</span> docker network create app-network
+
+<span class="comment"># Specify subnet and gateway</span>
+<span class="cmd">$</span> docker network create \
+    <span class="flag">--driver</span> bridge \
+    <span class="flag">--subnet</span> <span class="str">172.20.0.0/16</span> \
+    <span class="flag">--gateway</span> <span class="str">172.20.0.1</span> \
+    app-network
+
+<span class="comment"># Create with IP range and driver options</span>
+<span class="cmd">$</span> docker network create \
+    <span class="flag">--driver</span> bridge \
+    <span class="flag">--subnet</span> <span class="str">10.10.0.0/16</span> \
+    <span class="flag">--ip-range</span> <span class="str">10.10.5.0/24</span> \
+    <span class="flag">--gateway</span> <span class="str">10.10.0.1</span> \
+    <span class="flag">-o</span> <span class="str">"com.docker.network.bridge.name=br-custom"</span> \
+    <span class="flag">-o</span> <span class="str">"com.docker.network.bridge.enable_icc=true"</span> \
+    restricted-net</code></pre>
+            </div>
+
+            <h4>Common Driver Options for Bridge</h4>
+            <table class="compare">
+                <tr>
+                    <th>Option</th>
+                    <th>Default</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>com.docker.network.bridge.name</code></td>
+                    <td>Auto-generated</td>
+                    <td>Name of the Linux bridge device on the host</td>
+                </tr>
+                <tr>
+                    <td><code>com.docker.network.bridge.enable_icc</code></td>
+                    <td><code>true</code></td>
+                    <td>Inter-container communication &mdash; set to <code>false</code> to block</td>
+                </tr>
+                <tr>
+                    <td><code>com.docker.network.bridge.enable_ip_masquerade</code></td>
+                    <td><code>true</code></td>
+                    <td>NAT for outbound traffic from containers</td>
+                </tr>
+                <tr>
+                    <td><code>com.docker.network.driver.mtu</code></td>
+                    <td><code>1500</code></td>
+                    <td>Maximum transmission unit for the network</td>
+                </tr>
+            </table>
+
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker network ls</code> <span class="tag">LIST</span></div>
+                    <p>List all networks on the host</p>
+                    <div class="example">$ docker network ls --filter driver=bridge</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker network rm</code> <span class="tag">DELETE</span></div>
+                    <p>Remove a network (must have no connected containers)</p>
+                    <div class="example">$ docker network rm app-network</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker network prune</code> <span class="tag">CLEANUP</span></div>
+                    <p>Remove all unused networks</p>
+                    <div class="example">$ docker network prune -f</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Container Communication -->
+        <div class="section">
+            <h3>Container Communication</h3>
+            <p>Containers communicate differently depending on whether they share a network, need cross-network access, or must be reachable from outside Docker.</p>
+
+            <h4>Same Network &mdash; Communication by Name</h4>
+            <p>Containers on the same user-defined network resolve each other by name automatically.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a network and launch containers</span>
+<span class="cmd">$</span> docker network create backend
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">api</span> <span class="flag">--network</span> backend node-api
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">db</span> <span class="flag">--network</span> backend postgres
+
+<span class="comment"># The api container can reach db by name</span>
+<span class="cmd">$</span> docker exec api ping db
+<span class="output">PING db (172.19.0.3): 56 data bytes
+64 bytes from 172.19.0.3: seq=0 ttl=64 time=0.092 ms</span>
+
+<span class="comment"># Application code can use the name directly</span>
+<span class="comment"># e.g., connection string: postgres://user:pass@db:5432/myapp</span></code></pre>
+            </div>
+
+            <h4>Cross-Network &mdash; Connecting to Multiple Networks</h4>
+            <p>A container can attach to multiple networks simultaneously, bridging isolated segments.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Two isolated networks</span>
+<span class="cmd">$</span> docker network create frontend
+<span class="cmd">$</span> docker network create backend
+
+<span class="comment"># API server bridges both networks</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">api</span> <span class="flag">--network</span> backend node-api
+<span class="cmd">$</span> docker network connect frontend api
+
+<span class="comment"># Web server on frontend only</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">web</span> <span class="flag">--network</span> frontend nginx
+
+<span class="comment"># Database on backend only</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">db</span> <span class="flag">--network</span> backend postgres
+
+<span class="comment"># web can reach api, api can reach db</span>
+<span class="comment"># web CANNOT reach db directly (different networks)</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Architecture Pattern</div>
+                <p>Multi-network setups enforce least privilege: web talks to API, API talks to database &mdash; but web never has direct database access. This mirrors firewall-segmented production networks.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Host Networking -->
+        <div class="section">
+            <h3>Host Networking</h3>
+            <p>With <code>--network host</code>, a container shares the host's network stack directly &mdash; no isolation, no NAT, no bridge. Processes bind directly to host interfaces.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Run nginx directly on host port 80 (no -p needed)</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--network</span> host <span class="flag">--name</span> <span class="str">web</span> nginx
+
+<span class="comment"># Verify it's listening on the host interface</span>
+<span class="cmd">$</span> ss <span class="flag">-tlnp</span> | grep :80
+<span class="output">LISTEN  0  511  0.0.0.0:80  0.0.0.0:*  users:(("nginx",pid=12345,fd=6))</span></code></pre>
+            </div>
+
+            <h4>When to Use Host Networking</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Performance</span>
+                    <span>Eliminates NAT overhead. Useful for high-throughput, latency-sensitive workloads where every microsecond counts.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Port Range</span>
+                    <span>Applications that need to bind many ports dynamically (e.g., FTP passive mode, SIP) where publishing each port individually is impractical.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Monitoring</span>
+                    <span>Network monitoring tools (tcpdump, Wireshark, Prometheus node exporter) that need to see all host traffic.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Security Warning</div>
+                <p>Host networking removes all network isolation. The container can bind to any port and access localhost services. Only use it when you need the performance &mdash; never as a convenience shortcut. Linux only (not available on Docker Desktop for macOS/Windows).</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Overlay Networks -->
+        <div class="section">
+            <h3>Overlay Networks</h3>
+            <p>Overlay networks span multiple Docker hosts, creating a single logical network across a cluster. Services on different physical machines communicate as if on the same LAN.</p>
+
+            <h4>How It Works</h4>
+            <p>Overlay networking uses VXLAN tunneling to encapsulate container traffic inside UDP packets that traverse the physical network. Each Docker node gets a VTEP (VXLAN Tunnel Endpoint) that handles encapsulation transparently.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Initialize Docker Swarm (required for overlay)</span>
+<span class="cmd">$</span> docker swarm init <span class="flag">--advertise-addr</span> <span class="str">192.168.1.10</span>
+
+<span class="comment"># Create an overlay network</span>
+<span class="cmd">$</span> docker network create \
+    <span class="flag">--driver</span> overlay \
+    <span class="flag">--subnet</span> <span class="str">10.0.9.0/24</span> \
+    my-overlay
+
+<span class="comment"># Create services on the overlay (replicas span multiple hosts)</span>
+<span class="cmd">$</span> docker service create <span class="flag">--name</span> <span class="str">web</span> <span class="flag">--network</span> my-overlay <span class="flag">--replicas</span> <span class="str">3</span> nginx
+<span class="cmd">$</span> docker service create <span class="flag">--name</span> <span class="str">api</span> <span class="flag">--network</span> my-overlay <span class="flag">--replicas</span> <span class="str">2</span> node-api
+
+<span class="comment"># Services reach each other by name across hosts</span></code></pre>
+            </div>
+
+            <h4>Overlay with Encryption</h4>
+            <p>By default, overlay traffic between nodes is unencrypted. Enable IPSec encryption with <code>--opt encrypted</code>. Use <code>--attachable</code> to let standalone containers (not just Swarm services) join the overlay.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Encrypted overlay + attachable for standalone containers</span>
+<span class="cmd">$</span> docker network create \
+    <span class="flag">--driver</span> overlay \
+    <span class="flag">--opt</span> <span class="str">encrypted</span> \
+    <span class="flag">--attachable</span> \
+    secure-overlay</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Swarm Requirement</div>
+                <p>Overlay networks require Swarm mode. With <code>--attachable</code>, standalone containers can join too, but the Swarm control plane must be running to manage the overlay's distributed state.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: DNS & Service Discovery -->
+        <div class="section">
+            <h3>DNS &amp; Service Discovery</h3>
+            <p>Docker runs an embedded DNS server at <code>127.0.0.11</code> inside every container on a user-defined network, resolving container names, service names, and aliases automatically.</p>
+
+            <h4>How It Works</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Container Name</span>
+                    <span>Every container on a user-defined network is registered with the DNS server using its <code>--name</code> value.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Network Aliases</span>
+                    <span>Additional names for a container on a specific network. Multiple containers can share an alias for round-robin load balancing.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Service VIP</span>
+                    <span>In Swarm mode, a service name resolves to a virtual IP that load-balances across all replicas.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create network and containers with aliases</span>
+<span class="cmd">$</span> docker network create app-net
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">redis-primary</span> \
+    <span class="flag">--network</span> app-net \
+    <span class="flag">--network-alias</span> <span class="str">cache</span> \
+    redis
+
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">redis-replica</span> \
+    <span class="flag">--network</span> app-net \
+    <span class="flag">--network-alias</span> <span class="str">cache</span> \
+    redis
+
+<span class="comment"># Both containers respond to "cache" (round-robin)</span>
+<span class="cmd">$</span> docker run <span class="flag">--rm</span> <span class="flag">--network</span> app-net busybox nslookup cache
+<span class="output">Server:    127.0.0.11
+Address 1: 127.0.0.11
+
+Name:      cache
+Address 1: 172.20.0.2 redis-primary
+Address 2: 172.20.0.3 redis-replica</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Default Bridge Has No DNS</div>
+                <p>The embedded DNS server only works on user-defined networks. Containers on the default bridge cannot resolve each other by name &mdash; the biggest reason to always create your own.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: Port Publishing -->
+        <div class="section">
+            <h3>Port Publishing</h3>
+            <p>Port publishing maps a host port to a container port, making services accessible from outside Docker. The <code>-p</code> flag supports several syntax variations.</p>
+
+            <h4>Syntax Variations</h4>
+            <table class="compare">
+                <tr>
+                    <th>Syntax</th>
+                    <th>Meaning</th>
+                    <th>Example</th>
+                </tr>
+                <tr>
+                    <td><code>-p hostPort:containerPort</code></td>
+                    <td>Map specific host port to container port</td>
+                    <td><code>-p 8080:80</code></td>
+                </tr>
+                <tr>
+                    <td><code>-p containerPort</code></td>
+                    <td>Map random host port to container port</td>
+                    <td><code>-p 80</code></td>
+                </tr>
+                <tr>
+                    <td><code>-p ip:hostPort:containerPort</code></td>
+                    <td>Bind to specific host interface</td>
+                    <td><code>-p 127.0.0.1:8080:80</code></td>
+                </tr>
+                <tr>
+                    <td><code>-p ip::containerPort</code></td>
+                    <td>Specific interface, random host port</td>
+                    <td><code>-p 127.0.0.1::80</code></td>
+                </tr>
+                <tr>
+                    <td><code>-p hostPort:containerPort/udp</code></td>
+                    <td>Publish UDP instead of TCP</td>
+                    <td><code>-p 5353:53/udp</code></td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">-p</span> <span class="str">8080:80</span> nginx              <span class="comment"># host 8080 → container 80</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">-p</span> <span class="str">80</span> nginx                   <span class="comment"># random host port → container 80</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">-p</span> <span class="str">127.0.0.1:3000:3000</span> app   <span class="comment"># localhost only</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">-p</span> <span class="str">80:80</span> <span class="flag">-p</span> <span class="str">443:443</span> nginx   <span class="comment"># multiple ports</span>
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">-p</span> <span class="str">8000-8010:8000-8010</span> app   <span class="comment"># port range</span>
+
+<span class="comment"># Check which host port was assigned</span>
+<span class="cmd">$</span> docker port $(docker ps <span class="flag">-lq</span>)
+<span class="output">80/tcp -> 0.0.0.0:49153</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Security: Bind to Localhost</div>
+                <p>By default, <code>-p 8080:80</code> binds to <code>0.0.0.0</code> (all interfaces). For local-only services (admin panels, debug ports), always bind to <code>127.0.0.1</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Network Troubleshooting -->
+        <div class="section">
+            <h3>Network Troubleshooting</h3>
+            <p>When containers cannot communicate, use Docker inspection tools and standard Linux networking utilities from inside containers.</p>
+
+            <h4>docker network inspect</h4>
+            <p>The most important diagnostic command. Shows network config, connected containers, their IPs, and driver options.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker network inspect app-net
+<span class="output">[{
+    "Name": "app-net",
+    "Driver": "bridge",
+    "IPAM": { "Config": [{ "Subnet": "172.20.0.0/16", "Gateway": "172.20.0.1" }] },
+    "Containers": {
+        "a1b2c3...": { "Name": "api", "IPv4Address": "172.20.0.2/16" },
+        "d4e5f6...": { "Name": "db",  "IPv4Address": "172.20.0.3/16" }
+    }
+}]</span>
+
+<span class="comment"># Check which networks a specific container is on</span>
+<span class="cmd">$</span> docker inspect <span class="flag">--format</span> <span class="str">'{{json .NetworkSettings.Networks}}'</span> api</code></pre>
+            </div>
+
+            <h4>Exec Into Containers</h4>
+            <p>When inspection is not enough, drop into the container and use networking tools directly.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker exec api nslookup db          <span class="comment"># DNS resolution</span>
+<span class="cmd">$</span> docker exec api ping <span class="flag">-c</span> <span class="str">3</span> db         <span class="comment"># connectivity</span>
+<span class="cmd">$</span> docker exec api curl <span class="flag">-s</span> http://db:5432 <span class="comment"># port reachability</span>
+<span class="cmd">$</span> docker exec api ip addr               <span class="comment"># interfaces</span>
+<span class="cmd">$</span> docker exec api ip route              <span class="comment"># routing table</span></code></pre>
+            </div>
+
+            <h4>Debugging with a Utility Container</h4>
+            <p>Many production images are minimal and lack debugging tools. Attach a utility container like <code>nicolaka/netshoot</code> to the same network &mdash; it includes nslookup, dig, curl, tcpdump, iperf3, and more.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker run <span class="flag">--rm</span> <span class="flag">-it</span> <span class="flag">--network</span> app-net nicolaka/netshoot
+
+<span class="comment"># Inside: full networking toolkit available</span>
+<span class="cmd">$</span> nslookup api
+<span class="cmd">$</span> curl -v http://api:3000/health
+<span class="cmd">$</span> tcpdump <span class="flag">-i</span> eth0 <span class="flag">-n</span> port 5432</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Troubleshooting Checklist</div>
+                <p>1. Are both containers on the same network? (<code>docker network inspect</code>) &rarr; 2. Can they resolve each other's names? (<code>nslookup</code>) &rarr; 3. Is the port open in the target container? (<code>curl</code>/<code>nc</code>) &rarr; 4. Is iptables blocking? (<code>iptables -L -n</code>) &rarr; 5. Is the application listening on the right interface? (<code>ss -tlnp</code>)</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Network Security -->
+        <div class="section">
+            <h3>Network Security</h3>
+            <p>Proper network segmentation is one of the most effective security measures in a containerized environment. Docker provides several isolation mechanisms.</p>
+
+            <h4>Network Isolation</h4>
+            <p>Containers on different user-defined networks cannot communicate by default &mdash; automatic segmentation without configuring any firewall rules.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Two isolated networks</span>
+<span class="cmd">$</span> docker network create secure-net
+<span class="cmd">$</span> docker network create public-net
+
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">secret-db</span> <span class="flag">--network</span> secure-net postgres
+<span class="cmd">$</span> docker run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">public-web</span> <span class="flag">--network</span> public-net nginx
+
+<span class="comment"># public-web CANNOT reach secret-db</span>
+<span class="cmd">$</span> docker exec public-web ping secret-db
+<span class="output">ping: secret-db: Name or service not known</span></code></pre>
+            </div>
+
+            <h4>Internal Networks</h4>
+            <p>An internal network has no outbound connectivity. Containers can talk to each other but cannot reach the internet or the host's external interfaces.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a fully internal network (no outbound access)</span>
+<span class="cmd">$</span> docker network create \
+    <span class="flag">--internal</span> \
+    <span class="flag">--subnet</span> <span class="str">10.50.0.0/24</span> \
+    isolated-net
+
+<span class="comment"># Container cannot reach the internet</span>
+<span class="cmd">$</span> docker run <span class="flag">--rm</span> <span class="flag">--network</span> isolated-net busybox ping 8.8.8.8
+<span class="output">ping: sendto: Network is unreachable</span></code></pre>
+            </div>
+
+            <h4>Disabling Inter-Container Communication</h4>
+            <p>Even within a bridge network, you can prevent direct container-to-container traffic by setting <code>enable_icc=false</code>. Containers can then only be reached via published ports on the host, where you control access.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker network create <span class="flag">-o</span> <span class="str">"com.docker.network.bridge.enable_icc=false"</span> locked-down-net</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Defense in Depth</div>
+                <p>Combine multiple strategies: use separate networks for each tier (frontend, backend, database), mark database networks as <code>--internal</code>, and disable ICC where containers should not talk directly. Each layer adds isolation even if another is misconfigured.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Docker and iptables -->
+        <div class="section">
+            <h3>Docker and iptables</h3>
+            <p>Docker automatically manipulates iptables to implement port publishing, isolation, and NAT. This means Docker and your host firewall can conflict in surprising ways.</p>
+
+            <h4>What Docker Creates</h4>
+            <p>When Docker starts and when you publish ports, it inserts rules into the NAT table (DNAT for port forwarding) and the filter table (DOCKER chain for allow/deny, DOCKER-USER for your custom rules).</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># View Docker's NAT rules (port forwarding)</span>
+<span class="cmd">$</span> sudo iptables <span class="flag">-t</span> nat <span class="flag">-L</span> DOCKER <span class="flag">-n</span> <span class="flag">-v</span>
+
+<span class="comment"># View the DOCKER-USER chain (your custom rules go here)</span>
+<span class="cmd">$</span> sudo iptables <span class="flag">-L</span> DOCKER-USER <span class="flag">-n</span> <span class="flag">-v</span></code></pre>
+            </div>
+
+            <h4>The DOCKER-USER Chain</h4>
+            <p>Docker provides the <code>DOCKER-USER</code> chain for your custom rules. Rules here are evaluated <strong>before</strong> Docker's own rules. This is the only safe place to add firewall rules that interact with Docker traffic.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Allow only your office IP, drop everything else</span>
+<span class="cmd">$</span> sudo iptables <span class="flag">-I</span> DOCKER-USER <span class="flag">-i</span> eth0 <span class="flag">-s</span> <span class="str">203.0.113.50</span> <span class="flag">-j</span> ACCEPT
+<span class="cmd">$</span> sudo iptables <span class="flag">-I</span> DOCKER-USER <span class="flag">-i</span> eth0 <span class="flag">-j</span> DROP
+
+<span class="comment"># Block external access to a specific container port</span>
+<span class="cmd">$</span> sudo iptables <span class="flag">-I</span> DOCKER-USER <span class="flag">-i</span> eth0 <span class="flag">-p</span> tcp <span class="flag">--dport</span> <span class="str">5432</span> <span class="flag">-j</span> DROP</code></pre>
+            </div>
+
+            <h4>Common Pitfalls</h4>
+            <table class="compare">
+                <tr>
+                    <th>Pitfall</th>
+                    <th>What Happens</th>
+                    <th>Solution</th>
+                </tr>
+                <tr>
+                    <td>UFW/firewalld rules ignored</td>
+                    <td>Docker inserts rules <em>before</em> UFW. Publishing a port bypasses UFW entirely.</td>
+                    <td>Use <code>DOCKER-USER</code> chain for access control, or bind to <code>127.0.0.1</code></td>
+                </tr>
+                <tr>
+                    <td>Rules wiped on restart</td>
+                    <td>Docker regenerates its iptables rules on daemon restart. Your rules in the DOCKER chain get deleted.</td>
+                    <td>Always add rules to <code>DOCKER-USER</code>, which Docker preserves</td>
+                </tr>
+                <tr>
+                    <td>Setting <code>--iptables=false</code></td>
+                    <td>Port publishing, NAT, and isolation all break</td>
+                    <td>Almost never do this. Use <code>DOCKER-USER</code> instead</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Critical: Docker Bypasses UFW</div>
+                <p>If you run <code>docker run -p 5432:5432 postgres</code> on a server with UFW blocking port 5432, the port is <strong>still accessible from the internet</strong>. Docker's iptables rules are inserted before UFW's. Always verify from an external machine, and use <code>127.0.0.1</code> binding or <code>DOCKER-USER</code> rules.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // CNM diagram interaction
+        const cnmComponents = {
+            sandbox: {
+                title: 'Sandbox (Container Network Stack)',
+                desc: 'A sandbox contains the full network configuration of a container: its interfaces, routing table, and DNS settings. It is implemented using Linux network namespaces, which give each container its own isolated network stack. A sandbox can have multiple endpoints connecting it to different networks.'
+            },
+            endpoint: {
+                title: 'Endpoint (Virtual NIC)',
+                desc: 'An endpoint connects a sandbox to a network. Think of it as a virtual network interface card (NIC). It is implemented as a veth pair &mdash; one end inside the container\'s namespace, the other attached to the network\'s bridge. A container gets one endpoint per network it joins.'
+            },
+            network: {
+                title: 'Network (Group of Endpoints)',
+                desc: 'A network is a group of endpoints that can communicate directly. It is implemented by a driver (bridge, overlay, macvlan, etc.) that creates the underlying infrastructure. Endpoints on the same network can talk to each other; endpoints on different networks are isolated by default.'
+            }
+        };
+
+        function showCNM(id) {
+            document.querySelectorAll('#cnmDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const c = cnmComponents[id];
+            document.getElementById('cnmDetail').innerHTML = '<strong>' + c.title + '</strong><br>' + c.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-52'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-52-docker-networking', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first CNM component
+        showCNM('sandbox');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-52']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

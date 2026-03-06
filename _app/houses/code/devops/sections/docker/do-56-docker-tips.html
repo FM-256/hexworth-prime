@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Tips, Tricks & Dark Arts - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-lightning.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status flow */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-56</span>
+            <h1>Docker Tips &amp; Dark Arts</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Docker Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-lightning.webp" alt="">
+            <h2>Docker Tips &amp; Dark Arts</h2>
+            <p class="hero-sub">The commands, shortcuts, and hidden features that separate Docker users from Docker operators. Aliases, BuildKit, multi-arch builds, debugging, and emergency procedures.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~30 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-lightning.webp" alt="" width="14" height="14"> All Levels</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Set up shell aliases and functions that cut daily Docker typing in half</li>
+                <li>Clean up disk space with targeted prune commands</li>
+                <li>Use Docker Contexts to manage multiple Docker hosts from one terminal</li>
+                <li>Enable BuildKit and use advanced mount types for faster, more secure builds</li>
+                <li>Build multi-platform images with <code>docker buildx</code></li>
+                <li>Debug running and stopped containers with <code>exec</code>, <code>cp</code>, <code>diff</code>, and <code>nsenter</code></li>
+                <li>Reverse-engineer existing images using <code>docker history</code> and the <code>dive</code> tool</li>
+                <li>Master Docker Compose tricks: override files, profiles, YAML anchors</li>
+                <li>Tune Docker performance and execute emergency recovery procedures</li>
+                <li>Evaluate Docker Desktop alternatives and leverage hidden flags</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Docker Aliases & Shell Functions -->
+        <div class="section">
+            <h3>1. Docker Aliases &amp; Shell Functions</h3>
+            <p>Typing <code>docker container ls --all --format '{{.Names}}'</code> fifty times a day is wasteful. A tuned alias file turns Docker into a rapid-fire CLI.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">~/.bashrc or ~/.zshrc</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Core shortcuts</span>
+<span class="cmd">alias</span> <span class="str">d='docker'</span>
+<span class="cmd">alias</span> <span class="str">dc='docker compose'</span>
+<span class="cmd">alias</span> <span class="str">dps='docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"'</span>
+<span class="cmd">alias</span> <span class="str">dpsa='docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Image}}"'</span>
+<span class="cmd">alias</span> <span class="str">di='docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"'</span>
+<span class="cmd">alias</span> <span class="str">dl='docker logs -f'</span>
+<span class="cmd">alias</span> <span class="str">dex='docker exec -it'</span>
+<span class="cmd">alias</span> <span class="str">dstop='docker stop $(docker ps -q)'</span>
+<span class="cmd">alias</span> <span class="str">dsize='docker system df -v'</span>
+
+<span class="comment"># Power functions</span>
+<span class="cmd">dsh()</span> { docker exec -it "$1" /bin/sh -c "[ -x /bin/bash ] && exec /bin/bash || exec /bin/sh"; }
+<span class="cmd">dip()</span> { docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$1"; }
+<span class="cmd">dlog()</span> { docker logs --tail="${2:-100}" -f --timestamps "$1"; }
+<span class="cmd">drun()</span> { docker run --rm -it "$@"; }</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The <code>dsh</code> function tries <code>/bin/bash</code> first and falls back to <code>/bin/sh</code>. This works on Alpine (no bash) and Debian/Ubuntu images alike.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Cleanup Commands -->
+        <div class="section">
+            <h3>2. Cleanup Commands</h3>
+            <p>Docker hoards disk space. Stopped containers, dangling images, unused volumes, and build cache all accumulate silently. A production server can lose tens of gigabytes before anyone notices.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Nuclear option: remove EVERYTHING unused</span>
+<span class="cmd">$</span> docker system prune <span class="flag">-a</span> <span class="flag">--volumes</span></code></pre>
+            </div>
+
+            <h4>Surgical Cleanup</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker image prune</code> <span class="tag">IMAGES</span></div>
+                    <p>Remove dangling images (untagged layers from builds)</p>
+                    <div class="example">$ docker image prune -a --filter "until=72h"</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker container prune</code> <span class="tag">CONTAINERS</span></div>
+                    <p>Remove all stopped containers</p>
+                    <div class="example">$ docker container prune -f</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker volume prune</code> <span class="tag">VOLUMES</span></div>
+                    <p>Remove volumes not attached to containers</p>
+                    <div class="example">$ docker volume prune -f</div>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>docker builder prune</code> <span class="tag">BUILD CACHE</span></div>
+                    <p>Clear BuildKit build cache</p>
+                    <div class="example">$ docker builder prune --keep-storage 5GB</div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Warning: Named Volumes</div>
+                <p><code>docker volume prune</code> destroys named volumes not attached to a running container. If you stop a database container and prune, your data is gone. Always check <code>docker volume ls</code> first.</p>
+            </div>
+
+            <h4>Automated Cleanup Script</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-cleanup.sh</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">#!/bin/bash</span>
+<span class="comment"># Safe weekly cleanup - add to crontab</span>
+<span class="cmd">echo</span> <span class="str">"=== Docker Disk Usage BEFORE ==="</span>
+docker system df
+docker container prune <span class="flag">-f</span> <span class="flag">--filter</span> <span class="str">"until=24h"</span>
+docker image prune <span class="flag">-a</span> <span class="flag">-f</span> <span class="flag">--filter</span> <span class="str">"until=168h"</span>
+docker builder prune <span class="flag">-f</span> <span class="flag">--filter</span> <span class="str">"until=168h"</span>
+<span class="cmd">echo</span> <span class="str">"=== Docker Disk Usage AFTER ==="</span>
+docker system df</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 3: Docker Contexts -->
+        <div class="section">
+            <h3>3. Docker Contexts</h3>
+            <p>Docker Contexts let you switch between different Docker daemons &mdash; local, remote servers, cloud instances &mdash; without modifying environment variables. One command swaps your entire Docker target.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a context for a remote host</span>
+<span class="cmd">$</span> docker context create staging \
+    <span class="flag">--docker</span> <span class="str">"host=ssh://deploy@staging.example.com"</span> \
+    <span class="flag">--description</span> <span class="str">"Staging server"</span>
+
+<span class="comment"># Switch to it - ALL docker commands now hit staging</span>
+<span class="cmd">$</span> docker context use staging
+
+<span class="comment"># Or target a context without switching</span>
+<span class="cmd">$</span> docker <span class="flag">--context</span> production ps
+
+<span class="comment"># Switch back</span>
+<span class="cmd">$</span> docker context use default</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">How It Works</div>
+                <p>Contexts store connection details in <code>~/.docker/contexts/</code>. The SSH transport uses your existing SSH keys &mdash; no daemon configuration changes needed on the remote host, just Docker installed and your user in the <code>docker</code> group.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: BuildKit -->
+        <div class="section">
+            <h3>4. BuildKit</h3>
+            <p>BuildKit builds layers in parallel, caches more aggressively, and supports secret mounts and cache mounts. Since Docker 23.0 it is the default, but understanding its features unlocks serious build performance gains.</p>
+
+            <h4>Cache Mounts</h4>
+            <p>Persist package manager caches between builds instead of re-downloading every dependency each time.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># syntax=docker/dockerfile:1</span>
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+<span class="comment"># Cache npm downloads between builds</span>
+RUN <span class="flag">--mount=type=cache,target=/root/.npm</span> npm ci --production
+COPY . .
+CMD ["node", "server.js"]</code></pre>
+            </div>
+
+            <h4>Secret Mounts</h4>
+            <p>Inject credentials at build time without baking them into image layers. The secret exists only in memory during the RUN instruction.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile + Build Command</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># In Dockerfile: mount secret file (never stored in layer)</span>
+RUN <span class="flag">--mount=type=secret,id=pip_conf,target=/etc/pip.conf</span> \
+    pip install -r requirements.txt
+
+<span class="comment"># Build with the secret</span>
+<span class="cmd">$</span> docker build <span class="flag">--secret</span> <span class="str">id=pip_conf,src=./pip.conf</span> <span class="flag">-t</span> myapp .</code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Never Use Build Args for Secrets</div>
+                <p><code>ARG</code> values are stored in image history and visible via <code>docker history</code>. Anyone who pulls your image can extract them. Always use <code>--mount=type=secret</code> for API keys, tokens, and credentials.</p>
+            </div>
+
+            <h4>Inline Cache Export</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Export build cache inline with the image (useful for CI)</span>
+<span class="cmd">$</span> docker build <span class="flag">--build-arg</span> BUILDKIT_INLINE_CACHE=1 <span class="flag">-t</span> registry.example.com/myapp:latest .
+
+<span class="comment"># On next build, pull cache from registry</span>
+<span class="cmd">$</span> docker build <span class="flag">--cache-from</span> registry.example.com/myapp:latest <span class="flag">-t</span> registry.example.com/myapp:latest .</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 5: docker buildx -->
+        <div class="section">
+            <h3>5. docker buildx &mdash; Multi-Platform Builds</h3>
+            <p>ARM processors power everything from Raspberry Pis to AWS Graviton to Apple Silicon. <code>docker buildx</code> builds for multiple platforms from a single machine.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a multi-platform builder</span>
+<span class="cmd">$</span> docker buildx create <span class="flag">--name</span> multiarch <span class="flag">--use</span>
+<span class="cmd">$</span> docker buildx inspect <span class="flag">--bootstrap</span>
+<span class="output">Platforms: linux/amd64, linux/arm64, linux/arm/v7, linux/386</span>
+
+<span class="comment"># Build and push for amd64 + arm64</span>
+<span class="cmd">$</span> docker buildx build \
+    <span class="flag">--platform</span> linux/amd64,linux/arm64 \
+    <span class="flag">-t</span> registry.example.com/myapp:latest \
+    <span class="flag">--push</span> .
+
+<span class="comment"># Build for local use (single platform only)</span>
+<span class="cmd">$</span> docker buildx build <span class="flag">--platform</span> linux/amd64 <span class="flag">--load</span> <span class="flag">-t</span> myapp:latest .</code></pre>
+            </div>
+
+            <table class="compare">
+                <tr><th>Flag</th><th>Purpose</th></tr>
+                <tr><td><code>--platform</code></td><td>Comma-separated target platforms</td></tr>
+                <tr><td><code>--push</code></td><td>Push multi-platform manifest to registry</td></tr>
+                <tr><td><code>--load</code></td><td>Load into local Docker (single platform only)</td></tr>
+                <tr><td><code>--cache-to</code></td><td>Export build cache to registry or directory</td></tr>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">QEMU Emulation</div>
+                <p>Building for a foreign architecture (arm64 on amd64) uses QEMU emulation &mdash; automatic but slower. For production CI, use native ARM runners or append remote builders via <code>docker buildx create --append</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Debugging Containers -->
+        <div class="section">
+            <h3>6. Debugging Containers</h3>
+            <p>When a container misbehaves, you need to get inside, inspect state, and figure out what went wrong.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Shell into a running container</span>
+<span class="cmd">$</span> docker exec <span class="flag">-it</span> my-container /bin/bash
+
+<span class="comment"># Run as root even if container uses non-root user</span>
+<span class="cmd">$</span> docker exec <span class="flag">-u 0</span> <span class="flag">-it</span> my-container /bin/bash
+
+<span class="comment"># Copy files out of a container (works on stopped containers too)</span>
+<span class="cmd">$</span> docker cp my-container:/var/log/app.log ./app.log
+
+<span class="comment"># See filesystem changes since container started (A=Added, C=Changed, D=Deleted)</span>
+<span class="cmd">$</span> docker diff my-container
+<span class="output">C /var/log
+A /var/log/app.log
+D /etc/app/old-config.conf</span></code></pre>
+            </div>
+
+            <h4>nsenter &mdash; When There Is No Shell</h4>
+            <p>Distroless and scratch-based images have no shell. <code>nsenter</code> enters the container's Linux namespaces from the host.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Get the container's PID on the host</span>
+<span class="cmd">$</span> PID=$(docker inspect <span class="flag">-f</span> '{{.State.Pid}}' my-container)
+
+<span class="comment"># Enter all namespaces</span>
+<span class="cmd">$</span> sudo nsenter <span class="flag">-t</span> $PID <span class="flag">-m -u -i -n -p</span> -- /bin/sh
+
+<span class="comment"># Enter only the network namespace</span>
+<span class="cmd">$</span> sudo nsenter <span class="flag">-t</span> $PID <span class="flag">-n</span> -- ip addr
+
+<span class="comment"># Trace syscalls of the main process</span>
+<span class="cmd">$</span> sudo strace <span class="flag">-fp</span> $PID <span class="flag">-e trace=network</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Debugging Distroless</div>
+                <p>Google's distroless images have zero shell utilities. Use the <code>:debug</code> tag variant (includes busybox) or <code>nsenter</code> from the host to bypass the limitation entirely.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Image Archaeology -->
+        <div class="section">
+            <h3>7. Image Archaeology</h3>
+            <p>When you inherit an image with no Dockerfile, or need to understand why it is 2GB, image archaeology lets you reverse-engineer the layer structure.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># See every layer, its command, and size</span>
+<span class="cmd">$</span> docker history myapp:latest
+<span class="cmd">$</span> docker history <span class="flag">--no-trunc</span> myapp:latest   <span class="comment"># Full commands</span>
+
+<span class="comment"># Interactive layer explorer (install: brew install dive)</span>
+<span class="cmd">$</span> dive myapp:latest
+
+<span class="comment"># CI mode: fail if image is bloated</span>
+<span class="cmd">$</span> dive myapp:latest <span class="flag">--ci</span> <span class="flag">--lowestEfficiency</span> 0.9
+
+<span class="comment"># Manual inspection: save and extract layers</span>
+<span class="cmd">$</span> docker save myapp:latest <span class="flag">-o</span> myapp.tar
+<span class="cmd">$</span> mkdir layers && tar xf myapp.tar -C layers
+<span class="cmd">$</span> tar tf layers/sha256_abc123/layer.tar</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Common Bloat Sources</div>
+                <p>Package manager caches (<code>apt</code> lists, <code>pip</code> cache), build tools in production images, <code>.git</code> directories copied in, and node_modules dev dependencies. Multi-stage builds eliminate all of these.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Docker Compose Tricks -->
+        <div class="section">
+            <h3>8. Docker Compose Tricks</h3>
+
+            <h4>Override Files</h4>
+            <p>Compose automatically merges <code>docker-compose.yml</code> with <code>docker-compose.override.yml</code>. Keep base config separate from dev-specific tweaks.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.override.yml (auto-merged in dev)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">services:</span>
+  <span class="str">api:</span>
+    build: .
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DEBUG=*</code></pre>
+            </div>
+
+            <h4>Profiles</h4>
+            <p>Define optional services that only start when explicitly requested &mdash; monitoring, debugging, or admin tools.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">services:</span>
+  <span class="str">api:</span>
+    image: myapp:latest
+    ports: ["3000:3000"]
+  <span class="str">adminer:</span>
+    image: adminer
+    profiles: ["debug"]
+    ports: ["8080:8080"]
+  <span class="str">prometheus:</span>
+    image: prom/prometheus
+    profiles: ["monitoring"]</code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker compose up                          <span class="comment"># api only</span>
+<span class="cmd">$</span> docker compose <span class="flag">--profile</span> debug up            <span class="comment"># api + adminer</span>
+<span class="cmd">$</span> docker compose <span class="flag">--profile</span> debug <span class="flag">--profile</span> monitoring up</code></pre>
+            </div>
+
+            <h4>YAML Anchors &amp; Aliases</h4>
+            <p>Define a block once with <code>&amp;</code>, reference it everywhere with <code>*</code>. Eliminates duplication across services.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">x-common-env:</span> <span class="flag">&common-env</span>
+  LOG_LEVEL: info
+  TZ: UTC
+  REDIS_URL: redis://cache:6379
+
+<span class="cmd">services:</span>
+  <span class="str">api:</span>
+    image: myapp-api:latest
+    environment:
+      <span class="flag"><<: *common-env</span>
+      PORT: "3000"
+  <span class="str">worker:</span>
+    image: myapp-worker:latest
+    environment:
+      <span class="flag"><<: *common-env</span>
+      CONCURRENCY: "4"</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 9: Performance Tuning -->
+        <div class="section">
+            <h3>9. Performance Tuning</h3>
+
+            <h4>Storage Drivers</h4>
+            <table class="compare">
+                <tr><th>Driver</th><th>Filesystem</th><th>Best For</th></tr>
+                <tr><td><code>overlay2</code></td><td>ext4, xfs</td><td>Default. Best general performance.</td></tr>
+                <tr><td><code>btrfs</code></td><td>btrfs</td><td>Native snapshots, build-heavy workloads</td></tr>
+                <tr><td><code>zfs</code></td><td>zfs</td><td>Checksumming, compression</td></tr>
+            </table>
+
+            <h4>Logging Drivers</h4>
+            <p>The default <code>json-file</code> driver has no size limits. A chatty container can fill a disk in days.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">/etc/docker/daemon.json</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"log-driver"</span>: <span class="str">"json-file"</span>,
+  <span class="str">"log-opts"</span>: { <span class="str">"max-size"</span>: <span class="str">"10m"</span>, <span class="str">"max-file"</span>: <span class="str">"3"</span>, <span class="str">"compress"</span>: <span class="str">"true"</span> },
+  <span class="str">"default-ulimits"</span>: {
+    <span class="str">"nofile"</span>: { <span class="str">"Name"</span>: <span class="str">"nofile"</span>, <span class="str">"Hard"</span>: 65536, <span class="str">"Soft"</span>: 65536 }
+  }
+}</code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Log Rotation Is Not Default</div>
+                <p>Out of the box, Docker does NOT limit log file size. Always configure <code>max-size</code> and <code>max-file</code> in daemon config or per-container.</p>
+            </div>
+
+            <h4>DNS Caching</h4>
+            <p>Containers resolve DNS on every connection. In microservice architectures with heavy inter-service traffic, DNS can become a bottleneck.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">/etc/docker/daemon.json (DNS settings)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>{
+  <span class="str">"dns"</span>: [<span class="str">"8.8.8.8"</span>, <span class="str">"8.8.4.4"</span>],
+  <span class="str">"dns-opts"</span>: [<span class="str">"ndots:1"</span>, <span class="str">"timeout:2"</span>, <span class="str">"attempts:2"</span>]
+}</code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Per-container resource limits</span>
+<span class="cmd">$</span> docker run <span class="flag">--memory</span> 512m <span class="flag">--memory-swap</span> 512m <span class="flag">--cpus</span> 1.5 <span class="flag">--pids-limit</span> 100 myapp:latest</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 10: Emergency Procedures -->
+        <div class="section">
+            <h3>10. Emergency Procedures</h3>
+            <p>Containers hang, the daemon freezes, and disk fills up. These are the break-glass procedures.</p>
+
+            <h4>Recovering Data from Stopped Containers</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Copy data out of a stopped container</span>
+<span class="cmd">$</span> docker cp dead-container:/app/data ./recovered-data
+
+<span class="comment"># If cp fails: commit as image and extract</span>
+<span class="cmd">$</span> docker commit dead-container rescue-image
+<span class="cmd">$</span> docker run <span class="flag">--rm</span> <span class="flag">-v</span> $(pwd):/backup rescue-image cp <span class="flag">-r</span> /app/data /backup/
+
+<span class="comment"># Last resort: find the filesystem on disk</span>
+<span class="cmd">$</span> docker inspect dead-container <span class="flag">--format</span> '{{.GraphDriver.Data.MergedDir}}'
+<span class="cmd">$</span> sudo ls /var/lib/docker/overlay2/abc123/merged/app/</code></pre>
+            </div>
+
+            <h4>Force Removing Stuck Containers</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> docker stop my-container                  <span class="comment"># SIGTERM, wait 10s, SIGKILL</span>
+<span class="cmd">$</span> docker kill my-container                  <span class="comment"># SIGKILL immediately</span>
+<span class="cmd">$</span> docker rm <span class="flag">-f</span> my-container                  <span class="comment"># Force remove even if running</span>
+
+<span class="comment"># Container won't die? Kill from the host</span>
+<span class="cmd">$</span> PID=$(docker inspect <span class="flag">-f</span> '{{.State.Pid}}' my-container)
+<span class="cmd">$</span> sudo kill <span class="flag">-9</span> $PID</code></pre>
+            </div>
+
+            <h4>Daemon Won't Start</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Check daemon logs</span>
+<span class="cmd">$</span> sudo journalctl <span class="flag">-u</span> docker.service <span class="flag">--no-pager</span> <span class="flag">-n</span> 50
+
+<span class="comment"># Validate daemon.json (corrupt JSON is a common cause)</span>
+<span class="cmd">$</span> sudo python3 <span class="flag">-m</span> json.tool /etc/docker/daemon.json
+
+<span class="comment"># Disk full? Find largest layers</span>
+<span class="cmd">$</span> sudo du <span class="flag">-sh</span> /var/lib/docker/overlay2/* | sort <span class="flag">-rh</span> | head
+
+<span class="comment"># Restart containerd + docker</span>
+<span class="cmd">$</span> sudo systemctl restart containerd && sudo systemctl restart docker</code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Nuclear Option: rm -rf /var/lib/docker</div>
+                <p>Deleting the Docker data directory removes ALL containers, images, volumes, and networks. Only use as an absolute last resort after recovering critical data. There is no undo.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Docker Desktop Alternatives -->
+        <div class="section">
+            <h3>11. Docker Desktop Alternatives</h3>
+            <p>Docker Desktop requires a paid subscription for companies with 250+ employees or $10M+ revenue. Several open-source alternatives provide the same experience.</p>
+
+            <table class="compare">
+                <tr><th>Tool</th><th>Runtime</th><th>Key Features</th></tr>
+                <tr><td><strong>Colima</strong></td><td>Docker / containerd</td><td>Minimal CLI, fast startup, Lima-based VM. Drop-in replacement.</td></tr>
+                <tr><td><strong>Rancher Desktop</strong></td><td>dockerd / containerd</td><td>GUI, built-in Kubernetes, Docker/containerd toggle.</td></tr>
+                <tr><td><strong>Podman Desktop</strong></td><td>Podman (daemonless)</td><td>Rootless by default, Docker CLI compatible, pod support.</td></tr>
+                <tr><td><strong>Lima</strong></td><td>Any (VM-based)</td><td>Lightweight Linux VMs, file sharing, port forwarding.</td></tr>
+                <tr><td><strong>OrbStack</strong></td><td>Docker / Linux VMs</td><td>Extremely fast, low memory, native Apple Silicon.</td></tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Colima Quick Start</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> brew install colima docker docker-compose
+<span class="cmd">$</span> colima start <span class="flag">--cpu</span> 4 <span class="flag">--memory</span> 8 <span class="flag">--disk</span> 60
+<span class="cmd">$</span> docker ps   <span class="comment"># Works exactly the same</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Podman Drop-In</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">$</span> brew install podman       <span class="comment"># or: sudo apt install podman</span>
+<span class="cmd">$</span> podman machine init && podman machine start
+<span class="cmd">alias</span> <span class="str">docker='podman'</span>      <span class="comment"># Most Docker commands work identically</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Choosing an Alternative</div>
+                <p>Simplest Docker replacement: Colima. GUI with Kubernetes: Rancher Desktop. Rootless security: Podman. Best macOS performance: OrbStack.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Hidden Features -->
+        <div class="section">
+            <h3>12. Hidden Features</h3>
+
+            <h4>Environment Variables</h4>
+            <table class="compare">
+                <tr><th>Variable</th><th>Effect</th></tr>
+                <tr><td><code>DOCKER_BUILDKIT=1</code></td><td>Force BuildKit builder (pre-Docker 23.0)</td></tr>
+                <tr><td><code>COMPOSE_PROFILES=debug,monitoring</code></td><td>Activate Compose profiles without <code>--profile</code> flags</td></tr>
+                <tr><td><code>COMPOSE_PROJECT_NAME=myproject</code></td><td>Override default project name (affects container naming)</td></tr>
+                <tr><td><code>DOCKER_CONTENT_TRUST=1</code></td><td>Only pull images with valid signatures</td></tr>
+                <tr><td><code>DOCKER_DEFAULT_PLATFORM=linux/amd64</code></td><td>Force platform for pulls/runs (useful on Apple Silicon)</td></tr>
+                <tr><td><code>DOCKER_HOST=ssh://user@remote</code></td><td>Point CLI at a remote daemon (ephemeral, unlike contexts)</td></tr>
+            </table>
+
+            <h4>The --init Flag</h4>
+            <p>Containers run your process as PID 1, which must reap zombie processes and handle signals. Most apps are not built for this. <code>--init</code> adds <code>tini</code> as PID 1 to handle it properly.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Without --init: app may ignore SIGTERM, docker stop waits 10s then SIGKILL</span>
+<span class="comment"># With --init: tini forwards signals properly, clean shutdown</span>
+<span class="cmd">$</span> docker run <span class="flag">--init</span> myapp:latest
+
+<span class="comment"># In Compose: add init: true to any service</span></code></pre>
+            </div>
+
+            <h4>Health Check Debugging</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># See health check results and output</span>
+<span class="cmd">$</span> docker inspect <span class="flag">--format</span> '{{json .State.Health}}' my-container | python3 <span class="flag">-m</span> json.tool
+
+<span class="comment"># Override health check at runtime</span>
+<span class="cmd">$</span> docker run <span class="flag">--health-cmd</span> <span class="str">"curl -f http://localhost:3000/healthz"</span> \
+    <span class="flag">--health-interval</span> 10s <span class="flag">--health-retries</span> 3 myapp:latest</code></pre>
+            </div>
+
+            <h4>More Hidden Gems</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label" style="min-width: 120px;">--read-only</span>
+                    <span>Mount root filesystem as read-only. Forces you to use volumes for writable paths. Great for security.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label" style="min-width: 120px;">--tmpfs</span>
+                    <span>Mount RAM-backed filesystem for ephemeral data: <code>--tmpfs /tmp:size=100m</code></span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label" style="min-width: 120px;">--pid=host</span>
+                    <span>Share host PID namespace. See all host processes from inside the container.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label" style="min-width: 120px;">docker events</span>
+                    <span>Real-time stream of all Docker events. Invaluable for debugging orchestration.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Watch Docker events in real time</span>
+<span class="cmd">$</span> docker events <span class="flag">--format</span> '{{.Time}} {{.Type}} {{.Action}} {{.Actor.Attributes.name}}'
+
+<span class="comment"># Hardened read-only container with tmpfs</span>
+<span class="cmd">$</span> docker run <span class="flag">--read-only</span> <span class="flag">--tmpfs</span> /tmp:size=50m <span class="flag">--init</span> myapp:latest</code></pre>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-56'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-56-docker-tips', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-56']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

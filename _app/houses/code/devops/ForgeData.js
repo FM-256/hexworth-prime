@@ -170,17 +170,17 @@ const ForgeData = {
             description: 'Containerization from first pull to production — images, Compose, networking, volumes, and security.',
             color: '#3b82f6',
             modules: [
-                { id: 'do-17', title: 'Docker Fundamentals — Containers & Images', type: 'module', status: 'coming-soon', sprint: 'DO-17' },
-                { id: 'do-48', title: 'Dockerfile Deep Dive', type: 'module', status: 'coming-soon', sprint: 'DO-48' },
-                { id: 'do-49', title: 'Docker CLI Mastery', type: 'module', status: 'coming-soon', sprint: 'DO-49' },
-                { id: 'do-50', title: 'Images & Registries', type: 'module', status: 'coming-soon', sprint: 'DO-50' },
-                { id: 'do-51', title: 'Docker Compose — Multi-Container Apps', type: 'module', status: 'coming-soon', sprint: 'DO-51' },
-                { id: 'do-52', title: 'Docker Networking', type: 'module', status: 'coming-soon', sprint: 'DO-52' },
-                { id: 'do-53', title: 'Docker Volumes & Storage', type: 'module', status: 'coming-soon', sprint: 'DO-53' },
-                { id: 'do-54', title: 'Docker Security & Best Practices', type: 'module', status: 'coming-soon', sprint: 'DO-54' },
-                { id: 'do-55', title: 'Real-World Docker Patterns', type: 'module', status: 'coming-soon', sprint: 'DO-55' },
-                { id: 'do-18', title: 'Docker Lab — Build & Deploy', type: 'lab', status: 'coming-soon', sprint: 'DO-18' },
-                { id: 'do-56', title: 'Docker Tips, Tricks & Dark Arts', type: 'module', status: 'coming-soon', sprint: 'DO-56' }
+                { id: 'do-17', title: 'Docker Fundamentals — Containers & Images', type: 'module', status: 'ready', sprint: 'DO-17', href: 'do-17-docker-fundamentals.html' },
+                { id: 'do-48', title: 'Dockerfile Deep Dive', type: 'module', status: 'ready', sprint: 'DO-48', href: 'do-48-dockerfile.html' },
+                { id: 'do-49', title: 'Docker CLI Mastery', type: 'module', status: 'ready', sprint: 'DO-49', href: 'do-49-docker-cli.html' },
+                { id: 'do-50', title: 'Images & Registries', type: 'module', status: 'ready', sprint: 'DO-50', href: 'do-50-images-registries.html' },
+                { id: 'do-51', title: 'Docker Compose — Multi-Container Apps', type: 'module', status: 'ready', sprint: 'DO-51', href: 'do-51-docker-compose.html' },
+                { id: 'do-52', title: 'Docker Networking', type: 'module', status: 'ready', sprint: 'DO-52', href: 'do-52-docker-networking.html' },
+                { id: 'do-53', title: 'Docker Volumes & Storage', type: 'module', status: 'ready', sprint: 'DO-53', href: 'do-53-docker-volumes.html' },
+                { id: 'do-54', title: 'Docker Security & Best Practices', type: 'module', status: 'ready', sprint: 'DO-54', href: 'do-54-docker-security.html' },
+                { id: 'do-55', title: 'Real-World Docker Patterns', type: 'module', status: 'ready', sprint: 'DO-55', href: 'do-55-docker-patterns.html' },
+                { id: 'do-18', title: 'Docker Lab — Build & Deploy', type: 'lab', status: 'ready', sprint: 'DO-18', href: 'do-18-docker-lab.html' },
+                { id: 'do-56', title: 'Docker Tips, Tricks & Dark Arts', type: 'module', status: 'ready', sprint: 'DO-56', href: 'do-56-docker-tips.html' }
             ]
         },
 

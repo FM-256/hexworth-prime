@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Security & Best Practices - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-shield.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+        .callout-danger .callout-title { color: var(--red); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-54</span>
+            <h1>Docker Security</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Docker Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-shield.webp" alt="">
+            <h2>Docker Security</h2>
+            <p class="hero-sub">Containers are not sandboxes by default. Learn the kernel primitives, hardening techniques, and scanning tools that turn Docker into a defensible platform.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~45 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-shield.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain how namespaces, cgroups, capabilities, and seccomp form Docker's security model</li>
+                <li>Identify the risks of running containers as root and apply non-root patterns</li>
+                <li>Harden images with trusted bases, digest pinning, and minimal attack surfaces</li>
+                <li>Scan images for vulnerabilities using Trivy, Docker Scout, Snyk, and Grype</li>
+                <li>Manage secrets without baking them into images or environment variables</li>
+                <li>Enforce read-only filesystems and resource limits to contain blast radius</li>
+                <li>Lock down networking with capability drops and network isolation</li>
+                <li>Secure the Docker daemon with rootless mode and user namespace remapping</li>
+                <li>Enable Docker Content Trust for image signing and verification</li>
+                <li>Apply CIS Docker Benchmark checks and integrate scanning into CI pipelines</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Docker Security Model -->
+        <div class="section">
+            <h3>1. Docker Security Model</h3>
+            <p>Containers are not virtual machines. They share the host kernel and rely on four Linux kernel primitives for isolation. Understanding these primitives is the foundation of container security &mdash; every hardening technique maps back to one of them.</p>
+
+            <div class="diagram" id="securityDiagram">
+                <div class="diagram-box" onclick="showLayer('namespaces')" id="box-namespaces">
+                    <div class="diagram-box-title">Namespaces</div>
+                    <div class="diagram-box-sub">Isolation</div>
+                </div>
+                <div class="diagram-arrow">+</div>
+                <div class="diagram-box" onclick="showLayer('cgroups')" id="box-cgroups">
+                    <div class="diagram-box-title">Cgroups</div>
+                    <div class="diagram-box-sub">Resource Limits</div>
+                </div>
+                <div class="diagram-arrow">+</div>
+                <div class="diagram-box" onclick="showLayer('capabilities')" id="box-capabilities">
+                    <div class="diagram-box-title">Capabilities</div>
+                    <div class="diagram-box-sub">Privilege Control</div>
+                </div>
+                <div class="diagram-arrow">+</div>
+                <div class="diagram-box" onclick="showLayer('seccomp')" id="box-seccomp">
+                    <div class="diagram-box-title">Seccomp</div>
+                    <div class="diagram-box-sub">Syscall Filtering</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="layerDetail">Click a layer above to learn how it contributes to container isolation.</div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Defense in Depth</div>
+                <p>No single primitive is sufficient on its own. Namespaces hide resources, cgroups limit consumption, capabilities restrict privileges, and seccomp filters syscalls. Together they create a layered defense. A container escape must defeat all four layers.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: The Root Problem -->
+        <div class="section">
+            <h3>2. The Root Problem</h3>
+            <p>By default, the process inside a Docker container runs as <code>root</code> (UID 0). This is the single most common container security mistake. While namespaces provide some isolation, root inside the container is still root on the host kernel &mdash; and kernel exploits can bridge that gap.</p>
+
+            <h4>Why Root by Default Is Dangerous</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Kernel Exploits</span>
+                    <span>A container escape vulnerability (e.g., CVE-2019-5736 in runc) gives the attacker root on the host if the container process is root.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Volume Mounts</span>
+                    <span>If you bind-mount host directories, root inside the container can read/write any file on those mounts &mdash; including <code>/etc/shadow</code> if you mount <code>/</code>.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Socket Access</span>
+                    <span>Mounting the Docker socket (<code>/var/run/docker.sock</code>) with root gives the container full control over the Docker daemon &mdash; effectively full host access.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Image Tampering</span>
+                    <span>Root can modify any file in the image at runtime, making forensic analysis harder and enabling persistence mechanisms.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Proof: default container runs as root</span>
+<span class="cmd">$</span> docker run --rm alpine id
+<span class="output">uid=0(root) gid=0(root) groups=0(root)</span>
+
+<span class="comment"># Check which capabilities root has inside the container</span>
+<span class="cmd">$</span> docker run --rm alpine cat /proc/1/status | grep Cap
+<span class="output">CapPrm: 00000000a80425fb
+CapEff: 00000000a80425fb</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Critical Rule</div>
+                <p>Never run production containers as root. The principle of least privilege applies to containers just as it does to servers. If your app does not need root, do not give it root.</p>
+            </div>
+        </div>
+
+        <!-- Section 3: Non-Root Containers -->
+        <div class="section">
+            <h3>3. Non-Root Containers</h3>
+            <p>The most impactful single change you can make to a Dockerfile is adding a <code>USER</code> instruction. This drops the container process from root to an unprivileged user, dramatically reducing the blast radius of any compromise.</p>
+
+            <h4>Creating a Dedicated User</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">FROM</span> node:20-alpine
+
+<span class="comment"># Create a non-root user and group</span>
+<span class="cmd">RUN</span> addgroup -S appgroup && adduser -S appuser -G appgroup
+
+<span class="comment"># Set working directory and fix ownership</span>
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> --chown=appuser:appgroup package*.json ./
+<span class="cmd">RUN</span> npm ci --only=production
+
+<span class="cmd">COPY</span> --chown=appuser:appgroup . .
+
+<span class="comment"># Switch to non-root user BEFORE CMD</span>
+<span class="cmd">USER</span> appuser
+
+<span class="cmd">EXPOSE</span> 3000
+<span class="cmd">CMD</span> [<span class="str">"node"</span>, <span class="str">"server.js"</span>]</code></pre>
+            </div>
+
+            <h4>Verify It Works</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Build and test</span>
+<span class="cmd">$</span> docker build -t myapp .
+<span class="cmd">$</span> docker run --rm myapp id
+<span class="output">uid=100(appuser) gid=101(appgroup) groups=101(appgroup)</span>
+
+<span class="comment"># Override at runtime (for debugging only)</span>
+<span class="cmd">$</span> docker run --rm <span class="flag">--user</span> 1000:1000 myapp id
+<span class="output">uid=1000 gid=1000 groups=1000</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Common Pitfalls</div>
+                <p><strong>EACCES errors:</strong> Use <code>COPY --chown=</code> before <code>USER</code>. <strong>Port &lt;1024:</strong> Use high ports or set <code>net.ipv4.ip_unprivileged_port_start=0</code>. <strong>Install failures:</strong> Run <code>npm ci</code> / <code>pip install</code> before the <code>USER</code> instruction. <strong>Temp writes:</strong> Create writable dirs with correct ownership in the build stage.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Image Security -->
+        <div class="section">
+            <h3>4. Image Security</h3>
+            <p>Your container is only as secure as the image it runs. Every layer inherits the vulnerabilities of its base. Choosing the right base image, pinning versions, and minimizing what ships in the final image are foundational practices.</p>
+
+            <h4>Choosing Base Images</h4>
+            <table class="compare">
+                <tr>
+                    <th>Base Image</th>
+                    <th>Size</th>
+                    <th>Packages</th>
+                    <th>Use Case</th>
+                </tr>
+                <tr>
+                    <td><code>ubuntu:22.04</code></td>
+                    <td>~77 MB</td>
+                    <td>~100+</td>
+                    <td>Full toolchain needed, dev environments</td>
+                </tr>
+                <tr>
+                    <td><code>alpine:3.19</code></td>
+                    <td>~7 MB</td>
+                    <td>~15</td>
+                    <td>Minimal footprint, production services</td>
+                </tr>
+                <tr>
+                    <td><code>distroless</code></td>
+                    <td>~2-20 MB</td>
+                    <td>0 (no shell)</td>
+                    <td>Maximum security, no debug access needed</td>
+                </tr>
+                <tr>
+                    <td><code>scratch</code></td>
+                    <td>0 MB</td>
+                    <td>Nothing</td>
+                    <td>Static binaries (Go, Rust)</td>
+                </tr>
+            </table>
+
+            <h4>Pinning Image Digests</h4>
+            <p>Tags are mutable &mdash; <code>alpine:3.19</code> can point to different images over time. Pinning by digest guarantees you always get the exact same image, byte-for-byte.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Mutable tag (not recommended for production)</span>
+<span class="cmd">FROM</span> node:20-alpine
+
+<span class="comment"># Immutable digest (recommended)</span>
+<span class="cmd">FROM</span> node@sha256:a1b2c3d4e5f6...
+
+<span class="comment"># Find the digest for any image:</span>
+<span class="comment"># $ docker inspect --format='{{index .RepoDigests 0}}' node:20-alpine</span></code></pre>
+            </div>
+
+            <h4>Multi-Stage Builds for Minimal Images</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Stage 1: Build (has compilers, dev deps)</span>
+<span class="cmd">FROM</span> golang:1.22-alpine <span class="cmd">AS</span> builder
+<span class="cmd">WORKDIR</span> /build
+<span class="cmd">COPY</span> . .
+<span class="cmd">RUN</span> CGO_ENABLED=0 go build -o /app
+
+<span class="comment"># Stage 2: Runtime (nothing but the binary)</span>
+<span class="cmd">FROM</span> scratch
+<span class="cmd">COPY</span> --from=builder /app /app
+<span class="cmd">ENTRYPOINT</span> [<span class="str">"/app"</span>]</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Fewer Packages = Fewer Vulnerabilities</div>
+                <p>Every package in your image is a potential CVE. Alpine has ~15 packages; Ubuntu has ~100+. A Go binary on <code>scratch</code> has zero OS-level packages to patch. The best vulnerability is the one that doesn't exist in your image.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Vulnerability Scanning -->
+        <div class="section">
+            <h3>5. Vulnerability Scanning</h3>
+            <p>Scanning images for known vulnerabilities (CVEs) is non-negotiable. The question is which scanner to use, and where in your workflow to run it. Here are the four major tools and how they compare.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Scanner</th>
+                    <th>Vendor</th>
+                    <th>Speed</th>
+                    <th>CI Integration</th>
+                    <th>License</th>
+                </tr>
+                <tr>
+                    <td><code>Trivy</code></td>
+                    <td>Aqua Security</td>
+                    <td>Fast</td>
+                    <td>GitHub Actions, GitLab, Jenkins</td>
+                    <td>Apache 2.0 (OSS)</td>
+                </tr>
+                <tr>
+                    <td><code>Docker Scout</code></td>
+                    <td>Docker Inc.</td>
+                    <td>Fast</td>
+                    <td>Docker Desktop, CLI, GitHub</td>
+                    <td>Free tier + paid</td>
+                </tr>
+                <tr>
+                    <td><code>Snyk</code></td>
+                    <td>Snyk</td>
+                    <td>Medium</td>
+                    <td>Broad (CLI, IDE, CI, registry)</td>
+                    <td>Free tier + paid</td>
+                </tr>
+                <tr>
+                    <td><code>Grype</code></td>
+                    <td>Anchore</td>
+                    <td>Fast</td>
+                    <td>GitHub Actions, CLI-based</td>
+                    <td>Apache 2.0 (OSS)</td>
+                </tr>
+            </table>
+
+            <h4>Scanner Examples</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># --- Trivy (most popular OSS scanner) ---</span>
+<span class="cmd">$</span> trivy image myapp:latest
+<span class="output">myapp:latest (alpine 3.19.1)
+Total: 3 (UNKNOWN: 0, LOW: 1, MEDIUM: 1, HIGH: 1, CRITICAL: 0)</span>
+
+<span class="comment"># Fail on HIGH or CRITICAL (for CI gates)</span>
+<span class="cmd">$</span> trivy image <span class="flag">--severity HIGH,CRITICAL</span> <span class="flag">--exit-code 1</span> myapp:latest
+
+<span class="comment"># Scan filesystem for vulns, secrets, and misconfigs</span>
+<span class="cmd">$</span> trivy fs <span class="flag">--scanners vuln,secret,misconfig</span> .
+
+<span class="comment"># --- Docker Scout (built into Docker CLI) ---</span>
+<span class="cmd">$</span> docker scout cves myapp:latest
+<span class="cmd">$</span> docker scout recommendations myapp:latest
+
+<span class="comment"># --- Grype (Anchore, fast OSS alternative) ---</span>
+<span class="cmd">$</span> grype myapp:latest <span class="flag">-o json</span> > scan-results.json
+<span class="cmd">$</span> grype myapp:latest <span class="flag">--fail-on high</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">When to Scan</div>
+                <p>Scan at three points: (1) in CI before pushing to a registry, (2) in the registry on a scheduled basis (new CVEs appear daily), and (3) at deploy time as a gate. A vulnerability that did not exist when you built the image may exist tomorrow.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Secrets Management -->
+        <div class="section">
+            <h3>6. Secrets Management</h3>
+            <p>Secrets &mdash; API keys, passwords, TLS certificates &mdash; are one of the most common container security failures. The core rule is simple: never bake secrets into the image. Every layer of a Docker image is recoverable, so anything embedded during build is permanently exposed.</p>
+
+            <h4>What NOT to Do</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile (WRONG)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># NEVER do this &mdash; secret is cached in image layer forever</span>
+<span class="cmd">ENV</span> DATABASE_PASSWORD=<span class="str">"hunter2"</span>
+<span class="cmd">COPY</span> credentials.json /app/config/
+
+<span class="comment"># NEVER do this &mdash; even if you delete it later, the layer persists</span>
+<span class="cmd">COPY</span> .env /app/
+<span class="cmd">RUN</span> source /app/.env && setup.sh
+<span class="cmd">RUN</span> rm /app/.env  <span class="comment"># Too late &mdash; previous layer still has it</span></code></pre>
+            </div>
+
+            <h4>Build-Time Secrets (BuildKit)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># syntax=docker/dockerfile:1</span>
+<span class="cmd">FROM</span> node:20-alpine
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> package*.json ./
+
+<span class="comment"># Mount secret at build time &mdash; NOT persisted in any layer</span>
+<span class="cmd">RUN</span> --mount=type=secret,id=npm_token \
+    NPM_TOKEN=$(cat /run/secrets/npm_token) \
+    npm ci --only=production</code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Pass the secret at build time</span>
+<span class="cmd">$</span> docker build <span class="flag">--secret</span> id=npm_token,src=.npmrc .</code></pre>
+            </div>
+
+            <h4>Runtime Secrets (Docker Swarm)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create a secret in Docker Swarm</span>
+<span class="cmd">$</span> echo <span class="str">"supersecret"</span> | docker secret create db_password -
+
+<span class="comment"># Use in a service (mounted at /run/secrets/db_password)</span>
+<span class="cmd">$</span> docker service create <span class="flag">--secret</span> db_password myapp:latest
+
+<span class="comment"># In your app, read from the file</span>
+<span class="comment"># const password = fs.readFileSync('/run/secrets/db_password', 'utf8').trim();</span></code></pre>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Environment Variables Are Not Secrets</div>
+                <p><code>docker inspect</code> exposes all environment variables. <code>docker history</code> exposes all <code>ENV</code> instructions. <code>/proc/1/environ</code> is readable inside the container. Environment variables are convenient but not secure for sensitive values. Use mounted secret files or a secrets manager (Vault, AWS Secrets Manager, etc.) instead.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Read-Only Filesystems -->
+        <div class="section">
+            <h3>7. Read-Only Filesystems</h3>
+            <p>A compromised process cannot persist malware, drop webshells, or modify binaries if the filesystem is read-only. The <code>--read-only</code> flag mounts the container's root filesystem as read-only, forcing you to explicitly declare any writable paths.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Run with read-only filesystem</span>
+<span class="cmd">$</span> docker run <span class="flag">--read-only</span> myapp:latest
+
+<span class="comment"># Most apps need some writable dirs &mdash; use tmpfs</span>
+<span class="cmd">$</span> docker run <span class="flag">--read-only</span> \
+    <span class="flag">--tmpfs /tmp:rw,noexec,nosuid,size=64m</span> \
+    <span class="flag">--tmpfs /var/cache:rw,noexec,nosuid</span> \
+    myapp:latest
+
+<span class="comment"># Test what breaks: run your app and look for write errors</span>
+<span class="cmd">$</span> docker run <span class="flag">--read-only</span> <span class="flag">--tmpfs /tmp</span> myapp:latest 2>&1 | grep -i "read-only"</code></pre>
+            </div>
+
+            <h4>Docker Compose Example</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">services:</span>
+  <span class="file">webapp:</span>
+    <span class="cmd">image:</span> myapp:latest
+    <span class="cmd">read_only:</span> <span class="str">true</span>
+    <span class="cmd">tmpfs:</span>
+      - <span class="str">/tmp:size=64m</span>
+      - <span class="str">/var/run</span>
+    <span class="cmd">security_opt:</span>
+      - <span class="str">no-new-privileges:true</span></code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">tmpfs Options Matter</div>
+                <p><code>noexec</code> prevents executing binaries from the tmpfs mount. <code>nosuid</code> prevents setuid binaries. <code>size=64m</code> caps disk usage. Always set these options &mdash; an unrestricted tmpfs in a read-only container defeats the purpose.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Resource Limits -->
+        <div class="section">
+            <h3>8. Resource Limits</h3>
+            <p>Without limits, a single container can consume all host resources &mdash; CPU, memory, PIDs &mdash; starving every other container and the host itself. This is not hypothetical: it is one of the most common denial-of-service vectors in containerized environments.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Memory: hard limit (OOM-killed if exceeded), disable swap</span>
+<span class="cmd">$</span> docker run <span class="flag">--memory 512m</span> <span class="flag">--memory-swap 512m</span> myapp:latest
+
+<span class="comment"># CPU: limit to 1.5 cores</span>
+<span class="cmd">$</span> docker run <span class="flag">--cpus 1.5</span> myapp:latest
+
+<span class="comment"># PIDs: prevent fork bombs</span>
+<span class="cmd">$</span> docker run <span class="flag">--pids-limit 100</span> myapp:latest
+
+<span class="comment"># Test: fork bomb in PID-limited container (contained safely)</span>
+<span class="cmd">$</span> docker run <span class="flag">--pids-limit 20</span> --rm alpine sh -c <span class="str">":(){ :|:& };:"</span>
+<span class="output">sh: can't fork: Resource temporarily unavailable</span></code></pre>
+            </div>
+
+            <table class="compare">
+                <tr>
+                    <th>Resource</th>
+                    <th>Flag</th>
+                    <th>Default</th>
+                    <th>Recommended</th>
+                </tr>
+                <tr>
+                    <td>Memory</td>
+                    <td><code>--memory</code></td>
+                    <td>Unlimited</td>
+                    <td>Set based on app profiling</td>
+                </tr>
+                <tr>
+                    <td>CPU</td>
+                    <td><code>--cpus</code></td>
+                    <td>Unlimited</td>
+                    <td>1-2 cores for most services</td>
+                </tr>
+                <tr>
+                    <td>PIDs</td>
+                    <td><code>--pids-limit</code></td>
+                    <td>Unlimited</td>
+                    <td>100-200 for most apps</td>
+                </tr>
+                <tr>
+                    <td>Swap</td>
+                    <td><code>--memory-swap</code></td>
+                    <td>2x memory</td>
+                    <td>Equal to <code>--memory</code> (disable swap)</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Section 9: Network Security -->
+        <div class="section">
+            <h3>9. Network Security</h3>
+            <p>By default, all containers on the same Docker network can communicate freely. In production, this means a compromised container can pivot laterally to databases, caches, and internal APIs. Network segmentation and capability dropping are essential countermeasures.</p>
+
+            <h4>Dropping Capabilities</h4>
+            <p>Linux capabilities split root's power into ~40 individual privileges. Docker grants a default set of 14 capabilities. Best practice: drop all, then add only what you need.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Drop ALL capabilities, add only what's needed</span>
+<span class="cmd">$</span> docker run <span class="flag">--cap-drop ALL</span> <span class="flag">--cap-add NET_BIND_SERVICE</span> myapp:latest
+
+<span class="comment"># Common minimal set for a web server</span>
+<span class="cmd">$</span> docker run \
+    <span class="flag">--cap-drop ALL</span> \
+    <span class="flag">--cap-add CHOWN</span> \
+    <span class="flag">--cap-add SETUID</span> \
+    <span class="flag">--cap-add SETGID</span> \
+    <span class="flag">--cap-add NET_BIND_SERVICE</span> \
+    nginx:alpine
+
+<span class="comment"># Check what capabilities a running container has</span>
+<span class="cmd">$</span> docker exec mycontainer cat /proc/1/status | grep Cap</code></pre>
+            </div>
+
+            <h4>Network Isolation</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Create isolated networks per tier</span>
+<span class="cmd">$</span> docker network create frontend
+<span class="cmd">$</span> docker network create backend
+
+<span class="comment"># Web on frontend only; DB on backend only (unreachable from frontend)</span>
+<span class="cmd">$</span> docker run <span class="flag">--network frontend</span> nginx:alpine
+<span class="cmd">$</span> docker run <span class="flag">--network backend</span> postgres:16-alpine
+
+<span class="comment"># API bridges both tiers</span>
+<span class="cmd">$</span> docker run <span class="flag">--network frontend</span> <span class="flag">--name myapi</span> myapi:latest
+<span class="cmd">$</span> docker network connect backend myapi
+
+<span class="comment"># Disable networking entirely for batch jobs</span>
+<span class="cmd">$</span> docker run <span class="flag">--network none</span> batch-processor:latest
+
+<span class="comment"># Prevent privilege escalation via setuid binaries</span>
+<span class="cmd">$</span> docker run <span class="flag">--security-opt no-new-privileges:true</span> myapp:latest</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">The Principle of Least Connectivity</div>
+                <p>If two containers do not need to talk to each other, they should not be on the same network. A database should never be reachable from the internet-facing tier. Design your networks the same way you would design firewall zones.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Docker Daemon Security -->
+        <div class="section">
+            <h3>10. Docker Daemon Security</h3>
+            <p>The Docker daemon (<code>dockerd</code>) runs as root and controls everything: containers, images, networks, volumes. Access to the daemon is effectively root access to the host. Securing the daemon is just as important as securing containers.</p>
+
+            <h4>The Docker Socket Problem</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Anyone with access to the socket has root-equivalent access</span>
+<span class="cmd">$</span> ls -la /var/run/docker.sock
+<span class="output">srw-rw---- 1 root docker 0 Mar  5 10:00 /var/run/docker.sock</span>
+
+<span class="comment"># Members of the 'docker' group can escalate to root trivially</span>
+<span class="cmd">$</span> docker run -v /:/host --rm -it alpine chroot /host
+<span class="comment"># You are now root on the host.</span></code></pre>
+            </div>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">Never Mount the Docker Socket into Containers</div>
+                <p>Mounting <code>/var/run/docker.sock</code> into a container gives that container full control over the host. This is the most common container escape vector in the wild. If a tool requires the socket (CI runners, monitoring), isolate it in a dedicated VM or use Docker-in-Docker with appropriate constraints.</p>
+            </div>
+
+            <h4>Rootless Mode &amp; User Namespace Remapping</h4>
+            <p>Rootless mode runs the entire Docker daemon without root privileges. User namespace remapping maps container UID 0 to an unprivileged host UID. Both limit the impact of container escapes.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># --- Rootless mode ---</span>
+<span class="cmd">$</span> dockerd-rootless-setuptool.sh install
+<span class="cmd">$</span> docker info --format <span class="str">'{{.SecurityOptions}}'</span>
+<span class="output">[name=rootless ...]</span>
+
+<span class="comment"># --- User namespace remapping ---</span>
+<span class="comment"># Add to /etc/docker/daemon.json: {"userns-remap": "default"}</span>
+<span class="cmd">$</span> sudo systemctl restart docker
+<span class="cmd">$</span> docker run --rm alpine cat /proc/1/uid_map
+<span class="output">         0     100000      65536</span>
+<span class="comment"># Container UID 0 maps to host UID 100000</span></code></pre>
+            </div>
+        </div>
+
+        <!-- Section 11: Content Trust -->
+        <div class="section">
+            <h3>11. Content Trust &amp; Image Signing</h3>
+            <p>Docker Content Trust (DCT) uses digital signatures to verify the integrity and publisher of images. When enabled, Docker will only pull and run images that have been signed by a trusted publisher. This prevents man-in-the-middle attacks and ensures you are running exactly the image you expect.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Enable Docker Content Trust globally</span>
+<span class="cmd">$</span> export DOCKER_CONTENT_TRUST=1
+
+<span class="comment"># Pulls now only succeed for signed images</span>
+<span class="cmd">$</span> docker pull alpine:3.19
+<span class="output">Pull (1 of 1): alpine:3.19@sha256:...</span>
+
+<span class="comment"># Unsigned images are rejected</span>
+<span class="cmd">$</span> docker pull unsigned-image:latest
+<span class="output">Error: remote trust data does not exist</span>
+
+<span class="comment"># Push signed images (keys generated on first use)</span>
+<span class="cmd">$</span> docker push myregistry/myapp:v1.0
+<span class="output">Signing and pushing trust metadata...</span></code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Signing Key Hierarchy</div>
+                <p><strong>Root key:</strong> master key, used rarely, store offline or in a vault. <strong>Repository key:</strong> signs tags for a specific image repo, rotatable. <strong>Timestamp key:</strong> freshness guarantee, managed and auto-rotated by the Notary server.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Supply Chain Security</div>
+                <p>Image signing is the last mile of supply chain security. Combined with vulnerability scanning and trusted base images, it creates a chain of trust from source code to running container. For Kubernetes-native workflows, consider <code>cosign</code> (Sigstore) as a modern alternative to DCT &mdash; it supports keyless signing via OIDC and stores signatures alongside images in OCI registries.</p>
+            </div>
+        </div>
+
+        <!-- Section 12: Security Checklist -->
+        <div class="section">
+            <h3>12. Security Checklist</h3>
+            <p>The CIS Docker Benchmark is the industry standard for Docker security. Below are the most impactful recommendations, organized by category. Use this as a pre-production checklist and automate as many checks as possible in your CI pipeline.</p>
+
+            <h4>Image Hardening</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Base Image</span>
+                    <span>Use minimal, official, or verified base images. Pin by digest, not tag.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Scan</span>
+                    <span>Scan every image for CVEs before pushing to registry. Fail CI on HIGH/CRITICAL.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Multi-Stage</span>
+                    <span>Use multi-stage builds. Ship only the runtime &mdash; never compilers, debuggers, or package managers.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">No Secrets</span>
+                    <span>Never <code>COPY</code> or <code>ENV</code> secrets. Use BuildKit <code>--mount=type=secret</code> or runtime secret mounts.</span>
+                </div>
+            </div>
+
+            <h4>Runtime Hardening</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Non-Root</span>
+                    <span>Set <code>USER</code> in Dockerfile. Verify with <code>docker exec &lt;c&gt; id</code>.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Read-Only</span>
+                    <span>Run with <code>--read-only</code>. Use <code>--tmpfs</code> with <code>noexec,nosuid</code> for writable paths.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Cap Drop</span>
+                    <span>Use <code>--cap-drop ALL</code> and add back only required capabilities.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">No Privileges</span>
+                    <span>Set <code>--security-opt no-new-privileges:true</code> to prevent setuid escalation.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">Resources</span>
+                    <span>Set <code>--memory</code>, <code>--cpus</code>, and <code>--pids-limit</code> on every container.</span>
+                </div>
+            </div>
+
+            <h4>Infrastructure Hardening</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Daemon</span>
+                    <span>Use rootless mode or user namespace remapping. Never expose the daemon TCP socket without TLS.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Network</span>
+                    <span>Segment containers into separate Docker networks by tier. Use <code>--network none</code> for offline tasks.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Signing</span>
+                    <span>Enable Docker Content Trust or cosign. Only deploy signed images.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Audit</span>
+                    <span>Run Docker Bench for Security (<code>docker-bench-security</code>) regularly. Automate in CI.</span>
+                </div>
+            </div>
+
+            <h4>CI Integration (GitHub Actions)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">GitHub Actions</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="file">name:</span> Docker Security Gate
+<span class="file">on:</span> [push]
+<span class="file">jobs:</span>
+  <span class="file">scan:</span>
+    <span class="cmd">runs-on:</span> ubuntu-latest
+    <span class="cmd">steps:</span>
+      - <span class="cmd">uses:</span> actions/checkout@v4
+      - <span class="cmd">run:</span> docker build -t myapp:${{ github.sha }} .
+      - <span class="cmd">uses:</span> aquasecurity/trivy-action@master
+        <span class="cmd">with:</span>
+          <span class="str">image-ref:</span> myapp:${{ github.sha }}
+          <span class="str">severity:</span> HIGH,CRITICAL
+          <span class="str">exit-code:</span> <span class="str">'1'</span></code></pre>
+            </div>
+
+            <h4>Quick Reference: Hardened docker run</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Production-hardened docker run with all best practices applied</span>
+<span class="cmd">$</span> docker run \
+    <span class="flag">--read-only</span> \
+    <span class="flag">--tmpfs /tmp:rw,noexec,nosuid,size=64m</span> \
+    <span class="flag">--cap-drop ALL</span> \
+    <span class="flag">--cap-add NET_BIND_SERVICE</span> \
+    <span class="flag">--security-opt no-new-privileges:true</span> \
+    <span class="flag">--memory 512m</span> \
+    <span class="flag">--memory-swap 512m</span> \
+    <span class="flag">--cpus 1</span> \
+    <span class="flag">--pids-limit 100</span> \
+    <span class="flag">--network frontend</span> \
+    <span class="flag">--user 1000:1000</span> \
+    <span class="flag">--restart unless-stopped</span> \
+    <span class="flag">--name myapp</span> \
+    myapp:latest</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Security Is a Spectrum</div>
+                <p>You do not need to implement every hardening measure on day one. Start with non-root users and vulnerability scanning. Then add read-only filesystems and capability drops. Then network segmentation and Content Trust. Each layer reduces your attack surface. The goal is continuous improvement, not perfection.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Security layer diagram interaction
+        const layers = {
+            namespaces: {
+                title: 'Namespaces (Isolation)',
+                desc: 'Namespaces partition kernel resources so each container sees its own isolated instance. Docker uses 6 namespace types: <strong>PID</strong> (process tree), <strong>NET</strong> (network stack), <strong>MNT</strong> (filesystem mounts), <strong>UTS</strong> (hostname), <strong>IPC</strong> (inter-process communication), and <strong>USER</strong> (UID/GID mapping). A process inside a container cannot see processes, networks, or mounts from other containers or the host.'
+            },
+            cgroups: {
+                title: 'Cgroups (Resource Limits)',
+                desc: 'Control groups (cgroups) limit and account for the resources a container can consume: CPU time, memory, disk I/O, network bandwidth, and number of processes. Without cgroups, a single container could starve the entire host. Cgroups v2 (unified hierarchy) is the modern implementation and is the default on recent kernels.'
+            },
+            capabilities: {
+                title: 'Capabilities (Privilege Control)',
+                desc: 'Linux capabilities break the monolithic root privilege into ~40 discrete privileges. Instead of granting full root, you can grant only <code>CAP_NET_BIND_SERVICE</code> (bind to ports below 1024) or <code>CAP_CHOWN</code> (change file ownership). Docker drops many capabilities by default but still grants 14. Best practice is <code>--cap-drop ALL</code> and then add back only what is required.'
+            },
+            seccomp: {
+                title: 'Seccomp (Syscall Filtering)',
+                desc: 'Secure computing mode (seccomp) filters which system calls a process can make. Docker applies a default seccomp profile that blocks ~44 dangerous syscalls (e.g., <code>mount</code>, <code>reboot</code>, <code>clock_settime</code>, <code>keyctl</code>). You can create custom profiles to further restrict syscalls based on your application\'s actual needs. If your app only needs <code>read</code>, <code>write</code>, <code>open</code>, <code>close</code>, and <code>epoll</code>, you can block everything else.'
+            }
+        };
+
+        function showLayer(id) {
+            document.querySelectorAll('.diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + id).classList.add('active');
+            const l = layers[id];
+            document.getElementById('layerDetail').innerHTML = '<strong>' + l.title + '</strong><br>' + l.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-54'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-54-docker-security', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first layer
+        showLayer('namespaces');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-54']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

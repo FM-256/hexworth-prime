@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dockerfile Deep Dive - The Forge - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-gear.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 820px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 550px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Sections */
+        .section { margin-bottom: 40px; }
+        .section h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .section h4 { font-size: 16px; font-weight: 600; color: var(--forge); margin: 20px 0 10px; }
+        .section p { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+
+        /* Code blocks */
+        .code-block { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0 18px; overflow: hidden; }
+        .code-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+        .code-lang { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .code-copy { font-size: 11px; color: var(--forge); cursor: pointer; background: none; border: none; font-weight: 600; }
+        .code-copy:hover { text-decoration: underline; }
+        .code-block pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .code-block code { color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+        .code-block .cmd { color: #79c0ff; }
+        .code-block .flag { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .comment { color: #8b949e; }
+        .code-block .output { color: #7ee787; }
+        .code-block .file { color: #ffa657; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-key { background: var(--forge-dim); border-left: 3px solid var(--forge); }
+        .callout-key .callout-title { color: var(--forge); }
+
+        /* Diagram */
+        .diagram { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+        .diagram-box { text-align: center; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 140px; cursor: pointer; transition: all 0.25s; }
+        .diagram-box:hover, .diagram-box.active { border-color: var(--forge); background: var(--forge-dim); }
+        .diagram-box-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .diagram-box-sub { font-size: 11px; color: var(--text-dim); }
+        .diagram-arrow { font-size: 20px; color: var(--forge); padding: 0 8px; font-weight: bold; }
+        .diagram-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-top: 8px; font-size: 13px; color: var(--text-dim); min-height: 60px; transition: all 0.3s; }
+
+        /* Compare table */
+        .compare { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-size: 13px; }
+        .compare th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); color: var(--forge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+        .compare code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Command grid */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: all 0.2s; }
+        .cmd-card:hover { border-color: var(--forge); }
+        .cmd-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .cmd-card-head code { font-size: 15px; font-weight: 700; color: #79c0ff; background: none; padding: 0; }
+        .cmd-card-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--forge-dim); color: var(--forge); }
+        .cmd-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .cmd-card .example { margin-top: 8px; background: var(--bg-code); padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: 'Cascadia Code', monospace; color: #e6edf3; }
+
+        /* Status diagram */
+        .status-flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+        .status-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-label { font-weight: 600; color: #fff; min-width: 90px; }
+
+        /* Complete button */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .diagram { flex-direction: column; }
+            .diagram-arrow { transform: rotate(90deg); }
+            .cmd-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-48</span>
+            <h1>Dockerfile Deep Dive</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; Docker Section</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-gear.webp" alt="">
+            <h2>Dockerfile Deep Dive</h2>
+            <p class="hero-sub">Master the declarative blueprint that turns source code into reproducible container images. From FROM to multi-stage builds &mdash; every instruction explained.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~40 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Module</span>
+                <span><img src="../../../../../assets/images/icons/icon-gear.webp" alt="" width="14" height="14"> Beginner-Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Understand what a Dockerfile is and how the build context works</li>
+                <li>Use all essential instructions: FROM, RUN, COPY, ADD, CMD, ENTRYPOINT, EXPOSE, ENV, WORKDIR, USER, ARG, LABEL</li>
+                <li>Choose appropriate base images and pin versions for reproducibility</li>
+                <li>Distinguish between shell form and exec form for RUN, CMD, and ENTRYPOINT</li>
+                <li>Build multi-stage Dockerfiles that produce minimal production images</li>
+                <li>Write a <code>.dockerignore</code> to control the build context</li>
+                <li>Order instructions for optimal layer caching</li>
+                <li>Apply production best practices: non-root users, health checks, signal handling</li>
+            </ul>
+        </div>
+
+        <!-- Section 1: What is a Dockerfile? -->
+        <div class="section">
+            <h3>1. What is a Dockerfile?</h3>
+            <p>A Dockerfile is a plain text file containing a series of instructions that Docker reads to automatically build a container image. Each instruction creates a new <strong>layer</strong> in the image. Think of it as a recipe: the instructions are deterministic, ordered, and reproducible &mdash; anyone with the same Dockerfile and build context produces the same image.</p>
+
+            <p>When you run <code>docker build</code>, Docker sends the <strong>build context</strong> (the directory you specify) to the Docker daemon, then processes each instruction top-to-bottom. The build context is critical &mdash; it defines which files COPY and ADD can access.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Build an image from the current directory</span>
+<span class="cmd">$</span> docker build <span class="flag">-t</span> <span class="str">myapp:1.0</span> .
+
+<span class="comment"># The "." is the build context &mdash; Docker sends this entire directory</span>
+<span class="comment"># to the daemon before processing any instructions</span>
+
+<span class="comment"># Build with a specific Dockerfile location</span>
+<span class="cmd">$</span> docker build <span class="flag">-f</span> <span class="str">deploy/Dockerfile.prod</span> <span class="flag">-t</span> <span class="str">myapp:prod</span> .</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Key Concept</div>
+                <p>The build context is not always the same as the Dockerfile location. The context is the path argument to <code>docker build</code> (usually <code>.</code>), while <code>-f</code> specifies which Dockerfile to use. Every file in the build context gets sent to the daemon, so a large context means slow builds.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Essential Instructions -->
+        <div class="section">
+            <h3>2. Essential Instructions</h3>
+            <p>A Dockerfile supports roughly 18 instructions, but you will use these 12 in nearly every image you build. Click each one to see what it does.</p>
+
+            <div class="diagram" id="instructionDiagram">
+                <div class="diagram-box" onclick="showInstruction('from')">
+                    <div class="diagram-box-title">FROM</div>
+                    <div class="diagram-box-sub">Base image</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showInstruction('run')">
+                    <div class="diagram-box-title">RUN</div>
+                    <div class="diagram-box-sub">Execute commands</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showInstruction('copy')">
+                    <div class="diagram-box-title">COPY</div>
+                    <div class="diagram-box-sub">Add files</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showInstruction('cmd')">
+                    <div class="diagram-box-title">CMD</div>
+                    <div class="diagram-box-sub">Default command</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="instructionDetail">Click an instruction above to learn what it does.</div>
+
+            <table class="compare">
+                <tr>
+                    <th>Instruction</th>
+                    <th>Purpose</th>
+                    <th>Creates Layer?</th>
+                </tr>
+                <tr>
+                    <td><code>FROM</code></td>
+                    <td>Set the base image for the build</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><code>RUN</code></td>
+                    <td>Execute a command during build</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><code>COPY</code></td>
+                    <td>Copy files from build context into image</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><code>ADD</code></td>
+                    <td>Like COPY but handles URLs and tar extraction</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><code>CMD</code></td>
+                    <td>Default command when container starts</td>
+                    <td>No (metadata)</td>
+                </tr>
+                <tr>
+                    <td><code>ENTRYPOINT</code></td>
+                    <td>Configure container as an executable</td>
+                    <td>No (metadata)</td>
+                </tr>
+                <tr>
+                    <td><code>EXPOSE</code></td>
+                    <td>Document which ports the container listens on</td>
+                    <td>No (metadata)</td>
+                </tr>
+                <tr>
+                    <td><code>ENV</code></td>
+                    <td>Set environment variables</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><code>WORKDIR</code></td>
+                    <td>Set the working directory for subsequent instructions</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><code>USER</code></td>
+                    <td>Set the user for RUN, CMD, ENTRYPOINT</td>
+                    <td>No (metadata)</td>
+                </tr>
+                <tr>
+                    <td><code>ARG</code></td>
+                    <td>Define build-time variables</td>
+                    <td>No (metadata)</td>
+                </tr>
+                <tr>
+                    <td><code>LABEL</code></td>
+                    <td>Add metadata key-value pairs to the image</td>
+                    <td>No (metadata)</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Section 3: FROM -->
+        <div class="section">
+            <h3>3. FROM &mdash; Choosing a Base Image</h3>
+            <p>Every Dockerfile must begin with a <code>FROM</code> instruction. It sets the base image that all subsequent instructions build on top of. Choosing the right base image is one of the most consequential decisions you make &mdash; it determines image size, security surface, and available tooling.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Official Node.js on Debian Bookworm (full)</span>
+<span class="cmd">FROM</span> <span class="str">node:20-bookworm</span>
+
+<span class="comment"># Slim variant &mdash; removes dev tools, docs, man pages</span>
+<span class="cmd">FROM</span> <span class="str">node:20-bookworm-slim</span>
+
+<span class="comment"># Alpine variant &mdash; ~5 MB base, musl libc</span>
+<span class="cmd">FROM</span> <span class="str">node:20-alpine3.19</span>
+
+<span class="comment"># Pin to exact digest for reproducibility</span>
+<span class="cmd">FROM</span> <span class="str">node:20-alpine3.19@sha256:a1b2c3d4...</span>
+
+<span class="comment"># Scratch &mdash; empty image, for statically compiled binaries</span>
+<span class="cmd">FROM</span> <span class="str">scratch</span></code></pre>
+            </div>
+
+            <h4>Base Image Comparison</h4>
+            <table class="compare">
+                <tr>
+                    <th>Base</th>
+                    <th>Size</th>
+                    <th>Package Manager</th>
+                    <th>Best For</th>
+                </tr>
+                <tr>
+                    <td><code>debian:bookworm</code></td>
+                    <td>~120 MB</td>
+                    <td>apt</td>
+                    <td>Full toolchain, compatibility</td>
+                </tr>
+                <tr>
+                    <td><code>debian:bookworm-slim</code></td>
+                    <td>~75 MB</td>
+                    <td>apt</td>
+                    <td>Smaller Debian without extras</td>
+                </tr>
+                <tr>
+                    <td><code>alpine:3.19</code></td>
+                    <td>~7 MB</td>
+                    <td>apk</td>
+                    <td>Minimal images, fast pulls</td>
+                </tr>
+                <tr>
+                    <td><code>gcr.io/distroless/static</code></td>
+                    <td>~2 MB</td>
+                    <td>None</td>
+                    <td>Compiled languages (Go, Rust)</td>
+                </tr>
+                <tr>
+                    <td><code>scratch</code></td>
+                    <td>0 MB</td>
+                    <td>None</td>
+                    <td>Statically linked binaries only</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Alpine Gotcha</div>
+                <p>Alpine uses musl libc instead of glibc. Most software works fine, but some native Node.js modules, Python packages with C extensions, and Java applications can break or run slower. Always test thoroughly when switching to Alpine.</p>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Pin Your Versions</div>
+                <p>Never use <code>FROM node:latest</code> in production. Tags like <code>latest</code> are mutable &mdash; they change without warning. Pin to a specific version like <code>node:20.11.1-bookworm-slim</code> or, for maximum reproducibility, pin to a digest with <code>@sha256:...</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 4: RUN -->
+        <div class="section">
+            <h3>4. RUN &mdash; Executing Build Commands</h3>
+            <p><code>RUN</code> executes commands inside the image during build time. Each RUN instruction creates a new layer. This is where you install packages, compile code, create directories, and configure the environment.</p>
+
+            <h4>Shell Form vs Exec Form</h4>
+            <table class="compare">
+                <tr>
+                    <th>Form</th>
+                    <th>Syntax</th>
+                    <th>How It Runs</th>
+                </tr>
+                <tr>
+                    <td>Shell form</td>
+                    <td><code>RUN apt-get update</code></td>
+                    <td>Invokes <code>/bin/sh -c "apt-get update"</code></td>
+                </tr>
+                <tr>
+                    <td>Exec form</td>
+                    <td><code>RUN ["apt-get", "update"]</code></td>
+                    <td>Runs the executable directly, no shell processing</td>
+                </tr>
+            </table>
+
+            <p>Shell form is the default and supports variable expansion, piping, and chaining with <code>&amp;&amp;</code>. Exec form is useful when you need to avoid shell processing or use a different shell.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># BAD: Each RUN creates a separate layer</span>
+<span class="cmd">RUN</span> apt-get update
+<span class="cmd">RUN</span> apt-get install -y curl
+<span class="cmd">RUN</span> apt-get install -y wget
+<span class="cmd">RUN</span> rm -rf /var/lib/apt/lists/*
+
+<span class="comment"># GOOD: Single layer, cleanup in same layer</span>
+<span class="cmd">RUN</span> apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        wget \
+    && rm -rf /var/lib/apt/lists/*</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Layer Reduction</div>
+                <p>Combine related commands with <code>&amp;&amp;</code> and line continuations (<code>\</code>) into a single RUN instruction. This reduces layer count and &mdash; critically &mdash; ensures cleanup commands (like removing apt caches) actually reduce image size. If cleanup runs in a separate RUN, the deleted files still exist in the previous layer.</p>
+            </div>
+
+            <h4>APT Best Practices</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">RUN</span> apt-get update \
+    && apt-get install -y --no-install-recommends \
+        <span class="comment"># Sort packages alphabetically for readability</span>
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release \
+    <span class="comment"># Always clean up in the same layer</span>
+    && rm -rf /var/lib/apt/lists/*</code></pre>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Why --no-install-recommends?</div>
+                <p>Debian/Ubuntu packages declare "recommended" dependencies that get installed by default. These add bloat you rarely need in a container. The <code>--no-install-recommends</code> flag installs only required dependencies, keeping images lean.</p>
+            </div>
+        </div>
+
+        <!-- Section 5: COPY vs ADD -->
+        <div class="section">
+            <h3>5. COPY vs ADD</h3>
+            <p>Both instructions copy files from the build context into the image, but they behave differently. The Docker documentation recommends using <code>COPY</code> in almost all cases.</p>
+
+            <table class="compare">
+                <tr>
+                    <th>Feature</th>
+                    <th>COPY</th>
+                    <th>ADD</th>
+                </tr>
+                <tr>
+                    <td>Copy local files</td>
+                    <td>Yes</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td>Auto-extract tar archives</td>
+                    <td>No</td>
+                    <td>Yes (.tar, .tar.gz, .tgz, etc.)</td>
+                </tr>
+                <tr>
+                    <td>Fetch remote URLs</td>
+                    <td>No</td>
+                    <td>Yes (but prefer <code>curl</code> or <code>wget</code>)</td>
+                </tr>
+                <tr>
+                    <td>Transparency</td>
+                    <td>Explicit &mdash; does exactly what it says</td>
+                    <td>Implicit &mdash; magic behavior can surprise you</td>
+                </tr>
+            </table>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Use COPY for straightforward file copying</span>
+<span class="cmd">COPY</span> package.json package-lock.json ./
+<span class="cmd">COPY</span> src/ ./src/
+
+<span class="comment"># Use ADD only when you need tar extraction</span>
+<span class="cmd">ADD</span> assets.tar.gz /app/assets/
+
+<span class="comment"># DON'T use ADD for remote files &mdash; use curl instead</span>
+<span class="comment"># BAD:</span>
+<span class="cmd">ADD</span> https://example.com/file.tar.gz /tmp/
+<span class="comment"># GOOD: download + extract + cleanup in one layer</span>
+<span class="cmd">RUN</span> curl -fsSL https://example.com/file.tar.gz \
+    | tar -xz -C /app/</code></pre>
+            </div>
+
+            <h4>The .dockerignore File</h4>
+            <p>Before COPY or ADD can access files, those files must be in the build context. The <code>.dockerignore</code> file controls what gets included &mdash; but we cover that in detail in Section 9.</p>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">COPY --chown</div>
+                <p>By default, files are copied as root (UID 0). Use <code>COPY --chown=node:node</code> to set ownership during copy rather than adding a separate <code>RUN chown</code> layer. This only works on Linux-based images.</p>
+            </div>
+        </div>
+
+        <!-- Section 6: CMD vs ENTRYPOINT -->
+        <div class="section">
+            <h3>6. CMD vs ENTRYPOINT</h3>
+            <p>Both define what runs when a container starts, but they serve different purposes and interact with each other. Understanding this distinction is essential for writing production Dockerfiles.</p>
+
+            <h4>CMD &mdash; Default Arguments</h4>
+            <p><code>CMD</code> provides the default command (and/or arguments) for a container. It can be overridden entirely by passing arguments to <code>docker run</code>.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Exec form (preferred) &mdash; no shell wrapping</span>
+<span class="cmd">CMD</span> ["node", "server.js"]
+
+<span class="comment"># Shell form &mdash; wraps in /bin/sh -c</span>
+<span class="cmd">CMD</span> node server.js
+
+<span class="comment"># Only the LAST CMD in a Dockerfile takes effect</span></code></pre>
+            </div>
+
+            <h4>ENTRYPOINT &mdash; Fixed Executable</h4>
+            <p><code>ENTRYPOINT</code> configures the container to run as an executable. Unlike CMD, it is <em>not</em> overridden by <code>docker run</code> arguments &mdash; those arguments are appended to it instead.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Container always runs "node" &mdash; arguments are appended</span>
+<span class="cmd">ENTRYPOINT</span> ["node"]
+<span class="cmd">CMD</span> ["server.js"]
+
+<span class="comment"># docker run myapp             &rarr; node server.js</span>
+<span class="comment"># docker run myapp worker.js   &rarr; node worker.js</span>
+<span class="comment"># docker run myapp --inspect   &rarr; node --inspect</span></code></pre>
+            </div>
+
+            <h4>Interaction Matrix</h4>
+            <table class="compare">
+                <tr>
+                    <th>Dockerfile</th>
+                    <th>docker run myapp</th>
+                    <th>docker run myapp bash</th>
+                </tr>
+                <tr>
+                    <td><code>CMD ["node", "app.js"]</code></td>
+                    <td><code>node app.js</code></td>
+                    <td><code>bash</code> (CMD replaced)</td>
+                </tr>
+                <tr>
+                    <td><code>ENTRYPOINT ["node"]</code></td>
+                    <td><code>node</code></td>
+                    <td><code>node bash</code> (appended)</td>
+                </tr>
+                <tr>
+                    <td>Both combined</td>
+                    <td><code>node app.js</code></td>
+                    <td><code>node bash</code> (CMD replaced)</td>
+                </tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">When To Use Which</div>
+                <p>Use <code>CMD</code> alone for general-purpose images where users might want to run different commands. Use <code>ENTRYPOINT</code> + <code>CMD</code> together for tool-like containers where the binary is fixed but arguments vary. Always use exec form (<code>["executable", "arg"]</code>) &mdash; shell form wraps in <code>/bin/sh -c</code>, which prevents proper signal handling.</p>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Shell Form Breaks Signals</div>
+                <p>With shell form (<code>CMD node server.js</code>), your process runs as a child of <code>/bin/sh</code> with PID > 1. SIGTERM goes to the shell, not your app, so <code>docker stop</code> waits the full timeout before SIGKILL. Always use exec form in production.</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Multi-Stage Builds -->
+        <div class="section">
+            <h3>7. Multi-Stage Builds</h3>
+            <p>Multi-stage builds use multiple <code>FROM</code> statements in a single Dockerfile. Each FROM starts a new build stage. You can selectively copy artifacts from one stage to another, leaving behind everything you don't need in the final image.</p>
+
+            <p>This is the single most effective technique for reducing image size. A typical pattern: Stage 1 installs build tools and compiles your code. Stage 2 starts from a minimal base and copies only the compiled output.</p>
+
+            <div class="diagram" id="stageDiagram">
+                <div class="diagram-box" onclick="showStage('build')">
+                    <div class="diagram-box-title">Build Stage</div>
+                    <div class="diagram-box-sub">SDK + tools + source</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showStage('copy')">
+                    <div class="diagram-box-title">COPY --from</div>
+                    <div class="diagram-box-sub">Cherry-pick artifacts</div>
+                </div>
+                <div class="diagram-arrow">&rarr;</div>
+                <div class="diagram-box" onclick="showStage('runtime')">
+                    <div class="diagram-box-title">Runtime Stage</div>
+                    <div class="diagram-box-sub">Minimal base + binary</div>
+                </div>
+            </div>
+            <div class="diagram-detail" id="stageDetail">Click a stage above to learn more.</div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Stage 1: Build</span>
+<span class="cmd">FROM</span> <span class="str">node:20-bookworm</span> <span class="flag">AS</span> <span class="str">builder</span>
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> package*.json ./
+<span class="cmd">RUN</span> npm ci
+<span class="cmd">COPY</span> . .
+<span class="cmd">RUN</span> npm run build
+
+<span class="comment"># Stage 2: Production</span>
+<span class="cmd">FROM</span> <span class="str">node:20-bookworm-slim</span> <span class="flag">AS</span> <span class="str">production</span>
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> <span class="flag">--from=builder</span> /app/dist ./dist
+<span class="cmd">COPY</span> <span class="flag">--from=builder</span> /app/node_modules ./node_modules
+<span class="cmd">COPY</span> package*.json ./
+
+<span class="cmd">USER</span> node
+<span class="cmd">EXPOSE</span> 3000
+<span class="cmd">CMD</span> ["node", "dist/server.js"]</code></pre>
+            </div>
+
+            <h4>Size Impact</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--red)"></div>
+                    <span class="status-label">Single stage</span>
+                    <span>~1.2 GB &mdash; includes Node SDK, npm cache, source code, devDependencies, build toolchain</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Two stages</span>
+                    <span>~250 MB &mdash; slim base + production dependencies + compiled output only</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Distroless</span>
+                    <span>~80 MB &mdash; no shell, no package manager, just your app and runtime</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Named Stages</div>
+                <p>Name your stages with <code>AS builder</code> so you can reference them with <code>COPY --from=builder</code>. Without names, you reference by index (<code>--from=0</code>), which is fragile and hard to read. You can also build a specific stage with <code>docker build --target builder</code>.</p>
+            </div>
+        </div>
+
+        <!-- Section 8: Build Arguments -->
+        <div class="section">
+            <h3>8. Build Arguments (ARG)</h3>
+            <p><code>ARG</code> defines variables that users can pass at build time with <code>--build-arg</code>. Unlike <code>ENV</code>, ARG values are not available in the running container &mdash; they only exist during the build.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Define with a default value</span>
+<span class="cmd">ARG</span> <span class="str">NODE_VERSION=20</span>
+<span class="cmd">FROM</span> <span class="str">node:${NODE_VERSION}-alpine</span>
+
+<span class="comment"># ARG before FROM is only available in FROM itself</span>
+<span class="comment"># Redeclare after FROM to use in later instructions</span>
+<span class="cmd">ARG</span> <span class="str">APP_VERSION=1.0.0</span>
+<span class="cmd">LABEL</span> version="${APP_VERSION}"
+
+<span class="comment"># Set environment variable from build arg</span>
+<span class="cmd">ARG</span> <span class="str">API_URL</span>
+<span class="cmd">ENV</span> <span class="str">REACT_APP_API_URL=${API_URL}</span></code></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Terminal</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Override defaults at build time</span>
+<span class="cmd">$</span> docker build \
+    <span class="flag">--build-arg</span> <span class="str">NODE_VERSION=18</span> \
+    <span class="flag">--build-arg</span> <span class="str">API_URL=https://api.prod.example.com</span> \
+    <span class="flag">-t</span> <span class="str">myapp:prod</span> .</code></pre>
+            </div>
+
+            <h4>Scope Rules</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">Before FROM</span>
+                    <span>ARG is only available in the FROM instruction itself. Must redeclare after FROM to use elsewhere.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">After FROM</span>
+                    <span>ARG is available in all subsequent instructions within that build stage.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--purple)"></div>
+                    <span class="status-label">Multi-stage</span>
+                    <span>Each FROM resets all ARGs. You must redeclare them in each stage where needed.</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Security Warning</div>
+                <p>Build args are visible in the image history (<code>docker history</code>) and build logs. Never pass secrets (API keys, passwords, tokens) via <code>ARG</code>. Use Docker BuildKit secrets (<code>--secret</code>) or mount secrets at runtime instead.</p>
+            </div>
+        </div>
+
+        <!-- Section 9: .dockerignore -->
+        <div class="section">
+            <h3>9. .dockerignore</h3>
+            <p>The <code>.dockerignore</code> file sits in the root of your build context and tells Docker which files and directories to exclude when sending the context to the daemon. It works just like <code>.gitignore</code>.</p>
+
+            <p>Without a <code>.dockerignore</code>, Docker sends <em>everything</em> in the context directory &mdash; including <code>node_modules</code>, <code>.git</code>, local environment files, and build artifacts. This bloats the context, slows builds, and can leak secrets into your image.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">.dockerignore</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># Version control</span>
+<span class="file">.git</span>
+<span class="file">.gitignore</span>
+
+<span class="comment"># Dependencies (reinstalled during build)</span>
+<span class="file">node_modules</span>
+<span class="file">vendor</span>
+
+<span class="comment"># Build output (rebuilt during build)</span>
+<span class="file">dist</span>
+<span class="file">build</span>
+<span class="file">*.o</span>
+<span class="file">*.a</span>
+
+<span class="comment"># Environment and secrets</span>
+<span class="file">.env</span>
+<span class="file">.env.*</span>
+<span class="file">*.pem</span>
+<span class="file">*.key</span>
+
+<span class="comment"># Docker files (avoid recursive builds)</span>
+<span class="file">Dockerfile*</span>
+<span class="file">docker-compose*.yml</span>
+<span class="file">.dockerignore</span>
+
+<span class="comment"># IDE and OS files</span>
+<span class="file">.vscode</span>
+<span class="file">.idea</span>
+<span class="file">.DS_Store</span>
+<span class="file">Thumbs.db</span>
+
+<span class="comment"># Documentation and tests</span>
+<span class="file">README.md</span>
+<span class="file">docs/</span>
+<span class="file">__tests__/</span>
+<span class="file">*.test.js</span>
+<span class="file">*.spec.js</span></code></pre>
+            </div>
+
+            <h4>Pattern Syntax</h4>
+            <table class="compare">
+                <tr><th>Pattern</th><th>Effect</th></tr>
+                <tr><td><code>*.md</code></td><td>Exclude all markdown files</td></tr>
+                <tr><td><code>!README.md</code></td><td>Re-include README.md (exception)</td></tr>
+                <tr><td><code>temp?</code></td><td>Exclude temp1, tempA, etc. (single char wildcard)</td></tr>
+                <tr><td><code>**/logs</code></td><td>Exclude <code>logs</code> directories at any depth</td></tr>
+                <tr><td><code>#</code></td><td>Comment line (ignored)</td></tr>
+            </table>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Context Size Matters</div>
+                <p>Run <code>docker build</code> and watch the "Sending build context" message. If it says hundreds of MB, you need a <code>.dockerignore</code>. A well-configured ignore file can reduce context from 500 MB to 5 MB, making builds dramatically faster.</p>
+            </div>
+        </div>
+
+        <!-- Section 10: Layer Caching -->
+        <div class="section">
+            <h3>10. Layer Caching</h3>
+            <p>Docker caches each layer. When rebuilding, Docker checks if the instruction and all its inputs are unchanged since the last build. If they are, Docker reuses the cached layer instead of re-executing the instruction. The moment one layer's cache is invalidated, <em>all subsequent layers</em> are also rebuilt.</p>
+
+            <h4>How Cache Invalidation Works</h4>
+            <div class="status-flow">
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--forge)"></div>
+                    <span class="status-label">RUN</span>
+                    <span>Cache invalidated if the instruction string changes. Docker does NOT check if the command would produce different output.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--blue)"></div>
+                    <span class="status-label">COPY / ADD</span>
+                    <span>Cache invalidated if any copied file's content (checksum) has changed. File metadata changes also trigger invalidation.</span>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot" style="background: var(--orange)"></div>
+                    <span class="status-label">Cascade</span>
+                    <span>Once one layer busts the cache, every layer after it is rebuilt from scratch &mdash; even if those instructions haven't changed.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># BAD ORDER: Changing any source file busts npm install cache</span>
+<span class="cmd">FROM</span> <span class="str">node:20-alpine</span>
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> . .                      <span class="comment"># Source changes invalidate this layer</span>
+<span class="cmd">RUN</span> npm ci                    <span class="comment"># Forced to re-run every time</span>
+<span class="cmd">CMD</span> ["node", "server.js"]
+
+<span class="comment"># GOOD ORDER: Dependencies cached until package.json changes</span>
+<span class="cmd">FROM</span> <span class="str">node:20-alpine</span>
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> package*.json ./         <span class="comment"># Only changes when deps change</span>
+<span class="cmd">RUN</span> npm ci                    <span class="comment"># Cached until package.json changes</span>
+<span class="cmd">COPY</span> . .                      <span class="comment"># Source changes only affect this layer</span>
+<span class="cmd">CMD</span> ["node", "server.js"]</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">The Golden Rule</div>
+                <p>Order instructions from <strong>least frequently changed</strong> to <strong>most frequently changed</strong>. Base image and system packages first, then dependency manifests, then source code. This maximizes cache hits and minimizes rebuild time.</p>
+            </div>
+        </div>
+
+        <!-- Section 11: Best Practices -->
+        <div class="section">
+            <h3>11. Best Practices</h3>
+
+            <h4>One Process Per Container</h4>
+            <p>Each container should run a single process. Don't run your app server, a cron job, and a log shipper in the same container. Use container orchestration (Docker Compose, Kubernetes) to manage multiple services that work together.</p>
+
+            <h4>Non-Root USER</h4>
+            <p>By default, processes inside a container run as root. If an attacker exploits your application, they have root access to the container &mdash; and potentially the host. Always create and switch to a non-root user.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">FROM</span> <span class="str">node:20-alpine</span>
+
+<span class="comment"># Create a non-root user and group</span>
+<span class="cmd">RUN</span> addgroup -S appgroup && adduser -S appuser -G appgroup
+
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> <span class="flag">--chown=appuser:appgroup</span> . .
+<span class="cmd">RUN</span> npm ci --omit=dev
+
+<span class="comment"># Switch to non-root user before CMD</span>
+<span class="cmd">USER</span> appuser
+
+<span class="cmd">CMD</span> ["node", "server.js"]</code></pre>
+            </div>
+
+            <h4>HEALTHCHECK</h4>
+            <p>The <code>HEALTHCHECK</code> instruction tells Docker how to test whether the container is still working. Orchestrators use this to restart unhealthy containers automatically.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="cmd">HEALTHCHECK</span> <span class="flag">--interval=30s</span> <span class="flag">--timeout=5s</span> <span class="flag">--start-period=10s</span> <span class="flag">--retries=3</span> \
+    CMD ["curl", "-f", "http://localhost:3000/health"]
+
+<span class="comment"># Or without curl (using Node directly):</span>
+<span class="cmd">HEALTHCHECK</span> <span class="flag">--interval=30s</span> <span class="flag">--timeout=5s</span> <span class="flag">--retries=3</span> \
+    CMD ["node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]</code></pre>
+            </div>
+
+            <h4>Proper Signal Handling</h4>
+            <p>When Docker stops a container, it sends SIGTERM to PID 1. Your application must handle this signal to shut down gracefully (close DB connections, finish in-flight requests, flush logs). Use exec form for CMD/ENTRYPOINT so your app is PID 1.</p>
+
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">JavaScript</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment">// Graceful shutdown handler in Node.js</span>
+<span class="cmd">process</span>.on(<span class="str">'SIGTERM'</span>, () => {
+    console.log(<span class="str">'SIGTERM received. Shutting down gracefully...'</span>);
+    server.close(() => {
+        console.log(<span class="str">'Closed remaining connections.'</span>);
+        process.exit(0);
+    });
+
+    <span class="comment">// Force shutdown after 10 seconds</span>
+    setTimeout(() => {
+        console.error(<span class="str">'Forced shutdown after timeout.'</span>);
+        process.exit(1);
+    }, 10000);
+});</code></pre>
+            </div>
+
+            <h4>Quick-Reference Checklist</h4>
+            <div class="cmd-grid">
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Pin versions</code> <span class="tag">SECURITY</span></div>
+                    <p>Pin base image tags and package versions. Never use <code>:latest</code> in production.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Use .dockerignore</code> <span class="tag">PERFORMANCE</span></div>
+                    <p>Exclude .git, node_modules, .env, tests, and docs from the build context.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Minimize layers</code> <span class="tag">SIZE</span></div>
+                    <p>Chain RUN commands with <code>&amp;&amp;</code>. Clean up caches in the same layer.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Use multi-stage</code> <span class="tag">SIZE</span></div>
+                    <p>Build in a full image, copy artifacts to a slim or distroless runtime image.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Exec form only</code> <span class="tag">RELIABILITY</span></div>
+                    <p>Always use <code>["executable", "arg"]</code> for CMD and ENTRYPOINT. Shell form breaks signals.</p>
+                </div>
+                <div class="cmd-card">
+                    <div class="cmd-card-head"><code>Non-root user</code> <span class="tag">SECURITY</span></div>
+                    <p>Create a dedicated user with <code>adduser</code> and switch with <code>USER</code>.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 12: Real-World Dockerfiles -->
+        <div class="section">
+            <h3>12. Real-World Dockerfiles</h3>
+            <p>Theory is important, but seeing how all the pieces fit together in production-quality Dockerfiles is where the learning clicks. Here are three complete examples with commentary.</p>
+
+            <h4>Node.js (Express API)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># ---------- Build Stage ----------</span>
+<span class="cmd">FROM</span> <span class="str">node:20.11-bookworm-slim</span> <span class="flag">AS</span> <span class="str">builder</span>
+<span class="cmd">WORKDIR</span> /app
+
+<span class="comment"># Install dependencies first (cache-friendly)</span>
+<span class="cmd">COPY</span> package.json package-lock.json ./
+<span class="cmd">RUN</span> npm ci
+
+<span class="comment"># Copy source and build</span>
+<span class="cmd">COPY</span> tsconfig.json ./
+<span class="cmd">COPY</span> src/ ./src/
+<span class="cmd">RUN</span> npm run build
+
+<span class="comment"># ---------- Production Stage ----------</span>
+<span class="cmd">FROM</span> <span class="str">node:20.11-bookworm-slim</span> <span class="flag">AS</span> <span class="str">production</span>
+
+<span class="comment"># Security: non-root user</span>
+<span class="cmd">RUN</span> groupadd -r app && useradd -r -g app -s /bin/false app
+
+<span class="cmd">WORKDIR</span> /app
+
+<span class="comment"># Production dependencies only</span>
+<span class="cmd">COPY</span> package.json package-lock.json ./
+<span class="cmd">RUN</span> npm ci --omit=dev && npm cache clean --force
+
+<span class="comment"># Copy compiled output from builder</span>
+<span class="cmd">COPY</span> <span class="flag">--from=builder</span> /app/dist ./dist
+
+<span class="comment"># Metadata</span>
+<span class="cmd">ENV</span> <span class="str">NODE_ENV=production</span>
+<span class="cmd">EXPOSE</span> 3000
+
+<span class="comment"># Health check</span>
+<span class="cmd">HEALTHCHECK</span> <span class="flag">--interval=30s</span> <span class="flag">--timeout=5s</span> <span class="flag">--retries=3</span> \
+    CMD ["node", "-e", "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+
+<span class="comment"># Switch to non-root and start</span>
+<span class="cmd">USER</span> app
+<span class="cmd">CMD</span> ["node", "dist/server.js"]</code></pre>
+            </div>
+
+            <h4>Python (Flask / FastAPI)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># ---------- Build Stage ----------</span>
+<span class="cmd">FROM</span> <span class="str">python:3.12-slim-bookworm</span> <span class="flag">AS</span> <span class="str">builder</span>
+<span class="cmd">WORKDIR</span> /app
+
+<span class="comment"># Install build dependencies for native extensions</span>
+<span class="cmd">RUN</span> apt-get update \
+    && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+<span class="comment"># Create virtualenv and install dependencies</span>
+<span class="cmd">RUN</span> python -m venv /opt/venv
+<span class="cmd">ENV</span> <span class="str">PATH="/opt/venv/bin:$PATH"</span>
+
+<span class="cmd">COPY</span> requirements.txt .
+<span class="cmd">RUN</span> pip install --no-cache-dir -r requirements.txt
+
+<span class="comment"># ---------- Production Stage ----------</span>
+<span class="cmd">FROM</span> <span class="str">python:3.12-slim-bookworm</span>
+
+<span class="comment"># Runtime dependencies only (no gcc)</span>
+<span class="cmd">RUN</span> apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+<span class="comment"># Copy virtualenv from builder</span>
+<span class="cmd">COPY</span> <span class="flag">--from=builder</span> /opt/venv /opt/venv
+<span class="cmd">ENV</span> <span class="str">PATH="/opt/venv/bin:$PATH"</span>
+
+<span class="comment"># Non-root user</span>
+<span class="cmd">RUN</span> useradd -r -s /bin/false app
+<span class="cmd">USER</span> app
+
+<span class="cmd">WORKDIR</span> /app
+<span class="cmd">COPY</span> <span class="flag">--chown=app</span> . .
+
+<span class="cmd">EXPOSE</span> 8000
+
+<span class="cmd">HEALTHCHECK</span> <span class="flag">--interval=30s</span> <span class="flag">--timeout=5s</span> <span class="flag">--retries=3</span> \
+    CMD ["curl", "-f", "http://localhost:8000/health"]
+
+<span class="cmd">CMD</span> ["gunicorn", "app:create_app()", "-b", "0.0.0.0:8000", "-w", "4"]</code></pre>
+            </div>
+
+            <h4>Go (Static Binary)</h4>
+            <div class="code-block">
+                <div class="code-header"><span class="code-lang">Dockerfile</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+                <pre><code><span class="comment"># ---------- Build Stage ----------</span>
+<span class="cmd">FROM</span> <span class="str">golang:1.22-alpine</span> <span class="flag">AS</span> <span class="str">builder</span>
+<span class="cmd">WORKDIR</span> /src
+
+<span class="comment"># Cache module downloads</span>
+<span class="cmd">COPY</span> go.mod go.sum ./
+<span class="cmd">RUN</span> go mod download
+
+<span class="comment"># Build static binary</span>
+<span class="cmd">COPY</span> . .
+<span class="cmd">RUN</span> CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w" \
+    -o /app/server ./cmd/server
+
+<span class="comment"># ---------- Production Stage ----------</span>
+<span class="comment"># Distroless: no shell, no package manager, no attack surface</span>
+<span class="cmd">FROM</span> <span class="str">gcr.io/distroless/static:nonroot</span>
+
+<span class="cmd">COPY</span> <span class="flag">--from=builder</span> /app/server /server
+
+<span class="cmd">EXPOSE</span> 8080
+<span class="cmd">USER</span> nonroot:nonroot
+
+<span class="cmd">ENTRYPOINT</span> ["/server"]</code></pre>
+            </div>
+
+            <div class="callout callout-key">
+                <div class="callout-title">Go is the Dream Case</div>
+                <p>Go compiles to a single static binary with no runtime dependencies. Pair it with <code>distroless/static</code> or <code>scratch</code> and your final image can be under 10 MB &mdash; with zero attack surface beyond your own code. This is the gold standard for container security and efficiency.</p>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Practice Exercise</div>
+                <p>Take an existing project you work on and write a multi-stage Dockerfile for it. Compare the image size of a single-stage build vs a multi-stage build. Try different base images (Debian, Alpine, Distroless) and measure the size difference with <code>docker images</code>.</p>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="complete-section">
+            <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Finished reviewing this module?</p>
+            <button class="complete-btn" onclick="completeModule()">Mark as Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // Instruction diagram interaction
+        const instructions = {
+            from: {
+                title: 'FROM',
+                desc: 'Sets the base image for your build. Every Dockerfile must start with FROM (or ARG before FROM). It pulls an image from a registry and uses it as the starting filesystem. You can have multiple FROM instructions for multi-stage builds.'
+            },
+            run: {
+                title: 'RUN',
+                desc: 'Executes a command inside the image during the build process, creating a new layer. Used to install packages, compile code, create directories, and configure the environment. Commands run as root unless a USER instruction has been set.'
+            },
+            copy: {
+                title: 'COPY',
+                desc: 'Copies files and directories from the build context into the image filesystem. It is the preferred way to get your source code, configuration, and assets into the image. Supports <code>--chown</code> to set ownership and <code>--from</code> to copy from other build stages.'
+            },
+            cmd: {
+                title: 'CMD',
+                desc: 'Specifies the default command to run when a container starts. Only the last CMD in a Dockerfile takes effect. It can be overridden by passing arguments to <code>docker run</code>. Best practice: always use exec form <code>["executable", "arg"]</code>.'
+            }
+        };
+
+        function showInstruction(id) {
+            document.querySelectorAll('#instructionDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            const inst = instructions[id];
+            document.getElementById('instructionDetail').innerHTML = '<strong>' + inst.title + '</strong><br>' + inst.desc;
+        }
+
+        // Stage diagram interaction
+        const stages = {
+            build: {
+                title: 'Build Stage',
+                desc: 'Uses a full SDK image with compilers, build tools, and development dependencies. This stage is responsible for installing packages, compiling TypeScript/Go/Rust, bundling assets, and running tests. It can be hundreds of MB or even GB in size, but that is fine because nothing from this stage reaches the final image unless explicitly copied.'
+            },
+            copy: {
+                title: 'COPY --from',
+                desc: 'The bridge between stages. <code>COPY --from=builder /app/dist ./dist</code> cherry-picks specific files or directories from a previous stage. Only the artifacts you explicitly copy end up in the final image. Everything else &mdash; source code, dev dependencies, build tools &mdash; is discarded.'
+            },
+            runtime: {
+                title: 'Runtime Stage',
+                desc: 'Uses a minimal base image (slim, Alpine, or Distroless) that contains only what your application needs to run. Combined with the copied artifacts, this produces a small, secure production image. No compilers, no build tools, no source code, no dev dependencies.'
+            }
+        };
+
+        function showStage(id) {
+            document.querySelectorAll('#stageDiagram .diagram-box').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            const s = stages[id];
+            document.getElementById('stageDetail').innerHTML = '<strong>' + s.title + '</strong><br>' + s.desc;
+        }
+
+        // Code copy
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1500);
+            });
+        }
+
+        // Module completion
+        function completeModule() {
+            // Update ForgeData progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-48'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            // Also report via ModuleProgress if available
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-48-dockerfile', { returnToDashboard: false });
+            }
+
+            const btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // Auto-activate first items
+        showInstruction('from');
+        showStage('build');
+
+        // Check if already completed
+        try {
+            const p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-48']) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
