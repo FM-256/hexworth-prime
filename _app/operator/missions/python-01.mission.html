@@ -193,6 +193,73 @@
             background: rgba(57, 255, 20, 0.03);
         }
 
+        /* Trap visual states */
+        .grid-cell.trap-warned:not(.vis-hidden):not(.wall) {
+            border-left: 2px solid rgba(255, 165, 0, 0.5);
+        }
+        .grid-cell.trap-warned:not(.vis-hidden)::after {
+            content: '!';
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 0.5rem;
+            color: rgba(255, 165, 0, 0.7);
+            font-weight: 700;
+        }
+        .grid-cell.scanned:not(.vis-hidden):not(.wall)::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: rgba(57, 255, 20, 0.35);
+        }
+        @keyframes trap-flash {
+            0%, 100% { box-shadow: none; }
+            25% { box-shadow: 0 0 16px rgba(255, 50, 50, 0.6), inset 0 0 12px rgba(255, 50, 50, 0.15); border-color: rgba(255, 50, 50, 0.6); }
+            50% { box-shadow: 0 0 24px rgba(255, 50, 50, 0.8), inset 0 0 16px rgba(255, 50, 50, 0.25); border-color: rgba(255, 50, 50, 0.8); }
+            75% { box-shadow: 0 0 16px rgba(255, 50, 50, 0.6), inset 0 0 12px rgba(255, 50, 50, 0.15); border-color: rgba(255, 50, 50, 0.6); }
+        }
+        .grid-cell.trap-triggered {
+            animation: trap-flash 1.2s ease-out;
+        }
+
+        /* Integrity meter */
+        .integrity-meter {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+            font-size: 0.55rem;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.3);
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .integrity-pip {
+            width: 10px;
+            height: 10px;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+        .integrity-pip.active {
+            background: rgba(57, 255, 20, 0.5);
+            border-color: #39ff14;
+            box-shadow: 0 0 4px rgba(57, 255, 20, 0.3);
+        }
+        .integrity-pip.lost {
+            background: rgba(255, 50, 50, 0.2);
+            border-color: rgba(255, 50, 50, 0.4);
+        }
+        .integrity-meter.critical .integrity-pip.active {
+            background: rgba(255, 165, 0, 0.5);
+            border-color: rgba(255, 165, 0, 0.8);
+            box-shadow: 0 0 4px rgba(255, 165, 0, 0.3);
+        }
+
         /* Firewall & target accent */
         .grid-cell[data-type="firewall"]:not(.vis-hidden):not(.wall) {
             border-left: 2px solid rgba(255, 68, 68, 0.4);
@@ -433,7 +500,7 @@
         }
         .mc-stats {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             margin-bottom: 28px;
         }
@@ -522,6 +589,12 @@
         <div class="obj-item" id="obj-3">
             <span class="obj-check"></span> Reach target
         </div>
+        <div class="integrity-meter" id="integrity-meter">
+            <span>INT</span>
+            <div class="integrity-pip active" id="int-pip-0"></div>
+            <div class="integrity-pip active" id="int-pip-1"></div>
+            <div class="integrity-pip active" id="int-pip-2"></div>
+        </div>
     </div>
 
     <!-- Split layout -->
@@ -568,6 +641,10 @@
                     <div class="mc-stat-value" id="stat-time">0s</div>
                     <div class="mc-stat-label">Time</div>
                 </div>
+                <div>
+                    <div class="mc-stat-value" id="stat-integrity">3/3</div>
+                    <div class="mc-stat-label">Integrity</div>
+                </div>
             </div>
             <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
         </div>
@@ -604,6 +681,9 @@ var CELL_INFO = {
     'endpoint':   { label: 'ENDPOINT',   abbr: 'EPT', ip: '10.0.0.50',  desc: 'User workstation',             ports: ['135/RPC','445/SMB','3389/RDP'],                  os: 'Windows 11 Pro' }
 };
 
+// ─── Trapped Nodes ───
+var TRAPPED_NODES = ['server-web'];
+
 // ─── Game State ───
 var STATE = {
     position: { col: 0, row: 0 },
@@ -614,7 +694,10 @@ var STATE = {
     firewallBypassed: false,
     agentCmdCount: 0,
     startTime: Date.now(),
-    completed: false
+    completed: false,
+    integrity: 3,
+    trapsTriggered: 0,
+    scannedCells: {}
 };
 
 // ─── Objective labels ───
@@ -685,6 +768,10 @@ function updateGrid() {
             }
 
             if (type === 'firewall' && STATE.firewallBypassed) cell.classList.add('bypassed');
+
+            // Trap/scan visual states
+            if (STATE.scannedCells[key]) cell.classList.add('scanned');
+            if (TRAPPED_NODES.indexOf(type) !== -1 && STATE.scannedCells[key]) cell.classList.add('trap-warned');
 
             // Content
             var iconEl = cell.querySelector('.cell-icon');
@@ -844,6 +931,8 @@ function checkObjectives() {
             time: elapsed,
             agentCmds: STATE.agentCmdCount,
             nodesDiscovered: STATE.nodesDiscovered.size,
+            integrity: STATE.integrity,
+            trapsTriggered: STATE.trapsTriggered,
             timestamp: Date.now()
         };
         try {
@@ -877,6 +966,18 @@ function updateObjectivesUI() {
     });
 }
 
+function updateIntegrityUI() {
+    for (var i = 0; i < 3; i++) {
+        var pip = document.getElementById('int-pip-' + i);
+        if (!pip) continue;
+        pip.className = 'integrity-pip ' + (i < STATE.integrity ? 'active' : 'lost');
+    }
+    var meter = document.getElementById('integrity-meter');
+    if (meter) {
+        meter.classList.toggle('critical', STATE.integrity <= 1);
+    }
+}
+
 function showMissionComplete(elapsed) {
     var mins = Math.floor(elapsed / 60);
     var secs = elapsed % 60;
@@ -885,6 +986,7 @@ function showMissionComplete(elapsed) {
     document.getElementById('stat-nodes').textContent = STATE.nodesDiscovered.size;
     document.getElementById('stat-commands').textContent = STATE.agentCmdCount;
     document.getElementById('stat-time').textContent = timeStr;
+    document.getElementById('stat-integrity').textContent = STATE.integrity + '/3';
 
     document.getElementById('mission-complete').classList.add('visible');
 }
@@ -903,7 +1005,10 @@ function saveState() {
             nmapTargets: Array.from(STATE.nmapTargets),
             firewallBypassed: STATE.firewallBypassed,
             agentCmdCount: STATE.agentCmdCount,
-            startTime: STATE.startTime
+            startTime: STATE.startTime,
+            integrity: STATE.integrity,
+            trapsTriggered: STATE.trapsTriggered,
+            scannedCells: STATE.scannedCells
         };
         localStorage.setItem('hexworth_operator_python01_save', JSON.stringify(data));
     } catch (e) {}
@@ -922,6 +1027,9 @@ function loadState() {
         STATE.firewallBypassed = data.firewallBypassed;
         STATE.agentCmdCount = data.agentCmdCount || 0;
         STATE.startTime = data.startTime;
+        STATE.integrity = data.integrity !== undefined ? data.integrity : 3;
+        STATE.trapsTriggered = data.trapsTriggered || 0;
+        STATE.scannedCells = data.scannedCells || {};
         return true;
     } catch (e) {
         return false;
@@ -938,7 +1046,10 @@ function resetState() {
         firewallBypassed: false,
         agentCmdCount: 0,
         startTime: Date.now(),
-        completed: false
+        completed: false,
+        integrity: 3,
+        trapsTriggered: 0,
+        scannedCells: {}
     };
     // Starting cell is the gateway — mark visited and reveal neighbors
     STATE.visibility['0,0'] = 'visited';
@@ -1855,6 +1966,12 @@ var AGENT_BRIDGE = {
             return false;
         }
 
+        // Integrity zero guard — agent compromised
+        if (STATE.integrity <= 0) {
+            printLine('[MOVE] AGENT COMPROMISED. Integrity at zero. Reset mission to continue.', 'error');
+            return false;
+        }
+
         var delta   = dirMap[d];
         var newCol  = STATE.position.col + delta[0];
         var newRow  = STATE.position.row + delta[1];
@@ -1879,6 +1996,37 @@ var AGENT_BRIDGE = {
         if (cellType === 'firewall' && !STATE.firewallBypassed) {
             printLine('[MOVE] FIREWALL blocking access. Run agent.nmap("firewall") first.', 'warning');
             return false;
+        }
+
+        // Trap check — unscanned trapped nodes trigger trap
+        var destKey = newCol + ',' + newRow;
+        if (TRAPPED_NODES.indexOf(cellType) !== -1 && !STATE.scannedCells[destKey] && STATE.visibility[destKey] !== 'visited') {
+            STATE.integrity--;
+            STATE.trapsTriggered++;
+            printLine('', 'system');
+            printLine('[TRAP] *** BOOBY TRAP TRIGGERED on ' + CELL_INFO[cellType].label + '! ***', 'error');
+            printLine('[TRAP] Agent bounced back. Integrity: ' + STATE.integrity + '/3', 'warning');
+            if (STATE.trapsTriggered === 1) {
+                printLine('[HINT] Use agent.scan() or agent.sweep("direction") before moving to unknown nodes.', 'info');
+            }
+            if (STATE.integrity <= 0) {
+                printLine('[TRAP] *** AGENT COMPROMISED *** Integrity depleted. Reset mission.', 'error');
+            }
+            // Flash the trapped cell red
+            var trapCell = document.querySelector('.grid-cell[data-col="' + newCol + '"][data-row="' + newRow + '"]');
+            if (trapCell) {
+                trapCell.classList.add('trap-triggered');
+                setTimeout(function() { trapCell.classList.remove('trap-triggered'); }, 1200);
+            }
+            updateIntegrityUI();
+            saveState();
+            await delay(150);
+            return false;
+        }
+
+        // Safe passage through scanned trap
+        if (TRAPPED_NODES.indexOf(cellType) !== -1 && STATE.scannedCells[destKey]) {
+            printLine('[MOVE] Trap disarmed by prior scan. Safe passage.', 'success');
         }
 
         // Execute move
@@ -1922,11 +2070,15 @@ var AGENT_BRIDGE = {
             if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
                 STATE.visibility[key] = 'revealed';
             }
+            STATE.scannedCells[key] = true;
 
             if (type !== 'empty') {
                 var info = CELL_INFO[type];
                 results.push({ name: info.label, ip: info.ip, direction: d.name });
                 printLine('[SCAN] Adjacent: ' + info.label + ' (' + d.name + ')', 'node-info');
+                if (TRAPPED_NODES.indexOf(type) !== -1) {
+                    printLine('[SCAN] *** TRAP DETECTED on ' + info.label + ' *** — approach with caution', 'warning');
+                }
             }
         });
 
@@ -1936,6 +2088,62 @@ var AGENT_BRIDGE = {
         saveState();
         await delay(150);
         return results;
+    },
+
+    /* agent.sweep("direction") — targeted single-direction trap check */
+    sweep: async function(dir) {
+        var dirMap = {
+            'north': { dc: 0, dr: -1 }, 'n': { dc: 0, dr: -1 },
+            'south': { dc: 0, dr: 1 },  's': { dc: 0, dr: 1 },
+            'east':  { dc: 1, dr: 0 },  'e': { dc: 1, dr: 0 },
+            'west':  { dc: -1, dr: 0 }, 'w': { dc: -1, dr: 0 }
+        };
+        var d = typeof dir === 'string' ? dir.toLowerCase() : '';
+        var dirFull = { n:'north', s:'south', e:'east', w:'west' };
+        var dirName = dirFull[d] || d;
+
+        if (!dirMap[d]) {
+            printLine('[SWEEP] Invalid direction: ' + String(dir), 'error');
+            printLine('[SWEEP] Use: agent.sweep("north"), "south", "east", or "west"', 'info');
+            return null;
+        }
+
+        var delta = dirMap[d];
+        var nc = STATE.position.col + delta.dc;
+        var nr = STATE.position.row + delta.dr;
+
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
+            printLine('[SWEEP] Nothing ' + dirName + ' — edge of network.', 'system');
+            return null;
+        }
+
+        var type = GRID_MAP[nr][nc];
+        if (type === 'wall') {
+            printLine('[SWEEP] No path ' + dirName + ' — blocked.', 'system');
+            return null;
+        }
+
+        var key = nc + ',' + nr;
+        STATE.scannedCells[key] = true;
+
+        // Reveal if hidden
+        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
+            STATE.visibility[key] = 'revealed';
+        }
+
+        if (TRAPPED_NODES.indexOf(type) !== -1) {
+            printLine('[SWEEP] *** TRAP DETECTED ' + dirName + ' on ' + CELL_INFO[type].label + ' *** — disarmed by scan', 'warning');
+            var warnCell = document.querySelector('.grid-cell[data-col="' + nc + '"][data-row="' + nr + '"]');
+            if (warnCell) warnCell.classList.add('trap-warned');
+        } else {
+            var label = (type !== 'empty' && CELL_INFO[type]) ? CELL_INFO[type].label : 'clear path';
+            printLine('[SWEEP] ' + dirName + ': ' + label + ' — no threats detected.', 'success');
+        }
+
+        updateGrid();
+        saveState();
+        await delay(150);
+        return { direction: dirName, clear: TRAPPED_NODES.indexOf(type) === -1 };
     },
 
     /* agent.ping("target") — ping by name or IP */
@@ -1975,6 +2183,7 @@ var AGENT_BRIDGE = {
         });
 
         STATE.nmapTargets.add(node.type);
+        STATE.scannedCells[node.col + ',' + node.row] = true;
 
         var result = { label: info.label, ip: info.ip, ports: info.ports, os: info.os, vuln: null };
 
@@ -2002,6 +2211,8 @@ var AGENT_BRIDGE = {
         printLine('[STATUS] Position: ' + posLabel + ' (' + STATE.position.col + ',' + STATE.position.row + ')', 'info');
         printLine('[STATUS] Nodes discovered: ' + STATE.nodesDiscovered.size, 'info');
         printLine('[STATUS] Agent commands: ' + STATE.agentCmdCount, 'info');
+        printLine('[STATUS] Integrity: ' + STATE.integrity + '/3', STATE.integrity === 3 ? 'info' : STATE.integrity > 0 ? 'warning' : 'error');
+        printLine('[STATUS] Traps triggered: ' + STATE.trapsTriggered, STATE.trapsTriggered > 0 ? 'warning' : 'info');
         var completedCount = STATE.objectives.filter(Boolean).length;
         printLine('[STATUS] Objectives: ' + completedCount + '/' + STATE.objectives.length, completedCount === STATE.objectives.length ? 'success' : 'info');
         OBJ_LABELS.forEach(function(label, i) {
@@ -2099,6 +2310,7 @@ function resetMission() {
     resetState();
     updateGrid();
     updateObjectivesUI();
+    updateIntegrityUI();
     document.getElementById('header-status').textContent = 'IN PROGRESS';
     document.getElementById('header-status').style.color = '';
     document.getElementById('mission-complete').classList.remove('visible');
@@ -2154,11 +2366,17 @@ function showBriefing() {
     printLine('[API] agent.move("north")    \u2014 move (n/s/e/w or full name)', 'info');
     printLine('[API] agent.ping("router")   \u2014 ping node by name or IP', 'info');
     printLine('[API] agent.nmap("firewall") \u2014 deep port + vuln scan', 'info');
+    printLine('[API] agent.sweep("east")    \u2014 sweep single direction for traps', 'info');
     printLine('[API] agent.status()         \u2014 show mission progress', 'info');
     printLine('[API] agent.position         \u2014 current node label (property)', 'info');
     printLine('[API] agent.discovered       \u2014 list of found node names', 'info');
     printLine('', 'system');
     printLine('Write code in the editor. Press RUN or Ctrl+Enter to execute.', 'system');
+    printLine('', 'system');
+    printLine('[WARNING] Some nodes are rigged with booby traps.', 'warning');
+    printLine('[WARNING] Moving to a trapped node without scanning first', 'warning');
+    printLine('[WARNING] will trigger the trap and cost 1 integrity point.', 'warning');
+    printLine('[WARNING] Use agent.scan() or agent.sweep() before moving.', 'info');
     printLine('', 'system');
 }
 
@@ -2182,6 +2400,7 @@ function init() {
 
     updateGrid();
     updateObjectivesUI();
+    updateIntegrityUI();
     document.getElementById('code-input').focus();
 }
 
