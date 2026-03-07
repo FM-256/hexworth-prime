@@ -1028,6 +1028,13 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
                 return `<span class="lt-highlight">kill: would send signal to process ${args[0] || ''}</span>`;
             }
 
+            case '/bin/bash':
+            case '/bin/sh':
+            case '/usr/bin/bash':
+            case 'bash':
+            case 'sh':
+                return `<span class="lt-highlight">bash: cannot start a nested shell in this terminal. Use <code>echo $SHELL</code> to see your current shell.</span>`;
+
             default:
                 // Check if it's an assignment (VAR=value)
                 if (cmd.includes('=')) {

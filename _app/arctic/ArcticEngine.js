@@ -1000,36 +1000,14 @@ const ArcticEngine = (() => {
             titleEl.classList.add('ae-node-title--fog');
         }
 
-        // Completion row
+        // Completion stamp (read-only — earned by finishing the module)
         const footer = _el('div', 'ae-node-footer');
 
         if (done) {
-            // Green stamp
             const stamp = _el('span', 'ae-node-stamp');
             stamp.textContent = '\u2713 Complete';
+            footer.appendChild(stamp);
         }
-
-        // Toggle button (available whether locked or not — manual tracking)
-        const toggleBtn = _el('button', `ae-node-toggle${done ? ' ae-node-toggle--done' : ''}`);
-        toggleBtn.textContent = done ? '\u2713 Marked Done' : '\u25CB Mark Done';
-        toggleBtn.addEventListener('click', () => {
-            const nowDone = !_isComplete(mod.id);
-            _setComplete(mod.id, nowDone);
-            window.dispatchEvent(new CustomEvent('arctic:moduleComplete', {
-                detail: { moduleId: mod.id, completed: nowDone }
-            }));
-            // Update toggle text
-            toggleBtn.textContent = nowDone ? '\u2713 Marked Done' : '\u25CB Mark Done';
-            toggleBtn.classList.toggle('ae-node-toggle--done', nowDone);
-            // Update node visual state
-            node.classList.toggle('ae-node--done', nowDone);
-            // Recompute unlock fog state for all sections
-            _refreshDistrictFog(district);
-            // Refresh hero progress bar
-            _refreshDistrictProgress(district);
-        });
-
-        footer.appendChild(toggleBtn);
 
         node.appendChild(typeBadge);
         node.appendChild(titleEl);

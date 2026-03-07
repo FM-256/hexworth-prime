@@ -13412,9 +13412,9 @@ The timer setting IS the kill code.`
 
         const nextNum = match[1]; // e.g., '003'
 
-        // From lab (applets/linux/), intro is at ../../clh/clh-XXX-intro.html
+        // From lab (applets/linux/), intro is at ../../clh/script-clh-XXX-intro.applet.html
         return {
-            url: `../../clh/clh-${nextNum}-intro.html`,
+            url: `../../clh/script-clh-${nextNum}-intro.applet.html`,
             isLast: false,
             nextModuleId: nextModuleId
         };
@@ -13427,8 +13427,8 @@ The timer setting IS the kill code.`
      */
     function getIntroUrl(moduleId) {
         const match = moduleId.match(/CLH-(\d+)/i);
-        if (!match) return '../../clh/clh-001-intro.html';
-        return `../../clh/clh-${match[1]}-intro.html`;
+        if (!match) return '../../clh/script-clh-001-intro.applet.html';
+        return `../../clh/script-clh-${match[1]}-intro.applet.html`;
     }
 
     /**
@@ -13438,8 +13438,8 @@ The timer setting IS the kill code.`
      */
     function getQuizUrl(moduleId) {
         const match = moduleId.match(/CLH-(\d+)/i);
-        if (!match) return '../../clh/clh-001-quiz.html';
-        return `../../clh/clh-${match[1]}-quiz.html`;
+        if (!match) return '../../clh/script-clh-001.quiz.html';
+        return `../../clh/script-clh-${match[1]}.quiz.html`;
     }
 
     // ═══════════════════════════════════════════════════════════════
