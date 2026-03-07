@@ -16,6 +16,9 @@
  *   SANDBOX-008  iframe sandbox attribute missing permissions required for ttyd terminal interaction
  *   SANDBOX-009  ttyd entrypoint uses --max-clients (causes WebSocket rejection via reverse proxy)
  *   SANDBOX-010  ttyd entrypoint uses --title-fixed (invalid flag in ttyd 1.7.x, breaks command parsing)
+ *   SANDBOX-011  ttyd --ping-interval missing or too high (Cloudflare drops idle WS at 100s)
+ *   SANDBOX-012  ttyd -t titleFixed in entrypoint (incompatible across Alpine/Ubuntu ttyd builds)
+ *   SANDBOX-013  Traefik docker-compose missing readTimeout=0s (kills long-lived WebSocket connections)
  */
 
 const fs = require('fs');
@@ -361,6 +364,63 @@ class SandboxValidator {
                         file: relPath,
                         line,
                         fix: 'Replace --title-fixed "Title" with -t titleFixed=Title'
+                    });
+                }
+
+                // SANDBOX-011: --ping-interval missing or too high (ttyd only, not code-server)
+                const usesTtyd = /\bttyd\b/.test(script);
+                const pingMatch = script.match(/--ping-interval\s+(\d+)/);
+                if (usesTtyd && !pingMatch) {
+                    const ttydLine = script.split('\n').findIndex(l => /exec\s+ttyd|ttyd\s/.test(l)) + 1;
+                    issues.push({
+                        code: 'SANDBOX-011',
+                        severity: 'high',
+                        category: 'sandbox',
+                        message: `ttyd in ${tier} entrypoint missing --ping-interval — Cloudflare drops idle WebSocket connections at 100s. Terminal will disconnect during pauses.`,
+                        file: relPath,
+                        line: ttydLine || undefined,
+                        fix: 'Add --ping-interval 10 to ttyd launch command'
+                    });
+                } else if (pingMatch && parseInt(pingMatch[1], 10) > 15) {
+                    const line = script.split('\n').findIndex(l => /--ping-interval/.test(l)) + 1;
+                    issues.push({
+                        code: 'SANDBOX-011',
+                        severity: 'high',
+                        category: 'sandbox',
+                        message: `ttyd --ping-interval ${pingMatch[1]} in ${tier} entrypoint is too high — Cloudflare drops idle WebSocket at 100s. Use ≤15 for stability.`,
+                        file: relPath,
+                        line,
+                        fix: 'Change --ping-interval to 10 (or ≤15)'
+                    });
+                }
+
+                // SANDBOX-012: -t titleFixed causes cross-platform issues
+                if (/-t\s+titleFixed/.test(script)) {
+                    const line = script.split('\n').findIndex(l => /-t\s+titleFixed/.test(l)) + 1;
+                    issues.push({
+                        code: 'SANDBOX-012',
+                        severity: 'medium',
+                        category: 'sandbox',
+                        message: `ttyd -t titleFixed in ${tier} entrypoint — incompatible across Alpine/Ubuntu ttyd builds. Alpine parses it as --title-fixed, breaking the command.`,
+                        file: relPath,
+                        line,
+                        fix: 'Remove -t titleFixed flag — it is not needed and causes cross-platform issues'
+                    });
+                }
+            }
+
+            // SANDBOX-013: Check docker-compose.yml for Traefik WebSocket timeout config
+            const composePath = path.join(repoPath, 'docker-compose.yml');
+            if (fs.existsSync(composePath)) {
+                const compose = fs.readFileSync(composePath, 'utf8');
+                if (/traefik/i.test(compose) && !/readTimeout\s*=\s*0s/.test(compose)) {
+                    issues.push({
+                        code: 'SANDBOX-013',
+                        severity: 'high',
+                        category: 'sandbox',
+                        message: 'Traefik docker-compose missing respondingTimeouts.readTimeout=0s — default timeout kills long-lived WebSocket connections to ttyd terminals.',
+                        file: 'hexworth-sandbox/docker-compose.yml',
+                        fix: 'Add --entrypoints.web.transport.respondingTimeouts.readTimeout=0s to Traefik command'
                     });
                 }
             }
