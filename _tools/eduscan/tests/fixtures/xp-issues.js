@@ -7,9 +7,9 @@
 
 // XP-001: Duplicate rate constant (should only be in XPCalculator.js)
 const XP_BY_TYPE = {
-    module: 1000,
-    lab: 500,
-    quiz: 200
+    PRESENTATION_VIEW: 100,
+    QUIZ_PASS: 100,
+    LAB_COMPLETE: 500
 };
 
 // XP-002: Hardcoded XP in FieldValue.increment()
@@ -19,14 +19,14 @@ async function awardXP(uid) {
     });
 }
 
-// XP-003: Quiz perfect threshold === 100 (should be >= 90)
+// XP-003: Quiz perfect threshold === 100 gating XP bonus (should be >= 90)
 function checkPerfectScore(score) {
     if (numScore === 100) {
-        awardBonus();
+        awardXP(500);
     }
 }
 
-// XP-004: setUserProfile writing xp: without Math.max guard
+// XP-004: setUserProfile writing xp without deflation guard
 function saveProgress(uid, newXP) {
     setUserProfile(uid, {
         xp: newXP,

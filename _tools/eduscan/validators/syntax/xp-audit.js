@@ -48,18 +48,37 @@ class XPAuditValidator {
         const basename = path.basename(filePath);
 
         // XP-001: rate constant defs in files OTHER than XPCalculator.js
+        // Skip files that guard with typeof XPCalculator (intentional fallback duplication)
+        // Skip constants whose keys don't overlap canonical XP_RATES (domain-specific)
         if (basename !== 'XPCalculator.js') {
+            const hasXPCalcGuard = /typeof\s+XPCalculator\s*!==/.test(content);
             for (let i = 0; i < lines.length; i++) {
                 if (RATE_CONST_RE.test(lines[i])) {
                     const match = lines[i].match(/XP_(?:BY_TYPE|REWARDS|VALUES)/);
+
+                    // Check if this constant block uses canonical keys
+                    // Scan up to 15 lines for the closing brace to capture all keys
+                    const constBlock = lines.slice(i, Math.min(i + 15, lines.length)).join('\n');
+                    const canonicalKeys = /PRESENTATION_VIEW|QUIZ_PASS|QUIZ_PERFECT|LAB_COMPLETE|MODULE_COMPLETE|COURSE_COMPLETE|DAILY_LOGIN/;
+                    const hasCanonicalKeys = canonicalKeys.test(constBlock);
+
+                    // Skip domain-specific constants (e.g. RING_CLAIMED) that don't overlap
+                    if (!hasCanonicalKeys) continue;
+
+                    // Downgrade to low severity if file has typeof XPCalculator guard
+                    // (intentional duplication for load-order safety)
+                    const severity = hasXPCalcGuard ? 'low' : 'high';
+
                     issues.push({
                         code: 'XP-001',
-                        severity: 'high',
+                        severity,
                         category: 'xp-audit',
                         message: `Duplicate XP rate constant "${match[0]}" — should reference XPCalculator.XP_RATES instead`,
                         file: filePath,
                         line: i + 1,
-                        fix: `Remove local ${match[0]} definition and import from XPCalculator.js`
+                        fix: hasXPCalcGuard
+                            ? `Values are intentionally duplicated for load-order safety — ensure they stay aligned with XPCalculator.XP_RATES`
+                            : `Remove local ${match[0]} definition and import from XPCalculator.js`
                     });
                 }
             }
@@ -81,17 +100,19 @@ class XPAuditValidator {
             }
         }
 
-        // XP-003: quiz perfect threshold === 100
-        // Only flag in files with quiz/XP relevance
-        const hasQuizContext = /quiz|score|xp/i.test(content);
-        if (hasQuizContext) {
-            for (let i = 0; i < lines.length; i++) {
-                if (PERFECT_THRESHOLD_RE.test(lines[i])) {
+        // XP-003: quiz perfect threshold === 100 used to gate XP awards
+        // Only flag when the surrounding context involves XP/bonus rewards,
+        // NOT for achievement unlocks or UI messages (which correctly use === 100)
+        for (let i = 0; i < lines.length; i++) {
+            if (PERFECT_THRESHOLD_RE.test(lines[i])) {
+                // Check 5 lines around the match for XP-award context
+                const nearby = lines.slice(Math.max(0, i - 3), Math.min(i + 4, lines.length)).join('\n');
+                if (/\bxp\b|bonus.*xp|xp.*bonus|increment|XP_|awardXP|addXP/i.test(nearby)) {
                     issues.push({
                         code: 'XP-003',
                         severity: 'high',
                         category: 'xp-audit',
-                        message: 'Quiz perfect threshold uses === 100 — should be >= 90 to match platform standard',
+                        message: 'Quiz perfect threshold uses === 100 to gate XP — should be >= 90 to match platform standard',
                         file: filePath,
                         line: i + 1,
                         fix: 'Change === 100 to >= 90 for perfect score threshold'
@@ -103,9 +124,12 @@ class XPAuditValidator {
         // XP-004: setUserProfile writing xp: without Math.max guard
         for (let i = 0; i < lines.length; i++) {
             if (SET_PROFILE_RE.test(lines[i])) {
-                // Scan this line and next 5 lines for xp: without Math.max
-                const block = lines.slice(i, Math.min(i + 6, lines.length)).join('\n');
-                if (/\bxp\s*:/.test(block) && !/Math\.max/.test(block)) {
+                // Scan 20 lines before and 6 lines after for xp: without Math.max
+                const blockStart = Math.max(0, i - 20);
+                const blockEnd = Math.min(i + 6, lines.length);
+                const block = lines.slice(blockStart, blockEnd).join('\n');
+                const callAndAfter = lines.slice(i, blockEnd).join('\n');
+                if (/\bxp\s*:/.test(callAndAfter) && !/Math\.max/.test(block)) {
                     issues.push({
                         code: 'XP-004',
                         severity: 'critical',
