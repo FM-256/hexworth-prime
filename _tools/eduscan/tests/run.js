@@ -26,6 +26,7 @@ const UXValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/ux'));
 const TurtleValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/turtle'));
 const FlexOverflowValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/flex-overflow'));
 const SandboxValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/sandbox'));
+const LinuxTerminalValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/linux-terminal'));
 
 // ── Import expectations ──────────────────────────────────────────────
 const expectations = require('./expectations');
@@ -56,7 +57,8 @@ const validators = [
     new UXValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new TurtleValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new FlexOverflowValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
-    new SandboxValidator({ rootPath: ROOT_PATH, profile: 'strict' })
+    new SandboxValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
+    new LinuxTerminalValidator({ profile: 'strict' })
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────

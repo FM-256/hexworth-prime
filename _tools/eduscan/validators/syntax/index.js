@@ -27,6 +27,7 @@ const UXValidator = require('./ux');
 const TurtleValidator = require('./turtle');
 const FlexOverflowValidator = require('./flex-overflow');
 const SandboxValidator = require('./sandbox');
+const LinuxTerminalValidator = require('./linux-terminal');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -125,6 +126,10 @@ class SyntaxValidator {
             rootPath: this.rootPath,
             profile: this.profile
         });
+        this.linuxTerminalValidator = new LinuxTerminalValidator({
+            verbose: this.verbose,
+            profile: this.profile
+        });
     }
 
     /**
@@ -159,6 +164,7 @@ class SyntaxValidator {
                 turtleErrors: 0,
                 flexOverflowErrors: 0,
                 sandboxErrors: 0,
+                linuxTerminalErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -295,6 +301,7 @@ class SyntaxValidator {
             const turtleIssues = this.turtleValidator.validate(fileWithContent);
             const flexOverflowIssues = this.flexOverflowValidator.validate(fileWithContent);
             const sandboxIssues = this.sandboxValidator.validate(fileWithContent);
+            const ltIssues = this.linuxTerminalValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -312,6 +319,7 @@ class SyntaxValidator {
             results.issues.push(...turtleIssues);
             results.issues.push(...flexOverflowIssues);
             results.issues.push(...sandboxIssues);
+            results.issues.push(...ltIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -329,6 +337,7 @@ class SyntaxValidator {
             results.summary.turtleErrors += turtleIssues.length;
             results.summary.flexOverflowErrors += flexOverflowIssues.length;
             results.summary.sandboxErrors += sandboxIssues.length;
+            results.summary.linuxTerminalErrors += ltIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html
