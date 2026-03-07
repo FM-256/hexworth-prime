@@ -29,6 +29,7 @@ const SandboxLauncher = (function() {
         'do-101': { name: 'DevOps Workbench', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
         'do-102': { name: 'DevOps IDE', tier: 'ide', icon: '/assets/images/icons/icon-wrench.webp' },
         'do-16':  { name: 'Git Fundamentals', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
+        'arctic': { name: 'Arctic Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
     };
 
     // Active state

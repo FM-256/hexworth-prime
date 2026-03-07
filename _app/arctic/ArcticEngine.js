@@ -733,6 +733,14 @@ const ArcticEngine = (() => {
         main.id = 'ae-district-main';
 
         main.appendChild(_buildDistrictHero(district, faction, fc));
+
+        // Sandbox terminal — render if SandboxLauncher is available
+        if (typeof SandboxLauncher !== 'undefined') {
+            const sandboxMount = _el('div', 'ae-sandbox-mount');
+            SandboxLauncher.renderButton(sandboxMount, 'arctic');
+            main.appendChild(sandboxMount);
+        }
+
         main.appendChild(_buildModuleFlow(district, fc));
 
         const footer = _el('div', 'ae-footer');
