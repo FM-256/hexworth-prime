@@ -16,7 +16,8 @@ const SandboxLauncher = (function() {
 
     // ── Config ──────────────────────────────────────────────────
     const CONFIG = {
-        apiBase: 'https://sandbox.hexworth.dev/api/sandbox',
+        apiBase: 'https://sandbox.hexworth.tech/api/sandbox',
+        devMode: true,              // Set false for production (requires Firebase auth)
         pollInterval: 10000,        // Status poll every 10s
         maxLifetimeMinutes: 120,
         idleTimeoutMinutes: 15,
@@ -35,30 +36,36 @@ const SandboxLauncher = (function() {
 
     // ── Auth ────────────────────────────────────────────────────
     async function getIdToken() {
-        if (typeof FirebaseAuth === 'undefined') throw new Error('FirebaseAuth not loaded');
-        await FirebaseAuth.waitForAuth();
-        if (!FirebaseAuth.isSignedIn()) throw new Error('Not authenticated');
-        const token = await FirebaseAuth.refreshToken();
-        if (!token) throw new Error('Could not get auth token');
-        return token;
+        if (typeof FirebaseAuth !== 'undefined') {
+            await FirebaseAuth.waitForAuth();
+            if (FirebaseAuth.isSignedIn()) {
+                const token = await FirebaseAuth.refreshToken();
+                if (token) return token;
+            }
+        }
+        // Dev fallback — server accepts X-Dev-Uid header when NODE_ENV != production
+        return null;
     }
 
     function isSignedIn() {
+        // In dev mode (server NODE_ENV != production), always allow
+        if (CONFIG.devMode) return true;
         return typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
     }
 
     async function apiCall(method, path, body) {
         const token = await getIdToken();
-        const opts = {
-            method,
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        };
-        if (body) opts.body = JSON.stringify(body);
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            // Dev mode — send uid from localStorage or default
+            const cached = localStorage.getItem('hexworth_firebase_user');
+            const uid = cached ? (JSON.parse(cached).uid || 'dev-user') : 'dev-user';
+            headers['X-Dev-Uid'] = uid;
+        }
 
-        const res = await fetch(`${CONFIG.apiBase}${path}`, opts);
+        const res = await fetch(`${CONFIG.apiBase}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
         const data = await res.json();
 
         if (!res.ok) {
