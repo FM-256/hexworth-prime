@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 1-8: Permission Analysis - Dark Arts Vault | Hexworth Prime</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0d0d0d 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, rgba(220,38,38,0.1), rgba(153,27,27,0.05));
+            border-bottom: 1px solid rgba(220,38,38,0.3);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-link {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: #dc2626; }
+        .header-badge {
+            background: rgba(220,38,38,0.2);
+            color: #fca5a5;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .header h1 { font-size: 1.2rem; color: #dc2626; }
+
+        /* ── Content ── */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .sections {
+            max-width: 960px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 30px 25px 0;
+            flex-shrink: 0;
+        }
+        .section {
+            margin-bottom: 28px;
+        }
+        .section h2 {
+            color: #dc2626;
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(220,38,38,0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .section p, .section li {
+            color: #9ca3af;
+            font-size: 0.92rem;
+            line-height: 1.65;
+        }
+        .section ul {
+            list-style: none;
+            padding: 0;
+        }
+        .section ul li {
+            padding: 4px 0 4px 18px;
+            position: relative;
+        }
+        .section ul li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 12px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #dc2626;
+        }
+        .section code {
+            background: rgba(220,38,38,0.15);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.88em;
+            color: #fca5a5;
+        }
+
+        /* ── MITRE callout ── */
+        .mitre-callout {
+            background: rgba(220,38,38,0.06);
+            border-left: 3px solid #dc2626;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 6px;
+        }
+        .mitre-callout-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #dc2626;
+            margin-bottom: 4px;
+        }
+        .mitre-callout-text {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            line-height: 1.5;
+        }
+        .mitre-callout-text a {
+            color: #fca5a5;
+            text-decoration: none;
+        }
+        .mitre-callout-text a:hover { text-decoration: underline; }
+
+        /* ── Ethical warning ── */
+        .ethical-warning {
+            background: linear-gradient(135deg, rgba(220,38,38,0.15), rgba(153,27,27,0.1));
+            border: 1px solid rgba(220,38,38,0.4);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+        }
+        .ethical-warning-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #dc2626;
+            margin-bottom: 4px;
+        }
+        .ethical-warning-text {
+            font-size: 0.8rem;
+            color: #fca5a5;
+            line-height: 1.4;
+        }
+
+        /* ── Permission legend ── */
+        .perm-legend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin: 12px 0 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+        .perm-block {
+            background: rgba(220,38,38,0.1);
+            border: 1px solid rgba(220,38,38,0.2);
+            border-radius: 4px;
+            padding: 4px 10px;
+            color: #9ca3af;
+            white-space: nowrap;
+        }
+        .perm-block.suid {
+            background: rgba(220,38,38,0.25);
+            border-color: #dc2626;
+            color: #fca5a5;
+            font-weight: 700;
+        }
+        .perm-block.label {
+            background: transparent;
+            border: none;
+            color: #555;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 0.72rem;
+            padding: 4px 4px;
+        }
+        .perm-arrow {
+            color: #444;
+            font-size: 0.85rem;
+        }
+
+        /* ── Task Chips ── */
+        .task-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .task-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.82rem;
+            color: #8b949e;
+            transition: all 0.3s;
+        }
+        .task-chip .chip-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid #30363d;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .task-chip.active {
+            border-color: rgba(220,38,38,0.4);
+            background: rgba(220,38,38,0.08);
+            color: #fff;
+        }
+        .task-chip.active .chip-dot {
+            border-color: #dc2626;
+            box-shadow: 0 0 6px rgba(220,38,38,0.5);
+        }
+        .task-chip.completed {
+            border-color: rgba(248,113,113,0.3);
+            color: #f87171;
+        }
+        .task-chip.completed .chip-dot {
+            border-color: #f87171;
+            background: #f87171;
+        }
+
+        /* ── Terminal Section ── */
+        .terminal-section {
+            flex: 1;
+            min-height: 450px;
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid rgba(220,38,38,0.2);
+        }
+        .terminal-bar {
+            background: rgba(0,0,0,0.4);
+            padding: 10px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(220,38,38,0.15);
+            flex-shrink: 0;
+        }
+        .terminal-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .terminal-bar-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #dc2626;
+        }
+        .terminal-bar-status {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .terminal-bar-status.suid-remediated {
+            color: #4ade80;
+            font-weight: 600;
+        }
+        .terminal-container {
+            flex: 1;
+            min-height: 0;
+        }
+        .feedback-bar {
+            background: rgba(0,0,0,0.4);
+            padding: 12px 25px;
+            border-top: 1px solid rgba(220,38,38,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .feedback-message { font-size: 0.9rem; color: #888; }
+        .feedback-message.success { color: #f87171; }
+        .feedback-message.error { color: #ef4444; }
+
+        /* ── Completion Modal ── */
+        .modal-overlay {
+            display: none; position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.92);
+            justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: linear-gradient(135deg, #0d0d0d, #1a0a0a);
+            border: 2px solid #dc2626;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 520px;
+            width: 90%;
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal h2 { color: #dc2626; font-size: 1.5rem; margin-bottom: 10px; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; font-size: 0.95rem; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { font-size: 2rem; font-weight: bold; color: #f87171; }
+        .modal .stat-label { font-size: 0.85rem; color: #888; margin-top: 5px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn {
+            padding: 12px 24px; border: none; border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-size: 0.9rem; transition: all 0.3s;
+            text-decoration: none; display: inline-block;
+        }
+        .modal-btn.primary { background: linear-gradient(135deg, #dc2626, #f87171); color: #fff; font-weight: 600; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(220,38,38,0.5); }
+        .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); }
+        .modal-btn.secondary:hover { background: rgba(255,255,255,0.15); }
+
+        /* ── Celebration ── */
+        .celebration { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1001; display: none; }
+        .celebration.active { display: block; }
+        .confetti { position: absolute; width: 10px; height: 10px; background: #dc2626; animation: confetti-fall 3s ease-out forwards; }
+        @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+
+        @media (max-width: 768px) {
+            .sections { padding: 20px 15px 0; }
+            .task-chips { gap: 6px; }
+            .task-chip { font-size: 0.75rem; padding: 6px 10px; }
+            .perm-legend { gap: 2px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ── Header ── -->
+    <div class="header">
+        <div class="header-left">
+            <a href="index.html" class="back-link">&larr; Back</a>
+            <span class="header-badge">Command Hijacking</span>
+            <h1>Permission Analysis</h1>
+        </div>
+    </div>
+
+    <!-- ── Content ── -->
+    <div class="content">
+        <div class="sections">
+
+            <!-- Ethical Warning -->
+            <div class="ethical-warning">
+                <div class="ethical-warning-label">Educational Lab Only</div>
+                <div class="ethical-warning-text">This lab simulates a system where an attacker has set SUID bits on strategic binaries. All commands execute in a safe sandbox. Abusing SUID binaries on systems you do not own is illegal under the Computer Fraud and Abuse Act and equivalent laws.</div>
+            </div>
+
+            <!-- Briefing -->
+            <div class="section">
+                <h2>Briefing</h2>
+                <p>
+                    An attacker with temporary root access often plants SUID backdoors for later use. The SUID (Set User ID) bit
+                    causes a binary to execute with the <em>file owner's</em> privileges rather than the caller's.
+                    When set on a root-owned binary, any user who runs it gains root-level execution.
+                    Your mission: find the planted SUID files, understand what they do, and remediate the most dangerous one.
+                </p>
+                <!-- Permission string breakdown legend -->
+                <div class="perm-legend" style="margin-top:14px;">
+                    <span class="perm-block label">type</span>
+                    <span class="perm-block">-</span>
+                    <span class="perm-block">rw<span style="color:#dc2626;font-weight:700;">s</span>r-xr-x</span>
+                    <span class="perm-block label">= SUID set (s replaces x for owner execute)</span>
+                </div>
+                <div class="perm-legend">
+                    <span class="perm-block suid">-rwsr-xr-x</span>
+                    <span class="perm-arrow">&rarr;</span>
+                    <span class="perm-block label">runs as file <strong style="color:#fca5a5;">owner</strong> (often root)</span>
+                    <span style="margin-left:10px;"></span>
+                    <span class="perm-block" style="color:#4ade80;border-color:rgba(74,222,128,0.3);background:rgba(74,222,128,0.05);">-rwxr-xr-x</span>
+                    <span class="perm-arrow">&rarr;</span>
+                    <span class="perm-block label">runs as <strong style="color:#4ade80;">caller</strong> (normal)</span>
+                </div>
+            </div>
+
+            <!-- MITRE ATT&CK -->
+            <div class="section">
+                <div class="mitre-callout">
+                    <div class="mitre-callout-label">MITRE ATT&CK</div>
+                    <div class="mitre-callout-text">
+                        <a href="https://attack.mitre.org/techniques/T1548/001/" target="_blank" rel="noopener">T1548.001 - Abuse Elevation Control: Setuid and Setgid</a>
+                        &mdash; Adversaries can set the setuid or setgid bits of a binary to run it with elevated privileges.
+                        This is a common persistence and privilege escalation technique on Unix-based systems.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Objectives -->
+            <div class="section">
+                <h2>Objectives</h2>
+                <div class="task-chips" id="taskChips">
+                    <div class="task-chip active" data-task="list-bin">
+                        <span class="chip-dot"></span>
+                        <span>Inspect /usr/local/bin</span>
+                    </div>
+                    <div class="task-chip" data-task="find-suid">
+                        <span class="chip-dot"></span>
+                        <span>Find all SUID files</span>
+                    </div>
+                    <div class="task-chip" data-task="inspect-trojan">
+                        <span class="chip-dot"></span>
+                        <span>Read the trojan script</span>
+                    </div>
+                    <div class="task-chip" data-task="check-owner">
+                        <span class="chip-dot"></span>
+                        <span>Confirm root ownership</span>
+                    </div>
+                    <div class="task-chip" data-task="remediate">
+                        <span class="chip-dot"></span>
+                        <span>Remove the SUID bit</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal -->
+        <div class="terminal-section">
+            <div class="terminal-bar">
+                <div class="terminal-bar-left">
+                    <span class="terminal-bar-label">Terminal</span>
+                    <span class="terminal-bar-status" id="suidIndicator">backup-util: SUID active</span>
+                </div>
+                <span style="font-size:0.75rem;color:#555;" id="taskProgress">0 / 5</span>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Run <code style="background:rgba(220,38,38,0.15);padding:2px 6px;border-radius:4px;color:#fca5a5;">ls -la /usr/local/bin/</code> to inspect the directory</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>Lab Complete</h2>
+            <p>You identified SUID-backdoored binaries, read the trojan payload, confirmed root ownership, and removed the SUID bit to remediate the threat. Always audit <code>find / -perm -4000</code> after any suspected compromise.</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">5/5</div>
+                    <div class="stat-label">Tasks</div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="resetLab()">Run Again</button>
+                <a href="index.html" class="modal-btn secondary">Back</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="celebration" id="celebration"></div>
+
+    <script>
+    // ================================================================
+    // LAB 1-8: FILE PERMISSION & OWNERSHIP ANALYSIS
+    // MITRE T1548.001 — SUID/SGID abuse for privilege escalation
+    // Students enumerate SUID binaries and remediate the backdoor.
+    // ================================================================
+
+    const TASKS = ['list-bin', 'find-suid', 'inspect-trojan', 'check-owner', 'remediate'];
+
+    const labState = {
+        suidActive: true,     // backup-util starts with SUID set
+        completed: {},
+        startTime: null
+    };
+
+    // ── SUID file data ──────────────────────────────────────────────
+    // Realistic output for `ls -la /usr/local/bin/` showing suspicious SUID files
+    const LOCAL_BIN_LISTING = [
+        { perms: 'total 56', raw: true },
+        { perms: 'drwxr-xr-x', links: 2, owner: 'root', group: 'root', size: '4096', date: 'Mar  3 11:20', name: '.', raw: false },
+        { perms: 'drwxr-xr-x', links: 11, owner: 'root', group: 'root', size: '4096', date: 'Feb 28 09:15', name: '..', raw: false },
+        { perms: '-rwsr-xr-x', links: 1, owner: 'root', group: 'root', size: '16832', date: 'Mar  1 03:47', name: 'backup-util', suid: true, raw: false },
+        { perms: '-rwsr-sr-x', links: 1, owner: 'root', group: 'root', size: '8192', date: 'Mar  2 22:11', name: 'log-rotate', suid: true, raw: false },
+        { perms: '-rwsr-xr-x', links: 1, owner: 'root', group: 'network', size: '72584', date: 'Jan 15 08:00', name: 'network-check', suid: true, raw: false },
+        { perms: '-rwxr-xr-x', links: 1, owner: 'root', group: 'root', size: '4096', date: 'Jan 10 12:00', name: 'sysinfo', suid: false, raw: false }
+    ];
+
+    // Simulated `find / -perm -4000` output — all SUID files across the system
+    const FIND_SUID_OUTPUT = [
+        { path: '/usr/local/bin/backup-util', suspicious: true },
+        { path: '/usr/local/bin/log-rotate', suspicious: true },
+        { path: '/usr/local/bin/network-check', suspicious: false },
+        { path: '/usr/bin/passwd', suspicious: false },
+        { path: '/usr/bin/sudo', suspicious: false },
+        { path: '/usr/bin/ping', suspicious: false },
+        { path: '/usr/bin/su', suspicious: false },
+        { path: '/usr/bin/newgrp', suspicious: false },
+        { path: '/usr/lib/openssh/ssh-keysign', suspicious: false },
+        { path: '/usr/lib/dbus-1.0/dbus-daemon-launch-helper', suspicious: false }
+    ];
+
+    // ── Helpers ─────────────────────────────────────────────────────
+
+    function styleCode(el) {
+        el.querySelectorAll('code').forEach(c => {
+            c.style.background = 'rgba(220,38,38,0.15)';
+            c.style.padding = '2px 6px';
+            c.style.borderRadius = '4px';
+            c.style.color = '#fca5a5';
+        });
+    }
+
+    function completeTask(taskId) {
+        if (labState.completed[taskId]) return;
+        labState.completed[taskId] = true;
+
+        const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+        if (chip) {
+            chip.classList.remove('active');
+            chip.classList.add('completed');
+        }
+
+        const nextTask = TASKS.find(t => !labState.completed[t]);
+        if (nextTask) {
+            const nextChip = document.querySelector(`.task-chip[data-task="${nextTask}"]`);
+            if (nextChip) nextChip.classList.add('active');
+        }
+
+        const done = Object.keys(labState.completed).length;
+        document.getElementById('taskProgress').textContent = done + ' / 5';
+
+        updateFeedback();
+
+        if (done === 5) {
+            setTimeout(showCompletion, 800);
+        }
+    }
+
+    function updateFeedback() {
+        const fb = document.getElementById('feedbackMessage');
+        const next = TASKS.find(t => !labState.completed[t]);
+
+        if (!next) {
+            fb.innerHTML = '<span style="color:#f87171;">All tasks complete.</span>';
+            return;
+        }
+
+        const hints = {
+            'list-bin':       'Run <code>ls -la /usr/local/bin/</code> to inspect the directory',
+            'find-suid':      'Run <code>find / -perm -4000</code> to enumerate all SUID files',
+            'inspect-trojan': 'Run <code>cat /usr/local/bin/backup-util</code> to read the backdoor script',
+            'check-owner':    'Run <code>ls -la /usr/local/bin/backup-util</code> to confirm root ownership',
+            'remediate':      'Run <code>chmod u-s /usr/local/bin/backup-util</code> to strip the SUID bit'
+        };
+
+        fb.innerHTML = hints[next] || '';
+        fb.className = 'feedback-message';
+        styleCode(fb);
+    }
+
+    function updateSuidIndicator() {
+        const ind = document.getElementById('suidIndicator');
+        if (labState.suidActive) {
+            ind.textContent = 'backup-util: SUID active';
+            ind.className = 'terminal-bar-status';
+            ind.style.color = '#dc2626';
+            ind.style.fontWeight = '600';
+        } else {
+            ind.textContent = 'backup-util: SUID removed';
+            ind.className = 'terminal-bar-status suid-remediated';
+        }
+    }
+
+    // ── Permission string renderer ───────────────────────────────────
+    // Returns an HTML string for a colorized permission line.
+    // SUID files get the 's' highlighted in red.
+    function renderPermLine(entry) {
+        if (entry.raw) {
+            return '<span style="color:#666;">' + entry.perms + '</span>';
+        }
+
+        // Colorize permission string: highlight 's' (SUID) in bright red
+        let permStr = entry.perms;
+        if (entry.suid) {
+            // Replace the 's' character in owner-execute position with styled span
+            permStr = permStr.replace('s', '<span style="color:#f87171;font-weight:700;">s</span>');
+        }
+
+        const nameColor = entry.suid ? '#fca5a5' : '#e0e0e0';
+        const suidTag = entry.suid ? ' <span style="color:#dc2626;font-size:0.75em;font-weight:700;">[SUID]</span>' : '';
+
+        return (
+            '<span style="color:#8b949e;">' + permStr + '</span>' +
+            ' <span style="color:#666;">' + String(entry.links).padStart(3) + '</span>' +
+            ' <span style="color:#4ade80;">' + entry.owner.padEnd(6) + '</span>' +
+            ' <span style="color:#60a5fa;">' + entry.group.padEnd(8) + '</span>' +
+            ' <span style="color:#888;">' + String(entry.size).padStart(7) + '</span>' +
+            ' <span style="color:#666;">' + entry.date + '</span>' +
+            ' <span style="color:' + nameColor + ';font-weight:' + (entry.suid ? '600' : 'normal') + ';">' + entry.name + '</span>' +
+            suidTag
+        );
+    }
+
+    // ── Command handler ─────────────────────────────────────────────
+    function handleCommand(cmdLine, output, cmd, args) {
+        if (!labState.startTime) labState.startTime = Date.now();
+
+        const trimmed = cmdLine.trim();
+
+        // ── ls -la /usr/local/bin/ ──
+        // Accept various flag orders: -la, -al, -la, also with trailing slash or not
+        if (cmd === 'ls' && args.some(a => /^-/.test(a)) && trimmed.includes('/usr/local/bin')) {
+            completeTask('list-bin');
+
+            LinuxTerminal.print('<span style="color:#fca5a5;font-weight:600;">Listing: /usr/local/bin/</span>');
+            LinuxTerminal.print('');
+            LOCAL_BIN_LISTING.forEach(entry => {
+                LinuxTerminal.print(renderPermLine(entry));
+            });
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#dc2626;">[ANALYST] Two files show SUID (s in owner execute): backup-util and log-rotate. Both are owned by root and were modified recently — after hours.</span>');
+            return true;
+        }
+
+        // ── find / -perm -4000 (or 4000 without -) ──
+        // The key recognizer: cmd is 'find', includes -perm flag with 4000
+        if (cmd === 'find' && trimmed.match(/-perm\s+-?4000/)) {
+            completeTask('find-suid');
+
+            LinuxTerminal.print('<span style="color:#fca5a5;font-weight:600;">Searching for SUID files across the filesystem...</span>');
+            LinuxTerminal.print('');
+
+            // Print each result with suspicious ones highlighted
+            FIND_SUID_OUTPUT.forEach(item => {
+                if (item.suspicious) {
+                    LinuxTerminal.print('<span style="color:#f87171;font-weight:600;">' + item.path + '</span>  <span style="color:#dc2626;font-size:0.8em;">&lt;-- SUSPICIOUS</span>');
+                } else {
+                    LinuxTerminal.print('<span style="color:#6b7280;">' + item.path + '</span>');
+                }
+            });
+
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#dc2626;">[ANALYST] 10 SUID files found. /usr/bin/passwd, sudo, ping are expected. /usr/local/bin/backup-util and log-rotate are NOT standard and were added recently.</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#888;">Next: inspect the backdoor payload with cat /usr/local/bin/backup-util</span>');
+            return true;
+        }
+
+        // ── cat /usr/local/bin/backup-util ──
+        if (cmd === 'cat' && args.some(a => a.includes('backup-util'))) {
+            completeTask('inspect-trojan');
+
+            LinuxTerminal.print('<span style="color:#fca5a5;">/usr/local/bin/backup-util</span>');
+            LinuxTerminal.print('<span style="color:#555;">─────────────────────────────────────────</span>');
+            LinuxTerminal.print('<span style="color:#888;">#!/bin/bash</span>');
+            LinuxTerminal.print('<span style="color:#888;"># Backup utility v1.2 - System maintenance tool</span>');
+            LinuxTerminal.print('<span style="color:#888;"># Installed: 2026-03-01</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#888;"># Run backup of /etc to /var/backup</span>');
+            LinuxTerminal.print('<span style="color:#888;">if [[ "$1" == "--run" ]]; then</span>');
+            LinuxTerminal.print('<span style="color:#888;">    tar -czf /var/backup/etc_$(date +%Y%m%d).tar.gz /etc 2>/dev/null</span>');
+            LinuxTerminal.print('<span style="color:#888;">fi</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#f87171;font-weight:700;"># [BACKDOOR] Drop to root shell</span>');
+            LinuxTerminal.print('<span style="color:#f87171;">/bin/bash -p</span>');
+            LinuxTerminal.print('<span style="color:#555;">─────────────────────────────────────────</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#dc2626;">[ANALYST] The script ends with /bin/bash -p — the -p flag preserves the EUID. Because this file is SUID root, any user who runs it gets a root bash shell immediately. The backup logic is camouflage.</span>');
+            return true;
+        }
+
+        // ── ls -la /usr/local/bin/backup-util (single file ownership check) ──
+        if (cmd === 'ls' && trimmed.includes('backup-util')) {
+            completeTask('check-owner');
+
+            const permStr = labState.suidActive
+                ? '-rw<span style="color:#f87171;font-weight:700;">s</span>r-xr-x'
+                : '-rwxr-xr-x';
+            const suidTag = labState.suidActive
+                ? ' <span style="color:#dc2626;font-size:0.8em;font-weight:700;">[SUID ACTIVE]</span>'
+                : ' <span style="color:#4ade80;font-size:0.8em;">[SUID REMOVED]</span>';
+
+            LinuxTerminal.print(
+                '<span style="color:#8b949e;">' + permStr + '</span>' +
+                ' <span style="color:#666;">1</span>' +
+                ' <span style="color:#f87171;font-weight:700;">root</span>' +
+                ' <span style="color:#60a5fa;">root</span>' +
+                ' <span style="color:#888;">16832</span>' +
+                ' <span style="color:#666;">Mar  1 03:47</span>' +
+                ' <span style="color:#fca5a5;">backup-util</span>' +
+                suidTag
+            );
+            LinuxTerminal.print('');
+
+            if (labState.suidActive) {
+                LinuxTerminal.print('<span style="color:#dc2626;">[ANALYST] Owner: root. Group: root. The SUID bit (s) means this script runs as root for ANY user. This is the privilege escalation vector. Remediate with: chmod u-s /usr/local/bin/backup-util</span>');
+            } else {
+                LinuxTerminal.print('<span style="color:#4ade80;">[ANALYST] SUID bit removed. The binary now runs as the calling user, not root. Threat neutralized.</span>');
+            }
+            return true;
+        }
+
+        // ── chmod u-s /usr/local/bin/backup-util ──
+        if (cmd === 'chmod' && trimmed.includes('u-s') && trimmed.includes('backup-util')) {
+            labState.suidActive = false;
+            completeTask('remediate');
+            updateSuidIndicator();
+
+            LinuxTerminal.print('<span style="color:#4ade80;font-weight:600;">SUID bit removed from backup-util.</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#4ade80;">[REMEDIATION] chmod u-s strips the setuid bit from the owner execute field. The file now shows -rwxr-xr-x instead of -rwsr-xr-x. Verify with ls -la /usr/local/bin/backup-util.</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#888;">Next steps: audit log-rotate, check crontab for persistence, review /etc/sudoers for unauthorized entries.</span>');
+            return true;
+        }
+
+        // ── chmod 755 backup-util (numeric equivalent) ──
+        if (cmd === 'chmod' && (trimmed.includes('755') || trimmed.includes('0755')) && trimmed.includes('backup-util')) {
+            labState.suidActive = false;
+            completeTask('remediate');
+            updateSuidIndicator();
+
+            LinuxTerminal.print('<span style="color:#4ade80;font-weight:600;">Permissions set to 755 — SUID bit cleared.</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#4ade80;">[REMEDIATION] Setting mode 755 removes all special bits including SUID. Equivalent to chmod u-s for this purpose.</span>');
+            return true;
+        }
+
+        // ── stat command (bonus: shows detailed file metadata) ──
+        if (cmd === 'stat' && trimmed.includes('backup-util')) {
+            const mode = labState.suidActive ? '104755 (rwsr-xr-x)' : '100755 (rwxr-xr-x)';
+            LinuxTerminal.print('  File: /usr/local/bin/backup-util');
+            LinuxTerminal.print('  Size: 16832       Blocks: 33       IO Block: 4096   regular file');
+            LinuxTerminal.print('<span style="color:#888;">Device: 801h/2049d   Inode: 1245764     Links: 1</span>');
+            LinuxTerminal.print('<span style="color:#fca5a5;">Access: (' + mode + ')  Uid: (0/root)   Gid: (0/root)</span>');
+            LinuxTerminal.print('<span style="color:#888;">Access: 2026-03-07 09:12:04</span>');
+            LinuxTerminal.print('<span style="color:#888;">Modify: 2026-03-01 03:47:22</span>');
+            LinuxTerminal.print('<span style="color:#888;">Change: 2026-03-01 03:47:22</span>');
+            return true;
+        }
+
+        // ── file command (bonus) ──
+        if (cmd === 'file' && trimmed.includes('backup-util')) {
+            LinuxTerminal.print('/usr/local/bin/backup-util: Bourne-Again shell script, ASCII text executable');
+            return true;
+        }
+
+        // ── strings command (bonus: shows raw strings in binary) ──
+        if (cmd === 'strings' && trimmed.includes('backup-util')) {
+            LinuxTerminal.print('#!/bin/bash');
+            LinuxTerminal.print('Backup utility v1.2');
+            LinuxTerminal.print('/var/backup/etc_');
+            LinuxTerminal.print('/bin/bash');
+            LinuxTerminal.print('-p');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#dc2626;">[ANALYST] strings shows /bin/bash -p embedded in the script. The -p flag is the giveaway for privilege preservation.</span>');
+            return true;
+        }
+
+        // ── cat /usr/local/bin/log-rotate (bonus: shows the other suspicious file) ──
+        if (cmd === 'cat' && args.some(a => a.includes('log-rotate'))) {
+            LinuxTerminal.print('<span style="color:#fca5a5;">/usr/local/bin/log-rotate</span>');
+            LinuxTerminal.print('<span style="color:#555;">─────────────────────────────────────────</span>');
+            LinuxTerminal.print('<span style="color:#888;">#!/bin/bash</span>');
+            LinuxTerminal.print('<span style="color:#888;"># Log rotation wrapper</span>');
+            LinuxTerminal.print('<span style="color:#888;">find /var/log -name "*.log" -mtime +7 -exec gzip {} \\;</span>');
+            LinuxTerminal.print('<span style="color:#f87171;font-weight:700;">cp /bin/bash /tmp/.bash && chmod u+s /tmp/.bash</span>');
+            LinuxTerminal.print('<span style="color:#555;">─────────────────────────────────────────</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#dc2626;">[ANALYST] This one copies bash to /tmp and sets SUID on the copy — a classic persistence trick. The /tmp/.bash binary would run as root via: /tmp/.bash -p</span>');
+            return true;
+        }
+
+        // Let built-in handler process everything else
+        return false;
+    }
+
+    // ── Completion ───────────────────────────────────────────────────
+    function showCompletion() {
+        triggerCelebration();
+        document.getElementById('completionModal').classList.add('show');
+        saveProgress();
+    }
+
+    function saveProgress() {
+        try {
+            const key = 'hexworth_progress';
+            const progress = JSON.parse(localStorage.getItem(key) || '{}');
+            progress['dark-arts'] = progress['dark-arts'] || {};
+            progress['dark-arts']['da-linux-permission-analysis'] = {
+                completed: true,
+                date: new Date().toISOString(),
+                timeSpent: labState.startTime ? Math.round((Date.now() - labState.startTime) / 60000) : 0
+            };
+            localStorage.setItem(key, JSON.stringify(progress));
+        } catch(e) {}
+
+        try {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'da-linux-permission-analysis', {
+                    returnUrl: 'index.html',
+                    silent: true
+                });
+            }
+        } catch(e) {}
+    }
+
+    function resetLab() {
+        document.getElementById('completionModal').classList.remove('show');
+        labState.suidActive = true;
+        labState.completed = {};
+        labState.startTime = null;
+
+        document.querySelectorAll('.task-chip').forEach((chip, i) => {
+            chip.classList.remove('active', 'completed');
+            if (i === 0) chip.classList.add('active');
+        });
+
+        document.getElementById('taskProgress').textContent = '0 / 5';
+        updateSuidIndicator();
+        updateFeedback();
+
+        LinuxTerminal.destroy();
+        initTerminal();
+    }
+
+    function triggerCelebration() {
+        const container = document.getElementById('celebration');
+        container.classList.add('active');
+        const colors = ['#dc2626', '#f87171', '#991b1b', '#fca5a5', '#7f1d1d', '#450a0a'];
+        for (let i = 0; i < 60; i++) {
+            setTimeout(() => {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.background = colors[Math.floor(Math.random() * colors.length)];
+                c.style.animationDuration = (2 + Math.random() * 2) + 's';
+                c.style.width = (5 + Math.random() * 10) + 'px';
+                c.style.height = c.style.width;
+                container.appendChild(c);
+                setTimeout(() => c.remove(), 3000);
+            }, i * 30);
+        }
+        setTimeout(() => container.classList.remove('active'), 4000);
+    }
+
+    // ── Terminal init ────────────────────────────────────────────────
+    function initTerminal() {
+        LinuxTerminal.init('DA-LAB-PERMISSION-ANALYSIS', '#terminal', {
+            user: 'analyst',
+            hostname: 'compromised-host',
+            startDir: '/home/analyst',
+            height: '100%',
+            onCommand: handleCommand
+        });
+
+        // Filesystem overlay — the compromised host environment
+        LinuxTerminal.addFilesystem({
+            '/home/analyst': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                children: ['.bashrc', 'incident-notes.txt']
+            },
+            '/home/analyst/.bashrc': {
+                type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 320,
+                content: '# ~/.bashrc\nexport PATH=$HOME/bin:$PATH\nalias ll="ls -la"\n'
+            },
+            '/home/analyst/incident-notes.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 256,
+                content: '# Incident Notes - 2026-03-07\nSuspected intrusion via web shell on 2026-03-01 03:44 UTC.\nAttacker had root for ~4 minutes before detection.\nCheck: new SUID files, crontab, authorized_keys, sudoers\n'
+            },
+            '/usr/local/bin': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                children: ['backup-util', 'network-check', 'log-rotate', 'sysinfo']
+            },
+            '/usr/local/bin/backup-util': {
+                type: 'file', perms: '-rwsr-xr-x', owner: 'root', group: 'root', size: 16832,
+                content: '#!/bin/bash\n# Backup utility v1.2\nif [[ "$1" == "--run" ]]; then\n    tar -czf /var/backup/etc_$(date +%Y%m%d).tar.gz /etc 2>/dev/null\nfi\n/bin/bash -p\n'
+            },
+            '/usr/local/bin/log-rotate': {
+                type: 'file', perms: '-rwsr-sr-x', owner: 'root', group: 'root', size: 8192,
+                content: '#!/bin/bash\n# Log rotation wrapper\nfind /var/log -name "*.log" -mtime +7 -exec gzip {} \\;\ncp /bin/bash /tmp/.bash && chmod u+s /tmp/.bash\n'
+            },
+            '/usr/local/bin/network-check': {
+                type: 'file', perms: '-rwsr-xr-x', owner: 'root', group: 'network', size: 72584,
+                content: '#!/bin/bash\n# Network diagnostic wrapper (legitimate)\nping -c 3 "$1"\n'
+            },
+            '/usr/local/bin/sysinfo': {
+                type: 'file', perms: '-rwxr-xr-x', owner: 'root', group: 'root', size: 4096,
+                content: '#!/bin/bash\nuname -a\nuptime\ndf -h\n'
+            },
+            '/usr/bin/passwd': {
+                type: 'file', perms: '-rwsr-xr-x', owner: 'root', group: 'shadow', size: 59744,
+                content: '[ELF binary]'
+            },
+            '/usr/bin/sudo': {
+                type: 'file', perms: '-rwsr-xr-x', owner: 'root', group: 'root', size: 166056,
+                content: '[ELF binary]'
+            },
+            '/usr/bin/ping': {
+                type: 'file', perms: '-rwsr-xr-x', owner: 'root', group: 'root', size: 72776,
+                content: '[ELF binary]'
+            }
+        });
+
+        // Welcome banner
+        LinuxTerminal.print('<span style="color:#dc2626;">══════════════════════════════════════════════════════</span>');
+        LinuxTerminal.print('<span style="color:#dc2626;">  LAB 1-8: FILE PERMISSION &amp; OWNERSHIP ANALYSIS</span>');
+        LinuxTerminal.print('<span style="color:#888;">  A host was compromised. Hunt SUID backdoors.</span>');
+        LinuxTerminal.print('<span style="color:#dc2626;">══════════════════════════════════════════════════════</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#666;">Tip: SUID files run as the file owner, not the caller. Root-owned SUID = root shell for anyone.</span>');
+        LinuxTerminal.print('');
+    }
+
+    document.addEventListener('DOMContentLoaded', initTerminal);
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
