@@ -184,8 +184,8 @@ class ProgressManager {
 
     // XP rewards for different activities
     static XP_REWARDS = {
-        PRESENTATION_VIEW: 50,     // Viewed a presentation
-        TOOL_EXPLORE: 50,          // Explored a tool/applet
+        PRESENTATION_VIEW: 100,    // Viewed a presentation
+        TOOL_EXPLORE: 100,         // Explored a tool/applet
         QUIZ_PASS: 100,            // Quiz score 70-89%
         QUIZ_PERFECT: 200,         // Quiz score 90%+ (first time only, cannot be farmed)
         GATE_CLEARED: 500,         // Dark Arts gate completed
@@ -450,11 +450,47 @@ class ProgressManager {
             nextModule: null
         };
 
+        // Track completion counts for diminishing XP
+        if (!progress.completionCounts) progress.completionCounts = {};
+        const prevCount = progress.completionCounts[moduleId] || 0;
+        progress.completionCounts[moduleId] = prevCount + 1;
+
         // Check if already completed
         if (progress.completedModules.includes(moduleId)) {
-            // Still allow re-completion for practice, but reduced/no XP
-            console.log(`Module ${moduleId} already completed - practice mode`);
-            // Still provide next module even in practice mode
+            // Quiz repeats: one-and-done, no additional XP
+            if (moduleType === 'quiz') {
+                console.log(`Quiz ${moduleId} already completed - no repeat XP`);
+                try {
+                    if (typeof LearningPaths !== 'undefined') {
+                        result.nextModule = LearningPaths.getNextModule(houseId, moduleId);
+                    }
+                } catch (e) {
+                    console.error('Error getting next module:', e);
+                }
+                this.saveProgress(progress);
+                return result;
+            }
+
+            // Non-quiz repeat: award diminishing XP (skip array pushes + house tracking)
+            const baseRates = {
+                lab: this.XP_REWARDS.LAB_COMPLETE,
+                presentation: this.XP_REWARDS.PRESENTATION_VIEW,
+                tool: this.XP_REWARDS.TOOL_EXPLORE,
+                applet: this.XP_REWARDS.TOOL_EXPLORE
+            };
+            const baseXP = baseRates[moduleType] || this.XP_REWARDS.PRESENTATION_VIEW;
+            result.xpEarned = Math.floor(baseXP * Math.pow(0.5, prevCount));
+
+            if (result.xpEarned > 0) {
+                const oldLevel = progress.level || 1;
+                progress.xp = (Number(progress.xp) || 0) + result.xpEarned;
+                progress.level = this.calculateLevel(progress.xp);
+                if (progress.level > oldLevel) {
+                    result.levelUp = true;
+                    result.newLevel = progress.level;
+                }
+            }
+
             try {
                 if (typeof LearningPaths !== 'undefined') {
                     result.nextModule = LearningPaths.getNextModule(houseId, moduleId);
@@ -462,6 +498,9 @@ class ProgressManager {
             } catch (e) {
                 console.error('Error getting next module:', e);
             }
+
+            this.saveProgress(progress);
+            this.showCompletionNotification(result);
             return result;
         }
 

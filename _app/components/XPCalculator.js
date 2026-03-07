@@ -22,8 +22,8 @@ const XPCalculator = (function () {
 
     // Canonical XP rates — single source of truth
     const XP_RATES = {
-        PRESENTATION_VIEW: 50,
-        TOOL_EXPLORE: 50,
+        PRESENTATION_VIEW: 100,
+        TOOL_EXPLORE: 100,
         QUIZ_PASS: 100,        // 70-89%
         QUIZ_PERFECT: 200,     // 90%+
         GATE_CLEARED: 500,
@@ -153,6 +153,22 @@ const XPCalculator = (function () {
     }
 
     /**
+     * Calculate total XP for a module with diminishing returns on repeat completions.
+     * Formula: floor(baseXP * 0.5^n) for each completion n (0-indexed).
+     * First completion = full XP, each repeat halves, floors to 0.
+     */
+    function _diminishingXPSum(baseXP, count) {
+        if (count <= 1) return baseXP;
+        let total = 0;
+        for (let n = 0; n < count; n++) {
+            const xp = Math.floor(baseXP * Math.pow(0.5, n));
+            if (xp === 0) break;
+            total += xp;
+        }
+        return total;
+    }
+
+    /**
      * Categorize completed modules into type buckets using multi-tier resolution.
      * Mutates breakdown in-place.
      */
@@ -163,6 +179,7 @@ const XPCalculator = (function () {
             ? progress.quizHistory : [];
         const labsCompleted = Array.isArray(progress.labsCompleted)
             ? progress.labsCompleted : [];
+        const counts = progress.completionCounts || {};
 
         // Build lookup sets for fast classification
         const quizIds = new Set(quizHistory.map(q => q.moduleId));
@@ -184,9 +201,11 @@ const XPCalculator = (function () {
             seen.add(id);
 
             const type = _resolveType(id, quizIds, labIds);
+            const viewCount = counts[id] || 1;
 
             switch (type) {
                 case 'quiz': {
+                    // Quizzes: one-and-done, no diminishing returns
                     const score = quizScores[id] || 0;
                     if (score >= 90) {
                         breakdown.quizPerfect += XP_RATES.QUIZ_PERFECT;
@@ -198,15 +217,15 @@ const XPCalculator = (function () {
                     break;
                 }
                 case 'lab':
-                    breakdown.labs += XP_RATES.LAB_COMPLETE;
+                    breakdown.labs += _diminishingXPSum(XP_RATES.LAB_COMPLETE, viewCount);
                     breakdown._counts.labs++;
                     break;
                 case 'tool':
-                    breakdown.tools += XP_RATES.TOOL_EXPLORE;
+                    breakdown.tools += _diminishingXPSum(XP_RATES.TOOL_EXPLORE, viewCount);
                     breakdown._counts.tools++;
                     break;
                 default: // presentation (conservative fallback)
-                    breakdown.presentations += XP_RATES.PRESENTATION_VIEW;
+                    breakdown.presentations += _diminishingXPSum(XP_RATES.PRESENTATION_VIEW, viewCount);
                     breakdown._counts.presentations++;
             }
         }
@@ -238,16 +257,29 @@ const XPCalculator = (function () {
      * Multi-tier type resolution for a module ID.
      * 1. quizHistory → quiz
      * 2. labsCompleted → lab
-     * 3. ContentCatalog → check href suffix
-     * 4. ID suffix heuristic
-     * 5. Default: presentation
+     * 3. LearningPaths → explicit type field
+     * 4. ContentCatalog → check href suffix
+     * 5. ID suffix heuristic
+     * 6. Default: presentation
      */
     function _resolveType(id, quizIds, labIds) {
         // Tier 1: explicit quiz/lab sets
         if (quizIds.has(id)) return 'quiz';
         if (labIds.has(id)) return 'lab';
 
-        // Tier 2: ContentCatalog lookup
+        // Tier 2: LearningPaths lookup (has explicit type field)
+        if (typeof LearningPaths !== 'undefined' && LearningPaths.getModule) {
+            const mod = LearningPaths.getModule(id);
+            if (mod && mod.type) {
+                const t = mod.type.toLowerCase();
+                if (t === 'quiz') return 'quiz';
+                if (t === 'lab') return 'lab';
+                if (t === 'tool' || t === 'applet') return 'tool';
+                return 'presentation'; // presentation, module, or any other type
+            }
+        }
+
+        // Tier 3: ContentCatalog lookup
         if (typeof ContentCatalog !== 'undefined' && ContentCatalog.getModule) {
             const mod = ContentCatalog.getModule(id);
             if (mod && mod.href) {
@@ -266,14 +298,14 @@ const XPCalculator = (function () {
             }
         }
 
-        // Tier 3: ID suffix heuristic
+        // Tier 4: ID suffix heuristic
         const lower = id.toLowerCase();
         if (lower.endsWith('-quiz') || lower.includes('-quiz-')) return 'quiz';
         if (lower.endsWith('-lab') || lower.includes('-lab-')) return 'lab';
         if (lower.endsWith('-tool') || lower.endsWith('-applet')) return 'tool';
         if (lower.endsWith('-presentation') || lower.endsWith('-pres')) return 'presentation';
 
-        // Tier 4: conservative default
+        // Tier 5: conservative default
         return 'presentation';
     }
 

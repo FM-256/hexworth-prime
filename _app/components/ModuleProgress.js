@@ -114,6 +114,8 @@ const ModuleProgress = (function() {
             const fullId = `${houseId}-${moduleId}`;
             if (type === 'quiz' && metadata.score != null) {
                 FirestoreManager.passQuiz(user.uid, fullId, metadata.score, houseId).catch(() => {});
+            } else if (type === 'lab') {
+                FirestoreManager.completeLab(user.uid, fullId, houseId).catch(() => {});
             } else {
                 FirestoreManager.completeModule(user.uid, fullId, houseId).catch(() => {});
             }
@@ -182,39 +184,58 @@ const ModuleProgress = (function() {
         if (!Array.isArray(house.modulesCompleted)) house.modulesCompleted = [];
         house.lastAccessed = Date.now();
 
-        // Only award XP on first completion
-        if (progress.completedModules.includes(moduleId)) return;
+        // Track completion counts for diminishing XP
+        if (!progress.completionCounts) progress.completionCounts = {};
+        const prevCount = progress.completionCounts[moduleId] || 0;
+        progress.completionCounts[moduleId] = prevCount + 1;
 
-        progress.completedModules.push(moduleId);
-        if (!house.modulesCompleted.includes(moduleId)) {
-            house.modulesCompleted.push(moduleId);
+        const isFirstCompletion = !progress.completedModules.includes(moduleId);
+
+        if (isFirstCompletion) {
+            // First completion: push to arrays + full XP
+            progress.completedModules.push(moduleId);
+            if (!house.modulesCompleted.includes(moduleId)) {
+                house.modulesCompleted.push(moduleId);
+            }
+
+            // Track type-specific lists
+            if (moduleType === 'quiz') {
+                if (!Array.isArray(house.quizzesPassed)) house.quizzesPassed = [];
+                if (!house.quizzesPassed.includes(moduleId)) house.quizzesPassed.push(moduleId);
+            } else if (moduleType === 'lab') {
+                if (!Array.isArray(house.labsCompleted)) house.labsCompleted = [];
+                if (!house.labsCompleted.includes(moduleId)) house.labsCompleted.push(moduleId);
+                if (!Array.isArray(progress.labsCompleted)) progress.labsCompleted = [];
+                if (!progress.labsCompleted.includes(moduleId)) progress.labsCompleted.push(moduleId);
+            }
+
+            // Award full XP (mirrors ProgressManager.XP_REWARDS)
+            const XP_BY_TYPE = {
+                presentation: 100, tool: 100, applet: 100,
+                quiz: 100, lab: 500, module: 1000
+            };
+            let xpReward = XP_BY_TYPE[moduleType] || XP_BY_TYPE.presentation;
+
+            // Quiz scoring: 70-89% = 100 XP, 90%+ = 200 XP
+            if (moduleType === 'quiz' && metadata && metadata.score >= 90) {
+                xpReward = 200;
+            }
+
+            progress.xp = (Number(progress.xp) || 0) + xpReward;
+            progress.level = calculateLevelFromXP(progress.xp);
+        } else {
+            // Repeat completion — quizzes are one-and-done
+            if (moduleType === 'quiz') return;
+
+            // Non-quiz repeat: award diminishing XP
+            const XP_BY_TYPE = { presentation: 100, tool: 100, applet: 100, lab: 500 };
+            const baseXP = XP_BY_TYPE[moduleType] || XP_BY_TYPE.presentation;
+            const repeatXP = Math.floor(baseXP * Math.pow(0.5, prevCount));
+            if (repeatXP > 0) {
+                progress.xp = (Number(progress.xp) || 0) + repeatXP;
+                progress.level = calculateLevelFromXP(progress.xp);
+            }
         }
-
-        // Track type-specific lists
-        if (moduleType === 'quiz') {
-            if (!Array.isArray(house.quizzesPassed)) house.quizzesPassed = [];
-            if (!house.quizzesPassed.includes(moduleId)) house.quizzesPassed.push(moduleId);
-        } else if (moduleType === 'lab') {
-            if (!Array.isArray(house.labsCompleted)) house.labsCompleted = [];
-            if (!house.labsCompleted.includes(moduleId)) house.labsCompleted.push(moduleId);
-            if (!Array.isArray(progress.labsCompleted)) progress.labsCompleted = [];
-            if (!progress.labsCompleted.includes(moduleId)) progress.labsCompleted.push(moduleId);
-        }
-
-        // Award XP (mirrors ProgressManager.XP_REWARDS)
-        const XP_BY_TYPE = {
-            presentation: 50, tool: 50, applet: 50,
-            quiz: 100, lab: 500, module: 1000
-        };
-        let xpReward = XP_BY_TYPE[moduleType] || XP_BY_TYPE.presentation;
-
-        // Quiz scoring: 70-89% = 100 XP, 90%+ = 200 XP
-        if (moduleType === 'quiz' && metadata && metadata.score >= 90) {
-            xpReward = 200;
-        }
-
-        progress.xp = (Number(progress.xp) || 0) + xpReward;
-        progress.level = calculateLevelFromXP(progress.xp);
     }
 
     /**
@@ -274,6 +295,10 @@ const ModuleProgress = (function() {
         const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
         progress[houseId] = progress[houseId] || {};
 
+        // Detect if this is a first completion (before bridge mutates arrays)
+        const isFirstCompletion = !Array.isArray(progress.completedModules)
+            || !progress.completedModules.includes(moduleId);
+
         // Check if this is first completion ever
         const isFirstModule = !hasCompletedAnyModule(progress);
 
@@ -296,7 +321,10 @@ const ModuleProgress = (function() {
         const syncPromise = tryFirestoreSync(moduleId, houseId, 'presentation', {});
 
         // Push to user's Firestore profile (cross-device sync)
-        pushToUserProfile(houseId, moduleId, 'module');
+        // Only on first completion — CF FieldValue.increment isn't diminishing-aware
+        if (isFirstCompletion) {
+            pushToUserProfile(houseId, moduleId, type || 'presentation');
+        }
 
         // Update completion counter
         const completedCount = parseInt(localStorage.getItem(MODULES_COMPLETED_KEY) || '0', 10);
