@@ -28,6 +28,7 @@ const TurtleValidator = require('./turtle');
 const FlexOverflowValidator = require('./flex-overflow');
 const SandboxValidator = require('./sandbox');
 const LinuxTerminalValidator = require('./linux-terminal');
+const ProgressKeysValidator = require('./progress-keys');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -130,6 +131,10 @@ class SyntaxValidator {
             verbose: this.verbose,
             profile: this.profile
         });
+        this.progressKeysValidator = new ProgressKeysValidator({
+            verbose: this.verbose,
+            profile: this.profile
+        });
     }
 
     /**
@@ -165,6 +170,7 @@ class SyntaxValidator {
                 flexOverflowErrors: 0,
                 sandboxErrors: 0,
                 linuxTerminalErrors: 0,
+                progressKeysErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -302,6 +308,7 @@ class SyntaxValidator {
             const flexOverflowIssues = this.flexOverflowValidator.validate(fileWithContent);
             const sandboxIssues = this.sandboxValidator.validate(fileWithContent);
             const ltIssues = this.linuxTerminalValidator.validate(fileWithContent);
+            const progIssues = this.progressKeysValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -320,6 +327,7 @@ class SyntaxValidator {
             results.issues.push(...flexOverflowIssues);
             results.issues.push(...sandboxIssues);
             results.issues.push(...ltIssues);
+            results.issues.push(...progIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -338,6 +346,7 @@ class SyntaxValidator {
             results.summary.flexOverflowErrors += flexOverflowIssues.length;
             results.summary.sandboxErrors += sandboxIssues.length;
             results.summary.linuxTerminalErrors += ltIssues.length;
+            results.summary.progressKeysErrors += progIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html

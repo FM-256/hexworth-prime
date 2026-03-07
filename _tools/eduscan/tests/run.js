@@ -27,6 +27,7 @@ const TurtleValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/turtle
 const FlexOverflowValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/flex-overflow'));
 const SandboxValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/sandbox'));
 const LinuxTerminalValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/linux-terminal'));
+const ProgressKeysValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/progress-keys'));
 
 // ── Import expectations ──────────────────────────────────────────────
 const expectations = require('./expectations');
@@ -58,7 +59,8 @@ const validators = [
     new TurtleValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new FlexOverflowValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new SandboxValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
-    new LinuxTerminalValidator({ profile: 'strict' })
+    new LinuxTerminalValidator({ profile: 'strict' }),
+    new ProgressKeysValidator({ profile: 'strict' })
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────

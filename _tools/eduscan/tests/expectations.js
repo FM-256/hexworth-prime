@@ -27,5 +27,6 @@ module.exports = {
     'turtle-issues.html':          ['TURTLE-001', 'TURTLE-002'],
     'flex-overflow-issues.html':    ['FLEX-001'],
     'sandbox-issues.html':           ['SANDBOX-002', 'SANDBOX-003', 'SANDBOX-007'],
-    'lt-issues.html':                 ['LT-001', 'LT-002', 'LT-003', 'LT-004']
+    'lt-issues.html':                 ['LT-001', 'LT-002', 'LT-003', 'LT-004'],
+    'progress-issues.html':            ['PROG-001', 'PROG-002']
 };
