@@ -196,49 +196,90 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        const terminal = new LinuxTerminal('terminal', { user: 'learner', hostname: 'linux-mastery', height: '300px' });
-        const files = {
-            'names.txt': ['charlie', 'alice', 'bob', 'alice', 'charlie', 'alice'],
-            'numbers.txt': ['10', '2', '1', '20', '5', '2', '10']
-        };
-
-        terminal.addCommand('sort', (args) => {
-            const hasN = args.includes('-n');
-            const hasR = args.includes('-r');
-            const hasU = args.includes('-u');
-            const fn = args.filter(a => !a.startsWith('-'))[0] || 'names.txt';
-            let data = [...(files[fn] || [])];
-            if (!data.length) return '';
-            if (hasN) { data.sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0)); checkTask('sort-n'); }
-            else { data.sort(); }
-            if (hasR) data.reverse();
-            if (hasU) data = [...new Set(data)];
-            checkTask('sort');
-            return data.join('\n');
-        });
-
-        terminal.addCommand('uniq', (args) => {
-            const hasC = args.includes('-c');
-            const input = terminal.lastOutput?.split('\n') || files['names.txt'];
-            let result = [];
-            let counts = {};
-            let prev = null;
-            input.forEach(line => {
-                if (line !== prev) { result.push(line); counts[line] = 1; }
-                else { counts[line]++; }
-                prev = line;
-            });
-            checkTask('uniq');
-            if (hasC) { checkTask('uniq-c'); return result.map(l => `   ${counts[l]} ${l}`).join('\n'); }
-            return result.join('\n');
-        });
-
-        terminal.addCommand('cat', (args) => files[args[0]]?.join('\n') || '');
-        terminal.addCommand('ls', () => Object.keys(files).join('  '));
-
+        const TOTAL_TASKS = 4;
         const completedTasks = new Set();
-        function checkTask(t) { if (!completedTasks.has(t)) { completedTasks.add(t); document.querySelector(`[data-task="${t}"]`)?.classList.add('completed'); updateProgress(); } }
-        function updateProgress() { const pct = Math.round((completedTasks.size / 4) * 100); document.querySelector('.progress').style.strokeDashoffset = 326.7 - (pct / 100) * 326.7; document.querySelector('.progress-text').textContent = pct + '%'; }
+
+        LinuxTerminal.init('LM-17', '#terminal', {
+            user: 'learner',
+            hostname: 'linux-mastery',
+            startDir: '/home/learner',
+            height: '300px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'sort') {
+                    checkTask('sort');
+                    if (/-n/.test(cmdLine)) checkTask('sort-n');
+                }
+                if (cmd === 'uniq' || (cmd === 'pipe' && /\buniq\b/.test(cmdLine))) {
+                    checkTask('uniq');
+                    if (/-c/.test(cmdLine)) checkTask('uniq-c');
+                }
+                if (cmd === 'pipe') {
+                    if (/\bsort\b/.test(cmdLine)) checkTask('sort');
+                    if (/\bsort\b.*-n/.test(cmdLine)) checkTask('sort-n');
+                    if (/\buniq\b/.test(cmdLine)) checkTask('uniq');
+                    if (/\buniq\b.*-c/.test(cmdLine)) checkTask('uniq-c');
+                }
+            }
+        });
+
+        // Add lab files to virtual filesystem
+        const fs = LinuxTerminal.getFs();
+        fs['/home/learner'].children.push('names.txt', 'numbers.txt');
+        LinuxTerminal.addFilesystem({
+            '/home/learner/names.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner',
+                size: 48,
+                content: 'charlie\nalice\nbob\nalice\ncharlie\nalice\n'
+            },
+            '/home/learner/numbers.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner',
+                size: 24,
+                content: '10\n2\n1\n20\n5\n2\n10\n'
+            }
+        });
+
+        function checkTask(t) {
+            if (!completedTasks.has(t)) {
+                completedTasks.add(t);
+                document.querySelector(`[data-task="${t}"]`)?.classList.add('completed');
+                updateProgress();
+                saveProgress();
+            }
+        }
+
+        function updateProgress() {
+            const pct = Math.round((completedTasks.size / TOTAL_TASKS) * 100);
+            document.querySelector('.progress').style.strokeDashoffset = 326.7 - (pct / 100) * 326.7;
+            document.querySelector('.progress-text').textContent = pct + '%';
+            if (completedTasks.size === TOTAL_TASKS) {
+                ModuleProgress.complete('script', 'script-lm-17-sort-uniq', { returnUrl: 'index.html' });
+            }
+        }
+
+        function saveProgress() {
+            const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!p.script) p.script = {};
+            p.script['script-lm-17-sort-uniq'] = {
+                completedChallenges: [...completedTasks],
+                completed: completedTasks.size === TOTAL_TASKS,
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(p));
+        }
+
+        function loadProgress() {
+            const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const m = p.script?.['script-lm-17-sort-uniq'];
+            if (m?.completedChallenges) {
+                m.completedChallenges.forEach(t => {
+                    completedTasks.add(t);
+                    document.querySelector(`[data-task="${t}"]`)?.classList.add('completed');
+                });
+                updateProgress();
+            }
+        }
+
+        loadProgress();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>
 </body>

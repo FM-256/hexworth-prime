@@ -782,178 +782,23 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        const terminal = new LinuxTerminal('terminal', {
-            user: 'learner',
-            hostname: 'linux-mastery',
-            height: '350px'
-        });
-
         const completedTasks = new Set();
 
-        // Test command
-        terminal.addCommand('test', (args) => {
-            const result = evaluateCondition(args);
-            return result ? 'true (exit 0)' : 'false (exit 1)';
-        });
-
-        // [ ] command (alias for test)
-        terminal.addCommand('[', (args) => {
-            // Remove trailing ]
-            if (args[args.length - 1] === ']') {
-                args = args.slice(0, -1);
-            }
-            const result = evaluateCondition(args);
-            return result ? 'true (exit 0)' : 'false (exit 1)';
-        });
-
-        function evaluateCondition(args) {
-            // File tests
-            if (args[0] === '-f') {
-                checkTask('file');
-                const path = args[1];
-                return terminal.fs[terminal._resolvePath(path)]?.type === 'file';
-            }
-            if (args[0] === '-d') {
-                checkTask('file');
-                const path = args[1];
-                return terminal.fs[terminal._resolvePath(path)]?.type === 'dir';
-            }
-            if (args[0] === '-e') {
-                checkTask('file');
-                const path = args[1];
-                return !!terminal.fs[terminal._resolvePath(path)];
-            }
-            if (args[0] === '-z') {
-                return !args[1] || args[1] === '';
-            }
-            if (args[0] === '-n') {
-                return args[1] && args[1] !== '';
-            }
-
-            // Number comparisons
-            if (args[1] === '-eq') {
-                checkTask('number');
-                return parseInt(args[0]) === parseInt(args[2]);
-            }
-            if (args[1] === '-ne') {
-                checkTask('number');
-                return parseInt(args[0]) !== parseInt(args[2]);
-            }
-            if (args[1] === '-lt') {
-                checkTask('number');
-                return parseInt(args[0]) < parseInt(args[2]);
-            }
-            if (args[1] === '-le') {
-                checkTask('number');
-                return parseInt(args[0]) <= parseInt(args[2]);
-            }
-            if (args[1] === '-gt') {
-                checkTask('number');
-                return parseInt(args[0]) > parseInt(args[2]);
-            }
-            if (args[1] === '-ge') {
-                checkTask('number');
-                return parseInt(args[0]) >= parseInt(args[2]);
-            }
-
-            // String comparisons
-            if (args[1] === '=' || args[1] === '==') {
-                return args[0] === args[2];
-            }
-            if (args[1] === '!=') {
-                return args[0] !== args[2];
-            }
-
-            return false;
-        }
-
-        // if-test command to simulate conditionals
-        terminal.addCommand('if-test', (args) => {
-            checkTask('if');
-
-            // Parse: if-test CONDITION then THEN_CMD [else ELSE_CMD]
-            const thenIndex = args.indexOf('then');
-            const elseIndex = args.indexOf('else');
-
-            if (thenIndex === -1) {
-                return 'Usage: if-test CONDITION then COMMAND [else COMMAND]';
-            }
-
-            const condition = args.slice(0, thenIndex);
-            const thenCmd = elseIndex === -1 ?
-                args.slice(thenIndex + 1).join(' ') :
-                args.slice(thenIndex + 1, elseIndex).join(' ');
-            const elseCmd = elseIndex !== -1 ?
-                args.slice(elseIndex + 1).join(' ') : null;
-
-            const result = evaluateCondition(condition);
-
-            let output = `Condition: [ ${condition.join(' ')} ]\n`;
-            output += `Result: ${result ? 'TRUE' : 'FALSE'}\n`;
-
-            if (result) {
-                output += `Executing: ${thenCmd}`;
-            } else if (elseCmd) {
-                output += `Executing: ${elseCmd}`;
-            } else {
-                output += '(No else clause)';
-            }
-
-            return output;
-        });
-
-        // Combined condition test
-        terminal.addCommand('combined-test', (args) => {
-            // Parse: combined-test COND1 && COND2 or COND1 || COND2
-            const andIndex = args.indexOf('&&');
-            const orIndex = args.indexOf('||');
-
-            if (andIndex === -1 && orIndex === -1) {
-                return 'Usage: combined-test COND1 && COND2 or combined-test COND1 || COND2';
-            }
-
-            checkTask('combine');
-
-            if (andIndex !== -1) {
-                const cond1 = args.slice(0, andIndex);
-                const cond2 = args.slice(andIndex + 1);
-                const r1 = evaluateCondition(cond1);
-                const r2 = evaluateCondition(cond2);
-                return `Condition 1: ${r1}\nCondition 2: ${r2}\nAND result: ${r1 && r2}`;
-            }
-
-            if (orIndex !== -1) {
-                const cond1 = args.slice(0, orIndex);
-                const cond2 = args.slice(orIndex + 1);
-                const r1 = evaluateCondition(cond1);
-                const r2 = evaluateCondition(cond2);
-                return `Condition 1: ${r1}\nCondition 2: ${r2}\nOR result: ${r1 || r2}`;
+        LinuxTerminal.init('LM-44', '#terminal', {
+            user: 'learner',
+            hostname: 'linux-mastery',
+            height: '350px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'test' || cmd === '[') {
+                    checkTask('if');
+                    if (args.includes('-f') || args.includes('-d') || args.includes('-e')) checkTask('file');
+                    if (args.includes('-eq') || args.includes('-ne') || args.includes('-lt') || args.includes('-gt') || args.includes('-le') || args.includes('-ge')) checkTask('number');
+                }
+                if (cmdLine.includes('&&') || cmdLine.includes('||')) checkTask('combine');
             }
         });
 
-        // Help
-        terminal.addCommand('cond-help', () => {
-            return `Conditionals Practice Commands:
-
-Basic tests:
-  test -f /path/file      Test if file exists
-  test -d /path/dir       Test if directory exists
-  test 5 -eq 5            Test number equality
-  test 5 -gt 3            Test if 5 > 3
-  [ -f /path/file ]       Same as test (with brackets)
-
-If statements:
-  if-test -f /etc/passwd then echo "exists"
-  if-test 10 -gt 5 then echo "yes" else echo "no"
-
-Combined conditions:
-  combined-test -f /etc/passwd && -d /home
-  combined-test 5 -lt 3 || 5 -gt 3
-
-Number operators: -eq -ne -lt -le -gt -ge
-String operators: = != -z -n
-File tests: -e -f -d -r -w -x`;
-        });
+        LinuxTerminal.print('Conditionals Practice - Try: test -f /etc/passwd', 'highlight');
 
         function checkTask(taskName) {
             if (!completedTasks.has(taskName)) {
@@ -972,13 +817,16 @@ File tests: -e -f -d -r -w -x`;
             const circumference = 2 * Math.PI * 52;
             document.querySelector('.progress').style.strokeDashoffset = circumference - (percent / 100) * circumference;
             document.querySelector('.progress-text').textContent = percent + '%';
+
+            if (completed === total) {
+                ModuleProgress.complete('script', 'script-lm-44-conditionals', { returnUrl: 'index.html' });
+            }
         }
 
         function saveProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             if (!progress.script) progress.script = {};
-            if (!progress.script.linuxMastery) progress.script.linuxMastery = {};
-            progress.script.linuxMastery['lm-44'] = {
+            progress.script['script-lm-44-conditionals'] = {
                 completed: Array.from(completedTasks),
                 lastAccess: Date.now()
             };
@@ -987,7 +835,7 @@ File tests: -e -f -d -r -w -x`;
 
         function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const moduleProgress = progress.script?.linuxMastery?.['lm-44'];
+            const moduleProgress = progress.script?.['script-lm-44-conditionals'];
             if (moduleProgress?.completed) {
                 moduleProgress.completed.forEach(task => {
                     completedTasks.add(task);
@@ -999,7 +847,6 @@ File tests: -e -f -d -r -w -x`;
         }
 
         loadProgress();
-        terminal.print('Conditionals Practice - Type "cond-help" for commands', 'highlight');
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>
 </body>

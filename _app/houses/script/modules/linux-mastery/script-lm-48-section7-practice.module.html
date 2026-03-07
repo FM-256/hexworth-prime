@@ -631,250 +631,57 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        const terminal = new LinuxTerminal('terminal', {
+        LinuxTerminal.init('LM-48', '#terminal', {
             user: 'learner',
             hostname: 'linux-mastery',
-            height: '400px'
+            startDir: '/home/learner',
+            height: '400px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                // Challenge 1: Greeting
+                if (cmd === 'echo' && cmdLine.toLowerCase().includes('hello')) completeChallenge(1);
+                // Challenge 2: Arguments / addition
+                if (cmdLine.includes('$((') || cmdLine.includes('expr')) completeChallenge(2);
+                // Challenge 3: File existence
+                if (cmdLine.includes('-f ') || cmdLine.includes('test ')) completeChallenge(3);
+                if (cmd === 'test') completeChallenge(3);
+                // Challenge 4: Directory loop
+                if (cmdLine.match(/for\s+\w+\s+in/) || cmd === 'for') completeChallenge(4);
+                if (cmd === 'ls' && args.length > 0) completeChallenge(4);
+                // Challenge 5: Functions
+                if (cmdLine.includes('function ') || cmdLine.includes('()')) completeChallenge(5);
+                // Challenge 6: Comparison
+                if (cmdLine.includes('-gt') || cmdLine.includes('-lt') || cmdLine.includes('-eq')) completeChallenge(6);
+                // Challenge 7: While loop
+                if (cmdLine.match(/while\s/) || cmd === 'while') completeChallenge(7);
+                if (cmd === 'seq') completeChallenge(7);
+                // Challenge 8: Backup
+                if (cmd === 'cp' || cmd === 'tar') completeChallenge(8);
+                if (cmdLine.includes('.bak') || cmdLine.includes('backup')) completeChallenge(8);
+            }
         });
 
+        const fs = LinuxTerminal.getFs();
+        fs['/home/learner'].children.push('notes.txt');
+        LinuxTerminal.addFilesystem({
+            '/home/learner/notes.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner',
+                size: 64, content: 'These are my practice notes.\nUsed for backup challenge.\n'
+            }
+        });
+
+        const MODULE_KEY = 'lm-48-section7-practice';
         const completedChallenges = new Set();
-        let logFunctionDefined = false;
-
-        // Challenge 1: Greeting Script
-        terminal.addCommand('create-greet', (args) => {
-            const name = args[0] || 'World';
-            completeChallenge(1);
-            return `#!/bin/bash
-# Greeting script
-
-NAME="${name}"
-echo "Hello, $NAME!"
-echo "Welcome to shell scripting!"
-
---- Running script ---
-Hello, ${name}!
-Welcome to shell scripting!`;
-        });
-
-        // Challenge 2: Command Line Arguments
-        terminal.addCommand('add-numbers', (args) => {
-            const a = parseInt(args[0]) || 0;
-            const b = parseInt(args[1]) || 0;
-            completeChallenge(2);
-            return `#!/bin/bash
-# Addition script using $1 and $2
-
-NUM1=$1  # ${a}
-NUM2=$2  # ${b}
-SUM=$((NUM1 + NUM2))
-echo "$NUM1 + $NUM2 = $SUM"
-
---- Running script ---
-${a} + ${b} = ${a + b}`;
-        });
-
-        // Challenge 3: File Existence Check
-        terminal.addCommand('check-file', (args) => {
-            const file = args[0] || '/etc/passwd';
-            const exists = terminal.fs[terminal._resolvePath(file)];
-            completeChallenge(3);
-            return `#!/bin/bash
-# File existence check
-
-FILE="${file}"
-
-if [ -f "$FILE" ]; then
-    echo "File exists: $FILE"
-else
-    echo "File not found: $FILE"
-fi
-
---- Running script ---
-${exists ? `File exists: ${file}` : `File not found: ${file}`}`;
-        });
-
-        // Challenge 4: Directory Loop
-        terminal.addCommand('list-dir', (args) => {
-            const dir = args[0] || terminal.currentDir;
-            const node = terminal.fs[terminal._resolvePath(dir)];
-            const files = node?.children || [];
-            completeChallenge(4);
-
-            let output = `#!/bin/bash
-# Loop through directory
-
-DIR="${dir}"
-
-for file in "$DIR"/*; do
-    echo "Found: $file"
-done
-
---- Running script ---`;
-
-            files.forEach(f => {
-                output += `\nFound: ${dir}/${f}`;
-            });
-
-            return output;
-        });
-
-        // Challenge 5: Define Function
-        terminal.addCommand('define-log', () => {
-            logFunctionDefined = true;
-            return `#!/bin/bash
-# Logging function defined
-
-log() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] $1"
-}
-
-Function 'log' is now defined!
-Use 'call-log "your message"' to test it.`;
-        });
-
-        terminal.addCommand('call-log', (args) => {
-            if (!logFunctionDefined) {
-                return 'Error: Function not defined. Run "define-log" first!';
-            }
-            const message = args.join(' ') || 'Test message';
-            completeChallenge(5);
-            const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
-            return `Calling: log("${message}")
-Output: [${timestamp}] ${message}`;
-        });
-
-        // Challenge 6: Number Comparison
-        terminal.addCommand('compare', (args) => {
-            const a = parseInt(args[0]) || 0;
-            const b = parseInt(args[1]) || 0;
-            completeChallenge(6);
-
-            let result;
-            if (a > b) result = `${a} is greater than ${b}`;
-            else if (a < b) result = `${a} is less than ${b}`;
-            else result = `${a} equals ${b}`;
-
-            return `#!/bin/bash
-# Number comparison
-
-A=${a}
-B=${b}
-
-if [ $A -gt $B ]; then
-    echo "$A is greater than $B"
-elif [ $A -lt $B ]; then
-    echo "$A is less than $B"
-else
-    echo "$A equals $B"
-fi
-
---- Running script ---
-${result}`;
-        });
-
-        // Challenge 7: Counting Loop
-        terminal.addCommand('count-to', (args) => {
-            const max = parseInt(args[0]) || 5;
-            completeChallenge(7);
-
-            let output = `#!/bin/bash
-# Counting with while loop
-
-COUNT=1
-MAX=${max}
-
-while [ $COUNT -le $MAX ]; do
-    echo "Count: $COUNT"
-    ((COUNT++))
-done
-
---- Running script ---`;
-
-            for (let i = 1; i <= Math.min(max, 10); i++) {
-                output += `\nCount: ${i}`;
-            }
-
-            return output;
-        });
-
-        // Challenge 8: Backup Script
-        terminal.addCommand('backup-file', (args) => {
-            const file = args[0] || 'notes.txt';
-            const timestamp = new Date().toISOString().replace(/[:-]/g, '').slice(0, 15);
-            completeChallenge(8);
-
-            return `#!/bin/bash
-# Simple backup script
-
-FILE="${file}"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP="\${FILE}.\${TIMESTAMP}.bak"
-
-backup() {
-    local src="$1"
-    local dst="$2"
-
-    if [ -f "$src" ]; then
-        cp "$src" "$dst"
-        echo "[OK] Backup created: $dst"
-        return 0
-    else
-        echo "[ERROR] File not found: $src"
-        return 1
-    fi
-}
-
-backup "$FILE" "$BACKUP"
-
---- Running script ---
-[OK] Backup created: ${file}.${timestamp}.bak`;
-        });
-
-        // Help command
-        terminal.addCommand('challenge-help', () => {
-            return `Section 7 Practice - Challenge Commands:
-
-Challenge 1 - Greeting:
-  create-greet Alice        Create greeting script
-
-Challenge 2 - Arguments:
-  add-numbers 5 3           Add two numbers
-
-Challenge 3 - File Check:
-  check-file /etc/passwd    Check if file exists
-
-Challenge 4 - Directory Loop:
-  list-dir /home/learner    List files in directory
-
-Challenge 5 - Functions:
-  define-log                Define the log function
-  call-log "message"        Call the log function
-
-Challenge 6 - Comparison:
-  compare 10 5              Compare two numbers
-
-Challenge 7 - Counting:
-  count-to 5                Count from 1 to 5
-
-Challenge 8 - Backup:
-  backup-file notes.txt     Create backup of file
-
-Complete all 8 challenges to earn the Script Wizard badge!`;
-        });
 
         function completeChallenge(num) {
             if (completedChallenges.has(num)) return;
             completedChallenges.add(num);
 
-            // Update card
             const card = document.querySelector(`[data-challenge="${num}"]`);
             if (card) {
                 card.classList.add('completed');
                 card.querySelector('.challenge-status').textContent = 'Complete!';
             }
 
-            // Update sidebar
             const item = document.querySelector(`[data-ch="${num}"]`);
             if (item) item.classList.add('completed');
 
@@ -884,6 +691,7 @@ Complete all 8 challenges to earn the Script Wizard badge!`;
             if (completedChallenges.size === 8) {
                 document.getElementById('completionBox').classList.add('visible');
                 saveBadge();
+                ModuleProgress.complete('script', 'script-lm-48-section7-practice', { returnUrl: 'index.html' });
             }
         }
 
@@ -901,16 +709,13 @@ Complete all 8 challenges to earn the Script Wizard badge!`;
         }
 
         function resetEnvironment() {
-            logFunctionDefined = false;
-            terminal.clear();
-            terminal.print('Environment reset. Good luck!', 'highlight');
+            LinuxTerminal.clear();
         }
 
         function saveProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             if (!progress.script) progress.script = {};
-            if (!progress.script.linuxMastery) progress.script.linuxMastery = {};
-            progress.script.linuxMastery['lm-48'] = {
+            progress.script[MODULE_KEY] = {
                 completed: Array.from(completedChallenges),
                 lastAccess: Date.now()
             };
@@ -926,11 +731,11 @@ Complete all 8 challenges to earn the Script Wizard badge!`;
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
-        function loadProgress() {
+        (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const moduleProgress = progress.script?.linuxMastery?.['lm-48'];
-            if (moduleProgress?.completed) {
-                moduleProgress.completed.forEach(ch => {
+            const saved = progress.script?.[MODULE_KEY];
+            if (saved?.completed) {
+                saved.completed.forEach(ch => {
                     completedChallenges.add(ch);
                     const card = document.querySelector(`[data-challenge="${ch}"]`);
                     if (card) {
@@ -945,10 +750,7 @@ Complete all 8 challenges to earn the Script Wizard badge!`;
                     document.getElementById('completionBox').classList.add('visible');
                 }
             }
-        }
-
-        loadProgress();
-        terminal.print('Section 7 Practice - Type "challenge-help" for all commands', 'highlight');
+        })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>
 </body>

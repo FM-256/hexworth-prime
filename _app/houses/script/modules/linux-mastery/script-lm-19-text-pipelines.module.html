@@ -216,88 +216,84 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        const terminal = new LinuxTerminal('terminal', { user: 'learner', hostname: 'linux-mastery', height: '350px' });
-        const files = {
-            'access.log': ['192.168.1.1 GET /home 200', '192.168.1.2 GET /about 200', '192.168.1.1 POST /login 302', '10.0.0.1 GET /api 500', '192.168.1.1 GET /home 200', '192.168.1.3 GET /help 200', '10.0.0.1 GET /api 500', '192.168.1.2 GET /home 200'],
-            'app.log': ['INFO: started', 'ERROR: connection failed', 'INFO: processing', 'ERROR: timeout', 'ERROR: connection failed', 'WARNING: slow', 'ERROR: connection failed', 'INFO: done']
-        };
-
-        let pipeCount = 0;
-        let usedGrep = false;
-        let usedSort = false;
-
-        terminal.addCommand('cat', (args) => files[args[0]]?.join('\n') || '');
-        terminal.addCommand('grep', (args) => {
-            usedGrep = true;
-            const hasV = args.includes('-v');
-            const pattern = args.filter(a => !a.startsWith('-'))[0]?.replace(/"/g, '') || '';
-            const input = terminal.lastOutput?.split('\n') || [];
-            const regex = new RegExp(pattern);
-            return input.filter(l => hasV ? !regex.test(l) : regex.test(l)).join('\n');
-        });
-        terminal.addCommand('awk', (args) => {
-            const input = terminal.lastOutput?.split('\n') || [];
-            const cmd = args[0]?.replace(/'/g, '') || '';
-            const m = cmd.match(/\{print \$(\d+)\}/);
-            if (m) { return input.map(l => l.split(/\s+/)[(parseInt(m[1]) || 1) - 1] || '').join('\n'); }
-            return input.join('\n');
-        });
-        terminal.addCommand('sort', (args) => {
-            usedSort = true;
-            const hasR = args.includes('-r');
-            const hasN = args.includes('-n') || args.includes('-rn');
-            const input = terminal.lastOutput?.split('\n') || [];
-            let sorted = [...input];
-            if (hasN) { sorted.sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0)); }
-            else { sorted.sort(); }
-            if (hasR) sorted.reverse();
-            return sorted.join('\n');
-        });
-        terminal.addCommand('uniq', (args) => {
-            const hasC = args.includes('-c');
-            const input = terminal.lastOutput?.split('\n') || [];
-            let result = [], counts = {}, prev = null;
-            input.forEach(l => { if (l !== prev) { result.push(l); counts[l] = 1; } else { counts[l]++; } prev = l; });
-            if (hasC) return result.map(l => `   ${counts[l]} ${l}`).join('\n');
-            return result.join('\n');
-        });
-        terminal.addCommand('head', (args) => {
-            const n = args.includes('-n') ? parseInt(args[args.indexOf('-n') + 1]) : 10;
-            const input = terminal.lastOutput?.split('\n') || [];
-            return input.slice(0, n).join('\n');
-        });
-        terminal.addCommand('cut', (args) => {
-            let d = ',', f = '1';
-            args.forEach((a, i) => { if (a === '-d') d = args[i+1]; if (a === '-f') f = args[i+1]; });
-            const input = terminal.lastOutput?.split('\n') || [];
-            return input.map(l => l.split(d)[(parseInt(f) || 1) - 1] || '').join('\n');
-        });
-        terminal.addCommand('sed', (args) => {
-            const cmd = args[0]?.replace(/'/g, '') || '';
-            const m = cmd.match(/s\/(.+?)\/(.*)\/g?/);
-            const input = terminal.lastOutput?.split('\n') || [];
-            if (m) return input.map(l => l.replace(new RegExp(m[1], 'g'), m[2])).join('\n');
-            return input.join('\n');
-        });
-        terminal.addCommand('ls', () => Object.keys(files).join('  '));
-
-        // Track pipe usage
-        const origExec = terminal.executeCommand.bind(terminal);
-        terminal.executeCommand = function(cmd, args) {
-            if (terminal.lastOutput) pipeCount++;
-            const result = origExec(cmd, args);
-            if (pipeCount >= 2) checkTask('pipe2');
-            if (pipeCount >= 3) checkTask('pipe3');
-            if (usedGrep && pipeCount >= 1) checkTask('grep-pipe');
-            if (usedSort && pipeCount >= 1) checkTask('sort-pipe');
-            return result;
-        };
-
-        // Reset on new command line
-        terminal.onNewCommand = () => { pipeCount = 0; usedGrep = false; usedSort = false; };
-
+        const TOTAL_TASKS = 4;
         const completedTasks = new Set();
-        function checkTask(t) { if (!completedTasks.has(t)) { completedTasks.add(t); document.querySelector(`[data-task="${t}"]`)?.classList.add('completed'); const pct = Math.round((completedTasks.size / 4) * 100); document.querySelector('.progress').style.strokeDashoffset = 326.7 - (pct / 100) * 326.7; document.querySelector('.progress-text').textContent = pct + '%'; } }
+
+        LinuxTerminal.init('LM-19', '#terminal', {
+            user: 'learner',
+            hostname: 'linux-mastery',
+            startDir: '/home/learner',
+            height: '350px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'pipe') {
+                    // Count pipe segments
+                    const segments = cmdLine.split('|').length;
+                    if (segments >= 2) checkTask('pipe2');
+                    if (segments >= 3) checkTask('pipe3');
+                    if (/\bgrep\b/.test(cmdLine)) checkTask('grep-pipe');
+                    if (/\bsort\b/.test(cmdLine)) checkTask('sort-pipe');
+                }
+            }
+        });
+
+        // Add lab files to virtual filesystem
+        const fs = LinuxTerminal.getFs();
+        fs['/home/learner'].children.push('access.log', 'app.log');
+        LinuxTerminal.addFilesystem({
+            '/home/learner/access.log': {
+                type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner',
+                size: 256,
+                content: '192.168.1.1 GET /home 200\n192.168.1.2 GET /about 200\n192.168.1.1 POST /login 302\n10.0.0.1 GET /api 500\n192.168.1.1 GET /home 200\n192.168.1.3 GET /help 200\n10.0.0.1 GET /api 500\n192.168.1.2 GET /home 200\n'
+            },
+            '/home/learner/app.log': {
+                type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner',
+                size: 128,
+                content: 'INFO: started\nERROR: connection failed\nINFO: processing\nERROR: timeout\nERROR: connection failed\nWARNING: slow\nERROR: connection failed\nINFO: done\n'
+            }
+        });
+
+        function checkTask(t) {
+            if (!completedTasks.has(t)) {
+                completedTasks.add(t);
+                document.querySelector(`[data-task="${t}"]`)?.classList.add('completed');
+                updateProgress();
+                saveProgress();
+            }
+        }
+
+        function updateProgress() {
+            const pct = Math.round((completedTasks.size / TOTAL_TASKS) * 100);
+            document.querySelector('.progress').style.strokeDashoffset = 326.7 - (pct / 100) * 326.7;
+            document.querySelector('.progress-text').textContent = pct + '%';
+            if (completedTasks.size === TOTAL_TASKS) {
+                ModuleProgress.complete('script', 'script-lm-19-text-pipelines', { returnUrl: 'index.html' });
+            }
+        }
+
+        function saveProgress() {
+            const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!p.script) p.script = {};
+            p.script['script-lm-19-text-pipelines'] = {
+                completedChallenges: [...completedTasks],
+                completed: completedTasks.size === TOTAL_TASKS,
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(p));
+        }
+
+        function loadProgress() {
+            const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const m = p.script?.['script-lm-19-text-pipelines'];
+            if (m?.completedChallenges) {
+                m.completedChallenges.forEach(t => {
+                    completedTasks.add(t);
+                    document.querySelector(`[data-task="${t}"]`)?.classList.add('completed');
+                });
+                updateProgress();
+            }
+        }
+
+        loadProgress();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>
 </body>

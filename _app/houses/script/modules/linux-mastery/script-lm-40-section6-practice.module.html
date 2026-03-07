@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" lang="en">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <script src="../../../../components/AccessGuard.js"></script>
@@ -637,354 +637,36 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        const terminal = new LinuxTerminal('terminal', { user: 'learner', hostname: 'linux-mastery', height: '400px' });
-
-        // Challenge state
         const completedChallenges = new Set();
         const totalChallenges = 8;
 
-        // Network simulation data
-        const interfaces = {
-            lo: { ip: '127.0.0.1/8', mac: '00:00:00:00:00:00', state: 'UNKNOWN' },
-            eth0: { ip: '192.168.1.100/24', mac: '00:1a:2b:3c:4d:5e', state: 'UP' }
-        };
-
-        const dnsRecords = {
-            'google.com': { A: ['142.250.80.46'], AAAA: ['2607:f8b0:4004:800::200e'] },
-            'github.com': { A: ['140.82.121.4'], AAAA: ['2606:50c0:8000::154'] },
-            'example.com': { A: ['93.184.216.34'] }
-        };
-
-        const listeningPorts = [
-            { proto: 'tcp', local: '0.0.0.0:22', state: 'LISTEN' },
-            { proto: 'tcp', local: '0.0.0.0:80', state: 'LISTEN' },
-            { proto: 'tcp', local: '0.0.0.0:443', state: 'LISTEN' },
-            { proto: 'udp', local: '0.0.0.0:53', state: 'UNCONN' }
-        ];
-
-        // ip command
-        terminal.addCommand('ip', (args) => {
-            if (args[0] === 'addr' || args[0] === 'a' || args[0] === 'address') {
-                completeChallenge(1);
-                let output = '';
-                let idx = 1;
-                for (const [name, iface] of Object.entries(interfaces)) {
-                    output += `${idx}: ${name}: <UP> mtu 1500 state ${iface.state}\n`;
-                    output += `    link/ether ${iface.mac}\n`;
-                    output += `    inet ${iface.ip} scope global ${name}\n`;
-                    idx++;
-                }
-                return output.trim();
+        LinuxTerminal.init('LM-40', '#terminal', {
+            user: 'learner',
+            hostname: 'linux-mastery',
+            height: '400px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'ip') completeChallenge(1);
+                if (cmd === 'ping' && cmdLine.includes('-c 3') && cmdLine.includes('google')) completeChallenge(2);
+                if ((cmd === 'dig' || cmd === 'nslookup' || cmd === 'host') && cmdLine.includes('github.com')) completeChallenge(3);
+                if ((cmd === 'ss' && cmdLine.includes('t') && cmdLine.includes('l')) || cmd === 'netstat') completeChallenge(4);
+                if (cmd === 'curl' && cmdLine.includes('api.github.com/users/octocat')) completeChallenge(5);
+                if (cmd === 'wget' && cmdLine.includes('file.zip')) completeChallenge(6);
+                if (cmd === 'ssh-keygen') completeChallenge(7);
+                if (cmd === 'curl' && (args.includes('-I') || args.includes('--head'))) completeChallenge(8);
             }
-            if (args[0] === 'link') {
-                completeChallenge(1);
-                let output = '';
-                let idx = 1;
-                for (const [name, iface] of Object.entries(interfaces)) {
-                    output += `${idx}: ${name}: <UP> mtu 1500 state ${iface.state}\n`;
-                    output += `    link/ether ${iface.mac}\n`;
-                    idx++;
-                }
-                return output.trim();
-            }
-            return 'Usage: ip [addr|link|route]';
-        });
-
-        // ping command
-        terminal.addCommand('ping', (args) => {
-            let count = 4;
-            let target = null;
-
-            for (let i = 0; i < args.length; i++) {
-                if (args[i] === '-c' && args[i + 1]) {
-                    count = parseInt(args[i + 1]);
-                    i++;
-                } else if (!args[i].startsWith('-')) {
-                    target = args[i];
-                }
-            }
-
-            if (!target) return 'ping: usage error: Destination address required';
-
-            if (count === 3 && (target === 'google.com' || target.includes('google'))) {
-                completeChallenge(2);
-            }
-
-            const ip = dnsRecords[target]?.A?.[0] || target;
-            let output = `PING ${target} (${ip}) 56(84) bytes of data.\n`;
-
-            for (let i = 1; i <= count; i++) {
-                const time = (10 + Math.random() * 10).toFixed(3);
-                output += `64 bytes from ${ip}: icmp_seq=${i} ttl=64 time=${time} ms\n`;
-            }
-
-            output += `\n--- ${target} ping statistics ---\n`;
-            output += `${count} packets transmitted, ${count} received, 0% packet loss`;
-            return output;
-        });
-
-        // dig command
-        terminal.addCommand('dig', (args) => {
-            let domain = null;
-            let shortFormat = false;
-
-            for (const arg of args) {
-                if (arg === '+short') shortFormat = true;
-                else if (!arg.startsWith('+') && !arg.startsWith('-') && !arg.startsWith('@')) {
-                    domain = arg.toLowerCase();
-                }
-            }
-
-            if (!domain) return 'Usage: dig domain [+short]';
-
-            const records = dnsRecords[domain];
-            if (!records) return `;; Got answer:\n;; status: NXDOMAIN`;
-
-            if (domain === 'github.com') completeChallenge(3);
-
-            if (shortFormat) {
-                return records.A?.join('\n') || '';
-            }
-
-            return `; <<>> DiG 9.18.1 <<>> ${domain}
-;; QUESTION SECTION:
-;${domain}.                    IN      A
-
-;; ANSWER SECTION:
-${records.A?.map(ip => `${domain}.             300     IN      A       ${ip}`).join('\n') || ''}
-
-;; Query time: 14 msec
-;; SERVER: 8.8.8.8#53`;
-        });
-
-        // ss command
-        terminal.addCommand('ss', (args) => {
-            const argStr = args.join('');
-
-            if (argStr.includes('t') && argStr.includes('l')) {
-                completeChallenge(4);
-            }
-
-            let output = 'Netid  State   Recv-Q  Send-Q   Local Address:Port    Peer Address:Port\n';
-
-            const showTcp = argStr.includes('t') || args.length === 0;
-            const showUdp = argStr.includes('u');
-            const showListening = argStr.includes('l');
-
-            for (const port of listeningPorts) {
-                if (showTcp && port.proto === 'tcp' || showUdp && port.proto === 'udp') {
-                    if (!showListening || port.state === 'LISTEN' || port.state === 'UNCONN') {
-                        output += `${port.proto.padEnd(6)} ${port.state.padEnd(7)} 0       128      ${port.local.padEnd(22)} 0.0.0.0:*\n`;
-                    }
-                }
-            }
-
-            return output.trim();
-        });
-
-        // netstat (legacy)
-        terminal.addCommand('netstat', (args) => {
-            completeChallenge(4);
-            let output = 'Proto Recv-Q Send-Q Local Address           Foreign Address         State\n';
-            for (const port of listeningPorts) {
-                output += `${port.proto.padEnd(6)}0      0      ${port.local.padEnd(24)}0.0.0.0:*               ${port.state}\n`;
-            }
-            return output;
-        });
-
-        // curl command
-        terminal.addCommand('curl', (args) => {
-            let url = null;
-            let headersOnly = false;
-
-            for (const arg of args) {
-                if (arg === '-I' || arg === '--head') headersOnly = true;
-                else if (arg.startsWith('http')) url = arg;
-            }
-
-            if (!url) return 'curl: no URL specified';
-
-            if (url.includes('api.github.com/users/octocat')) {
-                completeChallenge(5);
-                return `{
-  "login": "octocat",
-  "id": 583231,
-  "type": "User",
-  "name": "The Octocat",
-  "company": "@github",
-  "location": "San Francisco"
-}`;
-            }
-
-            if (headersOnly && url.includes('github.com')) {
-                completeChallenge(8);
-                return `HTTP/2 200
-server: GitHub.com
-date: Mon, 15 Jan 2024 10:30:00 GMT
-content-type: text/html; charset=utf-8
-x-frame-options: DENY
-x-content-type-options: nosniff
-strict-transport-security: max-age=31536000`;
-            }
-
-            if (headersOnly) {
-                completeChallenge(8);
-                return `HTTP/2 200
-content-type: text/html
-server: Example Server`;
-            }
-
-            return '<!DOCTYPE html>\n<html>\n<head><title>Example</title></head>\n<body>Content<script src="../../../../components/FluxCapacitor.js"></script>
-</body>\n</html>';
-        });
-
-        // wget command
-        terminal.addCommand('wget', (args) => {
-            let url = null;
-            let quiet = false;
-
-            for (const arg of args) {
-                if (arg === '-q') quiet = true;
-                else if (arg.startsWith('http')) url = arg;
-            }
-
-            if (!url) return 'wget: missing URL';
-
-            if (url.includes('example.com/file.zip')) {
-                completeChallenge(6);
-            }
-
-            if (quiet) return '';
-
-            const filename = url.split('/').pop() || 'index.html';
-            return `--2024-01-15 10:30:00--  ${url}
-Resolving host... done.
-Connecting... connected.
-HTTP request sent, awaiting response... 200 OK
-Length: 1048576 (1.0M)
-Saving to: '${filename}'
-
-${filename}              100%[===================>]   1.00M  2.50MB/s    in 0.4s
-
-'${filename}' saved [1048576/1048576]`;
-        });
-
-        // ssh-keygen command
-        terminal.addCommand('ssh-keygen', (args) => {
-            completeChallenge(7);
-
-            let keyType = 'rsa';
-            for (let i = 0; i < args.length; i++) {
-                if (args[i] === '-t' && args[i + 1]) keyType = args[i + 1];
-            }
-
-            return `Generating public/private ${keyType} key pair.
-Enter file in which to save the key (~/.ssh/id_${keyType}):
-Enter passphrase (empty for no passphrase):
-Enter same passphrase again:
-Your identification has been saved in ~/.ssh/id_${keyType}
-Your public key has been saved in ~/.ssh/id_${keyType}.pub
-The key fingerprint is:
-SHA256:ExAmPlEfInGeRpRiNt1234567890ABCDEF learner@linux-mastery
-The key's randomart image is:
-+---[RSA 3072]----+
-|     .o.=+o      |
-|    . .B+*.      |
-|     o.=O.o      |
-|    . *=+.       |
-|   . + oS.       |
-|  . o . o .      |
-| . .   . .       |
-|  .     .        |
-|                 |
-+----[SHA256]-----+`;
-        });
-
-        // nslookup command
-        terminal.addCommand('nslookup', (args) => {
-            const domain = args.find(a => !a.startsWith('-'));
-            if (!domain) return 'Usage: nslookup domain';
-
-            const records = dnsRecords[domain];
-            if (!records) return `** server can't find ${domain}: NXDOMAIN`;
-
-            if (domain === 'github.com') completeChallenge(3);
-
-            return `Server:         8.8.8.8
-Address:        8.8.8.8#53
-
-Non-authoritative answer:
-Name:   ${domain}
-Address: ${records.A?.[0] || 'unknown'}`;
-        });
-
-        // host command
-        terminal.addCommand('host', (args) => {
-            const domain = args.find(a => !a.startsWith('-'));
-            if (!domain) return 'Usage: host domain';
-
-            const records = dnsRecords[domain];
-            if (!records) return `Host ${domain} not found`;
-
-            if (domain === 'github.com') completeChallenge(3);
-
-            return `${domain} has address ${records.A?.[0] || 'unknown'}`;
-        });
-
-        // traceroute/tracepath
-        terminal.addCommand('traceroute', (args) => {
-            const target = args.find(a => !a.startsWith('-'));
-            if (!target) return 'Usage: traceroute host';
-
-            return `traceroute to ${target}, 30 hops max
- 1  _gateway (192.168.1.1)  0.5 ms
- 2  10.0.0.1 (10.0.0.1)  8.2 ms
- 3  ${target}  14.1 ms`;
-        });
-
-        terminal.addCommand('tracepath', (args) => {
-            return terminal.execute('traceroute ' + args.join(' '));
-        });
-
-        // ls command
-        terminal.addCommand('ls', (args) => {
-            const path = args.find(a => !a.startsWith('-')) || '.';
-            if (path === '~/.ssh' || path === '.ssh') {
-                return 'config  known_hosts';
-            }
-            return 'Desktop  Documents  Downloads  .ssh';
-        });
-
-        // cat command
-        terminal.addCommand('cat', (args) => {
-            const file = args[0];
-            if (file === '/etc/resolv.conf') {
-                return 'nameserver 8.8.8.8\nnameserver 8.8.4.4';
-            }
-            if (file === '/etc/hosts') {
-                return '127.0.0.1   localhost\n127.0.1.1   linux-mastery';
-            }
-            return `cat: ${file}: No such file or directory`;
-        });
-
-        // hostname command
-        terminal.addCommand('hostname', (args) => {
-            if (args.includes('-I')) return '192.168.1.100';
-            return 'linux-mastery';
         });
 
         function completeChallenge(num) {
             if (completedChallenges.has(num)) return;
             completedChallenges.add(num);
 
-            // Update card
             const card = document.querySelector(`[data-challenge="${num}"]`);
             if (card) {
                 card.classList.add('completed');
-                card.querySelector('.challenge-status').textContent = 'Complete!';
+                const status = card.querySelector('.challenge-status');
+                if (status) status.textContent = 'Complete!';
             }
 
-            // Update sidebar
             const item = document.querySelector(`[data-ch="${num}"]`);
             if (item) item.classList.add('completed');
 
@@ -992,7 +674,9 @@ Address: ${records.A?.[0] || 'unknown'}`;
             saveProgress();
 
             if (completedChallenges.size === totalChallenges) {
-                document.getElementById('completionBox').classList.add('visible');
+                const box = document.getElementById('completionBox');
+                if (box) box.classList.add('visible');
+                ModuleProgress.complete('script', 'script-lm-40-section6-practice', { returnUrl: 'index.html' });
             }
         }
 
@@ -1010,40 +694,42 @@ Address: ${records.A?.[0] || 'unknown'}`;
         }
 
         function resetEnvironment() {
-            terminal.clear();
-            terminal.writeLine('Environment reset. Good luck, Network Navigator!');
+            LinuxTerminal.clear();
+            LinuxTerminal.print('Environment reset. Good luck, Network Navigator!', 'highlight');
         }
 
         function saveProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             if (!progress.script) progress.script = {};
-            if (!progress.script.linuxMastery) progress.script.linuxMastery = {};
-            progress.script.linuxMastery['lm-40'] = { completed: Array.from(completedChallenges), lastAccess: Date.now() };
+            progress.script['script-lm-40-section6-practice'] = { completed: Array.from(completedChallenges), lastAccess: Date.now() };
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
         function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const moduleProgress = progress.script?.linuxMastery?.['lm-40'];
+            const moduleProgress = progress.script?.['script-lm-40-section6-practice'];
             if (moduleProgress?.completed) {
                 moduleProgress.completed.forEach(ch => {
                     completedChallenges.add(ch);
                     const card = document.querySelector(`[data-challenge="${ch}"]`);
                     if (card) {
                         card.classList.add('completed');
-                        card.querySelector('.challenge-status').textContent = 'Complete!';
+                        const status = card.querySelector('.challenge-status');
+                        if (status) status.textContent = 'Complete!';
                     }
                     const item = document.querySelector(`[data-ch="${ch}"]`);
                     if (item) item.classList.add('completed');
                 });
                 updateProgress();
                 if (completedChallenges.size === totalChallenges) {
-                    document.getElementById('completionBox').classList.add('visible');
+                    const box = document.getElementById('completionBox');
+                    if (box) box.classList.add('visible');
                 }
             }
         }
 
         loadProgress();
     </script>
+<script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

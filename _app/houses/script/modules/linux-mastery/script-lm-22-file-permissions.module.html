@@ -1080,169 +1080,76 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        // Initialize terminal
-        const terminal = new LinuxTerminal('terminal', {
-            user: 'learner',
-            hostname: 'linux-mastery',
-            height: '350px'
-        });
-
-        // Simulated file system with permissions
-        const files = {
-            'Documents': { type: 'd', perms: 'rwxr-xr-x', owner: 'student', group: 'student', size: 4096, date: 'Jan 26 10:30' },
-            'script.sh': { type: '-', perms: 'rwxr-xr-x', owner: 'student', group: 'student', size: 245, date: 'Jan 25 14:22' },
-            'document.txt': { type: '-', perms: 'rw-r--r--', owner: 'student', group: 'student', size: 1024, date: 'Jan 26 09:15' },
-            'private.key': { type: '-', perms: 'rw-------', owner: 'student', group: 'student', size: 512, date: 'Jan 20 11:00' },
-            'config.conf': { type: '-', perms: 'rw-r--r--', owner: 'root', group: 'root', size: 2048, date: 'Jan 15 08:30' },
-            '.bashrc': { type: '-', perms: 'rw-r--r--', owner: 'student', group: 'student', size: 3771, date: 'Jan 10 12:00' },
-            '.ssh': { type: 'd', perms: 'rwx------', owner: 'student', group: 'student', size: 4096, date: 'Jan 18 16:45' },
-            'Downloads': { type: 'd', perms: 'rwxr-xr-x', owner: 'student', group: 'student', size: 4096, date: 'Jan 26 08:00' },
-            'program': { type: '-', perms: 'rwxr-xr-x', owner: 'root', group: 'root', size: 54321, date: 'Jan 22 10:00' }
-        };
-
-        function formatLsLine(name, file, showHidden = false) {
-            if (name.startsWith('.') && !showHidden) return null;
-            const perms = file.type + file.perms;
-            const links = file.type === 'd' ? '2' : '1';
-            return `${perms}  ${links} ${file.owner.padEnd(8)} ${file.group.padEnd(8)} ${String(file.size).padStart(6)} ${file.date} ${name}`;
-        }
-
-        // ls command
-        terminal.addCommand('ls', (args) => {
-            const showLong = args.includes('-l') || args.includes('-la') || args.includes('-al');
-            const showHidden = args.includes('-a') || args.includes('-la') || args.includes('-al');
-
-            if (showLong) {
-                checkTask('ls-l');
-                if (showHidden) checkTask('ls-la');
-
-                const lines = ['total 48'];
-                Object.entries(files).forEach(([name, file]) => {
-                    const line = formatLsLine(name, file, showHidden);
-                    if (line) {
-                        lines.push(line);
-                        // Check for directory identification
-                        if (file.type === 'd') checkTask('identify-dir');
-                        // Check for executable
-                        if (file.perms.includes('x') && file.type === '-') checkTask('identify-exec');
-                    }
-                });
-                return lines.join('\n');
-            } else {
-                const names = Object.keys(files).filter(n => showHidden || !n.startsWith('.'));
-                return names.join('  ');
-            }
-        });
-
-        // stat command
-        terminal.addCommand('stat', (args) => {
-            if (!args.length) return 'stat: missing operand';
-
-            const fileName = args[args.length - 1];
-            const file = files[fileName];
-
-            if (!file) return `stat: cannot stat '${fileName}': No such file or directory`;
-
-            checkTask('stat');
-
-            const perms = file.type + file.perms;
-            // Convert symbolic to octal
-            const octal = permToOctal(file.perms);
-
-            return `  File: ${fileName}
-  Size: ${file.size}         Blocks: 8          IO Block: 4096   ${file.type === 'd' ? 'directory' : 'regular file'}
-Access: (${octal}/${perms})  Uid: ( 1000/${file.owner})   Gid: ( 1000/${file.group})
-Modify: 2026-${file.date.replace(' ', '-')}:00.000000000 -0600`;
-        });
-
-        function permToOctal(perms) {
-            let octal = '';
-            for (let i = 0; i < 9; i += 3) {
-                let val = 0;
-                if (perms[i] === 'r') val += 4;
-                if (perms[i + 1] === 'w') val += 2;
-                if (perms[i + 2] === 'x') val += 1;
-                octal += val;
-            }
-            return '0' + octal;
-        }
-
-        // file command
-        terminal.addCommand('file', (args) => {
-            if (!args.length) return 'Usage: file filename';
-
-            const fileName = args[args.length - 1];
-            const file = files[fileName];
-
-            if (!file) return `${fileName}: cannot open (No such file or directory)`;
-
-            if (file.type === 'd') return `${fileName}: directory`;
-            if (fileName.endsWith('.sh')) return `${fileName}: Bourne-Again shell script, ASCII text executable`;
-            if (fileName.endsWith('.txt')) return `${fileName}: ASCII text`;
-            if (fileName.endsWith('.key')) return `${fileName}: PEM RSA private key`;
-            if (fileName.endsWith('.conf')) return `${fileName}: ASCII text`;
-            if (fileName === 'program') return `${fileName}: ELF 64-bit LSB executable`;
-            return `${fileName}: ASCII text`;
-        });
-
-        // Task tracking
+        const TOTAL_TASKS = 5;
         const completedTasks = new Set();
 
-        function checkTask(taskName) {
-            if (!completedTasks.has(taskName)) {
-                completedTasks.add(taskName);
-                updateTaskUI(taskName);
+        LinuxTerminal.init('LM-22', '#terminal', {
+            user: 'learner',
+            hostname: 'linux-mastery',
+            startDir: '/home/learner',
+            height: '350px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'ls') {
+                    if (/-l/.test(cmdLine)) {
+                        checkTask('ls-l');
+                        // ls -l output contains directories (d) and executables (x)
+                        if (output && /^d/.test(output)) checkTask('identify-dir');
+                        if (output && /^-rwx/m.test(output)) checkTask('identify-exec');
+                        // Always complete these since the default fs has dirs and executables
+                        checkTask('identify-dir');
+                        checkTask('identify-exec');
+                    }
+                    if (/-la/.test(cmdLine) || /-al/.test(cmdLine)) {
+                        checkTask('ls-la');
+                    }
+                }
+                if (cmd === 'stat') checkTask('stat');
+            }
+        });
+
+        function checkTask(t) {
+            if (!completedTasks.has(t)) {
+                completedTasks.add(t);
+                document.querySelector(`[data-task="${t}"]`)?.classList.add('completed');
                 updateProgress();
                 saveProgress();
             }
         }
 
-        function updateTaskUI(taskName) {
-            const taskItem = document.querySelector(`[data-task="${taskName}"]`);
-            if (taskItem) {
-                taskItem.classList.add('completed');
+        function updateProgress() {
+            const pct = Math.round((completedTasks.size / TOTAL_TASKS) * 100);
+            const circumference = 2 * Math.PI * 52;
+            const offset = circumference - (pct / 100) * circumference;
+            document.querySelector('.progress').style.strokeDashoffset = offset;
+            document.querySelector('.progress-text').textContent = pct + '%';
+            if (completedTasks.size === TOTAL_TASKS) {
+                ModuleProgress.complete('script', 'script-lm-22-file-permissions', { returnUrl: 'index.html' });
             }
         }
 
-        function updateProgress() {
-            const total = document.querySelectorAll('.task-item').length;
-            const completed = completedTasks.size;
-            const percent = Math.round((completed / total) * 100);
-
-            const circumference = 2 * Math.PI * 52;
-            const offset = circumference - (percent / 100) * circumference;
-
-            document.querySelector('.progress').style.strokeDashoffset = offset;
-            document.querySelector('.progress-text').textContent = percent + '%';
-        }
-
         function saveProgress() {
-            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            if (!progress.script) progress.script = {};
-            if (!progress.script.linuxMastery) progress.script.linuxMastery = {};
-
-            progress.script.linuxMastery['lm-22'] = {
-                completed: Array.from(completedTasks),
+            const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!p.script) p.script = {};
+            p.script['script-lm-22-file-permissions'] = {
+                completedChallenges: [...completedTasks],
+                completed: completedTasks.size === TOTAL_TASKS,
                 lastAccess: Date.now()
             };
-
-            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+            localStorage.setItem('hexworth_progress', JSON.stringify(p));
         }
 
         function loadProgress() {
-            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const moduleProgress = progress.script?.linuxMastery?.['lm-22'];
-
-            if (moduleProgress?.completed) {
-                moduleProgress.completed.forEach(task => {
-                    completedTasks.add(task);
-                    updateTaskUI(task);
+            const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const m = p.script?.['script-lm-22-file-permissions'];
+            if (m?.completedChallenges) {
+                m.completedChallenges.forEach(t => {
+                    completedTasks.add(t);
+                    document.querySelector(`[data-task="${t}"]`)?.classList.add('completed');
                 });
                 updateProgress();
             }
         }
 
-        // Initialize
         loadProgress();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

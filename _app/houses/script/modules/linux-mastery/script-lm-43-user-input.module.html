@@ -710,139 +710,24 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        const terminal = new LinuxTerminal('terminal', {
+        const completedTasks = new Set();
+
+        LinuxTerminal.init('LM-43', '#terminal', {
             user: 'learner',
             hostname: 'linux-mastery',
-            height: '350px'
-        });
-
-        const userVars = {};
-        const completedTasks = new Set();
-        let waitingForRead = null;
-
-        // Simulate read command
-        terminal.addCommand('read', (args) => {
-            let prompt = '';
-            let silent = false;
-            let varName = 'REPLY';
-
-            // Parse args
-            for (let i = 0; i < args.length; i++) {
-                if (args[i] === '-p' && args[i + 1]) {
-                    prompt = args[i + 1].replace(/^["']|["']$/g, '');
-                    checkTask('prompt');
-                    i++;
-                } else if (args[i] === '-s') {
-                    silent = true;
-                } else if (!args[i].startsWith('-')) {
-                    varName = args[i];
+            height: '350px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'read') {
+                    checkTask('read');
+                    if (args.includes('-p')) checkTask('prompt');
                 }
+                if (cmd === 'echo' && (cmdLine.includes('$1') || cmdLine.includes('$2'))) checkTask('args');
+                if (cmd === 'echo' && cmdLine.includes('$#')) checkTask('count');
+                if (cmd === 'bash' && args.length > 1) checkTask('args');
             }
-
-            checkTask('read');
-
-            // Simulate waiting for input
-            waitingForRead = {
-                varName: varName,
-                silent: silent
-            };
-
-            return prompt + '(Enter a value - type: input "your value")';
         });
 
-        // Input command to provide value to read
-        terminal.addCommand('input', (args) => {
-            if (!waitingForRead) {
-                return 'No read command waiting for input. Use "read VAR" first.';
-            }
-
-            const value = args.join(' ').replace(/^["']|["']$/g, '');
-            userVars[waitingForRead.varName] = value;
-
-            const msg = waitingForRead.silent ?
-                `(Input received - stored in $${waitingForRead.varName})` :
-                `You entered: ${value} (stored in $${waitingForRead.varName})`;
-
-            waitingForRead = null;
-            return msg;
-        });
-
-        // Simulate running a script with arguments
-        terminal.addCommand('run-script', (args) => {
-            if (args.length === 0) {
-                return 'Usage: run-script arg1 arg2 ...';
-            }
-
-            checkTask('args');
-
-            // Set positional parameters
-            userVars['0'] = 'script.sh';
-            args.forEach((arg, i) => {
-                userVars[String(i + 1)] = arg;
-            });
-            userVars['#'] = args.length.toString();
-            userVars['@'] = args.join(' ');
-
-            return `Script "script.sh" called with ${args.length} argument(s):
-$0 = script.sh
-$1 = ${args[0] || '(none)'}
-$2 = ${args[1] || '(none)'}
-$3 = ${args[2] || '(none)'}
-$# = ${args.length}
-$@ = ${args.join(' ')}`;
-        });
-
-        // Echo command with variable expansion
-        terminal.addCommand('echo', (args) => {
-            let output = args.join(' ').replace(/^["']|["']$/g, '');
-
-            // Expand special variables
-            output = output.replace(/\$#/g, () => {
-                checkTask('count');
-                return userVars['#'] || '0';
-            });
-
-            output = output.replace(/\$@/g, () => userVars['@'] || '');
-            output = output.replace(/\$0/g, () => userVars['0'] || 'bash');
-
-            // Expand numbered args
-            output = output.replace(/\$(\d+)/g, (match, num) => {
-                if (parseInt(num) >= 1) checkTask('args');
-                return userVars[num] || '';
-            });
-
-            // Expand named variables
-            output = output.replace(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g, (match, name) => {
-                return userVars[name] || terminal.env[name] || '';
-            });
-
-            return output;
-        });
-
-        // Help
-        terminal.addCommand('input-help', () => {
-            return `User Input Practice Commands:
-
-Reading input:
-  read NAME              Wait for input, store in NAME
-  read -p "Prompt: " VAR Display prompt, store in VAR
-  input "value"          Simulate user entering a value
-
-Running scripts with arguments:
-  run-script arg1 arg2   Simulate script with arguments
-  echo $1 $2             Show first and second argument
-  echo $#                Show argument count
-  echo $@                Show all arguments
-
-Example workflow:
-  1. read -p "Your name: " NAME
-  2. input "Alice"
-  3. echo "Hello, $NAME"
-
-Or try:
-  1. run-script hello world
-  2. echo "First: $1, Second: $2"`;
-        });
+        LinuxTerminal.print('User Input Practice - Try: read -p "Your name: " NAME', 'highlight');
 
         function checkTask(taskName) {
             if (!completedTasks.has(taskName)) {
@@ -861,13 +746,16 @@ Or try:
             const circumference = 2 * Math.PI * 52;
             document.querySelector('.progress').style.strokeDashoffset = circumference - (percent / 100) * circumference;
             document.querySelector('.progress-text').textContent = percent + '%';
+
+            if (completed === total) {
+                ModuleProgress.complete('script', 'script-lm-43-user-input', { returnUrl: 'index.html' });
+            }
         }
 
         function saveProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             if (!progress.script) progress.script = {};
-            if (!progress.script.linuxMastery) progress.script.linuxMastery = {};
-            progress.script.linuxMastery['lm-43'] = {
+            progress.script['script-lm-43-user-input'] = {
                 completed: Array.from(completedTasks),
                 lastAccess: Date.now()
             };
@@ -876,7 +764,7 @@ Or try:
 
         function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const moduleProgress = progress.script?.linuxMastery?.['lm-43'];
+            const moduleProgress = progress.script?.['script-lm-43-user-input'];
             if (moduleProgress?.completed) {
                 moduleProgress.completed.forEach(task => {
                     completedTasks.add(task);
@@ -888,7 +776,6 @@ Or try:
         }
 
         loadProgress();
-        terminal.print('User Input Practice - Type "input-help" for commands', 'highlight');
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>
 </body>

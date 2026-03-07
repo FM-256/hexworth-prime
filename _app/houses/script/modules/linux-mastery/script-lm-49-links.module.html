@@ -693,236 +693,54 @@ Directory Entry 2      |    +----------+
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        const terminal = new LinuxTerminal('terminal', {
+        LinuxTerminal.init('LM-49', '#terminal', {
             user: 'learner',
             hostname: 'linux-mastery',
-            height: '350px'
-        });
-
-        const completedTasks = new Set();
-
-        // Set up demo files
-        terminal.fs['/home/learner/original.txt'] = {
-            type: 'file',
-            content: 'This is the original file content.\nIt has multiple lines.\nUsed for demonstrating links.',
-            permissions: '-rw-r--r--',
-            owner: 'learner',
-            group: 'learner',
-            size: 89,
-            modified: 'Jan 26 09:00',
-            inode: 12345
-        };
-
-        terminal.fs['/home/learner/config'] = {
-            type: 'directory',
-            children: ['app.conf', 'settings.json'],
-            permissions: 'drwxr-xr-x',
-            owner: 'learner',
-            group: 'learner',
-            modified: 'Jan 26 09:00'
-        };
-
-        terminal.fs['/home/learner/config/app.conf'] = {
-            type: 'file',
-            content: '# Application Config\nport=8080\ndebug=true',
-            permissions: '-rw-r--r--',
-            owner: 'learner',
-            group: 'learner',
-            size: 45,
-            modified: 'Jan 26 09:00',
-            inode: 12346
-        };
-
-        // ln -s command (symbolic link)
-        terminal.addCommand('ln', (args) => {
-            const isSymbolic = args[0] === '-s' || args[0] === '-sf';
-            const force = args[0] === '-sf';
-
-            let targetIdx = isSymbolic ? 1 : 0;
-            let linkIdx = isSymbolic ? 2 : 1;
-
-            const target = args[targetIdx];
-            const linkName = args[linkIdx];
-
-            if (!target || !linkName) {
-                return 'ln: missing operand\nUsage: ln [-s] TARGET LINK_NAME';
-            }
-
-            const linkPath = terminal._resolvePath(linkName);
-            const targetPath = terminal._resolvePath(target);
-
-            if (isSymbolic) {
-                // Create symbolic link
-                terminal.fs[linkPath] = {
-                    type: 'symlink',
-                    target: target,
-                    permissions: 'lrwxrwxrwx',
-                    owner: 'learner',
-                    group: 'learner',
-                    size: target.length,
-                    modified: 'Jan 26 10:00',
-                    inode: Math.floor(Math.random() * 90000) + 10000
-                };
-
-                // Update parent directory
-                const parentPath = linkPath.substring(0, linkPath.lastIndexOf('/')) || '/home/learner';
-                const fileName = linkPath.substring(linkPath.lastIndexOf('/') + 1);
-                if (terminal.fs[parentPath] && !terminal.fs[parentPath].children.includes(fileName)) {
-                    terminal.fs[parentPath].children.push(fileName);
-                }
-
-                checkTask('symlink');
-                return `Created symbolic link '${linkName}' -> '${target}'`;
-            } else {
-                // Create hard link
-                if (!terminal.fs[targetPath]) {
-                    return `ln: cannot create link '${linkName}': No such file or directory`;
-                }
-                if (terminal.fs[targetPath].type === 'directory') {
-                    return 'ln: hard link not allowed for directory';
-                }
-
-                const originalInode = terminal.fs[targetPath].inode;
-                terminal.fs[linkPath] = {
-                    ...terminal.fs[targetPath],
-                    inode: originalInode,
-                    linkCount: 2
-                };
-                terminal.fs[targetPath].linkCount = 2;
-
-                const parentPath = linkPath.substring(0, linkPath.lastIndexOf('/')) || '/home/learner';
-                const fileName = linkPath.substring(linkPath.lastIndexOf('/') + 1);
-                if (terminal.fs[parentPath] && !terminal.fs[parentPath].children.includes(fileName)) {
-                    terminal.fs[parentPath].children.push(fileName);
-                }
-
-                checkTask('hardlink');
-                return `Created hard link '${linkName}' => '${target}' (inode ${originalInode})`;
+            startDir: '/home/learner',
+            height: '350px',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'ln' && cmdLine.includes('-s')) completeTask('symlink');
+                if (cmd === 'ln' && !cmdLine.includes('-s')) completeTask('hardlink');
+                if (cmd === 'ls' && (cmdLine.includes('-i') || cmdLine.includes('-l'))) completeTask('compare');
+                if (cmd === 'readlink') completeTask('readlink');
             }
         });
 
-        // ls -li for showing inodes
-        const originalLs = terminal.commands.ls;
-        terminal.addCommand('ls', (args) => {
-            const showInode = args.includes('-i') || args.includes('-li');
-            const longFormat = args.includes('-l') || args.includes('-li');
-
-            const pathArg = args.find(a => !a.startsWith('-'));
-            const targetPath = pathArg ? terminal._resolvePath(pathArg) : terminal.currentDir;
-            const node = terminal.fs[targetPath];
-
-            if (!node) return `ls: cannot access '${pathArg}': No such file or directory`;
-
-            if (node.type === 'directory') {
-                const entries = node.children || [];
-                let output = '';
-
-                entries.forEach(entry => {
-                    const entryPath = targetPath + '/' + entry;
-                    const entryNode = terminal.fs[entryPath];
-
-                    if (!entryNode) return;
-
-                    let line = '';
-                    if (showInode) {
-                        line += (entryNode.inode || '?????') + ' ';
-                    }
-                    if (longFormat) {
-                        const linkCount = entryNode.linkCount || 1;
-                        line += `${entryNode.permissions} ${linkCount} ${entryNode.owner} ${entryNode.group} `;
-                        line += `${String(entryNode.size || 0).padStart(5)} ${entryNode.modified} `;
-                    }
-
-                    if (entryNode.type === 'symlink') {
-                        line += `${entry} -> ${entryNode.target}`;
-                    } else {
-                        line += entry;
-                    }
-
-                    output += line + '\n';
-                });
-
-                if (showInode || longFormat) {
-                    checkTask('compare');
-                }
-                return output.trim() || '(empty directory)';
+        const fs = LinuxTerminal.getFs();
+        fs['/home/learner'].children.push('original.txt', 'config');
+        LinuxTerminal.addFilesystem({
+            '/home/learner/original.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner',
+                size: 89, content: 'This is the original file content.\nIt has multiple lines.\nUsed for demonstrating links.\n'
+            },
+            '/home/learner/config': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'learner', group: 'learner',
+                children: ['app.conf']
+            },
+            '/home/learner/config/app.conf': {
+                type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner',
+                size: 45, content: '# Application Config\nport=8080\ndebug=true\n'
             }
-
-            return originalLs ? originalLs(args) : 'Error';
         });
 
-        // readlink command
-        terminal.addCommand('readlink', (args) => {
-            const canonical = args[0] === '-f';
-            const pathArg = canonical ? args[1] : args[0];
+        const MODULE_KEY = 'lm-49-links';
+        const tasks = { 'symlink': false, 'hardlink': false, 'compare': false, 'readlink': false };
 
-            if (!pathArg) {
-                return 'readlink: missing operand';
-            }
-
-            const resolvedPath = terminal._resolvePath(pathArg);
-            const node = terminal.fs[resolvedPath];
-
-            if (!node) {
-                return `readlink: ${pathArg}: No such file or directory`;
-            }
-
-            if (node.type !== 'symlink') {
-                return ''; // readlink returns empty for non-symlinks
-            }
-
-            checkTask('readlink');
-
-            if (canonical) {
-                // Return absolute path
-                const targetPath = node.target.startsWith('/') ?
-                    node.target :
-                    terminal.currentDir + '/' + node.target;
-                return targetPath;
-            }
-
-            return node.target;
-        });
-
-        // Help command
-        terminal.addCommand('links-help', () => {
-            return `Links Practice Commands:
-
-Creating Links:
-  ln -s TARGET LINK    Create symbolic link
-  ln TARGET LINK       Create hard link
-  ln -sf TARGET LINK   Force create symlink (overwrite)
-
-Inspecting Links:
-  ls -l                Show link targets
-  ls -li               Show inodes
-  readlink LINK        Show symlink target
-  readlink -f LINK     Show canonical path
-
-Demo Files Available:
-  original.txt         A text file to link to
-  config/              A directory to practice with
-
-Tasks:
-1. Create a symlink: ln -s original.txt mylink
-2. Create a hard link: ln original.txt hardcopy
-3. Compare: ls -li
-4. Inspect: readlink mylink`;
-        });
-
-        function checkTask(taskName) {
-            if (!completedTasks.has(taskName)) {
-                completedTasks.add(taskName);
-                const taskEl = document.querySelector(`[data-task="${taskName}"]`);
-                if (taskEl) taskEl.classList.add('completed');
-                updateProgress();
-                saveProgress();
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const taskEl = document.querySelector(`.task-item[data-task="${taskId}"]`);
+            if (taskEl) taskEl.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', 'script-lm-49-links', { returnUrl: 'index.html' });
             }
         }
 
         function updateProgress() {
-            const total = document.querySelectorAll('.task-item').length;
-            const completed = completedTasks.size;
+            const completed = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
             const percent = Math.round((completed / total) * 100);
             const circumference = 2 * Math.PI * 52;
             document.querySelector('.progress').style.strokeDashoffset = circumference - (percent / 100) * circumference;
@@ -932,29 +750,25 @@ Tasks:
         function saveProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             if (!progress.script) progress.script = {};
-            if (!progress.script.linuxMastery) progress.script.linuxMastery = {};
-            progress.script.linuxMastery['lm-49'] = {
-                completed: Array.from(completedTasks),
+            progress.script[MODULE_KEY] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
                 lastAccess: Date.now()
             };
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
-        function loadProgress() {
+        (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const moduleProgress = progress.script?.linuxMastery?.['lm-49'];
-            if (moduleProgress?.completed) {
-                moduleProgress.completed.forEach(task => {
-                    completedTasks.add(task);
-                    const taskEl = document.querySelector(`[data-task="${task}"]`);
+            const saved = progress.script?.[MODULE_KEY];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const taskEl = document.querySelector(`.task-item[data-task="${t}"]`);
                     if (taskEl) taskEl.classList.add('completed');
                 });
                 updateProgress();
             }
-        }
-
-        loadProgress();
-        terminal.print('Links Module - Type "links-help" for commands', 'highlight');
+        })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>
 </body>
