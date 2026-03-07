@@ -25,5 +25,6 @@ module.exports = {
     'semantic-issues.html':       ['SEM-001', 'SEM-002'],
     'ux-issues.html':             ['UX-001'],
     'turtle-issues.html':          ['TURTLE-001', 'TURTLE-002'],
-    'flex-overflow-issues.html':    ['FLEX-001']
+    'flex-overflow-issues.html':    ['FLEX-001'],
+    'sandbox-issues.html':           ['SANDBOX-002', 'SANDBOX-003', 'SANDBOX-007']
 };

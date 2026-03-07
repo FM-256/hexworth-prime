@@ -26,6 +26,7 @@ const SemanticValidator = require('./semantic');
 const UXValidator = require('./ux');
 const TurtleValidator = require('./turtle');
 const FlexOverflowValidator = require('./flex-overflow');
+const SandboxValidator = require('./sandbox');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -119,6 +120,11 @@ class SyntaxValidator {
             rootPath: this.rootPath,
             profile: this.profile
         });
+        this.sandboxValidator = new SandboxValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
     }
 
     /**
@@ -152,6 +158,7 @@ class SyntaxValidator {
                 uxErrors: 0,
                 turtleErrors: 0,
                 flexOverflowErrors: 0,
+                sandboxErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -245,6 +252,17 @@ class SyntaxValidator {
             }
         }
 
+        // Run Sandbox validation (global, maps all sandbox integrations)
+        const sandboxGlobalResults = this.sandboxValidator.validateGlobal();
+        if (sandboxGlobalResults.issues.length > 0) {
+            results.issues.push(...sandboxGlobalResults.issues);
+            results.summary.sandboxErrors += sandboxGlobalResults.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] Sandbox (global): ${sandboxGlobalResults.issues.length} issues`);
+            }
+        }
+        results.summary.sandboxMap = sandboxGlobalResults.summary;
+
         for (const file of contentFiles) {
             // Only validate HTML files
             if (!file.path.endsWith('.html')) {
@@ -276,6 +294,7 @@ class SyntaxValidator {
             const uxIssues = this.uxValidator.validate(fileWithContent);
             const turtleIssues = this.turtleValidator.validate(fileWithContent);
             const flexOverflowIssues = this.flexOverflowValidator.validate(fileWithContent);
+            const sandboxIssues = this.sandboxValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -292,6 +311,7 @@ class SyntaxValidator {
             results.issues.push(...uxIssues);
             results.issues.push(...turtleIssues);
             results.issues.push(...flexOverflowIssues);
+            results.issues.push(...sandboxIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -308,6 +328,7 @@ class SyntaxValidator {
             results.summary.uxErrors += uxIssues.length;
             results.summary.turtleErrors += turtleIssues.length;
             results.summary.flexOverflowErrors += flexOverflowIssues.length;
+            results.summary.sandboxErrors += sandboxIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html

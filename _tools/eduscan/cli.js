@@ -861,7 +861,9 @@ function runFix(options, colorFn) {
     const scanOptions = { ...options, quiet: true, jsonOutput: false };
     const scanner = new EduScan(scanOptions);
     const scanResults = scanner.scan();
-    const allIssues = scanResults.validation ? scanResults.validation.issues : [];
+    const validationIssues = scanResults.validation ? scanResults.validation.issues : [];
+    const syntaxIssues = scanResults.syntax ? scanResults.syntax.issues : [];
+    const allIssues = [...validationIssues, ...syntaxIssues];
 
     // Count autoFixable issues
     const fixableCount = allIssues.filter(i => i.autoFixable).length;

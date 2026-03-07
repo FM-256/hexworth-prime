@@ -149,7 +149,7 @@ const SandboxLauncher = (function() {
                 </div>
                 <div class="sandbox-launcher__timer" style="display:none"></div>
                 <div class="sandbox-launcher__iframe-wrap" style="display:none">
-                    <iframe class="sandbox-launcher__iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                    <iframe class="sandbox-launcher__iframe"></iframe>
                     <button class="sandbox-launcher__btn sandbox-launcher__btn--collapse" type="button">Minimize</button>
                 </div>
             </div>

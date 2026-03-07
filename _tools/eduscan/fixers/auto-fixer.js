@@ -27,9 +27,10 @@ class AutoFixer {
 
         // Safety: Only apply fixes for these known-safe issue codes
         this.allowedCodes = new Set([
-            'ID-001',     // moduleId malformed (strip house prefix / -quiz suffix)
-            'SYNC-004',   // houseId doesn't match path house
-            'TRACK-001',  // trackProgress disabled
+            'ID-001',       // moduleId malformed (strip house prefix / -quiz suffix)
+            'SYNC-004',     // houseId doesn't match path house
+            'TRACK-001',    // trackProgress disabled
+            'SANDBOX-008',  // iframe sandbox attribute blocking ttyd terminal interaction
         ]);
     }
 
@@ -63,7 +64,7 @@ class AutoFixer {
                 });
                 return false;
             }
-            if (!i.searchPattern || !i.replaceWith) {
+            if (!i.searchPattern || i.replaceWith == null) {
                 result.skipped.push({
                     issue: i,
                     reason: 'Missing searchPattern or replaceWith'
