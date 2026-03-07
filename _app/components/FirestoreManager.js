@@ -35,8 +35,8 @@ const FirestoreManager = (function() {
 
     // XP values for actions (aligned with XPCalculator.XP_RATES)
     const XP_VALUES = {
-        PRESENTATION_VIEW: 50,
-        TOOL_EXPLORE: 50,
+        PRESENTATION_VIEW: 100,
+        TOOL_EXPLORE: 100,
         QUIZ_PASS: 100,
         QUIZ_PERFECT: 200,
         GATE_CLEARED: 500,
@@ -1172,6 +1172,8 @@ const FirestoreManager = (function() {
             const cloudModules = Array.isArray(cloudProfile.modulesCompleted) ? cloudProfile.modulesCompleted : [];
             const cloudLabs = Array.isArray(cloudProfile.labsCompleted) ? cloudProfile.labsCompleted : [];
 
+            if (!Array.isArray(localProgress.completedModules)) localProgress.completedModules = [];
+
             cloudModules.forEach(moduleId => {
                 const { house, key } = parseModuleId(moduleId);
                 if (!house || !key) return;
@@ -1184,7 +1186,13 @@ const FirestoreManager = (function() {
                     };
                     addedToLocal++;
                 }
+                // Also populate completedModules[] so XPCalculator can see cloud-restored items
+                if (!localProgress.completedModules.includes(moduleId)) {
+                    localProgress.completedModules.push(moduleId);
+                }
             });
+
+            if (!Array.isArray(localProgress.labsCompleted)) localProgress.labsCompleted = [];
 
             cloudLabs.forEach(labId => {
                 const { house, key } = parseModuleId(labId);
@@ -1198,6 +1206,13 @@ const FirestoreManager = (function() {
                     };
                     addedToLocal++;
                 }
+                // Populate completedModules[] and labsCompleted[] for XPCalculator
+                if (!localProgress.completedModules.includes(labId)) {
+                    localProgress.completedModules.push(labId);
+                }
+                if (!localProgress.labsCompleted.includes(labId)) {
+                    localProgress.labsCompleted.push(labId);
+                }
             });
 
             // Cloud quizzes → local quiz_scores
@@ -1206,6 +1221,8 @@ const FirestoreManager = (function() {
             const mergedQuizzes = mergeQuizScores(cloudQuizzes, localQuizzes);
 
             // Cloud quizzes → local progress entries
+            if (!Array.isArray(localProgress.quizHistory)) localProgress.quizHistory = [];
+
             Object.entries(cloudQuizzes).forEach(([quizId, quizData]) => {
                 const { house, key } = parseModuleId(quizId);
                 if (!house || !key) return;
@@ -1219,6 +1236,21 @@ const FirestoreManager = (function() {
                             date: quizData.passedAt || new Date().toISOString()
                         };
                         addedToLocal++;
+                    }
+                }
+                // Populate completedModules[] and quizHistory[] for XPCalculator
+                if (quizData.score >= 70 || quizData.passed) {
+                    if (!localProgress.completedModules.includes(quizId)) {
+                        localProgress.completedModules.push(quizId);
+                    }
+                    if (!localProgress.quizHistory.some(q => q.moduleId === quizId)) {
+                        localProgress.quizHistory.push({
+                            moduleId: quizId,
+                            score: quizData.score,
+                            houseId: house,
+                            completedAt: Date.now(),
+                            restoredFromCloud: true
+                        });
                     }
                 }
             });
@@ -1341,24 +1373,26 @@ const FirestoreManager = (function() {
             addedToLocal += blobRestored;
             await _writeSyncBlob(uid);
 
-            // 9. Final XP correction — sync blob deep merge may have restored inflated
-            // xp/level inside hexworth_progress JSON. Re-assert deterministic values.
+            // 9. Final XP correction — take the max of recalculated and cloud XP
+            // to prevent deflation. Cloud profile was fetched in step 1.
             if (typeof XPCalculator !== 'undefined') {
                 const finalCalc = XPCalculator.recalculate();
-                localStorage.setItem(LOCALSTORAGE_KEYS.xp, finalCalc.xp.toString());
-                localStorage.setItem('hexworth_level', finalCalc.level.toString());
-                // Also fix xp/level inside hexworth_progress if it was inflated by merge
+                const finalXP = Math.max(finalCalc.xp, cloudProfile.xp || 0);
+                const finalLevel = XPCalculator.calculateLevel(finalXP);
+                localStorage.setItem(LOCALSTORAGE_KEYS.xp, finalXP.toString());
+                localStorage.setItem('hexworth_level', finalLevel.toString());
+                // Also fix xp/level inside hexworth_progress
                 try {
                     const hp = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
-                    if (hp.xp !== finalCalc.xp || hp.level !== finalCalc.level) {
-                        hp.xp = finalCalc.xp;
-                        hp.level = finalCalc.level;
+                    if (hp.xp !== finalXP || hp.level !== finalLevel) {
+                        hp.xp = finalXP;
+                        hp.level = finalLevel;
                         localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(hp));
                     }
                 } catch (e) { /* best-effort */ }
-                // Write corrected XP to Firestore user doc
+                // Write corrected XP to Firestore user doc (guarded by Math.max)
                 try {
-                    await setUserProfile(uid, { xp: finalCalc.xp, level: finalCalc.level });
+                    await setUserProfile(uid, { xp: finalXP, level: finalLevel });
                 } catch (e) { /* best-effort */ }
             }
 
@@ -1500,7 +1534,7 @@ const FirestoreManager = (function() {
 
         let totalXP = 0;
 
-        // 50 XP per completed module (PRESENTATION_VIEW rate as conservative default)
+        // 100 XP per completed module (PRESENTATION_VIEW rate as conservative default)
         if (Array.isArray(localData.modulesCompleted)) {
             totalXP += localData.modulesCompleted.length * XP_VALUES.PRESENTATION_VIEW;
         }

@@ -581,7 +581,7 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
     switch (type) {
         case 'module':
             updates.modulesCompleted = FieldValue.arrayUnion(itemId);
-            updates.xp = FieldValue.increment(1000);
+            updates.xp = FieldValue.increment(100);
             if (house) {
                 updates[`houseProgress.${house}.completed`] = FieldValue.increment(1);
             }
