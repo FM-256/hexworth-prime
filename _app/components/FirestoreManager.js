@@ -33,20 +33,22 @@ const FirestoreManager = (function() {
         ENTERPRISE: 'enterprise'              // Institutional
     };
 
-    // XP values for actions (aligned with XPCalculator.XP_RATES)
-    const XP_VALUES = {
-        PRESENTATION_VIEW: 100,
-        TOOL_EXPLORE: 100,
-        QUIZ_PASS: 100,
-        QUIZ_PERFECT: 200,
-        GATE_CLEARED: 500,
-        LAB_COMPLETE: 500,
-        GAME_PLAYED: 100,
-        MODULE_COMPLETE: 1000,
-        COURSE_COMPLETE: 10000,
-        DAILY_LOGIN: 25,
-        FIRST_IN_HOUSE: 100
+    // XP values — delegates to XPCalculator.XP_RATES (single source of truth)
+    // Fallback constants only used if XPCalculator hasn't loaded yet
+    const _XP_FALLBACK = {
+        PRESENTATION_VIEW: 100, TOOL_EXPLORE: 100, QUIZ_PASS: 100,
+        QUIZ_PERFECT: 200, GATE_CLEARED: 500, LAB_COMPLETE: 500,
+        GAME_PLAYED: 100, MODULE_COMPLETE: 1000, COURSE_COMPLETE: 10000,
+        DAILY_LOGIN: 25, FIRST_IN_HOUSE: 100
     };
+    const XP_VALUES = new Proxy(_XP_FALLBACK, {
+        get(fallback, key) {
+            if (typeof XPCalculator !== 'undefined' && XPCalculator.XP_RATES && key in XPCalculator.XP_RATES) {
+                return XPCalculator.XP_RATES[key];
+            }
+            return fallback[key];
+        }
+    });
 
     // localStorage keys to migrate
     const LOCALSTORAGE_KEYS = {

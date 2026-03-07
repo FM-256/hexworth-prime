@@ -182,21 +182,21 @@ class ProgressManager {
         }
     }
 
-    // XP rewards for different activities
-    static XP_REWARDS = {
-        PRESENTATION_VIEW: 100,    // Viewed a presentation
-        TOOL_EXPLORE: 100,         // Explored a tool/applet
-        QUIZ_PASS: 100,            // Quiz score 70-89%
-        QUIZ_PERFECT: 200,         // Quiz score 90%+ (first time only, cannot be farmed)
-        GATE_CLEARED: 500,         // Dark Arts gate completed
-        LAB_COMPLETE: 500,         // Completed a lab exercise
-        GAME_PLAYED: 100,          // Unique game with a recorded score
-        MODULE_COMPLETE: 1000,     // All components of a module finished
-        COURSE_COMPLETE: 10000,    // All modules in a house path finished
+    // XP rewards — delegates to XPCalculator.XP_RATES (single source of truth)
+    static _XP_FALLBACK = {
+        PRESENTATION_VIEW: 100, TOOL_EXPLORE: 100, QUIZ_PASS: 100,
+        QUIZ_PERFECT: 200, GATE_CLEARED: 500, LAB_COMPLETE: 500,
+        GAME_PLAYED: 100, MODULE_COMPLETE: 1000, COURSE_COMPLETE: 10000,
         DAILY_LOGIN: 25
-        // Badges use their own .points values (10-500 per badge, see AchievementSystem)
-        // Canonical XP values live in XPCalculator.XP_RATES
     };
+    static XP_REWARDS = new Proxy(ProgressManager._XP_FALLBACK, {
+        get(fallback, key) {
+            if (typeof XPCalculator !== 'undefined' && XPCalculator.XP_RATES && key in XPCalculator.XP_RATES) {
+                return XPCalculator.XP_RATES[key];
+            }
+            return fallback[key];
+        }
+    });
 
     // Level system — uncapped RPG-style quadratic curve
     // Formula: Level N requires 50 * N * (N-1) cumulative XP
