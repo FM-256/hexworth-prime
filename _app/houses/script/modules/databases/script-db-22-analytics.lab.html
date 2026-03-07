@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-22: Analytics Lab | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #3B82F6; --accent-dim: rgba(59,130,246,0.15); --accent-glow: rgba(59,130,246,0.3); --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: rgba(74,222,128,0.15); color: var(--green); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(74,222,128,0.3); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; }
+        .back-link:hover { color: var(--accent); }
+        .lab-layout { display: grid; grid-template-columns: 1fr 480px; min-height: calc(100vh - 50px); }
+        .challenge-panel { padding: 30px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .lab-intro { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .lab-intro h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 8px; }
+        .lab-intro p { color: var(--text-secondary); font-size: 0.85rem; }
+        .challenge { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; transition: border-color 0.3s; }
+        .challenge.completed { border-color: rgba(74,222,128,0.4); }
+        .challenge-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .challenge-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 600; color: var(--accent); padding: 2px 8px; background: var(--accent-dim); border-radius: 4px; }
+        .challenge.completed .challenge-num { background: rgba(74,222,128,0.15); color: var(--green); }
+        .challenge-status { font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); }
+        .challenge.completed .challenge-status { color: var(--green); }
+        .challenge h4 { color: var(--text-primary); font-size: 0.95rem; margin-bottom: 8px; }
+        .challenge p { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 10px; }
+        .hint-btn { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: var(--yellow); padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-family: 'JetBrains Mono', monospace; }
+        .hint-btn:hover { background: rgba(251,191,36,0.2); }
+        .hint { display: none; margin-top: 10px; background: rgba(251,191,36,0.08); border-left: 3px solid var(--yellow); padding: 10px 14px; border-radius: 0 6px 6px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--yellow); white-space: pre-wrap; }
+        .hint.visible { display: block; }
+        .terminal-panel { background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: rgba(74,222,128,0.15); border-color: var(--green); color: var(--green); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        @media (max-width: 900px) { .lab-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; order: -1; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">LAB</span>
+            <h1>Analytics Lab</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="lab-layout">
+        <div class="challenge-panel">
+            <div class="lab-intro">
+                <h3>Mission Briefing</h3>
+                <p>
+                    The Meridian Technologies executive team needs analytics dashboards built from raw data.
+                    Use aggregation, GROUP BY, window functions, and pivoting techniques to generate the reports they need.
+                </p>
+            </div>
+
+            <div class="challenge" id="c1">
+                <div class="challenge-header"><span class="challenge-num">01</span><span class="challenge-status">PENDING</span></div>
+                <h4>Department Payroll Report</h4>
+                <p>Write a query showing each department name, employee count, total salary, and average salary. Requires GROUP BY with a JOIN and multiple aggregate functions.</p>
+                <button class="hint-btn" onclick="toggleHint('h1')">HINT</button>
+                <div class="hint" id="h1">SELECT d.name, COUNT(*), SUM(e.salary),
+       ROUND(AVG(e.salary), 0)
+FROM employees e
+JOIN departments d ON e.department_id = d.id
+GROUP BY d.name;</div>
+            </div>
+
+            <div class="challenge" id="c2">
+                <div class="challenge-header"><span class="challenge-num">02</span><span class="challenge-status">PENDING</span></div>
+                <h4>Top Earner Per Department</h4>
+                <p>Find the highest-paid employee in each department using a window function. Use ROW_NUMBER or RANK with PARTITION BY in a subquery, then filter for the top result.</p>
+                <button class="hint-btn" onclick="toggleHint('h2')">HINT</button>
+                <div class="hint" id="h2">SELECT * FROM (
+    SELECT e.first_name, e.last_name, e.salary,
+           d.name AS department,
+           ROW_NUMBER() OVER (PARTITION BY e.department_id
+                              ORDER BY e.salary DESC) AS rn
+    FROM employees e
+    JOIN departments d ON e.department_id = d.id
+) WHERE rn = 1;</div>
+            </div>
+
+            <div class="challenge" id="c3">
+                <div class="challenge-header"><span class="challenge-num">03</span><span class="challenge-status">PENDING</span></div>
+                <h4>Salary Percentiles</h4>
+                <p>Rank all employees by salary and show their percentile rank. Use PERCENT_RANK or NTILE to bucket employees into percentile groups.</p>
+                <button class="hint-btn" onclick="toggleHint('h3')">HINT</button>
+                <div class="hint" id="h3">SELECT first_name, last_name, salary,
+       ROUND(PERCENT_RANK() OVER (ORDER BY salary) * 100, 1)
+           AS percentile
+FROM employees
+ORDER BY salary DESC;</div>
+            </div>
+
+            <div class="challenge" id="c4">
+                <div class="challenge-header"><span class="challenge-num">04</span><span class="challenge-status">PENDING</span></div>
+                <h4>Running Payroll Total</h4>
+                <p>Show a running total of salary ordered by hire date. Each row should display the cumulative salary sum up to that employee's hire date.</p>
+                <button class="hint-btn" onclick="toggleHint('h4')">HINT</button>
+                <div class="hint" id="h4">SELECT first_name, last_name, hire_date, salary,
+       SUM(salary) OVER (ORDER BY hire_date) AS running_total
+FROM employees
+ORDER BY hire_date;</div>
+            </div>
+
+            <div class="challenge" id="c5">
+                <div class="challenge-header"><span class="challenge-num">05</span><span class="challenge-status">PENDING</span></div>
+                <h4>Year-Over-Year Hiring</h4>
+                <p>Count how many employees were hired per year. Extract the year from hire_date using STRFTIME and group the results.</p>
+                <button class="hint-btn" onclick="toggleHint('h5')">HINT</button>
+                <div class="hint" id="h5">SELECT STRFTIME('%Y', hire_date) AS year,
+       COUNT(*) AS hires
+FROM employees
+GROUP BY STRFTIME('%Y', hire_date)
+ORDER BY year;</div>
+            </div>
+
+            <div class="challenge" id="c6">
+                <div class="challenge-header"><span class="challenge-num">06</span><span class="challenge-status">PENDING</span></div>
+                <h4>Salary vs Department Average</h4>
+                <p>Show each employee's salary alongside their department average and the difference. Use a window function with PARTITION BY to compute the department average inline.</p>
+                <button class="hint-btn" onclick="toggleHint('h6')">HINT</button>
+                <div class="hint" id="h6">SELECT first_name, last_name, salary,
+       ROUND(AVG(salary) OVER (PARTITION BY department_id), 0)
+           AS dept_avg,
+       salary - ROUND(AVG(salary) OVER (PARTITION BY department_id), 0)
+           AS diff
+FROM employees
+ORDER BY department_id, salary DESC;</div>
+            </div>
+
+            <div class="challenge" id="c7">
+                <div class="challenge-header"><span class="challenge-num">07</span><span class="challenge-status">PENDING</span></div>
+                <h4>Product Sales Pivot</h4>
+                <p>Create a summary showing each product category with total revenue and order count. Join products, order_items, and orders, then group by category.</p>
+                <button class="hint-btn" onclick="toggleHint('h7')">HINT</button>
+                <div class="hint" id="h7">SELECT p.category,
+       COUNT(DISTINCT o.id) AS order_count,
+       ROUND(SUM(oi.quantity * oi.unit_price), 2) AS total_revenue
+FROM products p
+JOIN order_items oi ON p.id = oi.product_id
+JOIN orders o ON oi.order_id = o.id
+GROUP BY p.category
+ORDER BY total_revenue DESC;</div>
+            </div>
+
+            <div class="challenge" id="c8">
+                <div class="challenge-header"><span class="challenge-num">08</span><span class="challenge-status">PENDING</span></div>
+                <h4>Executive Dashboard</h4>
+                <p>Write a single query combining multiple aggregates: total employees, average salary, total departments, and total revenue from orders. Use subqueries or cross joins to pull from multiple tables in one result.</p>
+                <button class="hint-btn" onclick="toggleHint('h8')">HINT</button>
+                <div class="hint" id="h8">SELECT
+    (SELECT COUNT(*) FROM employees) AS total_employees,
+    (SELECT ROUND(AVG(salary), 0) FROM employees) AS avg_salary,
+    (SELECT COUNT(*) FROM departments) AS total_departments,
+    (SELECT ROUND(SUM(oi.quantity * oi.unit_price), 2)
+     FROM order_items oi) AS total_revenue;</div>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-21-pivoting.module.html" class="nav-btn">&lt; Previous: Pivoting &amp; Reshaping</a>
+                <a href="script-db-23-data-types.module.html" class="nav-btn primary">Next: Data Types &amp; Schema Design &gt;</a>
+            </nav>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Challenges</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 8</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="c1">01</span>
+                    <span class="task-chip" data-task="c2">02</span>
+                    <span class="task-chip" data-task="c3">03</span>
+                    <span class="task-chip" data-task="c4">04</span>
+                    <span class="task-chip" data-task="c5">05</span>
+                    <span class="task-chip" data-task="c6">06</span>
+                    <span class="task-chip" data-task="c7">07</span>
+                    <span class="task-chip" data-task="c8">08</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-22-analytics-lab';
+        const tasks = { c1: false, c2: false, c3: false, c4: false, c5: false, c6: false, c7: false, c8: false };
+        function toggleHint(id) { document.getElementById(id).classList.toggle('visible'); }
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // C1: Department Payroll Report — JOIN + GROUP BY + SUM + AVG
+                if (!tasks.c1) {
+                    if (/JOIN/.test(upper) && /GROUP BY/.test(upper) && /SUM/.test(upper) && /AVG/.test(upper)) {
+                        if (results && results.length > 0) completeTask('c1');
+                    }
+                }
+
+                // C2: Top Earner Per Department — ROW_NUMBER or RANK + PARTITION BY
+                if (!tasks.c2) {
+                    if ((/ROW_NUMBER/.test(upper) || /RANK/.test(upper)) && /PARTITION BY/.test(upper)) {
+                        if (results && results.length > 0) completeTask('c2');
+                    }
+                }
+
+                // C3: Salary Percentiles — PERCENT_RANK or NTILE
+                if (!tasks.c3) {
+                    if (/PERCENT_RANK/.test(upper) || /NTILE/.test(upper)) {
+                        if (results && results.length > 0) completeTask('c3');
+                    }
+                }
+
+                // C4: Running Payroll Total — SUM + OVER (window aggregate)
+                if (!tasks.c4) {
+                    if (/SUM/.test(upper) && /OVER/.test(upper) && /ORDER BY/.test(upper)) {
+                        if (results && results.length > 0) completeTask('c4');
+                    }
+                }
+
+                // C5: Year-Over-Year Hiring — STRFTIME + GROUP BY
+                if (!tasks.c5) {
+                    if (/STRFTIME/.test(upper) && /GROUP BY/.test(upper)) {
+                        if (results && results.length > 0) completeTask('c5');
+                    }
+                }
+
+                // C6: Salary vs Department Average — AVG + OVER + PARTITION BY
+                if (!tasks.c6) {
+                    if (/AVG/.test(upper) && /OVER/.test(upper) && /PARTITION BY/.test(upper)) {
+                        if (results && results.length > 0) completeTask('c6');
+                    }
+                }
+
+                // C7: Product Sales Pivot — GROUP BY with products/order_items
+                if (!tasks.c7) {
+                    if (/GROUP BY/.test(upper) && (/PRODUCTS/.test(upper) || /ORDER_ITEMS/.test(upper)) && /SUM/.test(upper)) {
+                        if (results && results.length > 0) completeTask('c7');
+                    }
+                }
+
+                // C8: Executive Dashboard — at least 3 aggregate functions (COUNT, AVG, SUM)
+                if (!tasks.c8) {
+                    var aggCount = 0;
+                    if (/COUNT/.test(upper)) aggCount++;
+                    if (/AVG/.test(upper)) aggCount++;
+                    if (/SUM/.test(upper)) aggCount++;
+                    if (aggCount >= 3 && results && results.length > 0) {
+                        completeTask('c8');
+                    }
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip) chip.classList.add('completed');
+            var card = document.getElementById(taskId);
+            if (card) { card.classList.add('completed'); card.querySelector('.challenge-status').textContent = 'COMPLETE'; }
+            updateProgress(); saveProgress();
+            if (Object.values(tasks).every(function(v) { return v; })) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            var done = Object.values(tasks).filter(function(v) { return v; }).length;
+            var total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = done + ' / ' + total;
+        }
+
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = { completed: Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; }), lastAccess: Date.now() };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.script && progress.script[MODULE_ID];
+            if (saved && saved.completed) {
+                saved.completed.forEach(function(t) {
+                    tasks[t] = true;
+                    var chip = document.querySelector('.task-chip[data-task="' + t + '"]'); if (chip) chip.classList.add('completed');
+                    var card = document.getElementById(t); if (card) { card.classList.add('completed'); card.querySelector('.challenge-status').textContent = 'COMPLETE'; }
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

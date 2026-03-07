@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-04: Sorting & Limiting Results | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 25px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            height: 50px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 12px; }
+
+        .module-badge {
+            background: var(--accent-dim);
+            color: var(--accent);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid var(--accent-glow);
+        }
+
+        .header h1 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 480px 1fr;
+            min-height: calc(100vh - 50px);
+        }
+
+        /* Terminal Panel */
+        .terminal-panel {
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 50px);
+            position: sticky;
+            top: 50px;
+        }
+
+        .panel-tasks {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-tasks-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .panel-tasks-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .panel-tasks-progress {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--accent);
+        }
+
+        .progress-bar {
+            height: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #60a5fa);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .task-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .task-chip {
+            font-size: 0.72rem;
+            padding: 4px 10px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.3s;
+        }
+
+        .task-chip.completed {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .terminal-container {
+            flex: 1;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* Content Panel */
+        .content-panel {
+            padding: 30px 40px;
+            overflow-y: auto;
+            max-height: calc(100vh - 50px);
+        }
+
+        .objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+
+        .objectives h3 {
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .objectives ul { list-style: none; padding: 0; }
+
+        .objectives li {
+            color: var(--text-secondary);
+            padding: 3px 0 3px 18px;
+            position: relative;
+            font-size: 0.85rem;
+        }
+
+        .objectives li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .section { margin-bottom: 35px; }
+
+        .section-title {
+            font-size: 1.2rem;
+            color: var(--accent);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .content-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            line-height: 1.8;
+        }
+
+        .content-text strong { color: var(--text-primary); }
+
+        .content-text code {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            margin: 16px 0 20px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .feature-card:hover { border-color: var(--accent-glow); }
+
+        .feature-card strong {
+            display: block;
+            color: var(--accent);
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+
+        .feature-card span {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 12px 0 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: #c9d1d9;
+            overflow-x: auto;
+        }
+
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+
+        /* Comparison table */
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0 20px;
+            font-size: 0.82rem;
+        }
+
+        .compare-table th {
+            background: var(--accent-dim);
+            color: var(--accent);
+            text-align: left;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        .compare-table td {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .compare-table tr:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Takeaways */
+        .takeaways {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.08), rgba(74, 222, 128, 0.03));
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .takeaways h3 {
+            color: var(--green);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .takeaways ul { list-style: none; padding: 0; }
+
+        .takeaways li {
+            color: var(--text-secondary);
+            padding: 4px 0 4px 22px;
+            position: relative;
+            font-size: 0.85rem;
+        }
+
+        .takeaways li::before {
+            content: '\2713';
+            position: absolute;
+            left: 0;
+            color: var(--green);
+        }
+
+        /* Navigation */
+        .nav-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px 0;
+            margin-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); }
+
+        .nav-btn.primary {
+            background: var(--accent-dim);
+            border-color: var(--accent-glow);
+            color: var(--accent);
+        }
+
+        .nav-btn.primary:hover { background: rgba(59, 130, 246, 0.25); }
+
+        .nav-btn.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+            .terminal-panel {
+                position: relative;
+                top: 0;
+                height: 400px;
+            }
+            .content-panel {
+                max-height: none;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-04</span>
+            <h1>Sorting & Limiting Results</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="order-by">ORDER BY</span>
+                    <span class="task-chip" data-task="desc">DESC</span>
+                    <span class="task-chip" data-task="limit">LIMIT</span>
+                    <span class="task-chip" data-task="offset">OFFSET</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Sort results with ORDER BY</li>
+                    <li>Use ASC and DESC for sort direction</li>
+                    <li>Sort by multiple columns</li>
+                    <li>Limit results with LIMIT and OFFSET</li>
+                    <li>Handle NULLs in sorting</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">ORDER BY Basics</h2>
+                <p class="content-text">
+                    By default, SQL returns rows in no guaranteed order. The <code>ORDER BY</code> clause lets you
+                    sort results by one or more columns. When you specify a column without a direction keyword,
+                    the sort defaults to <strong>ascending</strong> (smallest to largest, A to Z, earliest to latest).
+                </p>
+
+                <p class="content-text">
+                    <strong>Sort by salary (ascending, the default):</strong>
+                </p>
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> first_name, salary <span class="keyword">FROM</span> employees <span class="keyword">ORDER BY</span> salary;
+                </div>
+                <p class="content-text">
+                    This returns all employees sorted from lowest salary to highest. Since <code>ASC</code> is the
+                    default, writing <code>ORDER BY salary</code> is identical to <code>ORDER BY salary ASC</code>.
+                </p>
+
+                <p class="content-text">
+                    <strong>Sort by salary (descending):</strong>
+                </p>
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> first_name, salary <span class="keyword">FROM</span> employees <span class="keyword">ORDER BY</span> salary <span class="keyword">DESC</span>;
+                </div>
+                <p class="content-text">
+                    Adding <code>DESC</code> reverses the order: highest salary first. This is how you find top
+                    earners, most recent records, or anything where you want the "biggest" values on top.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Sorting by Multiple Columns</h2>
+                <p class="content-text">
+                    You can sort by more than one column by listing them separated by commas. SQL sorts by the
+                    first column first, then uses the second column to break ties within the first, and so on.
+                    Each column can have its own sort direction.
+                </p>
+
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> first_name, department_id, salary<br>
+                    <span class="keyword">FROM</span> employees<br>
+                    <span class="keyword">ORDER BY</span> department_id <span class="keyword">ASC</span>, salary <span class="keyword">DESC</span>;
+                </div>
+                <p class="content-text">
+                    This first sorts by <code>department_id</code> in ascending order (department 1, then 2, then 3...).
+                    Within each department, employees are sorted by <code>salary</code> in descending order, so the
+                    highest-paid person in each department appears first.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Sorting by Column Position</h2>
+                <p class="content-text">
+                    Instead of column names, you can reference columns by their position in the <code>SELECT</code>
+                    list. The numbering starts at <strong>1</strong>, not 0.
+                </p>
+
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> first_name, salary <span class="keyword">FROM</span> employees <span class="keyword">ORDER BY</span> <span class="number">2</span> <span class="keyword">DESC</span>;
+                </div>
+                <p class="content-text">
+                    Here, <code>2</code> refers to the second column in the SELECT list, which is <code>salary</code>.
+                    This query is equivalent to <code>ORDER BY salary DESC</code>. While this shorthand is occasionally
+                    useful for quick ad-hoc queries, <strong>using column names is strongly preferred</strong> in
+                    production code. Positional references break silently if someone reorders the SELECT columns.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Sorting by Expressions</h2>
+                <p class="content-text">
+                    You are not limited to sorting by raw column values. <code>ORDER BY</code> accepts any valid
+                    expression, including function calls. This lets you sort by computed values without adding
+                    them to your SELECT list.
+                </p>
+
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> first_name, last_name <span class="keyword">FROM</span> employees <span class="keyword">ORDER BY</span> <span class="function">LENGTH</span>(last_name);
+                </div>
+                <p class="content-text">
+                    This sorts employees by the length of their last name, from shortest to longest.
+                    The <code>LENGTH()</code> function returns the number of characters in a string. You could also
+                    sort by arithmetic expressions like <code>ORDER BY salary * 1.1</code> or concatenations.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">NULLs in Sorting</h2>
+                <p class="content-text">
+                    NULL values need special consideration when sorting. Since NULL represents "unknown" or "missing",
+                    the database has to decide where to place NULLs relative to actual values. Different databases
+                    handle this differently.
+                </p>
+
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> first_name, manager_id <span class="keyword">FROM</span> employees <span class="keyword">ORDER BY</span> manager_id;
+                </div>
+                <p class="content-text">
+                    In <strong>SQLite</strong> (which powers the console on the left), NULLs sort <strong>first</strong>
+                    in ascending order and <strong>last</strong> in descending order. This means the CEO (who has no
+                    manager, so <code>manager_id</code> is NULL) appears at the top when sorting ascending.
+                </p>
+
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Database</th>
+                            <th>NULLs in ASC</th>
+                            <th>NULLs in DESC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>SQLite</td>
+                            <td>First</td>
+                            <td>Last</td>
+                        </tr>
+                        <tr>
+                            <td>PostgreSQL</td>
+                            <td>Last</td>
+                            <td>First</td>
+                        </tr>
+                        <tr>
+                            <td>MySQL</td>
+                            <td>First</td>
+                            <td>Last</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p class="content-text">
+                    PostgreSQL supports <code>NULLS FIRST</code> and <code>NULLS LAST</code> modifiers to explicitly
+                    control NULL placement: <code>ORDER BY manager_id ASC NULLS LAST</code>. This syntax is not
+                    available in SQLite or MySQL, but it is part of the SQL standard and worth knowing.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">LIMIT and OFFSET</h2>
+                <p class="content-text">
+                    The <code>LIMIT</code> clause restricts how many rows are returned. This is essential for
+                    performance (you rarely need all million rows) and for "top N" queries. <code>LIMIT</code>
+                    always appears at the very end of a query.
+                </p>
+
+                <p class="content-text">
+                    <strong>Top 5 highest-paid employees:</strong>
+                </p>
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> first_name, salary <span class="keyword">FROM</span> employees <span class="keyword">ORDER BY</span> salary <span class="keyword">DESC</span> <span class="keyword">LIMIT</span> <span class="number">5</span>;
+                </div>
+                <p class="content-text">
+                    Without <code>ORDER BY</code>, <code>LIMIT</code> returns an arbitrary set of rows, which is
+                    rarely useful. Always pair <code>LIMIT</code> with <code>ORDER BY</code> so the results are
+                    deterministic.
+                </p>
+
+                <p class="content-text">
+                    <strong>Pagination with OFFSET:</strong>
+                </p>
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees <span class="keyword">ORDER BY</span> hire_date <span class="keyword">LIMIT</span> <span class="number">5</span> <span class="keyword">OFFSET</span> <span class="number">5</span>;
+                </div>
+                <p class="content-text">
+                    <code>OFFSET</code> skips a specified number of rows before returning results. Here, we skip
+                    the first 5 rows and return the next 5. This is how <strong>pagination</strong> works in web
+                    applications: page 1 uses <code>OFFSET 0</code>, page 2 uses <code>OFFSET 5</code>, page 3
+                    uses <code>OFFSET 10</code>, and so on (assuming 5 results per page).
+                </p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>LIMIT only</strong>
+                        <span>Returns the first N rows after sorting. Great for "top N" queries.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>LIMIT + OFFSET</strong>
+                        <span>Skip rows, then return N. The foundation of pagination in every web app.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Combining It All</h2>
+                <p class="content-text">
+                    In practice, you will chain multiple clauses together in a single query. SQL enforces a strict
+                    <strong>clause order</strong> that you must follow:
+                </p>
+
+                <div class="code-block">
+                    <span class="keyword">SELECT</span> first_name, salary<br>
+                    <span class="keyword">FROM</span> employees<br>
+                    <span class="keyword">WHERE</span> department_id = <span class="number">1</span><br>
+                    <span class="keyword">ORDER BY</span> salary <span class="keyword">DESC</span><br>
+                    <span class="keyword">LIMIT</span> <span class="number">3</span>;
+                </div>
+                <p class="content-text">
+                    This query reads as: "Give me the names and salaries of employees in department 1, sorted from
+                    highest to lowest salary, but only the top 3." The clause order is always:
+                </p>
+
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Order</th>
+                            <th>Clause</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><code>SELECT</code></td>
+                            <td>Which columns to return</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><code>FROM</code></td>
+                            <td>Which table to query</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><code>WHERE</code></td>
+                            <td>Filter rows (before grouping)</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><code>ORDER BY</code></td>
+                            <td>Sort the results</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><code>LIMIT / OFFSET</code></td>
+                            <td>Restrict how many rows to return</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p class="content-text">
+                    If you put <code>ORDER BY</code> before <code>WHERE</code>, or <code>LIMIT</code> before
+                    <code>ORDER BY</code>, SQL will throw a syntax error. Memorize this order early and it will
+                    save you debugging time throughout the course.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>ORDER BY sorts results; ASC (default) for ascending, DESC for descending</li>
+                    <li>Multi-column sorting breaks ties: first column sorts first, then the next, and so on</li>
+                    <li>Column positions (ORDER BY 2) work but column names are clearer and safer</li>
+                    <li>NULL sort order varies by database; SQLite puts NULLs first in ASC</li>
+                    <li>LIMIT restricts the number of rows returned; always pair it with ORDER BY</li>
+                    <li>OFFSET skips rows for pagination: LIMIT 10 OFFSET 20 returns rows 21-30</li>
+                    <li>Clause order matters: SELECT, FROM, WHERE, ORDER BY, LIMIT</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-03-where.module.html" class="nav-btn">&lt; Previous: WHERE Clause</a>
+                <a href="script-db-05-foundations.lab.html" class="nav-btn primary">Next: Foundations Lab &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-04-sorting';
+        const tasks = {
+            'order-by': false,
+            'desc': false,
+            'limit': false,
+            'offset': false
+        };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: Use ORDER BY in a query
+                if (upper.includes('ORDER BY')) {
+                    completeTask('order-by');
+                }
+
+                // Task: Sort in descending order (DESC)
+                if (upper.includes('DESC')) {
+                    completeTask('desc');
+                }
+
+                // Task: Use LIMIT to restrict results
+                if (upper.includes('LIMIT')) {
+                    completeTask('limit');
+                }
+
+                // Task: Use OFFSET for pagination
+                if (upper.includes('OFFSET')) {
+                    completeTask('offset');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

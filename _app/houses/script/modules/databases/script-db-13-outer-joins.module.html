@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-13: Outer Joins (LEFT, RIGHT, FULL) | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .info-box { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .info-box h4 { color: var(--accent); font-size: 0.85rem; margin-bottom: 8px; }
+        .info-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 0.85rem; }
+        .comparison-table th { background: var(--bg-card); color: var(--accent); text-align: left; padding: 10px 14px; border: 1px solid var(--border); font-weight: 600; font-size: 0.82rem; }
+        .comparison-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .comparison-table tr:hover td { background: rgba(59,130,246,0.05); }
+        .null-val { color: var(--red); font-family: 'JetBrains Mono', monospace; font-style: italic; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-13</span>
+            <h1>Outer Joins (LEFT, RIGHT, FULL)</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="left-join">LEFT JOIN</span>
+                    <span class="task-chip" data-task="find-unmatched">find unmatched</span>
+                    <span class="task-chip" data-task="count-join">JOIN + COUNT</span>
+                    <span class="task-chip" data-task="all-customers">all customers</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand LEFT, RIGHT, and FULL OUTER JOIN semantics</li>
+                    <li>Know when to use each type of outer join</li>
+                    <li>Identify and query for unmatched rows using IS NULL</li>
+                    <li>Recognize SQLite limitations for RIGHT and FULL joins</li>
+                    <li>Combine outer joins with aggregation for complete reports</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">LEFT JOIN</h2>
+                <p class="content-text">
+                    A <code>LEFT JOIN</code> (also written as <code>LEFT OUTER JOIN</code>) returns <strong>all rows from the left table</strong>
+                    and the matched rows from the right table. If there is no match, the right side columns are filled with <strong>NULL</strong>.
+                </p>
+                <p class="content-text">
+                    This is the most commonly used outer join. It guarantees that every row from the left table
+                    appears in the result, even if there is no corresponding row in the right table.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> e.first_name, e.last_name, d.name <span class="keyword">AS</span> dept
+<span class="keyword">FROM</span> employees e
+<span class="keyword">LEFT JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id;
+                </div>
+                <p class="content-text">
+                    Every employee appears in the results. If an employee has a <code>department_id</code> that does not match
+                    any <code>id</code> in the departments table, the <code>dept</code> column will show <strong>NULL</strong> instead of being
+                    excluded from the results entirely (which is what INNER JOIN would do).
+                </p>
+                <p class="content-text">
+                    Consider this data to see the difference:
+                </p>
+                <table class="comparison-table">
+                    <tr>
+                        <th>first_name</th>
+                        <th>last_name</th>
+                        <th>dept (LEFT JOIN)</th>
+                        <th>dept (INNER JOIN)</th>
+                    </tr>
+                    <tr>
+                        <td>Sarah</td>
+                        <td>Chen</td>
+                        <td>Engineering</td>
+                        <td>Engineering</td>
+                    </tr>
+                    <tr>
+                        <td>Marcus</td>
+                        <td>Rivera</td>
+                        <td>Marketing</td>
+                        <td>Marketing</td>
+                    </tr>
+                    <tr>
+                        <td>Jordan</td>
+                        <td>Blake</td>
+                        <td class="null-val">NULL</td>
+                        <td><em style="color: var(--red);">(row missing)</em></td>
+                    </tr>
+                </table>
+                <p class="content-text">
+                    With INNER JOIN, Jordan Blake disappears from the results because there is no matching department.
+                    With LEFT JOIN, Jordan still appears but with NULL for the department. This is the fundamental difference.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Finding Unmatched Rows</h2>
+                <p class="content-text">
+                    One of the most powerful uses of LEFT JOIN is finding rows in one table that have
+                    <strong>no match</strong> in another. This is done by adding a <code>WHERE</code> clause that checks for NULL
+                    on the right table's primary key:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> d.name
+<span class="keyword">FROM</span> departments d
+<span class="keyword">LEFT JOIN</span> employees e <span class="keyword">ON</span> d.id = e.department_id
+<span class="keyword">WHERE</span> e.id <span class="keyword">IS NULL</span>;
+                </div>
+                <p class="content-text">
+                    This query finds <strong>departments with no employees</strong>. The LEFT JOIN keeps all departments,
+                    and the <code>WHERE e.id IS NULL</code> filter keeps only the ones where no employee matched.
+                    This is a critical pattern you will use constantly in real-world SQL.
+                </p>
+                <div class="info-box">
+                    <h4>Why This Pattern Matters</h4>
+                    <p>
+                        Finding unmatched rows answers questions like: Which customers have never placed an order?
+                        Which products have never been sold? Which students are not enrolled in any class?
+                        These are among the most common business questions in database work.
+                    </p>
+                </div>
+                <p class="content-text">
+                    You can also flip it around. To find employees who are not assigned to any department:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> e.first_name, e.last_name
+<span class="keyword">FROM</span> employees e
+<span class="keyword">LEFT JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id
+<span class="keyword">WHERE</span> d.id <span class="keyword">IS NULL</span>;
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">RIGHT JOIN</h2>
+                <p class="content-text">
+                    A <code>RIGHT JOIN</code> is the mirror image of a LEFT JOIN. It returns <strong>all rows from the right table</strong>
+                    and the matched rows from the left table. Where there is no match, the left side columns are NULL.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> e.first_name, d.name <span class="keyword">AS</span> dept
+<span class="keyword">FROM</span> employees e
+<span class="keyword">RIGHT JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id;
+                </div>
+                <p class="content-text">
+                    This ensures every department appears even if no employee belongs to it. The result is
+                    identical to a LEFT JOIN with the tables swapped.
+                </p>
+                <div class="warning-box">
+                    <h4>SQLite Does Not Support RIGHT JOIN</h4>
+                    <p>
+                        SQLite (which our console uses) does not natively support <code>RIGHT JOIN</code>. You can always
+                        rewrite a RIGHT JOIN as a LEFT JOIN by swapping the table order. The following two queries
+                        produce identical results:
+                    </p>
+                </div>
+                <div class="code-block">
+<span class="comment">-- RIGHT JOIN (not supported in SQLite)</span>
+<span class="keyword">SELECT</span> e.first_name, d.name
+<span class="keyword">FROM</span> employees e
+<span class="keyword">RIGHT JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id;
+
+<span class="comment">-- Equivalent LEFT JOIN (works in SQLite)</span>
+<span class="keyword">SELECT</span> e.first_name, d.name
+<span class="keyword">FROM</span> departments d
+<span class="keyword">LEFT JOIN</span> employees e <span class="keyword">ON</span> d.id = e.department_id;
+                </div>
+                <p class="content-text">
+                    In practice, most developers prefer LEFT JOIN over RIGHT JOIN for readability. If you always
+                    think of the "primary" table as the left table, your queries read top-to-bottom naturally.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">FULL OUTER JOIN</h2>
+                <p class="content-text">
+                    A <code>FULL OUTER JOIN</code> returns <strong>all rows from both tables</strong>. Where there is no match,
+                    the missing side is filled with NULL. It is the combination of LEFT JOIN and RIGHT JOIN.
+                </p>
+                <div class="code-block">
+<span class="comment">-- FULL OUTER JOIN (not directly supported in SQLite)</span>
+<span class="keyword">SELECT</span> e.first_name, d.name <span class="keyword">AS</span> dept
+<span class="keyword">FROM</span> employees e
+<span class="keyword">FULL OUTER JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id;
+                </div>
+                <p class="content-text">
+                    The result includes:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Matched Rows</strong>
+                        <span>Employees that belong to a department, with both sides populated</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Left Only</strong>
+                        <span>Employees with no valid department (dept columns are NULL)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Right Only</strong>
+                        <span>Departments with no employees (employee columns are NULL)</span>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <h4>SQLite FULL OUTER JOIN Workaround</h4>
+                    <p>
+                        SQLite does not support FULL OUTER JOIN directly. You can emulate it using a UNION
+                        of a LEFT JOIN and a LEFT JOIN with the tables reversed:
+                    </p>
+                </div>
+                <div class="code-block">
+<span class="comment">-- Emulate FULL OUTER JOIN in SQLite</span>
+<span class="keyword">SELECT</span> e.first_name, d.name <span class="keyword">AS</span> dept
+<span class="keyword">FROM</span> employees e
+<span class="keyword">LEFT JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id
+
+<span class="keyword">UNION</span>
+
+<span class="keyword">SELECT</span> e.first_name, d.name <span class="keyword">AS</span> dept
+<span class="keyword">FROM</span> departments d
+<span class="keyword">LEFT JOIN</span> employees e <span class="keyword">ON</span> d.id = e.department_id
+<span class="keyword">WHERE</span> e.id <span class="keyword">IS NULL</span>;
+                </div>
+                <p class="content-text">
+                    The first query gets all employees (with or without departments). The second query adds
+                    departments that have no employees. <code>UNION</code> removes duplicates automatically.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">LEFT JOIN vs INNER JOIN</h2>
+                <p class="content-text">
+                    Understanding when to use LEFT JOIN versus INNER JOIN is one of the most important decisions
+                    in writing SQL queries. Here is a side-by-side comparison:
+                </p>
+                <table class="comparison-table">
+                    <tr>
+                        <th>Behavior</th>
+                        <th>INNER JOIN</th>
+                        <th>LEFT JOIN</th>
+                    </tr>
+                    <tr>
+                        <td>Matched rows</td>
+                        <td>Included</td>
+                        <td>Included</td>
+                    </tr>
+                    <tr>
+                        <td>Left table, no match</td>
+                        <td><span style="color: var(--red);">Excluded</span></td>
+                        <td><span style="color: var(--green);">Included (NULLs on right)</span></td>
+                    </tr>
+                    <tr>
+                        <td>Right table, no match</td>
+                        <td><span style="color: var(--red);">Excluded</span></td>
+                        <td><span style="color: var(--red);">Excluded</span></td>
+                    </tr>
+                    <tr>
+                        <td>Use when</td>
+                        <td>You only want rows that exist in both tables</td>
+                        <td>You need every row from the left table regardless</td>
+                    </tr>
+                </table>
+                <p class="content-text">
+                    <strong>Rule of thumb:</strong> Use INNER JOIN when you only care about matches. Use LEFT JOIN when
+                    you need a <strong>complete list</strong> from one table, even if some rows have no corresponding data
+                    in the other table.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Practical: Customer Order Analysis</h2>
+                <p class="content-text">
+                    LEFT JOIN shines in reporting scenarios. Suppose you want to see how many orders each customer
+                    has placed, <strong>including customers who have never ordered</strong>:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> c.name, <span class="function">COUNT</span>(o.id) <span class="keyword">AS</span> order_count
+<span class="keyword">FROM</span> customers c
+<span class="keyword">LEFT JOIN</span> orders o <span class="keyword">ON</span> c.id = o.customer_id
+<span class="keyword">GROUP BY</span> c.name;
+                </div>
+                <p class="content-text">
+                    With INNER JOIN, customers who have zero orders would disappear from the report. With LEFT JOIN,
+                    they appear with an <code>order_count</code> of 0. This is because <code>COUNT(o.id)</code> counts non-NULL values,
+                    and when there is no matching order, <code>o.id</code> is NULL and is not counted.
+                </p>
+                <div class="info-box">
+                    <h4>COUNT(*) vs COUNT(column)</h4>
+                    <p>
+                        Use <code>COUNT(o.id)</code> not <code>COUNT(*)</code> in LEFT JOIN aggregations.
+                        <code>COUNT(*)</code> counts all rows including those with NULLs, so a customer with zero
+                        orders would show a count of 1 (from the one NULL-filled row). <code>COUNT(o.id)</code>
+                        correctly returns 0 because NULL values are not counted.
+                    </p>
+                </div>
+                <p class="content-text">
+                    Try this query in the console. You should see every customer listed with their order count.
+                    Customers with no orders show 0.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>LEFT JOIN returns all rows from the left table, filling NULLs where the right has no match</li>
+                    <li>Use LEFT JOIN + WHERE IS NULL to find rows with no match (orphan detection)</li>
+                    <li>RIGHT JOIN is just a LEFT JOIN with the tables swapped; prefer LEFT JOIN for clarity</li>
+                    <li>FULL OUTER JOIN returns all rows from both tables; emulate in SQLite with UNION</li>
+                    <li>INNER JOIN drops unmatched rows; LEFT JOIN keeps them with NULLs on the right side</li>
+                    <li>Use COUNT(column) instead of COUNT(*) when counting through a LEFT JOIN to get correct zero counts</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-12-inner-join.module.html" class="nav-btn">&lt; Previous: Inner Joins</a>
+                <a href="script-db-14-advanced-joins.module.html" class="nav-btn primary">Next: Advanced Joins &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-13-outer-joins';
+        const tasks = { 'left-join': false, 'find-unmatched': false, 'count-join': false, 'all-customers': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task 1: Use a LEFT JOIN
+                if (upper.includes('LEFT JOIN') || upper.includes('LEFT OUTER JOIN')) {
+                    completeTask('left-join');
+
+                    // Task 2: LEFT JOIN + WHERE IS NULL (find unmatched rows)
+                    if (upper.includes('IS NULL')) {
+                        completeTask('find-unmatched');
+                    }
+
+                    // Task 3: JOIN + COUNT
+                    if (upper.includes('COUNT')) {
+                        completeTask('count-join');
+                    }
+
+                    // Task 4: Query that shows all customers (LEFT JOIN on customers)
+                    if (upper.includes('CUSTOMERS') && (upper.includes('LEFT JOIN') || upper.includes('LEFT OUTER JOIN'))) {
+                        completeTask('all-customers');
+                    }
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

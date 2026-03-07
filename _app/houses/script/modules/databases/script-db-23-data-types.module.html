@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-23: Data Types & Schema Design | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-23</span>
+            <h1>Data Types & Schema Design</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="create-table">CREATE TABLE</span>
+                    <span class="task-chip" data-task="alter-table">ALTER TABLE</span>
+                    <span class="task-chip" data-task="type-check">typeof check</span>
+                    <span class="task-chip" data-task="drop">DROP TABLE</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand core SQL data types and how they differ across databases</li>
+                    <li>Create and modify tables with appropriate column types and constraints</li>
+                    <li>Apply normalization principles to design clean, maintainable schemas</li>
+                    <li>Use SQLite's typeof() to inspect storage types at runtime</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">SQL Data Types</h2>
+                <p class="content-text">
+                    Every column in a table has a <strong>data type</strong> that determines what kind of values it can
+                    store and what operations you can perform on it. Choosing the right type is one of the most
+                    important decisions in schema design -- it affects storage efficiency, query performance, and
+                    data integrity.
+                </p>
+                <p class="content-text">
+                    SQLite is unusual: it uses a <strong>type affinity</strong> system where types are flexible rather
+                    than strictly enforced. In production databases like <strong>PostgreSQL</strong> and <strong>MySQL</strong>,
+                    types are strict -- inserting a string into an INTEGER column will raise an error. Understanding
+                    both models is essential.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>INTEGER</strong>
+                        <span>Whole numbers: IDs, counts, flags. Signed, up to 8 bytes in SQLite.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>REAL</strong>
+                        <span>Floating-point numbers: prices, measurements, percentages.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>TEXT</strong>
+                        <span>Character strings of any length: names, descriptions, JSON.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>BLOB</strong>
+                        <span>Binary data stored exactly as input: files, images, hashes.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>NULL</strong>
+                        <span>The absence of any value. Not zero, not empty string -- nothing.</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    In other databases, you will encounter additional types: <code>VARCHAR(n)</code> and <code>CHAR(n)</code>
+                    for fixed/variable-length strings, <code>BOOLEAN</code> for true/false values, and <code>DATE</code>,
+                    <code>TIMESTAMP</code>, and <code>DATETIME</code> for temporal data. SQLite stores dates as TEXT or
+                    INTEGER (Unix timestamps), while PostgreSQL and MySQL have dedicated date types with built-in
+                    validation.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">CREATE TABLE</h2>
+                <p class="content-text">
+                    The <code>CREATE TABLE</code> statement defines a new table with its columns, data types, and
+                    constraints. This is the foundation of schema design -- every table in your database starts here.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> projects (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    name <span class="keyword">TEXT NOT NULL</span>,
+    budget <span class="keyword">REAL DEFAULT</span> <span class="number">0</span>,
+    start_date <span class="keyword">TEXT</span>,
+    is_active <span class="keyword">INTEGER DEFAULT</span> <span class="number">1</span>
+);
+                </div>
+                <p class="content-text">
+                    Let's break down each constraint:
+                </p>
+                <p class="content-text">
+                    <strong>PRIMARY KEY</strong> uniquely identifies each row. No two rows can share the same primary
+                    key value, and it cannot be NULL. In SQLite, an INTEGER PRIMARY KEY column automatically becomes
+                    an alias for the internal <code>rowid</code>, which auto-increments.
+                </p>
+                <p class="content-text">
+                    <strong>NOT NULL</strong> prevents a column from accepting NULL values. If you try to insert a row
+                    without providing a value for a NOT NULL column (and there is no DEFAULT), the insert fails.
+                </p>
+                <p class="content-text">
+                    <strong>DEFAULT</strong> provides a fallback value when no explicit value is given during INSERT.
+                    Above, <code>budget</code> defaults to 0 and <code>is_active</code> defaults to 1 (true).
+                </p>
+                <p class="content-text">
+                    If you want SQLite to explicitly auto-generate incrementing IDs (rather than reusing deleted rowids),
+                    use <code>AUTOINCREMENT</code>:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> logs (
+    id <span class="keyword">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+    message <span class="keyword">TEXT NOT NULL</span>,
+    created_at <span class="keyword">TEXT DEFAULT</span> (<span class="function">datetime</span>(<span class="string">'now'</span>))
+);
+                </div>
+                <p class="content-text">
+                    Try creating a table in the terminal to complete the <strong>CREATE TABLE</strong> task.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">ALTER TABLE</h2>
+                <p class="content-text">
+                    Once a table exists, <code>ALTER TABLE</code> lets you modify its structure. The most common
+                    operations are adding new columns and renaming the table:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Add a new column</span>
+<span class="keyword">ALTER TABLE</span> projects <span class="keyword">ADD COLUMN</span> description <span class="keyword">TEXT</span>;
+
+<span class="comment">-- Rename the table</span>
+<span class="keyword">ALTER TABLE</span> projects <span class="keyword">RENAME TO</span> initiatives;
+                </div>
+                <p class="content-text">
+                    When adding a column, the new column is appended to the end of the table. Existing rows get a
+                    NULL value for the new column (or the DEFAULT value if one is specified).
+                </p>
+                <div class="warning-box">
+                    <h4>SQLite ALTER TABLE Limitations</h4>
+                    <p>
+                        SQLite's ALTER TABLE is more limited than other databases. In older versions (before 3.35.0),
+                        you cannot drop columns, change column types, or add/remove constraints. The workaround is to
+                        create a new table with the desired schema, copy the data, drop the old table, and rename the
+                        new one. PostgreSQL and MySQL support the full range of ALTER TABLE operations.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Schema Design Principles</h2>
+                <p class="content-text">
+                    Good schema design follows the principles of <strong>normalization</strong> -- organizing tables
+                    to reduce redundancy and prevent update anomalies. Consider this poorly designed "flat" table:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Bad: Everything in one table</span>
+<span class="keyword">CREATE TABLE</span> orders_flat (
+    order_id <span class="keyword">INTEGER</span>,
+    product_name <span class="keyword">TEXT</span>,
+    product_price <span class="keyword">REAL</span>,
+    customer_name <span class="keyword">TEXT</span>,
+    customer_email <span class="keyword">TEXT</span>,
+    customer_city <span class="keyword">TEXT</span>
+);
+<span class="comment">-- "Alice" appears in every row she ordered</span>
+<span class="comment">-- If she changes email, you must update EVERY row</span>
+                </div>
+                <p class="content-text">
+                    The problem: customer data is duplicated across every order. If Alice's email changes, you must
+                    update dozens of rows -- and if you miss one, your data is inconsistent. Normalization fixes
+                    this by splitting data into separate, related tables:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Good: Normalized into separate tables</span>
+<span class="keyword">CREATE TABLE</span> customers (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    name <span class="keyword">TEXT NOT NULL</span>,
+    email <span class="keyword">TEXT</span>,
+    city <span class="keyword">TEXT</span>
+);
+<span class="keyword">CREATE TABLE</span> products (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    name <span class="keyword">TEXT NOT NULL</span>,
+    price <span class="keyword">REAL</span>
+);
+<span class="keyword">CREATE TABLE</span> orders (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    customer_id <span class="keyword">INTEGER</span>,
+    product_id <span class="keyword">INTEGER</span>,
+    quantity <span class="keyword">INTEGER DEFAULT</span> <span class="number">1</span>
+);
+                </div>
+                <p class="content-text">
+                    Now each piece of data lives in exactly one place. The three <strong>normal forms</strong> give
+                    you a systematic way to evaluate your design:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>1NF -- No Repeating Groups</strong>
+                        <span>Each column holds a single atomic value. No comma-separated lists, no arrays stuffed into one field.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>2NF -- No Partial Dependencies</strong>
+                        <span>Every non-key column depends on the entire primary key, not just part of it. Eliminates redundancy in composite-key tables.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>3NF -- No Transitive Dependencies</strong>
+                        <span>Non-key columns depend only on the primary key, not on other non-key columns. Example: city should not determine zip code in the same table as order data.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">SQLite Type Affinity</h2>
+                <p class="content-text">
+                    Unlike strict-type databases, SQLite uses a <strong>type affinity</strong> system. The declared
+                    column type is a <em>suggestion</em>, not an enforcement. SQLite will try to convert values to the
+                    column's preferred type, but it will store any type in any column if conversion fails.
+                </p>
+                <p class="content-text">
+                    There are five affinities: <strong>TEXT</strong>, <strong>NUMERIC</strong>, <strong>INTEGER</strong>,
+                    <strong>REAL</strong>, and <strong>BLOB</strong>. SQLite determines the affinity from the declared
+                    type name using pattern matching -- for example, <code>VARCHAR(100)</code> maps to TEXT affinity
+                    because it contains "CHAR", and <code>DOUBLE</code> maps to REAL affinity.
+                </p>
+                <p class="content-text">
+                    Use the <code>typeof()</code> function to inspect what type SQLite actually stored a value as:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">typeof</span>(<span class="number">42</span>) <span class="keyword">AS</span> int_type,
+    <span class="function">typeof</span>(<span class="number">3.14</span>) <span class="keyword">AS</span> real_type,
+    <span class="function">typeof</span>(<span class="string">'hello'</span>) <span class="keyword">AS</span> text_type,
+    <span class="function">typeof</span>(<span class="keyword">NULL</span>) <span class="keyword">AS</span> null_type;
+                </div>
+                <div class="warning-box">
+                    <h4>Type Coercion Surprises</h4>
+                    <p>
+                        Because SQLite is flexible, it may silently convert types in unexpected ways. For example,
+                        inserting the string <code>'123'</code> into an INTEGER column will store it as the integer 123.
+                        But inserting <code>'hello'</code> into that same column will succeed too -- it just stays as
+                        text. This can lead to subtle bugs. Always use <code>typeof()</code> to verify what is actually
+                        stored, and consider using CHECK constraints to enforce types manually.
+                    </p>
+                </div>
+                <p class="content-text">
+                    Try running a <code>typeof()</code> query in the terminal to complete the <strong>typeof check</strong> task.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">DROP TABLE</h2>
+                <p class="content-text">
+                    The <code>DROP TABLE</code> statement permanently deletes a table and all of its data. There is
+                    no undo, no recycle bin, no confirmation prompt -- the table and its rows are gone:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Safe pattern: check first, then drop</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> projects <span class="keyword">LIMIT</span> <span class="number">5</span>;
+<span class="comment">-- Verify this is the table you want to remove</span>
+
+<span class="keyword">DROP TABLE IF EXISTS</span> projects;
+                </div>
+                <p class="content-text">
+                    The <code>IF EXISTS</code> clause prevents an error if the table has already been dropped or
+                    never existed. Without it, dropping a nonexistent table raises an error and stops script execution.
+                </p>
+                <div class="warning-box">
+                    <h4>DROP TABLE is Irreversible</h4>
+                    <p>
+                        In production environments, always back up your data before dropping tables. Once a table is
+                        dropped, the only way to recover the data is from a backup. Use <code>DROP TABLE IF EXISTS</code>
+                        in scripts to make them idempotent -- safe to run multiple times.
+                    </p>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Core SQL types include INTEGER, REAL, TEXT, BLOB, and NULL -- other databases add VARCHAR, BOOLEAN, DATE, and more</li>
+                    <li>CREATE TABLE defines columns with types and constraints like PRIMARY KEY, NOT NULL, and DEFAULT</li>
+                    <li>ALTER TABLE lets you add columns and rename tables, but SQLite has limited support compared to other databases</li>
+                    <li>Normalization (1NF, 2NF, 3NF) eliminates redundancy by splitting data into related tables</li>
+                    <li>SQLite uses type affinity instead of strict typing -- use typeof() to inspect actual storage types</li>
+                    <li>DROP TABLE is permanent and irreversible -- always use IF EXISTS and verify before dropping</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-22-analytics.lab.html" class="nav-btn">&lt; Previous: Analytics Lab</a>
+                <a href="script-db-24-constraints.module.html" class="nav-btn primary">Next: Constraints & Referential Integrity &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-23-data-types';
+        const tasks = { 'create-table': false, 'alter-table': false, 'type-check': false, 'drop': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: create-table — use CREATE TABLE
+                if (/CREATE\s+TABLE/i.test(upper)) {
+                    completeTask('create-table');
+                }
+                // Task: alter-table — use ALTER TABLE
+                if (/ALTER\s+TABLE/i.test(upper)) {
+                    completeTask('alter-table');
+                }
+                // Task: type-check — use typeof()
+                if (/TYPEOF\s*\(/i.test(upper)) {
+                    completeTask('type-check');
+                }
+                // Task: drop — use DROP TABLE
+                if (/DROP\s+TABLE/i.test(upper)) {
+                    completeTask('drop');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

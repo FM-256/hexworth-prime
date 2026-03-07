@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-29: Error Management & Idempotency | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-29</span>
+            <h1>Error Management & Idempotency</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="savepoint">SAVEPOINT</span>
+                    <span class="task-chip" data-task="rollback-to">ROLLBACK TO</span>
+                    <span class="task-chip" data-task="idempotent">idempotent INSERT</span>
+                    <span class="task-chip" data-task="error-handle">error recovery</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Use SAVEPOINT to create restore points within transactions</li>
+                    <li>Understand partial vs full ROLLBACK strategies</li>
+                    <li>Write idempotent SQL operations that are safe to retry</li>
+                    <li>Build error recovery patterns with logging tables</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Why Error Management?</h2>
+                <p class="content-text">
+                    Databases crash. Queries fail. Networks drop. Disks fill up. Data can be corrupted mid-write.
+                    <strong>Good error management</strong> means your system recovers gracefully instead of leaving
+                    behind half-written data or silently losing records. In production, the question is never
+                    <em>if</em> something will fail -- it is <strong>when</strong>.
+                </p>
+                <p class="content-text">
+                    Four principles guide resilient database operations:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Atomicity</strong>
+                        <span>All or nothing. A transaction either completes fully or leaves no trace.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Durability</strong>
+                        <span>Once committed, the data survives crashes, power loss, and restarts.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Idempotency</strong>
+                        <span>Running the same operation twice produces the same result as running it once.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Graceful Degradation</strong>
+                        <span>When part of a process fails, the rest continues or fails safely.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">SAVEPOINT</h2>
+                <p class="content-text">
+                    A <code>SAVEPOINT</code> creates a <strong>named restore point</strong> inside a transaction.
+                    Think of it as a bookmark: if something goes wrong later, you can rewind to the bookmark
+                    without losing everything that came before it.
+                </p>
+                <p class="content-text">
+                    This is essential for multi-step operations where some steps depend on earlier ones.
+                    Without savepoints, a failure in step 3 would force you to undo steps 1 and 2 as well.
+                    With savepoints, you can surgically undo only the failed portion.
+                </p>
+                <div class="code-block">
+<span class="keyword">BEGIN TRANSACTION</span>;
+
+<span class="comment">-- Step 1: Create the order (this succeeds)</span>
+<span class="keyword">INSERT INTO</span> orders (id, customer, total)
+<span class="keyword">VALUES</span> (<span class="number">100</span>, <span class="string">'Acme Corp'</span>, <span class="number">5000</span>);
+
+<span class="comment">-- Create a restore point before risky operation</span>
+<span class="keyword">SAVEPOINT</span> before_items;
+
+<span class="comment">-- Step 2: Add line items (this might fail)</span>
+<span class="keyword">INSERT INTO</span> order_items (order_id, product, qty)
+<span class="keyword">VALUES</span> (<span class="number">100</span>, <span class="string">'Widget'</span>, <span class="number">50</span>);
+
+<span class="comment">-- If step 2 failed, undo only that part</span>
+<span class="keyword">ROLLBACK TO</span> before_items;
+
+<span class="comment">-- The order from step 1 is still intact</span>
+<span class="keyword">COMMIT</span>;
+                </div>
+                <p class="content-text">
+                    Try creating a SAVEPOINT in the terminal. You can name it anything:
+                    <code>SAVEPOINT my_checkpoint;</code> is perfectly valid. The name acts as a label
+                    you can reference later with <code>ROLLBACK TO</code>.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">ROLLBACK Strategies</h2>
+                <p class="content-text">
+                    There are two kinds of rollback, and the difference is critical:
+                </p>
+                <p class="content-text">
+                    <strong>Full ROLLBACK</strong> undoes <em>everything</em> since <code>BEGIN TRANSACTION</code>.
+                    Every INSERT, UPDATE, and DELETE within the transaction is reversed. The database returns to
+                    exactly the state it was in before the transaction started.
+                </p>
+                <p class="content-text">
+                    <strong>ROLLBACK TO savepoint</strong> undoes only the work done <em>after</em> that savepoint.
+                    Everything before the savepoint is preserved. The transaction remains open, and you can
+                    continue working from the savepoint.
+                </p>
+                <div class="code-block">
+<span class="comment">-- Full rollback: undoes EVERYTHING</span>
+<span class="keyword">BEGIN TRANSACTION</span>;
+<span class="keyword">INSERT INTO</span> logs (msg) <span class="keyword">VALUES</span> (<span class="string">'step 1'</span>);
+<span class="keyword">INSERT INTO</span> logs (msg) <span class="keyword">VALUES</span> (<span class="string">'step 2'</span>);
+<span class="keyword">ROLLBACK</span>;
+<span class="comment">-- Both inserts are gone</span>
+
+<span class="comment">-- Partial rollback: preserves work before savepoint</span>
+<span class="keyword">BEGIN TRANSACTION</span>;
+<span class="keyword">INSERT INTO</span> logs (msg) <span class="keyword">VALUES</span> (<span class="string">'step 1'</span>);
+<span class="keyword">SAVEPOINT</span> sp1;
+<span class="keyword">INSERT INTO</span> logs (msg) <span class="keyword">VALUES</span> (<span class="string">'step 2'</span>);
+<span class="keyword">ROLLBACK TO</span> sp1;
+<span class="keyword">COMMIT</span>;
+<span class="comment">-- Only 'step 1' survives</span>
+                </div>
+                <div class="warning-box">
+                    <h4>Critical: ROLLBACK Without a Savepoint</h4>
+                    <p>
+                        A bare <code>ROLLBACK</code> (without <code>TO savepoint_name</code>) undoes
+                        <strong>everything</strong> since <code>BEGIN</code>. This is intentional -- it is
+                        the "eject button" for the entire transaction. If you only want to undo part of
+                        the work, you must use <code>ROLLBACK TO</code> with a named savepoint.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Idempotent Operations</h2>
+                <p class="content-text">
+                    An operation is <strong>idempotent</strong> if running it once produces the same result
+                    as running it ten times. This matters because in real systems, operations get retried:
+                    a network timeout might cause a client to resend the same request, or a job scheduler
+                    might re-run a failed batch.
+                </p>
+                <p class="content-text">
+                    A regular <code>INSERT</code> is <strong>not idempotent</strong>. Run it twice and you
+                    get a duplicate key error (or worse, duplicate rows). SQLite provides two idempotent
+                    alternatives:
+                </p>
+                <div class="code-block">
+<span class="comment">-- NOT idempotent: fails on second run (duplicate key)</span>
+<span class="keyword">INSERT INTO</span> users (id, name) <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'Alice'</span>);
+
+<span class="comment">-- Idempotent: silently skips if row already exists</span>
+<span class="keyword">INSERT OR IGNORE INTO</span> users (id, name) <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'Alice'</span>);
+
+<span class="comment">-- Idempotent: overwrites if row already exists</span>
+<span class="keyword">INSERT OR REPLACE INTO</span> users (id, name) <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'Alice'</span>);
+                </div>
+                <p class="content-text">
+                    Another common idempotent pattern is <code>CREATE TABLE IF NOT EXISTS</code>. You can
+                    run it in every migration script without worrying about "table already exists" errors:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Safe to run multiple times</span>
+<span class="keyword">CREATE TABLE IF NOT EXISTS</span> sessions (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    user_id <span class="keyword">INTEGER</span>,
+    token <span class="keyword">TEXT</span>,
+    created_at <span class="keyword">TEXT</span> <span class="keyword">DEFAULT</span> (<span class="function">datetime</span>(<span class="string">'now'</span>))
+);
+                </div>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Idempotent</strong>
+                        <span>INSERT OR IGNORE, INSERT OR REPLACE, CREATE TABLE IF NOT EXISTS, DROP TABLE IF EXISTS</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Not Idempotent</strong>
+                        <span>Plain INSERT (duplicate error), CREATE TABLE (already exists error), UPDATE with += (value keeps growing)</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Error Recovery Patterns</h2>
+                <p class="content-text">
+                    Beyond single-statement fixes, real systems use structured patterns for handling failures
+                    at scale. Here are three you will encounter in production:
+                </p>
+                <p class="content-text">
+                    <strong>Pattern 1: Try/Catch with SAVEPOINT.</strong> Wrap risky operations in a savepoint.
+                    If the operation fails, roll back to the savepoint and either retry or skip. The surrounding
+                    transaction continues unharmed.
+                </p>
+                <div class="code-block">
+<span class="keyword">BEGIN TRANSACTION</span>;
+<span class="keyword">SAVEPOINT</span> attempt;
+<span class="comment">-- Try the risky operation</span>
+<span class="keyword">INSERT INTO</span> payments (order_id, amount) <span class="keyword">VALUES</span> (<span class="number">100</span>, <span class="number">5000</span>);
+<span class="comment">-- If it failed: ROLLBACK TO attempt;</span>
+<span class="comment">-- If it succeeded: RELEASE attempt;</span>
+<span class="keyword">COMMIT</span>;
+                </div>
+                <p class="content-text">
+                    <strong>Pattern 2: Staging table.</strong> Load raw data into a temporary table first.
+                    Validate it. Then copy only the clean records into the production table. Bad records
+                    never touch production.
+                </p>
+                <div class="code-block">
+<span class="comment">-- Stage incoming data</span>
+<span class="keyword">CREATE TABLE</span> staging_imports (
+    raw_name <span class="keyword">TEXT</span>,
+    raw_email <span class="keyword">TEXT</span>,
+    raw_amount <span class="keyword">TEXT</span>
+);
+
+<span class="comment">-- After validation, copy clean records</span>
+<span class="keyword">INSERT INTO</span> customers (name, email)
+<span class="keyword">SELECT</span> raw_name, raw_email
+<span class="keyword">FROM</span> staging_imports
+<span class="keyword">WHERE</span> raw_email <span class="keyword">LIKE</span> <span class="string">'%@%'</span>
+  <span class="keyword">AND</span> raw_name <span class="keyword">IS NOT NULL</span>;
+                </div>
+                <p class="content-text">
+                    <strong>Pattern 3: Dead letter queue.</strong> When a record fails processing, do not
+                    discard it. Write it to an error table for later review. This way nothing is lost
+                    and a human (or automated process) can fix and replay failed records.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> error_log (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    failed_sql <span class="keyword">TEXT</span>,
+    error_msg <span class="keyword">TEXT</span>,
+    created_at <span class="keyword">TEXT</span> <span class="keyword">DEFAULT</span> (<span class="function">datetime</span>(<span class="string">'now'</span>))
+);
+
+<span class="comment">-- Log a failed operation for later review</span>
+<span class="keyword">INSERT INTO</span> error_log (failed_sql, error_msg)
+<span class="keyword">VALUES</span> (
+    <span class="string">'INSERT INTO payments VALUES (100, 5000)'</span>,
+    <span class="string">'FOREIGN KEY constraint failed: order 100 does not exist'</span>
+);
+                </div>
+                <p class="content-text">
+                    Try creating an <code>error_log</code> table in the terminal to complete the error
+                    recovery task. Any table with "error" or "log" in the name counts.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">ACID Properties</h2>
+                <p class="content-text">
+                    Everything in this module connects back to <strong>ACID</strong> -- the four guarantees
+                    that every relational database provides. Understanding ACID is understanding why
+                    transactions, savepoints, and rollbacks exist in the first place.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Atomicity</strong>
+                        <span>A transaction is all-or-nothing. If any part fails, the entire transaction is rolled back. SAVEPOINT gives you finer-grained control within this guarantee.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Consistency</strong>
+                        <span>Every transaction moves the database from one valid state to another. Constraints, foreign keys, and CHECK rules are enforced at commit time.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Isolation</strong>
+                        <span>Concurrent transactions do not interfere with each other. Each transaction sees a consistent snapshot of the data, as if it were running alone.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Durability</strong>
+                        <span>Once COMMIT returns, the data is permanently written. SQLite uses Write-Ahead Logging (WAL) mode for crash-safe writes with better concurrent read access.</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    SQLite implements ACID using a journal file (or WAL file in WAL mode). Before any write,
+                    the original page is saved to the journal. If the process crashes mid-write, SQLite
+                    replays the journal on next open to restore consistency. This is why you should
+                    <strong>never delete</strong> <code>-journal</code> or <code>-wal</code> files next to
+                    a SQLite database -- they may contain uncommitted recovery data.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>SAVEPOINT creates named restore points within a transaction for partial rollback</li>
+                    <li>ROLLBACK TO undoes work after a savepoint; bare ROLLBACK undoes the entire transaction</li>
+                    <li>INSERT OR IGNORE and INSERT OR REPLACE make inserts idempotent (safe to retry)</li>
+                    <li>CREATE TABLE IF NOT EXISTS is idempotent -- use it in migration scripts</li>
+                    <li>Staging tables let you validate data before it reaches production</li>
+                    <li>Error/dead-letter tables capture failures for later review instead of losing data</li>
+                    <li>ACID (Atomicity, Consistency, Isolation, Durability) is the foundation of reliable databases</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-28-ingestion.module.html" class="nav-btn">&lt; Previous: Data Ingestion Patterns</a>
+                <a href="script-db-30-quality.module.html" class="nav-btn primary">Next: Data Quality & Validation &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-29-errors';
+        const tasks = { 'savepoint': false, 'rollback-to': false, 'idempotent': false, 'error-handle': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: savepoint — use SAVEPOINT
+                if (/\bSAVEPOINT\b/.test(upper)) {
+                    completeTask('savepoint');
+                }
+                // Task: rollback-to — use ROLLBACK TO
+                if (/ROLLBACK\s+TO\b/.test(upper)) {
+                    completeTask('rollback-to');
+                }
+                // Task: idempotent — INSERT OR IGNORE/REPLACE or IF NOT EXISTS
+                if (/INSERT\s+OR\s+(IGNORE|REPLACE)/.test(upper) || /IF\s+NOT\s+EXISTS/.test(upper)) {
+                    completeTask('idempotent');
+                }
+                // Task: error-handle — CREATE TABLE with error or log in the name
+                if (/CREATE\s+TABLE\s+\w*(?:ERROR|LOG)\w*/.test(upper)) {
+                    completeTask('error-handle');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

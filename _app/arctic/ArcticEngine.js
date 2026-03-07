@@ -737,7 +737,8 @@ const ArcticEngine = (() => {
         // Sandbox terminal — render if SandboxLauncher is available
         if (typeof SandboxLauncher !== 'undefined') {
             const sandboxMount = _el('div', 'ae-sandbox-mount');
-            SandboxLauncher.renderButton(sandboxMount, 'arctic');
+            const labId = district.sandboxLabId || 'arctic';
+            SandboxLauncher.renderButton(sandboxMount, labId);
             main.appendChild(sandboxMount);
         }
 

@@ -30,7 +30,7 @@ const ArcticData = {
             colorAccent: '#7ac4e8',
             unlockRequirement: null,          // always unlocked
             unlockThreshold: 0,
-            districtCount: 6
+            districtCount: 7
         },
         {
             id: 'parrot',
@@ -467,7 +467,67 @@ const ArcticData = {
         },
 
         // -----------------------------------------------------------------------
-        // PARROT FACTION — District 7 (was 6): Log Analysis
+        // PENGUIN FACTION — District 7: Databases
+        // SQL fundamentals, joins, aggregation, window functions, database
+        // design, and data engineering patterns.
+        // -----------------------------------------------------------------------
+        {
+            id: 'databases',
+            name: 'Databases',
+            faction: 'penguin',
+            icon: '\u25C8',
+            description: 'The data vaults of the Arctic. Master SQL from SELECT to window functions, design schemas, and learn the patterns that power data pipelines at scale.',
+            lore: 'Every system writes to a database. The Penguins who master data are the ones who truly control the infrastructure.',
+            difficulty: 2,
+            sandboxLabId: 'db-sql',
+            modules: [
+                // Section 1: SQL Foundations
+                { id: 'db-01-intro',          title: 'Introduction to Databases & SQL',   type: 'module', href: '../../../houses/script/modules/databases/script-db-01-intro.module.html' },
+                { id: 'db-02-select',         title: 'SELECT Basics',                     type: 'module', href: '../../../houses/script/modules/databases/script-db-02-select.module.html' },
+                { id: 'db-03-where',          title: 'WHERE Clause & Operators',          type: 'module', href: '../../../houses/script/modules/databases/script-db-03-where.module.html' },
+                { id: 'db-04-sorting',        title: 'Sorting & Limiting Results',        type: 'module', href: '../../../houses/script/modules/databases/script-db-04-sorting.module.html' },
+                { id: 'db-05-foundations-lab', title: 'SQL Foundations Lab',               type: 'lab',    href: '../../../houses/script/modules/databases/script-db-05-foundations.lab.html' },
+                // Section 2: Data Manipulation
+                { id: 'db-06-crud',           title: 'INSERT, UPDATE & DELETE',           type: 'module', href: '../../../houses/script/modules/databases/script-db-06-crud.module.html' },
+                { id: 'db-07-nulls',          title: 'Working with NULLs',                type: 'module', href: '../../../houses/script/modules/databases/script-db-07-nulls.module.html' },
+                { id: 'db-08-strings',        title: 'String Functions',                  type: 'module', href: '../../../houses/script/modules/databases/script-db-08-strings.module.html' },
+                { id: 'db-09-numbers',        title: 'Numeric Functions & Math',          type: 'module', href: '../../../houses/script/modules/databases/script-db-09-numbers.module.html' },
+                { id: 'db-10-dates',          title: 'Date & Time Functions',             type: 'module', href: '../../../houses/script/modules/databases/script-db-10-dates.module.html' },
+                { id: 'db-11-data-lab',       title: 'Data Manipulation Lab',             type: 'lab',    href: '../../../houses/script/modules/databases/script-db-11-data.lab.html' },
+                // Section 3: Joins & Multi-Table Queries
+                { id: 'db-12-inner-join',     title: 'INNER JOIN',                        type: 'module', href: '../../../houses/script/modules/databases/script-db-12-inner-join.module.html' },
+                { id: 'db-13-outer-joins',    title: 'Outer Joins (LEFT, RIGHT, FULL)',   type: 'module', href: '../../../houses/script/modules/databases/script-db-13-outer-joins.module.html' },
+                { id: 'db-14-advanced-joins', title: 'Self Joins, Cross Joins & UNION',   type: 'module', href: '../../../houses/script/modules/databases/script-db-14-advanced-joins.module.html' },
+                { id: 'db-15-subqueries',     title: 'Subqueries',                        type: 'module', href: '../../../houses/script/modules/databases/script-db-15-subqueries.module.html' },
+                { id: 'db-16-ctes',           title: 'Common Table Expressions',          type: 'module', href: '../../../houses/script/modules/databases/script-db-16-ctes.module.html' },
+                { id: 'db-17-joins-lab',      title: 'Multi-Table Queries Lab',           type: 'lab',    href: '../../../houses/script/modules/databases/script-db-17-joins.lab.html' },
+                // Section 4: Aggregation & Analytics
+                { id: 'db-18-aggregates',     title: 'Aggregate Functions',               type: 'module', href: '../../../houses/script/modules/databases/script-db-18-aggregates.module.html' },
+                { id: 'db-19-group-by',       title: 'GROUP BY & HAVING',                 type: 'module', href: '../../../houses/script/modules/databases/script-db-19-group-by.module.html' },
+                { id: 'db-20-window-funcs',   title: 'Window Functions',                  type: 'module', href: '../../../houses/script/modules/databases/script-db-20-window-funcs.module.html' },
+                { id: 'db-21-pivoting',       title: 'Pivoting & Reshaping Data',         type: 'module', href: '../../../houses/script/modules/databases/script-db-21-pivoting.module.html' },
+                { id: 'db-22-analytics-lab',  title: 'Analytics Lab',                     type: 'lab',    href: '../../../houses/script/modules/databases/script-db-22-analytics.lab.html' },
+                // Section 5: Database Design & Administration
+                { id: 'db-23-data-types',     title: 'Data Types & Schema Design',        type: 'module', href: '../../../houses/script/modules/databases/script-db-23-data-types.module.html' },
+                { id: 'db-24-constraints',    title: 'Constraints & Referential Integrity',type: 'module', href: '../../../houses/script/modules/databases/script-db-24-constraints.module.html' },
+                { id: 'db-25-indexes',        title: 'Indexes & Query Performance',       type: 'module', href: '../../../houses/script/modules/databases/script-db-25-indexes.module.html' },
+                { id: 'db-26-metadata',       title: 'Database Metadata & Introspection', type: 'module', href: '../../../houses/script/modules/databases/script-db-26-metadata.module.html' },
+                { id: 'db-27-admin-lab',      title: 'Database Admin Lab',                type: 'lab',    href: '../../../houses/script/modules/databases/script-db-27-admin.lab.html' },
+                // Section 6: Data Engineering Patterns
+                { id: 'db-28-ingestion',      title: 'Data Ingestion Patterns',           type: 'module', href: '../../../houses/script/modules/databases/script-db-28-ingestion.module.html' },
+                { id: 'db-29-errors',         title: 'Error Management & Idempotency',    type: 'module', href: '../../../houses/script/modules/databases/script-db-29-errors.module.html' },
+                { id: 'db-30-quality',        title: 'Data Quality & Validation',         type: 'module', href: '../../../houses/script/modules/databases/script-db-30-quality.module.html' },
+                { id: 'db-31-pipelines',      title: 'Data Pipelines & ETL',              type: 'module', href: '../../../houses/script/modules/databases/script-db-31-pipelines.module.html' },
+                { id: 'db-32-engineering-lab', title: 'Data Engineering Lab',              type: 'lab',    href: '../../../houses/script/modules/databases/script-db-32-engineering.lab.html' },
+                // Section 7: Assessment
+                { id: 'db-33-sql-quiz',       title: 'SQL Fundamentals Quiz',             type: 'quiz',   href: '../../../houses/script/modules/databases/script-db-33-sql.quiz.html' },
+                { id: 'db-34-advanced-quiz',  title: 'Advanced SQL Quiz',                 type: 'quiz',   href: '../../../houses/script/modules/databases/script-db-34-advanced.quiz.html' },
+                { id: 'db-35-capstone',       title: 'Database Capstone Lab',             type: 'lab',    href: '../../../houses/script/modules/databases/script-db-35-capstone.lab.html' }
+            ]
+        },
+
+        // -----------------------------------------------------------------------
+        // PARROT FACTION — District 8: Log Analysis
         // Log investigation, forensics, SIEM basics.
         // -----------------------------------------------------------------------
         {

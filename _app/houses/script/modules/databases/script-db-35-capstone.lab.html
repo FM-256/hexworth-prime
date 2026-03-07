@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/SandboxLauncher.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-35: Database Capstone Lab | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #3B82F6; --accent-dim: rgba(59,130,246,0.15); --accent-glow: rgba(59,130,246,0.3); --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --gold: #fbbf24; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: rgba(251,191,36,0.15); color: #fbbf24; padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(251,191,36,0.3); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; }
+        .back-link:hover { color: var(--accent); }
+        .lab-layout { display: grid; grid-template-columns: 1fr 480px; min-height: calc(100vh - 50px); }
+        .challenge-panel { padding: 30px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .lab-intro { background: rgba(251,191,36,0.08); border-left: 3px solid var(--gold); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .lab-intro h3 { color: var(--gold); font-size: 0.9rem; margin-bottom: 8px; }
+        .lab-intro p { color: var(--text-secondary); font-size: 0.85rem; }
+        .challenge { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; transition: border-color 0.3s; }
+        .challenge.completed { border-color: rgba(74,222,128,0.4); }
+        .challenge-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .challenge-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 600; color: var(--accent); padding: 2px 8px; background: var(--accent-dim); border-radius: 4px; }
+        .challenge.completed .challenge-num { background: rgba(74,222,128,0.15); color: var(--green); }
+        .challenge-status { font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); }
+        .challenge.completed .challenge-status { color: var(--green); }
+        .challenge h4 { color: var(--text-primary); font-size: 0.95rem; margin-bottom: 8px; }
+        .challenge p { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 10px; }
+        .hint-btn { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: var(--yellow); padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-family: 'JetBrains Mono', monospace; }
+        .hint-btn:hover { background: rgba(251,191,36,0.2); }
+        .hint { display: none; margin-top: 10px; background: rgba(251,191,36,0.08); border-left: 3px solid var(--yellow); padding: 10px 14px; border-radius: 0 6px 6px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--yellow); white-space: pre-wrap; }
+        .hint.visible { display: block; }
+        .terminal-panel { background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--gold); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), #f59e0b); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: rgba(74,222,128,0.15); border-color: var(--green); color: var(--green); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.3); color: var(--gold); }
+        .nav-btn.primary:hover { background: rgba(251,191,36,0.25); }
+        .completion-banner { display: none; margin: 20px 0; padding: 24px; background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(245,158,11,0.08)); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px; text-align: center; }
+        .completion-banner.visible { display: block; }
+        .completion-banner h3 { color: var(--gold); font-size: 1.1rem; margin-bottom: 8px; }
+        .completion-banner p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+        @media (max-width: 900px) { .lab-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; order: -1; } }
+        .pg-sandbox-section { margin-top: 24px; margin-bottom: 8px; }
+        .pg-sandbox-section summary { cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); border-radius: 8px; color: var(--gold); font-weight: 700; font-size: 0.9rem; list-style: none; user-select: none; transition: background 0.2s; }
+        .pg-sandbox-section summary::-webkit-details-marker { display: none; }
+        .pg-sandbox-section summary::before { content: '\25B6'; font-size: 0.65rem; transition: transform 0.2s; }
+        .pg-sandbox-section[open] summary::before { transform: rotate(90deg); }
+        .pg-sandbox-section summary:hover { background: rgba(251,191,36,0.14); }
+        .pg-sandbox-section .pg-inner { padding: 16px 0 0; }
+        .pg-sandbox-section .pg-desc { color: var(--text-secondary); font-size: 0.82rem; margin-bottom: 16px; line-height: 1.6; }
+        .pg-sandbox-section .pg-mount { margin-bottom: 18px; }
+        .pg-exercise { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 12px; }
+        .pg-exercise-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .pg-exercise-num { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 600; color: #a78bfa; padding: 2px 8px; background: rgba(167,139,250,0.12); border-radius: 4px; }
+        .pg-exercise-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--text-secondary); border: 1px solid var(--border); padding: 1px 6px; border-radius: 3px; margin-left: auto; }
+        .pg-exercise h5 { color: var(--text-primary); font-size: 0.88rem; margin-bottom: 6px; }
+        .pg-exercise p { color: var(--text-secondary); font-size: 0.82rem; margin-bottom: 8px; }
+        .pg-exercise code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #a78bfa; }
+        .pg-exercise pre { background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #a78bfa; overflow-x: auto; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-35</span>
+            <h1>Database Capstone Lab</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="lab-layout">
+        <div class="challenge-panel">
+            <div class="lab-intro">
+                <h3>Capstone Challenge</h3>
+                <p>
+                    Final challenge. This capstone combines everything you have learned across the entire
+                    Databases district &mdash; from basic SELECT statements to data engineering patterns.
+                    Complete all 8 challenges to prove your mastery.
+                </p>
+            </div>
+
+            <div class="challenge" id="c1">
+                <div class="challenge-header"><span class="challenge-num">01</span><span class="challenge-status">PENDING</span></div>
+                <h4>The Report</h4>
+                <p>Write a query that produces a full employee directory: first_name, last_name, department name (via JOIN), salary, and hire_date, sorted by department then salary descending.</p>
+                <button class="hint-btn" onclick="toggleHint('h1')">HINT</button>
+                <div class="hint" id="h1">SELECT e.first_name, e.last_name, d.name AS department,
+       e.salary, e.hire_date
+FROM employees e
+JOIN departments d ON e.department_id = d.id
+ORDER BY d.name, e.salary DESC;</div>
+            </div>
+
+            <div class="challenge" id="c2">
+                <div class="challenge-header"><span class="challenge-num">02</span><span class="challenge-status">PENDING</span></div>
+                <h4>Data Entry</h4>
+                <p>Create a new department called 'Research' with id 7, location 'Building F', budget 800000. Then add an employee to it.</p>
+                <button class="hint-btn" onclick="toggleHint('h2')">HINT</button>
+                <div class="hint" id="h2">INSERT INTO departments VALUES (7, 'Research', 'Building F', 800000);
+INSERT INTO employees VALUES (21, 'New', 'Hire', 'new@meridian.io', 7, 95000, '2024-06-01', NULL);</div>
+            </div>
+
+            <div class="challenge" id="c3">
+                <div class="challenge-header"><span class="challenge-num">03</span><span class="challenge-status">PENDING</span></div>
+                <h4>Window Analysis</h4>
+                <p>Rank employees by salary within each department using DENSE_RANK, and show each employee's salary compared to their department average.</p>
+                <button class="hint-btn" onclick="toggleHint('h3')">HINT</button>
+                <div class="hint" id="h3">SELECT first_name, last_name, salary, department_id,
+       DENSE_RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS dept_rank,
+       ROUND(AVG(salary) OVER (PARTITION BY department_id), 0) AS dept_avg
+FROM employees;</div>
+            </div>
+
+            <div class="challenge" id="c4">
+                <div class="challenge-header"><span class="challenge-num">04</span><span class="challenge-status">PENDING</span></div>
+                <h4>Schema Architect</h4>
+                <p>Create a project_assignments table linking employees to projects with proper constraints: employee_id FK, project_id, role TEXT, assigned_date TEXT, PRIMARY KEY on (employee_id, project_id).</p>
+                <button class="hint-btn" onclick="toggleHint('h4')">HINT</button>
+                <div class="hint" id="h4">CREATE TABLE project_assignments (
+    employee_id INTEGER,
+    project_id INTEGER,
+    role TEXT NOT NULL,
+    assigned_date TEXT,
+    PRIMARY KEY (employee_id, project_id),
+    FOREIGN KEY (employee_id) REFERENCES employees(id)
+);</div>
+            </div>
+
+            <div class="challenge" id="c5">
+                <div class="challenge-header"><span class="challenge-num">05</span><span class="challenge-status">PENDING</span></div>
+                <h4>Performance Tuning</h4>
+                <p>Use EXPLAIN QUERY PLAN to analyze a slow query, then create an appropriate index to optimize it.</p>
+                <button class="hint-btn" onclick="toggleHint('h5')">HINT</button>
+                <div class="hint" id="h5">EXPLAIN QUERY PLAN SELECT * FROM employees WHERE department_id = 1 AND salary > 90000;
+
+CREATE INDEX idx_dept_salary ON employees(department_id, salary);</div>
+            </div>
+
+            <div class="challenge" id="c6">
+                <div class="challenge-header"><span class="challenge-num">06</span><span class="challenge-status">PENDING</span></div>
+                <h4>ETL Pipeline</h4>
+                <p>Build a complete data pipeline: create a summary view, then materialize it into a table using CREATE TABLE AS SELECT.</p>
+                <button class="hint-btn" onclick="toggleHint('h6')">HINT</button>
+                <div class="hint" id="h6">CREATE VIEW sales_view AS
+SELECT p.category, COUNT(*) AS cnt,
+       SUM(oi.quantity * oi.unit_price) AS revenue
+FROM products p
+JOIN order_items oi ON p.id = oi.product_id
+GROUP BY p.category;
+
+CREATE TABLE sales_report AS SELECT * FROM sales_view;</div>
+            </div>
+
+            <div class="challenge" id="c7">
+                <div class="challenge-header"><span class="challenge-num">07</span><span class="challenge-status">PENDING</span></div>
+                <h4>Data Guardian</h4>
+                <p>Create a trigger that prevents deleting employees who are managers (employees who appear as someone else's manager_id).</p>
+                <button class="hint-btn" onclick="toggleHint('h7')">HINT</button>
+                <div class="hint" id="h7">CREATE TRIGGER prevent_manager_delete
+BEFORE DELETE ON employees
+BEGIN
+    SELECT CASE
+        WHEN (SELECT COUNT(*) FROM employees WHERE manager_id = OLD.id) > 0
+        THEN RAISE(ABORT, 'Cannot delete: employee is a manager')
+    END;
+END;</div>
+            </div>
+
+            <div class="challenge" id="c8">
+                <div class="challenge-header"><span class="challenge-num">08</span><span class="challenge-status">PENDING</span></div>
+                <h4>The Dashboard</h4>
+                <p>Write a single comprehensive query (using CTEs or subqueries) that produces a company dashboard: total employees, total departments, average salary, highest salary, total revenue from orders, and number of products.</p>
+                <button class="hint-btn" onclick="toggleHint('h8')">HINT</button>
+                <div class="hint" id="h8">WITH emp_stats AS (
+    SELECT COUNT(*) AS total_employees,
+           AVG(salary) AS avg_salary,
+           MAX(salary) AS max_salary
+    FROM employees
+),
+dept_stats AS (
+    SELECT COUNT(*) AS total_departments FROM departments
+),
+order_stats AS (
+    SELECT SUM(oi.quantity * oi.unit_price) AS total_revenue
+    FROM order_items oi
+),
+prod_stats AS (
+    SELECT COUNT(*) AS total_products FROM products
+)
+SELECT total_employees, total_departments,
+       ROUND(avg_salary, 0) AS avg_salary, max_salary,
+       ROUND(total_revenue, 2) AS total_revenue, total_products
+FROM emp_stats, dept_stats, order_stats, prod_stats;</div>
+            </div>
+
+            <details class="pg-sandbox-section">
+                <summary>PostgreSQL Sandbox</summary>
+                <div class="pg-inner">
+                    <p class="pg-desc">
+                        The challenges above use SQLite. The exercises below run in a real PostgreSQL 16
+                        terminal with the same Meridian Technologies data, plus JSONB and full-text search
+                        tables. Launch the sandbox, then run each command in the external terminal window.
+                    </p>
+                    <div class="pg-mount" id="pgSandboxMount"></div>
+
+                    <div class="pg-exercise">
+                        <div class="pg-exercise-header">
+                            <span class="pg-exercise-num">PG-01</span>
+                            <span class="pg-exercise-badge">MANUAL</span>
+                        </div>
+                        <h5>Full psql Exploration</h5>
+                        <p>Use psql meta-commands to explore the entire database structure, including the capstone-only tables.</p>
+                        <pre>\dt              -- list all tables (you'll see 8)
+\d+ employees    -- detailed table structure with storage
+\di              -- list all indexes (note the GIN index)</pre>
+                    </div>
+
+                    <div class="pg-exercise">
+                        <div class="pg-exercise-header">
+                            <span class="pg-exercise-num">PG-02</span>
+                            <span class="pg-exercise-badge">MANUAL</span>
+                        </div>
+                        <h5>EXPLAIN ANALYZE</h5>
+                        <p>Analyze a real query execution plan with timing data. <code>EXPLAIN ANALYZE</code> actually runs the query and shows measured costs.</p>
+                        <pre>EXPLAIN ANALYZE
+SELECT e.first_name, e.last_name, d.name AS dept, e.salary
+FROM employees e
+JOIN departments d ON e.department_id = d.id
+WHERE e.salary > 90000
+ORDER BY e.salary DESC;</pre>
+                    </div>
+
+                    <div class="pg-exercise">
+                        <div class="pg-exercise-header">
+                            <span class="pg-exercise-num">PG-03</span>
+                            <span class="pg-exercise-badge">MANUAL</span>
+                        </div>
+                        <h5>JSONB Operators</h5>
+                        <p>Query the <code>product_metadata</code> table using PostgreSQL's JSONB operators. These let you store and query document data inside a relational database.</p>
+                        <pre>-- Get vendor names (text extraction):
+SELECT p.name, pm.metadata->>'vendor' AS vendor
+FROM products p
+JOIN product_metadata pm ON p.id = pm.product_id;
+
+-- Find products with SOC2 compliance:
+SELECT p.name, pm.metadata->'compliance' AS certs
+FROM products p
+JOIN product_metadata pm ON p.id = pm.product_id
+WHERE pm.metadata->'compliance' @> '"SOC2"';
+
+-- Extract features array:
+SELECT p.name, jsonb_array_elements_text(pm.metadata->'features') AS feature
+FROM products p
+JOIN product_metadata pm ON p.id = pm.product_id;</pre>
+                    </div>
+
+                    <div class="pg-exercise">
+                        <div class="pg-exercise-header">
+                            <span class="pg-exercise-num">PG-04</span>
+                            <span class="pg-exercise-badge">MANUAL</span>
+                        </div>
+                        <h5>Full-Text Search</h5>
+                        <p>Use PostgreSQL's built-in full-text search with <code>to_tsvector()</code> and <code>to_tsquery()</code>. The <code>search_index</code> table has a pre-built <code>tsvector</code> column.</p>
+                        <pre>-- Search for security-related products:
+SELECT entity_type, entity_id, content
+FROM search_index
+WHERE tsv @@ to_tsquery('english', 'security & firewall');
+
+-- Broader search with OR:
+SELECT entity_type, entity_id, content
+FROM search_index
+WHERE tsv @@ to_tsquery('english', 'monitoring | analytics');
+
+-- Rank results by relevance:
+SELECT content,
+       ts_rank(tsv, to_tsquery('english', 'security')) AS rank
+FROM search_index
+WHERE tsv @@ to_tsquery('english', 'security')
+ORDER BY rank DESC;</pre>
+                    </div>
+                </div>
+            </details>
+
+            <div class="completion-banner" id="completionBanner">
+                <h3>District Mastered</h3>
+                <p>
+                    You have completed every challenge in the Database Capstone Lab.
+                    From your first SELECT to recursive CTEs, triggers, and ETL pipelines &mdash;
+                    you now command a full database toolkit. The Databases district is complete.
+                </p>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-34-advanced.quiz.html" class="nav-btn">&lt; Previous: Advanced SQL Quiz</a>
+                <a href="../../arctic/districts/databases/" class="nav-btn primary" id="navNext">Complete District &gt;</a>
+            </nav>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Challenges</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 8</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="c1">01</span>
+                    <span class="task-chip" data-task="c2">02</span>
+                    <span class="task-chip" data-task="c3">03</span>
+                    <span class="task-chip" data-task="c4">04</span>
+                    <span class="task-chip" data-task="c5">05</span>
+                    <span class="task-chip" data-task="c6">06</span>
+                    <span class="task-chip" data-task="c7">07</span>
+                    <span class="task-chip" data-task="c8">08</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-35-capstone-lab';
+        const tasks = { c1: false, c2: false, c3: false, c4: false, c5: false, c6: false, c7: false, c8: false };
+        let explainDone = false, indexDone = false;
+        let viewDone = false, ctasDone = false;
+        let insertCount = 0;
+
+        function toggleHint(id) { document.getElementById(id).classList.toggle('visible'); }
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // C1: The Report — JOIN + ORDER BY
+                if (upper.includes('JOIN') && upper.includes('ORDER BY') && upper.includes('EMPLOYEES') && upper.includes('DEPARTMENTS')) {
+                    if (results && results.length > 0) completeTask('c1');
+                }
+
+                // C2: Data Entry — INSERT INTO at least twice (track across commands)
+                if (upper.includes('INSERT')) {
+                    insertCount++;
+                    if (insertCount >= 2) completeTask('c2');
+                }
+
+                // C3: Window Analysis — OVER + PARTITION BY
+                if (upper.includes('OVER') && upper.includes('PARTITION BY')) {
+                    completeTask('c3');
+                }
+
+                // C4: Schema Architect — CREATE TABLE + FOREIGN KEY or REFERENCES
+                if (upper.includes('CREATE TABLE') && !upper.includes('CREATE TABLE AS') && (upper.includes('FOREIGN KEY') || upper.includes('REFERENCES'))) {
+                    completeTask('c4');
+                }
+
+                // C5: Performance Tuning — EXPLAIN + CREATE INDEX (track across commands)
+                if (upper.includes('EXPLAIN')) explainDone = true;
+                if (upper.includes('CREATE INDEX')) indexDone = true;
+                if (explainDone && indexDone) completeTask('c5');
+
+                // C6: ETL Pipeline — (CREATE VIEW or CREATE TABLE) + AS SELECT (track across commands)
+                if (upper.includes('CREATE VIEW')) viewDone = true;
+                if (upper.includes('CREATE TABLE') && upper.includes('AS SELECT')) ctasDone = true;
+                if (viewDone && ctasDone) completeTask('c6');
+
+                // C7: Data Guardian — CREATE TRIGGER
+                if (upper.includes('CREATE TRIGGER')) {
+                    completeTask('c7');
+                }
+
+                // C8: The Dashboard — at least 3 aggregate functions
+                var aggCount = 0;
+                if (upper.includes('COUNT')) aggCount++;
+                if (upper.includes('AVG')) aggCount++;
+                if (upper.includes('SUM')) aggCount++;
+                if (upper.includes('MIN')) aggCount++;
+                if (upper.includes('MAX')) aggCount++;
+                if (aggCount >= 3) {
+                    completeTask('c8');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip) chip.classList.add('completed');
+            const card = document.getElementById(taskId);
+            if (card) { card.classList.add('completed'); card.querySelector('.challenge-status').textContent = 'COMPLETE'; }
+            updateProgress(); saveProgress();
+            if (Object.values(tasks).every(function(v) { return v; })) {
+                document.getElementById('completionBanner').classList.add('visible');
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            var done = Object.values(tasks).filter(function(v) { return v; }).length;
+            var total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = done + ' / ' + total;
+        }
+
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; }),
+                insertCount: insertCount,
+                explainDone: explainDone,
+                indexDone: indexDone,
+                viewDone: viewDone,
+                ctasDone: ctasDone,
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.script && progress.script[MODULE_ID];
+            if (saved) {
+                if (saved.insertCount) insertCount = saved.insertCount;
+                if (saved.explainDone) explainDone = true;
+                if (saved.indexDone) indexDone = true;
+                if (saved.viewDone) viewDone = true;
+                if (saved.ctasDone) ctasDone = true;
+                if (saved.completed) {
+                    saved.completed.forEach(function(t) {
+                        tasks[t] = true;
+                        var chip = document.querySelector('.task-chip[data-task="' + t + '"]');
+                        if (chip) chip.classList.add('completed');
+                        var card = document.getElementById(t);
+                        if (card) { card.classList.add('completed'); card.querySelector('.challenge-status').textContent = 'COMPLETE'; }
+                    });
+                    updateProgress();
+                    if (Object.values(tasks).every(function(v) { return v; })) {
+                        document.getElementById('completionBanner').classList.add('visible');
+                    }
+                }
+            }
+        })();
+    </script>
+    <script>
+        if (typeof SandboxLauncher !== 'undefined') {
+            var pgMount = document.getElementById('pgSandboxMount');
+            if (pgMount) SandboxLauncher.renderButton(pgMount, 'db-sql', { mode: 'tab' });
+        }
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-26: Database Metadata & Introspection | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-26</span>
+            <h1>Database Metadata & Introspection</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="sqlite-master">sqlite_master</span>
+                    <span class="task-chip" data-task="pragma-table">PRAGMA table_info</span>
+                    <span class="task-chip" data-task="pragma-index">PRAGMA index_list</span>
+                    <span class="task-chip" data-task="schema-query">schema query</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Query sqlite_master to discover database objects</li>
+                    <li>Use PRAGMA table_info to inspect column definitions</li>
+                    <li>Use PRAGMA index_list and index_info to map indexes</li>
+                    <li>Write schema discovery queries that build a data dictionary</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What Is Metadata?</h2>
+                <p class="content-text">
+                    Metadata is <strong>data about data</strong>. Every database stores information about its own
+                    structure: what tables exist, what columns they have, what types those columns use, which
+                    indexes have been created, and more. This self-describing capability is called
+                    <strong>introspection</strong>.
+                </p>
+                <p class="content-text">
+                    In SQLite, the primary metadata source is the <code>sqlite_master</code> table. Other databases
+                    have their own equivalents:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>SQLite</strong>
+                        <span>sqlite_master table + PRAGMA commands</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>PostgreSQL / MySQL</strong>
+                        <span>information_schema views (SQL standard)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>SQL Server</strong>
+                        <span>sys.tables, sys.columns, sys.indexes</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Oracle</strong>
+                        <span>ALL_TABLES, ALL_TAB_COLUMNS, USER_INDEXES</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    Knowing how to introspect a database is essential. When you connect to an unfamiliar database,
+                    metadata queries are how you <strong>explore what is there</strong> without needing external
+                    documentation.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">sqlite_master</h2>
+                <p class="content-text">
+                    The <code>sqlite_master</code> table is the master catalog. It contains one row for every
+                    database object: tables, indexes, views, and triggers. Query it like any other table:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sqlite_master;
+                </div>
+                <p class="content-text">
+                    Each row has five columns: <code>type</code> (table, index, view, or trigger),
+                    <code>name</code> (the object name), <code>tbl_name</code> (which table it belongs to),
+                    <code>rootpage</code> (internal page number), and <code>sql</code> (the full CREATE statement
+                    that defined the object).
+                </p>
+                <p class="content-text">
+                    To list just your tables with their CREATE statements, filter by type:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> name, sql
+<span class="keyword">FROM</span> sqlite_master
+<span class="keyword">WHERE</span> type = <span class="string">'table'</span>;
+                </div>
+                <p class="content-text">
+                    This is the first thing you should run when exploring an unknown SQLite database. The
+                    <code>sql</code> column gives you the exact CREATE TABLE statement, so you can see every
+                    column, type, constraint, and default value.
+                </p>
+                <div class="warning-box">
+                    <h4>Note: Internal Tables</h4>
+                    <p>
+                        You may see tables starting with <code>sqlite_</code> in the results. These are internal
+                        system tables managed by SQLite itself. You can query them but should never modify them
+                        directly.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">PRAGMA table_info</h2>
+                <p class="content-text">
+                    While <code>sqlite_master</code> gives you the raw CREATE statement, <code>PRAGMA table_info</code>
+                    gives you a <strong>structured, row-per-column</strong> breakdown of any table:
+                </p>
+                <div class="code-block">
+<span class="keyword">PRAGMA</span> table_info(employees);
+                </div>
+                <p class="content-text">
+                    This returns one row per column with six fields:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>cid</strong>
+                        <span>Column ID (position, starting at 0)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>name</strong>
+                        <span>Column name</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>type</strong>
+                        <span>Declared data type (TEXT, INTEGER, REAL, etc.)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>notnull</strong>
+                        <span>1 if NOT NULL constraint exists, 0 otherwise</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>dflt_value</strong>
+                        <span>Default value for the column (NULL if none)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>pk</strong>
+                        <span>1 if the column is part of the primary key, 0 otherwise</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    This is invaluable when you need to <strong>programmatically discover</strong> column names
+                    and types -- for example, building a dynamic form, generating an ORM mapping, or writing
+                    a migration script. Try it on different tables to see how the schema varies.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">PRAGMA index_list and index_info</h2>
+                <p class="content-text">
+                    To see what indexes exist on a table, use <code>PRAGMA index_list</code>:
+                </p>
+                <div class="code-block">
+<span class="keyword">PRAGMA</span> index_list(employees);
+                </div>
+                <p class="content-text">
+                    This returns each index with its name, whether it is unique, and its origin (created manually
+                    via CREATE INDEX, or automatically for a PRIMARY KEY or UNIQUE constraint).
+                </p>
+                <p class="content-text">
+                    To see <strong>which columns</strong> an index covers, pass the index name to
+                    <code>PRAGMA index_info</code>:
+                </p>
+                <div class="code-block">
+<span class="comment">-- First, find the index names</span>
+<span class="keyword">PRAGMA</span> index_list(employees);
+
+<span class="comment">-- Then inspect a specific index</span>
+<span class="keyword">PRAGMA</span> index_info(idx_employees_department);
+                </div>
+                <p class="content-text">
+                    By chaining these two PRAGMAs, you can build a <strong>complete index map</strong> of any
+                    table: which indexes exist, which columns they cover, and whether they enforce uniqueness.
+                    This is critical for understanding query performance and identifying missing indexes.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Other Useful PRAGMAs</h2>
+                <p class="content-text">
+                    SQLite has dozens of PRAGMA commands. Here are four more that are useful for introspection
+                    and diagnostics:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>PRAGMA database_list</strong>
+                        <span>Lists all attached databases (main, temp, and any ATTACHed files)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>PRAGMA table_xinfo</strong>
+                        <span>Extended table_info that includes hidden columns (e.g., rowid)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>PRAGMA integrity_check</strong>
+                        <span>Verifies database health -- checks page structure, indexes, and constraints</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>PRAGMA compile_options</strong>
+                        <span>Shows which features were enabled when SQLite was built</span>
+                    </div>
+                </div>
+                <div class="code-block">
+<span class="comment">-- Check database health</span>
+<span class="keyword">PRAGMA</span> integrity_check;
+
+<span class="comment">-- See attached databases</span>
+<span class="keyword">PRAGMA</span> database_list;
+
+<span class="comment">-- Extended column info (includes hidden columns)</span>
+<span class="keyword">PRAGMA</span> table_xinfo(employees);
+
+<span class="comment">-- What features does this SQLite build support?</span>
+<span class="keyword">PRAGMA</span> compile_options;
+                </div>
+                <p class="content-text">
+                    The <code>integrity_check</code> PRAGMA is especially important in production. If it returns
+                    <code>ok</code>, the database file is healthy. If it returns errors, the file may be corrupted
+                    and needs recovery.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Schema Discovery Queries</h2>
+                <p class="content-text">
+                    You can combine <code>sqlite_master</code> queries with filtering and aggregation to build
+                    powerful schema reports. Here are practical examples:
+                </p>
+                <p class="content-text">
+                    <strong>Count all tables in the database:</strong>
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> <span class="function">COUNT</span>(*) <span class="keyword">AS</span> table_count
+<span class="keyword">FROM</span> sqlite_master
+<span class="keyword">WHERE</span> type = <span class="string">'table'</span>
+  <span class="keyword">AND</span> name <span class="keyword">NOT LIKE</span> <span class="string">'sqlite_%'</span>;
+                </div>
+                <p class="content-text">
+                    <strong>List all indexes with their target tables:</strong>
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> name, tbl_name, sql
+<span class="keyword">FROM</span> sqlite_master
+<span class="keyword">WHERE</span> type = <span class="string">'index'</span>
+  <span class="keyword">AND</span> sql <span class="keyword">IS NOT NULL</span>
+<span class="keyword">ORDER BY</span> tbl_name;
+                </div>
+                <p class="content-text">
+                    <strong>Find tables that have foreign key references:</strong>
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> name, sql
+<span class="keyword">FROM</span> sqlite_master
+<span class="keyword">WHERE</span> type = <span class="string">'table'</span>
+  <span class="keyword">AND</span> sql <span class="keyword">LIKE</span> <span class="string">'%REFERENCES%'</span>;
+                </div>
+                <p class="content-text">
+                    <strong>Build a simple data dictionary</strong> -- list every user table and its column count:
+                </p>
+                <div class="code-block">
+<span class="comment">-- For each table, run PRAGMA table_info to count columns</span>
+<span class="comment">-- In SQLite, you would iterate in application code</span>
+<span class="comment">-- But you can start with the table list:</span>
+<span class="keyword">SELECT</span> name, sql
+<span class="keyword">FROM</span> sqlite_master
+<span class="keyword">WHERE</span> type = <span class="string">'table'</span>
+  <span class="keyword">AND</span> name <span class="keyword">NOT LIKE</span> <span class="string">'sqlite_%'</span>
+<span class="keyword">ORDER BY</span> name;
+                </div>
+                <p class="content-text">
+                    In a real application, you would loop through these table names and call
+                    <code>PRAGMA table_info(table_name)</code> for each one to build a complete data dictionary
+                    with column names, types, and constraints.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>sqlite_master is the master catalog -- it stores type, name, and CREATE statement for every database object</li>
+                    <li>PRAGMA table_info returns structured column metadata: name, type, notnull, default, and primary key status</li>
+                    <li>PRAGMA index_list and index_info together reveal the complete index structure of any table</li>
+                    <li>PRAGMA integrity_check verifies database health -- run it when you suspect corruption</li>
+                    <li>Filtering sqlite_master with WHERE clauses lets you build schema discovery reports</li>
+                    <li>Other databases use information_schema (PostgreSQL, MySQL) or sys tables (SQL Server) for the same purpose</li>
+                    <li>Metadata queries are your first tool when exploring an unfamiliar database</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-25-indexes.module.html" class="nav-btn">&lt; Previous: Indexes</a>
+                <a href="script-db-27-admin.lab.html" class="nav-btn primary">Next: Database Admin Lab &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-26-metadata';
+        const tasks = { 'sqlite-master': false, 'pragma-table': false, 'pragma-index': false, 'schema-query': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: sqlite-master — query sqlite_master
+                if (/SQLITE_MASTER/i.test(upper)) {
+                    completeTask('sqlite-master');
+                }
+                // Task: pragma-table — PRAGMA table_info
+                if (/PRAGMA\s+TABLE_INFO/i.test(upper)) {
+                    completeTask('pragma-table');
+                }
+                // Task: pragma-index — PRAGMA index_list or index_info
+                if (/PRAGMA\s+INDEX_(LIST|INFO)/i.test(upper)) {
+                    completeTask('pragma-index');
+                }
+                // Task: schema-query — sqlite_master with WHERE, or advanced PRAGMAs
+                if ((/SQLITE_MASTER/i.test(upper) && /WHERE/i.test(upper)) ||
+                    /PRAGMA\s+(DATABASE_LIST|TABLE_XINFO|INTEGRITY_CHECK|COMPILE_OPTIONS)/i.test(upper)) {
+                    completeTask('schema-query');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

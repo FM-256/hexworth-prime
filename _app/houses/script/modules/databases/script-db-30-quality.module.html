@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-30: Data Quality & Validation | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-30</span>
+            <h1>Data Quality & Validation</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="check-constraint">CHECK</span>
+                    <span class="task-chip" data-task="trigger">TRIGGER</span>
+                    <span class="task-chip" data-task="clean">Clean Data</span>
+                    <span class="task-chip" data-task="audit">Audit Trail</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Enforce data integrity with CHECK constraints</li>
+                    <li>Build validation triggers for complex business rules</li>
+                    <li>Write queries to find and fix dirty data</li>
+                    <li>Implement audit trails to track data changes</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Data Quality Dimensions</h2>
+                <p class="content-text">
+                    Before writing any SQL, you need to understand what <strong>data quality</strong> actually means.
+                    The industry breaks it into six core dimensions. Every quality problem you encounter will fall
+                    into at least one of these categories:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Accuracy</strong>
+                        <span>Values correctly represent real-world facts</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Completeness</strong>
+                        <span>No missing data in required fields</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Consistency</strong>
+                        <span>No contradictions across tables or systems</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Timeliness</strong>
+                        <span>Data is current and up to date</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Uniqueness</strong>
+                        <span>No unintended duplicate records</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Validity</strong>
+                        <span>Values conform to defined rules and formats</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    In production, bad data costs companies millions. IBM estimates that poor data quality costs
+                    the US economy over <strong>$3 trillion per year</strong>. The best defense is catching bad data
+                    <strong>before</strong> it enters your database -- and knowing how to clean it when it slips through.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Validation with CHECK Constraints</h2>
+                <p class="content-text">
+                    <code>CHECK</code> constraints enforce rules at the <strong>schema level</strong>. The database
+                    itself rejects any INSERT or UPDATE that violates the rule. This is your first line of defense
+                    -- no application bug can bypass a CHECK constraint.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> sensor_readings (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    sensor_id <span class="keyword">INTEGER NOT NULL</span>,
+    temperature <span class="keyword">REAL</span> <span class="keyword">CHECK</span>(temperature <span class="keyword">BETWEEN</span> <span class="number">-50</span> <span class="keyword">AND</span> <span class="number">150</span>),
+    humidity <span class="keyword">REAL</span> <span class="keyword">CHECK</span>(humidity >= <span class="number">0</span> <span class="keyword">AND</span> humidity <= <span class="number">100</span>),
+    reading_time <span class="keyword">TEXT NOT NULL</span>
+);
+                </div>
+                <p class="content-text">
+                    Now try inserting valid and invalid data to see CHECK in action:
+                </p>
+                <div class="code-block">
+<span class="comment">-- This succeeds:</span>
+<span class="keyword">INSERT INTO</span> sensor_readings <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="number">101</span>, <span class="number">22.5</span>, <span class="number">45.0</span>, <span class="string">'2026-03-07 10:00:00'</span>);
+
+<span class="comment">-- This fails: temperature 200 is out of range</span>
+<span class="keyword">INSERT INTO</span> sensor_readings <span class="keyword">VALUES</span> (<span class="number">2</span>, <span class="number">101</span>, <span class="number">200</span>, <span class="number">45.0</span>, <span class="string">'2026-03-07 10:05:00'</span>);
+
+<span class="comment">-- This fails: humidity -10 is below zero</span>
+<span class="keyword">INSERT INTO</span> sensor_readings <span class="keyword">VALUES</span> (<span class="number">3</span>, <span class="number">102</span>, <span class="number">22.5</span>, <span class="number">-10</span>, <span class="string">'2026-03-07 10:10:00'</span>);
+                </div>
+                <p class="content-text">
+                    The database rejects the bad rows with a constraint violation error. The valid row goes through.
+                    You can also add CHECK constraints to existing columns, and define multi-column checks:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> orders (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    quantity <span class="keyword">INTEGER</span> <span class="keyword">CHECK</span>(quantity > <span class="number">0</span>),
+    unit_price <span class="keyword">REAL</span> <span class="keyword">CHECK</span>(unit_price > <span class="number">0</span>),
+    discount <span class="keyword">REAL</span> <span class="keyword">CHECK</span>(discount >= <span class="number">0</span> <span class="keyword">AND</span> discount <= <span class="number">1</span>),
+    <span class="keyword">CHECK</span>(quantity * unit_price * (<span class="number">1</span> - discount) > <span class="number">0</span>)
+);
+                </div>
+                <div class="warning-box">
+                    <h4>CHECK Constraint Limitations</h4>
+                    <p>
+                        CHECK constraints cannot reference other tables, use subqueries, or call functions that
+                        change over time (like datetime('now')). For those kinds of validations, you need triggers.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Triggers for Validation</h2>
+                <p class="content-text">
+                    When CHECK constraints are not powerful enough, <strong>triggers</strong> step in. A trigger is
+                    a block of SQL that fires automatically before or after an INSERT, UPDATE, or DELETE. You can
+                    use them for complex validation, cross-table checks, and automatic data transformations.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TRIGGER</span> validate_email <span class="keyword">BEFORE INSERT ON</span> users
+<span class="keyword">BEGIN</span>
+    <span class="keyword">SELECT CASE</span>
+        <span class="keyword">WHEN</span> NEW.email <span class="keyword">NOT LIKE</span> <span class="string">'%@%.%'</span>
+        <span class="keyword">THEN</span> <span class="function">RAISE</span>(<span class="keyword">ABORT</span>, <span class="string">'Invalid email format'</span>)
+    <span class="keyword">END</span>;
+<span class="keyword">END</span>;
+                </div>
+                <p class="content-text">
+                    This trigger fires <strong>before</strong> every INSERT on the users table. If the email
+                    does not match the pattern, <code>RAISE(ABORT)</code> cancels the entire operation. The row
+                    never gets inserted.
+                </p>
+                <p class="content-text">
+                    You can also create <strong>BEFORE UPDATE</strong> triggers to prevent invalid changes:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TRIGGER</span> prevent_salary_decrease
+<span class="keyword">BEFORE UPDATE OF</span> salary <span class="keyword">ON</span> employees
+<span class="keyword">BEGIN</span>
+    <span class="keyword">SELECT CASE</span>
+        <span class="keyword">WHEN</span> NEW.salary < OLD.salary
+        <span class="keyword">THEN</span> <span class="function">RAISE</span>(<span class="keyword">ABORT</span>, <span class="string">'Salary cannot be decreased'</span>)
+    <span class="keyword">END</span>;
+<span class="keyword">END</span>;
+                </div>
+                <p class="content-text">
+                    Inside a trigger, <code>NEW</code> refers to the incoming row (the data being inserted or
+                    updated) and <code>OLD</code> refers to the existing row (for updates and deletes). This gives
+                    you the power to compare before-and-after values.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Data Cleaning Queries</h2>
+                <p class="content-text">
+                    Even with constraints and triggers, dirty data gets in -- imported CSVs, legacy migrations,
+                    or application bugs. Here are the essential cleaning patterns:
+                </p>
+                <p class="content-text">
+                    <strong>Finding duplicates</strong> -- the classic GROUP BY / HAVING pattern:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Find duplicate emails</span>
+<span class="keyword">SELECT</span> email, <span class="function">COUNT</span>(*) <span class="keyword">AS</span> occurrences
+<span class="keyword">FROM</span> users
+<span class="keyword">GROUP BY</span> email
+<span class="keyword">HAVING</span> <span class="function">COUNT</span>(*) > <span class="number">1</span>;
+                </div>
+                <p class="content-text">
+                    <strong>Finding NULLs</strong> in required fields:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> name <span class="keyword">IS NULL</span>
+   <span class="keyword">OR</span> email <span class="keyword">IS NULL</span>
+   <span class="keyword">OR</span> department_id <span class="keyword">IS NULL</span>;
+                </div>
+                <p class="content-text">
+                    <strong>Trimming whitespace</strong> -- leading/trailing spaces cause silent matching failures:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Find rows with whitespace issues</span>
+<span class="keyword">SELECT</span> name, <span class="function">LENGTH</span>(name) <span class="keyword">AS</span> raw_len,
+       <span class="function">LENGTH</span>(<span class="function">TRIM</span>(name)) <span class="keyword">AS</span> trimmed_len
+<span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> name != <span class="function">TRIM</span>(name);
+
+<span class="comment">-- Fix them</span>
+<span class="keyword">UPDATE</span> employees <span class="keyword">SET</span> name = <span class="function">TRIM</span>(name)
+<span class="keyword">WHERE</span> name != <span class="function">TRIM</span>(name);
+                </div>
+                <p class="content-text">
+                    <strong>Standardizing case</strong> -- inconsistent capitalization breaks grouping and lookups:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Find case inconsistencies in department names</span>
+<span class="keyword">SELECT</span> <span class="function">UPPER</span>(department) <span class="keyword">AS</span> normalized,
+       <span class="function">COUNT</span>(<span class="keyword">DISTINCT</span> department) <span class="keyword">AS</span> variations,
+       <span class="function">GROUP_CONCAT</span>(<span class="keyword">DISTINCT</span> department) <span class="keyword">AS</span> examples
+<span class="keyword">FROM</span> employees
+<span class="keyword">GROUP BY</span> <span class="function">UPPER</span>(department)
+<span class="keyword">HAVING</span> <span class="function">COUNT</span>(<span class="keyword">DISTINCT</span> department) > <span class="number">1</span>;
+                </div>
+                <p class="content-text">
+                    <strong>Finding outliers</strong> -- values that are statistically unlikely:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Find salaries more than 2 standard deviations from mean</span>
+<span class="keyword">SELECT</span> name, salary
+<span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> <span class="function">ABS</span>(salary - (<span class="keyword">SELECT</span> <span class="function">AVG</span>(salary) <span class="keyword">FROM</span> employees))
+      > <span class="number">2</span> * (<span class="keyword">SELECT</span> <span class="function">AVG</span>((salary - (<span class="keyword">SELECT</span> <span class="function">AVG</span>(salary) <span class="keyword">FROM</span> employees))
+              * (salary - (<span class="keyword">SELECT</span> <span class="function">AVG</span>(salary) <span class="keyword">FROM</span> employees)))
+           <span class="keyword">FROM</span> employees);
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Audit Trails</h2>
+                <p class="content-text">
+                    An <strong>audit trail</strong> records every change made to critical data -- who changed what,
+                    when, and what the old value was. This is essential for compliance, debugging, and accountability.
+                    The pattern is simple: an audit table plus triggers.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> audit_trail (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    table_name <span class="keyword">TEXT</span>,
+    action <span class="keyword">TEXT</span>,
+    old_value <span class="keyword">TEXT</span>,
+    new_value <span class="keyword">TEXT</span>,
+    changed_at <span class="keyword">TEXT DEFAULT</span> (<span class="function">datetime</span>(<span class="string">'now'</span>))
+);
+                </div>
+                <p class="content-text">
+                    Now create a trigger that logs every salary change:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TRIGGER</span> audit_salary
+<span class="keyword">AFTER UPDATE OF</span> salary <span class="keyword">ON</span> employees
+<span class="keyword">BEGIN</span>
+    <span class="keyword">INSERT INTO</span> audit_trail (table_name, action, old_value, new_value)
+    <span class="keyword">VALUES</span> (<span class="string">'employees'</span>, <span class="string">'UPDATE salary'</span>, OLD.salary, NEW.salary);
+<span class="keyword">END</span>;
+                </div>
+                <p class="content-text">
+                    Test it by updating a salary and then querying the audit trail:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Make a change</span>
+<span class="keyword">UPDATE</span> employees <span class="keyword">SET</span> salary = <span class="number">95000</span> <span class="keyword">WHERE</span> id = <span class="number">1</span>;
+
+<span class="comment">-- Check the audit trail</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> audit_trail;
+                </div>
+                <p class="content-text">
+                    Every salary change is now permanently recorded. You can extend this pattern to track
+                    INSERT and DELETE operations as well. For sensitive tables (financial records, user data),
+                    audit trails are not optional -- they are a <strong>regulatory requirement</strong>.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Data Profiling</h2>
+                <p class="content-text">
+                    <strong>Data profiling</strong> is the process of examining your data to understand its
+                    structure, quality, and content. Before you can fix problems, you need to find them. Here
+                    are the essential profiling queries:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Count NULLs per column</span>
+<span class="keyword">SELECT</span>
+    <span class="function">COUNT</span>(*) <span class="keyword">AS</span> total_rows,
+    <span class="function">COUNT</span>(*) - <span class="function">COUNT</span>(name) <span class="keyword">AS</span> null_names,
+    <span class="function">COUNT</span>(*) - <span class="function">COUNT</span>(email) <span class="keyword">AS</span> null_emails,
+    <span class="function">COUNT</span>(*) - <span class="function">COUNT</span>(salary) <span class="keyword">AS</span> null_salaries,
+    <span class="function">COUNT</span>(*) - <span class="function">COUNT</span>(department_id) <span class="keyword">AS</span> null_depts
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    Check <strong>value distributions</strong> to spot anomalies:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Department distribution</span>
+<span class="keyword">SELECT</span> department_id,
+       <span class="function">COUNT</span>(*) <span class="keyword">AS</span> emp_count,
+       <span class="function">ROUND</span>(<span class="number">100.0</span> * <span class="function">COUNT</span>(*) / (<span class="keyword">SELECT</span> <span class="function">COUNT</span>(*) <span class="keyword">FROM</span> employees), <span class="number">1</span>) <span class="keyword">AS</span> pct
+<span class="keyword">FROM</span> employees
+<span class="keyword">GROUP BY</span> department_id
+<span class="keyword">ORDER BY</span> emp_count <span class="keyword">DESC</span>;
+                </div>
+                <p class="content-text">
+                    Build a <strong>comprehensive profile</strong> for a numeric column:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Full numeric profile of salary column</span>
+<span class="keyword">SELECT</span>
+    <span class="function">COUNT</span>(*) <span class="keyword">AS</span> total,
+    <span class="function">COUNT</span>(salary) <span class="keyword">AS</span> non_null,
+    <span class="function">COUNT</span>(*) - <span class="function">COUNT</span>(salary) <span class="keyword">AS</span> nulls,
+    <span class="function">MIN</span>(salary) <span class="keyword">AS</span> minimum,
+    <span class="function">MAX</span>(salary) <span class="keyword">AS</span> maximum,
+    <span class="function">ROUND</span>(<span class="function">AVG</span>(salary), <span class="number">2</span>) <span class="keyword">AS</span> mean,
+    <span class="function">COUNT</span>(<span class="keyword">DISTINCT</span> salary) <span class="keyword">AS</span> distinct_values,
+    <span class="function">MAX</span>(salary) - <span class="function">MIN</span>(salary) <span class="keyword">AS</span> range
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    Run profiling queries whenever you receive a new dataset, inherit a legacy database, or
+                    suspect data quality issues. They take seconds to run and can save you hours of debugging.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Data quality has six dimensions: accuracy, completeness, consistency, timeliness, uniqueness, and validity</li>
+                    <li>CHECK constraints enforce validation rules at the schema level -- no application bug can bypass them</li>
+                    <li>Triggers handle complex validation that CHECK cannot: cross-table checks, pattern matching, conditional logic</li>
+                    <li>TRIM, UPPER/LOWER, and GROUP BY HAVING are your core data cleaning tools</li>
+                    <li>Audit trails (audit table + AFTER trigger) track every change for compliance and debugging</li>
+                    <li>Profile your data with COUNT, NULL checks, and distribution queries before attempting any cleanup</li>
+                    <li>Prevention (constraints, triggers) is always cheaper than correction (cleaning queries)</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-29-errors.module.html" class="nav-btn">&lt; Previous: Error Management</a>
+                <a href="script-db-31-pipelines.module.html" class="nav-btn primary">Next: Data Pipelines & ETL &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-30-quality';
+        const tasks = { 'check-constraint': false, 'trigger': false, 'clean': false, 'audit': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: check-constraint — CHECK constraint in CREATE TABLE
+                if (/\bCHECK\s*\(/.test(upper) && /CREATE\s+TABLE/.test(upper)) {
+                    completeTask('check-constraint');
+                }
+                // Task: trigger — CREATE TRIGGER
+                if (/CREATE\s+TRIGGER/.test(upper)) {
+                    completeTask('trigger');
+                }
+                // Task: clean — TRIM() or duplicate detection with HAVING COUNT > 1
+                if (/\bTRIM\s*\(/.test(upper) || /HAVING\s+COUNT\s*\(\s*\*\s*\)\s*>\s*1/.test(upper)) {
+                    completeTask('clean');
+                }
+                // Task: audit — audit table or audit insert
+                if (/\bAUDIT\b/.test(upper) && (/CREATE\s+TABLE/.test(upper) || /INSERT\s+INTO/.test(upper))) {
+                    completeTask('audit');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

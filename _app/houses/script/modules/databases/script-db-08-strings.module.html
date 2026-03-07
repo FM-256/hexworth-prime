@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-08: String Functions | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-08</span>
+            <h1>String Functions</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="concat">concatenate</span>
+                    <span class="task-chip" data-task="upper-lower">UPPER / LOWER</span>
+                    <span class="task-chip" data-task="substr">SUBSTR</span>
+                    <span class="task-chip" data-task="replace">REPLACE</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Concatenate strings using the || operator and CONCAT()</li>
+                    <li>Extract substrings with SUBSTR</li>
+                    <li>Change case with UPPER and LOWER</li>
+                    <li>Trim whitespace with TRIM, LTRIM, and RTRIM</li>
+                    <li>Find and replace patterns with INSTR and REPLACE</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Concatenation</h2>
+                <p class="content-text">
+                    Concatenation joins two or more strings into one. In <strong>SQLite</strong> and
+                    <strong>PostgreSQL</strong>, you use the <code>||</code> operator. MySQL uses the
+                    <code>CONCAT()</code> function instead.
+                </p>
+                <div class="code-block">
+<span class="comment">-- SQLite / PostgreSQL syntax</span>
+<span class="keyword">SELECT</span> first_name <span class="keyword">||</span> <span class="string">' '</span> <span class="keyword">||</span> last_name <span class="keyword">AS</span> full_name
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    The <code>||</code> operator glues the first name, a space, and the last name into a single
+                    column called <code>full_name</code>. You can chain as many strings and columns together as you need.
+                </p>
+                <div class="code-block">
+<span class="comment">-- MySQL syntax (not supported in our SQLite console)</span>
+<span class="keyword">SELECT</span> <span class="function">CONCAT</span>(first_name, <span class="string">' '</span>, last_name) <span class="keyword">AS</span> full_name
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    Try it in the console. Build a full name or combine any two columns with <code>||</code>.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">UPPER / LOWER</h2>
+                <p class="content-text">
+                    <code>UPPER()</code> converts a string to all uppercase. <code>LOWER()</code> converts it to
+                    all lowercase. These are essential for <strong>case-insensitive comparisons</strong> and
+                    normalizing user input.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> <span class="function">UPPER</span>(last_name), <span class="function">LOWER</span>(email)
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    A common pattern is using <code>LOWER()</code> or <code>UPPER()</code> in WHERE clauses so
+                    that comparisons are not affected by how the data was originally entered:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> <span class="function">LOWER</span>(last_name) = <span class="string">'chen'</span>;
+                </div>
+                <p class="content-text">
+                    This matches "Chen", "CHEN", "chen", and any other casing variant.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">LENGTH</h2>
+                <p class="content-text">
+                    <code>LENGTH()</code> returns the number of characters in a string. It is useful for
+                    <strong>data validation</strong> and sorting by string size.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name, <span class="function">LENGTH</span>(first_name) <span class="keyword">AS</span> name_len
+<span class="keyword">FROM</span> employees
+<span class="keyword">ORDER BY</span> name_len <span class="keyword">DESC</span>;
+                </div>
+                <p class="content-text">
+                    This ranks employees by the length of their first name. You can also use LENGTH in WHERE
+                    to filter: <code>WHERE LENGTH(email) > 20</code>.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">SUBSTR (SUBSTRING)</h2>
+                <p class="content-text">
+                    <code>SUBSTR(string, start, length)</code> extracts part of a string. The <strong>start</strong>
+                    position is 1-based (the first character is position 1). The third argument is the number of
+                    characters to extract.
+                </p>
+                <div class="code-block">
+<span class="comment">-- Extract the username from an email address</span>
+<span class="keyword">SELECT</span> <span class="function">SUBSTR</span>(email, <span class="number">1</span>, <span class="function">INSTR</span>(email, <span class="string">'@'</span>) - <span class="number">1</span>) <span class="keyword">AS</span> username
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    This uses <code>INSTR()</code> to find where the <code>@</code> symbol is, then extracts
+                    everything before it. We will cover INSTR in detail shortly.
+                </p>
+                <div class="code-block">
+<span class="comment">-- Get the first 3 characters of each last name</span>
+<span class="keyword">SELECT</span> <span class="function">SUBSTR</span>(last_name, <span class="number">1</span>, <span class="number">3</span>) <span class="keyword">AS</span> abbrev
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    If you omit the third argument, SUBSTR returns everything from the start position to the
+                    end of the string.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">TRIM, LTRIM, RTRIM</h2>
+                <p class="content-text">
+                    <code>TRIM()</code> removes leading and trailing whitespace (or specified characters) from a string.
+                    <code>LTRIM()</code> removes only from the left, <code>RTRIM()</code> only from the right.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> <span class="function">TRIM</span>(<span class="string">'   hello   '</span>);           <span class="comment">-- 'hello'</span>
+<span class="keyword">SELECT</span> <span class="function">LTRIM</span>(<span class="string">'   hello   '</span>);          <span class="comment">-- 'hello   '</span>
+<span class="keyword">SELECT</span> <span class="function">RTRIM</span>(<span class="string">'   hello   '</span>);          <span class="comment">-- '   hello'</span>
+                </div>
+                <p class="content-text">
+                    In SQLite, you can also remove specific characters by passing a second argument:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> <span class="function">TRIM</span>(last_name, <span class="string">'.'</span>);    <span class="comment">-- removes leading/trailing periods</span>
+<span class="keyword">SELECT</span> <span class="function">LTRIM</span>(<span class="string">'000123'</span>, <span class="string">'0'</span>);   <span class="comment">-- '123' (strips leading zeros)</span>
+                </div>
+                <p class="content-text">
+                    Trimming is critical when working with data imported from spreadsheets or user forms where
+                    invisible whitespace can cause joins and comparisons to fail silently.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">REPLACE</h2>
+                <p class="content-text">
+                    <code>REPLACE(string, old, new)</code> swaps every occurrence of <code>old</code> with
+                    <code>new</code> inside the string. It is case-sensitive.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> <span class="function">REPLACE</span>(email, <span class="string">'@meridian.io'</span>, <span class="string">'@newdomain.com'</span>) <span class="keyword">AS</span> new_email
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    This rewrites every employee's email to use the new domain. REPLACE works well in UPDATE
+                    statements too, when you need to fix data in bulk:
+                </p>
+                <div class="code-block">
+<span class="keyword">UPDATE</span> employees
+<span class="keyword">SET</span> email = <span class="function">REPLACE</span>(email, <span class="string">'@meridian.io'</span>, <span class="string">'@newdomain.com'</span>);
+                </div>
+                <p class="content-text">
+                    If the old substring is not found, REPLACE returns the original string unchanged.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">INSTR (Position Finding)</h2>
+                <p class="content-text">
+                    <code>INSTR(string, substring)</code> returns the <strong>position</strong> of the first
+                    occurrence of <code>substring</code> within <code>string</code>. If not found, it returns 0.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name, <span class="function">INSTR</span>(email, <span class="string">'@'</span>) <span class="keyword">AS</span> at_pos
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    INSTR is most powerful when <strong>combined with SUBSTR</strong>. Together they let you
+                    split strings at any delimiter. For example, to get the domain from an email:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> <span class="function">SUBSTR</span>(email, <span class="function">INSTR</span>(email, <span class="string">'@'</span>) + <span class="number">1</span>) <span class="keyword">AS</span> domain
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    This starts extracting one character after the <code>@</code> and continues to the end of the string.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Combining String Functions</h2>
+                <p class="content-text">
+                    The real power of string functions comes from <strong>nesting them together</strong>. Here
+                    is a report-style query that builds a short name from the first initial and last name:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">UPPER</span>(<span class="function">SUBSTR</span>(first_name, <span class="number">1</span>, <span class="number">1</span>)) <span class="keyword">||</span> <span class="string">'. '</span> <span class="keyword">||</span> last_name <span class="keyword">AS</span> short_name,
+    <span class="function">LOWER</span>(<span class="function">SUBSTR</span>(email, <span class="number">1</span>, <span class="function">INSTR</span>(email, <span class="string">'@'</span>) - <span class="number">1</span>)) <span class="keyword">AS</span> username,
+    <span class="function">LENGTH</span>(last_name) <span class="keyword">AS</span> name_len
+<span class="keyword">FROM</span> employees
+<span class="keyword">ORDER BY</span> short_name;
+                </div>
+                <p class="content-text">
+                    This query does three things at once: builds an abbreviated name with a capitalized initial,
+                    extracts a lowercase username from the email, and calculates the last name length. Each
+                    column nests multiple string functions.
+                </p>
+                <p class="content-text">
+                    <strong>Read it inside-out.</strong> When you see nested functions like
+                    <code>UPPER(SUBSTR(first_name, 1, 1))</code>, start with the innermost call.
+                    <code>SUBSTR</code> grabs the first character, then <code>UPPER</code> capitalizes it.
+                    Building queries this way is a core skill that scales to much more complex transformations.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Use || to concatenate strings in SQLite/PostgreSQL; use CONCAT() in MySQL</li>
+                    <li>UPPER() and LOWER() are essential for case-insensitive comparisons</li>
+                    <li>SUBSTR(string, start, length) extracts parts of a string (1-based indexing)</li>
+                    <li>TRIM/LTRIM/RTRIM remove whitespace or specific characters from string edges</li>
+                    <li>REPLACE(string, old, new) swaps all occurrences of a substring</li>
+                    <li>INSTR(string, target) finds the position of a substring; returns 0 if not found</li>
+                    <li>Nest functions together (inside-out) to build powerful string transformations</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-07-nulls.module.html" class="nav-btn">&lt; Previous: Working with NULLs</a>
+                <a href="script-db-09-numbers.module.html" class="nav-btn primary">Next: Number Functions &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-08-strings';
+        const tasks = { 'concat': false, 'upper-lower': false, 'substr': false, 'replace': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: concatenate — use || or CONCAT()
+                if (upper.includes('||') || upper.includes('CONCAT(')) {
+                    completeTask('concat');
+                }
+                // Task: upper-lower — use UPPER() or LOWER()
+                if (upper.includes('UPPER(') || upper.includes('LOWER(')) {
+                    completeTask('upper-lower');
+                }
+                // Task: substr — use SUBSTR() or SUBSTRING()
+                if (upper.includes('SUBSTR(') || upper.includes('SUBSTRING(')) {
+                    completeTask('substr');
+                }
+                // Task: replace — use REPLACE()
+                if (upper.includes('REPLACE(')) {
+                    completeTask('replace');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

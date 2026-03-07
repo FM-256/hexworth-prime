@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-25: Indexes & Query Performance | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-25</span>
+            <h1>Indexes & Query Performance</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="create-index">CREATE INDEX</span>
+                    <span class="task-chip" data-task="explain">EXPLAIN QUERY PLAN</span>
+                    <span class="task-chip" data-task="composite">composite index</span>
+                    <span class="task-chip" data-task="drop-index">DROP INDEX</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand why indexes exist and when to use them</li>
+                    <li>Create single-column and composite indexes</li>
+                    <li>Read EXPLAIN QUERY PLAN output to measure performance</li>
+                    <li>Know when NOT to index and how to drop indexes</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Why Indexes?</h2>
+                <p class="content-text">
+                    Think of a textbook. If you need to find every mention of "TCP handshake," you have two options:
+                    read every page from cover to cover, or flip to the <strong>index at the back</strong> and jump
+                    straight to the right pages. A database index works the same way.
+                </p>
+                <p class="content-text">
+                    Without an index, the database performs a <strong>full table scan</strong> -- it reads every single
+                    row to find matches. With an index, it maintains a sorted data structure (usually a B-tree) that
+                    lets it <strong>jump directly</strong> to matching rows.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Faster Reads</strong>
+                        <span>SELECT queries with WHERE, JOIN, and ORDER BY become dramatically faster on indexed columns</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Slower Writes</strong>
+                        <span>Every INSERT, UPDATE, and DELETE must also update the index, adding overhead to write operations</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Storage Overhead</strong>
+                        <span>Indexes consume additional disk space -- a separate data structure maintained alongside your table</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>When to Index</strong>
+                        <span>Columns frequently used in WHERE clauses, JOIN conditions, and ORDER BY are the best candidates</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">CREATE INDEX</h2>
+                <p class="content-text">
+                    Creating an index is straightforward. The naming convention is <code>idx_tablename_column</code>
+                    so you can immediately tell what an index covers:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE INDEX</span> idx_employees_salary
+<span class="keyword">ON</span> employees(salary);
+                </div>
+                <p class="content-text">
+                    This tells the database to build a sorted lookup structure on the <code>salary</code> column
+                    of the <code>employees</code> table. From this point forward, any query that filters or sorts
+                    by salary can use this index instead of scanning every row.
+                </p>
+                <p class="content-text">
+                    To see the difference, run <code>EXPLAIN QUERY PLAN</code> on a salary query <strong>before</strong>
+                    and <strong>after</strong> creating the index. You will see the query plan change from a full
+                    table scan to an index lookup.
+                </p>
+                <div class="code-block">
+<span class="comment">-- Before index: full table scan</span>
+<span class="keyword">EXPLAIN QUERY PLAN</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees <span class="keyword">WHERE</span> salary > <span class="number">100000</span>;
+<span class="comment">-- Output: SCAN TABLE employees</span>
+
+<span class="comment">-- Create the index</span>
+<span class="keyword">CREATE INDEX</span> idx_employees_salary <span class="keyword">ON</span> employees(salary);
+
+<span class="comment">-- After index: index lookup</span>
+<span class="keyword">EXPLAIN QUERY PLAN</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees <span class="keyword">WHERE</span> salary > <span class="number">100000</span>;
+<span class="comment">-- Output: SEARCH TABLE employees USING INDEX idx_employees_salary</span>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">EXPLAIN QUERY PLAN</h2>
+                <p class="content-text">
+                    <code>EXPLAIN QUERY PLAN</code> is your performance diagnostic tool. It shows you <strong>how</strong>
+                    the database plans to execute a query without actually running it:
+                </p>
+                <div class="code-block">
+<span class="keyword">EXPLAIN QUERY PLAN</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees <span class="keyword">WHERE</span> salary > <span class="number">100000</span>;
+                </div>
+                <p class="content-text">
+                    The output tells you the execution strategy. The two key phrases to look for:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>SCAN TABLE</strong>
+                        <span>Full table scan -- the database reads every row. Slow on large tables. Means no useful index exists for this query.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>SEARCH TABLE USING INDEX</strong>
+                        <span>Index lookup -- the database jumps to matching rows via the index. Fast. This is what you want to see.</span>
+                    </div>
+                </div>
+                <div class="warning-box">
+                    <h4>EXPLAIN is Read-Only</h4>
+                    <p>
+                        EXPLAIN QUERY PLAN does <strong>not</strong> execute the query. It only shows the plan the
+                        database would use. It is completely safe to run on any query, including DELETE or UPDATE,
+                        without modifying data.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Composite Indexes</h2>
+                <p class="content-text">
+                    A <strong>composite index</strong> covers multiple columns. This is useful when queries frequently
+                    filter on a combination of columns:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE INDEX</span> idx_emp_dept_salary
+<span class="keyword">ON</span> employees(department_id, salary);
+                </div>
+                <p class="content-text">
+                    Column order matters because of the <strong>leftmost prefix rule</strong>. The database can use
+                    this index for queries that filter on:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Uses the index (filters on department_id, the leftmost column)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees <span class="keyword">WHERE</span> department_id = <span class="number">3</span>;
+
+<span class="comment">-- Uses the index (filters on both columns, in order)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> department_id = <span class="number">3</span> <span class="keyword">AND</span> salary > <span class="number">80000</span>;
+
+<span class="comment">-- Does NOT use the index (salary alone is not the leftmost column)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees <span class="keyword">WHERE</span> salary > <span class="number">80000</span>;
+                </div>
+                <p class="content-text">
+                    Think of it like a phone book sorted by last name, then first name. You can look up everyone
+                    named "Smith" (leftmost column), or "Smith, John" (both columns), but you cannot efficiently
+                    look up everyone named "John" across all last names without scanning the whole book.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">UNIQUE Indexes</h2>
+                <p class="content-text">
+                    A <code>UNIQUE</code> index does double duty: it speeds up lookups <strong>and</strong> enforces
+                    that no two rows can have the same value in the indexed column:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE UNIQUE INDEX</span> idx_emp_email
+<span class="keyword">ON</span> employees(email);
+                </div>
+                <p class="content-text">
+                    After creating this index, any attempt to INSERT or UPDATE a row with a duplicate email will
+                    fail with a constraint violation. This is functionally equivalent to adding a UNIQUE constraint
+                    on the column, but you are creating it explicitly as an index.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">When NOT to Index</h2>
+                <p class="content-text">
+                    More indexes are not always better. Every index has a maintenance cost -- the database must
+                    update it on every INSERT, UPDATE, and DELETE. Over-indexing can actually <strong>hurt</strong>
+                    write performance and waste storage.
+                </p>
+                <p class="content-text">
+                    To remove an index you no longer need:
+                </p>
+                <div class="code-block">
+<span class="keyword">DROP INDEX</span> idx_employees_salary;
+                </div>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Good Candidates</strong>
+                        <span>Columns in WHERE clauses, JOIN conditions, ORDER BY / GROUP BY, and columns with high cardinality (many unique values)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Bad Candidates</strong>
+                        <span>Boolean columns (only 2 values), rarely-queried columns, very wide text columns, and tables with heavy write traffic</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Small Tables</strong>
+                        <span>Tables with only a few hundred rows do not benefit from indexes -- the full scan is already fast enough</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Low Cardinality</strong>
+                        <span>Columns with very few distinct values (e.g., status with 3 options) give indexes little to work with</span>
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Indexes trade write speed and storage for dramatically faster reads on indexed columns</li>
+                    <li>CREATE INDEX idx_name ON table(column) builds a sorted lookup structure (B-tree)</li>
+                    <li>EXPLAIN QUERY PLAN reveals whether a query uses SCAN TABLE (slow) or SEARCH USING INDEX (fast)</li>
+                    <li>Composite indexes cover multiple columns -- column order matters (leftmost prefix rule)</li>
+                    <li>UNIQUE indexes enforce uniqueness and speed up lookups at the same time</li>
+                    <li>Do not over-index: skip small tables, low-cardinality columns, and write-heavy tables</li>
+                    <li>DROP INDEX removes an index you no longer need</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-24-constraints.module.html" class="nav-btn">&lt; Previous: Constraints</a>
+                <a href="script-db-26-metadata.module.html" class="nav-btn primary">Next: Database Metadata &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-25-indexes';
+        const tasks = { 'create-index': false, 'explain': false, 'composite': false, 'drop-index': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: create-index — use CREATE INDEX
+                if (/CREATE\s+INDEX/i.test(sql)) {
+                    completeTask('create-index');
+                }
+                // Task: explain — use EXPLAIN QUERY PLAN
+                if (/EXPLAIN\s+QUERY\s+PLAN/i.test(sql)) {
+                    completeTask('explain');
+                }
+                // Task: composite — create an index on multiple columns (comma after first column)
+                if (/CREATE\s+(UNIQUE\s+)?INDEX\s+\w+\s+ON\s+\w+\s*\(\s*\w+\s*,/i.test(sql)) {
+                    completeTask('composite');
+                }
+                // Task: drop-index — use DROP INDEX
+                if (/DROP\s+INDEX/i.test(sql)) {
+                    completeTask('drop-index');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

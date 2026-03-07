@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-19: GROUP BY & HAVING | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .info-box { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .info-box h4 { color: var(--accent); font-size: 0.85rem; margin-bottom: 8px; }
+        .info-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-19</span>
+            <h1>GROUP BY & HAVING</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="group-by">GROUP BY</span>
+                    <span class="task-chip" data-task="having">HAVING</span>
+                    <span class="task-chip" data-task="group-join">GROUP + JOIN</span>
+                    <span class="task-chip" data-task="multi-group">multi-column</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Group rows into buckets with GROUP BY</li>
+                    <li>Filter groups after aggregation with HAVING</li>
+                    <li>Understand the GROUP BY + aggregate interaction</li>
+                    <li>Group by multiple columns for finer breakdowns</li>
+                    <li>Combine GROUP BY with JOINs for real-world reporting</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">GROUP BY Basics</h2>
+                <p class="content-text">
+                    In the previous module you learned aggregate functions like <code>COUNT</code>,
+                    <code>SUM</code>, and <code>AVG</code>. Those collapsed the entire table into a single
+                    result row. But what if you want aggregates <strong>per group</strong> -- headcount per
+                    department, total revenue per product category, average salary per job title?
+                </p>
+                <p class="content-text">
+                    That is what <code>GROUP BY</code> does. It splits your rows into groups based on one
+                    or more columns, then applies aggregate functions to each group independently:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> department_id, <span class="function">COUNT</span>(*) <span class="keyword">AS</span> headcount
+<span class="keyword">FROM</span> employees
+<span class="keyword">GROUP BY</span> department_id;
+                </div>
+                <p class="content-text">
+                    This query splits all employees into groups by their <code>department_id</code>, then
+                    counts how many rows are in each group. The result is one row per department, each
+                    showing that department's headcount.
+                </p>
+                <p class="content-text">
+                    You can use any aggregate function with GROUP BY. For example, to see the average
+                    salary and total salary expense per department:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> department_id,
+       <span class="function">COUNT</span>(*) <span class="keyword">AS</span> headcount,
+       <span class="function">ROUND</span>(<span class="function">AVG</span>(salary), <span class="number">0</span>) <span class="keyword">AS</span> avg_salary,
+       <span class="function">SUM</span>(salary) <span class="keyword">AS</span> total_salary
+<span class="keyword">FROM</span> employees
+<span class="keyword">GROUP BY</span> department_id;
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">The Golden Rule</h2>
+                <p class="content-text">
+                    There is one rule you must internalize:
+                </p>
+                <div class="info-box">
+                    <h4>The GROUP BY Golden Rule</h4>
+                    <p>
+                        Every column in your SELECT list must either appear in the GROUP BY clause
+                        or be wrapped inside an aggregate function. There are no exceptions.
+                    </p>
+                </div>
+                <p class="content-text">
+                    <strong>Why?</strong> Consider what happens if you write
+                    <code>SELECT department_id, first_name FROM employees GROUP BY department_id</code>.
+                    Each group contains multiple employees. The database returns one row per department,
+                    but there are many <code>first_name</code> values in each group. Which one should it
+                    pick? There is no right answer -- the value is <strong>ambiguous</strong>. So SQL
+                    requires you to either group by it or aggregate it.
+                </p>
+                <p class="content-text">
+                    Valid approaches for non-grouped columns:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Add to GROUP BY</strong>
+                        <span>GROUP BY department_id, first_name -- creates finer groups</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Wrap in aggregate</strong>
+                        <span>MIN(first_name) or GROUP_CONCAT(first_name) -- picks one or combines all</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Remove from SELECT</strong>
+                        <span>If you do not need it, simply leave it out of the SELECT list</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">GROUP BY with JOIN</h2>
+                <p class="content-text">
+                    In the real world, you rarely group by a numeric ID alone. You want human-readable
+                    labels. Combine <code>GROUP BY</code> with a <code>JOIN</code> to pull in names from
+                    related tables:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> d.name, <span class="function">COUNT</span>(*) <span class="keyword">AS</span> headcount,
+       <span class="function">ROUND</span>(<span class="function">AVG</span>(e.salary), <span class="number">0</span>) <span class="keyword">AS</span> avg_salary
+<span class="keyword">FROM</span> employees e
+<span class="keyword">JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id
+<span class="keyword">GROUP BY</span> d.name
+<span class="keyword">ORDER BY</span> avg_salary <span class="keyword">DESC</span>;
+                </div>
+                <p class="content-text">
+                    This joins <code>employees</code> to <code>departments</code>, groups by department
+                    name, and shows each department's headcount and average salary, sorted from highest
+                    to lowest average salary. Notice that <code>d.name</code> appears in both SELECT and
+                    GROUP BY (following the golden rule), while <code>e.salary</code> is inside aggregates.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">HAVING -- Filtering Groups</h2>
+                <p class="content-text">
+                    You already know <code>WHERE</code> filters individual rows. But what if you want to
+                    filter <strong>after</strong> grouping? For example, show only departments where the
+                    average salary exceeds $90,000. You cannot use WHERE for this because the average does
+                    not exist until after the rows are grouped. That is where <code>HAVING</code> comes in:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> department_id, <span class="function">AVG</span>(salary) <span class="keyword">AS</span> avg_sal
+<span class="keyword">FROM</span> employees
+<span class="keyword">GROUP BY</span> department_id
+<span class="keyword">HAVING</span> <span class="function">AVG</span>(salary) > <span class="number">90000</span>;
+                </div>
+                <p class="content-text">
+                    <code>HAVING</code> works just like <code>WHERE</code>, but it filters groups instead
+                    of rows. It runs <strong>after</strong> GROUP BY and aggregation are complete. You can
+                    use any aggregate expression in a HAVING clause.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">WHERE vs HAVING</h2>
+                <p class="content-text">
+                    This distinction trips up many beginners. Here is the key difference:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>WHERE</strong>
+                        <span>Filters individual rows BEFORE grouping. Cannot reference aggregates.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>HAVING</strong>
+                        <span>Filters groups AFTER aggregation. Can reference aggregate results.</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    You can use both in the same query. WHERE narrows the rows first, then GROUP BY
+                    groups what remains, then HAVING filters the groups:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> d.name, <span class="function">COUNT</span>(*) <span class="keyword">AS</span> cnt
+<span class="keyword">FROM</span> employees e
+<span class="keyword">JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id
+<span class="keyword">WHERE</span> e.salary > <span class="number">70000</span>          <span class="comment">-- 1. filter rows: only employees earning > 70K</span>
+<span class="keyword">GROUP BY</span> d.name                <span class="comment">-- 2. group remaining rows by department name</span>
+<span class="keyword">HAVING</span> <span class="function">COUNT</span>(*) >= <span class="number">3</span>;          <span class="comment">-- 3. keep only groups with 3+ employees</span>
+                </div>
+                <p class="content-text">
+                    Read it step by step: (1) discard any employee earning $70K or less, (2) group the
+                    survivors by department name, (3) keep only departments that still have 3 or more
+                    employees after filtering. This is the logical execution order of a SQL query:
+                    FROM/JOIN, WHERE, GROUP BY, HAVING, SELECT, ORDER BY.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Grouping by Multiple Columns</h2>
+                <p class="content-text">
+                    You can group by more than one column to create finer-grained buckets. Each unique
+                    combination of values across all grouped columns becomes its own group:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> department_id,
+       <span class="function">STRFTIME</span>(<span class="string">'%Y'</span>, hire_date) <span class="keyword">AS</span> year,
+       <span class="function">COUNT</span>(*) <span class="keyword">AS</span> hires
+<span class="keyword">FROM</span> employees
+<span class="keyword">GROUP BY</span> department_id, <span class="function">STRFTIME</span>(<span class="string">'%Y'</span>, hire_date);
+                </div>
+                <p class="content-text">
+                    This shows how many people each department hired in each year. If department 1 hired
+                    2 people in 2022 and 3 in 2023, you get two rows for department 1. The expression in
+                    GROUP BY (<code>STRFTIME('%Y', hire_date)</code>) matches the expression in SELECT --
+                    they must be identical for the golden rule.
+                </p>
+                <p class="content-text">
+                    Multi-column grouping is essential for crosstab-style reports, time-series breakdowns,
+                    and any analysis where a single grouping column is not granular enough.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>GROUP BY splits rows into groups; aggregates run once per group</li>
+                    <li>The golden rule: every SELECT column is in GROUP BY or inside an aggregate</li>
+                    <li>HAVING filters groups after aggregation (WHERE filters rows before)</li>
+                    <li>You can use WHERE and HAVING in the same query for layered filtering</li>
+                    <li>GROUP BY + JOIN gives human-readable labels instead of raw IDs</li>
+                    <li>Multi-column GROUP BY creates finer-grained buckets for detailed analysis</li>
+                    <li>SQL logical order: FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-18-aggregates.module.html" class="nav-btn">&lt; Previous: Aggregate Functions</a>
+                <a href="script-db-20-window-funcs.module.html" class="nav-btn primary">Next: Window Functions &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-19-group-by';
+        const tasks = { 'group-by': false, 'having': false, 'group-join': false, 'multi-group': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: group-by — use GROUP BY
+                if (upper.includes('GROUP BY') && !tasks['group-by']) {
+                    completeTask('group-by');
+                }
+
+                // Task: having — use HAVING
+                if (upper.includes('HAVING')) {
+                    completeTask('having');
+                }
+
+                // Task: group-join — GROUP BY + JOIN
+                if (upper.includes('GROUP BY') && upper.includes('JOIN')) {
+                    completeTask('group-join');
+                }
+
+                // Task: multi-group — GROUP BY with 2+ columns (comma after first GROUP BY column)
+                if (upper.includes('GROUP BY')) {
+                    const gbMatch = upper.match(/GROUP BY\s+(.+?)(?:\s+HAVING|\s+ORDER|\s+LIMIT|\s*;|\s*$)/);
+                    if (gbMatch) {
+                        const gbClause = gbMatch[1];
+                        // Count columns: split on commas not inside parentheses
+                        let depth = 0;
+                        let colCount = 1;
+                        for (let i = 0; i < gbClause.length; i++) {
+                            if (gbClause[i] === '(') depth++;
+                            else if (gbClause[i] === ')') depth--;
+                            else if (gbClause[i] === ',' && depth === 0) colCount++;
+                        }
+                        if (colCount >= 2) {
+                            completeTask('multi-group');
+                        }
+                    }
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

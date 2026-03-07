@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-17: Multi-Table Queries Lab | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #3B82F6; --accent-dim: rgba(59,130,246,0.15); --accent-glow: rgba(59,130,246,0.3); --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: rgba(74,222,128,0.15); color: var(--green); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(74,222,128,0.3); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; }
+        .back-link:hover { color: var(--accent); }
+        .lab-layout { display: grid; grid-template-columns: 1fr 480px; min-height: calc(100vh - 50px); }
+        .challenge-panel { padding: 30px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .lab-intro { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .lab-intro h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 8px; }
+        .lab-intro p { color: var(--text-secondary); font-size: 0.85rem; }
+        .challenge { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; transition: border-color 0.3s; }
+        .challenge.completed { border-color: rgba(74,222,128,0.4); }
+        .challenge-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .challenge-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 600; color: var(--accent); padding: 2px 8px; background: var(--accent-dim); border-radius: 4px; }
+        .challenge.completed .challenge-num { background: rgba(74,222,128,0.15); color: var(--green); }
+        .challenge-status { font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); }
+        .challenge.completed .challenge-status { color: var(--green); }
+        .challenge h4 { color: var(--text-primary); font-size: 0.95rem; margin-bottom: 8px; }
+        .challenge p { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 10px; }
+        .hint-btn { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: var(--yellow); padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-family: 'JetBrains Mono', monospace; }
+        .hint-btn:hover { background: rgba(251,191,36,0.2); }
+        .hint { display: none; margin-top: 10px; background: rgba(251,191,36,0.08); border-left: 3px solid var(--yellow); padding: 10px 14px; border-radius: 0 6px 6px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--yellow); white-space: pre-wrap; }
+        .hint.visible { display: block; }
+        .terminal-panel { background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: rgba(74,222,128,0.15); border-color: var(--green); color: var(--green); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        @media (max-width: 900px) { .lab-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; order: -1; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">LAB</span>
+            <h1>Multi-Table Queries Lab</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="lab-layout">
+        <div class="challenge-panel">
+            <div class="lab-intro">
+                <h3>Mission Briefing</h3>
+                <p>
+                    The Meridian Technologies board needs cross-department reports that combine data
+                    from multiple tables. Use JOINs, subqueries, and CTEs to extract the insights they need.
+                </p>
+            </div>
+
+            <div class="challenge" id="c1">
+                <div class="challenge-header"><span class="challenge-num">01</span><span class="challenge-status">PENDING</span></div>
+                <h4>Employee Directory with Departments</h4>
+                <p>Join employees and departments to show each employee's name and their department name.</p>
+                <button class="hint-btn" onclick="toggleHint('h1')">HINT</button>
+                <div class="hint" id="h1">SELECT e.first_name, e.last_name, d.name AS department
+FROM employees e
+JOIN departments d ON e.department_id = d.id;</div>
+            </div>
+
+            <div class="challenge" id="c2">
+                <div class="challenge-header"><span class="challenge-num">02</span><span class="challenge-status">PENDING</span></div>
+                <h4>Employee-Manager Pairs</h4>
+                <p>Use a self join to show each employee's name alongside their manager's name. Include employees with no manager.</p>
+                <button class="hint-btn" onclick="toggleHint('h2')">HINT</button>
+                <div class="hint" id="h2">SELECT e.first_name AS employee, m.first_name AS manager
+FROM employees e
+LEFT JOIN employees m ON e.manager_id = m.id;</div>
+            </div>
+
+            <div class="challenge" id="c3">
+                <div class="challenge-header"><span class="challenge-num">03</span><span class="challenge-status">PENDING</span></div>
+                <h4>Customer Order Summary</h4>
+                <p>Show each customer's name and how many orders they have placed. Include customers with zero orders.</p>
+                <button class="hint-btn" onclick="toggleHint('h3')">HINT</button>
+                <div class="hint" id="h3">SELECT c.name, COUNT(o.id) AS order_count
+FROM customers c
+LEFT JOIN orders o ON c.id = o.customer_id
+GROUP BY c.name;</div>
+            </div>
+
+            <div class="challenge" id="c4">
+                <div class="challenge-header"><span class="challenge-num">04</span><span class="challenge-status">PENDING</span></div>
+                <h4>Product Sales Report</h4>
+                <p>Show each product name, how many units were sold total, and the total revenue. Join orders, order_items, and products.</p>
+                <button class="hint-btn" onclick="toggleHint('h4')">HINT</button>
+                <div class="hint" id="h4">SELECT p.name, SUM(oi.quantity) AS units_sold,
+       ROUND(SUM(oi.quantity * oi.unit_price), 2) AS revenue
+FROM products p
+JOIN order_items oi ON p.id = oi.product_id
+GROUP BY p.name
+ORDER BY revenue DESC;</div>
+            </div>
+
+            <div class="challenge" id="c5">
+                <div class="challenge-header"><span class="challenge-num">05</span><span class="challenge-status">PENDING</span></div>
+                <h4>Above-Average Earners</h4>
+                <p>Use a subquery to find employees who earn more than the company average. Show their name, salary, and department name.</p>
+                <button class="hint-btn" onclick="toggleHint('h5')">HINT</button>
+                <div class="hint" id="h5">SELECT e.first_name, e.salary, d.name AS department
+FROM employees e
+JOIN departments d ON e.department_id = d.id
+WHERE e.salary > (SELECT AVG(salary) FROM employees);</div>
+            </div>
+
+            <div class="challenge" id="c6">
+                <div class="challenge-header"><span class="challenge-num">06</span><span class="challenge-status">PENDING</span></div>
+                <h4>Departments Without High Earners</h4>
+                <p>Find departments that have no employee earning over $100,000. Use NOT EXISTS or LEFT JOIN.</p>
+                <button class="hint-btn" onclick="toggleHint('h6')">HINT</button>
+                <div class="hint" id="h6">SELECT d.name FROM departments d
+WHERE NOT EXISTS (
+    SELECT 1 FROM employees e
+    WHERE e.department_id = d.id AND e.salary > 100000
+);</div>
+            </div>
+
+            <div class="challenge" id="c7">
+                <div class="challenge-header"><span class="challenge-num">07</span><span class="challenge-status">PENDING</span></div>
+                <h4>Department Spending Report (CTE)</h4>
+                <p>Use a CTE to calculate total salary spending per department, then join with department names to show the report sorted by spending.</p>
+                <button class="hint-btn" onclick="toggleHint('h7')">HINT</button>
+                <div class="hint" id="h7">WITH dept_spend AS (
+    SELECT department_id, SUM(salary) AS total_salary
+    FROM employees GROUP BY department_id
+)
+SELECT d.name, ds.total_salary
+FROM dept_spend ds
+JOIN departments d ON ds.department_id = d.id
+ORDER BY ds.total_salary DESC;</div>
+            </div>
+
+            <div class="challenge" id="c8">
+                <div class="challenge-header"><span class="challenge-num">08</span><span class="challenge-status">PENDING</span></div>
+                <h4>Org Chart (Recursive CTE)</h4>
+                <p>Build an organizational chart showing the management hierarchy using a recursive CTE. Show employee name and depth level.</p>
+                <button class="hint-btn" onclick="toggleHint('h8')">HINT</button>
+                <div class="hint" id="h8">WITH RECURSIVE org AS (
+    SELECT id, first_name, last_name, manager_id, 0 AS depth
+    FROM employees WHERE manager_id IS NULL
+    UNION ALL
+    SELECT e.id, e.first_name, e.last_name, e.manager_id, o.depth + 1
+    FROM employees e JOIN org o ON e.manager_id = o.id
+)
+SELECT depth, first_name || ' ' || last_name AS name
+FROM org ORDER BY depth, last_name;</div>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-16-ctes.module.html" class="nav-btn">&lt; Previous: CTEs</a>
+                <a href="script-db-18-aggregates.module.html" class="nav-btn primary">Next: Aggregate Functions &gt;</a>
+            </nav>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Challenges</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 8</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="c1">01</span>
+                    <span class="task-chip" data-task="c2">02</span>
+                    <span class="task-chip" data-task="c3">03</span>
+                    <span class="task-chip" data-task="c4">04</span>
+                    <span class="task-chip" data-task="c5">05</span>
+                    <span class="task-chip" data-task="c6">06</span>
+                    <span class="task-chip" data-task="c7">07</span>
+                    <span class="task-chip" data-task="c8">08</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-17-joins-lab';
+        const tasks = { c1: false, c2: false, c3: false, c4: false, c5: false, c6: false, c7: false, c8: false };
+        function toggleHint(id) { document.getElementById(id).classList.toggle('visible'); }
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // C1: JOIN employees + departments
+                if (upper.includes('JOIN') && upper.includes('DEPARTMENTS') && upper.includes('EMPLOYEES') && !upper.includes('LEFT') && !upper.includes('SELF')) {
+                    if (results && results.length > 0) completeTask('c1');
+                }
+
+                // C2: Self join (employees to employees for manager)
+                if (upper.includes('JOIN') && (upper.match(/EMPLOYEES/g) || []).length >= 2) {
+                    completeTask('c2');
+                }
+
+                // C3: LEFT JOIN customers + orders with COUNT
+                if (upper.includes('LEFT JOIN') && upper.includes('CUSTOMERS') && upper.includes('COUNT')) {
+                    completeTask('c3');
+                }
+
+                // C4: Three-table join with products
+                if (upper.includes('PRODUCTS') && upper.includes('ORDER_ITEMS') && upper.includes('SUM')) {
+                    completeTask('c4');
+                }
+
+                // C5: Subquery with AVG
+                if (upper.includes('SELECT') && upper.includes('AVG') && upper.includes('WHERE') && upper.includes('>')) {
+                    if (upper.includes('JOIN') && upper.includes('DEPARTMENTS')) completeTask('c5');
+                }
+
+                // C6: NOT EXISTS or departments without high earners
+                if ((upper.includes('NOT EXISTS') || upper.includes('NOT IN')) && upper.includes('DEPARTMENTS') && upper.includes('100000')) {
+                    completeTask('c6');
+                }
+
+                // C7: CTE with department spending
+                if (upper.startsWith('WITH') && upper.includes('SUM') && upper.includes('SALARY') && upper.includes('JOIN')) {
+                    completeTask('c7');
+                }
+
+                // C8: Recursive CTE
+                if (upper.includes('RECURSIVE')) {
+                    completeTask('c8');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            const card = document.getElementById(taskId);
+            if (card) { card.classList.add('completed'); card.querySelector('.challenge-status').textContent = 'COMPLETE'; }
+            updateProgress(); saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = { completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k), lastAccess: Date.now() };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`); if (chip) chip.classList.add('completed');
+                    const card = document.getElementById(t); if (card) { card.classList.add('completed'); card.querySelector('.challenge-status').textContent = 'COMPLETE'; }
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

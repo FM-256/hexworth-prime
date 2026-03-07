@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-20: Window Functions | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-20</span>
+            <h1>Window Functions</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="row-number">ROW_NUMBER</span>
+                    <span class="task-chip" data-task="rank">RANK / DENSE_RANK</span>
+                    <span class="task-chip" data-task="lag-lead">LAG / LEAD</span>
+                    <span class="task-chip" data-task="frame">window frame</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand how window functions differ from aggregate functions</li>
+                    <li>Use ROW_NUMBER, RANK, and DENSE_RANK for ranking rows</li>
+                    <li>Access neighboring row values with LAG and LEAD</li>
+                    <li>Define custom window frames with ROWS BETWEEN</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What Are Window Functions?</h2>
+                <p class="content-text">
+                    In the previous modules you learned <strong>aggregate functions</strong> like SUM and COUNT that
+                    collapse many rows into a single result. <strong>Window functions</strong> are fundamentally
+                    different: they compute a value for each row while <strong>keeping all rows visible</strong>
+                    in the result set.
+                </p>
+                <p class="content-text">
+                    The magic is the <code>OVER()</code> clause. Every window function uses <code>OVER()</code> to
+                    define the "window" of rows it should consider for its calculation. Without <code>OVER()</code>,
+                    the database does not know you want a window function.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Ranking</strong>
+                        <span>ROW_NUMBER, RANK, DENSE_RANK -- assign positional numbers to rows</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Value</strong>
+                        <span>LAG, LEAD, FIRST_VALUE, LAST_VALUE -- access values from other rows</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Aggregate</strong>
+                        <span>SUM, AVG, COUNT as window functions -- running totals and moving averages</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Distribution</strong>
+                        <span>NTILE, PERCENT_RANK, CUME_DIST -- statistical distribution across rows</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">ROW_NUMBER</h2>
+                <p class="content-text">
+                    <code>ROW_NUMBER()</code> assigns a unique sequential integer to each row within a result set,
+                    starting at 1. The order is determined by the <code>ORDER BY</code> inside <code>OVER()</code>:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    first_name, last_name, salary,
+    <span class="function">ROW_NUMBER</span>() <span class="keyword">OVER</span> (<span class="keyword">ORDER BY</span> salary <span class="keyword">DESC</span>) <span class="keyword">AS</span> rank
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    This numbers every employee from 1 (highest salary) to N (lowest salary). Every row keeps its
+                    original data -- nothing is collapsed. Now add <code>PARTITION BY</code> to create
+                    <strong>separate numbering per group</strong>:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    first_name, last_name, department_id, salary,
+    <span class="function">ROW_NUMBER</span>() <span class="keyword">OVER</span> (
+        <span class="keyword">PARTITION BY</span> department_id
+        <span class="keyword">ORDER BY</span> salary <span class="keyword">DESC</span>
+    ) <span class="keyword">AS</span> dept_rank
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    <code>PARTITION BY</code> works like GROUP BY but without collapsing rows. Each department gets
+                    its own independent numbering sequence starting at 1. This is how you find "the top N per group"
+                    -- a pattern that is extremely common in real-world queries.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">RANK and DENSE_RANK</h2>
+                <p class="content-text">
+                    <code>ROW_NUMBER</code> always produces unique numbers, even when rows have the same value.
+                    <code>RANK</code> and <code>DENSE_RANK</code> handle <strong>ties</strong> differently:
+                </p>
+                <p class="content-text">
+                    <strong>RANK</strong> assigns the same number to ties but then <strong>skips</strong> the
+                    next numbers. If two employees tie for 2nd place, the next gets rank 4 (1, 2, 2, 4).
+                    <strong>DENSE_RANK</strong> also assigns the same number to ties but does
+                    <strong>not skip</strong> -- the next gets rank 3 (1, 2, 2, 3).
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    first_name, last_name, salary,
+    <span class="function">RANK</span>() <span class="keyword">OVER</span> (<span class="keyword">ORDER BY</span> salary <span class="keyword">DESC</span>) <span class="keyword">AS</span> salary_rank,
+    <span class="function">DENSE_RANK</span>() <span class="keyword">OVER</span> (<span class="keyword">ORDER BY</span> salary <span class="keyword">DESC</span>) <span class="keyword">AS</span> salary_dense_rank
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    Run this in the terminal and compare the two columns. Where salaries are unique, RANK and
+                    DENSE_RANK produce the same values. Where ties exist, you will see RANK skip numbers while
+                    DENSE_RANK stays sequential.
+                </p>
+                <div class="warning-box">
+                    <h4>When to Use Which?</h4>
+                    <p>
+                        Use <code>ROW_NUMBER</code> when you need exactly one row per position (e.g., pagination).
+                        Use <code>RANK</code> for competitive ranking where gaps after ties are expected
+                        (e.g., sports standings). Use <code>DENSE_RANK</code> when you want to know "how many
+                        distinct salary levels are above this one?"
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">LAG and LEAD</h2>
+                <p class="content-text">
+                    <code>LAG</code> and <code>LEAD</code> let you access values from <strong>neighboring rows</strong>
+                    without a self-join. <code>LAG</code> looks backward (previous rows) and <code>LEAD</code> looks
+                    forward (next rows):
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    first_name, last_name, hire_date, salary,
+    <span class="function">LAG</span>(salary, <span class="number">1</span>) <span class="keyword">OVER</span> (<span class="keyword">ORDER BY</span> hire_date) <span class="keyword">AS</span> prev_salary,
+    <span class="function">LEAD</span>(salary, <span class="number">1</span>) <span class="keyword">OVER</span> (<span class="keyword">ORDER BY</span> hire_date) <span class="keyword">AS</span> next_salary
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    The second argument is the <strong>offset</strong> -- how many rows to look back or ahead.
+                    It defaults to 1 if omitted. You can also provide a third argument as a <strong>default
+                    value</strong> for when there is no previous or next row (the first row has no LAG, the last
+                    row has no LEAD):
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    first_name, salary,
+    <span class="function">LAG</span>(salary, <span class="number">1</span>, <span class="number">0</span>) <span class="keyword">OVER</span> (<span class="keyword">ORDER BY</span> hire_date) <span class="keyword">AS</span> prev_salary,
+    salary - <span class="function">LAG</span>(salary, <span class="number">1</span>, salary) <span class="keyword">OVER</span> (<span class="keyword">ORDER BY</span> hire_date) <span class="keyword">AS</span> salary_change
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    This pattern is invaluable for calculating <strong>row-over-row changes</strong> -- comparing
+                    each value to its predecessor. Think of it like a spreadsheet formula that references the
+                    cell above.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Aggregate Window Functions</h2>
+                <p class="content-text">
+                    The aggregate functions you already know -- <code>SUM</code>, <code>AVG</code>,
+                    <code>COUNT</code> -- can also be used as window functions by adding <code>OVER()</code>.
+                    Instead of collapsing rows, they calculate a value relative to a window while keeping every row:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    first_name, department_id, salary,
+    <span class="function">AVG</span>(salary) <span class="keyword">OVER</span> (<span class="keyword">PARTITION BY</span> department_id) <span class="keyword">AS</span> dept_avg,
+    salary - <span class="function">AVG</span>(salary) <span class="keyword">OVER</span> (<span class="keyword">PARTITION BY</span> department_id) <span class="keyword">AS</span> diff_from_avg
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    Each row shows the individual salary alongside the department average, plus how far that
+                    employee is from the average. No GROUP BY needed -- and no rows are lost. Now see a
+                    <strong>running total</strong>:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    first_name, hire_date, salary,
+    <span class="function">SUM</span>(salary) <span class="keyword">OVER</span> (<span class="keyword">ORDER BY</span> hire_date) <span class="keyword">AS</span> running_total
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    When you use <code>ORDER BY</code> inside <code>OVER()</code> with an aggregate, the database
+                    computes a <strong>cumulative result</strong> from the first row up to the current row. The
+                    running total grows with each row -- this is the default window frame behavior.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Window Frames</h2>
+                <p class="content-text">
+                    By default, when you specify <code>ORDER BY</code> inside <code>OVER()</code>, the window
+                    frame includes all rows from the start up to the current row. The <code>ROWS BETWEEN</code>
+                    clause lets you define <strong>exactly which rows</strong> the function should consider:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    first_name, hire_date, salary,
+    <span class="function">SUM</span>(salary) <span class="keyword">OVER</span> (
+        <span class="keyword">ORDER BY</span> hire_date
+        <span class="keyword">ROWS BETWEEN</span> <span class="number">2</span> <span class="keyword">PRECEDING AND CURRENT ROW</span>
+    ) <span class="keyword">AS</span> three_row_sum
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    This calculates a <strong>3-row moving sum</strong>: the current row plus the two rows before
+                    it. You can change the boundaries to create any window you need:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>UNBOUNDED PRECEDING</strong>
+                        <span>From the very first row of the partition</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>N PRECEDING</strong>
+                        <span>N rows before the current row</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>CURRENT ROW</strong>
+                        <span>The row being processed right now</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>N FOLLOWING</strong>
+                        <span>N rows after the current row</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>UNBOUNDED FOLLOWING</strong>
+                        <span>Through the very last row of the partition</span>
+                    </div>
+                </div>
+                <div class="code-block">
+<span class="comment">-- Moving average of 3 rows: 1 before, current, and 1 after</span>
+<span class="keyword">SELECT</span>
+    first_name, hire_date, salary,
+    <span class="function">ROUND</span>(<span class="function">AVG</span>(salary) <span class="keyword">OVER</span> (
+        <span class="keyword">ORDER BY</span> hire_date
+        <span class="keyword">ROWS BETWEEN</span> <span class="number">1</span> <span class="keyword">PRECEDING AND</span> <span class="number">1</span> <span class="keyword">FOLLOWING</span>
+    ), <span class="number">2</span>) <span class="keyword">AS</span> moving_avg
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    Window frames give you precise control over calculations like <strong>moving averages</strong>,
+                    <strong>running totals</strong>, and <strong>sliding aggregations</strong>. They are what make
+                    window functions truly powerful for time-series analysis and reporting.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Window functions compute a value per row without collapsing the result set -- unlike aggregates</li>
+                    <li>The OVER() clause is required and defines the window: PARTITION BY for groups, ORDER BY for sequence</li>
+                    <li>ROW_NUMBER gives unique sequential numbers; RANK and DENSE_RANK handle ties differently</li>
+                    <li>LAG accesses previous rows and LEAD accesses next rows -- perfect for row-over-row comparisons</li>
+                    <li>SUM, AVG, and COUNT work as window functions too, enabling running totals and per-group averages</li>
+                    <li>ROWS BETWEEN defines custom window frames for moving averages and sliding calculations</li>
+                    <li>PARTITION BY is like GROUP BY but keeps all rows -- each partition gets independent numbering or aggregation</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-19-group-by.module.html" class="nav-btn">&lt; Previous: GROUP BY &amp; HAVING</a>
+                <a href="script-db-21-pivoting.module.html" class="nav-btn primary">Next: Pivoting &amp; Reshaping &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-20-window-funcs';
+        const tasks = { 'row-number': false, 'rank': false, 'lag-lead': false, 'frame': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: row-number — use ROW_NUMBER()
+                if (/ROW_NUMBER\s*\(/i.test(upper)) {
+                    completeTask('row-number');
+                }
+                // Task: rank — use RANK() or DENSE_RANK()
+                if (/\b(RANK|DENSE_RANK)\s*\(/i.test(upper)) {
+                    completeTask('rank');
+                }
+                // Task: lag-lead — use LAG() or LEAD()
+                if (/\b(LAG|LEAD)\s*\(/i.test(upper)) {
+                    completeTask('lag-lead');
+                }
+                // Task: frame — use ROWS BETWEEN or RANGE BETWEEN
+                if (/ROWS\s+BETWEEN/i.test(upper) || /RANGE\s+BETWEEN/i.test(upper)) {
+                    completeTask('frame');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-16: Common Table Expressions | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #3B82F6; --accent-dim: rgba(59,130,246,0.15); --accent-glow: rgba(59,130,246,0.3); --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; white-space: pre; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .compare-table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 0.82rem; }
+        .compare-table th { background: var(--accent-dim); color: var(--accent); text-align: left; padding: 10px 14px; border: 1px solid var(--border); font-weight: 600; }
+        .compare-table td { padding: 8px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .compare-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-16</span>
+            <h1>Common Table Expressions</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="basic-cte">basic CTE</span>
+                    <span class="task-chip" data-task="multi-cte">multi-CTE</span>
+                    <span class="task-chip" data-task="cte-join">CTE + JOIN</span>
+                    <span class="task-chip" data-task="recursive">recursive CTE</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Write CTEs with the WITH clause</li>
+                    <li>Chain multiple CTEs in a single query</li>
+                    <li>Use CTEs to simplify complex joins and subqueries</li>
+                    <li>Understand recursive CTEs for hierarchical data</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What is a CTE?</h2>
+                <p class="content-text">
+                    A <strong>Common Table Expression</strong> (CTE) is a temporary named result set that
+                    exists only for the duration of a single query. Think of it as a named subquery that
+                    you define at the top of your statement with the <code>WITH</code> keyword.
+                </p>
+                <p class="content-text">
+                    CTEs solve the readability problem of deeply nested subqueries. Instead of reading
+                    SQL from the inside out, you read it top to bottom like a story.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Basic CTE Syntax</h2>
+                <p class="content-text">
+                    Define the CTE with <code>WITH</code>, give it a name, then use it like a table:
+                </p>
+                <div class="code-block"><span class="keyword">WITH</span> high_earners <span class="keyword">AS</span> (
+    <span class="keyword">SELECT</span> first_name, last_name, salary, department_id
+    <span class="keyword">FROM</span> employees
+    <span class="keyword">WHERE</span> salary > <span class="number">100000</span>
+)
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> high_earners <span class="keyword">ORDER BY</span> salary <span class="keyword">DESC</span>;</div>
+                <p class="content-text">
+                    The CTE <code>high_earners</code> filters employees first, then the outer query
+                    sorts the results. This is equivalent to a subquery in FROM, but far more readable.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">CTEs vs Subqueries</h2>
+                <table class="compare-table">
+                    <thead>
+                        <tr><th>Feature</th><th>Subquery</th><th>CTE</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Readability</td><td>Nested, inside-out</td><td>Top-down, named</td></tr>
+                        <tr><td>Reusability</td><td>Must repeat if used twice</td><td>Define once, reference many</td></tr>
+                        <tr><td>Recursion</td><td>Not supported</td><td>Supported with RECURSIVE</td></tr>
+                        <tr><td>Performance</td><td>Optimized inline</td><td>Varies by database engine</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Multiple CTEs</h2>
+                <p class="content-text">
+                    You can define multiple CTEs separated by commas. Later CTEs can reference earlier ones:
+                </p>
+                <div class="code-block"><span class="keyword">WITH</span> dept_stats <span class="keyword">AS</span> (
+    <span class="keyword">SELECT</span> department_id,
+           <span class="function">AVG</span>(salary) <span class="keyword">AS</span> avg_salary,
+           <span class="function">COUNT</span>(*) <span class="keyword">AS</span> headcount
+    <span class="keyword">FROM</span> employees
+    <span class="keyword">GROUP BY</span> department_id
+),
+dept_names <span class="keyword">AS</span> (
+    <span class="keyword">SELECT</span> ds.*, d.name <span class="keyword">AS</span> dept_name
+    <span class="keyword">FROM</span> dept_stats ds
+    <span class="keyword">JOIN</span> departments d <span class="keyword">ON</span> ds.department_id = d.id
+)
+<span class="keyword">SELECT</span> dept_name, headcount, <span class="function">ROUND</span>(avg_salary, <span class="number">0</span>) <span class="keyword">AS</span> avg_salary
+<span class="keyword">FROM</span> dept_names
+<span class="keyword">ORDER BY</span> avg_salary <span class="keyword">DESC</span>;</div>
+                <p class="content-text">
+                    This builds up complexity in stages: first compute stats per department,
+                    then join department names, then format the final output.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">CTE with JOIN</h2>
+                <p class="content-text">
+                    CTEs are powerful when combined with JOINs to pre-aggregate data:
+                </p>
+                <div class="code-block"><span class="keyword">WITH</span> order_totals <span class="keyword">AS</span> (
+    <span class="keyword">SELECT</span> customer_id,
+           <span class="function">COUNT</span>(*) <span class="keyword">AS</span> num_orders,
+           <span class="function">SUM</span>(total) <span class="keyword">AS</span> total_spent
+    <span class="keyword">FROM</span> orders
+    <span class="keyword">WHERE</span> status != <span class="string">'cancelled'</span>
+    <span class="keyword">GROUP BY</span> customer_id
+)
+<span class="keyword">SELECT</span> c.name, ot.num_orders, <span class="function">ROUND</span>(ot.total_spent, <span class="number">2</span>) <span class="keyword">AS</span> total_spent
+<span class="keyword">FROM</span> customers c
+<span class="keyword">JOIN</span> order_totals ot <span class="keyword">ON</span> c.id = ot.customer_id
+<span class="keyword">ORDER BY</span> total_spent <span class="keyword">DESC</span>;</div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Recursive CTEs</h2>
+                <p class="content-text">
+                    A <strong>recursive CTE</strong> references itself to traverse hierarchical data.
+                    Our employees table has a <code>manager_id</code> that creates a tree structure.
+                    Let us walk the management chain:
+                </p>
+                <div class="code-block"><span class="keyword">WITH RECURSIVE</span> org_chart <span class="keyword">AS</span> (
+    <span class="comment">-- Base case: top-level managers (no manager)</span>
+    <span class="keyword">SELECT</span> id, first_name, last_name, manager_id, <span class="number">0</span> <span class="keyword">AS</span> depth
+    <span class="keyword">FROM</span> employees
+    <span class="keyword">WHERE</span> manager_id <span class="keyword">IS NULL</span>
+
+    <span class="keyword">UNION ALL</span>
+
+    <span class="comment">-- Recursive case: employees who report to someone in the CTE</span>
+    <span class="keyword">SELECT</span> e.id, e.first_name, e.last_name, e.manager_id, oc.depth + <span class="number">1</span>
+    <span class="keyword">FROM</span> employees e
+    <span class="keyword">JOIN</span> org_chart oc <span class="keyword">ON</span> e.manager_id = oc.id
+)
+<span class="keyword">SELECT</span>
+    <span class="function">SUBSTR</span>(<span class="string">'                    '</span>, <span class="number">1</span>, depth * <span class="number">4</span>) || first_name || <span class="string">' '</span> || last_name <span class="keyword">AS</span> org_tree,
+    depth
+<span class="keyword">FROM</span> org_chart
+<span class="keyword">ORDER BY</span> depth, last_name;</div>
+                <p class="content-text">
+                    The recursive CTE has two parts joined by <code>UNION ALL</code>:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Base Case (Anchor)</strong>
+                        <span>The starting rows: employees with no manager (depth 0). This runs once.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Recursive Case</strong>
+                        <span>Joins employees back to the CTE, finding the next level down. Repeats until no new rows.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">When to Use CTEs</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Complex Queries</strong>
+                        <span>Break a 50-line query into named, understandable steps</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Reuse Within Query</strong>
+                        <span>Reference the same derived data multiple times without repeating it</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Hierarchical Data</strong>
+                        <span>Org charts, category trees, bill of materials (recursive CTEs)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Step-by-Step Logic</strong>
+                        <span>Build aggregation → filtering → formatting as a pipeline</span>
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>CTEs use WITH ... AS to create temporary named result sets</li>
+                    <li>They improve readability over nested subqueries (top-down vs inside-out)</li>
+                    <li>Multiple CTEs are comma-separated; later ones can reference earlier ones</li>
+                    <li>Recursive CTEs have a base case + recursive case joined by UNION ALL</li>
+                    <li>Use recursive CTEs for hierarchical data (org charts, trees, graphs)</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-15-subqueries.module.html" class="nav-btn">&lt; Previous: Subqueries</a>
+                <a href="script-db-17-joins.lab.html" class="nav-btn primary">Next: Multi-Table Queries Lab &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-16-ctes';
+        const tasks = { 'basic-cte': false, 'multi-cte': false, 'cte-join': false, 'recursive': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Basic CTE: WITH ... AS
+                if (upper.startsWith('WITH') && upper.includes(' AS ') && upper.includes('SELECT')) {
+                    completeTask('basic-cte');
+                }
+
+                // Multi-CTE: two AS keywords after WITH
+                const asCount = (upper.match(/\bAS\s*\(/g) || []).length;
+                if (upper.startsWith('WITH') && asCount >= 2) {
+                    completeTask('multi-cte');
+                }
+
+                // CTE + JOIN
+                if (upper.startsWith('WITH') && upper.includes('JOIN')) {
+                    completeTask('cte-join');
+                }
+
+                // Recursive CTE
+                if (upper.includes('RECURSIVE') || (upper.startsWith('WITH') && upper.includes('UNION ALL') && upper.match(/\bAS\b.*\bAS\b/))) {
+                    completeTask('recursive');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress(); saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = { completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k), lastAccess: Date.now() };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => { tasks[t] = true; const chip = document.querySelector(`.task-chip[data-task="${t}"]`); if (chip) chip.classList.add('completed'); });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

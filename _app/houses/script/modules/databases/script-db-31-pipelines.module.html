@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-31: Data Pipelines & ETL | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-31</span>
+            <h1>Data Pipelines & ETL</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="view">CREATE VIEW</span>
+                    <span class="task-chip" data-task="ctas">CTAS</span>
+                    <span class="task-chip" data-task="transform">Transform</span>
+                    <span class="task-chip" data-task="etl">ETL Pipeline</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand the Extract, Transform, Load (ETL) pattern</li>
+                    <li>Create views to abstract complex queries</li>
+                    <li>Use CREATE TABLE AS SELECT for materialized snapshots</li>
+                    <li>Apply common data transformation patterns in SQL</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What Is ETL?</h2>
+                <p class="content-text">
+                    <strong>ETL</strong> stands for <strong>Extract, Transform, Load</strong> -- a three-phase pattern
+                    for moving data from one place to another while reshaping it along the way. Every organization
+                    that works with data at scale relies on some form of ETL to feed dashboards, reports, and
+                    downstream systems.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Extract</strong>
+                        <span>Pull raw data from source systems -- databases, APIs, files, logs</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Transform</strong>
+                        <span>Clean, reshape, aggregate, and apply business rules to the raw data</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Load</strong>
+                        <span>Write the transformed data to a destination -- a warehouse, reporting table, or file</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    A newer variation is <strong>ELT</strong> (Extract, Load, Transform), where raw data is loaded
+                    first and then transformed inside the destination database. ELT has become popular with modern
+                    cloud data warehouses that have massive compute power, making it cheaper to transform data
+                    in-place rather than in a separate pipeline.
+                </p>
+                <p class="content-text">
+                    Real-world examples of ETL pipelines: <strong>log aggregation</strong> (extracting millions of
+                    log lines, transforming them into summary metrics, loading into a monitoring dashboard),
+                    <strong>sales reporting</strong> (pulling transactions from point-of-sale systems, calculating
+                    daily totals and trends, loading into a BI tool), and <strong>data warehouse feeds</strong>
+                    (combining data from CRM, ERP, and support systems into a unified analytics layer).
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Views</h2>
+                <p class="content-text">
+                    A <code>VIEW</code> is a <strong>virtual table</strong> defined by a query. It does not store
+                    any data on its own -- every time you query the view, the underlying SQL runs fresh against the
+                    base tables. Views are the simplest building block of a data pipeline.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE VIEW</span> department_summary <span class="keyword">AS</span>
+<span class="keyword">SELECT</span>
+    d.name <span class="keyword">AS</span> department,
+    <span class="function">COUNT</span>(e.id) <span class="keyword">AS</span> headcount,
+    <span class="function">ROUND</span>(<span class="function">AVG</span>(e.salary), <span class="number">0</span>) <span class="keyword">AS</span> avg_salary,
+    <span class="function">SUM</span>(e.salary) <span class="keyword">AS</span> total_payroll
+<span class="keyword">FROM</span> departments d
+<span class="keyword">LEFT JOIN</span> employees e <span class="keyword">ON</span> d.id = e.department_id
+<span class="keyword">GROUP BY</span> d.id, d.name;
+                </div>
+                <p class="content-text">
+                    Once created, you query the view like any other table:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> department_summary;
+                </div>
+                <p class="content-text">
+                    Views are powerful for <strong>abstraction</strong>: downstream consumers do not need to know
+                    the join logic or aggregation details. They just query a clean, named interface. Views also
+                    provide a security layer -- you can grant access to a view without exposing the underlying tables.
+                </p>
+                <div class="warning-box">
+                    <h4>Views Are Not Materialized</h4>
+                    <p>
+                        A standard view stores only the query definition, not the result data. Every
+                        <code>SELECT * FROM department_summary</code> re-executes the full JOIN and GROUP BY.
+                        For expensive queries on large datasets, this can be slow. That is where CTAS comes in.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">CREATE TABLE AS SELECT (CTAS)</h2>
+                <p class="content-text">
+                    Unlike views, <code>CREATE TABLE AS SELECT</code> creates a <strong>real table</strong> with
+                    physically stored data. The query runs once at creation time, and the results are persisted.
+                    This is the "materialized view" pattern -- useful for snapshots, reporting tables, and
+                    data transformations that are expensive to recompute.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> monthly_sales <span class="keyword">AS</span>
+<span class="keyword">SELECT</span>
+    <span class="function">STRFTIME</span>(<span class="string">'%Y-%m'</span>, o.order_date) <span class="keyword">AS</span> month,
+    <span class="function">SUM</span>(oi.quantity * oi.unit_price) <span class="keyword">AS</span> revenue,
+    <span class="function">COUNT</span>(<span class="keyword">DISTINCT</span> o.id) <span class="keyword">AS</span> order_count
+<span class="keyword">FROM</span> orders o
+<span class="keyword">JOIN</span> order_items oi <span class="keyword">ON</span> o.id = oi.order_id
+<span class="keyword">GROUP BY</span> <span class="function">STRFTIME</span>(<span class="string">'%Y-%m'</span>, o.order_date);
+                </div>
+                <p class="content-text">
+                    The key difference: once <code>monthly_sales</code> exists, querying it reads from stored data
+                    instantly -- no joins, no aggregation. The tradeoff is that the data is <strong>frozen at
+                    creation time</strong>. To refresh it, you drop and recreate the table (or use DELETE + INSERT).
+                </p>
+                <p class="content-text">
+                    CTAS is the workhorse of SQL-based ETL. It lets you chain transformations: extract data with a
+                    query, transform it with expressions and aggregations in the SELECT clause, and load the result
+                    into a new table -- all in a single statement.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Data Transformations</h2>
+                <p class="content-text">
+                    The "T" in ETL is where the real work happens. Here are the most common transformation patterns
+                    you will use in SQL pipelines.
+                </p>
+                <p class="content-text">
+                    <strong>Pivoting with CASE</strong> -- converting row values into columns. This is one of the
+                    most useful transformations for reporting:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    d.name <span class="keyword">AS</span> department,
+    <span class="function">COUNT</span>(<span class="keyword">CASE WHEN</span> e.salary &lt; <span class="number">60000</span> <span class="keyword">THEN</span> <span class="number">1</span> <span class="keyword">END</span>) <span class="keyword">AS</span> under_60k,
+    <span class="function">COUNT</span>(<span class="keyword">CASE WHEN</span> e.salary <span class="keyword">BETWEEN</span> <span class="number">60000</span> <span class="keyword">AND</span> <span class="number">90000</span> <span class="keyword">THEN</span> <span class="number">1</span> <span class="keyword">END</span>) <span class="keyword">AS</span> mid_range,
+    <span class="function">COUNT</span>(<span class="keyword">CASE WHEN</span> e.salary &gt; <span class="number">90000</span> <span class="keyword">THEN</span> <span class="number">1</span> <span class="keyword">END</span>) <span class="keyword">AS</span> over_90k
+<span class="keyword">FROM</span> departments d
+<span class="keyword">JOIN</span> employees e <span class="keyword">ON</span> d.id = e.department_id
+<span class="keyword">GROUP BY</span> d.name;
+                </div>
+                <p class="content-text">
+                    <strong>Type conversion with CAST</strong> -- changing data types for consistency or calculations:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    name,
+    <span class="function">CAST</span>(salary <span class="keyword">AS</span> <span class="keyword">REAL</span>) / <span class="number">12</span> <span class="keyword">AS</span> monthly_pay,
+    <span class="function">CAST</span>(hire_date <span class="keyword">AS</span> <span class="keyword">TEXT</span>) <span class="keyword">AS</span> hire_date_str
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    <strong>Date bucketing</strong> -- grouping timestamps into meaningful periods:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">STRFTIME</span>(<span class="string">'%Y'</span>, hire_date) <span class="keyword">AS</span> hire_year,
+    <span class="function">COUNT</span>(*) <span class="keyword">AS</span> hires
+<span class="keyword">FROM</span> employees
+<span class="keyword">GROUP BY</span> <span class="function">STRFTIME</span>(<span class="string">'%Y'</span>, hire_date)
+<span class="keyword">ORDER BY</span> hire_year;
+                </div>
+                <p class="content-text">
+                    <strong>String parsing and formatting</strong> -- cleaning and standardizing text fields:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">UPPER</span>(name) <span class="keyword">AS</span> name_upper,
+    <span class="function">TRIM</span>(name) <span class="keyword">AS</span> name_clean,
+    <span class="function">SUBSTR</span>(name, <span class="number">1</span>, <span class="number">1</span>) <span class="keyword">AS</span> initial
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    Each of these patterns can be combined inside a CTAS or INSERT statement to build a
+                    transformed output table from raw inputs.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Building a Pipeline</h2>
+                <p class="content-text">
+                    Let's put the full ETL pattern together in SQL. We will extract employee data, transform it
+                    by cleaning and enriching, and load it into a production-ready reporting table.
+                </p>
+                <p class="content-text">
+                    <strong>Step 1 -- Extract:</strong> Create a staging table and load raw data into it.
+                </p>
+                <div class="code-block">
+<span class="comment">-- Step 1: Extract into staging</span>
+<span class="keyword">CREATE TABLE</span> stg_employee_report <span class="keyword">AS</span>
+<span class="keyword">SELECT</span>
+    e.id,
+    e.name,
+    e.salary,
+    e.hire_date,
+    e.department_id,
+    d.name <span class="keyword">AS</span> department_name
+<span class="keyword">FROM</span> employees e
+<span class="keyword">LEFT JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id;
+                </div>
+                <p class="content-text">
+                    <strong>Step 2 -- Transform:</strong> Clean and enrich the staged data. Apply business rules,
+                    handle NULLs, compute derived columns.
+                </p>
+                <div class="code-block">
+<span class="comment">-- Step 2: Transform - create production table with business logic</span>
+<span class="keyword">CREATE TABLE</span> rpt_employee_summary <span class="keyword">AS</span>
+<span class="keyword">SELECT</span>
+    id,
+    <span class="function">UPPER</span>(<span class="function">TRIM</span>(name)) <span class="keyword">AS</span> employee_name,
+    <span class="function">COALESCE</span>(department_name, <span class="string">'Unassigned'</span>) <span class="keyword">AS</span> department,
+    salary,
+    <span class="function">ROUND</span>(<span class="function">CAST</span>(salary <span class="keyword">AS</span> <span class="keyword">REAL</span>) / <span class="number">12</span>, <span class="number">2</span>) <span class="keyword">AS</span> monthly_salary,
+    <span class="keyword">CASE</span>
+        <span class="keyword">WHEN</span> salary &gt;= <span class="number">90000</span> <span class="keyword">THEN</span> <span class="string">'Senior'</span>
+        <span class="keyword">WHEN</span> salary &gt;= <span class="number">60000</span> <span class="keyword">THEN</span> <span class="string">'Mid'</span>
+        <span class="keyword">ELSE</span> <span class="string">'Junior'</span>
+    <span class="keyword">END</span> <span class="keyword">AS</span> salary_band,
+    hire_date,
+    <span class="function">CAST</span>((<span class="function">JULIANDAY</span>(<span class="string">'now'</span>) - <span class="function">JULIANDAY</span>(hire_date)) / <span class="number">365.25</span> <span class="keyword">AS</span> <span class="keyword">INTEGER</span>) <span class="keyword">AS</span> tenure_years
+<span class="keyword">FROM</span> stg_employee_report;
+                </div>
+                <p class="content-text">
+                    <strong>Step 3 -- Load:</strong> The production table is ready. In a real pipeline, you would
+                    also drop the staging table and verify row counts:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Step 3: Verify and clean up</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> rpt_employee_summary <span class="keyword">ORDER BY</span> department, salary <span class="keyword">DESC</span>;
+
+<span class="comment">-- Clean up staging</span>
+<span class="keyword">DROP TABLE</span> stg_employee_report;
+                </div>
+                <p class="content-text">
+                    In production databases, you would wrap all three steps in a <strong>transaction</strong>
+                    (<code>BEGIN</code> / <code>COMMIT</code>) so that the entire pipeline either succeeds or
+                    rolls back as a unit. This prevents partial data from appearing in the reporting table if
+                    a step fails midway.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Scheduling and Automation</h2>
+                <p class="content-text">
+                    SQL alone defines <strong>what</strong> the pipeline does. To run it <strong>when</strong> it
+                    needs to run, you need a scheduler. SQLite does not have built-in scheduling, but production
+                    databases and tools fill this gap:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>cron</strong>
+                        <span>Linux scheduler. Simple and reliable for scripts that run on a timer.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Apache Airflow</strong>
+                        <span>Python-based orchestrator. DAGs define task dependencies and retry logic.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>dbt</strong>
+                        <span>SQL-first transformation tool. Manages models, tests, and documentation.</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    For SQLite specifically, you would write a shell script or Python script that runs your SQL
+                    pipeline and schedule it with <code>cron</code>. In larger systems, tools like Airflow
+                    manage complex dependency chains across dozens of pipeline steps.
+                </p>
+                <p class="content-text">
+                    Regardless of scheduling tool, the key principle is <strong>idempotency</strong> (covered in
+                    DB-29): a pipeline should produce the same result whether it runs once or ten times. This means
+                    using patterns like <code>DROP TABLE IF EXISTS</code> before CTAS, or
+                    <code>INSERT OR REPLACE</code> for incremental loads. Idempotent pipelines are safe to re-run
+                    after failures without manual cleanup.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>ETL (Extract, Transform, Load) is the standard pattern for moving and reshaping data between systems</li>
+                    <li>Views create virtual tables that re-execute their query on every access -- great for abstraction, not for performance</li>
+                    <li>CREATE TABLE AS SELECT (CTAS) materializes query results into a real table -- the workhorse of SQL-based ETL</li>
+                    <li>Common transformations include pivoting with CASE, type conversion with CAST, date bucketing, and string formatting</li>
+                    <li>A complete pipeline chains Extract (staging), Transform (business logic), and Load (production table) steps</li>
+                    <li>Production pipelines use schedulers (cron, Airflow, dbt) and must be idempotent for safe re-runs</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-30-quality.module.html" class="nav-btn">&lt; Previous: Data Quality & Validation</a>
+                <a href="script-db-32-engineering.lab.html" class="nav-btn primary">Next: Data Engineering Lab &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-31-pipelines';
+        const tasks = { 'view': false, 'ctas': false, 'transform': false, 'etl': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: view — CREATE VIEW
+                if (/CREATE\s+VIEW/i.test(upper)) {
+                    completeTask('view');
+                }
+                // Task: ctas — CREATE TABLE ... AS SELECT
+                if (/CREATE\s+TABLE\s+\w+\s+AS\s+SELECT/i.test(upper)) {
+                    completeTask('ctas');
+                }
+                // Task: transform — CAST or CASE WHEN combined with CREATE or INSERT
+                if ((/\bCAST\s*\(/i.test(upper) || /\bCASE\s+WHEN\b/i.test(upper)) && (/\bCREATE\b/i.test(upper) || /\bINSERT\b/i.test(upper))) {
+                    completeTask('transform');
+                }
+                // Task: etl — all other 3 tasks completed
+                if (tasks['view'] && tasks['ctas'] && tasks['transform'] && !tasks['etl']) {
+                    completeTask('etl');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-05: SQL Foundations Lab | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+        }
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 25px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            height: 50px;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge {
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--green);
+            padding: 3px 10px; border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem; font-weight: 600;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link {
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 0.85rem; transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+        .lab-layout {
+            display: grid;
+            grid-template-columns: 1fr 480px;
+            min-height: calc(100vh - 50px);
+        }
+        /* Challenge panel (left) */
+        .challenge-panel {
+            padding: 30px 35px;
+            overflow-y: auto;
+            max-height: calc(100vh - 50px);
+        }
+        .lab-intro {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 25px;
+        }
+        .lab-intro h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 8px; }
+        .lab-intro p { color: var(--text-secondary); font-size: 0.85rem; }
+        .challenge {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: border-color 0.3s;
+        }
+        .challenge.completed { border-color: rgba(74, 222, 128, 0.4); }
+        .challenge-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px;
+        }
+        .challenge-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem; font-weight: 600;
+            color: var(--accent); padding: 2px 8px;
+            background: var(--accent-dim); border-radius: 4px;
+        }
+        .challenge.completed .challenge-num {
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--green);
+        }
+        .challenge-status {
+            font-size: 0.72rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+        }
+        .challenge.completed .challenge-status { color: var(--green); }
+        .challenge h4 {
+            color: var(--text-primary); font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+        .challenge p {
+            color: var(--text-secondary); font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+        .hint-btn {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: var(--yellow); padding: 4px 12px;
+            border-radius: 4px; font-size: 0.75rem;
+            cursor: pointer; font-family: 'JetBrains Mono', monospace;
+        }
+        .hint-btn:hover { background: rgba(251, 191, 36, 0.2); }
+        .hint {
+            display: none; margin-top: 10px;
+            background: rgba(251, 191, 36, 0.08);
+            border-left: 3px solid var(--yellow);
+            padding: 10px 14px; border-radius: 0 6px 6px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem; color: var(--yellow);
+        }
+        .hint.visible { display: block; }
+        /* Terminal panel (right) */
+        .terminal-panel {
+            background: var(--bg-card);
+            border-left: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            height: calc(100vh - 50px);
+            position: sticky; top: 50px;
+        }
+        .panel-tasks {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-tasks-header {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 10px;
+        }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem; color: var(--accent);
+        }
+        .progress-bar {
+            height: 3px; background: rgba(255,255,255,0.08);
+            border-radius: 2px; margin-bottom: 12px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #60a5fa);
+            border-radius: 2px; width: 0%; transition: width 0.5s ease;
+        }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip {
+            font-size: 0.72rem; padding: 4px 10px;
+            background: var(--bg-dark); border: 1px solid var(--border);
+            border-radius: 12px; color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace; transition: all 0.3s;
+        }
+        .task-chip.completed {
+            background: rgba(74, 222, 128, 0.15);
+            border-color: var(--green); color: var(--green);
+        }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .nav-footer {
+            display: flex; justify-content: space-between;
+            padding: 20px 0; margin-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border); border-radius: 6px;
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 0.85rem; transition: all 0.2s;
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary {
+            background: var(--accent-dim);
+            border-color: var(--accent-glow); color: var(--accent);
+        }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) {
+            .lab-layout { grid-template-columns: 1fr; }
+            .terminal-panel { position: relative; top: 0; height: 400px; order: -1; }
+            .challenge-panel { max-height: none; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">LAB</span>
+            <h1>SQL Foundations Lab</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="lab-layout">
+        <div class="challenge-panel">
+            <div class="lab-intro">
+                <h3>Mission Briefing</h3>
+                <p>
+                    Meridian Technologies needs an analyst to pull critical reports from their employee database.
+                    Complete all 8 challenges using what you learned in the SQL Foundations section.
+                    Use the SQL console on the right to write and test your queries.
+                </p>
+            </div>
+
+            <!-- Challenge 1 -->
+            <div class="challenge" id="c1">
+                <div class="challenge-header">
+                    <span class="challenge-num">01</span>
+                    <span class="challenge-status">PENDING</span>
+                </div>
+                <h4>Employee Directory</h4>
+                <p>Retrieve the first name, last name, and email of all employees.</p>
+                <button class="hint-btn" onclick="toggleHint('h1')">HINT</button>
+                <div class="hint" id="h1">SELECT first_name, last_name, email FROM employees;</div>
+            </div>
+
+            <!-- Challenge 2 -->
+            <div class="challenge" id="c2">
+                <div class="challenge-header">
+                    <span class="challenge-num">02</span>
+                    <span class="challenge-status">PENDING</span>
+                </div>
+                <h4>Department Count</h4>
+                <p>How many departments does Meridian have? Return just the count.</p>
+                <button class="hint-btn" onclick="toggleHint('h2')">HINT</button>
+                <div class="hint" id="h2">SELECT COUNT(*) FROM departments;</div>
+            </div>
+
+            <!-- Challenge 3 -->
+            <div class="challenge" id="c3">
+                <div class="challenge-header">
+                    <span class="challenge-num">03</span>
+                    <span class="challenge-status">PENDING</span>
+                </div>
+                <h4>High Earners</h4>
+                <p>Find all employees with a salary greater than $100,000. Show their name and salary.</p>
+                <button class="hint-btn" onclick="toggleHint('h3')">HINT</button>
+                <div class="hint" id="h3">SELECT first_name, last_name, salary FROM employees WHERE salary > 100000;</div>
+            </div>
+
+            <!-- Challenge 4 -->
+            <div class="challenge" id="c4">
+                <div class="challenge-header">
+                    <span class="challenge-num">04</span>
+                    <span class="challenge-status">PENDING</span>
+                </div>
+                <h4>Engineering Team</h4>
+                <p>List all employees in department 1 (Engineering), sorted by salary from highest to lowest.</p>
+                <button class="hint-btn" onclick="toggleHint('h4')">HINT</button>
+                <div class="hint" id="h4">SELECT * FROM employees WHERE department_id = 1 ORDER BY salary DESC;</div>
+            </div>
+
+            <!-- Challenge 5 -->
+            <div class="challenge" id="c5">
+                <div class="challenge-header">
+                    <span class="challenge-num">05</span>
+                    <span class="challenge-status">PENDING</span>
+                </div>
+                <h4>Department Heads</h4>
+                <p>Find all employees who have no manager (manager_id is NULL). These are the department heads.</p>
+                <button class="hint-btn" onclick="toggleHint('h5')">HINT</button>
+                <div class="hint" id="h5">SELECT first_name, last_name FROM employees WHERE manager_id IS NULL;</div>
+            </div>
+
+            <!-- Challenge 6 -->
+            <div class="challenge" id="c6">
+                <div class="challenge-header">
+                    <span class="challenge-num">06</span>
+                    <span class="challenge-status">PENDING</span>
+                </div>
+                <h4>Recent Hires</h4>
+                <p>Find the 5 most recently hired employees. Show their name and hire date.</p>
+                <button class="hint-btn" onclick="toggleHint('h6')">HINT</button>
+                <div class="hint" id="h6">SELECT first_name, last_name, hire_date FROM employees ORDER BY hire_date DESC LIMIT 5;</div>
+            </div>
+
+            <!-- Challenge 7 -->
+            <div class="challenge" id="c7">
+                <div class="challenge-header">
+                    <span class="challenge-num">07</span>
+                    <span class="challenge-status">PENDING</span>
+                </div>
+                <h4>Security Products</h4>
+                <p>List all products in the 'Security' category, sorted by price descending.</p>
+                <button class="hint-btn" onclick="toggleHint('h7')">HINT</button>
+                <div class="hint" id="h7">SELECT * FROM products WHERE category = 'Security' ORDER BY price DESC;</div>
+            </div>
+
+            <!-- Challenge 8 -->
+            <div class="challenge" id="c8">
+                <div class="challenge-header">
+                    <span class="challenge-num">08</span>
+                    <span class="challenge-status">PENDING</span>
+                </div>
+                <h4>Salary Tiers</h4>
+                <p>Create a report showing each employee's name and a salary tier: 'Senior' for 100K+, 'Mid' for 80K+, 'Junior' for below 80K.</p>
+                <button class="hint-btn" onclick="toggleHint('h8')">HINT</button>
+                <div class="hint" id="h8">SELECT first_name, salary, CASE WHEN salary >= 100000 THEN 'Senior' WHEN salary >= 80000 THEN 'Mid' ELSE 'Junior' END AS tier FROM employees;</div>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-04-sorting.module.html" class="nav-btn">&lt; Previous: Sorting</a>
+                <a href="script-db-06-crud.module.html" class="nav-btn primary">Next: INSERT, UPDATE & DELETE &gt;</a>
+            </nav>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Challenges</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 8</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="c1">01</span>
+                    <span class="task-chip" data-task="c2">02</span>
+                    <span class="task-chip" data-task="c3">03</span>
+                    <span class="task-chip" data-task="c4">04</span>
+                    <span class="task-chip" data-task="c5">05</span>
+                    <span class="task-chip" data-task="c6">06</span>
+                    <span class="task-chip" data-task="c7">07</span>
+                    <span class="task-chip" data-task="c8">08</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-05-foundations-lab';
+        const tasks = { c1: false, c2: false, c3: false, c4: false, c5: false, c6: false, c7: false, c8: false };
+
+        function toggleHint(id) {
+            document.getElementById(id).classList.toggle('visible');
+        }
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error || !results || results.length === 0) return;
+                const cols = results[0].columns.map(c => c.toLowerCase());
+                const rows = results[0].values;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // C1: first_name, last_name, email from employees (20 rows)
+                if (cols.includes('first_name') && cols.includes('last_name') && cols.includes('email') && rows.length === 20) {
+                    completeTask('c1');
+                }
+
+                // C2: COUNT of departments = 6
+                if (rows.length === 1 && rows[0].length === 1 && rows[0][0] === 6) {
+                    completeTask('c2');
+                }
+
+                // C3: employees with salary > 100000 (should be 4: Sarah 125K, James 110K, Alex 115K, Yuki 108K, Carlos 102K, Priya? no=95K, Lin? no=98K)
+                // Actually: Sarah 125K, James 110K, Alex 115K, Yuki 108K, Carlos 102K = 5
+                if (upper.includes('SALARY') && upper.includes('> 100000') && upper.includes('WHERE')) {
+                    completeTask('c3');
+                }
+                // Also accept >= 100001
+                if (upper.includes('SALARY') && upper.includes('100000') && rows.length === 5) {
+                    completeTask('c3');
+                }
+
+                // C4: department 1 employees ordered by salary DESC
+                if (upper.includes('DEPARTMENT_ID') && upper.includes('= 1') && upper.includes('ORDER BY') && upper.includes('DESC')) {
+                    completeTask('c4');
+                }
+
+                // C5: employees where manager_id IS NULL (6 dept heads)
+                if (upper.includes('IS NULL') && upper.includes('MANAGER_ID')) {
+                    completeTask('c5');
+                }
+
+                // C6: 5 most recent hires (ORDER BY hire_date DESC LIMIT 5)
+                if (upper.includes('HIRE_DATE') && upper.includes('DESC') && upper.includes('LIMIT 5')) {
+                    completeTask('c6');
+                }
+                // Also accept if they got 5 rows with hire_date ordering
+                if (upper.includes('HIRE_DATE') && upper.includes('LIMIT') && rows.length === 5) {
+                    completeTask('c6');
+                }
+
+                // C7: Security products sorted by price DESC
+                if (upper.includes("'SECURITY'") && upper.includes('ORDER BY') && upper.includes('PRICE')) {
+                    completeTask('c7');
+                }
+
+                // C8: CASE expression creating salary tiers
+                if (upper.includes('CASE') && upper.includes('WHEN') && (upper.includes('SENIOR') || upper.includes("'SENIOR'"))) {
+                    completeTask('c8');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            const card = document.getElementById(taskId);
+            if (card) {
+                card.classList.add('completed');
+                card.querySelector('.challenge-status').textContent = 'COMPLETE';
+            }
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                    const card = document.getElementById(t);
+                    if (card) {
+                        card.classList.add('completed');
+                        card.querySelector('.challenge-status').textContent = 'COMPLETE';
+                    }
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

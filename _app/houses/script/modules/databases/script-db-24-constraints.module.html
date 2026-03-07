@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-24: Constraints & Referential Integrity | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-24</span>
+            <h1>Constraints & Referential Integrity</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="primary-key">PRIMARY KEY</span>
+                    <span class="task-chip" data-task="foreign-key">FOREIGN KEY</span>
+                    <span class="task-chip" data-task="unique">UNIQUE</span>
+                    <span class="task-chip" data-task="check">CHECK</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Enforce data integrity with PRIMARY KEY and FOREIGN KEY constraints</li>
+                    <li>Understand referential integrity and ON DELETE / ON UPDATE actions</li>
+                    <li>Apply UNIQUE and NOT NULL constraints to prevent bad data</li>
+                    <li>Write custom validation rules with CHECK constraints</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Why Constraints?</h2>
+                <p class="content-text">
+                    Constraints enforce <strong>data integrity rules</strong> at the database level. Without them,
+                    bad data can silently enter the system -- an employee with no ID, a department that references
+                    a manager who does not exist, a salary that is negative. Application code can validate input,
+                    but constraints are your <strong>last line of defense</strong>.
+                </p>
+                <p class="content-text">
+                    Think of constraints as <strong>bouncers at a club</strong>. They stand at the door and reject
+                    any data that does not meet the rules. No matter how the data arrives -- through your app,
+                    a script, or a manual SQL insert -- the constraint blocks invalid rows before they get in.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>PRIMARY KEY</strong>
+                        <span>Uniquely identifies each row in a table</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>FOREIGN KEY</strong>
+                        <span>References a primary key in another table</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>UNIQUE</strong>
+                        <span>Prevents duplicate values in a column</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>NOT NULL</strong>
+                        <span>Requires a value -- no NULLs allowed</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>CHECK</strong>
+                        <span>Custom validation rule as a boolean expression</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>DEFAULT</strong>
+                        <span>Provides a fallback value when none is given</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">PRIMARY KEY</h2>
+                <p class="content-text">
+                    A <code>PRIMARY KEY</code> uniquely identifies each row in a table. It guarantees two things:
+                    the value is <strong>unique</strong> across all rows, and it is <strong>never NULL</strong>.
+                    Every table should have one.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> employees (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    name <span class="keyword">TEXT NOT NULL</span>,
+    email <span class="keyword">TEXT NOT NULL</span>,
+    department_id <span class="keyword">INTEGER</span>
+);
+                </div>
+                <p class="content-text">
+                    In SQLite, <code>INTEGER PRIMARY KEY</code> automatically becomes an alias for the internal
+                    <code>rowid</code>, which auto-increments. You can also create <strong>composite primary
+                    keys</strong> that span multiple columns:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> enrollment (
+    student_id <span class="keyword">INTEGER</span>,
+    course_id <span class="keyword">INTEGER</span>,
+    enrolled_at <span class="keyword">TEXT</span>,
+    <span class="keyword">PRIMARY KEY</span> (student_id, course_id)
+);
+                </div>
+                <p class="content-text">
+                    A composite key means the <strong>combination</strong> of both columns must be unique.
+                    A student can enroll in many courses, and a course can have many students, but the
+                    same student cannot enroll in the same course twice.
+                </p>
+                <p class="content-text">
+                    Try creating a table with a PRIMARY KEY, then try inserting two rows with the same key
+                    value. You will see the error:
+                </p>
+                <div class="code-block">
+<span class="keyword">INSERT INTO</span> employees (id, name, email) <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'Alice'</span>, <span class="string">'alice@corp.com'</span>);
+<span class="keyword">INSERT INTO</span> employees (id, name, email) <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'Bob'</span>, <span class="string">'bob@corp.com'</span>);
+<span class="comment">-- Error: UNIQUE constraint failed: employees.id</span>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">FOREIGN KEY</h2>
+                <p class="content-text">
+                    A <code>FOREIGN KEY</code> creates a link between two tables. It references the primary key
+                    of another table and enforces <strong>referential integrity</strong> -- you cannot insert a
+                    row that points to a parent row that does not exist.
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> departments (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    name <span class="keyword">TEXT NOT NULL</span>
+);
+
+<span class="keyword">CREATE TABLE</span> employees (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    name <span class="keyword">TEXT NOT NULL</span>,
+    department_id <span class="keyword">INTEGER</span>,
+    <span class="keyword">FOREIGN KEY</span> (department_id) <span class="keyword">REFERENCES</span> departments(id)
+);
+                </div>
+                <p class="content-text">
+                    With this constraint, you cannot insert an employee with <code>department_id = 99</code>
+                    unless a department with <code>id = 99</code> actually exists. The database rejects the
+                    insert and protects your data from orphaned references.
+                </p>
+                <div class="warning-box">
+                    <h4>SQLite Requires PRAGMA foreign_keys = ON</h4>
+                    <p>
+                        By default, SQLite does <strong>not enforce</strong> foreign key constraints. You must
+                        enable them explicitly at the start of each session:<br><br>
+                        <code>PRAGMA foreign_keys = ON;</code><br><br>
+                        Without this, FOREIGN KEY declarations are parsed but silently ignored. This is one of
+                        the most common SQLite pitfalls. Always run this PRAGMA before working with foreign keys.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">ON DELETE / ON UPDATE</h2>
+                <p class="content-text">
+                    When a referenced parent row is deleted or updated, the database needs to know what to do
+                    with the child rows that point to it. You configure this behavior with <code>ON DELETE</code>
+                    and <code>ON UPDATE</code> clauses:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>CASCADE</strong>
+                        <span>Delete or update child rows automatically when the parent changes</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>SET NULL</strong>
+                        <span>Set the foreign key column to NULL when the parent is removed</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>RESTRICT</strong>
+                        <span>Block the deletion if child rows still reference the parent</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>SET DEFAULT</strong>
+                        <span>Set the foreign key to its DEFAULT value when the parent is removed</span>
+                    </div>
+                </div>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> orders (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    customer_id <span class="keyword">INTEGER NOT NULL</span>,
+    total <span class="keyword">REAL</span>,
+    <span class="keyword">FOREIGN KEY</span> (customer_id) <span class="keyword">REFERENCES</span> customers(id)
+        <span class="keyword">ON DELETE CASCADE</span>
+        <span class="keyword">ON UPDATE CASCADE</span>
+);
+                </div>
+                <p class="content-text">
+                    With <code>ON DELETE CASCADE</code>, deleting a customer automatically deletes all of
+                    their orders. This is powerful but dangerous -- use it deliberately. In many systems,
+                    <code>RESTRICT</code> is safer because it forces you to explicitly handle child records
+                    before removing a parent.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">UNIQUE and NOT NULL</h2>
+                <p class="content-text">
+                    <code>UNIQUE</code> prevents duplicate values in a column. Unlike PRIMARY KEY, a table
+                    can have multiple UNIQUE constraints, and UNIQUE columns allow <strong>multiple NULLs</strong>
+                    (because NULL is not considered equal to anything, even another NULL).
+                </p>
+                <p class="content-text">
+                    <code>NOT NULL</code> prevents NULL values. Together, they let you enforce strict rules
+                    on individual columns:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> users (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    username <span class="keyword">TEXT NOT NULL UNIQUE</span>,
+    email <span class="keyword">TEXT NOT NULL UNIQUE</span>,
+    display_name <span class="keyword">TEXT NOT NULL</span>,
+    bio <span class="keyword">TEXT</span>  <span class="comment">-- nullable, no uniqueness required</span>
+);
+                </div>
+                <p class="content-text">
+                    Now try inserting two users with the same email:
+                </p>
+                <div class="code-block">
+<span class="keyword">INSERT INTO</span> users (username, email, display_name) <span class="keyword">VALUES</span> (<span class="string">'alice'</span>, <span class="string">'alice@corp.com'</span>, <span class="string">'Alice'</span>);
+<span class="keyword">INSERT INTO</span> users (username, email, display_name) <span class="keyword">VALUES</span> (<span class="string">'bob'</span>, <span class="string">'alice@corp.com'</span>, <span class="string">'Bob'</span>);
+<span class="comment">-- Error: UNIQUE constraint failed: users.email</span>
+                </div>
+                <p class="content-text">
+                    The second insert fails because <code>alice@corp.com</code> already exists. The database
+                    protects you from duplicate emails regardless of how the data was inserted.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">CHECK Constraints</h2>
+                <p class="content-text">
+                    <code>CHECK</code> constraints let you define <strong>custom validation rules</strong> as
+                    boolean expressions. If the expression evaluates to false, the insert or update is rejected:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> employees (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    name <span class="keyword">TEXT NOT NULL</span>,
+    salary <span class="keyword">REAL</span> <span class="keyword">CHECK</span> (salary > <span class="number">0</span>),
+    status <span class="keyword">TEXT</span> <span class="keyword">CHECK</span> (status <span class="keyword">IN</span> (<span class="string">'active'</span>, <span class="string">'inactive'</span>, <span class="string">'pending'</span>))
+);
+                </div>
+                <p class="content-text">
+                    You can also write CHECK constraints that reference multiple columns:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> projects (
+    id <span class="keyword">INTEGER PRIMARY KEY</span>,
+    name <span class="keyword">TEXT NOT NULL</span>,
+    start_date <span class="keyword">TEXT NOT NULL</span>,
+    end_date <span class="keyword">TEXT</span>,
+    <span class="keyword">CHECK</span> (end_date > start_date)
+);
+                </div>
+                <p class="content-text">
+                    Try inserting a row that violates a CHECK constraint:
+                </p>
+                <div class="code-block">
+<span class="keyword">INSERT INTO</span> employees (name, salary, status)
+<span class="keyword">VALUES</span> (<span class="string">'Eve'</span>, <span class="number">-500</span>, <span class="string">'active'</span>);
+<span class="comment">-- Error: CHECK constraint failed: salary > 0</span>
+                </div>
+                <p class="content-text">
+                    CHECK constraints are evaluated on every INSERT and UPDATE. They are a simple but effective
+                    way to enforce business rules directly in the schema, ensuring no code path can bypass them.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Constraints enforce data integrity at the database level -- they are your last line of defense against bad data</li>
+                    <li>PRIMARY KEY uniquely identifies each row and cannot be NULL</li>
+                    <li>FOREIGN KEY enforces referential integrity between tables -- child rows must reference existing parent rows</li>
+                    <li>SQLite requires PRAGMA foreign_keys = ON to actually enforce foreign key constraints</li>
+                    <li>ON DELETE CASCADE / SET NULL / RESTRICT controls what happens to child rows when a parent is deleted</li>
+                    <li>UNIQUE prevents duplicate values; NOT NULL prevents missing values</li>
+                    <li>CHECK constraints let you write custom validation rules as boolean expressions</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-23-data-types.module.html" class="nav-btn">&lt; Previous: Data Types & Schema Design</a>
+                <a href="script-db-25-indexes.module.html" class="nav-btn primary">Next: Indexes & Query Performance &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-24-constraints';
+        const tasks = { 'primary-key': false, 'foreign-key': false, 'unique': false, 'check': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: primary-key — use PRIMARY KEY
+                if (/PRIMARY\s+KEY/i.test(upper)) {
+                    completeTask('primary-key');
+                }
+                // Task: foreign-key — use FOREIGN KEY or REFERENCES
+                if (/FOREIGN\s+KEY/i.test(upper) || /REFERENCES\s+\w+/i.test(upper)) {
+                    completeTask('foreign-key');
+                }
+                // Task: unique — use UNIQUE in CREATE or ALTER context
+                if (/\bUNIQUE\b/i.test(upper) && /(CREATE|ALTER)/i.test(upper)) {
+                    completeTask('unique');
+                }
+                // Task: check — use CHECK constraint
+                if (/\bCHECK\s*\(/i.test(upper)) {
+                    completeTask('check');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

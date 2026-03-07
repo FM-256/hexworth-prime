@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-07: Working with NULLs | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 25px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            height: 50px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 12px; }
+
+        .module-badge {
+            background: var(--accent-dim);
+            color: var(--accent);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid var(--accent-glow);
+        }
+
+        .header h1 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 480px 1fr;
+            min-height: calc(100vh - 50px);
+        }
+
+        /* Terminal Panel */
+        .terminal-panel {
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 50px);
+            position: sticky;
+            top: 50px;
+        }
+
+        .panel-tasks {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-tasks-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .panel-tasks-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .panel-tasks-progress {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--accent);
+        }
+
+        .progress-bar {
+            height: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #60a5fa);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .task-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .task-chip {
+            font-size: 0.72rem;
+            padding: 4px 10px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.3s;
+        }
+
+        .task-chip.completed {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .terminal-container {
+            flex: 1;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* Content Panel */
+        .content-panel {
+            padding: 30px 40px;
+            overflow-y: auto;
+            max-height: calc(100vh - 50px);
+        }
+
+        .objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+
+        .objectives h3 {
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .objectives ul { list-style: none; padding: 0; }
+
+        .objectives li {
+            color: var(--text-secondary);
+            padding: 3px 0 3px 18px;
+            position: relative;
+            font-size: 0.85rem;
+        }
+
+        .objectives li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .section { margin-bottom: 35px; }
+
+        .section-title {
+            font-size: 1.2rem;
+            color: var(--accent);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .content-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            line-height: 1.8;
+        }
+
+        .content-text strong { color: var(--text-primary); }
+
+        .content-text code {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            margin: 16px 0 20px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .feature-card:hover { border-color: var(--accent-glow); }
+
+        .feature-card strong {
+            display: block;
+            color: var(--accent);
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+
+        .feature-card span {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 12px 0 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: #c9d1d9;
+            overflow-x: auto;
+        }
+
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+
+        /* Comparison table */
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0 20px;
+            font-size: 0.82rem;
+        }
+
+        .compare-table th {
+            background: var(--accent-dim);
+            color: var(--accent);
+            text-align: left;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        .compare-table td {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .compare-table tr:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Takeaways */
+        .takeaways {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.08), rgba(74, 222, 128, 0.03));
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .takeaways h3 {
+            color: var(--green);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .takeaways ul { list-style: none; padding: 0; }
+
+        .takeaways li {
+            color: var(--text-secondary);
+            padding: 4px 0 4px 22px;
+            position: relative;
+            font-size: 0.85rem;
+        }
+
+        .takeaways li::before {
+            content: '\2713';
+            position: absolute;
+            left: 0;
+            color: var(--green);
+        }
+
+        /* Navigation */
+        .nav-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px 0;
+            margin-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); }
+
+        .nav-btn.primary {
+            background: var(--accent-dim);
+            border-color: var(--accent-glow);
+            color: var(--accent);
+        }
+
+        .nav-btn.primary:hover { background: rgba(59, 130, 246, 0.25); }
+
+        .nav-btn.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        /* Warning callout */
+        .warning-callout {
+            background: rgba(251, 191, 36, 0.08);
+            border-left: 3px solid var(--yellow);
+            padding: 14px 18px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0 20px;
+        }
+
+        .warning-callout strong {
+            color: var(--yellow);
+            font-size: 0.85rem;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .warning-callout p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.7;
+            margin: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+            .terminal-panel {
+                position: relative;
+                top: 0;
+                height: 400px;
+            }
+            .content-panel {
+                max-height: none;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-07</span>
+            <h1>Working with NULLs</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="is-null">IS NULL</span>
+                    <span class="task-chip" data-task="coalesce">COALESCE</span>
+                    <span class="task-chip" data-task="nullif">NULLIF</span>
+                    <span class="task-chip" data-task="count-col">COUNT(column)</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand what NULL means (not zero, not empty string)</li>
+                    <li>Use IS NULL and IS NOT NULL to filter missing data</li>
+                    <li>Use COALESCE to provide default values for NULLs</li>
+                    <li>Use NULLIF to safely avoid division by zero</li>
+                    <li>Understand how NULL behaves in arithmetic and comparisons</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What is NULL?</h2>
+                <p class="content-text">
+                    In SQL, <strong>NULL</strong> represents an unknown or missing value. It is not the same as
+                    <code>0</code>, an empty string <code>''</code>, or the word "null". NULL means
+                    <strong>"we do not know what this value is."</strong> A salary of <code>0</code> means someone
+                    earns nothing. A salary of <code>NULL</code> means we have no salary information on file.
+                </p>
+                <p class="content-text">
+                    This distinction matters because SQL uses <strong>three-valued logic</strong>. Instead of just
+                    TRUE and FALSE, every comparison can also evaluate to <strong>UNKNOWN</strong>. Any comparison
+                    involving NULL produces UNKNOWN, which behaves like FALSE in WHERE clauses.
+                </p>
+
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Expression</th>
+                            <th>Result</th>
+                            <th>Why</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>5 = 5</code></td>
+                            <td>TRUE</td>
+                            <td>Both values are known and equal</td>
+                        </tr>
+                        <tr>
+                            <td><code>5 = NULL</code></td>
+                            <td>UNKNOWN</td>
+                            <td>Cannot compare a known value to an unknown one</td>
+                        </tr>
+                        <tr>
+                            <td><code>NULL = NULL</code></td>
+                            <td>UNKNOWN</td>
+                            <td>Two unknowns are not necessarily equal</td>
+                        </tr>
+                        <tr>
+                            <td><code>NULL != NULL</code></td>
+                            <td>UNKNOWN</td>
+                            <td>Cannot determine if two unknowns differ</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="warning-callout">
+                    <strong>Common Mistake</strong>
+                    <p>
+                        Writing <code>WHERE salary = NULL</code> will never return any rows, even if rows have
+                        NULL salaries. The comparison <code>NULL = NULL</code> evaluates to UNKNOWN, not TRUE.
+                        Always use <code>IS NULL</code> instead.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">IS NULL / IS NOT NULL</h2>
+                <p class="content-text">
+                    Since you cannot use <code>=</code> or <code>!=</code> to test for NULL, SQL provides
+                    special operators: <code>IS NULL</code> and <code>IS NOT NULL</code>. These are the
+                    <strong>only</strong> correct way to check for missing values.
+                </p>
+
+                <p class="content-text">
+                    <strong>Find employees with no manager (top-level staff):</strong>
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name, last_name, title
+<span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> manager_id <span class="keyword">IS NULL</span>;
+                </div>
+                <p class="content-text">
+                    This returns only rows where <code>manager_id</code> has no value. These are typically
+                    executives or department heads who do not report to anyone in the system.
+                </p>
+
+                <p class="content-text">
+                    <strong>Find employees who do have a manager:</strong>
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name, last_name, manager_id
+<span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> manager_id <span class="keyword">IS NOT NULL</span>;
+                </div>
+                <p class="content-text">
+                    <code>IS NOT NULL</code> filters for rows where the value is present and known.
+                    Try both queries in the SQL console to see the difference.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">COALESCE</h2>
+                <p class="content-text">
+                    <code>COALESCE</code> accepts a list of values and returns the <strong>first non-NULL</strong>
+                    value it finds. It is your primary tool for providing default values when data might be missing.
+                </p>
+
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name,
+       <span class="function">COALESCE</span>(manager_id, <span class="number">0</span>) <span class="keyword">AS</span> mgr
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    If <code>manager_id</code> is NULL, the query returns <code>0</code> instead.
+                    The original data is not changed; COALESCE only affects the query output.
+                </p>
+
+                <p class="content-text">
+                    COALESCE can take multiple fallback values. It checks them left to right and returns
+                    the first one that is not NULL:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Try phone, then email, then 'No Contact'</span>
+<span class="keyword">SELECT</span> <span class="function">COALESCE</span>(phone, email, <span class="string">'No Contact'</span>) <span class="keyword">AS</span> contact
+<span class="keyword">FROM</span> customers;
+                </div>
+                <p class="content-text">
+                    This pattern is extremely common in real applications. Reports, dashboards, and APIs
+                    all use COALESCE to ensure clean output even when source data has gaps.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">NULLIF</h2>
+                <p class="content-text">
+                    <code>NULLIF</code> does the opposite of COALESCE. It takes two arguments and returns
+                    <strong>NULL if they are equal</strong>, otherwise it returns the first argument. This
+                    is most commonly used to prevent <strong>division by zero</strong> errors.
+                </p>
+
+                <div class="code-block">
+<span class="comment">-- Returns NULL instead of the value if salary is 0</span>
+<span class="keyword">SELECT</span> first_name,
+       <span class="function">NULLIF</span>(salary, <span class="number">0</span>) <span class="keyword">AS</span> safe_salary
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    The real power of NULLIF shows in division. Dividing by zero causes an error, but
+                    dividing by NULL safely returns NULL:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Safe division: returns NULL instead of error if quantity is 0</span>
+<span class="keyword">SELECT</span> product_name,
+       total_revenue / <span class="function">NULLIF</span>(quantity_sold, <span class="number">0</span>) <span class="keyword">AS</span> price_per_unit
+<span class="keyword">FROM</span> products;
+                </div>
+                <p class="content-text">
+                    You can combine NULLIF with COALESCE for a complete safety net:
+                    <code>COALESCE(total / NULLIF(quantity, 0), 0)</code> returns <code>0</code>
+                    instead of erroring on division by zero.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">NULLs in Arithmetic</h2>
+                <p class="content-text">
+                    Any arithmetic operation involving NULL returns NULL. The database cannot compute a
+                    result when one of the operands is unknown. This is a frequent source of unexpected
+                    results for beginners.
+                </p>
+
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name,
+       salary,
+       salary + <span class="keyword">NULL</span> <span class="keyword">AS</span> broken
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    The <code>broken</code> column will be NULL for every row, regardless of the
+                    actual salary value. <code>NULL + 5 = NULL</code>, <code>NULL * 100 = NULL</code>,
+                    <code>NULL - NULL = NULL</code>. There are no exceptions.
+                </p>
+
+                <p class="content-text">
+                    This is why COALESCE matters in calculations. If you are summing values that might
+                    be NULL, wrap them first:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Safe: treats NULL bonus as 0</span>
+<span class="keyword">SELECT</span> first_name,
+       salary + <span class="function">COALESCE</span>(bonus, <span class="number">0</span>) <span class="keyword">AS</span> total_comp
+<span class="keyword">FROM</span> employees;
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">NULLs in Aggregates</h2>
+                <p class="content-text">
+                    Aggregate functions handle NULL differently depending on whether you use <code>*</code>
+                    or a column name. This is one of the most important distinctions in SQL:
+                </p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>COUNT(*)</strong>
+                        <span>Counts all rows in the result set, including rows where columns are NULL</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>COUNT(column)</strong>
+                        <span>Counts only rows where the specified column is NOT NULL</span>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">COUNT</span>(*) <span class="keyword">AS</span> total_employees,
+    <span class="function">COUNT</span>(manager_id) <span class="keyword">AS</span> has_manager
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    If the <code>employees</code> table has 20 rows and 2 employees have NULL
+                    <code>manager_id</code> values, <code>COUNT(*)</code> returns 20 while
+                    <code>COUNT(manager_id)</code> returns 18.
+                </p>
+
+                <p class="content-text">
+                    The same rule applies to other aggregate functions. <code>SUM</code>, <code>AVG</code>,
+                    <code>MIN</code>, and <code>MAX</code> all <strong>skip NULL values</strong>. This means
+                    <code>AVG(salary)</code> divides by the number of non-NULL salaries, not the total
+                    number of rows. This can silently skew your results if you are not aware of it.
+                </p>
+
+                <div class="warning-callout">
+                    <strong>Watch Out: AVG and NULLs</strong>
+                    <p>
+                        If 10 employees have salaries and 5 have NULL, <code>AVG(salary)</code> divides the
+                        sum by 10, not 15. To include NULLs as zero, use
+                        <code>AVG(COALESCE(salary, 0))</code> which divides by all 15 rows.
+                    </p>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>NULL means unknown/missing, not zero or empty string</li>
+                    <li>Use IS NULL and IS NOT NULL to test for missing values (never use = NULL)</li>
+                    <li>COALESCE returns the first non-NULL value from a list of arguments</li>
+                    <li>NULLIF returns NULL when two values are equal, useful for preventing division by zero</li>
+                    <li>Any arithmetic with NULL returns NULL; use COALESCE to provide safe defaults</li>
+                    <li>COUNT(*) counts all rows; COUNT(column) skips NULLs; SUM/AVG/MIN/MAX also skip NULLs</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-06-crud.module.html" class="nav-btn">&lt; Previous: CRUD Operations</a>
+                <a href="script-db-08-strings.module.html" class="nav-btn primary">Next: String Functions &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-07-nulls';
+        const tasks = {
+            'is-null': false,
+            'coalesce': false,
+            'nullif': false,
+            'count-col': false
+        };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: IS NULL or IS NOT NULL
+                if (/IS\s+NULL|IS\s+NOT\s+NULL/.test(upper)) {
+                    completeTask('is-null');
+                }
+
+                // Task: COALESCE
+                if (upper.includes('COALESCE(')) {
+                    completeTask('coalesce');
+                }
+
+                // Task: NULLIF
+                if (upper.includes('NULLIF(')) {
+                    completeTask('nullif');
+                }
+
+                // Task: COUNT(column_name) — not COUNT(*)
+                if (/COUNT\s*\(\s*(?!\*)[A-Z_]+\s*\)/.test(upper)) {
+                    completeTask('count-col');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

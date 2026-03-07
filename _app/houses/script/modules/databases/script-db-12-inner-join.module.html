@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-12: INNER JOIN | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .info-box { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .info-box h4 { color: var(--accent); font-size: 0.85rem; margin-bottom: 8px; }
+        .info-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-12</span>
+            <h1>INNER JOIN</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="basic-join">basic JOIN</span>
+                    <span class="task-chip" data-task="alias">table alias</span>
+                    <span class="task-chip" data-task="multi-join">3+ table join</span>
+                    <span class="task-chip" data-task="join-where">JOIN + WHERE</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand why data is split across multiple tables</li>
+                    <li>Join tables together using INNER JOIN</li>
+                    <li>Use table aliases for readable queries</li>
+                    <li>Join on multiple conditions</li>
+                    <li>Join more than two tables in a single query</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Why Joins?</h2>
+                <p class="content-text">
+                    Until now, every query you have written targets a single table. But real databases spread
+                    data across <strong>multiple tables</strong> to avoid duplication -- a principle called
+                    <strong>normalization</strong>. Instead of storing the department name on every employee
+                    row, we store a <code>department_id</code> that points to a separate <code>departments</code>
+                    table where the full name lives once.
+                </p>
+                <p class="content-text">
+                    This is efficient for storage and updates (rename a department in one place, not 50 employee
+                    rows), but it creates a problem: <strong>how do you see an employee's department name?</strong>
+                    The answer is a <strong>JOIN</strong>. Joins reconnect related data that has been split across
+                    tables.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>employees</strong>
+                        <span>id, first_name, last_name, department_id, salary ...</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>departments</strong>
+                        <span>id, name, location, budget</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    The <code>department_id</code> column in <code>employees</code> is a <strong>foreign key</strong>.
+                    It references the <code>id</code> column in <code>departments</code>. A join uses this
+                    relationship to combine the two tables into one result set.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">INNER JOIN Syntax</h2>
+                <p class="content-text">
+                    The <code>INNER JOIN</code> keyword connects two tables based on a condition you specify
+                    with <code>ON</code>:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> e.first_name, e.last_name, d.name <span class="keyword">AS</span> department
+<span class="keyword">FROM</span> employees e
+<span class="keyword">INNER JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id;
+                </div>
+                <p class="content-text">
+                    Breaking this down piece by piece:
+                </p>
+                <p class="content-text">
+                    <strong>FROM employees e</strong> -- start with the employees table and give it the
+                    short alias <code>e</code>.
+                </p>
+                <p class="content-text">
+                    <strong>INNER JOIN departments d</strong> -- bring in the departments table with
+                    alias <code>d</code>.
+                </p>
+                <p class="content-text">
+                    <strong>ON e.department_id = d.id</strong> -- the join condition. For each employee row,
+                    find the department row where the IDs match.
+                </p>
+                <p class="content-text">
+                    <strong>SELECT e.first_name, e.last_name, d.name</strong> -- pick columns from either
+                    table using their alias prefix.
+                </p>
+                <p class="content-text">
+                    Try it in the console. You will see each employee alongside their department name -- data
+                    that lives in two separate tables, combined into one result.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">How INNER JOIN Works</h2>
+                <p class="content-text">
+                    The key word is <strong>INNER</strong>. An INNER JOIN only returns rows where there
+                    <strong>is a match in both tables</strong>. Think of it as the intersection of the two
+                    data sets:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Included</strong>
+                        <span>Employee has department_id = 3, and a department with id = 3 exists. The row appears in results.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Excluded</strong>
+                        <span>Employee has department_id = 99, but no department has id = 99. That employee is silently dropped from results.</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    Picture a Venn diagram: the left circle is all employees, the right circle is all
+                    departments. INNER JOIN returns only the overlapping center -- rows that have a match
+                    on both sides. Unmatched rows from either side are excluded.
+                </p>
+                <div class="info-box">
+                    <h4>JOIN vs INNER JOIN</h4>
+                    <p>
+                        Writing <code>JOIN</code> by itself is identical to <code>INNER JOIN</code>. The
+                        keyword INNER is optional. Most developers write just <code>JOIN</code> for brevity,
+                        but <code>INNER JOIN</code> is more explicit about what is happening. Both are correct.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Table Aliases</h2>
+                <p class="content-text">
+                    Once you start joining tables, column names can become ambiguous. Both <code>employees</code>
+                    and <code>departments</code> have an <code>id</code> column. Without aliases, the database
+                    does not know which <code>id</code> you mean.
+                </p>
+                <p class="content-text">
+                    <strong>Table aliases</strong> solve this by giving each table a short name. You can declare
+                    them with or without the <code>AS</code> keyword:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Both of these are identical:</span>
+<span class="keyword">FROM</span> employees <span class="keyword">AS</span> e    <span class="comment">-- explicit AS</span>
+<span class="keyword">FROM</span> employees e       <span class="comment">-- implicit (more common)</span>
+                </div>
+                <p class="content-text">
+                    Once aliased, use <strong>dot notation</strong> to reference columns: <code>e.first_name</code>,
+                    <code>d.name</code>, <code>e.salary</code>. This is required when column names overlap
+                    between tables and good practice even when they do not -- it makes clear which table each
+                    column comes from.
+                </p>
+                <p class="content-text">
+                    Common conventions: <code>e</code> for employees, <code>d</code> for departments,
+                    <code>o</code> for orders, <code>c</code> for customers, <code>p</code> for products.
+                    Use the first letter or a short abbreviation.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Joining Multiple Tables</h2>
+                <p class="content-text">
+                    Real queries often need data from more than two tables. You can chain multiple
+                    <code>JOIN</code> clauses back to back. Here is a two-table join connecting customers
+                    to their orders:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> c.name <span class="keyword">AS</span> customer, o.order_date, o.total
+<span class="keyword">FROM</span> customers c
+<span class="keyword">INNER JOIN</span> orders o <span class="keyword">ON</span> c.id = o.customer_id;
+                </div>
+                <p class="content-text">
+                    But what if you want to see which <strong>products</strong> were in each order? That
+                    data lives in the <code>order_items</code> table (which links orders to products). You
+                    need a <strong>three-table join</strong>:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> c.name <span class="keyword">AS</span> customer,
+       p.name <span class="keyword">AS</span> product,
+       oi.quantity
+<span class="keyword">FROM</span> customers c
+<span class="keyword">INNER JOIN</span> orders o <span class="keyword">ON</span> c.id = o.customer_id
+<span class="keyword">INNER JOIN</span> order_items oi <span class="keyword">ON</span> o.id = oi.order_id
+<span class="keyword">INNER JOIN</span> products p <span class="keyword">ON</span> oi.product_id = p.id;
+                </div>
+                <p class="content-text">
+                    This is actually a <strong>four-table join</strong>: customers, orders, order_items,
+                    and products. Each <code>INNER JOIN</code> adds one more table to the chain. The
+                    <code>ON</code> clause for each join specifies how the new table connects to the
+                    tables already in the query.
+                </p>
+                <p class="content-text">
+                    Read the chain top to bottom: start with customers, connect to their orders, then to
+                    the line items in each order, then to the product details for each line item.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">JOIN with WHERE</h2>
+                <p class="content-text">
+                    You can filter joined results with <code>WHERE</code> just like any other query. The
+                    <code>ON</code> clause defines <strong>how</strong> the tables connect; the
+                    <code>WHERE</code> clause filters <strong>which</strong> rows you want to see:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> e.first_name, e.last_name, d.name <span class="keyword">AS</span> department
+<span class="keyword">FROM</span> employees e
+<span class="keyword">INNER JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id
+<span class="keyword">WHERE</span> d.location = <span class="string">'Building A'</span>;
+                </div>
+                <p class="content-text">
+                    This first joins employees to departments, then filters to only show employees in
+                    departments located in Building A. You can reference columns from any joined table
+                    in your WHERE clause.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> e.first_name, e.salary, d.name <span class="keyword">AS</span> department
+<span class="keyword">FROM</span> employees e
+<span class="keyword">INNER JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id
+<span class="keyword">WHERE</span> e.salary > <span class="number">100000</span>
+<span class="keyword">ORDER BY</span> e.salary <span class="keyword">DESC</span>;
+                </div>
+                <p class="content-text">
+                    Here we join, filter for high earners, and sort the results. All the clauses you already
+                    know -- WHERE, ORDER BY, LIMIT -- work exactly the same with joined queries.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Normalized databases split data across tables; JOINs reconnect it</li>
+                    <li>INNER JOIN returns only rows that have a match in both tables</li>
+                    <li>The ON clause specifies the join condition (usually foreign key = primary key)</li>
+                    <li>Table aliases (e, d, o) keep multi-table queries readable</li>
+                    <li>Use dot notation (e.first_name) to specify which table a column belongs to</li>
+                    <li>Chain multiple INNER JOINs to combine 3, 4, or more tables</li>
+                    <li>WHERE filters the joined result; ON defines the relationship</li>
+                    <li>JOIN and INNER JOIN are identical -- INNER is optional</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-11-data.lab.html" class="nav-btn">&lt; Previous: Data Lab</a>
+                <a href="script-db-13-outer-joins.module.html" class="nav-btn primary">Next: Outer Joins &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-12-inner-join';
+        const tasks = { 'basic-join': false, 'alias': false, 'multi-join': false, 'join-where': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: basic-join — use INNER JOIN or JOIN
+                if (/\bINNER\s+JOIN\b/.test(upper) || /\bJOIN\b/.test(upper)) {
+                    completeTask('basic-join');
+                }
+
+                // Task: alias — use table aliases with dot notation (e.g. e.first_name)
+                if (/\b[A-Z]\.[A-Z_]+\b/.test(upper) && /\bJOIN\b/.test(upper)) {
+                    completeTask('alias');
+                }
+
+                // Task: multi-join — join 3 or more tables (2+ JOIN keywords)
+                const joinCount = (upper.match(/\bJOIN\b/g) || []).length;
+                if (joinCount >= 2) {
+                    completeTask('multi-join');
+                }
+
+                // Task: join-where — JOIN combined with WHERE
+                if (/\bJOIN\b/.test(upper) && /\bWHERE\b/.test(upper)) {
+                    completeTask('join-where');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

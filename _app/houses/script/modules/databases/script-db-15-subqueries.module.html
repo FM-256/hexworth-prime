@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-15: Subqueries | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .info-box { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .info-box h4 { color: var(--accent); font-size: 0.85rem; margin-bottom: 8px; }
+        .info-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-15</span>
+            <h1>Subqueries</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="scalar-sub">scalar subquery</span>
+                    <span class="task-chip" data-task="in-sub">IN subquery</span>
+                    <span class="task-chip" data-task="exists-sub">EXISTS subquery</span>
+                    <span class="task-chip" data-task="from-sub">FROM subquery</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Write scalar subqueries that return a single value</li>
+                    <li>Use subqueries in WHERE, FROM, and SELECT clauses</li>
+                    <li>Understand the difference between correlated and non-correlated subqueries</li>
+                    <li>Use EXISTS and IN with subqueries to filter results</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What Is a Subquery?</h2>
+                <p class="content-text">
+                    A <strong>subquery</strong> is a query nested inside another query. The inner query runs first,
+                    and its result is fed into the outer query. Subqueries are wrapped in parentheses and can appear
+                    in the <code>WHERE</code>, <code>FROM</code>, or <code>SELECT</code> clauses.
+                </p>
+                <p class="content-text">
+                    Think of it as asking a question in two steps. Instead of figuring out the average salary
+                    and then manually typing it into a second query, you let SQL do both at once. The database
+                    engine evaluates the inner query, substitutes the result, and then runs the outer query.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Scalar Subquery</strong>
+                        <span>Returns a single value (one row, one column)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Row Subquery</strong>
+                        <span>Returns a single row with multiple columns</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Table Subquery</strong>
+                        <span>Returns multiple rows and columns (derived table)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Correlated Subquery</strong>
+                        <span>References columns from the outer query</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Scalar Subqueries (Single Value)</h2>
+                <p class="content-text">
+                    The simplest type of subquery returns <strong>exactly one value</strong>. This lets you use
+                    a computed result directly in a comparison. For example, find all employees earning above
+                    the company average:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name, last_name, salary
+<span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> salary > (<span class="keyword">SELECT</span> <span class="function">AVG</span>(salary) <span class="keyword">FROM</span> employees);
+                </div>
+                <p class="content-text">
+                    The inner query <code>(SELECT AVG(salary) FROM employees)</code> runs first and returns a
+                    single number. The outer query then compares each employee's salary against that number.
+                    Without a subquery, you would have to run two separate queries and copy the value manually.
+                </p>
+                <p class="content-text">
+                    <strong>Try it in the console.</strong> This is your first task: write any query that uses
+                    a subquery returning a single value in a WHERE clause.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">IN Subqueries (List of Values)</h2>
+                <p class="content-text">
+                    When a subquery returns <strong>multiple rows in a single column</strong>, you use <code>IN</code>
+                    instead of <code>=</code>. This is like checking if a value appears in a list:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name, last_name, department_id
+<span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> department_id <span class="keyword">IN</span> (
+    <span class="keyword">SELECT</span> id <span class="keyword">FROM</span> departments
+    <span class="keyword">WHERE</span> location = <span class="string">'Building A'</span>
+);
+                </div>
+                <p class="content-text">
+                    The inner query returns a list of department IDs located in Building A. The outer query
+                    then finds all employees whose <code>department_id</code> matches any value in that list.
+                    This is equivalent to a JOIN but sometimes reads more naturally when you only need columns
+                    from one table.
+                </p>
+                <p class="content-text">
+                    You can also negate it with <code>NOT IN</code> to find employees who are
+                    <strong>not</strong> in those departments. But beware of NULLs (covered below).
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">EXISTS Subqueries</h2>
+                <p class="content-text">
+                    <code>EXISTS</code> checks whether a subquery returns <strong>any rows at all</strong>. It does not
+                    care about the actual values returned, only whether the result set is empty or not:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> d.name
+<span class="keyword">FROM</span> departments d
+<span class="keyword">WHERE</span> <span class="keyword">EXISTS</span> (
+    <span class="keyword">SELECT</span> <span class="number">1</span> <span class="keyword">FROM</span> employees e
+    <span class="keyword">WHERE</span> e.department_id = d.id
+    <span class="keyword">AND</span> e.salary > <span class="number">100000</span>
+);
+                </div>
+                <p class="content-text">
+                    For each department, the inner query checks if there is at least one employee with a salary
+                    above 100,000. If any row is found, <code>EXISTS</code> returns true and that department
+                    is included in the results. Notice <code>SELECT 1</code> inside the subquery. Since EXISTS
+                    only checks for the <strong>existence</strong> of rows, the actual selected values do not matter.
+                </p>
+                <p class="content-text">
+                    This is a <strong>correlated subquery</strong> because the inner query references
+                    <code>d.id</code> from the outer query. It runs once for each row in the outer query.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Subquery in FROM (Derived Tables)</h2>
+                <p class="content-text">
+                    A subquery in the <code>FROM</code> clause creates a temporary result set that acts like a
+                    virtual table. This is called a <strong>derived table</strong> or <strong>inline view</strong>.
+                    You must give it an alias:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> dept_name, avg_salary
+<span class="keyword">FROM</span> (
+    <span class="keyword">SELECT</span> d.name <span class="keyword">AS</span> dept_name,
+           <span class="function">AVG</span>(e.salary) <span class="keyword">AS</span> avg_salary
+    <span class="keyword">FROM</span> employees e
+    <span class="keyword">JOIN</span> departments d <span class="keyword">ON</span> e.department_id = d.id
+    <span class="keyword">GROUP BY</span> d.name
+) sub
+<span class="keyword">WHERE</span> avg_salary > <span class="number">90000</span>;
+                </div>
+                <p class="content-text">
+                    The inner query calculates each department's average salary. The outer query then filters
+                    to only those departments where the average exceeds 90,000. The alias <code>sub</code>
+                    is required -- SQL needs a name to reference the derived table.
+                </p>
+                <p class="content-text">
+                    This pattern is especially useful when you need to filter on an aggregate. You cannot write
+                    <code>WHERE AVG(salary) > 90000</code> directly, but you can compute the aggregate in a
+                    subquery and then filter the result.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Subquery in SELECT</h2>
+                <p class="content-text">
+                    You can place a scalar subquery directly in the <code>SELECT</code> list to add a computed
+                    column to every row. Each row gets the same subquery result:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> first_name,
+       salary,
+       (<span class="keyword">SELECT</span> <span class="function">AVG</span>(salary) <span class="keyword">FROM</span> employees) <span class="keyword">AS</span> company_avg,
+       salary - (<span class="keyword">SELECT</span> <span class="function">AVG</span>(salary) <span class="keyword">FROM</span> employees) <span class="keyword">AS</span> diff
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    This shows each employee's salary alongside the company average and the difference. Every
+                    row contains the same <code>company_avg</code> value because the subquery is non-correlated.
+                    The subquery must return exactly one value, or the query will fail.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Correlated vs Non-Correlated</h2>
+                <p class="content-text">
+                    Understanding this distinction is key to writing efficient subqueries:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Non-Correlated</strong>
+                        <span>Inner query runs once, independently. Does not reference the outer query. Result is reused for every outer row.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Correlated</strong>
+                        <span>Inner query references the outer query. Runs once per outer row. Slower but more powerful.</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    The scalar subquery <code>(SELECT AVG(salary) FROM employees)</code> is <strong>non-correlated</strong>
+                    because it does not reference any column from the outer query. It runs once and the result is cached.
+                </p>
+                <p class="content-text">
+                    The EXISTS example above is <strong>correlated</strong> because the inner query uses <code>d.id</code>
+                    from the outer query. For each department row, the database must re-evaluate the inner query
+                    with a different <code>d.id</code> value. This makes correlated subqueries slower on large
+                    datasets, but they can express things that non-correlated subqueries cannot.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">NOT IN vs NOT EXISTS</h2>
+                <div class="warning-box">
+                    <h4>WARNING: NOT IN Fails with NULLs</h4>
+                    <p>
+                        If the subquery in a <code>NOT IN</code> clause returns any NULL values, the entire
+                        condition evaluates to UNKNOWN and <strong>no rows are returned</strong>. This is because
+                        <code>x NOT IN (1, 2, NULL)</code> becomes <code>x != 1 AND x != 2 AND x != NULL</code>,
+                        and any comparison to NULL yields UNKNOWN.
+                    </p>
+                </div>
+                <div class="code-block">
+<span class="comment">-- This can return ZERO rows if any manager_id is NULL:</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees
+<span class="keyword">WHERE</span> id <span class="keyword">NOT IN</span> (<span class="keyword">SELECT</span> manager_id <span class="keyword">FROM</span> employees);
+
+<span class="comment">-- This handles NULLs safely:</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees e
+<span class="keyword">WHERE</span> <span class="keyword">NOT EXISTS</span> (
+    <span class="keyword">SELECT</span> <span class="number">1</span> <span class="keyword">FROM</span> employees m
+    <span class="keyword">WHERE</span> m.manager_id = e.id
+);
+                </div>
+                <p class="content-text">
+                    <strong>Rule of thumb:</strong> prefer <code>NOT EXISTS</code> over <code>NOT IN</code> when
+                    the subquery column might contain NULLs. <code>EXISTS</code> and <code>NOT EXISTS</code> are
+                    NULL-safe because they check for row existence, not value equality.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>A subquery is a query nested inside another; the inner query runs first</li>
+                    <li>Scalar subqueries return one value and work with =, >, < comparisons</li>
+                    <li>IN subqueries return a list and match any value in that list</li>
+                    <li>EXISTS checks whether the subquery returns any rows at all</li>
+                    <li>Derived tables (FROM subqueries) create temporary result sets for further filtering</li>
+                    <li>Non-correlated subqueries run once; correlated subqueries run once per outer row</li>
+                    <li>Use NOT EXISTS instead of NOT IN when NULLs may be present</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-14-advanced-joins.module.html" class="nav-btn">&lt; Previous: Advanced Joins</a>
+                <a href="script-db-16-ctes.module.html" class="nav-btn primary">Next: CTEs &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-15-subqueries';
+        const tasks = { 'scalar-sub': false, 'in-sub': false, 'exists-sub': false, 'from-sub': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Must be a SELECT with a subquery (contains nested SELECT in parentheses)
+                if (!upper.startsWith('SELECT')) return;
+
+                const hasSubquery = /\(\s*SELECT\b/.test(upper);
+                if (!hasSubquery) return;
+
+                // scalar-sub: subquery returning single value used with comparison operator in WHERE
+                // Detects patterns like: WHERE col > (SELECT ...) or WHERE col = (SELECT ...) or WHERE col < (SELECT ...)
+                if (/WHERE\b.*[><=!]+\s*\(\s*SELECT\b/.test(upper)) {
+                    completeTask('scalar-sub');
+                }
+
+                // in-sub: uses IN with a subquery
+                if (/\bIN\s*\(\s*SELECT\b/.test(upper)) {
+                    completeTask('in-sub');
+                }
+
+                // exists-sub: uses EXISTS with a subquery
+                if (/\bEXISTS\s*\(\s*SELECT\b/.test(upper)) {
+                    completeTask('exists-sub');
+                }
+
+                // from-sub: subquery in FROM clause (derived table)
+                if (/\bFROM\s*\(\s*SELECT\b/.test(upper)) {
+                    completeTask('from-sub');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

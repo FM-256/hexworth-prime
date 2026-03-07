@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-18: Aggregate Functions | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-18</span>
+            <h1>Aggregate Functions</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="count">COUNT</span>
+                    <span class="task-chip" data-task="sum-avg">SUM / AVG</span>
+                    <span class="task-chip" data-task="min-max">MIN / MAX</span>
+                    <span class="task-chip" data-task="distinct-agg">DISTINCT agg</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Master COUNT, SUM, AVG, MIN, and MAX aggregate functions</li>
+                    <li>Understand how aggregates handle NULL values</li>
+                    <li>Combine multiple aggregates in a single query</li>
+                    <li>Use DISTINCT within aggregate functions</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What Are Aggregates?</h2>
+                <p class="content-text">
+                    Up to now, every query you have written returns individual rows. <strong>Aggregate functions</strong>
+                    are different: they operate on a <strong>set of rows</strong> and collapse them down into a
+                    <strong>single result value</strong>.
+                </p>
+                <p class="content-text">
+                    Instead of asking "show me every employee's salary," aggregates let you ask
+                    "what is the <strong>total</strong> payroll?" or "how <strong>many</strong> employees do we have?"
+                    The database scans the matching rows, performs a calculation, and returns one number.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>COUNT</strong>
+                        <span>Counts rows or non-NULL values</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>SUM</strong>
+                        <span>Adds up numeric column values</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>AVG</strong>
+                        <span>Calculates the arithmetic mean</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>MIN / MAX</strong>
+                        <span>Finds the smallest or largest value</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">COUNT</h2>
+                <p class="content-text">
+                    <code>COUNT</code> is the most commonly used aggregate. It comes in three flavors, and the
+                    differences matter:
+                </p>
+                <p class="content-text">
+                    <strong>COUNT(*)</strong> counts all rows, regardless of NULLs. <strong>COUNT(column)</strong>
+                    counts only rows where that column is not NULL. <strong>COUNT(DISTINCT column)</strong> counts
+                    unique non-NULL values.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">COUNT</span>(*) <span class="keyword">AS</span> total,
+    <span class="function">COUNT</span>(manager_id) <span class="keyword">AS</span> has_manager,
+    <span class="function">COUNT</span>(<span class="keyword">DISTINCT</span> department_id) <span class="keyword">AS</span> dept_count
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    Try this in the terminal. Notice that <code>total</code> includes every row, but
+                    <code>has_manager</code> is lower because some employees have a NULL manager_id (they are
+                    top-level managers). And <code>dept_count</code> tells you how many distinct departments
+                    are represented in the employee table.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">SUM</h2>
+                <p class="content-text">
+                    <code>SUM</code> adds up all values in a numeric column. NULL values are silently ignored:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> <span class="function">SUM</span>(salary) <span class="keyword">AS</span> total_payroll
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    SUM only works on numeric columns. Trying to SUM a text column will produce an error.
+                    If every value in the column is NULL, SUM returns NULL (not zero).
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">AVG</h2>
+                <p class="content-text">
+                    <code>AVG</code> calculates the arithmetic mean. Like SUM, it ignores NULLs:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span> <span class="function">ROUND</span>(<span class="function">AVG</span>(salary), <span class="number">2</span>) <span class="keyword">AS</span> avg_salary
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    We wrap AVG in <code>ROUND()</code> to limit decimal places. Without it, you may get a
+                    long floating-point result.
+                </p>
+                <div class="warning-box">
+                    <h4>Gotcha: AVG and NULLs</h4>
+                    <p>
+                        AVG ignores NULL rows entirely. If 10 employees exist but only 8 have a bonus value,
+                        <code>AVG(bonus)</code> divides the sum by <strong>8</strong>, not 10. If you want NULLs
+                        treated as zero, use <code>AVG(COALESCE(bonus, 0))</code> instead.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">MIN and MAX</h2>
+                <p class="content-text">
+                    <code>MIN</code> and <code>MAX</code> find the smallest and largest values in a column.
+                    Unlike SUM and AVG, they work on <strong>any data type</strong> -- numbers, strings, and dates:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">MIN</span>(hire_date) <span class="keyword">AS</span> first_hire,
+    <span class="function">MAX</span>(hire_date) <span class="keyword">AS</span> latest_hire
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    For strings, MIN returns the value that sorts first alphabetically and MAX returns the last.
+                    For dates, MIN is the earliest and MAX is the most recent. NULLs are ignored.
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">MIN</span>(salary) <span class="keyword">AS</span> lowest_salary,
+    <span class="function">MAX</span>(salary) <span class="keyword">AS</span> highest_salary,
+    <span class="function">MAX</span>(salary) - <span class="function">MIN</span>(salary) <span class="keyword">AS</span> salary_range
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    You can perform arithmetic on aggregate results directly in the SELECT clause, like
+                    calculating the range above.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Combining Aggregates</h2>
+                <p class="content-text">
+                    You can use multiple aggregate functions in a single query to build a comprehensive
+                    summary in one shot:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">COUNT</span>(*) <span class="keyword">AS</span> emp_count,
+    <span class="function">ROUND</span>(<span class="function">AVG</span>(salary), <span class="number">0</span>) <span class="keyword">AS</span> avg_sal,
+    <span class="function">MIN</span>(salary) <span class="keyword">AS</span> min_sal,
+    <span class="function">MAX</span>(salary) <span class="keyword">AS</span> max_sal,
+    <span class="function">SUM</span>(salary) <span class="keyword">AS</span> total_payroll
+<span class="keyword">FROM</span> employees;
+                </div>
+                <p class="content-text">
+                    This single query gives you a full statistical snapshot of the salary column. Each aggregate
+                    function independently scans the rows and returns its result. The database handles this
+                    efficiently in one pass.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">DISTINCT in Aggregates</h2>
+                <p class="content-text">
+                    Adding <code>DISTINCT</code> inside an aggregate tells the function to consider only
+                    <strong>unique values</strong>, ignoring duplicates:
+                </p>
+                <div class="code-block">
+<span class="keyword">SELECT</span>
+    <span class="function">COUNT</span>(category) <span class="keyword">AS</span> total_entries,
+    <span class="function">COUNT</span>(<span class="keyword">DISTINCT</span> category) <span class="keyword">AS</span> unique_categories
+<span class="keyword">FROM</span> products;
+                </div>
+                <p class="content-text">
+                    If you have 10 products across 4 categories, <code>COUNT(category)</code> returns 10 but
+                    <code>COUNT(DISTINCT category)</code> returns 4. You can also use DISTINCT with SUM and AVG,
+                    though it is less common:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Sum of unique price points (ignores duplicate prices)</span>
+<span class="keyword">SELECT</span> <span class="function">SUM</span>(<span class="keyword">DISTINCT</span> price) <span class="keyword">AS</span> unique_price_total
+<span class="keyword">FROM</span> products;
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Aggregate functions collapse multiple rows into a single result value</li>
+                    <li>COUNT(*) counts all rows; COUNT(col) skips NULLs; COUNT(DISTINCT col) counts unique non-NULLs</li>
+                    <li>SUM and AVG work on numeric columns only and ignore NULLs</li>
+                    <li>MIN and MAX work on any data type: numbers, strings, and dates</li>
+                    <li>AVG ignores NULLs -- use COALESCE if you want NULLs treated as zero</li>
+                    <li>DISTINCT inside an aggregate removes duplicates before the calculation</li>
+                    <li>You can combine multiple aggregates in a single SELECT for a full summary</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-17-joins.lab.html" class="nav-btn">&lt; Previous: Joins Lab</a>
+                <a href="script-db-19-group-by.module.html" class="nav-btn primary">Next: GROUP BY &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-18-aggregates';
+        const tasks = { 'count': false, 'sum-avg': false, 'min-max': false, 'distinct-agg': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: count — use COUNT
+                if (/\bCOUNT\s*\(/.test(upper)) {
+                    completeTask('count');
+                }
+                // Task: sum-avg — use SUM or AVG
+                if (/\b(SUM|AVG)\s*\(/.test(upper)) {
+                    completeTask('sum-avg');
+                }
+                // Task: min-max — use MIN or MAX
+                if (/\b(MIN|MAX)\s*\(/.test(upper)) {
+                    completeTask('min-max');
+                }
+                // Task: distinct-agg — use DISTINCT inside an aggregate
+                if (/\b(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*DISTINCT\b/.test(upper)) {
+                    completeTask('distinct-agg');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

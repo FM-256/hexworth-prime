@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-06: INSERT, UPDATE & DELETE | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-06</span>
+            <h1>INSERT, UPDATE & DELETE</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="insert">INSERT</span>
+                    <span class="task-chip" data-task="update">UPDATE</span>
+                    <span class="task-chip" data-task="delete">DELETE</span>
+                    <span class="task-chip" data-task="verify">verify change</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Insert new records into tables with INSERT INTO</li>
+                    <li>Modify existing data with UPDATE ... SET</li>
+                    <li>Remove records with DELETE FROM</li>
+                    <li>Understand the importance of WHERE in UPDATE/DELETE</li>
+                    <li>Use INSERT with default values and multiple rows</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">CRUD Operations</h2>
+                <p class="content-text">
+                    So far you have only read data with SELECT. Now we move to <strong>modifying</strong> data.
+                    The four fundamental operations on any database are called <strong>CRUD</strong>:
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Create</strong>
+                        <span>INSERT INTO adds new rows to a table</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Read</strong>
+                        <span>SELECT retrieves data (you already know this)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Update</strong>
+                        <span>UPDATE modifies existing rows</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Delete</strong>
+                        <span>DELETE removes rows from a table</span>
+                    </div>
+                </div>
+                <p class="content-text">
+                    Since our SQL console uses an in-memory database, you can safely experiment.
+                    Changes persist during your session but reset when you reload the page.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">INSERT INTO</h2>
+                <p class="content-text">
+                    The <code>INSERT INTO</code> statement adds new rows to a table. You must specify the
+                    table name, the columns, and the values to insert:
+                </p>
+                <div class="code-block">
+<span class="keyword">INSERT INTO</span> employees (id, first_name, last_name, email, department_id, salary, hire_date, manager_id)
+<span class="keyword">VALUES</span> (<span class="number">21</span>, <span class="string">'Taylor'</span>, <span class="string">'Swift'</span>, <span class="string">'tswift@meridian.io'</span>, <span class="number">2</span>, <span class="number">95000</span>, <span class="string">'2024-01-15'</span>, <span class="number">4</span>);
+                </div>
+                <p class="content-text">
+                    Try it in the console, then run <code>SELECT * FROM employees WHERE id = 21;</code> to verify
+                    the new record was added.
+                </p>
+
+                <p class="content-text">
+                    <strong>Shortcut: omitting column names.</strong> If you provide values for every column
+                    in the correct order, you can skip the column list:
+                </p>
+                <div class="code-block">
+<span class="keyword">INSERT INTO</span> departments <span class="keyword">VALUES</span> (<span class="number">7</span>, <span class="string">'Research'</span>, <span class="string">'Building E'</span>, <span class="number">600000</span>);
+                </div>
+                <p class="content-text">
+                    This is shorter but fragile. If the table schema changes, the query breaks. Always
+                    prefer listing column names explicitly in production code.
+                </p>
+
+                <p class="content-text">
+                    <strong>Multi-row INSERT:</strong> Insert several rows at once for efficiency:
+                </p>
+                <div class="code-block">
+<span class="keyword">INSERT INTO</span> products (id, name, category, price, stock) <span class="keyword">VALUES</span>
+    (<span class="number">11</span>, <span class="string">'FirewallX'</span>, <span class="string">'Security'</span>, <span class="number">459.99</span>, <span class="number">75</span>),
+    (<span class="number">12</span>, <span class="string">'LoadBalancer'</span>, <span class="string">'DevOps'</span>, <span class="number">289.99</span>, <span class="number">130</span>);
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">UPDATE ... SET</h2>
+                <p class="content-text">
+                    The <code>UPDATE</code> statement modifies existing rows. You specify which columns to change
+                    and use <code>WHERE</code> to target specific rows:
+                </p>
+                <div class="code-block">
+<span class="keyword">UPDATE</span> employees
+<span class="keyword">SET</span> salary = <span class="number">130000</span>
+<span class="keyword">WHERE</span> id = <span class="number">1</span>;
+                </div>
+                <p class="content-text">
+                    This gives Sarah Chen a raise to $130,000. You can update multiple columns at once:
+                </p>
+                <div class="code-block">
+<span class="keyword">UPDATE</span> employees
+<span class="keyword">SET</span> salary = salary * <span class="number">1.05</span>, department_id = <span class="number">3</span>
+<span class="keyword">WHERE</span> id = <span class="number">8</span>;
+                </div>
+                <p class="content-text">
+                    This gives employee #8 a 5% raise AND transfers them to department 3. Note that
+                    <code>salary * 1.05</code> references the current value. You can use expressions in SET.
+                </p>
+
+                <div class="warning-box">
+                    <h4>WARNING: Always include WHERE</h4>
+                    <p>
+                        Running UPDATE without WHERE modifies <strong>every row</strong> in the table.
+                        <code>UPDATE employees SET salary = 50000;</code> would set everyone's salary to 50K.
+                        In production databases, this is one of the most common and devastating mistakes.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">DELETE FROM</h2>
+                <p class="content-text">
+                    The <code>DELETE</code> statement removes rows from a table:
+                </p>
+                <div class="code-block">
+<span class="keyword">DELETE FROM</span> orders
+<span class="keyword">WHERE</span> status = <span class="string">'cancelled'</span>;
+                </div>
+                <p class="content-text">
+                    This removes all cancelled orders. Again, the <code>WHERE</code> clause is critical.
+                </p>
+
+                <div class="warning-box">
+                    <h4>WARNING: DELETE without WHERE</h4>
+                    <p>
+                        <code>DELETE FROM employees;</code> with no WHERE clause deletes <strong>every row</strong>
+                        in the table. The table still exists (it is now empty), but all data is gone.
+                        To remove the table entirely, you would use <code>DROP TABLE employees;</code>.
+                    </p>
+                </div>
+
+                <p class="content-text">
+                    <strong>Best practice:</strong> Before running an UPDATE or DELETE, first run a SELECT
+                    with the same WHERE clause to preview which rows will be affected:
+                </p>
+                <div class="code-block">
+<span class="comment">-- First: preview what will be deleted</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> orders <span class="keyword">WHERE</span> status = <span class="string">'cancelled'</span>;
+
+<span class="comment">-- Then: delete if the preview looks correct</span>
+<span class="keyword">DELETE FROM</span> orders <span class="keyword">WHERE</span> status = <span class="string">'cancelled'</span>;
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">INSERT ... SELECT</h2>
+                <p class="content-text">
+                    You can insert data from one table into another using a SELECT query as the source:
+                </p>
+                <div class="code-block">
+<span class="keyword">CREATE TABLE</span> engineering_team <span class="keyword">AS</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> employees <span class="keyword">WHERE</span> department_id = <span class="number">1</span>;
+                </div>
+                <p class="content-text">
+                    This creates a new table with only the Engineering department employees. The
+                    <code>CREATE TABLE ... AS SELECT</code> pattern is useful for creating backups or
+                    working copies of data.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>INSERT INTO adds new rows; list columns explicitly for safety</li>
+                    <li>UPDATE SET modifies existing rows; always include a WHERE clause</li>
+                    <li>DELETE FROM removes rows; preview with SELECT first</li>
+                    <li>UPDATE/DELETE without WHERE affects ALL rows in the table</li>
+                    <li>Use expressions in SET (salary * 1.05) to modify relative to current values</li>
+                    <li>CREATE TABLE ... AS SELECT copies data between tables</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-05-foundations.lab.html" class="nav-btn">&lt; Previous: Foundations Lab</a>
+                <a href="script-db-07-nulls.module.html" class="nav-btn primary">Next: Working with NULLs &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-06-crud';
+        const tasks = { 'insert': false, 'update': false, 'delete': false, 'verify': false };
+        let hasModified = false;
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                if (upper.startsWith('INSERT')) {
+                    completeTask('insert');
+                    hasModified = true;
+                }
+                if (upper.startsWith('UPDATE')) {
+                    completeTask('update');
+                    hasModified = true;
+                }
+                if (upper.startsWith('DELETE')) {
+                    completeTask('delete');
+                    hasModified = true;
+                }
+                // Verify: run a SELECT after doing any modification
+                if (hasModified && upper.startsWith('SELECT')) {
+                    completeTask('verify');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+                if (saved.completed.some(t => ['insert', 'update', 'delete'].includes(t))) hasModified = true;
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB-28: Data Ingestion Patterns | Databases</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #3B82F6;
+            --accent-dim: rgba(59, 130, 246, 0.15);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+        .header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(10,10,15,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); height: 50px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .module-badge { background: var(--accent-dim); color: var(--accent); padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--accent-glow); }
+        .header h1 { font-size: 1rem; font-weight: 600; }
+        .back-link { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-weight: 600; font-size: 0.85rem; }
+        .panel-tasks-progress { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; transition: all 0.3s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .terminal-container { flex: 1; padding: 0; overflow: hidden; }
+        .content-panel { padding: 30px 40px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .objectives h3 { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { color: var(--text-secondary); padding: 3px 0 3px 18px; position: relative; font-size: 0.85rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .content-text { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.8; }
+        .content-text strong { color: var(--text-primary); }
+        .content-text code { background: rgba(59,130,246,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: #c9d1d9; overflow-x: auto; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .warning-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+        .warning-box h4 { color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.82rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card:hover { border-color: var(--accent-glow); }
+        .feature-card strong { display: block; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .takeaways { background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); font-size: 0.9rem; margin-bottom: 10px; }
+        .takeaways ul { list-style: none; padding: 0; }
+        .takeaways li { color: var(--text-secondary); padding: 4px 0 4px 22px; position: relative; font-size: 0.85rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); }
+        .nav-footer { display: flex; justify-content: space-between; padding: 20px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+        .nav-btn { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .nav-btn.primary { background: var(--accent-dim); border-color: var(--accent-glow); color: var(--accent); }
+        .nav-btn.primary:hover { background: rgba(59,130,246,0.25); }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .terminal-panel { position: relative; top: 0; height: 400px; } .content-panel { max-height: none; padding: 20px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">DB-28</span>
+            <h1>Data Ingestion Patterns</h1>
+        </div>
+        <a href="../../arctic/districts/databases/" class="back-link">&lt; Databases District</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="transaction">TRANSACTION</span>
+                    <span class="task-chip" data-task="upsert">UPSERT</span>
+                    <span class="task-chip" data-task="batch">BATCH INSERT</span>
+                    <span class="task-chip" data-task="temp-table">TEMP TABLE</span>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Wrap multiple statements in transactions for atomicity and performance</li>
+                    <li>Use INSERT OR REPLACE and ON CONFLICT for upsert operations</li>
+                    <li>Perform efficient batch loading with multi-row INSERTs</li>
+                    <li>Create and use temporary tables as ETL staging areas</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Data Ingestion Overview</h2>
+                <p class="content-text">
+                    <strong>Data ingestion</strong> is the process of loading data from external sources into a database.
+                    Whether you are importing a CSV export, consuming an API response, or processing a stream of log
+                    entries, the patterns are the same: get data in reliably, efficiently, and without corrupting what
+                    is already there.
+                </p>
+                <p class="content-text">
+                    In production systems, ingestion is rarely a single INSERT. It involves <strong>transactions</strong>
+                    for safety, <strong>upserts</strong> for idempotency, <strong>batch loading</strong> for performance,
+                    and <strong>staging tables</strong> for transformation. These four patterns form the backbone of any
+                    data pipeline.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Batch</strong>
+                        <span>Large loads -- import thousands of rows in one operation</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Stream</strong>
+                        <span>Continuous ingestion -- rows arrive in real time</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Full Load</strong>
+                        <span>Replace all data -- truncate and reimport from scratch</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Incremental</strong>
+                        <span>Only changes -- load rows added or modified since last sync</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Transactions</h2>
+                <p class="content-text">
+                    A <strong>transaction</strong> groups multiple SQL statements into a single atomic operation.
+                    Either <strong>all</strong> statements succeed, or <strong>none</strong> of them do. This is the
+                    foundation of reliable data ingestion -- if something fails halfway through, you do not end up
+                    with a half-loaded, corrupted dataset.
+                </p>
+                <div class="code-block">
+<span class="keyword">BEGIN</span> <span class="keyword">TRANSACTION</span>;
+
+<span class="keyword">INSERT INTO</span> employees (name, department_id, salary)
+    <span class="keyword">VALUES</span> (<span class="string">'Alice Chen'</span>, <span class="number">1</span>, <span class="number">85000</span>);
+<span class="keyword">INSERT INTO</span> employees (name, department_id, salary)
+    <span class="keyword">VALUES</span> (<span class="string">'Bob Martinez'</span>, <span class="number">2</span>, <span class="number">72000</span>);
+<span class="keyword">INSERT INTO</span> employees (name, department_id, salary)
+    <span class="keyword">VALUES</span> (<span class="string">'Carol Davis'</span>, <span class="number">1</span>, <span class="number">91000</span>);
+
+<span class="keyword">COMMIT</span>;
+                </div>
+                <p class="content-text">
+                    If any INSERT fails, you can issue <code>ROLLBACK</code> instead of <code>COMMIT</code> to undo
+                    everything. Nothing is written to the database until COMMIT executes.
+                </p>
+                <p class="content-text">
+                    <strong>Performance benefit:</strong> without an explicit transaction, every single INSERT is
+                    automatically wrapped in its own implicit transaction. This means each INSERT triggers a disk
+                    write. If you are loading 1,000 rows, that is 1,000 disk writes. Wrapping them in a single
+                    transaction turns that into <strong>one</strong> disk write -- orders of magnitude faster.
+                </p>
+                <div class="warning-box">
+                    <h4>Gotcha: Auto-commit</h4>
+                    <p>
+                        SQLite (and most databases) run in auto-commit mode by default. Each statement is its own
+                        transaction. This is safe but slow for bulk operations. Always wrap bulk inserts in
+                        <code>BEGIN ... COMMIT</code> for performance.
+                    </p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">INSERT OR REPLACE (Upsert)</h2>
+                <p class="content-text">
+                    When loading data, you often do not know if a row already exists. A plain INSERT will fail with
+                    a constraint violation if the primary key or a unique key already exists. <strong>Upsert</strong>
+                    operations solve this by either inserting a new row or updating the existing one.
+                </p>
+                <div class="code-block">
+<span class="comment">-- If employee_id 1 exists, replace the entire row</span>
+<span class="keyword">INSERT OR REPLACE INTO</span> employees (employee_id, name, salary)
+    <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'Alice Chen'</span>, <span class="number">90000</span>);
+                </div>
+                <p class="content-text">
+                    <code>INSERT OR REPLACE</code> deletes the existing row and inserts the new one. This means
+                    <strong>all columns</strong> are overwritten. If you only want to update specific columns,
+                    use the modern <code>ON CONFLICT</code> syntax instead:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Only update salary if the row already exists</span>
+<span class="keyword">INSERT INTO</span> employees (employee_id, name, salary)
+    <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'Alice Chen'</span>, <span class="number">90000</span>)
+    <span class="keyword">ON CONFLICT</span>(employee_id) <span class="keyword">DO UPDATE SET</span>
+        salary = excluded.salary;
+                </div>
+                <p class="content-text">
+                    The <code>excluded</code> keyword refers to the row that was <em>attempted</em> to be inserted.
+                    This gives you fine-grained control over what gets updated on a conflict.
+                </p>
+                <p class="content-text">
+                    There is also <code>INSERT OR IGNORE</code>, which silently skips rows that would cause a conflict.
+                    This is useful when you want to load data but never overwrite existing records:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Skip if already exists -- no error, no update</span>
+<span class="keyword">INSERT OR IGNORE INTO</span> employees (employee_id, name, salary)
+    <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'Alice Chen'</span>, <span class="number">90000</span>);
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Batch Loading</h2>
+                <p class="content-text">
+                    Instead of inserting rows one at a time, <strong>multi-row INSERT</strong> lets you load many
+                    rows in a single statement. This is significantly faster because the database parses and plans
+                    the query once instead of once per row:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Five rows in one INSERT statement</span>
+<span class="keyword">INSERT INTO</span> employees (name, department_id, salary) <span class="keyword">VALUES</span>
+    (<span class="string">'Alice Chen'</span>,    <span class="number">1</span>, <span class="number">85000</span>),
+    (<span class="string">'Bob Martinez'</span>,  <span class="number">2</span>, <span class="number">72000</span>),
+    (<span class="string">'Carol Davis'</span>,   <span class="number">1</span>, <span class="number">91000</span>),
+    (<span class="string">'Dan Wilson'</span>,    <span class="number">3</span>, <span class="number">68000</span>),
+    (<span class="string">'Eve Taylor'</span>,    <span class="number">2</span>, <span class="number">79000</span>);
+                </div>
+                <p class="content-text">
+                    In production, batch loading is how you handle <strong>CSV imports</strong>, <strong>API
+                    responses</strong>, and <strong>log files</strong>. The typical pattern is: read the source data,
+                    build a multi-row INSERT (or use a staging table), and wrap it in a transaction.
+                </p>
+                <p class="content-text">
+                    <strong>Staging pattern:</strong> for complex transformations, create a temporary staging table,
+                    bulk insert the raw data, then use <code>INSERT INTO ... SELECT</code> to move transformed data
+                    into the final table:
+                </p>
+                <div class="code-block">
+<span class="comment">-- 1. Bulk load raw data into staging</span>
+<span class="keyword">INSERT INTO</span> staging (raw_name, raw_dept, raw_salary) <span class="keyword">VALUES</span>
+    (<span class="string">'ALICE CHEN'</span>,    <span class="string">'ENGINEERING'</span>, <span class="string">'85000'</span>),
+    (<span class="string">'BOB MARTINEZ'</span>,  <span class="string">'MARKETING'</span>,   <span class="string">'72000'</span>);
+
+<span class="comment">-- 2. Transform and insert into final table</span>
+<span class="keyword">INSERT INTO</span> employees (name, department_id, salary)
+    <span class="keyword">SELECT</span>
+        <span class="function">LOWER</span>(raw_name),
+        (<span class="keyword">SELECT</span> id <span class="keyword">FROM</span> departments <span class="keyword">WHERE</span> name = raw_dept),
+        <span class="function">CAST</span>(raw_salary <span class="keyword">AS</span> <span class="keyword">INTEGER</span>)
+    <span class="keyword">FROM</span> staging;
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Temporary Tables</h2>
+                <p class="content-text">
+                    <strong>Temporary tables</strong> exist only for the duration of the database session. They are
+                    perfect for ETL (Extract, Transform, Load) staging areas -- you load raw data into them,
+                    clean and transform it, then push the final result into permanent tables.
+                </p>
+                <div class="code-block">
+<span class="comment">-- Create a temp table for staging raw import data</span>
+<span class="keyword">CREATE TEMP TABLE</span> staging (
+    raw_name    <span class="keyword">TEXT</span>,
+    raw_dept    <span class="keyword">TEXT</span>,
+    raw_salary  <span class="keyword">TEXT</span>
+);
+
+<span class="comment">-- Load raw data</span>
+<span class="keyword">INSERT INTO</span> staging <span class="keyword">VALUES</span>
+    (<span class="string">'ALICE CHEN'</span>, <span class="string">'ENGINEERING'</span>, <span class="string">'85000'</span>),
+    (<span class="string">'BOB MARTINEZ'</span>, <span class="string">'MARKETING'</span>, <span class="string">'72000'</span>);
+
+<span class="comment">-- Verify staging data</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> staging;
+                </div>
+                <p class="content-text">
+                    The <code>TEMP</code> keyword (or <code>TEMPORARY</code> -- both work) tells the database this
+                    table is ephemeral. When the session ends, the table and all its data are automatically dropped.
+                    No cleanup required.
+                </p>
+                <p class="content-text">
+                    For explicit cleanup during a session, use <code>DROP TABLE IF EXISTS</code>:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Clean up when done</span>
+<span class="keyword">DROP TABLE IF EXISTS</span> staging;
+                </div>
+                <p class="content-text">
+                    Temporary tables are invisible to other connections. Two users can each create a temp table called
+                    <code>staging</code> without conflict -- each sees only their own.
+                </p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Practical Patterns</h2>
+                <p class="content-text">
+                    <strong>Change Data Capture (CDC)</strong> is a pattern for incremental loading. Instead of
+                    reimporting all data every time, you track what changed since the last sync using timestamps:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Only load rows that changed since our last sync</span>
+<span class="keyword">INSERT INTO</span> target_table (id, name, value, updated_at)
+    <span class="keyword">SELECT</span> id, name, value, updated_at
+    <span class="keyword">FROM</span> source_table
+    <span class="keyword">WHERE</span> updated_at > <span class="string">'2026-03-01 00:00:00'</span>;
+                </div>
+                <p class="content-text">
+                    This requires every source table to have an <code>updated_at</code> timestamp column that is
+                    reliably maintained. The trade-off is complexity for efficiency -- you move only the delta
+                    instead of the full dataset.
+                </p>
+                <p class="content-text">
+                    <strong>WAL mode</strong> (Write-Ahead Logging) is a SQLite configuration that allows concurrent
+                    readers while a write is in progress. This is critical for ingestion pipelines where you want
+                    to load data without blocking queries:
+                </p>
+                <div class="code-block">
+<span class="comment">-- Enable WAL mode for concurrent read/write</span>
+<span class="keyword">PRAGMA</span> journal_mode = WAL;
+                </div>
+                <p class="content-text">
+                    In WAL mode, readers see a consistent snapshot of the database even while a transaction is
+                    writing new data. Once the write commits, new readers see the updated data. This is the
+                    recommended mode for any application that mixes reads and writes.
+                </p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Transactions (BEGIN/COMMIT) make bulk operations atomic and dramatically faster</li>
+                    <li>INSERT OR REPLACE overwrites existing rows; ON CONFLICT gives fine-grained update control</li>
+                    <li>INSERT OR IGNORE silently skips rows that would violate constraints</li>
+                    <li>Multi-row INSERT is faster than individual INSERTs -- parse once, insert many</li>
+                    <li>Temporary tables are perfect staging areas: load raw, transform, push to final</li>
+                    <li>CDC patterns use timestamps to load only what changed since the last sync</li>
+                    <li>WAL mode enables concurrent reads during write operations</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="script-db-27-admin.lab.html" class="nav-btn">&lt; Previous: Database Admin Lab</a>
+                <a href="script-db-29-errors.module.html" class="nav-btn primary">Next: Error Management &amp; Idempotency &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="db-seed-data.js"></script>
+    <script src="../../../../components/SQLTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'db-28-ingestion';
+        const tasks = { 'transaction': false, 'upsert': false, 'batch': false, 'temp-table': false };
+
+        SQLTerminal.init(MODULE_ID, '#terminal', {
+            seedSQL: typeof DB_SEED_SQL !== 'undefined' ? DB_SEED_SQL : '',
+            onCommand: function(sql, results, error) {
+                if (error) return;
+                const upper = sql.toUpperCase().replace(/\s+/g, ' ').trim();
+
+                // Task: transaction — use BEGIN, COMMIT, or ROLLBACK
+                if (/\b(BEGIN|COMMIT|ROLLBACK)\b/.test(upper)) {
+                    completeTask('transaction');
+                }
+                // Task: upsert — INSERT OR REPLACE/IGNORE or ON CONFLICT
+                if (/INSERT\s+OR\s+(REPLACE|IGNORE)\b/.test(upper) || /ON\s+CONFLICT/.test(upper)) {
+                    completeTask('upsert');
+                }
+                // Task: batch — multi-row INSERT (VALUES with multiple parenthesized groups)
+                if (/VALUES\s*\([^)]*\)\s*,\s*\(/.test(upper)) {
+                    completeTask('batch');
+                }
+                // Task: temp-table — CREATE TEMP or CREATE TEMPORARY TABLE
+                if (/CREATE\s+TEMP(ORARY)?\s+TABLE/.test(upper)) {
+                    completeTask('temp-table');
+                }
+            }
+        });
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) chip.classList.add('completed');
+            updateProgress();
+            saveProgress();
+            if (Object.values(tasks).every(v => v)) {
+                ModuleProgress.complete('script', MODULE_ID, { returnUrl: '../../arctic/districts/databases/' });
+            }
+        }
+
+        function updateProgress() {
+            const done = Object.values(tasks).filter(v => v).length;
+            const total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+            document.getElementById('progressText').textContent = `${done} / ${total}`;
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script[MODULE_ID] = {
+                completed: Object.entries(tasks).filter(([,v]) => v).map(([k]) => k),
+                lastAccess: Date.now()
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const saved = progress.script?.[MODULE_ID];
+            if (saved?.completed) {
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
