@@ -28,6 +28,7 @@ const FlexOverflowValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/
 const SandboxValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/sandbox'));
 const LinuxTerminalValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/linux-terminal'));
 const ProgressKeysValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/progress-keys'));
+const XPAuditValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/xp-audit'));
 
 // ── Import expectations ──────────────────────────────────────────────
 const expectations = require('./expectations');
@@ -39,7 +40,8 @@ const PATH_OVERRIDES = {
     'naming-issues.html':      'houses/shield/presentations/bad-name.html',
     'path-strict-issues.html': 'houses/web/path-strict-issues.html',
     'naming-full-issues.html': 'houses/web/labs/MyBadFile.html',
-    'nav-issues.html':         'houses/web/modules/test-nav.module.html'
+    'nav-issues.html':         'houses/web/modules/test-nav.module.html',
+    'xp-issues.js':            'components/xp-issues.js'
 };
 
 // ── Instantiate validators ──────────────────────────────────────────
@@ -60,7 +62,8 @@ const validators = [
     new FlexOverflowValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new SandboxValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new LinuxTerminalValidator({ profile: 'strict' }),
-    new ProgressKeysValidator({ profile: 'strict' })
+    new ProgressKeysValidator({ profile: 'strict' }),
+    new XPAuditValidator({ rootPath: ROOT_PATH, profile: 'strict' })
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────

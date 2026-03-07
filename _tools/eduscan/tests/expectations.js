@@ -28,5 +28,6 @@ module.exports = {
     'flex-overflow-issues.html':    ['FLEX-001'],
     'sandbox-issues.html':           ['SANDBOX-002', 'SANDBOX-003', 'SANDBOX-007'],
     'lt-issues.html':                 ['LT-001', 'LT-002', 'LT-003', 'LT-004'],
-    'progress-issues.html':            ['PROG-001', 'PROG-002']
+    'progress-issues.html':            ['PROG-001', 'PROG-002'],
+    'xp-issues.js':                     ['XP-001', 'XP-002', 'XP-003', 'XP-004']
 };

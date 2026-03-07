@@ -29,6 +29,7 @@ const FlexOverflowValidator = require('./flex-overflow');
 const SandboxValidator = require('./sandbox');
 const LinuxTerminalValidator = require('./linux-terminal');
 const ProgressKeysValidator = require('./progress-keys');
+const XPAuditValidator = require('./xp-audit');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -135,6 +136,11 @@ class SyntaxValidator {
             verbose: this.verbose,
             profile: this.profile
         });
+        this.xpAuditValidator = new XPAuditValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
     }
 
     /**
@@ -171,6 +177,7 @@ class SyntaxValidator {
                 sandboxErrors: 0,
                 linuxTerminalErrors: 0,
                 progressKeysErrors: 0,
+                xpAuditErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -261,6 +268,16 @@ class SyntaxValidator {
             results.summary.paletteErrors = paletteResults.issues.length;
             if (this.verbose) {
                 console.log(`[SYNTAX] Palette: ${paletteResults.issues.length} issues`);
+            }
+        }
+
+        // Run XP Audit validation (global, scans JS files for XP pipeline issues)
+        const xpAuditGlobalResults = this.xpAuditValidator.validateGlobal();
+        if (xpAuditGlobalResults.length > 0) {
+            results.issues.push(...xpAuditGlobalResults);
+            results.summary.xpAuditErrors += xpAuditGlobalResults.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] XP Audit (global): ${xpAuditGlobalResults.length} issues`);
             }
         }
 
