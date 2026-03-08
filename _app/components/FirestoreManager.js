@@ -1258,8 +1258,19 @@ const FirestoreManager = (function() {
             });
 
             // 4. Local → Cloud: union local completedModules/labsCompleted arrays with cloud
-            const localModules = Array.isArray(localProgress.completedModules) ? localProgress.completedModules : [];
-            const localLabs = Array.isArray(localProgress.labsCompleted) ? localProgress.labsCompleted : [];
+            // Filter garbage: only accept IDs with a known house prefix and a non-empty key
+            const _validHouses = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'linux', 'arena'];
+            const _isValidId = (id) => {
+                if (!id || typeof id !== 'string') return false;
+                if (id.startsWith('dark-arts-') && id.length > 10) return true;
+                const dash = id.indexOf('-');
+                if (dash < 1) return false;
+                const house = id.slice(0, dash);
+                const key = id.slice(dash + 1);
+                return key.length > 0 && _validHouses.includes(house) && !key.startsWith(house + '-');
+            };
+            const localModules = (Array.isArray(localProgress.completedModules) ? localProgress.completedModules : []).filter(_isValidId);
+            const localLabs = (Array.isArray(localProgress.labsCompleted) ? localProgress.labsCompleted : []).filter(_isValidId);
             const allModuleIds = new Set([...cloudModules, ...localModules]);
             const allLabIds = new Set([...cloudLabs, ...localLabs]);
             addedToCloud = allModuleIds.size - cloudModules.length;

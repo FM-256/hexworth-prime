@@ -38,6 +38,47 @@ function calculateLevel(xp) {
     return Math.max(1, Math.floor((1 + Math.sqrt(1 + xp / 12.5)) / 2));
 }
 
+// ─── Module ID Validation ───────────────────────────────────────────
+// Known single-segment house prefixes + multi-segment (dark-arts)
+const KNOWN_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'linux', 'arena'];
+const MULTI_SEGMENT_HOUSES = ['dark-arts'];
+
+/**
+ * Check if a module ID is structurally valid: {house}-{key} where house
+ * is a known prefix and key is a non-empty, non-house string.
+ * Rejects: bare house names, double-prefixed, non-module properties,
+ * bare keys without prefix, and numeric junk like "5000-any_id".
+ */
+function isValidModuleId(id) {
+    if (!id || typeof id !== 'string') return false;
+    // Check multi-segment houses first
+    for (const mh of MULTI_SEGMENT_HOUSES) {
+        if (id.startsWith(mh + '-') && id.length > mh.length + 1) {
+            const key = id.slice(mh.length + 1);
+            // Reject double-prefixed (dark-arts-dark-arts-X)
+            if (key.startsWith(mh + '-') || KNOWN_HOUSES.some(h => key.startsWith(h + '-') && key.length === h.length + 1 + key.slice(h.length + 1).length)) {
+                // More precise: reject if key starts with any known house prefix
+                for (const mh2 of MULTI_SEGMENT_HOUSES) {
+                    if (key.startsWith(mh2 + '-')) return false;
+                }
+            }
+            return true;
+        }
+    }
+    // Check single-segment houses
+    const dashIdx = id.indexOf('-');
+    if (dashIdx < 1) return false;
+    const house = id.slice(0, dashIdx);
+    const key = id.slice(dashIdx + 1);
+    if (!key) return false;
+    if (!KNOWN_HOUSES.includes(house)) return false;
+    // Reject double-prefixed (forge-forge-X, shield-shield-X, cloud-cloud-X)
+    if (key.startsWith(house + '-')) return false;
+    // Reject if key is just a house name (forge-forge, shield-shield)
+    if (KNOWN_HOUSES.includes(key) || MULTI_SEGMENT_HOUSES.includes(key)) return false;
+    return true;
+}
+
 /**
  * Classify a module ID by type using available Firestore data.
  * Priority: quizzes map (tier 1) > labsCompleted set (tier 1) > ID suffix heuristic (tier 4)
@@ -174,18 +215,18 @@ async function migrate() {
         const p = doc.data();
         const callsign = p.callsign || p.displayName || doc.id.slice(0, 8);
 
-        // 1. Deduplicate arrays
+        // 1. Deduplicate AND filter garbage from arrays
         const origModules = Array.isArray(p.modulesCompleted) ? p.modulesCompleted : [];
         const origLabs = Array.isArray(p.labsCompleted) ? p.labsCompleted : [];
 
-        const dedupModules = [...new Set(origModules)];
-        const dedupLabs = [...new Set(origLabs)];
+        const cleanModules = [...new Set(origModules)].filter(isValidModuleId);
+        const cleanLabs = [...new Set(origLabs)].filter(isValidModuleId);
 
-        const modulesDupes = origModules.length - dedupModules.length;
-        const labsDupes = origLabs.length - dedupLabs.length;
+        const modulesRemoved = origModules.length - cleanModules.length;
+        const labsRemoved = origLabs.length - cleanLabs.length;
 
         // 2. Recalculate XP from cleaned data
-        const cleanProfile = { ...p, modulesCompleted: dedupModules, labsCompleted: dedupLabs };
+        const cleanProfile = { ...p, modulesCompleted: cleanModules, labsCompleted: cleanLabs };
         const { xp: derivedXP, breakdown, uniqueModules } = deriveXP(cleanProfile);
         const storedXP = p.xp || 0;
         const delta = storedXP - derivedXP;
@@ -199,16 +240,16 @@ async function migrate() {
             delta,
             storedLevel: p.level || 0,
             newLevel,
-            modulesDupes,
-            labsDupes,
+            modulesRemoved,
+            labsRemoved,
             origModuleCount: origModules.length,
-            dedupModuleCount: dedupModules.length,
+            cleanModuleCount: cleanModules.length,
             origLabCount: origLabs.length,
-            dedupLabCount: dedupLabs.length,
+            cleanLabCount: cleanLabs.length,
             uniqueModules,
             breakdown,
-            dedupModules,
-            dedupLabs
+            cleanModules,
+            cleanLabs
         });
     }
 
@@ -216,15 +257,15 @@ async function migrate() {
     results.sort((a, b) => b.delta - a.delta);
 
     // Print table
-    console.log(`  ${'CALLSIGN'.padEnd(16)} ${'STORED'.padStart(8)} ${'DERIVED'.padStart(8)} ${'DELTA'.padStart(8)} ${'LVL'.padStart(6)} ${'MODS'.padStart(6)} ${'DUPES'.padStart(6)}`);
+    console.log(`  ${'CALLSIGN'.padEnd(16)} ${'STORED'.padStart(8)} ${'DERIVED'.padStart(8)} ${'DELTA'.padStart(8)} ${'LVL'.padStart(6)} ${'CLEAN'.padStart(6)} ${'JUNK'.padStart(6)}`);
     console.log(`  ${'─'.repeat(16)} ${'─'.repeat(8)} ${'─'.repeat(8)} ${'─'.repeat(8)} ${'─'.repeat(6)} ${'─'.repeat(6)} ${'─'.repeat(6)}`);
 
     for (const r of results) {
         const flag = r.delta > 100 ? ' !!!' : r.delta < -100 ? ' (low)' : '';
         const lvl = `${r.storedLevel}>${r.newLevel}`;
-        const dupes = r.modulesDupes + r.labsDupes;
+        const junk = r.modulesRemoved + r.labsRemoved;
         console.log(`  ${r.callsign.padEnd(16)} ${r.storedXP.toLocaleString().padStart(8)} ${r.derivedXP.toLocaleString().padStart(8)} ${(r.delta > 0 ? '+' : '') + r.delta.toLocaleString()
-            .padStart(r.delta >= 0 ? 7 : 8)} ${lvl.padStart(6)} ${r.dedupModuleCount.toString().padStart(6)} ${dupes.toString().padStart(6)}${flag}`);
+            .padStart(r.delta >= 0 ? 7 : 8)} ${lvl.padStart(6)} ${r.cleanModuleCount.toString().padStart(6)} ${junk.toString().padStart(6)}${flag}`);
     }
 
     // Detailed breakdown per user
@@ -232,12 +273,12 @@ async function migrate() {
     for (const r of results) {
         const b = r.breakdown;
         console.log(`  ${r.callsign}: ${b.presentations}p + ${b.labs}L + ${b.quizzes}Q + ${b.tools}T + ${b.gates}G + ${b.streak}d streak = ${r.derivedXP} XP`);
-        if (r.modulesDupes > 0) console.log(`    modules: ${r.origModuleCount} → ${r.dedupModuleCount} (-${r.modulesDupes} dupes)`);
-        if (r.labsDupes > 0) console.log(`    labs: ${r.origLabCount} → ${r.dedupLabCount} (-${r.labsDupes} dupes)`);
+        if (r.modulesRemoved > 0) console.log(`    modules: ${r.origModuleCount} → ${r.cleanModuleCount} (-${r.modulesRemoved} garbage)`);
+        if (r.labsRemoved > 0) console.log(`    labs: ${r.origLabCount} → ${r.cleanLabCount} (-${r.labsRemoved} garbage)`);
     }
 
     // Summary
-    const totalDupes = results.reduce((s, r) => s + r.modulesDupes + r.labsDupes, 0);
+    const totalGarbage = results.reduce((s, r) => s + r.modulesRemoved + r.labsRemoved, 0);
     const inflated = results.filter(r => r.delta > 100).length;
     const deflated = results.filter(r => r.delta < -100).length;
 
@@ -246,7 +287,7 @@ async function migrate() {
     console.log(`  Users:     ${results.length}`);
     console.log(`  Inflated:  ${inflated}`);
     console.log(`  Deflated:  ${deflated}`);
-    console.log(`  Dupes:     ${totalDupes} total (${results.filter(r => r.modulesDupes + r.labsDupes > 0).length} users)`);
+    console.log(`  Garbage:   ${totalGarbage} entries removed (${results.filter(r => r.modulesRemoved + r.labsRemoved > 0).length} users)`);
 
     // Apply changes
     if (APPLY) {
@@ -261,13 +302,13 @@ async function migrate() {
                 const updates = {};
                 let changed = false;
 
-                // Deduplicated arrays
-                if (r.modulesDupes > 0) {
-                    updates.modulesCompleted = r.dedupModules;
+                // Cleaned arrays (always write if garbage was removed)
+                if (r.modulesRemoved > 0) {
+                    updates.modulesCompleted = r.cleanModules;
                     changed = true;
                 }
-                if (r.labsDupes > 0) {
-                    updates.labsCompleted = r.dedupLabs;
+                if (r.labsRemoved > 0) {
+                    updates.labsCompleted = r.cleanLabs;
                     changed = true;
                 }
 
@@ -284,7 +325,7 @@ async function migrate() {
                     batch.update(db.doc(`users/${r.uid}`), updates);
                     batchOps++;
                     const dir = r.delta > 0 ? 'v' : r.delta < 0 ? '^' : '=';
-                    console.log(`  ${dir} ${r.callsign}: ${r.storedXP} -> ${r.derivedXP} XP, Level ${r.storedLevel} -> ${r.newLevel}${r.modulesDupes > 0 ? `, -${r.modulesDupes} mod dupes` : ''}${r.labsDupes > 0 ? `, -${r.labsDupes} lab dupes` : ''}`);
+                    console.log(`  ${dir} ${r.callsign}: ${r.storedXP} -> ${r.derivedXP} XP, Level ${r.storedLevel} -> ${r.newLevel}${r.modulesRemoved > 0 ? `, -${r.modulesRemoved} junk mods` : ''}${r.labsRemoved > 0 ? `, -${r.labsRemoved} junk labs` : ''}`);
                 }
             }
 
@@ -294,10 +335,10 @@ async function migrate() {
             }
         }
 
-        const changed = results.filter(r => Math.abs(r.delta) > 0 || r.modulesDupes > 0 || r.labsDupes > 0).length;
+        const changed = results.filter(r => Math.abs(r.delta) > 0 || r.modulesRemoved > 0 || r.labsRemoved > 0).length;
         console.log(`\n  Done. ${changed} user(s) updated.`);
     } else {
-        const wouldChange = results.filter(r => Math.abs(r.delta) > 0 || r.modulesDupes > 0 || r.labsDupes > 0).length;
+        const wouldChange = results.filter(r => Math.abs(r.delta) > 0 || r.modulesRemoved > 0 || r.labsRemoved > 0).length;
         console.log(`\n  ${wouldChange} user(s) would be updated. Run with --apply to commit.`);
     }
 }
