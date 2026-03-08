@@ -2,7 +2,7 @@
 
 **Components:** XPCalculator.js, ModuleProgress.js, ProgressManager.js, FirestoreManager.js, Cloud Functions
 **Location:** `_app/components/`, `functions/index.js`
-**Last audited:** 2026-03-08 (dual-authority fix deployed and migrated)
+**Last audited:** 2026-03-08 (dual-authority fix + re-pollution fix deployed, 3 migration passes)
 
 ---
 
@@ -112,8 +112,8 @@ For each `cloudModules[]` and `cloudLabs[]` and `cloudQuizzes{}`:
 - Uses `parseModuleId()` to split `"forge-md100-m01"` into `{ house: 'forge', key: 'md100-m01' }`
 - `parseModuleId` handles multi-segment `dark-arts-` prefix and includes `ai` in known houses (fixed 2026-03-08)
 
-### Step 4: Local -> Cloud (lines 1258-1271)
-Unions local `completedModules[]` and `labsCompleted[]` arrays with cloud arrays. Applies `_isValidId()` filter to reject garbage entries (bare house names, double-prefixed IDs, non-module properties).
+### Step 4: Local -> Cloud (lines 1260-1276)
+Filters and deduplicates `localProgress.completedModules[]` and `localProgress.labsCompleted[]` **in place**, then unions with cloud arrays. The in-place filter is critical: it ensures Step 6's localStorage write and Step 9's XPCalculator read both use clean data.
 
 ```javascript
 const _validHouses = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'linux', 'arena'];
@@ -124,13 +124,19 @@ const _isValidId = (id) => {
     if (dash < 1) return false;
     const house = id.slice(0, dash);
     const key = id.slice(dash + 1);
-    return key.length > 0 && _validHouses.includes(house) && !key.startsWith(house + '-');
+    if (!key || !_validHouses.includes(house)) return false;
+    if (key.startsWith(house + '-')) return false;  // double-prefixed
+    if (_validHouses.includes(key)) return false;   // key is a house name
+    return true;
 };
+// Cleaned IN PLACE — not just filtered copies
+localProgress.completedModules = [...new Set(localProgress.completedModules.filter(_isValidId))];
+localProgress.labsCompleted = [...new Set(localProgress.labsCompleted.filter(_isValidId))];
 ```
 
-Previous behavior (pre-2026-03-08): iterated `localProgress[house][key]` flat entries and reconstructed `"${house}-${key}"` IDs. This generated garbage entries by iterating non-module properties (xp, updatedAt, etc.) as keys, and double-prefixed IDs when cloud-restored entries were re-scanned.
+Previous behavior (pre-2026-03-08): iterated `localProgress[house][key]` flat entries and reconstructed `"${house}-${key}"` IDs. This generated garbage entries by iterating non-module properties (xp, updatedAt, etc.) as keys, and double-prefixed IDs when cloud-restored entries were re-scanned. The initial `_isValidId` fix (commit `5e00b5c7`) created filtered copies but didn't clean `localProgress` in place, allowing garbage to persist in localStorage and inflate XPCalculator results.
 
-### Step 5: Merge XP (lines 1273-1278)
+### Step 5: Merge XP (lines 1278-1284)
 ```javascript
 if (typeof XPCalculator !== 'undefined') {
     mergedXP = XPCalculator.recalculate().xp;
@@ -140,16 +146,16 @@ if (typeof XPCalculator !== 'undefined') {
 ```
 No Math.max ratchet. XPCalculator result is authoritative.
 
-### Step 6: Write merged data to localStorage (line 1281-1286)
-Writes the enriched localProgress (with cloud-restored flat entries), plus `hexworth_xp`, `hexworth_streak`, etc.
+### Step 6: Write merged data to localStorage (line 1309)
+Writes the cleaned `localProgress` (filtered in Step 4, enriched in Step 3), plus `hexworth_xp`, `hexworth_streak`, etc.
 
-### Step 7: Send to Firestore via `syncProgress` CF (line 1323)
-Sends merged module/lab arrays and `mergedXP` to the Cloud Function. The CF writes client-supplied XP directly (no Math.max).
+### Step 7: Send to Firestore via `syncProgress` CF (line 1351)
+Sends merged module/lab arrays and `mergedXP` to the Cloud Function. The CF validates both client-sent and existing cloud data with `_isValidModuleId()` before merging (server-side gatekeeper, added commit `a03245ed`). Writes client-supplied XP directly (no Math.max).
 
-### Step 8: Sync blob restore/write (line 1340-1342)
-Cross-device localStorage blob restoration.
+### Step 8: Sync blob restore/write (lines 1367-1385)
+Cross-device localStorage blob restoration via `_restoreSyncBlob` (deep merge). Followed by **Step 8a**: re-reads `hexworth_progress` from localStorage and re-applies `_isValidId` filter to `completedModules[]` and `labsCompleted[]`. This catches garbage re-introduced by the sync blob's deep merge with old data.
 
-### Step 9: Final XP correction (lines 1355-1375)
+### Step 9: Final XP correction (lines 1388-1408)
 ```javascript
 const finalCalc = XPCalculator.recalculate();
 const finalXP = finalCalc.xp;
@@ -157,7 +163,7 @@ const finalLevel = finalCalc.level;
 // ...
 await setUserProfile(uid, { xp: finalXP, level: finalLevel });
 ```
-XPCalculator is sole authority. No Math.max ratchet. Writes deterministic result to localStorage and Firestore.
+XPCalculator is sole authority. No Math.max ratchet. Reads from localStorage cleaned by Steps 4 and 8a. Writes deterministic result to localStorage and Firestore.
 
 ---
 
@@ -187,14 +193,28 @@ Evidence: @VORYX had 49K XP with 30 unique modules. @EQ6 had 45K XP with 62 uniq
 6. `firebase deploy --only hosting` — deployed `_isValidId` filter
 7. `node migrate-xp.js --apply` — second pass: dedup + garbage filter (34 users updated, 942 garbage entries removed)
 
-**Results:**
+### 2026-03-08: Re-Pollution Fix (Commit `a03245ed`)
+
+**Problem:** After the second migration pass, EQ6 re-inflated to 45.6K XP on dashboard load. Root cause: `_isValidId` in Step 4 created filtered copies for the Firestore merge but didn't clean `localProgress` arrays in place. Step 6 wrote dirty `localProgress` to localStorage. Step 9 XPCalculator read dirty localStorage and computed inflated XP. Also, `_isValidId` didn't reject key-is-house-name entries (`script-script`, `forge-forge`), and `syncProgress` CF had no ID validation at all.
+
+**Three fixes in commit `a03245ed`:**
+1. `_app/components/FirestoreManager.js` — Filter `localProgress.completedModules/labsCompleted` **in place** (not copies) before Step 6 localStorage write. Added Step 8a post-sync-blob cleanup. Fixed `_isValidId` to reject `_validHouses.includes(key)`.
+2. `functions/index.js` — Added `_isValidModuleId()` to `syncProgress` CF. Filters both client-sent arrays and existing cloud data during merge. Server-side gatekeeper prevents any client (including old cached JS) from writing garbage.
+
+**Deploy + migration (3rd pass):**
+1. `firebase deploy --only functions` — CF now validates all module IDs
+2. `firebase deploy --only hosting` — client filters in place + post-blob cleanup
+3. `node migrate-xp.js --apply` — 3 users updated (EQ6, VORYX, HACKERMAN), 77 garbage entries removed
+
+**Final results:**
 
 | User | Before | After | Change |
 |------|-------:|------:|--------|
-| @VORYX | 49,004 | 15,600 | -68% (30 clean modules) |
-| @EQ6 | 45,625 | 23,800 | -48% (62 clean modules) |
+| @HACKERMAN | 528,750 | 1,025 | -99% (2 clean modules) |
+| @VORYX | 49,004 | 15,650 | -68% (30 clean modules) |
+| @EQ6 | 45,635 | 23,875 | -48% (62 clean modules) |
 
-XP will be slightly higher on next login as XPCalculator includes game/badge XP from localStorage that the migration script skips.
+49 other users unchanged — data was already clean from 2nd pass. XP will be slightly higher on next login as XPCalculator includes game/badge XP from localStorage that the migration script skips.
 
 ### 2026-03-07: Rate Alignment + Sync Fixes (pre-dual-authority)
 
@@ -207,18 +227,22 @@ XP will be slightly higher on next login as XPCalculator includes game/badge XP 
 
 ## Module ID Validation
 
-Two parallel validators ensure only valid module IDs enter the system:
+Three parallel validators ensure only valid module IDs enter the system. All use the same logic:
 
-**`_isValidId()` in FirestoreManager.js (runtime filter):**
-Applied during Step 4 local->cloud union. Rejects entries without a known house prefix or with double-prefixed keys. Prevents garbage from localStorage from reaching Firestore.
+**`_isValidId()` in FirestoreManager.js (client-side runtime filter):**
+Applied in Step 4 (in-place array cleanup) and Step 8a (post-sync-blob cleanup). Filters `localProgress.completedModules` and `localProgress.labsCompleted` before localStorage write and XPCalculator read.
+
+**`_isValidModuleId()` in syncProgress CF (server-side gatekeeper):**
+Filters both client-sent arrays and existing Firestore data during merge. Prevents any client — including old cached JS — from writing garbage to Firestore.
 
 **`isValidModuleId()` in migrate-xp.js (batch cleanup):**
-More comprehensive validation for migration. Same logic plus rejection of bare house names and entries where the key is itself a house name.
+Same validation logic for one-time migration runs.
 
 **Valid houses:** web, shield, forge, script, cloud, code, key, eye, ai, linux, arena, dark-arts (multi-segment)
 
 **Garbage patterns rejected:**
 - Bare house names: `forge`, `shield`, `cloud`
+- Key-is-house-name: `script-script`, `forge-forge`, `code-code`
 - Double-prefixed: `forge-forge-md100`, `shield-shield-cia`
 - Non-module properties: `xp`, `updatedAt`, `completedModules`
 - Bare keys without prefix: `cia-triad`, `md100-m01`
@@ -260,6 +284,10 @@ QuizEngine calls `ProgressManager.completeModule()`, which writes to localStorag
 
 Added `dark-arts-` multi-segment prefix handling and `ai` to known houses.
 
+### Bug 9: XP re-pollution from dirty localStorage — FIXED (2026-03-08)
+
+`_isValidId` filter created filtered copies for Firestore write but didn't clean `localProgress` in place. Step 6 wrote dirty arrays to localStorage. XPCalculator in Step 9 read dirty localStorage, computed inflated XP, and wrote it back to Firestore — undoing the migration. Additionally, sync blob restore (Step 8) could reintroduce garbage via deep merge. Fixed by filtering arrays in place before Step 6 and adding Step 8a post-blob cleanup. Also added `_isValidModuleId()` to `syncProgress` CF as server-side gatekeeper.
+
 ---
 
 ## Where XP Is Awarded (Complete Map)
@@ -284,10 +312,13 @@ Student passes a quiz via QuizEngine:
 
 Dashboard loads (auth state change):
   syncBidirectional()
-    +-- Cloud -> Local: flat + structured (completedModules, labsCompleted, quizHistory)
-    +-- Local -> Cloud: union arrays with _isValidId filter
-    +-- XPCalculator.recalculate(): derives XP from completedModules[]
-    +-- setUserProfile({ xp: finalCalc.xp, level: finalCalc.level }): deterministic write
+    +-- Step 3: Cloud -> Local (flat + structured arrays)
+    +-- Step 4: Filter localProgress arrays IN PLACE (_isValidId + dedup)
+    +-- Step 5: XPCalculator.recalculate() (reads cleaned localStorage)
+    +-- Step 6: Write cleaned localProgress to localStorage
+    +-- Step 7: Send to syncProgress CF (server validates with _isValidModuleId)
+    +-- Step 8: Sync blob restore + Step 8a: re-clean post-merge
+    +-- Step 9: Final XPCalculator.recalculate() -> setUserProfile()
 ```
 
 ---
@@ -436,7 +467,7 @@ xp, level, modulesCompleted, labsCompleted, quizzes, achievements, streak
 | `_app/components/ModuleProgress.js` | `complete()` — primary completion API |
 | `_app/components/ProgressManager.js` | `completeModule()` — alternative path (QuizEngine) |
 | `_app/components/FirestoreManager.js` | `syncBidirectional()` — 9-step sync flow with `_isValidId` filter |
-| `functions/index.js` | Cloud Functions: `recordProgress`, `addXP`, `updateStreak`, `syncProgress` (no XP increments) |
+| `functions/index.js` | Cloud Functions: `recordProgress`, `addXP`, `updateStreak`, `syncProgress` (no XP increments, `_isValidModuleId` gatekeeper) |
 | `functions/migrate-xp.js` | One-time migration script with `isValidModuleId()` |
 
 ---
