@@ -44,6 +44,22 @@ window.FlappyEngine = (function () {
     // Milestone tracking
     let lastMilestone = 0;
 
+    // ── Power-Up State ──────────────────────────────────────────────────
+    let powerups = [];           // collectibles on screen
+    let activePowerup = null;    // { id, endTime, startTime } or null
+    let scoreMultiplier = 1;     // for 'multi' powerup
+    let borderFlashTimer = 0;    // countdown for border flash effect
+    let borderFlashColor = '';   // color for border flash
+
+    // ── Obstacle Variety State ──────────────────────────────────────────
+    // type property added to pipe objects; no extra global state needed
+
+    // ── Progressive Difficulty Events State ─────────────────────────────
+    let activeEvent = null;      // { type, ... } or null
+    let triggeredEvents = {};    // score thresholds already triggered
+    let windParticles = [];      // visual particles for wind event
+    let shakeOffset = { x: 0, y: 0 }; // screen shake for turbulence
+
     // Canvas dimensions
     const W = 400;
     const H = 600;
@@ -157,6 +173,46 @@ window.FlappyEngine = (function () {
         bgGain = null;
     }
 
+    // ── Power-Up Audio ────────────────────────────────────────────────
+    function playCollect() {
+        if (!audioEnabled || !audioCtx) return;
+        try {
+            // Ascending arpeggio: 3 quick notes rising
+            var notes = [523, 659, 784]; // C5, E5, G5
+            for (var n = 0; n < notes.length; n++) {
+                (function (freq, delay) {
+                    var osc = audioCtx.createOscillator();
+                    var gain = audioCtx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+                    gain.gain.setValueAtTime(0.07, audioCtx.currentTime + delay);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + delay + 0.08);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + delay);
+                    osc.stop(audioCtx.currentTime + delay + 0.08);
+                })(notes[n], n * 0.06);
+            }
+        } catch (e) {}
+    }
+
+    function playDeflect() {
+        if (!audioEnabled || !audioCtx) return;
+        try {
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(300, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        } catch (e) {}
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────
     function loadHighScore() {
         try {
@@ -175,22 +231,88 @@ window.FlappyEngine = (function () {
     }
 
     // ── Pipe Generation ─────────────────────────────────────────────────
-    function spawnPipe() {
-        const gapSize = Math.max(baseGapSize - difficultyMultiplier * 2, 100);
-        const minY = 80;
-        const maxY = H - GROUND_H - gapSize - 80;
-        const gapY = minY + Math.random() * (maxY - minY);
+    function selectObstacleType() {
+        var obs = config.obstacles;
+        if (!obs || !obs.types || obs.types.length <= 1) return 'pipe';
+        var thresholds = obs.scoreThresholds || {};
+        var available = ['pipe'];
+        for (var i = 0; i < obs.types.length; i++) {
+            var t = obs.types[i];
+            if (t === 'pipe') continue;
+            var threshold = thresholds[t] || 0;
+            if (score >= threshold) available.push(t);
+        }
+        return available[Math.floor(Math.random() * available.length)];
+    }
 
-        pipes.push({
+    function spawnPipe() {
+        var effectiveGapSize = baseGapSize;
+        // Widen powerup: increase gap
+        if (activePowerup && activePowerup.id === 'widen') {
+            effectiveGapSize += 30;
+        }
+
+        var gapSize = Math.max(effectiveGapSize - difficultyMultiplier * 2, 100);
+        var minY = 80;
+        var maxY = H - GROUND_H - gapSize - 80;
+        var gapY = minY + Math.random() * (maxY - minY);
+
+        var obstacleType = selectObstacleType();
+
+        var pipe = {
             x: W + 10,
             gapY: gapY,
             gapSize: gapSize,
+            originalGapSize: gapSize,
+            originalGapY: gapY,
             width: 52,
             scored: false,
             wasOverlapping: false,
+            type: obstacleType,
+            spawnX: W + 10,
+            phase: Math.random() * Math.PI * 2, // for sinusoidal movement
             // Random decoration text for themed pipes
             label: config.pipes.labels ? config.pipes.labels[Math.floor(Math.random() * config.pipes.labels.length)] : ''
-        });
+        };
+
+        // For split type: generate second gap
+        if (obstacleType === 'split') {
+            var splitGap = Math.max(gapSize * 0.6, 60);
+            var region = H - GROUND_H - 80 - 80;
+            var gap1Y = 80 + Math.random() * (region * 0.4);
+            var gap2Y = gap1Y + splitGap + 40 + Math.random() * (region * 0.3);
+            // Ensure gap2 fits
+            if (gap2Y + splitGap > H - GROUND_H - 40) {
+                gap2Y = H - GROUND_H - 40 - splitGap;
+            }
+            pipe.gapY = gap1Y;
+            pipe.gapSize = splitGap;
+            pipe.gap2Y = gap2Y;
+            pipe.gap2Size = splitGap;
+        }
+
+        // Hook: onPipeSpawn — let consumer modify pipe before it enters play
+        if (config.hooks && typeof config.hooks.onPipeSpawn === 'function') {
+            config.hooks.onPipeSpawn(pipe);
+        }
+
+        pipes.push(pipe);
+
+        // Power-up spawn chance
+        var pu = config.powerups;
+        if (pu && pu.enabled && pu.types && pu.types.length > 0) {
+            if (Math.random() < (pu.spawnChance || 0.15)) {
+                var puType = pu.types[Math.floor(Math.random() * pu.types.length)];
+                var puY = pipe.gapY + pipe.gapSize / 2;
+                powerups.push({
+                    x: pipe.x + pipe.width + 30,
+                    y: puY,
+                    type: puType,
+                    collected: false,
+                    bobFrame: Math.random() * Math.PI * 2
+                });
+            }
+        }
     }
 
     // ── Collision Detection ─────────────────────────────────────────────
@@ -212,36 +334,66 @@ window.FlappyEngine = (function () {
     }
 
     function checkCollision() {
-        const bw = config.character.width;
-        const bh = config.character.height;
-        const bx = bird.x - bw / 2;
-        const by = bird.y - bh / 2;
+        var bw = config.character.width;
+        var bh = config.character.height;
+        var bx = bird.x - bw / 2;
+        var by = bird.y - bh / 2;
 
-        for (let i = 0; i < pipes.length; i++) {
-            const p = pipes[i];
-            const pLeft = p.x;
-            const pRight = p.x + p.width;
-            const isOverlapping = (bx + bw > pLeft && bx < pRight);
+        for (var i = 0; i < pipes.length; i++) {
+            var p = pipes[i];
+            var pLeft = p.x;
+            var pRight = p.x + p.width;
+            var isOverlapping = (bx + bw > pLeft && bx < pRight);
 
             if (isOverlapping) {
-                const inTopPipe = (by < p.gapY);
-                const inBottomPipe = (by + bh > p.gapY + p.gapSize);
+                var inGap;
+                if (p.type === 'split' && p.gap2Y !== undefined) {
+                    // Split pipe: bird is safe if in either gap
+                    var inGap1 = (by >= p.gapY && by + bh <= p.gapY + p.gapSize);
+                    var inGap2 = (by >= p.gap2Y && by + bh <= p.gap2Y + p.gap2Size);
+                    inGap = inGap1 || inGap2;
+                } else {
+                    inGap = (by >= p.gapY && by + bh <= p.gapY + p.gapSize);
+                }
 
-                if (!p.wasOverlapping && (inTopPipe || inBottomPipe)) {
-                    // Just entered pipe's x-range while in pipe zone = side crash
+                var inTopPipe = (by < p.gapY);
+                var inBottomPipe = (by + bh > p.gapY + p.gapSize);
+
+                // For split pipes, redefine collision zones
+                if (p.type === 'split' && p.gap2Y !== undefined) {
+                    // Collision if not in either gap
+                    inTopPipe = !inGap && (by < p.gapY);
+                    inBottomPipe = !inGap && (by + bh > p.gap2Y + p.gap2Size);
+                }
+
+                if (!p.wasOverlapping && !inGap) {
+                    // Just entered pipe's x-range while NOT in gap = side crash
                     p.wasOverlapping = true;
+
+                    // Hook: onCollision — return false to cancel death
+                    if (config.hooks && typeof config.hooks.onCollision === 'function') {
+                        if (config.hooks.onCollision(p) === false) continue;
+                    }
+
+                    // Shield absorbs hit
+                    if (activePowerup && activePowerup.id === 'shield') {
+                        activePowerup = null;
+                        playDeflect();
+                        borderFlashTimer = 200;
+                        borderFlashColor = '#06b6d4';
+                        continue;
+                    }
+
                     return true;
                 }
 
-                if (p.wasOverlapping || (!inTopPipe && !inBottomPipe)) {
-                    // Already inside pipe's x-range — treat as surfaces
+                if (p.wasOverlapping || inGap) {
+                    // Already inside pipe's x-range — treat edges as surfaces
                     if (inBottomPipe) {
-                        // Land on top of bottom pipe
                         bird.y = p.gapY + p.gapSize - bh / 2;
                         bird.vy = 0;
                     }
                     if (inTopPipe) {
-                        // Bonk off bottom of top pipe
                         bird.y = p.gapY + bh / 2;
                         if (bird.vy < 0) bird.vy = 0;
                     }
@@ -251,6 +403,46 @@ window.FlappyEngine = (function () {
             p.wasOverlapping = isOverlapping;
         }
         return false;
+    }
+
+    // ── Power-Up Collection ─────────────────────────────────────────────
+    function checkPowerupCollection() {
+        var bx = bird.x;
+        var by = bird.y;
+        var collectRadius = 12;
+        var birdRadius = Math.max(config.character.width, config.character.height) / 2;
+
+        for (var i = powerups.length - 1; i >= 0; i--) {
+            var pu = powerups[i];
+            if (pu.collected) continue;
+
+            var dx = bx - pu.x;
+            var dy = by - pu.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < collectRadius + birdRadius) {
+                pu.collected = true;
+                playCollect();
+                borderFlashTimer = 300;
+                borderFlashColor = pu.type.color;
+
+                // Apply powerup effect
+                if (pu.type.id === 'multi') {
+                    // Instant: double next score
+                    scoreMultiplier = 2;
+                    activePowerup = { id: 'multi', endTime: 0, startTime: Date.now() };
+                } else {
+                    activePowerup = {
+                        id: pu.type.id,
+                        endTime: Date.now() + pu.type.duration,
+                        startTime: Date.now(),
+                        color: pu.type.color,
+                        label: pu.type.label,
+                        duration: pu.type.duration
+                    };
+                }
+            }
+        }
     }
 
     // ── Drawing ─────────────────────────────────────────────────────────
@@ -320,7 +512,14 @@ window.FlappyEngine = (function () {
     }
 
     function drawPipe(p) {
-        const pc = config.pipes;
+        // Dispatch to split renderer for split obstacle type
+        if (p.type === 'split' && p.gap2Y !== undefined) {
+            drawPipeSplit(p);
+            drawObstacleIndicators(p);
+            return;
+        }
+
+        var pc = config.pipes;
 
         // Shadow
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -365,6 +564,9 @@ window.FlappyEngine = (function () {
             ctx.fillText(p.label, p.x + p.width / 2, p.gapY + p.gapSize + 14);
             ctx.restore();
         }
+
+        // Obstacle type indicators (moving arrows, narrowing warning, etc.)
+        drawObstacleIndicators(p);
     }
 
     function drawBird() {
@@ -414,6 +616,229 @@ window.FlappyEngine = (function () {
             ctx.fillText(sp.text, sp.x, sp.y);
             ctx.restore();
         }
+    }
+
+    function drawPowerups() {
+        var now = Date.now();
+        for (var i = 0; i < powerups.length; i++) {
+            var pu = powerups[i];
+            if (pu.collected) continue;
+
+            // Custom sprite override
+            var puCfg = config.powerups;
+            if (puCfg && typeof puCfg.sprite === 'function') {
+                puCfg.sprite(ctx, pu);
+                continue;
+            }
+
+            // Pulsing glow circle
+            pu.bobFrame += 0.05;
+            var pulse = 1 + 0.2 * Math.sin(pu.bobFrame);
+            var radius = 12 * pulse;
+
+            ctx.save();
+
+            // Outer glow
+            ctx.shadowColor = pu.type.color;
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(pu.x, pu.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = pu.type.color;
+            ctx.globalAlpha = 0.3;
+            ctx.fill();
+
+            // Inner circle
+            ctx.globalAlpha = 0.9;
+            ctx.beginPath();
+            ctx.arc(pu.x, pu.y, radius * 0.7, 0, Math.PI * 2);
+            ctx.fillStyle = pu.type.color;
+            ctx.fill();
+
+            // Label
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 7px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(pu.type.label, pu.x, pu.y);
+
+            ctx.restore();
+        }
+    }
+
+    function drawActivePowerupIndicator() {
+        if (!activePowerup) return;
+        var now = Date.now();
+
+        // For 'multi' type (instant), show brief flash only
+        if (activePowerup.id === 'multi') return;
+
+        // Timer bar below score
+        var remaining = Math.max(0, activePowerup.endTime - now);
+        var total = activePowerup.duration || 1;
+        var ratio = remaining / total;
+        var barW = 60;
+        var barH = 6;
+        var barX = W / 2 - barW / 2;
+        var barY = 58;
+
+        ctx.save();
+        // Color dot
+        ctx.fillStyle = activePowerup.color || '#ffffff';
+        ctx.beginPath();
+        ctx.arc(barX - 8, barY + barH / 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Timer bar background
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(barX, barY, barW, barH);
+
+        // Timer bar fill
+        ctx.fillStyle = activePowerup.color || '#ffffff';
+        ctx.fillRect(barX, barY, barW * ratio, barH);
+
+        // Label
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 8px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(activePowerup.label || activePowerup.id.toUpperCase(), W / 2, barY + barH + 10);
+
+        ctx.restore();
+    }
+
+    function drawShieldAura() {
+        if (!activePowerup || activePowerup.id !== 'shield') return;
+        ctx.save();
+        ctx.translate(bird.x, bird.y);
+        var pulse = 1 + 0.1 * Math.sin(Date.now() / 200);
+        var radius = Math.max(config.character.width, config.character.height) * 0.7 * pulse;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.4 + 0.2 * Math.sin(Date.now() / 150);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawBorderFlash() {
+        if (borderFlashTimer <= 0) return;
+        ctx.save();
+        ctx.strokeStyle = borderFlashColor;
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = borderFlashTimer / 300;
+        ctx.strokeRect(2, 2, W - 4, H - 4);
+        ctx.restore();
+    }
+
+    function drawObstacleIndicators(p) {
+        // Moving pipe: draw up/down arrows
+        if (p.type === 'moving') {
+            ctx.save();
+            ctx.fillStyle = config.theme.accentColor;
+            ctx.globalAlpha = 0.5;
+            ctx.font = 'bold 14px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText('\u2195', p.x + p.width / 2, p.gapY + p.gapSize / 2 + 5);
+            ctx.restore();
+        }
+        // Narrowing pipe: warning color on caps
+        if (p.type === 'narrowing') {
+            ctx.save();
+            ctx.fillStyle = '#f59e0b';
+            ctx.globalAlpha = 0.3 + 0.2 * Math.sin(Date.now() / 200);
+            ctx.fillRect(p.x - 4, p.gapY - 20, p.width + 8, 20);
+            ctx.fillRect(p.x - 4, p.gapY + p.gapSize, p.width + 8, 20);
+            ctx.restore();
+        }
+        // Split pipe: draw second gap region
+        if (p.type === 'split' && p.gap2Y !== undefined) {
+            // The middle section between the two gaps is solid pipe
+            // Already handled in drawPipeSplit, just add indicator dots
+            ctx.save();
+            ctx.fillStyle = config.theme.accentColor;
+            ctx.globalAlpha = 0.4;
+            ctx.beginPath();
+            ctx.arc(p.x + p.width / 2, p.gapY + p.gapSize / 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(p.x + p.width / 2, p.gap2Y + p.gap2Size / 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function drawPipeSplit(p) {
+        // Split pipe renders 3 solid sections with 2 gaps
+        var pc = config.pipes;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(p.x + 4, 0, p.width, p.gapY - 2);
+        ctx.fillRect(p.x + 4, p.gapY + p.gapSize + 2, p.width, p.gap2Y - p.gapY - p.gapSize - 2);
+        ctx.fillRect(p.x + 4, p.gap2Y + p.gap2Size + 2, p.width, H - GROUND_H - p.gap2Y - p.gap2Size);
+
+        // Top section
+        ctx.fillStyle = pc.color;
+        ctx.fillRect(p.x, 0, p.width, p.gapY);
+        ctx.fillStyle = pc.borderColor;
+        ctx.fillRect(p.x - 4, p.gapY - 20, p.width + 8, 20);
+
+        // Middle section (between the two gaps)
+        ctx.fillStyle = pc.color;
+        ctx.fillRect(p.x, p.gapY + p.gapSize, p.width, p.gap2Y - p.gapY - p.gapSize);
+        ctx.fillStyle = pc.borderColor;
+        ctx.fillRect(p.x - 4, p.gapY + p.gapSize, p.width + 8, 20);
+        ctx.fillRect(p.x - 4, p.gap2Y - 20, p.width + 8, 20);
+
+        // Bottom section
+        ctx.fillStyle = pc.color;
+        ctx.fillRect(p.x, p.gap2Y + p.gap2Size, p.width, H - GROUND_H - p.gap2Y - p.gap2Size);
+        ctx.fillStyle = pc.borderColor;
+        ctx.fillRect(p.x - 4, p.gap2Y + p.gap2Size, p.width + 8, 20);
+
+        // Border strokes
+        ctx.strokeStyle = pc.borderColor;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p.x, 0, p.width, p.gapY);
+        ctx.strokeRect(p.x, p.gapY + p.gapSize, p.width, p.gap2Y - p.gapY - p.gapSize);
+        ctx.strokeRect(p.x, p.gap2Y + p.gap2Size, p.width, H - GROUND_H - p.gap2Y - p.gap2Size);
+
+        if (config.pipes.drawDecoration) {
+            config.pipes.drawDecoration(ctx, p);
+        }
+    }
+
+    function drawEventVisuals() {
+        if (!activeEvent) return;
+
+        if (activeEvent.type === 'wind') {
+            // Diagonal wind lines
+            ctx.save();
+            ctx.strokeStyle = config.theme.accentColor || '#ffffff';
+            ctx.globalAlpha = 0.15;
+            ctx.lineWidth = 1;
+            for (var i = 0; i < windParticles.length; i++) {
+                var wp = windParticles[i];
+                ctx.beginPath();
+                ctx.moveTo(wp.x, wp.y);
+                var dir = activeEvent.direction === 'left' ? -1 : 1;
+                ctx.lineTo(wp.x + dir * 15, wp.y + 8);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        if (activeEvent.type === 'fog') {
+            ctx.save();
+            ctx.fillStyle = '#0f172a';
+            ctx.globalAlpha = activeEvent.opacity || 0.3;
+            ctx.fillRect(0, 0, W, H - GROUND_H);
+            ctx.restore();
+        }
+
+        // Turbulence shake is applied via shakeOffset in render()
     }
 
     function drawMenuScreen() {
@@ -545,6 +970,30 @@ window.FlappyEngine = (function () {
         return null;
     }
 
+    // ── Progressive Difficulty Events ──────────────────────────────────
+    function checkProgressiveEvents() {
+        if (!config.events) return;
+        var thresholds = Object.keys(config.events).map(Number).sort(function (a, b) { return a - b; });
+        for (var i = 0; i < thresholds.length; i++) {
+            var t = thresholds[i];
+            if (score >= t && !triggeredEvents[t]) {
+                triggeredEvents[t] = true;
+                var evt = config.events[t];
+                activeEvent = {
+                    type: evt.type,
+                    direction: evt.direction || 'right',
+                    strength: evt.strength || 0.5,
+                    opacity: evt.opacity || 0.3,
+                    intensity: evt.intensity || 1.5
+                };
+                // Reset wind particles for new wind event
+                if (evt.type === 'wind') {
+                    windParticles = [];
+                }
+            }
+        }
+    }
+
     // ── Game Loop ───────────────────────────────────────────────────────
     function update(dt) {
         if (state === 'playing') {
@@ -552,6 +1001,29 @@ window.FlappyEngine = (function () {
             bird.vy += GRAVITY;
             if (bird.vy > TERMINAL_VEL) bird.vy = TERMINAL_VEL;
             bird.y += bird.vy;
+
+            // Hook: onBirdUpdate — custom per-frame physics
+            if (config.hooks && typeof config.hooks.onBirdUpdate === 'function') {
+                config.hooks.onBirdUpdate(bird, dt);
+            }
+
+            // Wind event: push bird horizontally (manifests as y-drift since side-scroller)
+            if (activeEvent && activeEvent.type === 'wind') {
+                var windDir = activeEvent.direction === 'left' ? -1 : 1;
+                bird.vy += (activeEvent.strength || 0.5) * windDir * dt * 30;
+            }
+
+            // Turbulence event: random y-velocity nudges
+            if (activeEvent && activeEvent.type === 'turbulence') {
+                var intensity = activeEvent.intensity || 1.5;
+                bird.vy += (Math.random() - 0.5) * intensity * dt * 20;
+                shakeOffset.x = (Math.random() - 0.5) * intensity * 2;
+                shakeOffset.y = (Math.random() - 0.5) * intensity * 2;
+            } else {
+                // Ease shake offset back to zero
+                shakeOffset.x *= 0.9;
+                shakeOffset.y *= 0.9;
+            }
 
             // Clamp to ground/ceiling (solid surfaces, not death)
             clampToSurfaces();
@@ -562,26 +1034,66 @@ window.FlappyEngine = (function () {
 
             // Difficulty ramp
             difficultyMultiplier = 1 + score * 0.015;
-            const currentSpeed = basePipeSpeed * difficultyMultiplier;
+            var speedMult = 1;
 
-            // Pipe movement
-            for (let i = pipes.length - 1; i >= 0; i--) {
+            // Slow powerup: reduce pipe speed by 40%
+            if (activePowerup && activePowerup.id === 'slow') {
+                speedMult = 0.6;
+            }
+
+            var currentSpeed = basePipeSpeed * difficultyMultiplier * speedMult;
+
+            // Pipe movement + obstacle type behaviors
+            for (var i = pipes.length - 1; i >= 0; i--) {
                 pipes[i].x -= currentSpeed * dt * 60;
+
+                // Moving obstacle: sinusoidal gap shift
+                if (pipes[i].type === 'moving') {
+                    var elapsed = (pipes[i].spawnX - pipes[i].x) * 0.02;
+                    var amplitude = 30;
+                    pipes[i].gapY = pipes[i].originalGapY + Math.sin(elapsed + pipes[i].phase) * amplitude;
+                    // Clamp to playable area
+                    var minGapY = 60;
+                    var maxGapY = H - GROUND_H - pipes[i].gapSize - 60;
+                    if (pipes[i].gapY < minGapY) pipes[i].gapY = minGapY;
+                    if (pipes[i].gapY > maxGapY) pipes[i].gapY = maxGapY;
+                }
+
+                // Narrowing obstacle: gap shrinks as pipe approaches bird
+                if (pipes[i].type === 'narrowing') {
+                    var progress = 1 - Math.max(0, Math.min(1, (pipes[i].x - bird.x) / (W * 0.6)));
+                    var shrink = progress * 40; // narrows by up to 40px
+                    pipes[i].gapSize = Math.max(pipes[i].originalGapSize - shrink, 70);
+                    // Keep gap centered on original position
+                    pipes[i].gapY = pipes[i].originalGapY + (pipes[i].originalGapSize - pipes[i].gapSize) / 2;
+                }
 
                 // Score check
                 if (!pipes[i].scored && pipes[i].x + pipes[i].width < bird.x) {
                     pipes[i].scored = true;
-                    score++;
+                    var increment = scoreMultiplier;
+                    score += increment;
+                    // Consume multi powerup after use
+                    if (scoreMultiplier > 1) {
+                        scoreMultiplier = 1;
+                        activePowerup = null;
+                    }
                     playScore();
                     scorePopups.push({
                         x: bird.x,
                         y: bird.y - 30,
-                        text: '+1',
+                        text: '+' + increment,
                         alpha: 1,
                         vy: -1.5
                     });
+
+                    // Hook: onScoreChange
+                    if (config.hooks && typeof config.hooks.onScoreChange === 'function') {
+                        config.hooks.onScoreChange(score);
+                    }
                     if (config.onScore) config.onScore(score);
                     checkMilestones();
+                    checkProgressiveEvents();
                 }
 
                 // Remove off-screen pipes
@@ -592,24 +1104,71 @@ window.FlappyEngine = (function () {
 
             // Pipe spawning
             pipeTimer += dt * 60 * (currentSpeed / basePipeSpeed);
-            const spacing = config.pipes.spacing || 100;
+            var spacing = config.pipes.spacing || 100;
             if (pipeTimer >= spacing) {
                 pipeTimer = 0;
                 spawnPipe();
             }
 
+            // Power-up movement (move with pipes)
+            for (var j = powerups.length - 1; j >= 0; j--) {
+                powerups[j].x -= currentSpeed * dt * 60;
+                if (powerups[j].x < -30 || powerups[j].collected) {
+                    if (powerups[j].collected || powerups[j].x < -30) {
+                        powerups.splice(j, 1);
+                    }
+                }
+            }
+
+            // Power-up collection check
+            checkPowerupCollection();
+
+            // Power-up timer expiration
+            if (activePowerup && activePowerup.id !== 'multi' && activePowerup.endTime > 0) {
+                if (Date.now() >= activePowerup.endTime) {
+                    activePowerup = null;
+                }
+            }
+
+            // Border flash decay
+            if (borderFlashTimer > 0) {
+                borderFlashTimer -= dt * 1000;
+            }
+
+            // Wind particles update
+            if (activeEvent && activeEvent.type === 'wind') {
+                var wDir = activeEvent.direction === 'left' ? -1 : 1;
+                for (var wi = windParticles.length - 1; wi >= 0; wi--) {
+                    windParticles[wi].x += wDir * 4;
+                    windParticles[wi].y += 2;
+                    if (windParticles[wi].x < -20 || windParticles[wi].x > W + 20 || windParticles[wi].y > H) {
+                        windParticles[wi] = {
+                            x: Math.random() * W,
+                            y: Math.random() * -50,
+                        };
+                    }
+                }
+                // Ensure we have particles
+                while (windParticles.length < 20) {
+                    windParticles.push({
+                        x: Math.random() * W,
+                        y: Math.random() * H
+                    });
+                }
+            }
+
             // Parallax scrolling
-            const scrollSpeed = currentSpeed * dt * 60;
+            var scrollSpeed = currentSpeed * dt * 60;
             bgLayers[0].offset += scrollSpeed * 0.3;
             bgLayers[1].offset += scrollSpeed * 0.6;
             bgLayers[2].offset += scrollSpeed * 0.9;
             groundOffset += scrollSpeed;
 
             // Score popups
-            for (let i = scorePopups.length - 1; i >= 0; i--) {
-                scorePopups[i].y += scorePopups[i].vy;
-                scorePopups[i].alpha -= dt * 2;
-                if (scorePopups[i].alpha <= 0) scorePopups.splice(i, 1);
+            for (var k = scorePopups.length - 1; k >= 0; k--) {
+                scorePopups[k].y += scorePopups[k].vy;
+                scorePopups[k].alpha -= dt * 2;
+                if (scorePopups[k].alpha <= 0) scorePopups.splice(k, 1);
             }
 
             // Collision
@@ -639,26 +1198,48 @@ window.FlappyEngine = (function () {
     }
 
     function render() {
-        ctx.clearRect(0, 0, W, H);
+        ctx.save();
+
+        // Turbulence screen shake
+        if (Math.abs(shakeOffset.x) > 0.1 || Math.abs(shakeOffset.y) > 0.1) {
+            ctx.translate(shakeOffset.x, shakeOffset.y);
+        }
+
+        ctx.clearRect(-5, -5, W + 10, H + 10);
         drawBackground();
 
+        // Event visuals (fog, wind) behind pipes
+        drawEventVisuals();
+
         // Pipes
-        for (let i = 0; i < pipes.length; i++) {
+        for (var i = 0; i < pipes.length; i++) {
             drawPipe(pipes[i]);
         }
 
+        // Power-up collectibles
+        drawPowerups();
+
         drawGround();
+
+        // Shield aura (drawn behind bird body but after ground)
+        drawShieldAura();
         drawBird();
 
         if (state === 'playing' || state === 'dead') {
             drawScore();
+            drawActivePowerupIndicator();
         }
+
+        // Border flash effect
+        drawBorderFlash();
 
         if (state === 'menu') {
             drawMenuScreen();
         } else if (state === 'dead') {
             drawDeadScreen();
         }
+
+        ctx.restore();
     }
 
     function gameLoop(timestamp) {
@@ -680,6 +1261,19 @@ window.FlappyEngine = (function () {
         pipeTimer = 60; // spawn first pipe soon
         scorePopups = [];
         difficultyMultiplier = 1;
+
+        // Reset power-up state
+        powerups = [];
+        activePowerup = null;
+        scoreMultiplier = 1;
+        borderFlashTimer = 0;
+        borderFlashColor = '';
+
+        // Reset progressive events
+        activeEvent = null;
+        triggeredEvents = {};
+        windParticles = [];
+        shakeOffset = { x: 0, y: 0 };
 
         bird.x = W * 0.25;
         bird.y = H / 2 - 30;
@@ -773,8 +1367,26 @@ window.FlappyEngine = (function () {
     function init(cfg) {
         config = cfg;
 
+        // ── Apply defaults for new config sections ──────────────────────
+        // Power-ups: disabled by default
+        if (!config.powerups) {
+            config.powerups = { enabled: false, types: [], spawnChance: 0 };
+        }
+        // Obstacles: standard pipes only by default
+        if (!config.obstacles) {
+            config.obstacles = { types: ['pipe'], scoreThresholds: {} };
+        }
+        // Progressive events: none by default
+        if (!config.events) {
+            config.events = null; // no events
+        }
+        // Hooks: empty by default
+        if (!config.hooks) {
+            config.hooks = {};
+        }
+
         // Find or create canvas
-        const container = document.getElementById(cfg.containerId);
+        var container = document.getElementById(cfg.containerId);
         if (!container) {
             console.error('FlappyEngine: container not found:', cfg.containerId);
             return;
@@ -825,6 +1437,16 @@ window.FlappyEngine = (function () {
             getScore: function () { return score; },
             getHighScore: function () { return highScore; },
             getState: function () { return state; },
+            getPowerup: function () {
+                if (!activePowerup) return null;
+                return {
+                    id: activePowerup.id,
+                    remaining: activePowerup.endTime > 0
+                        ? Math.max(0, activePowerup.endTime - Date.now())
+                        : 0,
+                    startTime: activePowerup.startTime
+                };
+            },
             destroy: function () {
                 if (animFrame) cancelAnimationFrame(animFrame);
                 document.removeEventListener('keydown', handleKeyDown);
