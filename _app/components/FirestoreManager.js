@@ -1267,12 +1267,20 @@ const FirestoreManager = (function() {
                 if (dash < 1) return false;
                 const house = id.slice(0, dash);
                 const key = id.slice(dash + 1);
-                return key.length > 0 && _validHouses.includes(house) && !key.startsWith(house + '-');
+                if (!key || !_validHouses.includes(house)) return false;
+                if (key.startsWith(house + '-')) return false;
+                if (_validHouses.includes(key)) return false;
+                return true;
             };
-            const localModules = (Array.isArray(localProgress.completedModules) ? localProgress.completedModules : []).filter(_isValidId);
-            const localLabs = (Array.isArray(localProgress.labsCompleted) ? localProgress.labsCompleted : []).filter(_isValidId);
-            const allModuleIds = new Set([...cloudModules, ...localModules]);
-            const allLabIds = new Set([...cloudLabs, ...localLabs]);
+            // Clean localProgress arrays IN PLACE so Step 6 localStorage write is also clean
+            localProgress.completedModules = [...new Set(
+                (Array.isArray(localProgress.completedModules) ? localProgress.completedModules : []).filter(_isValidId)
+            )];
+            localProgress.labsCompleted = [...new Set(
+                (Array.isArray(localProgress.labsCompleted) ? localProgress.labsCompleted : []).filter(_isValidId)
+            )];
+            const allModuleIds = new Set([...cloudModules, ...localProgress.completedModules]);
+            const allLabIds = new Set([...cloudLabs, ...localProgress.labsCompleted]);
             addedToCloud = allModuleIds.size - cloudModules.length;
 
             // 5. Merge scalar values — XPCalculator is sole authority
@@ -1367,6 +1375,24 @@ const FirestoreManager = (function() {
             // 8. Restore bulk sync blob from other devices, THEN write updated state
             const blobRestored = await _restoreSyncBlob(uid);
             addedToLocal += blobRestored;
+
+            // 8a. Re-clean progress arrays after sync blob merge (blob may contain old garbage)
+            try {
+                const hp = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
+                let blobCleaned = false;
+                if (Array.isArray(hp.completedModules)) {
+                    const before = hp.completedModules.length;
+                    hp.completedModules = [...new Set(hp.completedModules.filter(_isValidId))];
+                    if (hp.completedModules.length < before) blobCleaned = true;
+                }
+                if (Array.isArray(hp.labsCompleted)) {
+                    const before = hp.labsCompleted.length;
+                    hp.labsCompleted = [...new Set(hp.labsCompleted.filter(_isValidId))];
+                    if (hp.labsCompleted.length < before) blobCleaned = true;
+                }
+                if (blobCleaned) localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(hp));
+            } catch (e) { /* best-effort */ }
+
             await _writeSyncBlob(uid);
 
             // 9. Final XP write — XPCalculator is sole authority

@@ -675,6 +675,21 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const uid = request.auth.uid;
     const localData = request.data || {};
 
+    // Validate module IDs: must be {knownHouse}-{key} format
+    const _KNOWN_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'linux', 'arena'];
+    const _isValidModuleId = (id) => {
+        if (!id || typeof id !== 'string') return false;
+        if (id.startsWith('dark-arts-') && id.length > 10) return true;
+        const dash = id.indexOf('-');
+        if (dash < 1) return false;
+        const house = id.slice(0, dash);
+        const key = id.slice(dash + 1);
+        if (!key || !_KNOWN_HOUSES.includes(house)) return false;
+        if (key.startsWith(house + '-')) return false;
+        if (_KNOWN_HOUSES.includes(key)) return false;
+        return true;
+    };
+
     // Validate arrays to prevent injection
     const sanitizeStringArray = (arr) => {
         if (!Array.isArray(arr)) return [];
@@ -702,8 +717,8 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         return clean;
     };
 
-    const localModules = sanitizeStringArray(localData.modulesCompleted);
-    const localLabs = sanitizeStringArray(localData.labsCompleted);
+    const localModules = sanitizeStringArray(localData.modulesCompleted).filter(_isValidModuleId);
+    const localLabs = sanitizeStringArray(localData.labsCompleted).filter(_isValidModuleId);
     const localAchievements = sanitizeStringArray(localData.achievements);
     const localQuizzes = sanitizeQuizzes(localData.quizzes);
     const localXP = Math.max(0, Math.min(1000000, parseInt(localData.xp) || 0));
@@ -715,9 +730,9 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const userDoc = await userRef.get();
     const cloudData = userDoc.exists ? userDoc.data() : {};
 
-    // Merge: union arrays, max scalars
-    const mergedModules = [...new Set([...(cloudData.modulesCompleted || []), ...localModules])];
-    const mergedLabs = [...new Set([...(cloudData.labsCompleted || []), ...localLabs])];
+    // Merge: union arrays (filter both sides), max scalars
+    const mergedModules = [...new Set([...(cloudData.modulesCompleted || []).filter(_isValidModuleId), ...localModules])];
+    const mergedLabs = [...new Set([...(cloudData.labsCompleted || []).filter(_isValidModuleId), ...localLabs])];
     const mergedAchievements = [...new Set([...(cloudData.achievements || []), ...localAchievements])];
     const mergedXP = localXP;
     const mergedStreak = Math.max(cloudData.streak || 0, localStreak);
