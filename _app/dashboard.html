@@ -7513,6 +7513,12 @@
             return null;
         }
 
+        function _isPostEnrollment(completedAt, enrolledAt) {
+            if (!enrolledAt) return true;
+            if (!completedAt) return false;
+            return new Date(completedAt).getTime() >= new Date(enrolledAt).getTime();
+        }
+
         async function syncProgressToFirestore() {
             const user = FirebaseAuth.getUser();
             if (!user) {
@@ -7524,6 +7530,15 @@
 
             try {
                 const classes = await ClassManager.getStudentClasses(user.uid);
+
+                const enrollmentDates = {};
+                if (typeof ClassManager !== 'undefined' && ClassManager.getEnrollmentDate) {
+                    for (const cls of classes) {
+                        try { enrollmentDates[cls.id] = await ClassManager.getEnrollmentDate(cls.id); }
+                        catch (e) { enrollmentDates[cls.id] = null; }
+                    }
+                }
+
                 for (const cls of classes) {
                     const assignments = await AssignmentManager.getClassAssignments(cls.id);
                     for (const assignment of assignments) {
@@ -7534,6 +7549,7 @@
                                 for (const mod of pathDef.modules) {
                                     const modProgress = checkLocalCompletion(mod.id);
                                     if (modProgress && modProgress.completed) {
+                                        if (!_isPostEnrollment(modProgress.completedAt, enrollmentDates[cls.id])) continue;
                                         let duration = null;
                                         try {
                                             const starts = JSON.parse(localStorage.getItem('hexworth_start_times') || '{}');
@@ -7568,6 +7584,7 @@
 
                         const localProgress = checkLocalCompletion(assignment.contentId);
                         if (localProgress && localProgress.completed) {
+                            if (!_isPostEnrollment(localProgress.completedAt, enrollmentDates[cls.id])) continue;
                             // Compute duration from start time if available
                             let duration = null;
                             try {
@@ -7851,8 +7868,17 @@
 
                 if (allCompletions.length === 0) return;
 
+                const enrollmentDates = {};
+                if (typeof ClassManager !== 'undefined' && ClassManager.getEnrollmentDate) {
+                    for (const cls of classes) {
+                        try { enrollmentDates[cls.id] = await ClassManager.getEnrollmentDate(cls.id); }
+                        catch (e) { enrollmentDates[cls.id] = null; }
+                    }
+                }
+
                 for (const cls of classes) {
                     for (const completion of allCompletions) {
+                        if (!_isPostEnrollment(completion.completedAt, enrollmentDates[cls.id])) continue;
                         try {
                             await AssignmentManager.submitProgress(cls.id, completion.contentId, {
                                 completed: true,

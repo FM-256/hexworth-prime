@@ -654,10 +654,55 @@ const ClassManager = (function() {
     function getCachedEnrollments() {
         try {
             const cache = JSON.parse(localStorage.getItem(ENROLLMENT_CACHE_KEY) || '[]');
-            return cache.map(e => ({ id: e.classId, classCode: e.classCode }));
+            return cache.map(e => ({ id: e.classId, classCode: e.classCode, joinedAt: e.joinedAt || null }));
         } catch (e) {
             return [];
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ENROLLMENT DATE LOOKUP (Progress Isolation)
+    // ═══════════════════════════════════════════════════════════════
+
+    const _enrollmentDateCache = {};
+
+    /**
+     * Get the enrollment date (ISO string) for a class.
+     * 1 Firestore read per class per session, then cached in memory.
+     * Falls back to localStorage enrollment cache.
+     * @param {string} classId
+     * @returns {Promise<string|null>} ISO date string or null
+     */
+    async function getEnrollmentDate(classId) {
+        if (_enrollmentDateCache[classId]) return _enrollmentDateCache[classId];
+
+        const user = typeof FirebaseAuth !== 'undefined' ? FirebaseAuth.getUser() : null;
+        if (!user) return null;
+
+        try {
+            if (!initialized) await init();
+            const { doc, getDoc } = window.firebaseFirestore;
+            const snap = await getDoc(doc(db, COLLECTION, classId, 'members', user.uid));
+            if (snap.exists()) {
+                const d = snap.data();
+                if (d.joinedAt) {
+                    const iso = d.joinedAt.toDate ? d.joinedAt.toDate().toISOString() : new Date(d.joinedAt).toISOString();
+                    _enrollmentDateCache[classId] = iso;
+                    return iso;
+                }
+            }
+        } catch (e) { /* fall through to localStorage */ }
+
+        try {
+            const cache = JSON.parse(localStorage.getItem(ENROLLMENT_CACHE_KEY) || '[]');
+            const entry = cache.find(e => e.classId === classId);
+            if (entry && entry.joinedAt) {
+                _enrollmentDateCache[classId] = entry.joinedAt;
+                return entry.joinedAt;
+            }
+        } catch (e) { /* fall through */ }
+
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -676,7 +721,8 @@ const ClassManager = (function() {
         getStudentClasses,
         getClassMembers,
         removeStudentFromClass,
-        getCachedEnrollments
+        getCachedEnrollments,
+        getEnrollmentDate
     };
 
 })();

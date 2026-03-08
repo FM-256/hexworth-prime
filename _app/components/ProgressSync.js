@@ -21,6 +21,17 @@
     const QUEUE_MAX = 100;
     let _lastSync = 0;
 
+    /**
+     * Check if a completion happened after enrollment.
+     * If enrolledAt is unknown, allow (safe fallback).
+     * If completedAt is missing, assume pre-enrollment (skip).
+     */
+    function _isPostEnrollment(completedAt, enrolledAt) {
+        if (!enrolledAt) return true;
+        if (!completedAt) return false;
+        return new Date(completedAt).getTime() >= new Date(enrolledAt).getTime();
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // QC-6: Course progress namespace helpers
     // Read from new hexworth_progress_* keys first, fall back to old keys.
@@ -208,6 +219,10 @@
         for (const item of queue) {
             try {
                 if (item.type === 'progress') {
+                    if (typeof ClassManager !== 'undefined' && ClassManager.getEnrollmentDate) {
+                        const enrolledAt = await ClassManager.getEnrollmentDate(item.classId);
+                        if (!_isPostEnrollment(item.data?.completedAt, enrolledAt)) { flushed++; continue; }
+                    }
                     await AssignmentManager.submitProgress(item.classId, item.contentId, item.data);
                     flushed++;
                 } else if (item.type === 'activity') {
@@ -262,6 +277,15 @@
         }
         if (!classes.length) return;
 
+        // Build enrollment date lookup for pre-enrollment filtering
+        const enrollmentDates = {};
+        if (typeof ClassManager !== 'undefined' && ClassManager.getEnrollmentDate) {
+            for (const cls of classes) {
+                try { enrollmentDates[cls.id] = await ClassManager.getEnrollmentDate(cls.id); }
+                catch (e) { enrollmentDates[cls.id] = null; }
+            }
+        }
+
         try {
             const syncedActivity = JSON.parse(localStorage.getItem('hexworth_synced_activity') || '{}');
             let synced = 0;
@@ -278,6 +302,7 @@
                 for (const assignment of assignments) {
                     const result = checkLocalCompletion(assignment.contentId);
                     if (result && result.completed) {
+                        if (!_isPostEnrollment(result.completedAt, enrollmentDates[cls.id])) continue;
                         // Compute duration from start time if available
                         let duration = null;
                         try {
@@ -340,6 +365,7 @@
                                 if (syncedActivity[modActivityKey]) continue;
                                 const modResult = checkLocalCompletion(mod.id);
                                 if (modResult && modResult.completed) {
+                                    if (!_isPostEnrollment(modResult.completedAt, enrollmentDates[cls.id])) continue;
                                     try {
                                         await AssignmentManager.submitProgress(cls.id, mod.id, modResult);
                                         syncedActivity[modActivityKey] = Date.now();
