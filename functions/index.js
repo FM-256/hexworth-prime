@@ -545,7 +545,6 @@ exports.addXP = onCall(cfOptions, async (request) => {
     const userRef = db.doc(`users/${uid}`);
 
     await userRef.update({
-        xp: FieldValue.increment(numAmount),
         xpHistory: FieldValue.arrayUnion({
             amount: numAmount,
             reason,
@@ -581,7 +580,6 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
     switch (type) {
         case 'module':
             updates.modulesCompleted = FieldValue.arrayUnion(itemId);
-            updates.xp = FieldValue.increment(100);
             if (house) {
                 updates[`houseProgress.${house}.completed`] = FieldValue.increment(1);
             }
@@ -589,7 +587,6 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
 
         case 'lab':
             updates.labsCompleted = FieldValue.arrayUnion(itemId);
-            updates.xp = FieldValue.increment(500);
             if (house) {
                 updates[`houseProgress.${house}.labsCompleted`] = FieldValue.increment(1);
             }
@@ -601,7 +598,6 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
                 score: numScore,
                 passedAt: new Date().toISOString()
             };
-            updates.xp = FieldValue.increment(numScore === 100 ? 200 : 100);
             if (house) {
                 updates[`houseProgress.${house}.quizzesPassed`] = FieldValue.increment(1);
             }
@@ -660,7 +656,6 @@ exports.updateStreak = onCall(cfOptions, async (request) => {
     await userRef.update({
         streak: newStreak,
         lastLoginDate: today,
-        xp: FieldValue.increment(25), // daily login bonus
         updatedAt: FieldValue.serverTimestamp()
     });
 
@@ -724,7 +719,7 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const mergedModules = [...new Set([...(cloudData.modulesCompleted || []), ...localModules])];
     const mergedLabs = [...new Set([...(cloudData.labsCompleted || []), ...localLabs])];
     const mergedAchievements = [...new Set([...(cloudData.achievements || []), ...localAchievements])];
-    const mergedXP = Math.max(cloudData.xp || 0, localXP);
+    const mergedXP = localXP;
     const mergedStreak = Math.max(cloudData.streak || 0, localStreak);
 
     // Merge quizzes (keep highest scores)

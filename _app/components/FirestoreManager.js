@@ -1257,36 +1257,19 @@ const FirestoreManager = (function() {
                 }
             });
 
-            // 4. Local → Cloud: collect all local completions into module ID sets
-            const allModuleIds = new Set(cloudModules);
-            const allLabIds = new Set(cloudLabs);
+            // 4. Local → Cloud: union local completedModules/labsCompleted arrays with cloud
+            const localModules = Array.isArray(localProgress.completedModules) ? localProgress.completedModules : [];
+            const localLabs = Array.isArray(localProgress.labsCompleted) ? localProgress.labsCompleted : [];
+            const allModuleIds = new Set([...cloudModules, ...localModules]);
+            const allLabIds = new Set([...cloudLabs, ...localLabs]);
+            addedToCloud = allModuleIds.size - cloudModules.length;
 
-            Object.entries(localProgress).forEach(([house, modules]) => {
-                if (typeof modules !== 'object' || modules === null) return;
-                Object.entries(modules).forEach(([key, data]) => {
-                    if (data && data.completed) {
-                        const fullId = `${house}-${key}`;
-                        if (!allModuleIds.has(fullId)) addedToCloud++;
-                        allModuleIds.add(fullId);
-                        // Also classify as lab if LearningPaths confirms it
-                        if (typeof LearningPaths !== 'undefined' && LearningPaths.getModule) {
-                            const mod = LearningPaths.getModule(fullId);
-                            if (mod && mod.type === 'lab') {
-                                allLabIds.add(fullId);
-                            }
-                        }
-                    }
-                });
-            });
-
-            // 5. Merge scalar values
-            // Use deterministic XPCalculator if available (overrides both cloud and local)
+            // 5. Merge scalar values — XPCalculator is sole authority
             let mergedXP;
             if (typeof XPCalculator !== 'undefined') {
                 mergedXP = XPCalculator.recalculate().xp;
             } else {
-                const localXP = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.xp) || '0');
-                mergedXP = Math.max(cloudProfile.xp || 0, localXP);
+                mergedXP = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.xp) || '0');
             }
 
             const localStreak = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.streak) || '0');
@@ -1375,12 +1358,11 @@ const FirestoreManager = (function() {
             addedToLocal += blobRestored;
             await _writeSyncBlob(uid);
 
-            // 9. Final XP correction — take the max of recalculated and cloud XP
-            // to prevent deflation. Cloud profile was fetched in step 1.
+            // 9. Final XP write — XPCalculator is sole authority
             if (typeof XPCalculator !== 'undefined') {
                 const finalCalc = XPCalculator.recalculate();
-                const finalXP = Math.max(finalCalc.xp, cloudProfile.xp || 0);
-                const finalLevel = XPCalculator.calculateLevel(finalXP);
+                const finalXP = finalCalc.xp;
+                const finalLevel = finalCalc.level;
                 localStorage.setItem(LOCALSTORAGE_KEYS.xp, finalXP.toString());
                 localStorage.setItem('hexworth_level', finalLevel.toString());
                 // Also fix xp/level inside hexworth_progress
@@ -1392,7 +1374,7 @@ const FirestoreManager = (function() {
                         localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(hp));
                     }
                 } catch (e) { /* best-effort */ }
-                // Write corrected XP to Firestore user doc (guarded by Math.max)
+                // Write deterministic XP to Firestore user doc
                 try {
                     await setUserProfile(uid, { xp: finalXP, level: finalLevel });
                 } catch (e) { /* best-effort */ }
@@ -1418,7 +1400,11 @@ const FirestoreManager = (function() {
      */
     function parseModuleId(moduleId) {
         if (!moduleId || typeof moduleId !== 'string') return { house: null, key: null };
-        const knownHouses = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+        // Check multi-segment houses first
+        if (moduleId.startsWith('dark-arts-')) {
+            return { house: 'dark-arts', key: moduleId.slice(10) };
+        }
+        const knownHouses = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai'];
         const parts = moduleId.split('-');
         if (parts.length < 2) return { house: null, key: null };
 
