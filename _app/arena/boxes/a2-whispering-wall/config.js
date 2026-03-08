@@ -390,21 +390,17 @@ const A2Config = {
             // ── Server Configuration (Post-Auth) ────────────
             '/wall/admin/config': {
                 title: 'Server Config — The Whispering Wall',
-                html: `
+                html: function() {
+                    const configContent = A2Config._renderConfigPage();
+                    return `
                     <div style="text-align:center; margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid #444;">
                         <h1 style="color:#e67e22; font-size:1.4rem; font-family:Georgia,serif; margin-bottom:4px;"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Server Configuration</h1>
                         <div style="color:#888; font-size:0.8rem;">Obsidian Hand &mdash; Infrastructure Settings</div>
                     </div>
 
-                    <div data-config-content style="max-width:620px; margin:0 auto;"></div>
-                    <div data-results style="max-width:620px; margin:16px auto 0;"></div>
-                `,
-                formHandler: function(data, engine) {
-                    // No form interaction needed — content rendered on page load via onLoad
-                    return '';
-                },
-                onLoad: function(engine) {
-                    return A2Config._renderConfigPage();
+                    <div style="max-width:620px; margin:0 auto;">
+                        ${configContent}
+                    </div>`;
                 }
             }
         }
