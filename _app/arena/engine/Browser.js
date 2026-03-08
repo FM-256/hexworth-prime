@@ -82,9 +82,17 @@ class BrowserInstance {
         goBtn.textContent = 'Go';
         goBtn.addEventListener('click', () => this.navigate(this.urlInput.value));
 
+        // View Source button
+        this.srcBtn = document.createElement('button');
+        this.srcBtn.className = 'browser-go-btn browser-src-btn';
+        this.srcBtn.textContent = '</>';
+        this.srcBtn.title = 'View Page Source';
+        this.srcBtn.addEventListener('click', () => this._toggleSource());
+
         toolbar.appendChild(navBtns);
         toolbar.appendChild(urlBar);
         toolbar.appendChild(goBtn);
+        toolbar.appendChild(this.srcBtn);
 
         // Page area
         this.pageEl = document.createElement('div');
@@ -201,14 +209,19 @@ class BrowserInstance {
 
         // Render HTML content
         this.pageEl.innerHTML = '';
+        this._viewingSource = false;
+        this.srcBtn.classList.remove('active');
         const wrapper = document.createElement('div');
         wrapper.className = 'webapp';
 
+        let rawHtml;
         if (typeof pageDef.html === 'function') {
-            wrapper.innerHTML = pageDef.html(queryString, this);
+            rawHtml = pageDef.html(queryString, this);
         } else {
-            wrapper.innerHTML = pageDef.html || '';
+            rawHtml = pageDef.html || '';
         }
+        this._currentSource = rawHtml;
+        wrapper.innerHTML = rawHtml;
 
         this.pageEl.appendChild(wrapper);
 
@@ -288,6 +301,29 @@ class BrowserInstance {
         if (resultsArea) {
             resultsArea.innerHTML = resultHtml;
             this._wireLinks(resultsArea);
+            // Append form result source for View Source
+            if (this._currentSource !== undefined) {
+                this._currentSource += '\n\n<!-- === Form Response === -->\n' + resultHtml;
+            }
+        }
+    }
+
+    _toggleSource() {
+        if (!this._currentSource && this._currentSource !== '') return;
+        this._viewingSource = !this._viewingSource;
+        this.srcBtn.classList.toggle('active', this._viewingSource);
+
+        if (this._viewingSource) {
+            // Store rendered content so we can restore it
+            this._renderedContent = this.pageEl.innerHTML;
+            const pre = document.createElement('pre');
+            pre.className = 'browser-source-view';
+            pre.textContent = this._currentSource;
+            this.pageEl.innerHTML = '';
+            this.pageEl.appendChild(pre);
+        } else {
+            // Restore rendered view
+            this.pageEl.innerHTML = this._renderedContent || '';
         }
     }
 
