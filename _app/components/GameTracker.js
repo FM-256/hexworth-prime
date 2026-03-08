@@ -85,6 +85,8 @@ const GameTracker = (function () {
         gitbisect:    { title: "Git Bisect",            house: 'code',   icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
         ciphercracker: { title: "Cipher Cracker",       house: 'key',    icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
         fsck:         { title: "FSCK",                  house: 'forge',  icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
+        contra:       { title: "Network Assault",         house: 'shield', icon: '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
+        threatdex:    { title: "ThreatDex",               house: 'shield', icon: '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
     };
 
     // ── persistence ──────────────────────────────────────────────
