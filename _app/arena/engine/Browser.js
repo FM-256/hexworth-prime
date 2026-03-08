@@ -241,27 +241,34 @@ class BrowserInstance {
             });
         });
 
-        // Also wire up buttons with data-action="search" or similar
-        const searchBtns = wrapper.querySelectorAll('[data-action="search"]');
-        searchBtns.forEach(btn => {
+        // Wire up ALL buttons with data-action attributes
+        const actionBtns = wrapper.querySelectorAll('[data-action]');
+        actionBtns.forEach(btn => {
             btn.addEventListener('click', () => {
-                const input = wrapper.querySelector('[data-field="search"]');
-                if (input && pageDef.formHandler) {
-                    this._handleFormSubmission(pageDef, { q: input.value }, wrapper);
-                }
+                if (!pageDef.formHandler) return;
+                const formData = {};
+                // Collect all data-field inputs on the page
+                const fields = wrapper.querySelectorAll('[data-field]');
+                fields.forEach(field => {
+                    formData[field.getAttribute('data-field')] = field.value;
+                });
+                this._handleFormSubmission(pageDef, formData, wrapper);
             });
         });
 
-        // Wire up search input enter key
-        const searchInputs = wrapper.querySelectorAll('[data-field="search"]');
-        searchInputs.forEach(input => {
+        // Wire up Enter key on all data-field inputs
+        const fieldInputs = wrapper.querySelectorAll('[data-field]');
+        fieldInputs.forEach(input => {
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && pageDef.formHandler) {
-                    this._handleFormSubmission(pageDef, { q: input.value }, wrapper);
+                    const formData = {};
+                    const fields = wrapper.querySelectorAll('[data-field]');
+                    fields.forEach(field => {
+                        formData[field.getAttribute('data-field')] = field.value;
+                    });
+                    this._handleFormSubmission(pageDef, formData, wrapper);
                 }
             });
-            // Auto-focus
-            setTimeout(() => input.focus(), 100);
         });
     }
 

@@ -326,7 +326,7 @@ const A1Config = {
                     </div>
                 `,
                 formHandler: function(data, engine) {
-                    return A1Config._handleSearch(data.q || '', engine);
+                    return A1Config._handleSearch(data.q || data.search || '', engine);
                 }
             }
         }
