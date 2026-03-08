@@ -1400,6 +1400,7 @@ rtt min/avg/max/mdev = 41.8/42.1/42.3/0.204 ms`;
 
         // ── chmod — change permissions ─────────────────────────────────
         'chmod': function(args) {
+            if (args.length === 0) return 'Usage: chmod [options] <mode> <file>';
             return `chmod: mode changed`;
         },
 

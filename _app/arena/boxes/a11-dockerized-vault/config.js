@@ -769,6 +769,7 @@ const A11Config = {
     commands: {
 
         'nmap': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nmap [Scan Type(s)] [Options] {target specification}\nExample: nmap -sV 10.10.14.40';
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.10.14.40') {
@@ -808,6 +809,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.04 seconds`;
         },
 
         'ssh': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: ssh [options] [user@]hostname\nExample: ssh archivist@10.10.14.40 -p 2222';
             const raw = args.join(' ');
 
             // Check for SSH to the container
@@ -1801,6 +1803,7 @@ rtt min/avg/max/mdev = 30.8/31.0/31.2/0.163 ms`;
         },
 
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target> [options]\nExample: nikto -h 10.10.14.40';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.40
 + Target Hostname:  vault.archivist-guild.local
@@ -1815,6 +1818,7 @@ rtt min/avg/max/mdev = 30.8/31.0/31.2/0.163 ms`;
         },
 
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>\nExample: gobuster dir -u http://10.10.14.40/ -w /usr/share/wordlists/dirb/common.txt';
             const target = args.find(a => a.startsWith('http')) || 'http://10.10.14.40/';
             return `Gobuster v3.6
 [+] Url:          ${target}
@@ -1829,6 +1833,7 @@ Finished`;
         },
 
         'socat': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: socat [options] <address1> <address2>\nExample: socat TCP-LISTEN:2375,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock';
             if (!A11Config._sshSessionActive) {
                 return 'socat: command not available on Kali (install with: apt install socat)';
             }
@@ -1845,6 +1850,7 @@ Finished`;
         },
 
         'python3': function(args, term, engine) {
+            if (args.length === 0) return 'Python 3.11.6 (default, Oct  8 2023, 05:06:43) [GCC 13.2.0] on linux\nType "help", "copyright", "credits" or "license" for more information.\n>>> ';
             const script = args.find(a => a.endsWith('.py')) || '';
             if (script.includes('docker_enum')) {
                 if (!A11Config._sshSessionActive && !A11Config._hostShellActive) {

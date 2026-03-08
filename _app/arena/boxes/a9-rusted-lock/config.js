@@ -960,6 +960,7 @@ const A9Config = {
 
     commands: {
         'nmap': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nmap [Scan Type(s)] [Options] {target specification}\nExample: nmap -sV 10.10.14.28';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target || target === '10.10.14.28') {
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -1136,6 +1137,7 @@ rtt min/avg/max/mdev = 27.9/28.1/28.4/0.208 ms`;
         },
 
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target> [options]\nExample: nikto -h 10.10.14.28';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.28
 + Target Hostname:  forge-remnants.ctf.local
@@ -1153,6 +1155,7 @@ rtt min/avg/max/mdev = 27.9/28.1/28.4/0.208 ms`;
         },
 
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>\nExample: gobuster dir -u http://10.10.14.28/ -w /usr/share/wordlists/dirb/common.txt';
             const target = args.find(a => a.startsWith('http')) || 'http://10.10.14.28/';
             return `Gobuster v3.6
 [+] Url:            ${target}
@@ -1169,6 +1172,7 @@ Finished`;
         },
 
         'dirb': function(args) {
+            if (args.length === 0) return 'Usage: dirb <url_base> [<wordlist_file>]\nExample: dirb http://10.10.14.28/';
             const target = args[0] || 'http://10.10.14.28/';
             return `---- Scanning URL: ${target} ----
 + ${target}forge/ (CODE:200|SIZE:2841)

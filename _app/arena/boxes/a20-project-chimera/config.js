@@ -1209,6 +1209,7 @@ const A20Config = {
         // ── tcpdump — Packet capture ─────────────────────────
 
         'tcpdump': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: tcpdump [options] [expression]';
             var host = A20Config._state.currentHost;
 
             if (host === 'dev-build-01') {

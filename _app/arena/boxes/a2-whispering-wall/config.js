@@ -897,7 +897,6 @@ const A2Config = {
     commands: {
         'nmap': function(args, term, engine) {
             if (args.length === 0) return 'Usage: nmap [options] <target>\nExample: nmap -sV 10.10.14.8';
-            if (args.includes('--help') || args.includes('-h')) return 'Usage: nmap [options] <target>\nOptions:\n  -sV    Version detection\n  -sC    Script scanning\n  -p     Port range\n  -A     Aggressive scan\n  -Pn    Skip host discovery\n\nExample: nmap -sV -sC 10.10.14.8';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target || target === '10.10.14.8') {
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -978,7 +977,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
         'gobuster': function(args) {
             if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>\nExample: gobuster dir -u http://10.10.14.8/wall/ -w /usr/share/wordlists/dirb/common.txt';
-            if (args.includes('--help') || args.includes('-h')) return 'Usage: gobuster dir -u <url> -w <wordlist>\nModes:\n  dir    Directory brute-force\n  dns    DNS subdomain brute-force\n  vhost  Virtual host brute-force\n\nExample: gobuster dir -u http://10.10.14.8/wall/ -w /usr/share/wordlists/dirb/common.txt';
             return `Gobuster v3.6
 [+] Url:            http://10.10.14.8/wall/
 [+] Wordlist:       /usr/share/wordlists/dirb/common.txt
@@ -995,7 +993,6 @@ Finished`;
 
         'nikto': function(args) {
             if (args.length === 0) return 'Usage: nikto -h <target>\nExample: nikto -h http://10.10.14.8';
-            if (args.includes('--help')) return 'Usage: nikto -h <target> [options]\nOptions:\n  -h      Target host\n  -p      Port\n  -ssl    Force SSL\n  -Tuning Scan tuning\n\nExample: nikto -h http://10.10.14.8';
             const target = args.find(a => !a.startsWith('-')) || args.find(a => a.startsWith('-h'))?.replace('-h', '').trim() || '';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.8
@@ -1014,7 +1011,6 @@ Finished`;
         },
 
         'ping': function(args) {
-            if (args.includes('--help') || args.includes('-h')) return 'Usage: ping [-c count] [-i interval] destination\nExample: ping -c 4 10.10.14.8';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target) return 'Usage: ping [-c count] destination';
             if (target === '10.10.14.8') {
@@ -1032,7 +1028,6 @@ rtt min/avg/max/mdev = 27.9/28.3/28.6/0.286 ms`;
 
         'whatweb': function(args) {
             if (args.length === 0) return 'Usage: whatweb <target_url>\nExample: whatweb http://10.10.14.8';
-            if (args.includes('--help') || args.includes('-h')) return 'Usage: whatweb [options] <target_url>\nOptions:\n  -v    Verbose output\n  -a    Aggression level (1-4)\n  --color  Color output\n\nExample: whatweb http://10.10.14.8';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target) return 'Usage: whatweb <target_url>';
             if (target.includes('10.10.14.8')) {

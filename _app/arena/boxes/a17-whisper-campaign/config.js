@@ -1592,6 +1592,7 @@ Press 'q' or Ctrl-C to abort, any other key for status
 
         // ── hashcat: GPU-accelerated cracking ─────────────────────
         'hashcat': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: hashcat -m <mode> <hash_file> <wordlist>';
             return `hashcat (v6.2.6) starting...
 
 [*] Device #1: No CUDA/OpenCL devices found

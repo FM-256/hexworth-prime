@@ -809,6 +809,7 @@ const A6Config = {
 
         // ── nmap — show open ports on target ──
         'nmap': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nmap [options] <target>\nExample: nmap -sV 10.10.14.16';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target || target === '10.10.14.16') {
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -996,6 +997,7 @@ rtt min/avg/max/mdev = 28.1/28.4/28.6/0.210 ms`;
 
         // ── nikto — web scanner results ──
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target>';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.16
 + Target Hostname:  cipher-vault.ctf.local
@@ -1012,6 +1014,7 @@ rtt min/avg/max/mdev = 28.1/28.4/28.6/0.210 ms`;
 
         // ── gobuster — directory enumeration ──
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>';
             return `Gobuster v3.6
 [+] Url:         http://10.10.14.16/
 [+] Wordlist:    /usr/share/wordlists/dirb/common.txt

@@ -750,6 +750,7 @@ Next: xxd demodulated_bits.bin  or  python3 tools/decode.py`;
         },
 
         'rtl_sdr': function(args) {
+            if (args.length === 0) return 'Usage: rtl_sdr [options] <filename>';
             return `rtl_sdr: RTL-SDR capture utility
 Found 1 device(s):
   0: Realtek, RTL2838UHIDIR, SN: 00000001
@@ -760,6 +761,7 @@ Found 1 device(s):
         },
 
         'rtl_power': function(args) {
+            if (args.length === 0) return 'Usage: rtl_power [options] <filename>';
             return `rtl_power: spectrum scanner
 Scanning 430.000 - 436.000 MHz (step: 10 kHz)...
 
@@ -779,6 +781,7 @@ Scanning 430.000 - 436.000 MHz (step: 10 kHz)...
         },
 
         'gqrx': function(args) {
+            if (args.length === 0) return 'Usage: gqrx [options] <iq_file>';
             if (!A15Config._state.signalAnalyzed) {
                 A15Config._state.signalAnalyzed = true;
             }
@@ -1104,6 +1107,7 @@ No dropped samples detected.`;
         },
 
         'baudline': function(args) {
+            if (args.length === 0) return 'Usage: baudline [options] <iq_file>';
             A15Config._state.signalAnalyzed = true;
             return `baudline 1.08 — signal analyzer
 
@@ -1122,6 +1126,7 @@ Loading: silent_broadcast.iq
         },
 
         'urh': function(args) {
+            if (args.length === 0) return 'Usage: urh [options] <iq_file>';
             A15Config._state.signalAnalyzed = true;
             return `Universal Radio Hacker 2.9.5
 

@@ -1083,6 +1083,7 @@ Loaded Extensions: Core, date, dom, filter, json, mbstring, mysqli, openssl, pcr
     commands: {
 
         'nmap': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nmap [Scan Type(s)] [Options] {target specification}\nExample: nmap -sV 10.10.14.24';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target || target === '10.10.14.24') {
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -1173,6 +1174,7 @@ IMPORTANT: Found /archive/uploads/ — directory listing ENABLED`;
         },
 
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>\nExample: gobuster dir -u http://10.10.14.24/archive/ -w /usr/share/wordlists/dirb/common.txt';
             const url = args.find(a => a.startsWith('http')) || 'http://10.10.14.24/archive/';
             return `Gobuster v3.6
 [+] Url:          ${url}
@@ -1189,6 +1191,7 @@ Finished`;
         },
 
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target> [options]\nExample: nikto -h 10.10.14.24';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.24
 + Target Hostname:  ashen-archive.ctf.local
@@ -1204,6 +1207,7 @@ Finished`;
         },
 
         'wfuzz': function(args) {
+            if (args.length === 0) return 'Usage: wfuzz [options] -z payload,params <url>\nExample: wfuzz -c -z file,wordlist.txt http://10.10.14.24/archive/FUZZ';
             return `Warning: Pycurl is not compiled against Openssl. Wfuzz might not work correctly when fuzzing HTTPS sites.
 
 ********************************************************

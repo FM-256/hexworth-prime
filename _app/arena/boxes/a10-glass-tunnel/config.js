@@ -945,6 +945,7 @@ kali:x:1000:1000:Kali:/home/kali:/bin/bash`);
     commands: {
 
         'nmap': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nmap [Scan Type(s)] [Options] {target specification}\nExample: nmap -sV 10.10.14.32';
             const target = args.find(a => !a.startsWith('-')) || '';
 
             // Scan of the target machine — only port 80 is visible externally
@@ -1024,6 +1025,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.04 seconds`;
         },
 
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target> [options]\nExample: nikto -h 10.10.14.32';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.32
 + Target Hostname:  glass-corridor.ctf.local
@@ -1098,6 +1100,7 @@ PORT     STATUS   NOTES
         },
 
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>\nExample: gobuster dir -u http://10.10.14.32/ -w /usr/share/wordlists/dirb/common.txt';
             const target = args.find(a => a.startsWith('http')) || 'http://10.10.14.32/';
             return `Gobuster v3.6
 [+] Url:          ${target}
@@ -1113,6 +1116,7 @@ Finished`;
         },
 
         'python3': function(args, term, engine) {
+            if (args.length === 0) return 'Python 3.11.6 (default, Oct  8 2023, 05:06:43) [GCC 13.2.0] on linux\nType "help", "copyright", "credits" or "license" for more information.\n>>> ';
             // Support running ssrf_scan.py
             const script = args.find(a => a.endsWith('.py')) || '';
             if (script.includes('ssrf_scan')) {

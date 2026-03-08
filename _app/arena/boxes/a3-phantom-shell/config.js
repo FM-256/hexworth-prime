@@ -1014,6 +1014,7 @@ if (!empty($host)) {
 
     commands: {
         'nmap': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nmap [options] <target>\nExample: nmap -sV 10.10.14.12';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target || target === '10.10.14.12') {
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -1145,6 +1146,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
         },
 
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>';
             return `Gobuster v3.6
 [+] Url:            http://10.10.14.12/monitor/
 [+] Wordlist:       /usr/share/wordlists/dirb/common.txt
@@ -1161,6 +1163,7 @@ Finished`;
         },
 
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target>';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.12
 + Target Hostname:  iron-bastion

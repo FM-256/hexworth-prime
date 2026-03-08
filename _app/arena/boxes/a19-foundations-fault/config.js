@@ -1653,12 +1653,14 @@ const A19Config = {
         // ── strace — kernel debugging (restricted) ────────
 
         'strace': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: strace <command>';
             return 'strace: test_ptrace_get_id: Operation not permitted\n\n' +
                 '[note] kernel.yama.ptrace_scope = 2 restricts ptrace to root only.\n' +
                 'You cannot trace processes as foundation_dev.';
         },
 
         'gdb': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: gdb <program>';
             return 'GNU gdb (Ubuntu 9.2-0ubuntu1~20.04.1) 9.2\n' +
                 'ptrace: Operation not permitted.\n\n' +
                 '[note] kernel.yama.ptrace_scope = 2 — ptrace restricted to root.\n' +

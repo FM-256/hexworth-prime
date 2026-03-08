@@ -1403,6 +1403,7 @@ netstat -an
 
         // ── sha256sum — Hash verification ──────────────────────────────────
         'sha256sum': function(args) {
+            if (args.length === 0) return 'Usage: sha256sum <file>';
             const target = args[0] || '';
             if (target.includes('alpha_memdump.raw')) {
                 return '8a3f2b1c9e4d6a7f0b5c3e8d1a9f4c7b2e6d0a3f5c8b1e4d7a0f3c6b9e2d5a8  alpha_memdump.raw';
@@ -1412,6 +1413,7 @@ netstat -an
 
         // ── md5sum — Hash verification ─────────────────────────────────────
         'md5sum': function(args) {
+            if (args.length === 0) return 'Usage: md5sum <file>';
             const target = args[0] || '';
             if (target.includes('alpha_memdump.raw')) {
                 return 'd41d8cd98f00b204e9800998ecf8427e  alpha_memdump.raw';
@@ -1421,6 +1423,7 @@ netstat -an
 
         // ── xxd — Hex dump ─────────────────────────────────────────────────
         'xxd': function(args) {
+            if (args.length === 0) return 'Usage: xxd <file>';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (target.includes('alpha_memdump.raw')) {
                 return `00000000: 4d5a 9000 0300 0000 0400 0000 ffff 0000  MZ..............
@@ -1479,6 +1482,7 @@ Note: Volatility 3 uses 'windows.' prefix for plugins:
 
         // ── hashcat — Offline hash cracking hint ──────────────────────────
         'hashcat': function(args) {
+            if (args.length === 0) return 'Usage: hashcat -m <mode> <hash_file> <wordlist>';
             return `hashcat (v6.2.6) — advanced password recovery
 
 [!] No GPU detected on this workstation (VM environment).

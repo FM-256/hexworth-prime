@@ -963,6 +963,7 @@ const A7Config = {
     commands: {
 
         'nmap': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nmap [Scan Type(s)] [Options] {target specification}\nExample: nmap -sV 10.10.14.20';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target || target === '10.10.14.20') {
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -1064,6 +1065,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
         },
 
         'mongo': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: mongo [options] [db address] [file names]\nExample: mongo mongodb://10.10.14.20:27017/';
             return `MongoDB shell version v6.0.4
 connecting to: mongodb://10.10.14.20:27017/
 Error: connect ECONNREFUSED 10.10.14.20:27017 failed
@@ -1073,6 +1075,7 @@ exiting with code 1`;
         },
 
         'mongosh': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: mongosh [options] [db address] [file names]\nExample: mongosh mongodb://10.10.14.20:27017/';
             return `Current Mongosh Log ID: 65a2c4f3b7e1d90012345678
 Connecting to:          mongodb://10.10.14.20:27017/
 MongoNetworkError: connect ECONNREFUSED 10.10.14.20:27017
@@ -1096,6 +1099,7 @@ rtt min/avg/max/mdev = 27.9/28.2/28.5/0.253 ms`;
         },
 
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target> [options]\nExample: nikto -h 10.10.14.20';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.20
 + Target Hostname:  hollow.void-collective.ctf
@@ -1110,6 +1114,7 @@ rtt min/avg/max/mdev = 27.9/28.2/28.5/0.253 ms`;
         },
 
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>\nExample: gobuster dir -u http://10.10.14.20/hollow/ -w /usr/share/wordlists/dirb/common.txt';
             return `Gobuster v3.6
 [+] Url:            http://10.10.14.20/hollow/
 [+] Wordlist:       /usr/share/wordlists/dirb/common.txt

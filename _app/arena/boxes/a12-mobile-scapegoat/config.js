@@ -1553,6 +1553,7 @@ Type ".tables" to list tables, ".schema" for schema, or enter SQL queries.`;
 
         // ── nmap (network scanner) ────────────────────────────
         'nmap': function(args) {
+            if (args.length === 0) return 'Usage: nmap [options] <target>';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target || target === '10.10.14.42') {
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -1660,6 +1661,7 @@ TIP: Use apktool or jadx for proper decompilation (not just extraction).`;
 
         // ── sha256sum / md5sum ────────────────────────────────
         'sha256sum': function(args) {
+            if (args.length === 0) return 'Usage: sha256sum [options] <file>';
             const file = args[0] || '';
             if (file === 'Voyager.apk' || file === './Voyager.apk') {
                 return 'e4b7c2d1f8a3960571e2c4b5d6f7a890b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6  Voyager.apk';
@@ -1667,6 +1669,7 @@ TIP: Use apktool or jadx for proper decompilation (not just extraction).`;
             return `sha256sum: ${file}: No such file or directory`;
         },
         'md5sum': function(args) {
+            if (args.length === 0) return 'Usage: md5sum [options] <file>';
             const file = args[0] || '';
             if (file === 'Voyager.apk' || file === './Voyager.apk') {
                 return 'a3c1f7e2b4d6890f1c2e3a4b5d6f7890  Voyager.apk';

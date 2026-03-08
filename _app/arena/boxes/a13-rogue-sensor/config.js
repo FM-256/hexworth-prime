@@ -1386,6 +1386,7 @@ rtt min/avg/max/mdev = 8.91/9.01/9.12/0.105 ms`;
 
         // ── gobuster: Directory brute force ──────────────────
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>';
             return `Gobuster v3.6
 [+] Url:          http://192.168.2.100/
 [+] Wordlist:     /usr/share/wordlists/dirb/common.txt
@@ -1402,6 +1403,7 @@ Finished`;
 
         // ── nikto: Web vulnerability scanner ─────────────────
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target>';
             return `- Nikto v2.5.0
 + Target IP:       192.168.2.100
 + Target Hostname:  sensor-node-01
@@ -1418,6 +1420,7 @@ Finished`;
 
         // ── proxychains: SOCKS proxy wrapper ─────────────────
         'proxychains': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: proxychains <command> [args]';
             if (!A13Config._state.pivotEstablished) {
                 return `ProxyChains-3.1 (http://proxychains.sf.net)
 |S-chain|-> 127.0.0.1:1080 -> <<< TIMEOUT >>>

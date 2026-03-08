@@ -675,6 +675,7 @@ ledger_app:x:1001:1001::/home/ledger_app:/bin/bash</td></tr>
 
     commands: {
         'nmap': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nmap [options] <target>\nExample: nmap -sV 10.10.14.5';
             const target = args.find(a => !a.startsWith('-')) || '';
             if (!target || target === '10.10.14.5') {
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -834,6 +835,7 @@ rtt min/avg/max/mdev = 31.8/32.1/32.4/0.245 ms`;
         },
 
         'nikto': function(args) {
+            if (args.length === 0) return 'Usage: nikto -h <target>';
             const target = args.find(a => !a.startsWith('-')) || args.find(a => a.startsWith('-h'))?.replace('-h', '').trim() || '';
             return `- Nikto v2.5.0
 + Target IP:       10.10.14.5
@@ -848,6 +850,7 @@ rtt min/avg/max/mdev = 31.8/32.1/32.4/0.245 ms`;
         },
 
         'gobuster': function(args) {
+            if (args.length === 0) return 'Usage: gobuster dir -u <url> -w <wordlist>';
             return `Gobuster v3.6
 [+] Url:            http://10.10.14.5/ledger/
 [+] Wordlist:       /usr/share/wordlists/dirb/common.txt

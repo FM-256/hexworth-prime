@@ -1232,6 +1232,7 @@ const A14Config = {
         // ── chmod — needed for exploit chain ─────────────
 
         'chmod': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: chmod [options] <mode> <file>';
             var joined = args.join(' ');
             if (joined.match(/\+x\s+\/tmp\//) || joined.match(/755\s+\/tmp\//)) {
                 return '';
@@ -1589,6 +1590,7 @@ const A14Config = {
         },
 
         'nc': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: nc [options] <host> <port>';
             return '\x1b[31m[!] EDR ALERT: netcat execution detected by pspy!\x1b[0m\n' +
                 'nc: outbound connections restricted.\n' +
                 'Focus on local privilege escalation and file-based exfiltration.';
@@ -1599,6 +1601,7 @@ const A14Config = {
         },
 
         'ssh': function(args, term, engine) {
+            if (args.length === 0) return 'Usage: ssh [options] <user@hostname>';
             return 'You are already on srv-ops-monitor. Focus on local operations.';
         },
 

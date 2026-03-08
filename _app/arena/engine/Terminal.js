@@ -174,6 +174,12 @@ class TerminalInstance {
         }
 
         if (isCustom) {
+            // Intercept --help/-h for all custom commands
+            if (args.includes('--help') || args.includes('-h') || (args.length === 1 && args[0] === 'help')) {
+                this._appendOutput(`Usage: ${cmd} [options] [arguments]\nType 'help' for a list of available commands.`);
+                this._scrollToBottom();
+                return;
+            }
             const output = customCommands[cmd](args, this, this.engine);
             if (output) this._appendOutput(output);
             this._scrollToBottom();
@@ -201,7 +207,7 @@ class TerminalInstance {
             case 'date': this._appendOutput(new Date().toString()); break;
             case 'export': this._appendOutput(''); break;
             case 'alias': this._appendOutput(''); break;
-            case 'man': this._appendOutput(`No manual entry for ${args[0] || 'man'}`); break;
+            case 'man': this._cmdMan(args); break;
             case 'sudo': this._appendError(`[sudo] password for ${this.user}: \nSorry, try again.`); break;
             case 'exit': this.engine.closeWindow('terminal'); break;
             case 'reset': this._cmdReset(); break;
@@ -418,6 +424,24 @@ class TerminalInstance {
             output += '\n\n<span class="term-info">Available tools:</span>\n  ' + customs.join(', ');
         }
         this._appendHtml(output);
+    }
+
+    _cmdMan(args) {
+        if (!args[0]) {
+            this._appendOutput('What manual page do you want?\nUsage: man <command>');
+            return;
+        }
+        const topic = args[0].toLowerCase();
+        const customs = Object.keys(this.config.commands || {});
+        const builtins = ['ls', 'cd', 'pwd', 'cat', 'head', 'tail', 'find', 'whoami', 'id', 'file', 'echo', 'clear', 'help', 'history', 'exit', 'hostname', 'uname', 'date', 'man'];
+
+        if (customs.includes(topic)) {
+            this._appendOutput(`${topic.toUpperCase()}(1)\n\nNAME\n    ${topic} - available in this environment\n\nSYNOPSIS\n    ${topic} [options] [arguments]\n\nDESCRIPTION\n    Run '${topic} --help' for usage information.\n    Type 'help' to see all available commands.`);
+        } else if (builtins.includes(topic)) {
+            this._appendOutput(`${topic.toUpperCase()}(1)\n\nNAME\n    ${topic} - shell builtin\n\nSYNOPSIS\n    ${topic} [arguments]\n\nDESCRIPTION\n    Built-in shell command. Type 'help' for command list.`);
+        } else {
+            this._appendOutput(`No manual entry for ${topic}`);
+        }
     }
 
     _cmdHistory() {
