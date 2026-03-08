@@ -204,7 +204,7 @@
             <hr class="lore-divider">
             <div class="lore-section">
                 <h3>// BACKSTORY</h3>
-                <p>You are <strong style="color:#f97316">BIT-1</strong>, a single binary electron born in the power supply unit. Your mission: traverse the motherboard's copper traces to reach the CPU core. Navigate past failing components, dodge power surges, and survive the silicon gauntlet.</p>
+                <p>You are <strong style="color:#f97316">BIT-1</strong>, a single binary electron born in the power supply unit. Your mission: traverse the motherboard's copper traces to reach the CPU core. Navigate past failing components, dodge power surges, and outrun the <strong style="color:#ff0040">Data Corruption Wave</strong> consuming everything behind you.</p>
             </div>
             <hr class="lore-divider">
             <div class="lore-section">
@@ -278,6 +278,186 @@
     let obstacles = [];
     let particles = [];
     let bgElements = [];
+
+    // Data Corruption Wave chaser
+    const chaser = {
+        x: -200,            // starts off-screen left
+        speed: 0.3,          // px per frame, increases over time
+        speedIncrement: 0.0004, // acceleration per frame
+        maxSpeed: 4,
+        noiseGrid: [],       // pre-generated noise blocks
+        binaryDigits: [],    // tumbling 0s and 1s on leading edge
+        initialized: false
+    };
+
+    function initChaser() {
+        chaser.x = -200;
+        chaser.speed = 0.3;
+        chaser.noiseGrid = [];
+        chaser.binaryDigits = [];
+        chaser.initialized = true;
+        // Pre-generate noise blocks for the wall
+        for (let i = 0; i < 120; i++) {
+            chaser.noiseGrid.push({
+                rx: Math.random() * 180,
+                ry: Math.random() * H,
+                rw: 4 + Math.random() * 12,
+                rh: 3 + Math.random() * 10,
+                color: ['#ff0040','#00ff41','#ff00ff','#00ffff','#ffff00','#ff4400','#8b00ff'][Math.floor(Math.random()*7)],
+                flickerRate: 0.02 + Math.random() * 0.08
+            });
+        }
+        // Generate tumbling binary digits on leading edge
+        for (let i = 0; i < 30; i++) {
+            chaser.binaryDigits.push({
+                char: Math.random() > 0.5 ? '1' : '0',
+                y: Math.random() * H,
+                vy: (Math.random() - 0.5) * 2,
+                offsetX: Math.random() * 40,
+                rotation: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.15,
+                size: 8 + Math.random() * 10,
+                color: ['#ff0040','#00ff41','#ff00ff','#00ffff','#ffff00'][Math.floor(Math.random()*5)],
+                flickerPhase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    function updateChaser() {
+        if (!chaser.initialized) return;
+        // Accelerate over time
+        chaser.speed = Math.min(chaser.maxSpeed, chaser.speed + chaser.speedIncrement);
+        chaser.x += chaser.speed;
+
+        // Update binary digits
+        for (const d of chaser.binaryDigits) {
+            d.y += d.vy;
+            d.rotation += d.rotSpeed;
+            d.flickerPhase += 0.1;
+            // Randomly flip the character
+            if (Math.random() < 0.02) d.char = d.char === '1' ? '0' : '1';
+            // Wrap vertically
+            if (d.y < -20) d.y = H + 10;
+            if (d.y > H + 20) d.y = -10;
+        }
+    }
+
+    function drawChaser() {
+        if (!chaser.initialized || chaser.x < -200) return;
+        const edgeX = chaser.x;
+
+        ctx.save();
+
+        // Main corruption wall: dark base fill from left edge to chaser position
+        if (edgeX > 0) {
+            const wallWidth = Math.min(edgeX, W);
+            // Dark base
+            ctx.fillStyle = '#080008';
+            ctx.fillRect(0, 0, wallWidth, H);
+
+            // Noise/static blocks within the wall
+            for (const block of chaser.noiseGrid) {
+                const bx = edgeX - block.rx;
+                if (bx < 0 || bx > wallWidth) continue;
+                // Flicker visibility
+                if (Math.sin(gameFrame * block.flickerRate + block.rx) < -0.3) continue;
+                ctx.globalAlpha = 0.4 + Math.random() * 0.5;
+                ctx.fillStyle = block.color;
+                ctx.fillRect(bx, block.ry, block.rw, block.rh);
+            }
+
+            // Random scan-line distortion within the wall
+            ctx.globalAlpha = 0.2;
+            for (let y = 0; y < H; y += 4) {
+                if (Math.random() < 0.4) {
+                    const sliceW = 10 + Math.random() * 40;
+                    const sliceX = Math.random() * wallWidth;
+                    ctx.fillStyle = Math.random() > 0.5 ? '#ff004060' : '#00ff4160';
+                    ctx.fillRect(sliceX, y, Math.min(sliceW, wallWidth - sliceX), 2);
+                }
+            }
+            ctx.globalAlpha = 1;
+
+            // Dense pixel noise near the leading edge (last 60px)
+            const noiseZoneStart = Math.max(0, edgeX - 60);
+            for (let i = 0; i < 80; i++) {
+                const nx = noiseZoneStart + Math.random() * 60;
+                const ny = Math.random() * H;
+                const ns = 2 + Math.random() * 5;
+                ctx.globalAlpha = 0.5 + Math.random() * 0.5;
+                ctx.fillStyle = ['#ff0040','#00ff41','#ff00ff','#00ffff','#ffff00','#fff','#000'][Math.floor(Math.random()*7)];
+                ctx.fillRect(nx, ny, ns, ns);
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // Leading edge: sharp glowing line
+        if (edgeX > -10) {
+            // Vertical glow line at leading edge
+            const edgeGrad = ctx.createLinearGradient(edgeX - 15, 0, edgeX + 8, 0);
+            edgeGrad.addColorStop(0, 'rgba(255,0,64,0.6)');
+            edgeGrad.addColorStop(0.5, 'rgba(255,0,64,1)');
+            edgeGrad.addColorStop(0.8, 'rgba(255,0,64,0.4)');
+            edgeGrad.addColorStop(1, 'rgba(255,0,64,0)');
+            ctx.fillStyle = edgeGrad;
+            ctx.fillRect(edgeX - 15, 0, 23, H);
+
+            // Crackling energy at the edge
+            ctx.strokeStyle = '#ff0040';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff0040';
+            ctx.beginPath();
+            ctx.moveTo(edgeX, 0);
+            for (let y = 0; y < H; y += 8) {
+                ctx.lineTo(edgeX + (Math.random() - 0.5) * 8, y);
+            }
+            ctx.lineTo(edgeX, H);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Tumbling binary digits at the leading edge
+            for (const d of chaser.binaryDigits) {
+                const dx = edgeX + d.offsetX;
+                // Only draw digits near/ahead of the edge
+                if (dx < edgeX - 10 || dx > edgeX + 45) continue;
+                ctx.save();
+                ctx.translate(dx, d.y);
+                ctx.rotate(d.rotation);
+                ctx.globalAlpha = 0.6 + Math.sin(d.flickerPhase) * 0.3;
+                ctx.fillStyle = d.color;
+                ctx.font = `bold ${d.size}px monospace`;
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = d.color;
+                ctx.fillText(d.char, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        // Emit corruption particles near edge
+        if (edgeX > 0 && gameFrame % 3 === 0) {
+            for (let i = 0; i < 2; i++) {
+                particles.push({
+                    x: edgeX + Math.random() * 20,
+                    y: Math.random() * H,
+                    vx: 1 + Math.random() * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    life: 12 + Math.random() * 8,
+                    color: ['#ff0040','#ff00ff','#00ff41'][Math.floor(Math.random()*3)],
+                    size: 1 + Math.random() * 2
+                });
+            }
+        }
+
+        ctx.restore();
+    }
+
+    function checkChaserCollision() {
+        if (!chaser.initialized) return false;
+        // Player is consumed if chaser edge reaches them
+        return chaser.x >= player.x;
+    }
 
     // Countdown
     let countdownActive = false;
@@ -487,9 +667,119 @@
         ctx.closePath();
     }
 
+    // Motion trail history for ghost copies
+    const trailHistory = [];
+    const TRAIL_LENGTH = 3;
+
+    function drawPlayerSprite(px, py, alpha, isGhost) {
+        // Draws the player sprite at given position with given alpha
+        // isGhost: if true, skip interactive elements (screen text, particles)
+        const h = player.isDucking ? 10 : 20;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // Body glow (enhanced with shadowBlur)
+        if (!isGhost) {
+            ctx.shadowBlur = 8 + Math.sin(gameFrame * 0.08) * 4;
+            ctx.shadowColor = '#f97316';
+        }
+
+        ctx.fillStyle = '#f97316';
+        if (player.isDucking) {
+            drawRoundedRect(px, py + 10, 24, 10, 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            if (!isGhost) {
+                ctx.strokeStyle = '#0a0a0a';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(px + 4, py + 12);
+                ctx.lineTo(px + 20, py + 12);
+                ctx.moveTo(px + 4, py + 16);
+                ctx.lineTo(px + 20, py + 16);
+                ctx.stroke();
+                ctx.fillStyle = '#0a0a0a';
+                ctx.font = 'bold 7px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('ZIP', px + 12, py + 18);
+            }
+        } else {
+            // Microchip body
+            drawRoundedRect(px + 2, py, 16, 20, 3);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // IC package pins (smooth walking animation)
+            if (!isGhost) {
+                player.walkFrame = (player.walkFrame + 0.15) % (Math.PI * 2);
+            }
+            ctx.fillStyle = '#b87333';
+            for (let i = 0; i < 4; i++) {
+                const pinY = py + 4 + i * 5;
+                const pinOffset = !player.isJumping ? Math.sin(player.walkFrame + i * 0.8) * 1.5 : 0;
+                ctx.fillRect(px - 2 + pinOffset, pinY, 4, 2);
+            }
+            for (let i = 0; i < 4; i++) {
+                const pinY = py + 4 + i * 5;
+                const pinOffset = !player.isJumping ? Math.sin(player.walkFrame + i * 0.8 + Math.PI) * 1.5 : 0;
+                ctx.fillRect(px + 18 - pinOffset, pinY, 4, 2);
+            }
+
+            // LED eye with enhanced glow
+            ctx.fillStyle = '#00ff41';
+            ctx.shadowBlur = isGhost ? 2 : 8;
+            ctx.shadowColor = '#00ff41';
+            ctx.beginPath();
+            ctx.arc(px + 10, py + 6, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            if (!isGhost) {
+                // Bit display screen
+                player.frame++;
+                if (player.frame % 15 === 0) player.bitState = player.bitState === '1' ? '0' : '1';
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(px + 5, py + 10, 10, 8);
+                ctx.fillStyle = player.bitState === '1' ? '#00ff41' : '#ff4444';
+                ctx.shadowBlur = 3;
+                ctx.shadowColor = player.bitState === '1' ? '#00ff41' : '#ff4444';
+                ctx.font = 'bold 10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(player.bitState, px + 10, py + 17);
+                ctx.shadowBlur = 0;
+            }
+
+            // Antenna pins with signal glow
+            ctx.fillStyle = '#b87333';
+            ctx.fillRect(px + 4, py - 4, 2, 5);
+            ctx.fillRect(px + 14, py - 4, 2, 5);
+            if (!isGhost) {
+                ctx.fillStyle = 'rgba(249,115,22,0.5)';
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = '#f97316';
+                ctx.beginPath();
+                ctx.arc(px + 5, py - 4, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(px + 15, py - 4, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        ctx.restore();
+    }
+
     function drawPlayer() {
         const px = player.x, py = player.y;
         const h = player.isDucking ? 10 : 20;
+
+        // Record trail position every 2 frames for smooth motion trail
+        if (gameRunning && gameFrame % 2 === 0) {
+            trailHistory.unshift({ x: px, y: py, ducking: player.isDucking });
+            if (trailHistory.length > TRAIL_LENGTH) trailHistory.pop();
+        }
 
         // Shield / invincibility effects with hex pattern
         let showShield = player.shielded || invincible;
@@ -503,9 +793,10 @@
 
         if (showShield) {
             ctx.save();
-            // Hex pattern shield
             ctx.globalAlpha = shieldAlpha * 0.3;
             ctx.fillStyle = '#00bfff';
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = '#00bfff';
             ctx.beginPath();
             ctx.arc(px + 10, py + h/2, 18, 0, Math.PI * 2);
             ctx.fill();
@@ -530,124 +821,98 @@
             ctx.restore();
         }
 
-        // Glow
-        const glowR = 12 + Math.sin(gameFrame * 0.1) * 3;
+        // Enhanced radial glow with pulsing
+        const glowR = 14 + Math.sin(gameFrame * 0.08) * 4;
+        ctx.save();
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#f97316';
         const grad = ctx.createRadialGradient(px+10, py+h/2, 0, px+10, py+h/2, glowR);
-        grad.addColorStop(0, 'rgba(249,115,22,0.6)');
+        grad.addColorStop(0, 'rgba(249,115,22,0.7)');
+        grad.addColorStop(0.5, 'rgba(249,115,22,0.2)');
         grad.addColorStop(1, 'rgba(249,115,22,0)');
         ctx.fillStyle = grad;
         ctx.fillRect(px-glowR+10, py+h/2-glowR, glowR*2, glowR*2);
+        ctx.restore();
 
-        // Body (microchip style)
-        ctx.fillStyle = '#f97316';
-        if (player.isDucking) {
-            // Flat compressed chip with visible traces
-            drawRoundedRect(px, py + 10, 24, 10, 2);
-            ctx.fill();
-            // Circuit traces on top
-            ctx.strokeStyle = '#0a0a0a';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(px + 4, py + 12);
-            ctx.lineTo(px + 20, py + 12);
-            ctx.moveTo(px + 4, py + 16);
-            ctx.lineTo(px + 20, py + 16);
-            ctx.stroke();
-            ctx.fillStyle = '#0a0a0a';
-            ctx.font = 'bold 7px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('ZIP', px + 12, py + 18);
-        } else {
-            // Microchip body with rounded corners
-            drawRoundedRect(px + 2, py, 16, 20, 3);
-            ctx.fill();
-
-            // IC package pins (animated walking)
-            player.walkFrame = (player.walkFrame + 0.15) % (Math.PI * 2);
-            ctx.fillStyle = '#b87333';
-            // Left pins
-            for (let i = 0; i < 4; i++) {
-                const pinY = py + 4 + i * 5;
-                const pinOffset = !player.isJumping ? Math.sin(player.walkFrame + i) * 1 : 0;
-                ctx.fillRect(px - 2 + pinOffset, pinY, 4, 2);
-            }
-            // Right pins
-            for (let i = 0; i < 4; i++) {
-                const pinY = py + 4 + i * 5;
-                const pinOffset = !player.isJumping ? Math.sin(player.walkFrame + i + Math.PI) * 1 : 0;
-                ctx.fillRect(px + 18 - pinOffset, pinY, 4, 2);
-            }
-
-            // LED eye
-            ctx.fillStyle = '#00ff41';
-            ctx.shadowBlur = 4;
-            ctx.shadowColor = '#00ff41';
-            ctx.beginPath();
-            ctx.arc(px + 10, py + 6, 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            // Bit display screen
-            player.frame++;
-            if (player.frame % 15 === 0) player.bitState = player.bitState === '1' ? '0' : '1';
-            ctx.fillStyle = '#0a0a0a';
-            ctx.fillRect(px + 5, py + 10, 10, 8);
-            ctx.fillStyle = player.bitState === '1' ? '#00ff41' : '#ff4444';
-            ctx.font = 'bold 10px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(player.bitState, px + 10, py + 17);
-
-            // Antenna pins with signal glow
-            ctx.fillStyle = '#b87333';
-            ctx.fillRect(px + 4, py - 4, 2, 5);
-            ctx.fillRect(px + 14, py - 4, 2, 5);
-            // Signal emitter glow
-            ctx.fillStyle = 'rgba(249,115,22,0.5)';
-            ctx.beginPath();
-            ctx.arc(px + 5, py - 4, 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(px + 15, py - 4, 2, 0, Math.PI * 2);
-            ctx.fill();
+        // Draw ghost trail copies (behind the player)
+        for (let i = trailHistory.length - 1; i >= 0; i--) {
+            const ghost = trailHistory[i];
+            const ghostAlpha = 0.12 + (TRAIL_LENGTH - i) * 0.04; // fading: 0.12-0.24
+            // Tint ghost with slight hue shift
+            drawPlayerSprite(ghost.x, ghost.y, ghostAlpha, true);
         }
 
-        // Ability visual
+        // Draw main player sprite
+        drawPlayerSprite(px, py, 1, false);
+
+        // Ability visuals
         if (abilityActive === 'dash') {
-            ctx.globalAlpha = 0.5;
+            ctx.save();
             ctx.fillStyle = '#f97316';
             for (let i = 1; i <= 3; i++) {
                 const trailAlpha = 0.5 - i * 0.12;
                 ctx.globalAlpha = trailAlpha;
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = '#f97316';
                 drawRoundedRect(px - i * 12, py + 4, 8, h - 8, 2);
                 ctx.fill();
             }
-            ctx.globalAlpha = 1;
+            ctx.restore();
         }
         if (abilityActive === 'slow') {
+            ctx.save();
             ctx.strokeStyle = 'rgba(0,255,200,0.3)';
             ctx.lineWidth = 2;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#00ffc8';
             ctx.beginPath();
             ctx.arc(px + 10, py + h/2, 22 + Math.sin(gameFrame*0.15)*3, 0, Math.PI*2);
             ctx.stroke();
+            ctx.restore();
         }
         if (abilityActive === 'turbo') {
+            ctx.save();
             ctx.globalAlpha = 0.3 + Math.sin(gameFrame * 0.2) * 0.2;
             ctx.fillStyle = '#ffd700';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#ffd700';
             ctx.beginPath();
             ctx.arc(px + 10, py + h/2, 20, 0, Math.PI * 2);
             ctx.fill();
-            ctx.globalAlpha = 1;
+            ctx.restore();
         }
 
-        // Running sparks (circular particles)
-        if (!player.isJumping && gameRunning && gameFrame % 4 === 0) {
+        // Enhanced particle trail: running sparks + energy motes
+        if (!player.isJumping && gameRunning && gameFrame % 3 === 0) {
+            // Ground contact sparks
             particles.push({
                 x: px + 10, y: py + h,
-                vx: -Math.random()*2-1,
-                vy: -Math.random()*2-0.5,
-                life: 15,
+                vx: -Math.random()*2.5 - 0.5,
+                vy: -Math.random()*2 - 0.5,
+                life: 18,
                 color: '#f97316',
                 size: 1.5 + Math.random()
+            });
+            // Small energy mote trailing behind
+            particles.push({
+                x: px - 2 + Math.random() * 4, y: py + h/2 + (Math.random()-0.5)*h,
+                vx: -1.5 - Math.random(),
+                vy: (Math.random()-0.5) * 0.8,
+                life: 12,
+                color: Math.random() > 0.5 ? '#fb923c' : '#fbbf24',
+                size: 1 + Math.random() * 0.8
+            });
+        }
+        // Jump trail: emit small particles while airborne
+        if (player.isJumping && gameRunning && gameFrame % 2 === 0) {
+            particles.push({
+                x: px + 10 + (Math.random()-0.5)*6,
+                y: py + h + 2,
+                vx: (Math.random()-0.5) * 0.5,
+                vy: 1 + Math.random(),
+                life: 10,
+                color: '#f9731680',
+                size: 1 + Math.random()
             });
         }
 
@@ -1292,7 +1557,8 @@
         ctx.textAlign = 'center';
         ctx.shadowBlur = 20;
         ctx.shadowColor = '#ff0000';
-        ctx.fillText('SYSTEM HALT', W/2, H/2 - 50);
+        const deathTitle = chaser._deathMessage ? 'DATA CORRUPTED!' : 'SYSTEM HALT';
+        ctx.fillText(deathTitle, W/2, H/2 - 50);
 
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#e0e0e0';
@@ -1415,6 +1681,19 @@
         // Demo AI
         if (demoMode) demoAI();
 
+        // Data Corruption Wave chaser
+        if (gameRunning && !worldFrozen && !countdownActive) {
+            updateChaser();
+        }
+        drawChaser();
+        // Chaser collision: instant death (ignores shields/invincibility)
+        if (gameRunning && !worldFrozen && checkChaserCollision()) {
+            lives = 0;
+            // Custom death message overlay
+            chaser._deathMessage = true;
+            gameOver();
+        }
+
         // Particles
         updateParticles();
 
@@ -1498,10 +1777,13 @@
         player.shielded = false;
         invincible = false;
         abilityActive = null;
+        trailHistory.length = 0;
         flagObj = null;
         nextFlagAt = 20;
         shieldFadeTimer = 0;
         levelTransition = 0;
+        initChaser();
+        chaser._deathMessage = false;
         startCountdown();
         getAudio();
     });

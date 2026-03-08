@@ -496,7 +496,163 @@
 
         // Motion trail buffer
         let playerTrail = [];
-        const TRAIL_LENGTH = 6;
+        const TRAIL_LENGTH = 8;
+
+        // Chaser: Cost Avalanche / Billing Storm
+        const chaser = {
+            x: -200,         // starts off-screen left
+            speed: 0.15,     // base creep speed (pixels per frame)
+            baseSpeed: 0.15,
+            maxSpeed: 1.8,
+            active: false,
+            // Falling cost symbols for visual effect
+            symbols: [],
+            symbolTimer: 0,
+            // Warning text fragments that tumble down the wall
+            warnings: ['$$$', 'COST OVERRUN', 'BUDGET EXCEEDED', 'BILLING ALERT', 'OVER LIMIT', '$$$$', 'INVOICE DUE', 'SPEND SPIKE']
+        };
+
+        let chaserKill = false;
+
+        function resetChaser() {
+            chaser.x = -200;
+            chaser.speed = chaser.baseSpeed;
+            chaser.active = false;
+            chaser.symbols = [];
+            chaser.symbolTimer = 0;
+            chaserKill = false;
+        }
+
+        function spawnChaserSymbol() {
+            const symbols = ['$', '$$', '$$$', '!', 'COST', 'BILL', '429', 'OVR'];
+            chaser.symbols.push({
+                x: chaser.x + Math.random() * 60 + 10,
+                y: -10 - Math.random() * 30,
+                text: symbols[Math.floor(Math.random() * symbols.length)],
+                vy: 1 + Math.random() * 2.5,
+                vx: (Math.random() - 0.3) * 0.8,
+                rotation: (Math.random() - 0.5) * 0.1,
+                rot: 0,
+                size: 8 + Math.floor(Math.random() * 10),
+                alpha: 0.5 + Math.random() * 0.5
+            });
+        }
+
+        function updateChaser() {
+            if (!chaser.active || demoMode || countdownActive) return;
+
+            // Accelerate over time
+            chaser.speed = Math.min(chaser.maxSpeed, chaser.speed + 0.0003);
+            chaser.x += chaser.speed;
+
+            // Keep chaser from advancing too far ahead — cap at player.x - 80
+            // This makes it feel like pressure, not unavoidable
+            if (chaser.x > player.x - 80) {
+                chaser.x = player.x - 80;
+            }
+
+            // Warning rumble when chaser is within 150px
+            const distToPlayer = player.x - chaser.x;
+            if (distToPlayer < 150 && gameFrame % 90 === 0) {
+                playSound('chaser_warning');
+            }
+
+            // Spawn falling symbols
+            chaser.symbolTimer++;
+            if (chaser.symbolTimer > 4) {
+                spawnChaserSymbol();
+                chaser.symbolTimer = 0;
+            }
+
+            // Update falling symbols
+            chaser.symbols.forEach(s => {
+                s.y += s.vy;
+                s.x += s.vx;
+                s.rot += s.rotation;
+                // Keep symbols near the wall
+                if (s.x > chaser.x + 80) s.x = chaser.x + 60;
+            });
+            chaser.symbols = chaser.symbols.filter(s => s.y < canvas.height + 20);
+
+            // Collision: if chaser wall reaches the player
+            if (chaser.x + 10 >= player.x && !shieldActive && !countdownActive) {
+                // Instant death — budget exceeded
+                lives = 0;
+                document.getElementById('lives').textContent = '0';
+                // Death particles — orange/red billing burst
+                for (let i = 0; i < 25; i++) {
+                    const p = new Particle(player.x + player.width / 2, player.y + player.height / 2,
+                        i % 2 === 0 ? '#f97316' : '#fbbf24');
+                    p.vx = (Math.random() - 0.3) * 6;
+                    p.vy = (Math.random() - 0.5) * 6;
+                    particles.push(p);
+                }
+                chaserKill = true;
+                gameOver();
+            }
+        }
+
+        function drawChaser() {
+            if (!chaser.active || chaser.x < -200) return;
+
+            ctx.save();
+
+            // Main wall gradient — dark orange/red
+            const wallRight = chaser.x + 70;
+            const gradient = ctx.createLinearGradient(chaser.x - 40, 0, wallRight, 0);
+            gradient.addColorStop(0, 'rgba(127, 29, 29, 0.95)');   // dark red
+            gradient.addColorStop(0.4, 'rgba(220, 38, 38, 0.85)'); // red
+            gradient.addColorStop(0.7, 'rgba(249, 115, 22, 0.7)'); // orange
+            gradient.addColorStop(1, 'rgba(249, 115, 22, 0)');     // fade to transparent
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(chaser.x - 40, 0, 110, canvas.height);
+
+            // Pulsing edge glow
+            const pulse = Math.sin(gameFrame * 0.08) * 0.3 + 0.7;
+            ctx.shadowColor = '#f97316';
+            ctx.shadowBlur = 25 * pulse;
+            ctx.strokeStyle = `rgba(249, 115, 22, ${0.6 * pulse})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(wallRight, 0);
+            ctx.lineTo(wallRight, canvas.height);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Static warning text on the wall (scrolling vertically)
+            const wallTexts = chaser.warnings;
+            ctx.font = 'bold 10px Courier New';
+            ctx.textAlign = 'center';
+            for (let i = 0; i < wallTexts.length; i++) {
+                const textY = ((i * 80 + gameFrame * 1.2) % (canvas.height + 40)) - 20;
+                const textX = chaser.x + 15 + (i % 3) * 15;
+                ctx.fillStyle = `rgba(251, 191, 36, ${0.3 + Math.sin(gameFrame * 0.05 + i) * 0.15})`;
+                ctx.fillText(wallTexts[i], textX, textY);
+            }
+
+            // Falling cost symbols
+            chaser.symbols.forEach(s => {
+                ctx.save();
+                ctx.globalAlpha = s.alpha * 0.8;
+                ctx.translate(s.x, s.y);
+                ctx.rotate(s.rot);
+                ctx.font = `bold ${s.size}px Courier New`;
+                ctx.fillStyle = s.text === '$' || s.text === '$$' || s.text === '$$$'
+                    ? '#fbbf24' : '#ef4444';
+                ctx.textAlign = 'center';
+                ctx.fillText(s.text, 0, 0);
+                ctx.restore();
+            });
+
+            // Scanline effect on the wall
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+            for (let y = 0; y < canvas.height; y += 4) {
+                ctx.fillRect(chaser.x - 40, y, 110, 2);
+            }
+
+            ctx.restore();
+        }
 
         // Game Objects Arrays
         let platforms = [];
@@ -805,6 +961,17 @@
                         o.stop(now + i * 0.04 + 0.08);
                     });
                     return;
+
+                case 'chaser_warning':
+                    // Low rumble warning — chaser closing in
+                    osc.frequency.setValueAtTime(60, now);
+                    osc.frequency.linearRampToValueAtTime(80, now + 0.3);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.type = 'sawtooth';
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                    break;
 
                 case 'flag':
                     // Shimmering flag pickup
@@ -1399,14 +1566,21 @@
         }
 
         // Draw the server-bot sprite at a given position
-        function drawServerBot(x, y, alpha) {
+        function drawServerBot(x, y, alpha, isGhost) {
             ctx.save();
             ctx.globalAlpha = alpha;
+
+            // Ghost copies get a cyan tint glow
+            if (isGhost) {
+                ctx.shadowColor = '#06b6d4';
+                ctx.shadowBlur = 8 * alpha;
+            }
+
             const w = player.width;  // 24
             const legOffset = Math.sin(gameFrame * 0.2) * 3;
 
             // === ANTENNA ===
-            ctx.fillStyle = '#67e8f9';
+            ctx.fillStyle = isGhost ? '#06b6d4' : '#67e8f9';
             ctx.fillRect(x + 11, y - 6, 2, 6);
             // Antenna tip (blinking)
             ctx.fillStyle = gameFrame % 30 < 15 ? '#22c55e' : '#06b6d4';
@@ -1419,12 +1593,14 @@
             // Screen (dark with data)
             ctx.fillStyle = '#0c1425';
             ctx.fillRect(x + 3, y + 2, w - 6, 8);
-            // Scrolling binary on screen
-            ctx.fillStyle = '#22d3ee';
-            ctx.font = '6px Courier New';
-            const binaryOffset = gameFrame % 40;
-            const bits = '10110010011101';
-            ctx.fillText(bits.substring(binaryOffset % bits.length, binaryOffset % bits.length + 4), x + 4, y + 8);
+            // Scrolling binary on screen (skip for ghosts)
+            if (!isGhost) {
+                ctx.fillStyle = '#22d3ee';
+                ctx.font = '6px Courier New';
+                const binaryOffset = gameFrame % 40;
+                const bits = '10110010011101';
+                ctx.fillText(bits.substring(binaryOffset % bits.length, binaryOffset % bits.length + 4), x + 4, y + 8);
+            }
             // Monitor "eyes" - two bright pixels on screen
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(x + 5, y + 4, 3, 3);
@@ -1456,6 +1632,7 @@
             ctx.fillRect(x + 3, y + 29 + legOffset, 7, 2);
             ctx.fillRect(x + 14, y + 29 - legOffset, 7, 2);
 
+            ctx.shadowBlur = 0;
             ctx.restore();
         }
 
@@ -1464,21 +1641,39 @@
             ctx.save();
 
             // === MOTION TRAIL ===
-            // Record position
-            if (gameRunning) {
-                playerTrail.push({ x: player.x, y: player.y });
+            // Record position every other frame for smoother spacing
+            if (gameRunning && gameFrame % 2 === 0) {
+                playerTrail.push({ x: player.x, y: player.y, frame: gameFrame });
                 if (playerTrail.length > TRAIL_LENGTH) playerTrail.shift();
             }
 
-            // Draw trail ghosts
+            // Draw trail ghost copies (3 ghosts at fading alphas + glow)
             const isMoving = Math.abs(player.velocityX) > 0.5 || Math.abs(player.velocityY) > 2;
             if (isMoving || activePowerup === 'cdn') {
                 const trailCount = activePowerup === 'cdn' ? playerTrail.length : Math.min(3, playerTrail.length - 1);
                 for (let i = playerTrail.length - trailCount - 1; i < playerTrail.length - 1; i++) {
                     if (i < 0) continue;
                     const t = playerTrail[i];
-                    const fade = ((i + 1) / playerTrail.length) * 0.25;
-                    drawServerBot(t.x, t.y, fade);
+                    const fade = ((i + 1) / playerTrail.length) * 0.3;
+                    drawServerBot(t.x, t.y, fade, true);
+                }
+            }
+
+            // === PARTICLE TRAIL ===
+            // Emit small engine exhaust particles when moving
+            if (gameRunning && !countdownActive && (isMoving || !player.onPlatform)) {
+                if (gameFrame % 3 === 0) {
+                    const trailColor = glacierActive ? '#93c5fd' :
+                                       activePowerup === 'cdn' ? '#22c55e' :
+                                       '#06b6d4';
+                    const px = player.x + player.width / 2 + (Math.random() - 0.5) * 8;
+                    const py = player.y + player.height;
+                    const p = new Particle(px, py, trailColor);
+                    p.vx = -player.velocityX * 0.2 + (Math.random() - 0.5) * 1.5;
+                    p.vy = Math.abs(player.velocityY) * 0.1 + Math.random() * 1.5;
+                    p.size = Math.random() * 2 + 1;
+                    p.life = 15 + Math.floor(Math.random() * 10);
+                    particles.push(p);
                 }
             }
 
@@ -1512,12 +1707,15 @@
                 }
             }
 
-            // === MAIN SPRITE ===
-            drawServerBot(player.x, player.y, 1);
+            // === MAIN SPRITE with glow ===
+            ctx.shadowColor = '#06b6d4';
+            ctx.shadowBlur = 6 + Math.sin(gameFrame * 0.1) * 3;
+            drawServerBot(player.x, player.y, 1, false);
+            ctx.shadowBlur = 0;
 
             // === MULTI-REGION CLONE ===
             if (activePowerup === 'multiregion') {
-                drawServerBot(player.x + 35, player.y, 0.5);
+                drawServerBot(player.x + 35, player.y, 0.5, true);
             }
 
             ctx.restore();
@@ -1622,6 +1820,11 @@
             setTimeout(() => {
                 if (!countdownActive) shieldActive = false;
             }, 2000);
+
+            // Chaser speeds up with each level
+            if (chaser.active) {
+                chaser.speed = Math.min(chaser.maxSpeed, chaser.speed + 0.12);
+            }
 
             // Update UI
             document.getElementById('levelName').textContent = lvl.name;
@@ -2045,6 +2248,14 @@
                 platformSpawnTimer = 0;
             }
 
+            // Activate chaser after a grace period (5 seconds = 300 frames)
+            if (!demoMode && !countdownActive && gameRunning && gameFrame > 300 && !chaser.active) {
+                chaser.active = true;
+                chaser.x = -200;
+            }
+            // Update chaser
+            updateChaser();
+
             // Obstacles & powerups (only during actual play)
             if (!demoMode && !countdownActive && gameRunning) {
                 obstacles.forEach(obstacle => obstacle.update());
@@ -2162,6 +2373,11 @@
 
                 respawnTargetX = target.x + target.width / 2 - player.width / 2;
                 respawnTargetY = target.y - player.height;
+
+                // Push chaser back on respawn for breathing room
+                if (chaser.active) {
+                    chaser.x = Math.min(chaser.x, respawnTargetX - 250);
+                }
 
                 // Position PRIME above the target, off the top
                 player.x = respawnTargetX;
@@ -2318,6 +2534,9 @@
         function draw() {
             drawBackground();
 
+            // Draw chaser wall (behind platforms + player)
+            drawChaser();
+
             // Draw platforms
             platforms.forEach(platform => platform.draw());
 
@@ -2450,6 +2669,7 @@
             jumpWasPressed = false;
             dashWasPressed = false;
             abilityEffects = [];
+            resetChaser();
 
             // Lateral mode: player starts at left-center
             player.x = 100;
@@ -2501,6 +2721,13 @@
             stopBackgroundMusic();
             playSound('gameover');
             if (typeof GameTracker !== 'undefined') GameTracker.record('cloudhop', { score: score, result: 'failure' });
+
+            // Update game over title based on cause of death
+            const gameOverTitle = document.querySelector('#gameOverScreen h1');
+            if (gameOverTitle) {
+                gameOverTitle.textContent = chaserKill ? 'BUDGET EXCEEDED!' : 'DOWNTIME!';
+                gameOverTitle.style.color = chaserKill ? '#f97316' : '#06b6d4';
+            }
 
             const lvl = getCurrentLevel();
             document.getElementById('finalLevel').textContent = `Reached: ${lvl.name} (Level ${currentLevel + 1})`;
@@ -2607,6 +2834,7 @@
             demoMode = true;
             gameRunning = true;
             speed = LEVELS[0].speed;
+            resetChaser();
             platforms = [];
             obstacles = [];
             powerups = [];

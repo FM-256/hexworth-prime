@@ -204,7 +204,7 @@
             <hr class="lore-divider">
             <div class="lore-section">
                 <h3>// BACKSTORY</h3>
-                <p>You are <strong style="color:#60a5fa">AGENT-X</strong>, a SOC analyst patrolling the ruins of a city ravaged by cyber warfare. The threat landscape shifts with every block. Run the gauntlet. Neutralize what you can. Survive the shift.</p>
+                <p>You are <strong style="color:#60a5fa">AGENT-X</strong>, a SOC analyst patrolling the ruins of a city ravaged by cyber warfare. A <strong style="color:#ff2050">spreading malware wave</strong> is consuming the network behind you. The threat landscape shifts with every block. Run the gauntlet. Neutralize what you can. Outrun the corruption.</p>
             </div>
             <hr class="lore-divider">
             <div class="lore-section">
@@ -294,6 +294,31 @@
     let dashSpeed = 0;
     let levelTransition = 0;
     let levelTransitionText = '';
+
+    // ===== CHASER: SPREADING MALWARE WAVE =====
+    const chaser = {
+        x: -200,
+        speed: 0.3,
+        baseSpeed: 0.3,
+        noiseOffsets: [],
+        tendrilPhases: []
+    };
+    function initChaser() {
+        chaser.x = -200;
+        chaser.speed = 0.3;
+        chaser.baseSpeed = 0.3;
+        chaser.noiseOffsets = [];
+        chaser.tendrilPhases = [];
+        for (let i = 0; i < 20; i++) {
+            chaser.noiseOffsets.push(Math.random() * Math.PI * 2);
+            chaser.tendrilPhases.push(Math.random() * Math.PI * 2);
+        }
+    }
+    initChaser();
+
+    // ===== PLAYER TRAIL (motion ghosts + foot particles) =====
+    let playerTrail = [];
+    let footParticles = [];
 
     const player = {
         x: 100, y: GROUND_Y - 24, width: 20, height: 24,
@@ -517,7 +542,388 @@
         ctx.globalAlpha = 1;
     }
 
+    // ===== CHASER RENDERING =====
+    function updateChaser() {
+        if (!gameRunning || demoMode) return;
+        const worldFrozen = respawnCountdown && countdownActive && countdownPhase <= 2;
+        if (worldFrozen) return;
+        chaser.x += chaser.speed;
+        chaser.speed = chaser.baseSpeed + gameFrame * 0.00005;
+    }
+
+    function drawChaser() {
+        if (chaser.x < -200) return;
+        const edgeX = chaser.x + 120; // right edge of the corruption wall
+        if (edgeX < 0) return;
+
+        ctx.save();
+
+        // Main corruption gradient wall (solid left, fading right)
+        const wallGrad = ctx.createLinearGradient(Math.max(0, chaser.x - 40), 0, edgeX + 40, 0);
+        wallGrad.addColorStop(0, 'rgba(100, 10, 20, 0.95)');
+        wallGrad.addColorStop(0.4, 'rgba(80, 5, 30, 0.7)');
+        wallGrad.addColorStop(0.7, 'rgba(60, 0, 40, 0.4)');
+        wallGrad.addColorStop(1, 'rgba(40, 0, 30, 0)');
+        ctx.fillStyle = wallGrad;
+        ctx.fillRect(Math.max(0, chaser.x - 200), 0, edgeX - Math.max(0, chaser.x - 200) + 40, H);
+
+        // Glitch noise lines across the wall
+        for (let i = 0; i < 20; i++) {
+            const noisePhase = chaser.noiseOffsets[i] + gameFrame * 0.03;
+            const ny = (Math.sin(noisePhase) * 0.5 + 0.5) * H;
+            const nw = 30 + Math.sin(noisePhase * 1.7) * 20;
+            const nx = edgeX - 20 + Math.sin(noisePhase * 0.8) * 30;
+            ctx.globalAlpha = 0.15 + Math.sin(noisePhase * 2.3) * 0.1;
+            ctx.fillStyle = gameFrame % 3 === 0 ? '#ff0040' : '#8b0030';
+            ctx.fillRect(Math.max(0, nx - nw), ny, nw, 2 + Math.random() * 3);
+        }
+
+        // Spreading tendrils at the leading edge
+        ctx.globalAlpha = 1;
+        for (let i = 0; i < 12; i++) {
+            const tPhase = chaser.tendrilPhases[i] || 0;
+            const ty = (i / 12) * H;
+            const reach = 15 + Math.sin(gameFrame * 0.04 + tPhase) * 12;
+            const tendrilX = edgeX + reach;
+
+            // Each tendril is a jagged reaching line
+            ctx.strokeStyle = `rgba(180, 20, 50, ${0.3 + Math.sin(gameFrame * 0.06 + tPhase) * 0.15})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(edgeX - 5, ty);
+            const midX = edgeX + reach * 0.5;
+            const midY = ty + Math.sin(gameFrame * 0.08 + tPhase) * 8;
+            ctx.quadraticCurveTo(midX, midY, tendrilX, ty + Math.sin(gameFrame * 0.05 + tPhase * 2) * 6);
+            ctx.stroke();
+
+            // Corruption dot at tendril tip
+            if (Math.sin(gameFrame * 0.1 + tPhase) > 0.3) {
+                ctx.fillStyle = '#ff2050';
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(tendrilX, ty + Math.sin(gameFrame * 0.05 + tPhase * 2) * 6, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // Pixel distortion blocks at the edge
+        for (let row = 0; row < H; row += 8) {
+            if (Math.random() > 0.6) {
+                const distW = 4 + Math.random() * 12;
+                const distX = edgeX - 10 + Math.random() * 30;
+                ctx.globalAlpha = 0.2 + Math.random() * 0.2;
+                ctx.fillStyle = Math.random() > 0.5 ? '#600020' : '#400030';
+                ctx.fillRect(distX, row, distW, 4 + Math.random() * 4);
+            }
+        }
+
+        // Scanline corruption overlay on the wall
+        ctx.globalAlpha = 0.06;
+        for (let sy = 0; sy < H; sy += 3) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(Math.max(0, chaser.x - 200), sy, edgeX - Math.max(0, chaser.x - 200), 1);
+        }
+
+        // Pulsing red glow at the leading edge
+        const pulseAlpha = 0.1 + Math.sin(gameFrame * 0.08) * 0.06;
+        const glowGrad = ctx.createLinearGradient(edgeX - 30, 0, edgeX + 20, 0);
+        glowGrad.addColorStop(0, `rgba(255, 0, 50, 0)`);
+        glowGrad.addColorStop(0.5, `rgba(255, 0, 50, ${pulseAlpha})`);
+        glowGrad.addColorStop(1, `rgba(255, 0, 50, 0)`);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = glowGrad;
+        ctx.fillRect(edgeX - 30, 0, 50, H);
+
+        ctx.restore();
+    }
+
+    let chaserKill = false;
+    function checkChaserCollision() {
+        if (!gameRunning || demoMode) return;
+        const chaserEdge = chaser.x + 120; // right edge of corruption
+        if (player.x - chaserEdge < 10) {
+            // Instant death from the malware wave — deep rumble sound
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => playTone(60 + i * 10, 0.15, 'sawtooth', 0.15), i * 30);
+            }
+            chaserKill = true;
+            lives = 0;
+            gameOver();
+        }
+    }
+
     // ===== PLAYER =====
+    function updatePlayerTrail() {
+        if (!gameRunning) return;
+        // Store trail snapshots every 3 frames
+        if (gameFrame % 3 === 0) {
+            playerTrail.push({
+                x: player.x,
+                y: player.y,
+                isDucking: player.isDucking,
+                animFrame: player.animFrame,
+                alpha: 0.35
+            });
+            if (playerTrail.length > 3) playerTrail.shift();
+        }
+        // Decay trail alpha
+        for (let i = playerTrail.length - 1; i >= 0; i--) {
+            playerTrail[i].alpha -= 0.012;
+            if (playerTrail[i].alpha <= 0) playerTrail.splice(i, 1);
+        }
+    }
+
+    function updateFootParticles() {
+        for (let i = footParticles.length - 1; i >= 0; i--) {
+            const fp = footParticles[i];
+            fp.x += fp.vx;
+            fp.y += fp.vy;
+            fp.vy += 0.08;
+            fp.life--;
+            if (fp.life <= 0) footParticles.splice(i, 1);
+        }
+    }
+
+    function drawFootParticles() {
+        for (const fp of footParticles) {
+            const ratio = fp.life / fp.maxLife;
+            ctx.globalAlpha = ratio * 0.7;
+            ctx.fillStyle = fp.color;
+            ctx.beginPath();
+            ctx.arc(fp.x, fp.y, fp.size * ratio, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    function spawnFootParticle(x, y) {
+        const colors = ['#60a5fa', '#3b82f6', '#ef4444', '#93c5fd'];
+        footParticles.push({
+            x: x,
+            y: y,
+            vx: -Math.random() * 1.5 - 0.3,
+            vy: -Math.random() * 0.8,
+            life: 12 + Math.random() * 8,
+            maxLife: 20,
+            size: 1.5 + Math.random() * 1.5,
+            color: colors[Math.floor(Math.random() * colors.length)]
+        });
+    }
+
+    // Draws the player sprite at a given position (used for both ghost trail and main sprite)
+    function drawPlayerSprite(px, py, isDucking, animFrame, isGhost) {
+        const h = isDucking ? 14 : 24;
+        ctx.save();
+
+        if (isDucking) {
+            // -- CROUCHED POSE (component-based) --
+
+            // Body (crouched torso)
+            const grad = ctx.createLinearGradient(px, py + 10, px, py + 24);
+            grad.addColorStop(0, '#4a90e2');
+            grad.addColorStop(1, '#1e3a8a');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(px + 2, py + 12, 18, 12, 2);
+            ctx.fill();
+
+            // Shoulder pads
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(px + 1, py + 12, 4, 3);
+            ctx.fillRect(px + 17, py + 12, 4, 3);
+
+            // Shield arm forward
+            ctx.fillStyle = '#4a90e2';
+            ctx.beginPath();
+            ctx.ellipse(px, py + 16, 4, 6, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head (tilted down)
+            ctx.fillStyle = '#d4a574';
+            ctx.beginPath();
+            ctx.ellipse(px + 14, py + 10, 6, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Helmet outline
+            ctx.strokeStyle = '#1e3a8a';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(px + 14, py + 8, 7, Math.PI, 0);
+            ctx.stroke();
+
+            // Visor (glowing red line) with enhanced glow
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = isGhost ? 2 : 8;
+            ctx.shadowColor = '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(px + 9, py + 11);
+            ctx.lineTo(px + 19, py + 11);
+            ctx.stroke();
+            // Double-pass for extra glow
+            if (!isGhost) {
+                ctx.globalAlpha = 0.4;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(px + 9, py + 11);
+                ctx.lineTo(px + 19, py + 11);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+            ctx.shadowBlur = 0;
+
+            // Tactical boots
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(px + 4, py + 22, 4, 3);
+            ctx.fillRect(px + 12, py + 22, 4, 3);
+            // Boot sole detail
+            ctx.fillStyle = '#333';
+            ctx.fillRect(px + 4, py + 24, 4, 1);
+            ctx.fillRect(px + 12, py + 24, 4, 1);
+
+        } else {
+            // -- STANDING/RUNNING POSE (component-based) --
+
+            // Smoother leg animation using Math.sin
+            const legPhase = Math.sin(animFrame * 0.2);
+            const leftLegY = legPhase * 3;
+            const rightLegY = -legPhase * 3;
+
+            // Legs (drawn first, behind body)
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(px + 7, py + h - 6 + leftLegY, 3, 6 - leftLegY);
+            ctx.fillRect(px + 10, py + h - 6 + rightLegY, 3, 6 - rightLegY);
+
+            // Tactical boots with detail
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(px + 6, py + h + leftLegY - 1, 5, 3);
+            ctx.fillRect(px + 10, py + h + rightLegY - 1, 5, 3);
+            // Boot sole highlights
+            ctx.fillStyle = '#333';
+            ctx.fillRect(px + 6, py + h + leftLegY + 1, 5, 1);
+            ctx.fillRect(px + 10, py + h + rightLegY + 1, 5, 1);
+
+            // Body with armor gradient
+            const grad = ctx.createLinearGradient(px + 6, py + 8, px + 6, py + 8 + h - 8);
+            grad.addColorStop(0, '#4a90e2');
+            grad.addColorStop(0.5, '#3b82f6');
+            grad.addColorStop(1, '#1e3a8a');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(px + 6, py + 8, 8, h - 8, 2);
+            ctx.fill();
+
+            // Chest plate highlight
+            ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+            ctx.fillRect(px + 7, py + 10, 6, 4);
+
+            // Shoulder pads
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(px + 4, py + 8, 4, 3);
+            ctx.fillRect(px + 13, py + 8, 4, 3);
+
+            // Belt/utility
+            ctx.fillStyle = '#0f2b5e';
+            ctx.fillRect(px + 6, py + 16, 8, 2);
+            // Belt buckle
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(px + 9, py + 16, 2, 2);
+
+            // Arms with arc motion (improved swing)
+            const armSwing = Math.sin(animFrame * 0.2);
+            const leftArmAngle = armSwing * 0.5;
+            const rightArmAngle = -armSwing * 0.5;
+
+            ctx.fillStyle = '#4a90e2';
+            // Left arm (upper + forearm)
+            ctx.save();
+            ctx.translate(px + 5, py + 11);
+            ctx.rotate(leftArmAngle);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 2.5, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Forearm/glove
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(0, 5, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Right arm (upper + forearm)
+            ctx.fillStyle = '#4a90e2';
+            ctx.save();
+            ctx.translate(px + 15, py + 11);
+            ctx.rotate(rightArmAngle);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 2.5, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Forearm/glove
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(0, 5, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Head (rounded)
+            ctx.fillStyle = '#d4a574';
+            ctx.beginPath();
+            ctx.ellipse(px + 10, py + 5, 6, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Helmet outline
+            ctx.strokeStyle = '#1e3a8a';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(px + 10, py + 3, 7, Math.PI, 0);
+            ctx.stroke();
+
+            // Visor (glowing red line across eyes) with enhanced glow
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = isGhost ? 3 : 10;
+            ctx.shadowColor = '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(px + 5, py + 5);
+            ctx.lineTo(px + 15, py + 5);
+            ctx.stroke();
+            // Extra glow pass
+            if (!isGhost) {
+                ctx.globalAlpha = 0.3;
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(px + 5, py + 5);
+                ctx.lineTo(px + 15, py + 5);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+            ctx.shadowBlur = 0;
+
+            // Headset/comms
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(px + 3, py + 4, 2, 4);
+            ctx.fillRect(px + 15, py + 4, 2, 4);
+            // Antenna nub with glow
+            ctx.fillStyle = '#ef4444';
+            ctx.shadowBlur = isGhost ? 0 : 4;
+            ctx.shadowColor = '#ef4444';
+            ctx.fillRect(px + 16, py + 2, 2, 4);
+            ctx.shadowBlur = 0;
+
+            // Holographic HUD display
+            if (!isGhost && gameFrame % 60 < 30) {
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = '#60a5fa';
+                ctx.font = '6px monospace';
+                ctx.fillText('>', px + 18, py + 3);
+                ctx.fillText('*', px + 20, py + 7);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        ctx.restore();
+    }
+
     function drawPlayer() {
         const px = player.x, py = player.y;
         const h = player.isDucking ? 14 : 24;
@@ -546,140 +952,18 @@
             ctx.restore();
         }
 
-        ctx.save();
-
-        if (player.isDucking) {
-            // Crouched pose with shield arm forward
-            // Body (crouched)
-            const grad = ctx.createLinearGradient(px, py + 10, px, py + 24);
-            grad.addColorStop(0, '#4a90e2');
-            grad.addColorStop(1, '#1e3a8a');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.roundRect(px + 2, py + 12, 18, 12, 2);
-            ctx.fill();
-
-            // Shield arm forward
-            ctx.fillStyle = '#4a90e2';
-            ctx.beginPath();
-            ctx.ellipse(px, py + 16, 4, 6, -0.3, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Head (tilted down)
-            ctx.fillStyle = '#d4a574';
-            ctx.beginPath();
-            ctx.ellipse(px + 14, py + 10, 6, 7, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Visor (glowing red line)
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 4;
-            ctx.shadowColor = '#ef4444';
-            ctx.beginPath();
-            ctx.moveTo(px + 9, py + 11);
-            ctx.lineTo(px + 19, py + 11);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-
-            // Tactical boots
-            ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(px + 4, py + 22, 4, 3);
-            ctx.fillRect(px + 12, py + 22, 4, 3);
-
-        } else {
-            // Standing/running pose
-            // Body with armor gradient
-            const grad = ctx.createLinearGradient(px + 6, py + 8, px + 6, py + 8 + h - 8);
-            grad.addColorStop(0, '#4a90e2');
-            grad.addColorStop(0.5, '#3b82f6');
-            grad.addColorStop(1, '#1e3a8a');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.roundRect(px + 6, py + 8, 8, h - 8, 2);
-            ctx.fill();
-
-            // Chest plate highlight
-            ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
-            ctx.fillRect(px + 7, py + 10, 6, 4);
-
-            // Head (rounded)
-            ctx.fillStyle = '#d4a574';
-            ctx.beginPath();
-            ctx.ellipse(px + 10, py + 5, 6, 7, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Visor (glowing red line across eyes)
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 6;
-            ctx.shadowColor = '#ef4444';
-            ctx.beginPath();
-            ctx.moveTo(px + 5, py + 5);
-            ctx.lineTo(px + 15, py + 5);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-
-            // Headset/comms
-            ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(px + 3, py + 4, 2, 4);
-            ctx.fillRect(px + 15, py + 4, 2, 4);
-            // Antenna nub
-            ctx.fillStyle = '#ef4444';
-            ctx.fillRect(px + 16, py + 3, 1, 3);
-
-            // Arms with arc motion (proper swing)
-            const armSwing = Math.sin(player.animFrame * 0.3);
-            const leftArmAngle = armSwing * 0.4;
-            const rightArmAngle = -armSwing * 0.4;
-
-            ctx.fillStyle = '#4a90e2';
-            // Left arm
+        // Motion trail: draw ghost copies behind the player
+        updatePlayerTrail();
+        for (const ghost of playerTrail) {
             ctx.save();
-            ctx.translate(px + 6, py + 12);
-            ctx.rotate(leftArmAngle);
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 2, 5, 0, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.globalAlpha = ghost.alpha;
+            drawPlayerSprite(ghost.x, ghost.y, ghost.isDucking, ghost.animFrame, true);
             ctx.restore();
-
-            // Right arm
-            ctx.save();
-            ctx.translate(px + 14, py + 12);
-            ctx.rotate(rightArmAngle);
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 2, 5, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-
-            // Legs with proper stride
-            const legStride = Math.sin(player.animFrame * 0.3);
-            const leftLegY = legStride * 3;
-            const rightLegY = -legStride * 3;
-
-            ctx.fillStyle = '#1e3a8a';
-            // Left leg
-            ctx.fillRect(px + 7, py + h - 6 + leftLegY, 3, 6 - leftLegY);
-            // Right leg
-            ctx.fillRect(px + 10, py + h - 6 + rightLegY, 3, 6 - rightLegY);
-
-            // Tactical boots
-            ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(px + 6, py + h + leftLegY - 1, 4, 3);
-            ctx.fillRect(px + 10, py + h + rightLegY - 1, 4, 3);
-
-            // Holographic HUD display (tiny floating icons near head)
-            if (gameFrame % 60 < 30) {
-                ctx.globalAlpha = 0.6;
-                ctx.fillStyle = '#60a5fa';
-                ctx.font = '6px monospace';
-                ctx.fillText('>', px + 18, py + 3);
-                ctx.fillText('●', px + 20, py + 7);
-                ctx.globalAlpha = 1;
-            }
         }
+        ctx.globalAlpha = 1;
 
-        ctx.restore();
+        // Main player sprite
+        drawPlayerSprite(px, py, player.isDucking, player.animFrame, false);
 
         // Ability visuals
         if (abilityActive === 'dash') {
@@ -698,7 +982,18 @@
             ctx.stroke();
         }
 
-        // Data stream particle trail
+        // Foot particle trail (spawn from boot positions)
+        if (gameRunning && !player.isJumping && gameFrame % 2 === 0) {
+            const legPhase = Math.sin(player.animFrame * 0.2);
+            spawnFootParticle(px + 8, py + h + legPhase * 3);
+            if (gameFrame % 4 === 0) {
+                spawnFootParticle(px + 12, py + h - legPhase * 3);
+            }
+        }
+        updateFootParticles();
+        drawFootParticles();
+
+        // Data stream particle trail (original)
         if (gameRunning && gameFrame % 4 === 0) {
             const sz = 2 + Math.random() * 2;
             particles.push({
@@ -1429,7 +1724,7 @@
         ctx.textAlign = 'center';
         ctx.shadowBlur = 20;
         ctx.shadowColor = '#ff0000';
-        ctx.fillText('BREACH DETECTED', W/2, H/2 - 50);
+        ctx.fillText(chaserKill ? 'NETWORK CONSUMED' : 'BREACH DETECTED', W/2, H/2 - 50);
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#e0e0e0';
         ctx.font = '18px monospace';
@@ -1460,6 +1755,11 @@
              abilityActive === 'dash' ? gameSpeed + dashSpeed : gameSpeed);
 
         drawBackground();
+
+        // Update and draw chaser (after background, before obstacles)
+        updateChaser();
+        drawChaser();
+
         if (countdownActive) updateCountdown();
 
         if (!countdownActive || countdownPhase >= 3) {
@@ -1502,6 +1802,9 @@
             }
             obs.draw();
         }
+
+        // Check if malware wave caught the player
+        checkChaserCollision();
 
         if (flagObj) {
             flagObj.x -= effectiveSpeed;
@@ -1574,6 +1877,9 @@
         invincible = false; abilityActive = null;
         flagObj = null; nextFlagAt = 20;
         shieldFadeTimer = 0; levelTransition = 0;
+        playerTrail = []; footParticles = [];
+        chaserKill = false;
+        initChaser();
         initBuildings();
         startCountdown(); getAudio();
     });

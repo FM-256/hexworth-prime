@@ -259,7 +259,7 @@
             <hr class="lore-divider">
             <div class="lore-section">
                 <h3>// BACKSTORY</h3>
-                <p>You are <strong style="color:#00ff41">PID-0</strong>, the init daemon &mdash; first process born at boot time. The filesystem has been corrupted. Navigate the directory dungeon, dodge segfaults and fork bombs, and reach /dev/null before the kernel panics.</p>
+                <p>You are <strong style="color:#00ff41">PID-0</strong>, the init daemon &mdash; first process born at boot time. The filesystem has been corrupted. Navigate the directory dungeon, dodge segfaults and fork bombs, and reach /dev/null before the kernel panics. <strong style="color:#ff4444">Warning:</strong> a root kill sweep creeps behind you &mdash; stay ahead or be terminated.</p>
             </div>
             <hr class="lore-divider">
             <div class="lore-section">
@@ -348,6 +348,160 @@
     // Flag
     let flagObj = null;
     let nextFlagAt = 20;
+
+    // Chaser — Root Process Kill Sweep
+    const chaser = {
+        x: -200,               // starts off-screen left
+        speed: 0.3,            // px per frame, increases over time
+        speedGrowth: 0.00008,  // acceleration per frame
+        textLines: [],         // scrolling kill command lines
+        textScrollY: 0,        // scroll offset for text animation
+        cursorBlink: 0,
+        active: false
+    };
+    const CHASER_KILL_TEXTS = [
+        'kill -9 $$', 'SIGKILL', 'kill -TERM 1', 'pkill -9 -u *',
+        'killall -9', 'PROCESS TERMINATED', 'kill -9 -1',
+        'sending SIGKILL...', 'reaping PID...', 'OOM killer invoked',
+        'SIGKILL sent', 'exit code 137', 'Killed', 'terminated',
+        'kill -9 $(pgrep -f init)', 'destroy_all_pids()', 'rm /proc/self',
+        'echo SIGKILL | tee /dev/death', 'nuke_from_orbit()'
+    ];
+
+    function initChaser() {
+        chaser.x = -200;
+        chaser.speed = 0.3;
+        chaser.active = true;
+        chaser.textScrollY = 0;
+        chaser.cursorBlink = 0;
+        chaser.textLines = [];
+        for (let i = 0; i < 30; i++) {
+            chaser.textLines.push(CHASER_KILL_TEXTS[Math.floor(Math.random() * CHASER_KILL_TEXTS.length)]);
+        }
+    }
+
+    function updateChaser() {
+        if (!chaser.active || !gameRunning) return;
+        const worldFrozen = respawnCountdown && countdownActive && countdownPhase <= 2;
+        if (worldFrozen) return;
+
+        // Accelerate over time
+        chaser.speed += chaser.speedGrowth;
+        chaser.x += chaser.speed;
+        chaser.textScrollY += 1.2;
+        chaser.cursorBlink++;
+
+        // Recycle text lines as they scroll off
+        if (chaser.textScrollY >= 16) {
+            chaser.textScrollY -= 16;
+            chaser.textLines.push(CHASER_KILL_TEXTS[Math.floor(Math.random() * CHASER_KILL_TEXTS.length)]);
+            if (chaser.textLines.length > 35) chaser.textLines.shift();
+        }
+
+        // Collision — if the chaser wall reaches the player
+        if (chaser.x >= player.x - 4 && gameRunning) {
+            lives = 0;
+            gameRunning = false;
+            playDeath();
+            // Show special death message
+            chaserKilled = true;
+            if (typeof GameTracker !== 'undefined') GameTracker.record('shell_sprint', { score: hopCount, result: 'failure' });
+            if (hopCount > highScore) {
+                highScore = hopCount;
+                localStorage.setItem('shellsprint_highscore', highScore.toString());
+            }
+            if (hopCount >= 500) awardXP();
+        }
+    }
+
+    function drawChaser() {
+        if (!chaser.active) return;
+        const edgeX = chaser.x;
+        if (edgeX < -180) return; // not visible yet
+
+        const drawX = Math.min(edgeX, W); // right edge of chaser panel
+        const panelLeft = drawX - 180;     // 180px wide dark panel
+
+        ctx.save();
+
+        // Dark terminal wall background
+        const chaserGrad = ctx.createLinearGradient(panelLeft, 0, drawX + 10, 0);
+        chaserGrad.addColorStop(0, 'rgba(8, 0, 0, 0.95)');
+        chaserGrad.addColorStop(0.7, 'rgba(20, 0, 0, 0.92)');
+        chaserGrad.addColorStop(0.95, 'rgba(40, 0, 0, 0.85)');
+        chaserGrad.addColorStop(1, 'rgba(60, 0, 0, 0)');
+        ctx.fillStyle = chaserGrad;
+        ctx.fillRect(panelLeft, 0, 200, H);
+
+        // Scrolling red kill text inside the panel
+        ctx.beginPath();
+        ctx.rect(Math.max(0, panelLeft), 0, Math.min(180, drawX), H);
+        ctx.clip();
+
+        ctx.font = '10px monospace';
+        const lineH = 16;
+        for (let i = 0; i < chaser.textLines.length; i++) {
+            const ty = i * lineH - chaser.textScrollY;
+            if (ty < -lineH || ty > H + lineH) continue;
+            const textX = panelLeft + 8;
+            const alphaBase = 0.4 + Math.sin(gameFrame * 0.03 + i * 0.5) * 0.2;
+            ctx.globalAlpha = Math.max(0.15, alphaBase);
+            ctx.fillStyle = i % 3 === 0 ? '#ff2222' : (i % 3 === 1 ? '#cc0000' : '#ff4444');
+            ctx.fillText(chaser.textLines[i], textX, ty + 12);
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // Sharp leading edge — bright red line with glow
+        if (drawX > 0) {
+            ctx.save();
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff0000';
+            ctx.strokeStyle = '#ff3333';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(drawX, 0);
+            ctx.lineTo(drawX, H);
+            ctx.stroke();
+
+            // Inner glow line
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#ff4444';
+            ctx.strokeStyle = '#ff6666';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(drawX - 2, 0);
+            ctx.lineTo(drawX - 2, H);
+            ctx.stroke();
+            ctx.restore();
+
+            // Blinking cursor at the leading edge
+            if (chaser.cursorBlink % 30 < 18) {
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(drawX + 1, H / 2 - 6, 8, 14);
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 10px monospace';
+                ctx.fillText('#', drawX + 2, H / 2 + 5);
+            }
+
+            // Particles shedding from the edge
+            if (gameFrame % 3 === 0) {
+                particles.push({
+                    x: drawX + Math.random() * 6,
+                    y: Math.random() * H,
+                    vx: 1 + Math.random() * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    life: 8 + Math.random() * 6,
+                    color: Math.random() > 0.5 ? '#ff2222' : '#ff6644',
+                    size: 1 + Math.random() * 2
+                });
+            }
+        }
+    }
+    let chaserKilled = false;
+
+    // Player trail history for ghost copies
+    let playerTrail = [];
 
     // Abilities
     let abilityActive = null;
@@ -486,9 +640,55 @@
     }
 
     // ===== PLAYER =====
+    function drawPlayerBody(px, py, h, alpha) {
+        // Shared body renderer used by ghost trail and main sprite
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#00ff41';
+        if (player.isDucking) {
+            ctx.fillRect(px, py + 8, 22, 10);
+            if (alpha > 0.5) {
+                ctx.fillStyle = '#0a0a0a';
+                ctx.font = 'bold 7px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('~$', px + 11, py + 16);
+            }
+        } else {
+            // Terminal cursor shape with smoother run animation
+            const runBob = gameRunning && !player.isJumping ? Math.sin(gameFrame * 0.25) * 1.5 : 0;
+            const runLean = gameRunning && !player.isJumping ? Math.sin(gameFrame * 0.18) * 0.04 : 0;
+
+            ctx.translate(px + 9, py + 18);
+            ctx.rotate(runLean);
+            ctx.translate(-(px + 9), -(py + 18));
+
+            ctx.fillRect(px + 2, py + runBob, 14, 18);
+            if (alpha > 0.5) {
+                ctx.fillStyle = '#0a0a0a';
+                ctx.font = 'bold 9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('P0', px + 9, py + 8 + runBob);
+                ctx.font = '7px monospace';
+                ctx.fillText('init', px + 9, py + 15 + runBob);
+            }
+            // Blinking cursor on top
+            if (alpha > 0.5 && gameFrame % 30 < 15) {
+                ctx.fillStyle = '#00ff41';
+                ctx.fillRect(px + 4, py - 3 + runBob, 10, 2);
+            }
+        }
+        ctx.restore();
+    }
+
     function drawPlayer() {
         const px = player.x, py = player.y;
         const h = player.isDucking ? 10 : 18;
+
+        // Record trail position
+        if (gameRunning) {
+            playerTrail.push({ x: px, y: py, ducking: player.isDucking, frame: gameFrame });
+            if (playerTrail.length > 4) playerTrail.shift();
+        }
 
         // Shield effect
         let showShield = player.shielded || invincible;
@@ -513,41 +713,36 @@
             ctx.restore();
         }
 
-        // Glow
-        const glowR = 10 + Math.sin(gameFrame * 0.08) * 3;
+        // Motion trail — 3 ghost copies at fading alphas
+        if (gameRunning && playerTrail.length > 1) {
+            for (let i = 0; i < playerTrail.length - 1; i++) {
+                const t = playerTrail[i];
+                const ghostAlpha = (i + 1) / (playerTrail.length + 2) * 0.35;
+                const gh = t.ducking ? 10 : 18;
+                drawPlayerBody(t.x, t.y, gh, ghostAlpha);
+            }
+        }
+
+        // Enhanced glow — larger, pulsing, with outer ring
+        const glowR = 14 + Math.sin(gameFrame * 0.08) * 4;
         ctx.save();
         const grad = ctx.createRadialGradient(px+9, py+h/2, 0, px+9, py+h/2, glowR);
-        grad.addColorStop(0, 'rgba(0,255,65,0.5)');
+        grad.addColorStop(0, 'rgba(0,255,65,0.6)');
+        grad.addColorStop(0.4, 'rgba(0,255,65,0.2)');
         grad.addColorStop(1, 'rgba(0,255,65,0)');
         ctx.fillStyle = grad;
         ctx.fillRect(px-glowR+9, py+h/2-glowR, glowR*2, glowR*2);
+        // Outer glow ring
+        ctx.strokeStyle = 'rgba(0,255,65,' + (0.12 + Math.sin(gameFrame * 0.06) * 0.06) + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px + 9, py + h/2, glowR + 4, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.restore();
 
-        // Body
-        ctx.fillStyle = '#00ff41';
-        if (player.isDucking) {
-            ctx.fillRect(px, py + 8, 22, 10);
-            ctx.fillStyle = '#0a0a0a';
-            ctx.font = 'bold 7px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('~$', px + 11, py + 16);
-        } else {
-            // Terminal cursor shape
-            ctx.fillRect(px + 2, py, 14, 18);
-            // Process ID display
-            player.frame++;
-            ctx.fillStyle = '#0a0a0a';
-            ctx.font = 'bold 9px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('P0', px + 9, py + 8);
-            ctx.font = '7px monospace';
-            ctx.fillText('init', px + 9, py + 15);
-            // Blinking cursor on top
-            if (gameFrame % 30 < 15) {
-                ctx.fillStyle = '#00ff41';
-                ctx.fillRect(px + 4, py - 3, 10, 2);
-            }
-        }
+        // Body (main sprite at full alpha)
+        player.frame++;
+        drawPlayerBody(px, py, h, 1);
 
         // Ability visuals
         if (abilityActive === 'dash') {
@@ -567,11 +762,40 @@
             ctx.stroke();
         }
 
-        // Trail particles
-        if (!player.isJumping && gameRunning && gameFrame % 5 === 0) {
+        // Enhanced particle trail — continuous while running
+        if (gameRunning && gameFrame % 3 === 0) {
+            // Ground dust
+            if (!player.isJumping) {
+                particles.push({
+                    x: px + 9 + (Math.random() - 0.5) * 6,
+                    y: py + h,
+                    vx: -Math.random() * 2 - 0.5,
+                    vy: -Math.random() * 1.5,
+                    life: 10 + Math.random() * 5,
+                    color: '#00ff41',
+                    size: 1 + Math.random() * 2
+                });
+            }
+            // Ember trail behind player
             particles.push({
-                x: px + 9, y: py + h, vx: -Math.random()*1.5-0.5, vy: -Math.random(),
-                life: 10, color: '#00ff41', size: 2
+                x: px - 2 + Math.random() * 4,
+                y: py + h / 2 + (Math.random() - 0.5) * h,
+                vx: -1.5 - Math.random() * 2,
+                vy: (Math.random() - 0.5) * 1.5,
+                life: 8 + Math.random() * 6,
+                color: Math.random() > 0.6 ? '#00ff41' : '#34d399',
+                size: 1 + Math.random()
+            });
+        }
+        // Jumping spark burst
+        if (player.isJumping && gameFrame % 4 === 0) {
+            particles.push({
+                x: px + 9, y: py + h,
+                vx: (Math.random() - 0.5) * 3,
+                vy: 1 + Math.random() * 2,
+                life: 6 + Math.random() * 4,
+                color: '#6ee7b7',
+                size: 1 + Math.random()
             });
         }
         ctx.textAlign = 'left';
@@ -879,6 +1103,7 @@
     }
     function gameOver() {
         gameRunning = false;
+        chaser.active = false;
         playDeath();
         if (typeof GameTracker !== 'undefined') GameTracker.record('shell_sprint', { score: hopCount, result: 'failure' });
         if (hopCount > highScore) {
@@ -1035,21 +1260,39 @@
         ctx.save();
         ctx.fillStyle = 'rgba(10,0,0,0.85)';
         ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#ff4444';
-        ctx.font = 'bold 42px monospace';
-        ctx.textAlign = 'center';
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = '#ff0000';
-        ctx.fillText('KERNEL PANIC', W/2, H/2 - 50);
-        ctx.shadowBlur = 0;
+
+        if (chaserKilled) {
+            // Special chaser death screen
+            ctx.fillStyle = '#ff2222';
+            ctx.font = 'bold 36px monospace';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = '#ff0000';
+            ctx.fillText('PROCESS TERMINATED!', W/2, H/2 - 60);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#cc4444';
+            ctx.font = '14px monospace';
+            ctx.fillText('root kill sweep caught PID-0', W/2, H/2 - 30);
+            ctx.fillText('sudo kill -9 1  // init process reaped', W/2, H/2 - 10);
+        } else {
+            ctx.fillStyle = '#ff4444';
+            ctx.font = 'bold 42px monospace';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#ff0000';
+            ctx.fillText('KERNEL PANIC', W/2, H/2 - 50);
+            ctx.shadowBlur = 0;
+        }
+
         ctx.fillStyle = '#e0e0e0';
         ctx.font = '18px monospace';
-        ctx.fillText(`Commands: ${hopCount}`, W/2, H/2);
+        ctx.textAlign = 'center';
+        ctx.fillText(`Commands: ${hopCount}`, W/2, H/2 + 15);
         ctx.fillStyle = '#00ff41';
-        ctx.fillText(`High Score: ${highScore}`, W/2, H/2 + 30);
+        ctx.fillText(`High Score: ${highScore}`, W/2, H/2 + 45);
         ctx.fillStyle = '#888';
         ctx.font = '14px monospace';
-        ctx.fillText('Click ./start.sh to Reboot', W/2, H/2 + 70);
+        ctx.fillText('Click ./start.sh to Reboot', W/2, H/2 + 80);
         ctx.restore();
     }
 
@@ -1138,6 +1381,10 @@
             if (gameFrame % rate === 0) spawnObstacle();
         }
 
+        // Chaser update and draw
+        if (chaser.active && gameRunning) updateChaser();
+        drawChaser();
+
         if (demoMode) demoAI();
         updateParticles();
         drawPlayer();
@@ -1185,13 +1432,15 @@
         demoMode = false; gameRunning = true;
         lives = 3; hopCount = 0; currentLevel = 0;
         gameSpeed = LEVELS[0].speed;
-        obstacles = []; particles = [];
+        obstacles = []; particles = []; playerTrail = [];
         player.x = 100; player.y = GROUND_Y - 18;
         player.velocityY = 0; player.isJumping = false;
         player.isDucking = false; player.shielded = false;
         invincible = false; abilityActive = null;
         flagObj = null; nextFlagAt = 20;
         shieldFadeTimer = 0; levelTransition = 0;
+        chaserKilled = false;
+        initChaser();
         initBgTexts();
         startCountdown(); getAudio();
     });
