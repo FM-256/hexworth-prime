@@ -68,6 +68,17 @@
         }
         .stat-label { color: #94a3b8; }
         .stat-value { color: #22d3ee; font-weight: bold; }
+        .powerup-legend {
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .powerup-item {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 10px; color: #94a3b8;
+        }
+        .powerup-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            flex-shrink: 0;
+        }
         .milestone-log {
             background: #0c1929; border: 1px solid #164e63;
             padding: 8px; font-size: 10px; line-height: 1.5;
@@ -87,6 +98,10 @@
         #controls {
             text-align: center; margin-top: 12px;
             color: #64748b; font-size: 12px;
+        }
+        #difficultyIndicator {
+            font-size: 10px; color: #475569; text-align: center;
+            margin-top: 4px; letter-spacing: 1px;
         }
     </style>
 </head>
@@ -110,8 +125,27 @@
             </div>
 
             <div class="lore-section">
-                <h3>Intel</h3>
-                <p>Server racks with blinking LEDs block your path. The data center grows denser as you scale. Collect cloud wisdom at each milestone.</p>
+                <h3>Hazards</h3>
+                <p><em>Updrafts</em> push you up. <em>Downdrafts</em> drag you down. Watch the arrows between racks.</p>
+                <p>At higher scores: <em>moving</em> racks shift up/down, <em>narrowing</em> racks close in as you approach.</p>
+            </div>
+
+            <div class="lore-section">
+                <h3>Power-ups</h3>
+                <div class="powerup-legend">
+                    <div class="powerup-item">
+                        <div class="powerup-dot" style="background:#06b6d4;"></div>
+                        <span><em>SHIELD</em> &mdash; Survive one collision</span>
+                    </div>
+                    <div class="powerup-item">
+                        <div class="powerup-dot" style="background:#a855f7;"></div>
+                        <span><em>BOOST</em> &mdash; Reduced gravity, 4s</span>
+                    </div>
+                    <div class="powerup-item">
+                        <div class="powerup-dot" style="background:#22c55e;"></div>
+                        <span><em>CLEARANCE</em> &mdash; Wider gaps, 5s</span>
+                    </div>
+                </div>
             </div>
 
             <div class="lore-section">
@@ -123,6 +157,10 @@
                 <div class="stat-row">
                     <span class="stat-label">High Score</span>
                     <span class="stat-value" id="sideHigh">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Difficulty</span>
+                    <span class="stat-value" id="sideDifficulty">NORMAL</span>
                 </div>
             </div>
 
@@ -137,7 +175,7 @@
         <div id="gameContainer"></div>
     </div>
 
-    <div id="controls">SPACE / CLICK to flap &bull; Navigate through the server racks</div>
+    <div id="controls">SPACE / CLICK to flap &bull; Dodge racks, ride the wind, collect power-ups</div>
 
     <script src="../../../components/GameTracker.js"></script>
     <script src="../../../components/GameScoreboard.js"></script>
@@ -145,53 +183,120 @@
     <script>
         let game = null;
 
-        function drawCloudSprite(ctx, w, h, flapFrame) {
-            // Cloud body — three overlapping circles
-            ctx.fillStyle = '#e0f2fe';
-            ctx.shadowColor = '#06b6d4';
-            ctx.shadowBlur = flapFrame > 0.3 ? 14 : 6;
+        // ── Wind Zone Tracking ─────────────────────────────────────────
+        // Pipes get wind zones attached via onPipeSpawn. We track them
+        // externally so onBirdUpdate can apply forces.
+        var windZones = [];
+        var cloudParticles = [];
+        var trailParticles = [];
+        var currentScore = 0;
 
+        // Spawn background cloud particles
+        function initCloudParticles() {
+            cloudParticles = [];
+            for (var i = 0; i < 15; i++) {
+                cloudParticles.push({
+                    x: Math.random() * 420,
+                    y: 40 + Math.random() * 440,
+                    size: 8 + Math.random() * 20,
+                    speed: 0.2 + Math.random() * 0.4,
+                    alpha: 0.03 + Math.random() * 0.05
+                });
+            }
+        }
+        initCloudParticles();
+
+        // ── Enhanced Cloud Sprite ──────────────────────────────────────
+        function drawCloudSprite(ctx, w, h, flapFrame) {
+            var now = Date.now();
+            var pulse = 1 + 0.05 * Math.sin(now / 200);
+            var hasBoost = game && game.getPowerup() && game.getPowerup().id === 'boost';
+            var hasShield = game && game.getPowerup() && game.getPowerup().id === 'shield';
+
+            // Boost trail effect — wispy particles behind
+            if (hasBoost) {
+                ctx.save();
+                for (var t = 0; t < 5; t++) {
+                    var tx = -14 - t * 6 + Math.sin(now / 100 + t) * 2;
+                    var ty = 2 + Math.sin(now / 150 + t * 0.7) * 3;
+                    var ta = 0.3 - t * 0.05;
+                    ctx.globalAlpha = ta;
+                    ctx.fillStyle = '#a855f7';
+                    ctx.beginPath();
+                    ctx.arc(tx, ty, 3 - t * 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            // Cloud body — multiple overlapping circles for fluffy look
+            ctx.fillStyle = hasBoost ? '#e9d5ff' : '#e0f2fe';
+            ctx.shadowColor = hasBoost ? '#a855f7' : '#06b6d4';
+            ctx.shadowBlur = flapFrame > 0.3 ? 16 : 8;
+
+            // Back puff (depth)
+            ctx.beginPath();
+            ctx.arc(-8, 3, 7 * pulse, 0, Math.PI * 2);
+            ctx.fill();
             // Left puff
             ctx.beginPath();
-            ctx.arc(-6, 2, 8, 0, Math.PI * 2);
+            ctx.arc(-5, -1, 9 * pulse, 0, Math.PI * 2);
             ctx.fill();
-            // Center puff (larger)
+            // Center puff (largest)
             ctx.beginPath();
-            ctx.arc(0, -3, 10, 0, Math.PI * 2);
+            ctx.arc(1, -4, 11 * pulse, 0, Math.PI * 2);
             ctx.fill();
             // Right puff
             ctx.beginPath();
-            ctx.arc(7, 2, 7, 0, Math.PI * 2);
+            ctx.arc(8, 0, 8 * pulse, 0, Math.PI * 2);
             ctx.fill();
-            // Base (fillRect does not use/clear the path buffer, so no ctx.fill() needed)
-            ctx.fillRect(-12, 0, 24, 8);
+            // Top puff (volume)
+            ctx.beginPath();
+            ctx.arc(-2, -7, 6 * pulse, 0, Math.PI * 2);
+            ctx.fill();
+            // Base
+            ctx.fillRect(-13, 0, 26, 7);
 
             ctx.shadowBlur = 0;
 
-            // Smiley face
-            ctx.fillStyle = '#0284c7';
-            // Eyes
+            // Face
+            ctx.fillStyle = hasBoost ? '#7c3aed' : '#0284c7';
+            // Eyes — blink every ~3 seconds
+            var blinkCycle = now % 3000;
+            var eyeH = (blinkCycle > 2900) ? 0.3 : 1.5;
             ctx.beginPath();
-            ctx.arc(-4, -2, 1.5, 0, Math.PI * 2);
+            ctx.ellipse(-4, -3, 1.5, eyeH, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.beginPath();
-            ctx.arc(4, -2, 1.5, 0, Math.PI * 2);
+            ctx.ellipse(5, -3, 1.5, eyeH, 0, 0, Math.PI * 2);
             ctx.fill();
-            // Smile
-            ctx.strokeStyle = '#0284c7';
-            ctx.lineWidth = 1;
+            // Smile (wider when flapping)
+            ctx.strokeStyle = hasBoost ? '#7c3aed' : '#0284c7';
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.arc(0, 0, 4, 0.2, Math.PI - 0.2);
+            var smileWidth = flapFrame > 0.3 ? 5 : 4;
+            ctx.arc(0.5, -1, smileWidth, 0.15, Math.PI - 0.15);
             ctx.stroke();
+
+            // Cheek blush
+            ctx.fillStyle = hasBoost ? 'rgba(168,85,247,0.2)' : 'rgba(6,182,212,0.15)';
+            ctx.beginPath();
+            ctx.arc(-7, 0, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(8, 0, 3, 0, Math.PI * 2);
+            ctx.fill();
         }
 
+        // ── Rack Decoration + Wind Arrows + Cloud Particles ───────────
         function drawRackDecoration(ctx, pipe) {
+            var time = Date.now();
+
             // Blinking LED dots on server racks
-            const time = Date.now();
-            for (let i = 0; i < 6; i++) {
-                const ledY1 = 30 + i * ((pipe.gapY - 40) / 6);
-                const ledY2 = pipe.gapY + pipe.gapSize + 20 + i * 30;
-                const blink = Math.sin(time / 200 + i * 1.5) > 0;
+            for (var i = 0; i < 6; i++) {
+                var ledY1 = 30 + i * ((pipe.gapY - 40) / 6);
+                var ledY2 = pipe.gapY + pipe.gapSize + 20 + i * 30;
+                var blink = Math.sin(time / 200 + i * 1.5) > 0;
 
                 if (ledY1 > 5 && ledY1 < pipe.gapY - 5) {
                     ctx.fillStyle = blink ? '#22c55e' : '#064e3b';
@@ -211,29 +316,215 @@
                     ctx.fillRect(pipe.x + 20, ledY2, 3, 3);
                 }
             }
+
+            // Wind zone arrows in the gap
+            if (pipe.windDir && pipe.windDir !== 0) {
+                var gapCenterX = pipe.x + pipe.width / 2;
+                var gapCenterY = pipe.gapY + pipe.gapSize / 2;
+                var arrowCount = 3;
+                var isUp = pipe.windDir < 0;
+                var arrowColor = isUp ? '#22d3ee' : '#f97316';
+
+                ctx.save();
+                ctx.globalAlpha = 0.35 + 0.15 * Math.sin(time / 250);
+
+                for (var a = 0; a < arrowCount; a++) {
+                    var arrowY = gapCenterY + (a - 1) * 18;
+                    // Animate arrows floating in wind direction
+                    var animOffset = ((time / 400 + a * 0.8) % 1) * 16 * pipe.windDir;
+                    var ay = arrowY + animOffset;
+
+                    // Only draw if within gap
+                    if (ay > pipe.gapY + 8 && ay < pipe.gapY + pipe.gapSize - 8) {
+                        ctx.strokeStyle = arrowColor;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        // Arrow shaft
+                        ctx.moveTo(gapCenterX, ay + (isUp ? 6 : -6));
+                        ctx.lineTo(gapCenterX, ay + (isUp ? -6 : 6));
+                        ctx.stroke();
+                        // Arrow head
+                        ctx.beginPath();
+                        ctx.moveTo(gapCenterX - 4, ay + (isUp ? -2 : 2));
+                        ctx.lineTo(gapCenterX, ay + (isUp ? -6 : 6));
+                        ctx.lineTo(gapCenterX + 4, ay + (isUp ? -2 : 2));
+                        ctx.stroke();
+                    }
+                }
+
+                // Wind zone streaks — small diagonal lines flanking the arrows
+                ctx.globalAlpha = 0.12;
+                ctx.strokeStyle = arrowColor;
+                ctx.lineWidth = 1;
+                for (var s = 0; s < 6; s++) {
+                    // Deterministic positioning using seed from pipe + index
+                    var seed = (s * 73 + 17) % 43;
+                    var sx = pipe.x + 5 + (seed / 43) * (pipe.width - 10);
+                    var sy = pipe.gapY + 10 + ((time / 300 + s * 37) % 1) * (pipe.gapSize - 20);
+                    var drift = ((seed % 7) - 3) * 1.2;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(sx + drift, sy + pipe.windDir * 8);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
         }
 
-        const milestones = {
-            3: 'EC2 (Elastic Compute Cloud) — virtual servers on demand. Stop paying for idle hardware.',
-            7: 'S3 (Simple Storage Service) — object storage with 99.999999999% (11 nines) durability.',
-            12: 'IAM (Identity & Access Management) — who can do what. Principle of least privilege.',
-            18: 'Lambda — serverless functions. No servers to manage. Pay only for compute time used.',
-            25: 'VPC (Virtual Private Cloud) — your own isolated network in AWS. Subnets, route tables, NACLs.',
-            30: 'CloudFormation / Terraform — Infrastructure as Code. Version-control your entire data center.',
+        // ── Custom powerup sprites ────────────────────────────────────
+        function drawPowerupSprite(ctx, pu) {
+            pu.bobFrame += 0.05;
+            var pulse = 1 + 0.2 * Math.sin(pu.bobFrame);
+            var radius = 13 * pulse;
+            var time = Date.now();
+
+            ctx.save();
+
+            if (pu.type.id === 'shield') {
+                // Shield: hexagonal shape with inner glow
+                ctx.shadowColor = '#06b6d4';
+                ctx.shadowBlur = 12;
+                ctx.strokeStyle = '#06b6d4';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.7 + 0.2 * Math.sin(pu.bobFrame);
+                ctx.beginPath();
+                for (var i = 0; i < 6; i++) {
+                    var angle = (Math.PI / 3) * i - Math.PI / 6;
+                    var px = pu.x + Math.cos(angle) * radius;
+                    var py = pu.y + Math.sin(angle) * radius;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(6,182,212,0.15)';
+                ctx.fill();
+
+                // Inner shield icon
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 0.9;
+                ctx.fillStyle = '#06b6d4';
+                ctx.font = 'bold 8px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('SH', pu.x, pu.y);
+            } else if (pu.type.id === 'boost') {
+                // Boost: upward arrow with purple glow
+                ctx.shadowColor = '#a855f7';
+                ctx.shadowBlur = 15;
+                ctx.globalAlpha = 0.6 + 0.3 * Math.sin(pu.bobFrame);
+
+                // Outer ring
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(168,85,247,0.2)';
+                ctx.fill();
+
+                // Inner circle
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y, radius * 0.6, 0, Math.PI * 2);
+                ctx.fillStyle = '#a855f7';
+                ctx.globalAlpha = 0.8;
+                ctx.fill();
+
+                // Up arrow
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(pu.x, pu.y - 4);
+                ctx.lineTo(pu.x, pu.y + 3);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(pu.x - 3, pu.y - 1);
+                ctx.lineTo(pu.x, pu.y - 4);
+                ctx.lineTo(pu.x + 3, pu.y - 1);
+                ctx.stroke();
+            } else if (pu.type.id === 'widen') {
+                // Clearance: expanding brackets
+                ctx.shadowColor = '#22c55e';
+                ctx.shadowBlur = 12;
+                ctx.globalAlpha = 0.6 + 0.3 * Math.sin(pu.bobFrame);
+
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(34,197,94,0.2)';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y, radius * 0.6, 0, Math.PI * 2);
+                ctx.fillStyle = '#22c55e';
+                ctx.globalAlpha = 0.8;
+                ctx.fill();
+
+                // Expand arrows (<  >)
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                // Left bracket
+                ctx.beginPath();
+                ctx.moveTo(pu.x - 2, pu.y - 4);
+                ctx.lineTo(pu.x - 5, pu.y);
+                ctx.lineTo(pu.x - 2, pu.y + 4);
+                ctx.stroke();
+                // Right bracket
+                ctx.beginPath();
+                ctx.moveTo(pu.x + 2, pu.y - 4);
+                ctx.lineTo(pu.x + 5, pu.y);
+                ctx.lineTo(pu.x + 2, pu.y + 4);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        // ── Milestones ────────────────────────────────────────────────
+        var milestones = {
+            3: 'EC2 (Elastic Compute Cloud) -- virtual servers on demand. Stop paying for idle hardware.',
+            7: 'S3 (Simple Storage Service) -- object storage with 99.999999999% (11 nines) durability.',
+            12: 'IAM (Identity & Access Management) -- who can do what. Principle of least privilege.',
+            18: 'Lambda -- serverless functions. No servers to manage. Pay only for compute time used.',
+            25: 'VPC (Virtual Private Cloud) -- your own isolated network in AWS. Subnets, route tables, NACLs.',
+            30: 'CloudFormation / Terraform -- Infrastructure as Code. Version-control your entire data center.',
             40: 'Auto-scaling adjusts capacity to demand. Scale out (add instances) and scale in (remove them).',
             50: 'The Shared Responsibility Model: AWS secures the cloud infrastructure; you secure what runs in it.'
         };
 
+        // ── Difficulty Labels ─────────────────────────────────────────
+        function getDifficultyLabel(score) {
+            if (score >= 40) return 'NIGHTMARE';
+            if (score >= 25) return 'HARD';
+            if (score >= 15) return 'MEDIUM';
+            if (score >= 8)  return 'WARMING UP';
+            return 'NORMAL';
+        }
+
+        function getDifficultyColor(score) {
+            if (score >= 40) return '#ef4444';
+            if (score >= 25) return '#f97316';
+            if (score >= 15) return '#eab308';
+            if (score >= 8)  return '#22d3ee';
+            return '#22c55e';
+        }
+
+        // ── Side Panel Updates ────────────────────────────────────────
         function updateSidePanel(score) {
+            currentScore = score;
             document.getElementById('sideScore').textContent = score;
+            var diffEl = document.getElementById('sideDifficulty');
+            diffEl.textContent = getDifficultyLabel(score);
+            diffEl.style.color = getDifficultyColor(score);
         }
 
         function logMilestone(ms, fact) {
-            const log = document.getElementById('milestoneLog');
+            var log = document.getElementById('milestoneLog');
             if (log.querySelector('.entry:first-child').textContent === 'Instance pending...') {
                 log.innerHTML = '';
             }
-            const entry = document.createElement('div');
+            var entry = document.createElement('div');
             entry.className = 'entry';
             entry.innerHTML = '<em>[' + ms + ']</em> ' + fact;
             log.prepend(entry);
@@ -246,36 +537,40 @@
         }
 
         function onGameStart() {
+            currentScore = 0;
+            windZones = [];
             document.getElementById('sideScore').textContent = '0';
+            document.getElementById('sideDifficulty').textContent = 'NORMAL';
+            document.getElementById('sideDifficulty').style.color = '#22c55e';
             document.getElementById('milestoneLog').innerHTML =
                 '<div class="entry" style="color:#475569;">Instance pending...</div>';
+            initCloudParticles();
         }
 
         function onGameOver(finalScore) {
-            // Note: FlappyEngine.die() already calls GameTracker.record() internally.
-            // Only update the side panel high score here.
             document.getElementById('sideHigh').textContent = Math.max(
                 finalScore, parseInt(document.getElementById('sideHigh').textContent) || 0
             );
         }
 
+        // ── Engine Init ───────────────────────────────────────────────
         game = FlappyEngine.init({
             containerId: 'gameContainer',
             title: 'CLOUD FLAP',
             character: {
                 name: 'NIMBUS-1',
                 sprite: drawCloudSprite,
-                width: 28,
-                height: 24,
+                width: 30,
+                height: 26,
                 color: '#e0f2fe'
             },
             pipes: {
                 color: '#374151',
                 borderColor: '#6b7280',
-                gapSize: 152,
-                speed: 2.4,
+                gapSize: 155,
+                speed: 2.3,
                 spacing: 95,
-                labels: ['US-EAST', 'US-WEST', 'EU-WEST', 'AP-SOUTH', 'RACK-01', 'RACK-02', 'RACK-03', 'AZ-A', 'AZ-B'],
+                labels: ['US-EAST', 'US-WEST', 'EU-WEST', 'AP-SOUTH', 'RACK-01', 'RACK-02', 'RACK-03', 'AZ-A', 'AZ-B', 'AZ-C'],
                 drawDecoration: drawRackDecoration
             },
             background: {
@@ -291,7 +586,111 @@
             storageKey: 'hexworth_flappy_cloud',
             trackerKey: 'flappy_cloud',
             milestones: milestones,
-            onScore: function(score) {
+
+            // ── Obstacle Variety ──────────────────────────────────────
+            obstacles: {
+                types: ['pipe', 'moving', 'narrowing'],
+                scoreThresholds: {
+                    moving: 10,
+                    narrowing: 20
+                }
+            },
+
+            // ── Power-ups ────────────────────────────────────────────
+            powerups: {
+                enabled: true,
+                spawnChance: 0.22,
+                types: [
+                    { id: 'shield', label: 'SH', color: '#06b6d4', duration: 99999 },
+                    { id: 'boost',  label: 'UP', color: '#a855f7', duration: 4000 },
+                    { id: 'widen',  label: '<>', color: '#22c55e', duration: 5000 }
+                ],
+                sprite: drawPowerupSprite
+            },
+
+            // ── Progressive Difficulty Events ─────────────────────────
+            events: {
+                15: { type: 'wind', direction: 'right', strength: 0.3 },
+                30: { type: 'turbulence', intensity: 1.0 },
+                45: { type: 'fog', opacity: 0.25 }
+            },
+
+            // ── Hook System ──────────────────────────────────────────
+            hooks: {
+                // Attach wind zone data to pipes on spawn
+                onPipeSpawn: function (pipe) {
+                    // ~40% of pipes after score 3 get a wind zone
+                    if (currentScore >= 3 && Math.random() < 0.4) {
+                        pipe.windDir = Math.random() < 0.5 ? -1 : 1; // -1 = updraft, 1 = downdraft
+                        pipe.windStrength = 0.6 + Math.random() * 0.6; // 0.6 to 1.2
+
+                        // Track externally for onBirdUpdate
+                        windZones.push({
+                            pipe: pipe,
+                            dir: pipe.windDir,
+                            strength: pipe.windStrength
+                        });
+                    }
+                },
+
+                // Apply wind zone forces and boost powerup per frame
+                onBirdUpdate: function (bird, dt) {
+                    // Clean up off-screen wind zones
+                    for (var i = windZones.length - 1; i >= 0; i--) {
+                        if (windZones[i].pipe.x + windZones[i].pipe.width < -30) {
+                            windZones.splice(i, 1);
+                        }
+                    }
+
+                    // Check if bird is inside any wind zone (between pipe edges, within gap)
+                    var birdSize = 14; // half the character size for overlap check
+                    for (var w = 0; w < windZones.length; w++) {
+                        var wz = windZones[w];
+                        var p = wz.pipe;
+                        // Wind zone extends from the pipe's x to x + width, full gap height
+                        // Also extends 40px in front and behind the pipe for smooth transition
+                        var zoneLeft = p.x - 40;
+                        var zoneRight = p.x + p.width + 40;
+                        var zoneTop = p.gapY;
+                        var zoneBottom = p.gapY + p.gapSize;
+
+                        if (bird.x > zoneLeft && bird.x < zoneRight &&
+                            bird.y > zoneTop - birdSize && bird.y < zoneBottom + birdSize) {
+                            // Apply wind force — updraft (negative) or downdraft (positive)
+                            // Strength scales with proximity to center of zone
+                            var centerY = (zoneTop + zoneBottom) / 2;
+                            var distFromCenter = Math.abs(bird.y - centerY) / ((zoneBottom - zoneTop) / 2);
+                            var falloff = Math.max(0, 1 - distFromCenter * 0.5);
+                            bird.vy += wz.dir * wz.strength * falloff * dt * 45;
+                        }
+                    }
+
+                    // Boost powerup: reduce effective gravity (make bird floatier)
+                    if (game && game.getPowerup() && game.getPowerup().id === 'boost') {
+                        // Counteract ~60% of gravity each frame
+                        // Engine applies GRAVITY (0.45) per frame, we push back
+                        bird.vy -= 0.27;
+                    }
+
+                    // Update cloud background particles (piggyback on bird update)
+                    for (var c = 0; c < cloudParticles.length; c++) {
+                        var cp = cloudParticles[c];
+                        cp.x -= cp.speed;
+                        if (cp.x + cp.size < -10) {
+                            cp.x = 420;
+                            cp.y = 40 + Math.random() * 440;
+                            cp.size = 8 + Math.random() * 20;
+                        }
+                    }
+                },
+
+                // Scoring hook: update difficulty display
+                onScoreChange: function (score) {
+                    updateSidePanel(score);
+                }
+            },
+
+            onScore: function (score) {
                 updateSidePanel(score);
             },
             onGameOver: onGameOver,
@@ -302,7 +701,7 @@
         document.getElementById('sideHigh').textContent = game.getHighScore();
 
         function toggleMute() {
-            const enabled = game.toggleAudio();
+            var enabled = game.toggleAudio();
             document.getElementById('muteBtn').textContent = enabled ? 'MUTE' : 'UNMUTE';
         }
     </script>

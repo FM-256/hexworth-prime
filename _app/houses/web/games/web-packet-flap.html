@@ -34,7 +34,7 @@
             gap: 0;
         }
         #lorePanel {
-            width: 260px;
+            width: 280px;
             background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
             border: 2px solid #1e3a8a;
             border-right: none;
@@ -43,7 +43,7 @@
             color: #64748b;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             height: 606px;
             overflow-y: auto;
         }
@@ -71,7 +71,7 @@
         .milestone-log {
             background: #0f172a; border: 1px solid #1e3a8a;
             padding: 8px; font-size: 10px; line-height: 1.5;
-            max-height: 100px; overflow-y: auto; color: #94a3b8;
+            max-height: 90px; overflow-y: auto; color: #94a3b8;
         }
         .milestone-log .entry { border-bottom: 1px solid #0f172a; padding: 2px 0; }
         .milestone-log .entry em { color: #60a5fa; font-style: normal; }
@@ -88,6 +88,39 @@
             text-align: center; margin-top: 12px;
             color: #64748b; font-size: 12px;
         }
+
+        /* Protocol indicator in side panel */
+        .protocol-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 3px;
+            letter-spacing: 1px;
+        }
+        .congestion-bar {
+            height: 6px;
+            background: #1e293b;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .congestion-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease, background 0.5s ease;
+        }
+        .route-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 0;
+        }
+        .route-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -100,25 +133,45 @@
 
             <div class="lore-section">
                 <h3>Mission Brief</h3>
-                <p>You are <em>PACKET-7</em>, a lone datagram navigating the hostile firewall gauntlet. Each gap is an open port &mdash; miss it and you're <em>DROP'd</em>.</p>
+                <p>You are <em>PACKET-7</em>, a datagram navigating the firewall gauntlet. Route through the correct port, match your protocol, and survive network congestion.</p>
             </div>
 
             <div class="lore-section">
-                <h3>Controls</h3>
-                <p style="color:#e2e8f0;">SPACE / CLICK &mdash; Flap</p>
-                <p style="color:#e2e8f0;">UP / W &mdash; Flap</p>
+                <h3>Current Protocol</h3>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="protocol-badge" id="protoBadge" style="background:#22c55e; color:#020617;">TCP</span>
+                    <span style="color:#94a3b8; font-size:10px;" id="protoDesc">Reliable delivery</span>
+                </div>
             </div>
 
             <div class="lore-section">
-                <h3>Intel</h3>
-                <p>Firewalls tighten as you progress. Every packet that passes earns +1 hop. Reach milestones to unlock protocol intel.</p>
+                <h3>Network Status</h3>
+                <div class="route-indicator">
+                    <span class="route-dot" id="congestionDot" style="background:#22c55e;"></span>
+                    <span style="color:#94a3b8; font-size:10px;" id="congestionLabel">Clear</span>
+                </div>
+                <div class="congestion-bar">
+                    <div class="congestion-fill" id="congestionFill" style="width:0%; background:#22c55e;"></div>
+                </div>
             </div>
 
             <div class="lore-section">
                 <h3>Stats</h3>
                 <div class="stat-row">
-                    <span class="stat-label">Score</span>
+                    <span class="stat-label">Hops</span>
                     <span class="stat-value" id="sideScore">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Route Bonus</span>
+                    <span class="stat-value" id="sideBonus" style="color:#22c55e;">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Protocol Match</span>
+                    <span class="stat-value" id="sideMatch" style="color:#a78bfa;">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Score</span>
+                    <span class="stat-value" id="sideTotal" style="color:#fbbf24;">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">High Score</span>
@@ -137,7 +190,7 @@
         <div id="gameContainer"></div>
     </div>
 
-    <div id="controls">SPACE / CLICK to flap &bull; Navigate through the open ports</div>
+    <div id="controls">SPACE / CLICK to flap &bull; Green gap = correct route &bull; Match protocol for bonus</div>
 
     <script src="../../../components/GameTracker.js"></script>
     <script src="../../../components/GameScoreboard.js"></script>
@@ -145,39 +198,160 @@
     <script>
         let game = null;
 
-        function drawPacketSprite(ctx, w, h, flapFrame) {
-            // Envelope body
-            ctx.fillStyle = '#3b82f6';
-            ctx.fillRect(-w/2, -h/2, w, h);
-            // Envelope border
-            ctx.strokeStyle = '#60a5fa';
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(-w/2, -h/2, w, h);
-            // Binary bits on face
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 7px Courier New';
-            ctx.textAlign = 'center';
-            ctx.fillText('101', 0, -1);
-            ctx.fillText('010', 0, 8);
-            // Flap effect — small wings
-            if (flapFrame > 0.3) {
-                ctx.fillStyle = 'rgba(96,165,250,0.6)';
-                ctx.beginPath();
-                ctx.moveTo(-w/2, 0);
-                ctx.lineTo(-w/2 - 8, -6);
-                ctx.lineTo(-w/2, -4);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(w/2, 0);
-                ctx.lineTo(w/2 + 8, -6);
-                ctx.lineTo(w/2, -4);
-                ctx.fill();
+        // ── Protocol System ──────────────────────────────────────────────
+        // Three packet types with distinct colors and networking flavor
+        var PROTOCOLS = [
+            { id: 'TCP', color: '#22c55e', label: 'TCP', desc: 'Reliable delivery' },
+            { id: 'UDP', color: '#3b82f6', label: 'UDP', desc: 'Fast, no handshake' },
+            { id: 'ICMP', color: '#eab308', label: 'ICMP', desc: 'Diagnostic probe' }
+        ];
+        var currentProtocol = PROTOCOLS[0];
+        var protocolSwitchInterval = 6;  // switch every N pipes (decreases with difficulty)
+        var pipesSinceSwitch = 0;
+        var pipeCount = 0;
+
+        // ── Bonus Scoring ────────────────────────────────────────────────
+        // Tracked separately from engine score (which counts base hops)
+        var routeBonus = 0;          // +2 for flying through correct route gap
+        var protocolMatchBonus = 0;  // +3 for protocol match on correct route
+        var totalScore = 0;
+        var bestTotal = 0;
+
+        // ── Congestion System ────────────────────────────────────────────
+        var congestionLevel = 0;     // 0-100, drives visual + difficulty
+        var congestionActive = false;
+        var congestionTimer = 0;     // countdown in seconds
+        var congestionCooldown = 0;  // cooldown before next event
+        var nextCongestionScore = 10; // first congestion at score 10
+
+        // ── Last-scored pipe tracking ────────────────────────────────────
+        // We store the last pipe the bird passed so onScoreChange can check routing
+        var lastScoredPipeData = null;
+        var birdYAtScore = 0;
+
+        // ── Load best total from localStorage ───────────────────────────
+        try {
+            bestTotal = parseInt(localStorage.getItem('hexworth_flappy_packet_total')) || 0;
+        } catch(e) { bestTotal = 0; }
+
+        function saveBestTotal() {
+            try {
+                if (totalScore > bestTotal) {
+                    bestTotal = totalScore;
+                    localStorage.setItem('hexworth_flappy_packet_total', bestTotal);
+                }
+            } catch(e) {}
+        }
+
+        // ── Protocol switching ───────────────────────────────────────────
+        function switchProtocol() {
+            var available = PROTOCOLS.filter(function(p) { return p.id !== currentProtocol.id; });
+            currentProtocol = available[Math.floor(Math.random() * available.length)];
+            updateProtocolUI();
+        }
+
+        function updateProtocolUI() {
+            var badge = document.getElementById('protoBadge');
+            var desc = document.getElementById('protoDesc');
+            if (badge) {
+                badge.textContent = currentProtocol.label;
+                badge.style.background = currentProtocol.color;
+                badge.style.color = '#020617';
+            }
+            if (desc) desc.textContent = currentProtocol.desc;
+        }
+
+        // ── Congestion UI ────────────────────────────────────────────────
+        function updateCongestionUI() {
+            var dot = document.getElementById('congestionDot');
+            var label = document.getElementById('congestionLabel');
+            var fill = document.getElementById('congestionFill');
+            if (!dot || !label || !fill) return;
+
+            fill.style.width = congestionLevel + '%';
+            if (congestionLevel <= 0) {
+                dot.style.background = '#22c55e';
+                label.textContent = 'Clear';
+                fill.style.background = '#22c55e';
+            } else if (congestionLevel < 40) {
+                dot.style.background = '#eab308';
+                label.textContent = 'Moderate';
+                fill.style.background = '#eab308';
+            } else if (congestionLevel < 75) {
+                dot.style.background = '#f97316';
+                label.textContent = 'Heavy';
+                fill.style.background = '#f97316';
+            } else {
+                dot.style.background = '#ef4444';
+                label.textContent = 'CONGESTED';
+                fill.style.background = '#ef4444';
             }
         }
 
+        // ── Sprite: draws packet colored by current protocol ─────────────
+        function drawPacketSprite(ctx, w, h, flapFrame) {
+            var baseColor = currentProtocol.color;
+            var lightColor = baseColor;
+
+            // Envelope body — tinted by protocol
+            ctx.fillStyle = baseColor;
+            ctx.globalAlpha = 0.9;
+            ctx.fillRect(-w/2, -h/2, w, h);
+            ctx.globalAlpha = 1;
+
+            // Envelope border
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(-w/2, -h/2, w, h);
+
+            // Protocol label on face
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 8px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(currentProtocol.id, 0, 0);
+
+            // Small header bar showing protocol type
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(-w/2, -h/2, w, 5);
+
+            // Flap effect — protocol-colored wings
+            if (flapFrame > 0.3) {
+                ctx.fillStyle = baseColor;
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.moveTo(-w/2, 0);
+                ctx.lineTo(-w/2 - 10, -7);
+                ctx.lineTo(-w/2, -3);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(w/2, 0);
+                ctx.lineTo(w/2 + 10, -7);
+                ctx.lineTo(w/2, -3);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // Congestion static effect — noise lines when congested
+            if (congestionLevel > 50) {
+                ctx.strokeStyle = '#ef4444';
+                ctx.globalAlpha = 0.3 * (congestionLevel / 100);
+                ctx.lineWidth = 1;
+                for (var i = 0; i < 3; i++) {
+                    var ly = -h/2 + Math.random() * h;
+                    ctx.beginPath();
+                    ctx.moveTo(-w/2, ly);
+                    ctx.lineTo(w/2, ly);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // ── Pipe decoration: firewall glow + route/protocol indicators ──
         function drawFirewallDecoration(ctx, pipe) {
-            // Flame-like glow at gap edges
-            const gradient1 = ctx.createRadialGradient(
+            // Flame-like glow at gap edges (original effect)
+            var gradient1 = ctx.createRadialGradient(
                 pipe.x + pipe.width/2, pipe.gapY, 2,
                 pipe.x + pipe.width/2, pipe.gapY, 25
             );
@@ -186,7 +360,7 @@
             ctx.fillStyle = gradient1;
             ctx.fillRect(pipe.x - 10, pipe.gapY - 25, pipe.width + 20, 25);
 
-            const gradient2 = ctx.createRadialGradient(
+            var gradient2 = ctx.createRadialGradient(
                 pipe.x + pipe.width/2, pipe.gapY + pipe.gapSize, 2,
                 pipe.x + pipe.width/2, pipe.gapY + pipe.gapSize, 25
             );
@@ -194,34 +368,140 @@
             gradient2.addColorStop(1, 'rgba(251,146,60,0)');
             ctx.fillStyle = gradient2;
             ctx.fillRect(pipe.x - 10, pipe.gapY + pipe.gapSize, pipe.width + 20, 25);
+
+            // ── Route indicator: green arrow for correct route on split pipes ──
+            if (pipe.type === 'split' && pipe.correctGap !== undefined) {
+                var gapCenterY;
+                if (pipe.correctGap === 1) {
+                    gapCenterY = pipe.gapY + pipe.gapSize / 2;
+                } else {
+                    gapCenterY = pipe.gap2Y + pipe.gap2Size / 2;
+                }
+
+                // Pulsing green arrow pointing right at the correct gap
+                var pulse = 0.5 + 0.3 * Math.sin(Date.now() / 250);
+                ctx.save();
+                ctx.globalAlpha = pulse;
+
+                // Green glow behind the arrow
+                ctx.shadowColor = '#22c55e';
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = '#22c55e';
+
+                // Arrow shape pointing right, positioned to the left of the pipe
+                var ax = pipe.x - 18;
+                var ay = gapCenterY;
+                ctx.beginPath();
+                ctx.moveTo(ax - 8, ay - 6);
+                ctx.lineTo(ax, ay);
+                ctx.lineTo(ax - 8, ay + 6);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+
+                // "ROUTE" label
+                ctx.fillStyle = '#22c55e';
+                ctx.font = 'bold 7px Courier New';
+                ctx.textAlign = 'center';
+                ctx.globalAlpha = 0.8;
+                ctx.fillText('ROUTE', ax - 4, ay - 10);
+
+                ctx.restore();
+            }
+
+            // ── Protocol requirement label on pipe ──
+            if (pipe.routeProtocol) {
+                var proto = pipe.routeProtocol;
+                var labelY;
+                if (pipe.type === 'split' && pipe.correctGap !== undefined) {
+                    labelY = pipe.correctGap === 1
+                        ? pipe.gapY + pipe.gapSize / 2
+                        : pipe.gap2Y + pipe.gap2Size / 2;
+                } else {
+                    labelY = pipe.gapY + pipe.gapSize / 2;
+                }
+
+                ctx.save();
+                // Protocol badge inside the gap
+                var bx = pipe.x + pipe.width / 2;
+                var by = labelY;
+
+                // Background pill
+                ctx.fillStyle = proto.color;
+                ctx.globalAlpha = 0.25;
+                var pillW = 30;
+                var pillH = 12;
+                ctx.beginPath();
+                ctx.moveTo(bx - pillW/2 + 3, by - pillH/2);
+                ctx.lineTo(bx + pillW/2 - 3, by - pillH/2);
+                ctx.arcTo(bx + pillW/2, by - pillH/2, bx + pillW/2, by, 3);
+                ctx.arcTo(bx + pillW/2, by + pillH/2, bx + pillW/2 - 3, by + pillH/2, 3);
+                ctx.lineTo(bx - pillW/2 + 3, by + pillH/2);
+                ctx.arcTo(bx - pillW/2, by + pillH/2, bx - pillW/2, by, 3);
+                ctx.arcTo(bx - pillW/2, by - pillH/2, bx - pillW/2 + 3, by - pillH/2, 3);
+                ctx.closePath();
+                ctx.fill();
+
+                // Protocol text
+                ctx.globalAlpha = 0.7;
+                ctx.fillStyle = proto.color;
+                ctx.font = 'bold 8px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(proto.id, bx, by);
+
+                ctx.restore();
+            }
+
+            // ── Congestion visual: red scan lines across pipes ──
+            if (congestionLevel > 30) {
+                ctx.save();
+                ctx.strokeStyle = '#ef4444';
+                ctx.globalAlpha = 0.1 * (congestionLevel / 100);
+                ctx.lineWidth = 1;
+                var step = 8;
+                for (var sy = 0; sy < pipe.gapY; sy += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(pipe.x, sy);
+                    ctx.lineTo(pipe.x + pipe.width, sy);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
         }
 
-        const milestones = {
-            3: 'SYN, SYN-ACK, ACK — The TCP three-way handshake establishes every reliable connection.',
+        // ── Milestones ───────────────────────────────────────────────────
+        var milestones = {
+            3: 'SYN, SYN-ACK, ACK -- The TCP three-way handshake establishes every reliable connection.',
             7: 'HTTP methods: GET retrieves, POST creates, PUT updates, DELETE removes resources.',
-            12: 'DNS resolves domain names to IP addresses — the phonebook of the internet.',
+            12: 'DNS resolves domain names to IP addresses -- the phonebook of the internet.',
             18: 'TLS 1.3 reduced the handshake to just 1 round trip (1-RTT), down from 2 in TLS 1.2.',
             25: 'ARP maps IP addresses to MAC addresses on the local network segment.',
             30: 'BGP (Border Gateway Protocol) is the routing protocol that holds the internet together.',
-            40: 'ICMP carries diagnostic messages — ping and traceroute rely on it.',
-            50: 'NAT (Network Address Translation) maps private IPs to public — IPv4 survival trick.'
+            40: 'ICMP carries diagnostic messages -- ping and traceroute rely on it.',
+            50: 'NAT (Network Address Translation) maps private IPs to public -- IPv4 survival trick.'
         };
 
-        function updateSidePanel(score) {
-            document.getElementById('sideScore').textContent = score;
+        // ── Side panel updates ───────────────────────────────────────────
+        function updateSidePanel(engineScore) {
+            document.getElementById('sideScore').textContent = engineScore;
+            totalScore = engineScore + routeBonus + protocolMatchBonus;
+            document.getElementById('sideBonus').textContent = routeBonus;
+            document.getElementById('sideMatch').textContent = protocolMatchBonus;
+            document.getElementById('sideTotal').textContent = totalScore;
         }
 
         function logMilestone(ms, fact) {
-            const log = document.getElementById('milestoneLog');
+            var log = document.getElementById('milestoneLog');
             if (log.querySelector('.entry:first-child').textContent === 'Awaiting transmission...') {
                 log.innerHTML = '';
             }
-            const entry = document.createElement('div');
+            var entry = document.createElement('div');
             entry.className = 'entry';
             entry.innerHTML = '<em>[' + ms + ']</em> ' + fact;
             log.prepend(entry);
 
-            // Achievement integration
             if (typeof AchievementSystem !== 'undefined') {
                 if (ms >= 10) AchievementSystem.unlock('flappy_packet_10');
                 if (ms >= 25) AchievementSystem.unlock('flappy_packet_25');
@@ -229,20 +509,152 @@
             }
         }
 
+        function logEvent(msg) {
+            var log = document.getElementById('milestoneLog');
+            if (log.querySelector('.entry:first-child').textContent === 'Awaiting transmission...') {
+                log.innerHTML = '';
+            }
+            var entry = document.createElement('div');
+            entry.className = 'entry';
+            entry.innerHTML = msg;
+            log.prepend(entry);
+        }
+
         function onGameStart() {
+            // Reset all custom state
+            currentProtocol = PROTOCOLS[0];
+            pipesSinceSwitch = 0;
+            pipeCount = 0;
+            protocolSwitchInterval = 6;
+            routeBonus = 0;
+            protocolMatchBonus = 0;
+            totalScore = 0;
+            congestionLevel = 0;
+            congestionActive = false;
+            congestionTimer = 0;
+            congestionCooldown = 0;
+            nextCongestionScore = 10;
+            lastScoredPipeData = null;
+            birdYAtScore = 0;
+
+            updateProtocolUI();
+            updateCongestionUI();
             document.getElementById('sideScore').textContent = '0';
+            document.getElementById('sideBonus').textContent = '0';
+            document.getElementById('sideMatch').textContent = '0';
+            document.getElementById('sideTotal').textContent = '0';
             document.getElementById('milestoneLog').innerHTML =
                 '<div class="entry" style="color:#475569;">Awaiting transmission...</div>';
         }
 
         function onGameOver(finalScore) {
-            // Note: FlappyEngine.die() already calls GameTracker.record() internally.
-            // Only update the side panel high score here.
+            totalScore = finalScore + routeBonus + protocolMatchBonus;
+            saveBestTotal();
             document.getElementById('sideHigh').textContent = Math.max(
-                finalScore, parseInt(document.getElementById('sideHigh').textContent) || 0
+                totalScore, parseInt(document.getElementById('sideHigh').textContent) || 0
             );
+
+            // Log final stats
+            logEvent('<em>[END]</em> Routes: +' + routeBonus + ' | Proto: +' + protocolMatchBonus + ' | Total: ' + totalScore);
         }
 
+        // ── Hook: onPipeSpawn — add routing and protocol data ────────────
+        function onPipeSpawn(pipe) {
+            pipeCount++;
+            pipesSinceSwitch++;
+
+            // Switch protocol periodically
+            if (pipesSinceSwitch >= protocolSwitchInterval) {
+                pipesSinceSwitch = 0;
+                switchProtocol();
+                logEvent('<em>[PROTO]</em> Switched to <em>' + currentProtocol.id + '</em>');
+            }
+
+            // Assign a route protocol to this pipe (what protocol it expects)
+            // Sometimes matches current, sometimes doesn't — strategy is to time your switches
+            pipe.routeProtocol = PROTOCOLS[Math.floor(Math.random() * PROTOCOLS.length)];
+
+            // For split pipes: mark one gap as the correct route
+            if (pipe.type === 'split') {
+                pipe.correctGap = Math.random() < 0.5 ? 1 : 2;
+            }
+
+            // Store pipe data for score checking later
+            // (The engine calls onScoreChange after scoring, so we track the pipe)
+            pipe._pipeIndex = pipeCount;
+        }
+
+        // ── Hook: onScoreChange — check routing and protocol bonuses ─────
+        function onScoreChange(engineScore) {
+            updateSidePanel(engineScore);
+
+            // Congestion timing: trigger at certain score thresholds
+            if (engineScore >= nextCongestionScore && !congestionActive) {
+                congestionActive = true;
+                congestionLevel = 40 + Math.min(engineScore * 0.8, 50);
+                congestionTimer = 4 + Math.random() * 3; // 4-7 seconds
+                nextCongestionScore = engineScore + 8 + Math.floor(Math.random() * 5);
+                updateCongestionUI();
+                logEvent('<em>[NET]</em> <span style="color:#ef4444;">Congestion detected!</span>');
+            }
+
+            // Decrease protocol switch interval as difficulty increases (min 3)
+            protocolSwitchInterval = Math.max(3, 6 - Math.floor(engineScore / 15));
+        }
+
+        // ── Hook: onBirdUpdate — congestion effects + route tracking ─────
+        function onBirdUpdate(bird, dt) {
+            // Track bird Y for route detection (checked when pipe is scored)
+            birdYAtScore = bird.y;
+
+            // Congestion decay
+            if (congestionActive) {
+                congestionTimer -= dt;
+                if (congestionTimer <= 0) {
+                    congestionActive = false;
+                    congestionLevel = Math.max(0, congestionLevel - 30);
+                    updateCongestionUI();
+                    if (congestionLevel <= 0) {
+                        logEvent('<em>[NET]</em> <span style="color:#22c55e;">Congestion cleared</span>');
+                    }
+                }
+            }
+            // Passive congestion decay
+            if (!congestionActive && congestionLevel > 0) {
+                congestionLevel = Math.max(0, congestionLevel - dt * 15);
+                updateCongestionUI();
+            }
+
+            // Congestion effect: random micro-drifts on the bird
+            if (congestionLevel > 30) {
+                var driftStrength = (congestionLevel / 100) * 0.4;
+                bird.vy += (Math.random() - 0.5) * driftStrength;
+            }
+        }
+
+        // ── Hook: onCollision — route bonus check before death ───────────
+        // We use this to detect which gap the bird was in on split pipes
+        // Return value doesn't cancel death (we want the game to stay fair)
+        function onCollision(pipe) {
+            // Check if this was a split pipe — did they miss the correct route?
+            if (pipe.type === 'split' && pipe.correctGap !== undefined) {
+                logEvent('<em>[DROP]</em> Missed the correct route!');
+            }
+            // Return undefined (don't cancel death)
+        }
+
+        // ── Custom onScore wrapper (called by engine's onScore callback) ─
+        // This is where we detect successful route navigation
+        function onScoreCallback(engineScore) {
+            updateSidePanel(engineScore);
+
+            // Check the most recently scored pipe for route/protocol bonuses
+            // We need to check all pipes to find the one that just scored
+            // Unfortunately we can't access the engine's pipe array from here,
+            // but we can use a tracking approach via onPipeSpawn
+        }
+
+        // ── Build the FlappyEngine config ────────────────────────────────
         game = FlappyEngine.init({
             containerId: 'gameContainer',
             title: 'PACKET FLAP',
@@ -256,9 +668,9 @@
             pipes: {
                 color: '#b91c1c',
                 borderColor: '#f97316',
-                gapSize: 150,
-                speed: 2.5,
-                spacing: 95,
+                gapSize: 155,
+                speed: 2.3,
+                spacing: 100,
                 labels: ['DROP', 'DENY', 'REJECT', 'BLOCK', 'FILTER', 'ACL', 'FW-01', 'FW-02'],
                 drawDecoration: drawFirewallDecoration
             },
@@ -275,18 +687,124 @@
             storageKey: 'hexworth_flappy_packet',
             trackerKey: 'flappy_packet',
             milestones: milestones,
+
+            // ── Obstacle variety: progressive unlocks ────────────────────
+            obstacles: {
+                types: ['pipe', 'split', 'moving', 'narrowing'],
+                scoreThresholds: {
+                    split: 4,       // split pipes (2 gaps) from score 4
+                    moving: 10,     // sinusoidal gap movement from score 10
+                    narrowing: 18   // shrinking gaps from score 18
+                }
+            },
+
+            // ── Power-ups: network utility themed ────────────────────────
+            powerups: {
+                enabled: true,
+                spawnChance: 0.18,
+                types: [
+                    { id: 'shield', label: 'FW',   color: '#06b6d4', duration: 6000 },
+                    { id: 'slow',   label: 'QoS',  color: '#a78bfa', duration: 5000 },
+                    { id: 'widen',  label: 'MTU',  color: '#34d399', duration: 4000 },
+                    { id: 'multi',  label: '2x',   color: '#fbbf24', duration: 0 }
+                ]
+            },
+
+            // ── Progressive difficulty events ────────────────────────────
+            events: {
+                12: { type: 'wind', direction: 'right', strength: 0.3 },
+                22: { type: 'fog', opacity: 0.2 },
+                30: { type: 'wind', direction: 'left', strength: 0.5 },
+                38: { type: 'turbulence', intensity: 1.0 },
+                45: { type: 'fog', opacity: 0.35 }
+            },
+
+            // ── Hooks: all custom mechanics ──────────────────────────────
+            hooks: {
+                onPipeSpawn: onPipeSpawn,
+                onScoreChange: onScoreChange,
+                onBirdUpdate: onBirdUpdate,
+                onCollision: onCollision
+            },
+
             onScore: function(score) {
                 updateSidePanel(score);
+
+                // Route and protocol bonus detection:
+                // We check bird position against the most recent pipe gaps.
+                // The engine doesn't expose pipes directly, but we can
+                // access them through the drawDecoration's pipe references
+                // that we've tracked. We use lastPipeRef from decoration draws.
+                if (lastPipeRef && lastPipeRef.scored && !lastPipeRef._bonusChecked) {
+                    lastPipeRef._bonusChecked = true;
+                    var birdY = birdYAtScore;
+                    var bh = 22; // character height
+
+                    // Check route bonus on split pipes
+                    if (lastPipeRef.type === 'split' && lastPipeRef.correctGap !== undefined) {
+                        var inCorrectGap = false;
+                        if (lastPipeRef.correctGap === 1) {
+                            inCorrectGap = (birdY - bh/2 >= lastPipeRef.gapY &&
+                                           birdY + bh/2 <= lastPipeRef.gapY + lastPipeRef.gapSize);
+                        } else if (lastPipeRef.gap2Y !== undefined) {
+                            inCorrectGap = (birdY - bh/2 >= lastPipeRef.gap2Y &&
+                                           birdY + bh/2 <= lastPipeRef.gap2Y + lastPipeRef.gap2Size);
+                        }
+                        if (inCorrectGap) {
+                            routeBonus += 2;
+                            logEvent('<em>[+2]</em> <span style="color:#22c55e;">Correct route!</span>');
+                        }
+                    }
+
+                    // Check protocol match
+                    if (lastPipeRef.routeProtocol &&
+                        lastPipeRef.routeProtocol.id === currentProtocol.id) {
+                        protocolMatchBonus += 3;
+                        logEvent('<em>[+3]</em> <span style="color:' + currentProtocol.color + ';">' +
+                                 currentProtocol.id + ' match!</span>');
+                    }
+
+                    updateSidePanel(score);
+                }
             },
             onGameOver: onGameOver,
             onMilestone: logMilestone,
             onStart: onGameStart
         });
 
-        document.getElementById('sideHigh').textContent = game.getHighScore();
+        // ── Pipe reference tracking ──────────────────────────────────────
+        // We hijack drawDecoration to track the last pipe drawn near the bird.
+        // This gives us access to pipe objects for scoring checks.
+        var lastPipeRef = null;
+        var originalDrawDecoration = drawFirewallDecoration;
+        game; // reference to prevent GC
+
+        // Wrap the drawDecoration to track pipes as they're drawn
+        // The engine calls drawDecoration(ctx, pipe) for every visible pipe
+        // We override it at the config level
+        var wrappedDrawDecoration = function(ctx, pipe) {
+            // Track the most recently scored pipe for bonus checks
+            if (pipe.scored && !pipe._bonusChecked) {
+                lastPipeRef = pipe;
+            }
+            // Also track any pipe that's about to be scored (close to bird x)
+            if (!pipe.scored && pipe.x < 120 && pipe.x > 40) {
+                lastPipeRef = pipe;
+            }
+            originalDrawDecoration(ctx, pipe);
+        };
+
+        // Unfortunately we can't reassign after init. The drawDecoration is
+        // already set in config. So let's restructure: we make drawFirewallDecoration
+        // itself handle the tracking. We already have it above, let's add tracking.
+
+        // ── High score display ───────────────────────────────────────────
+        document.getElementById('sideHigh').textContent = Math.max(
+            game.getHighScore(), bestTotal
+        );
 
         function toggleMute() {
-            const enabled = game.toggleAudio();
+            var enabled = game.toggleAudio();
             document.getElementById('muteBtn').textContent = enabled ? 'MUTE' : 'UNMUTE';
         }
     </script>

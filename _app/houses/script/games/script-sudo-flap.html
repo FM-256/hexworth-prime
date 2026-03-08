@@ -68,6 +68,7 @@
         }
         .stat-label { color: #94a3b8; }
         .stat-value { color: #4ade80; font-weight: bold; }
+        .stat-value.root-active { color: #fbbf24; text-shadow: 0 0 6px rgba(251,191,36,0.6); }
         .milestone-log {
             background: #0a1a00; border: 1px solid #166534;
             padding: 8px; font-size: 10px; line-height: 1.5;
@@ -87,6 +88,29 @@
         #controls {
             text-align: center; margin-top: 12px;
             color: #64748b; font-size: 12px;
+        }
+        #permStatus {
+            display: inline-block;
+            padding: 2px 8px;
+            font-weight: bold;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+        #permStatus.user-mode {
+            color: #22c55e;
+            border: 1px solid #166534;
+            background: rgba(20,83,45,0.3);
+        }
+        #permStatus.root-mode {
+            color: #fbbf24;
+            border: 1px solid #92400e;
+            background: rgba(146,64,14,0.3);
+            text-shadow: 0 0 8px rgba(251,191,36,0.5);
+            animation: rootPulse 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes rootPulse {
+            from { text-shadow: 0 0 4px rgba(251,191,36,0.3); }
+            to { text-shadow: 0 0 12px rgba(251,191,36,0.7); }
         }
     </style>
 </head>
@@ -111,7 +135,19 @@
 
             <div class="lore-section">
                 <h3>Intel</h3>
-                <p>Permission walls display chmod values. As you progress, the barriers tighten. Earn command-line wisdom at each milestone.</p>
+                <p>Collect <em>sudo tokens</em> to escalate to <span style="color:#fbbf24;">root</span> for 5 seconds. Root mode widens pipes and lets you pass through <span style="color:#ef4444;">Permission Denied</span> walls. Hit a red wall as a regular user and you're dead.</p>
+            </div>
+
+            <div class="lore-section">
+                <h3>Privilege Level</h3>
+                <div class="stat-row">
+                    <span class="stat-label">User</span>
+                    <span id="permStatus" class="user-mode">$ user</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Root Timer</span>
+                    <span class="stat-value" id="rootTimer">--</span>
+                </div>
             </div>
 
             <div class="lore-section">
@@ -123,6 +159,10 @@
                 <div class="stat-row">
                     <span class="stat-label">High Score</span>
                     <span class="stat-value" id="sideHigh">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Tokens Collected</span>
+                    <span class="stat-value" id="tokenCount">0</span>
                 </div>
             </div>
 
@@ -137,7 +177,7 @@
         <div id="gameContainer"></div>
     </div>
 
-    <div id="controls">SPACE / CLICK to flap &bull; Thread through the permission walls</div>
+    <div id="controls">SPACE / CLICK to flap &bull; Collect sudo tokens &bull; Avoid red pipes without root</div>
 
     <script src="../../../components/GameTracker.js"></script>
     <script src="../../../components/GameScoreboard.js"></script>
@@ -145,46 +185,215 @@
     <script>
         let game = null;
 
+        // ── Sudo Flap Custom State ───────────────────────────────────────
+        let isRoot = false;
+        let rootEndTime = 0;
+        const ROOT_DURATION = 5000; // 5 seconds
+        let tokensCollected = 0;
+        let permDeniedChance = 0;  // increases with score
+        let floatingCommands = []; // decorative terminal snippets
+        let lastPowerupStartTime = 0; // track engine powerup activations to detect new pickups
+
+        // Terminal commands that float across the screen as decoration
+        const terminalSnippets = [
+            'ls -la /etc/shadow', 'cat /etc/passwd', 'chmod 755 deploy.sh',
+            'grep -r "root" /var/log', 'find / -perm -4000', 'whoami',
+            'id', 'uname -a', 'ps aux | grep ssh', 'netstat -tulpn',
+            'systemctl status sshd', 'journalctl -xe', 'tail -f /var/log/auth.log',
+            'awk \'{print $1}\' access.log', 'sed -i "s/old/new/g" config',
+            'crontab -l', 'df -h', 'free -m', 'top -bn1', 'lsof -i :22',
+            'iptables -L -n', 'ss -tulpn', 'mount | column -t', 'dmesg | tail',
+            'history | grep sudo', 'env | sort', 'alias ll="ls -la"',
+            'export PATH=$PATH:/opt', 'tar czf backup.tar.gz /home',
+            'ssh-keygen -t ed25519', 'rsync -avz src/ dest/', 'kill -9 $$'
+        ];
+
+        // ── Permission Escalation Helpers ────────────────────────────────
+        function activateRoot() {
+            isRoot = true;
+            rootEndTime = Date.now() + ROOT_DURATION;
+            tokensCollected++;
+            document.getElementById('tokenCount').textContent = tokensCollected;
+            updatePermDisplay();
+        }
+
+        function deactivateRoot() {
+            isRoot = false;
+            rootEndTime = 0;
+            updatePermDisplay();
+        }
+
+        function updatePermDisplay() {
+            var el = document.getElementById('permStatus');
+            if (isRoot) {
+                el.textContent = '# root';
+                el.className = 'root-mode';
+            } else {
+                el.textContent = '$ user';
+                el.className = 'user-mode';
+            }
+        }
+
+        function updateRootTimer() {
+            var el = document.getElementById('rootTimer');
+            if (!isRoot) {
+                el.textContent = '--';
+                el.style.color = '#4ade80';
+                return;
+            }
+            var remaining = Math.max(0, rootEndTime - Date.now());
+            var secs = (remaining / 1000).toFixed(1);
+            el.textContent = secs + 's';
+            // Color fades from gold to red as time runs out
+            if (remaining < 1500) {
+                el.style.color = '#ef4444';
+            } else if (remaining < 3000) {
+                el.style.color = '#f59e0b';
+            } else {
+                el.style.color = '#fbbf24';
+            }
+        }
+
+        // ── Character Sprite ─────────────────────────────────────────────
         function drawCursorSprite(ctx, w, h, flapFrame) {
-            // Blinking terminal cursor block
-            const blink = Math.sin(Date.now() / 200) > -0.3;
-            ctx.fillStyle = blink ? '#22c55e' : '#166534';
-            ctx.fillRect(-w/2, -h/2, w, h);
-            // Glow
-            ctx.shadowColor = '#22c55e';
+            // Root mode: golden glow aura
+            if (isRoot) {
+                var pulse = 1 + 0.15 * Math.sin(Date.now() / 150);
+                var auraSize = Math.max(w, h) * 0.8 * pulse;
+
+                // Outer glow ring
+                ctx.beginPath();
+                ctx.arc(0, 0, auraSize, 0, Math.PI * 2);
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.3 + 0.2 * Math.sin(Date.now() / 200);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+
+                // Radial glow
+                var grad = ctx.createRadialGradient(0, 0, 0, 0, 0, auraSize);
+                grad.addColorStop(0, 'rgba(251,191,36,0.25)');
+                grad.addColorStop(1, 'rgba(251,191,36,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, auraSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Main cursor block
+            var blink = Math.sin(Date.now() / 200) > -0.3;
+            if (isRoot) {
+                ctx.fillStyle = blink ? '#fbbf24' : '#92400e';
+                ctx.shadowColor = '#fbbf24';
+            } else {
+                ctx.fillStyle = blink ? '#22c55e' : '#166534';
+                ctx.shadowColor = '#22c55e';
+            }
             ctx.shadowBlur = blink ? 10 : 4;
             ctx.fillRect(-w/2, -h/2, w, h);
             ctx.shadowBlur = 0;
-            // Underscore text
+
+            // Prompt text
             ctx.fillStyle = '#020a00';
             ctx.font = 'bold 10px Courier New';
             ctx.textAlign = 'center';
-            ctx.fillText('$_', 0, 4);
-            // Flap effect — expand glow
+            ctx.textBaseline = 'middle';
+            ctx.fillText(isRoot ? '#_' : '$_', 0, 1);
+
+            // Flap effect
             if (flapFrame > 0.3) {
-                ctx.strokeStyle = 'rgba(34,197,94,0.4)';
+                ctx.strokeStyle = isRoot
+                    ? 'rgba(251,191,36,0.5)'
+                    : 'rgba(34,197,94,0.4)';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(-w/2 - 4, -h/2 - 4, w + 8, h + 8);
             }
         }
 
+        // ── Pipe Decoration (scan lines + permission denied overlay) ─────
         function drawPermissionDecoration(ctx, pipe) {
-            // Subtle scan lines on pipes
+            // Standard scan lines
+            var scanColor = pipe.permDenied ? '#ef4444' : '#4ade80';
             ctx.globalAlpha = 0.08;
-            ctx.fillStyle = '#4ade80';
-            for (let y = 0; y < pipe.gapY; y += 6) {
+            ctx.fillStyle = scanColor;
+            for (var y = 0; y < pipe.gapY; y += 6) {
                 ctx.fillRect(pipe.x, y, pipe.width, 1);
             }
-            for (let y = pipe.gapY + pipe.gapSize; y < 600; y += 6) {
-                ctx.fillRect(pipe.x, y, pipe.width, 1);
+            for (var y2 = pipe.gapY + pipe.gapSize; y2 < 600; y2 += 6) {
+                ctx.fillRect(pipe.x, y2, pipe.width, 1);
             }
             ctx.globalAlpha = 1;
+
+            // Permission Denied pipes: red pulsing overlay + warning text
+            if (pipe.permDenied) {
+                var pulse = 0.15 + 0.1 * Math.sin(Date.now() / 250);
+                ctx.globalAlpha = pulse;
+                ctx.fillStyle = '#ef4444';
+
+                // Red overlay on pipe body
+                ctx.fillRect(pipe.x, 0, pipe.width, pipe.gapY);
+                ctx.fillRect(pipe.x, pipe.gapY + pipe.gapSize, pipe.width, 600 - pipe.gapY - pipe.gapSize);
+
+                // Danger stripes in gap area
+                ctx.globalAlpha = 0.12;
+                var stripeW = 8;
+                for (var sx = pipe.x - stripeW; sx < pipe.x + pipe.width + stripeW; sx += stripeW * 2) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(pipe.x - 4, pipe.gapY, pipe.width + 8, pipe.gapSize);
+                    ctx.clip();
+                    ctx.fillStyle = '#ef4444';
+                    ctx.translate(sx, pipe.gapY);
+                    ctx.rotate(0.785); // 45 degrees
+                    ctx.fillRect(-2, -pipe.gapSize, 4, pipe.gapSize * 3);
+                    ctx.restore();
+                }
+
+                ctx.globalAlpha = 1;
+
+                // "DENIED" label on pipe caps
+                ctx.save();
+                ctx.fillStyle = '#ef4444';
+                ctx.globalAlpha = 0.8;
+                ctx.font = 'bold 8px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('DENIED', pipe.x + pipe.width / 2, pipe.gapY - 5);
+                ctx.fillText('DENIED', pipe.x + pipe.width / 2, pipe.gapY + pipe.gapSize + 14);
+                ctx.restore();
+
+                // If root mode, draw green "PASS" override
+                if (isRoot) {
+                    ctx.save();
+                    ctx.fillStyle = '#22c55e';
+                    ctx.globalAlpha = 0.5 + 0.3 * Math.sin(Date.now() / 200);
+                    ctx.font = 'bold 10px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('sudo', pipe.x + pipe.width / 2, pipe.gapY + pipe.gapSize / 2 + 4);
+                    ctx.restore();
+                }
+            }
+
+            // Floating terminal command snippets (drawn during pipe rendering for z-order)
+            ctx.save();
+            ctx.globalAlpha = 0.12;
+            ctx.fillStyle = '#4ade80';
+            ctx.font = '9px Courier New';
+            ctx.textAlign = 'left';
+            for (var fi = 0; fi < floatingCommands.length; fi++) {
+                var fc = floatingCommands[fi];
+                if (Math.abs(fc.x - pipe.x) < 100) {
+                    ctx.globalAlpha = fc.alpha * 0.15;
+                    ctx.fillText(fc.text, fc.x, fc.y);
+                }
+            }
+            ctx.restore();
         }
 
+        // ── Milestones ───────────────────────────────────────────────────
         const milestones = {
-            3: 'chmod 755 — owner rwx, group r-x, others r-x. Standard for executable scripts.',
+            3: 'chmod 755 -- owner rwx, group r-x, others r-x. Standard for executable scripts.',
             7: 'The pipe operator | chains commands: ls | grep ".txt" filters ls output.',
-            12: 'sudo = "superuser do" — temporarily elevates privileges for one command.',
+            12: 'sudo = "superuser do" -- temporarily elevates privileges for one command.',
             18: '/etc/passwd stores user accounts. Passwords live in /etc/shadow (hashed).',
             25: 'grep -r searches recursively. Add -i for case-insensitive. -n shows line numbers.',
             30: 'Signals: SIGTERM (15) asks nicely, SIGKILL (9) terminates immediately. Always try 15 first.',
@@ -197,11 +406,11 @@
         }
 
         function logMilestone(ms, fact) {
-            const log = document.getElementById('milestoneLog');
+            var log = document.getElementById('milestoneLog');
             if (log.querySelector('.entry:first-child').textContent === '$ awaiting input_') {
                 log.innerHTML = '';
             }
-            const entry = document.createElement('div');
+            var entry = document.createElement('div');
             entry.className = 'entry';
             entry.innerHTML = '<em>[' + ms + ']</em> ' + fact;
             log.prepend(entry);
@@ -214,19 +423,30 @@
         }
 
         function onGameStart() {
+            // Reset sudo state
+            isRoot = false;
+            rootEndTime = 0;
+            tokensCollected = 0;
+            permDeniedChance = 0;
+            floatingCommands = [];
+            lastPowerupStartTime = 0;
+            updatePermDisplay();
+
             document.getElementById('sideScore').textContent = '0';
+            document.getElementById('tokenCount').textContent = '0';
+            document.getElementById('rootTimer').textContent = '--';
             document.getElementById('milestoneLog').innerHTML =
                 '<div class="entry" style="color:#475569;">$ awaiting input_</div>';
         }
 
         function onGameOver(finalScore) {
-            // Note: FlappyEngine.die() already calls GameTracker.record() internally.
-            // Only update the side panel high score here.
+            deactivateRoot();
             document.getElementById('sideHigh').textContent = Math.max(
                 finalScore, parseInt(document.getElementById('sideHigh').textContent) || 0
             );
         }
 
+        // ── FlappyEngine Init with Hooks ─────────────────────────────────
         game = FlappyEngine.init({
             containerId: 'gameContainer',
             title: 'SUDO FLAP',
@@ -259,6 +479,172 @@
             storageKey: 'hexworth_flappy_sudo',
             trackerKey: 'flappy_sudo',
             milestones: milestones,
+
+            // ── Power-Ups: Sudo Tokens ───────────────────────────────────
+            powerups: {
+                enabled: true,
+                spawnChance: 0.25,
+                types: [
+                    {
+                        id: 'sudo',
+                        label: 'sudo',
+                        color: '#fbbf24',
+                        duration: ROOT_DURATION
+                    }
+                ],
+                // Custom sprite: draw sudo token as a key/lock icon
+                sprite: function(ctx, pu) {
+                    if (pu.collected) return;
+                    pu.bobFrame += 0.05;
+                    var pulse = 1 + 0.2 * Math.sin(pu.bobFrame);
+                    var r = 14 * pulse;
+
+                    ctx.save();
+
+                    // Outer glow
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.shadowBlur = 18;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, pu.y, r, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(251,191,36,0.2)';
+                    ctx.fill();
+
+                    // Inner hexagon shape
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    for (var i = 0; i < 6; i++) {
+                        var angle = (Math.PI / 3) * i - Math.PI / 6;
+                        var px = pu.x + Math.cos(angle) * r * 0.65;
+                        var py = pu.y + Math.sin(angle) * r * 0.65;
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.globalAlpha = 0.85;
+                    ctx.fill();
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    // "sudo" text
+                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = '#020a00';
+                    ctx.font = 'bold 7px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('sudo', pu.x, pu.y);
+
+                    ctx.restore();
+                }
+            },
+
+            // ── Hooks ────────────────────────────────────────────────────
+            hooks: {
+                // onPipeSpawn: mark some pipes as permission-denied, widen during root
+                onPipeSpawn: function(pipe) {
+                    // Determine if this is a permission-denied pipe
+                    // Chance increases with score (managed by onScoreChange)
+                    if (Math.random() < permDeniedChance) {
+                        pipe.permDenied = true;
+                        pipe.label = 'PERM';
+                    } else {
+                        pipe.permDenied = false;
+                    }
+
+                    // Root mode: widen all pipe gaps by 30px
+                    if (isRoot) {
+                        pipe.gapSize += 30;
+                        pipe.originalGapSize = pipe.gapSize;
+                    }
+
+                    // Spawn a floating terminal command near this pipe
+                    if (Math.random() < 0.6) {
+                        floatingCommands.push({
+                            x: pipe.x + Math.random() * 60 - 30,
+                            y: 40 + Math.random() * 460,
+                            text: terminalSnippets[Math.floor(Math.random() * terminalSnippets.length)],
+                            speed: 0.3 + Math.random() * 0.5,
+                            alpha: 0.6 + Math.random() * 0.4
+                        });
+                    }
+                },
+
+                // onCollision: permission-denied pipes kill regular users, root passes through
+                onCollision: function(pipe) {
+                    if (pipe.permDenied && isRoot) {
+                        // Root mode: pass through red pipes safely
+                        return false; // cancel death
+                    }
+                    // Regular pipe collision or user hitting denied pipe: die normally
+                    return true;
+                },
+
+                // onBirdUpdate: manage root timer, floating commands, update side panel timer
+                onBirdUpdate: function(bird, dt) {
+                    // Check root timer expiration
+                    if (isRoot && Date.now() >= rootEndTime) {
+                        deactivateRoot();
+                    }
+
+                    // Detect when engine activates a new 'sudo' powerup by tracking startTime.
+                    // Each collection gives a new startTime, so comparing against our last seen value
+                    // lets us detect new pickups (including while already in root mode).
+                    var pu = game.getPowerup();
+                    if (pu && pu.id === 'sudo' && pu.startTime !== lastPowerupStartTime) {
+                        lastPowerupStartTime = pu.startTime;
+                        if (isRoot) {
+                            // Already root — refresh timer (extends duration)
+                            rootEndTime = Date.now() + ROOT_DURATION;
+                            tokensCollected++;
+                            document.getElementById('tokenCount').textContent = tokensCollected;
+                        } else {
+                            activateRoot();
+                        }
+                    }
+
+                    // Update root timer display every frame
+                    updateRootTimer();
+
+                    // Move floating terminal commands leftward
+                    for (var i = floatingCommands.length - 1; i >= 0; i--) {
+                        floatingCommands[i].x -= floatingCommands[i].speed * dt * 60;
+                        // Slow fade
+                        floatingCommands[i].alpha -= dt * 0.05;
+                        if (floatingCommands[i].x < -200 || floatingCommands[i].alpha <= 0) {
+                            floatingCommands.splice(i, 1);
+                        }
+                    }
+                },
+
+                // onScoreChange: progressive difficulty — more denied pipes as score rises
+                onScoreChange: function(score) {
+                    // Permission-denied pipe chance ramps up:
+                    // Score 0-4: 0% (safe intro)
+                    // Score 5-9: 15%
+                    // Score 10-19: 25%
+                    // Score 20-29: 35%
+                    // Score 30+: 45%
+                    // Score 50+: 55%
+                    if (score < 5) {
+                        permDeniedChance = 0;
+                    } else if (score < 10) {
+                        permDeniedChance = 0.15;
+                    } else if (score < 20) {
+                        permDeniedChance = 0.25;
+                    } else if (score < 30) {
+                        permDeniedChance = 0.35;
+                    } else if (score < 50) {
+                        permDeniedChance = 0.45;
+                    } else {
+                        permDeniedChance = 0.55;
+                    }
+
+                    updateSidePanel(score);
+                }
+            },
+
             onScore: function(score) {
                 updateSidePanel(score);
             },
@@ -270,7 +656,7 @@
         document.getElementById('sideHigh').textContent = game.getHighScore();
 
         function toggleMute() {
-            const enabled = game.toggleAudio();
+            var enabled = game.toggleAudio();
             document.getElementById('muteBtn').textContent = enabled ? 'MUTE' : 'UNMUTE';
         }
     </script>
