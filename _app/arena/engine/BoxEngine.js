@@ -202,6 +202,12 @@ const BoxEngine = {
             type: type,
             data: data || {}
         });
+
+        // Activity-based phase progression: check on navigations and commands
+        // so phases with empty requiredFlags advance naturally as the user works
+        if (type === 'navigate' || type === 'command') {
+            this._checkPhaseProgression(null);
+        }
     },
 
     _classifyCommand(cmd) {
