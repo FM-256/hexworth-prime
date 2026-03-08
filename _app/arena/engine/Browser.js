@@ -98,6 +98,18 @@ class BrowserInstance {
         this.pageEl = document.createElement('div');
         this.pageEl.className = 'browser-page';
 
+        // Global link interception — catches any <a> click that bubbles up,
+        // including links in dynamically-rendered form responses
+        this.pageEl.addEventListener('click', (e) => {
+            const anchor = e.target.closest('a[href]');
+            if (!anchor) return;
+            const href = anchor.getAttribute('href');
+            if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                e.preventDefault();
+                this.navigate(href);
+            }
+        });
+
         // Loading indicator
         this.loadingEl = document.createElement('div');
         this.loadingEl.className = 'browser-loading';
