@@ -166,9 +166,15 @@ class BrowserInstance {
     _renderPage(path, fullUrl) {
         const pages = this.webApp.pages || {};
 
-        // Try exact match first, then strip query string
+        // Try exact match first, then with/without trailing slash
         let pageDef = pages[path];
         let queryString = '';
+
+        if (!pageDef) {
+            // Try toggling trailing slash
+            const alt = path.endsWith('/') ? path.slice(0, -1) : path + '/';
+            pageDef = pages[alt];
+        }
 
         if (!pageDef) {
             const qIdx = path.indexOf('?');
@@ -176,6 +182,10 @@ class BrowserInstance {
                 queryString = path.slice(qIdx + 1);
                 const basePath = path.slice(0, qIdx);
                 pageDef = pages[basePath];
+                if (!pageDef) {
+                    const altBase = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath + '/';
+                    pageDef = pages[altBase];
+                }
             }
         }
 
