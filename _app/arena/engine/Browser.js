@@ -287,6 +287,7 @@ class BrowserInstance {
         const resultsArea = wrapper.querySelector('[data-results]');
         if (resultsArea) {
             resultsArea.innerHTML = resultHtml;
+            this._wireLinks(resultsArea);
         }
     }
 
