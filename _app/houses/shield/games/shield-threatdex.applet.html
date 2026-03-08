@@ -1,0 +1,2366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThreatDex - Shield House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:        #0a0a0f;
+            --panel:     #0d1020;
+            --border:    #1a2040;
+            --cyan:      #00f0ff;
+            --cyan-dim:  #007a88;
+            --red:       #ff3366;
+            --green:     #4ec9b0;
+            --yellow:    #f0c040;
+            --purple:    #c084fc;
+            --orange:    #fb923c;
+            --text:      #c8d0e0;
+            --text-dim:  #4a5568;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* CRT scanline overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.08) 2px,
+                rgba(0,0,0,0.08) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Animated background grid */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,240,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,240,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            color: var(--cyan);
+            text-decoration: none;
+            font-size: 12px;
+            letter-spacing: 1px;
+            z-index: 1000;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 1; }
+
+        /* ─────────────── SCREENS ─────────────── */
+        .screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: opacity 0.4s;
+        }
+        .screen.hidden { opacity: 0; pointer-events: none; }
+
+        /* ─────────────── TITLE SCREEN ─────────────── */
+        #titleScreen {
+            flex-direction: column;
+            gap: 32px;
+            text-align: center;
+        }
+
+        .title-logo {
+            font-size: 72px;
+            font-weight: 900;
+            letter-spacing: 8px;
+            color: var(--cyan);
+            text-shadow:
+                0 0 10px var(--cyan),
+                0 0 30px var(--cyan),
+                0 0 60px rgba(0,240,255,0.4);
+            animation: titlePulse 3s ease-in-out infinite;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { text-shadow: 0 0 10px var(--cyan), 0 0 30px var(--cyan), 0 0 60px rgba(0,240,255,0.4); }
+            50% { text-shadow: 0 0 20px var(--cyan), 0 0 50px var(--cyan), 0 0 100px rgba(0,240,255,0.6); }
+        }
+
+        .title-sub {
+            font-size: 14px;
+            letter-spacing: 4px;
+            color: var(--red);
+            text-shadow: 0 0 8px var(--red);
+        }
+
+        .title-tagline {
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+        }
+
+        .btn-primary {
+            background: transparent;
+            border: 2px solid var(--cyan);
+            color: var(--cyan);
+            padding: 14px 40px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        .btn-primary:hover {
+            background: var(--cyan);
+            color: var(--bg);
+            box-shadow: 0 0 24px var(--cyan);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--text-dim);
+            color: var(--text-dim);
+            padding: 8px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        /* ─────────────── STARTER SELECT ─────────────── */
+        #starterScreen {
+            flex-direction: column;
+            gap: 24px;
+            padding: 20px;
+        }
+
+        .screen-title {
+            font-size: 22px;
+            letter-spacing: 4px;
+            color: var(--cyan);
+            text-shadow: 0 0 8px var(--cyan);
+            text-align: center;
+        }
+
+        .screen-sub {
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            text-align: center;
+            margin-top: -16px;
+        }
+
+        .starter-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 200px);
+            gap: 16px;
+        }
+
+        .creature-card {
+            background: var(--panel);
+            border: 2px solid var(--border);
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .creature-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .creature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .creature-card.selected {
+            transform: translateY(-4px);
+        }
+
+        /* Type-colored borders on hover/select */
+        .creature-card[data-type="Bug"]:hover, .creature-card[data-type="Bug"].selected
+            { border-color: #4ade80; box-shadow: 0 0 16px rgba(74,222,128,0.4); }
+        .creature-card[data-type="Social"]:hover, .creature-card[data-type="Social"].selected
+            { border-color: var(--purple); box-shadow: 0 0 16px rgba(192,132,252,0.4); }
+        .creature-card[data-type="Stealth"]:hover, .creature-card[data-type="Stealth"].selected
+            { border-color: var(--cyan); box-shadow: 0 0 16px rgba(0,240,255,0.4); }
+        .creature-card[data-type="Network"]:hover, .creature-card[data-type="Network"].selected
+            { border-color: var(--yellow); box-shadow: 0 0 16px rgba(240,192,64,0.4); }
+        .creature-card[data-type="Crypto"]:hover, .creature-card[data-type="Crypto"].selected
+            { border-color: var(--red); box-shadow: 0 0 16px rgba(255,51,102,0.4); }
+        .creature-card[data-type="Deception"]:hover, .creature-card[data-type="Deception"].selected
+            { border-color: var(--orange); box-shadow: 0 0 16px rgba(251,146,60,0.4); }
+
+        .creature-sprite-wrap {
+            width: 96px;
+            height: 96px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .creature-name {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .type-badge {
+            font-size: 9px;
+            letter-spacing: 2px;
+            padding: 2px 8px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        .stat-mini {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3px 12px;
+            font-size: 9px;
+            color: var(--text-dim);
+            width: 100%;
+        }
+        .stat-mini span { color: var(--text); }
+
+        .creature-desc {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        /* ─────────────── OVERWORLD ─────────────── */
+        #overworldScreen {
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            padding: 20px;
+        }
+
+        .overworld-layout {
+            display: flex;
+            gap: 0;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .ow-sidebar {
+            width: 240px;
+            background: var(--panel);
+            border: 2px solid var(--border);
+            border-right: none;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .ow-main {
+            flex: 1;
+            background: var(--panel);
+            border: 2px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .section-label {
+            font-size: 9px;
+            letter-spacing: 2px;
+            color: var(--cyan);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+        }
+
+        .gym-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .gym-entry {
+            background: #090e1a;
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .gym-entry.defeated { border-color: var(--green); opacity: 0.6; }
+        .gym-entry.next { border-color: var(--yellow); }
+        .gym-entry.locked { opacity: 0.3; }
+
+        .gym-name { font-size: 12px; font-weight: bold; }
+        .gym-meta { font-size: 9px; color: var(--text-dim); }
+        .gym-badge { font-size: 9px; color: var(--yellow); }
+
+        .btn-fight {
+            background: var(--red);
+            border: none;
+            color: #fff;
+            padding: 8px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            align-self: flex-start;
+        }
+        .btn-fight:hover { background: #cc1a44; box-shadow: 0 0 12px var(--red); }
+        .btn-fight:disabled { background: var(--text-dim); cursor: default; box-shadow: none; }
+
+        /* Team display in overworld */
+        .team-grid { display: flex; flex-direction: column; gap: 8px; }
+
+        .team-slot {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #090e1a;
+            border: 1px solid var(--border);
+            padding: 8px;
+        }
+
+        .team-slot canvas { flex-shrink: 0; }
+
+        .team-slot-info { flex: 1; min-width: 0; }
+        .team-slot-name { font-size: 11px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .team-slot-type { font-size: 9px; color: var(--text-dim); }
+
+        .hp-bar-wrap {
+            height: 4px;
+            background: #1a2040;
+            margin-top: 4px;
+            position: relative;
+        }
+        .hp-bar-fill {
+            height: 100%;
+            background: var(--green);
+            transition: width 0.5s ease;
+        }
+        .hp-bar-fill.yellow { background: var(--yellow); }
+        .hp-bar-fill.red { background: var(--red); }
+
+        /* ─────────────── BATTLE SCREEN ─────────────── */
+        #battleScreen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .battle-layout {
+            display: flex;
+            gap: 0;
+            width: 100%;
+            max-width: 980px;
+        }
+
+        .battle-sidebar {
+            width: 200px;
+            background: var(--panel);
+            border: 2px solid var(--border);
+            border-right: none;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            max-height: 580px;
+        }
+
+        .battle-main {
+            flex: 1;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Canvas battle field */
+        #battleCanvas {
+            width: 100%;
+            height: 280px;
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border-bottom: 2px solid var(--border);
+        }
+
+        /* HP bars area above canvas */
+        .battle-hud {
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .fighter-hud {
+            flex: 1;
+        }
+        .fighter-hud.enemy { text-align: right; }
+
+        .fighter-name {
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .fighter-meta {
+            font-size: 9px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .hp-bar-outer {
+            height: 8px;
+            background: #0d1020;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hp-bar-inner {
+            height: 100%;
+            background: var(--green);
+            transition: width 0.6s ease;
+            position: relative;
+        }
+
+        .hp-bar-inner::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(transparent 40%, rgba(255,255,255,0.15) 100%);
+        }
+
+        .hp-text {
+            font-size: 9px;
+            color: var(--text-dim);
+            margin-top: 3px;
+        }
+
+        /* Status effects */
+        .status-tag {
+            display: inline-block;
+            font-size: 8px;
+            padding: 1px 5px;
+            border-radius: 2px;
+            margin-top: 3px;
+            letter-spacing: 1px;
+        }
+        .status-burn { background: rgba(255,100,20,0.3); color: #fb923c; border: 1px solid #fb923c; }
+        .status-slow { background: rgba(100,100,255,0.3); color: #818cf8; border: 1px solid #818cf8; }
+        .status-shield { background: rgba(0,240,255,0.2); color: var(--cyan); border: 1px solid var(--cyan); }
+        .status-boost { background: rgba(240,192,64,0.2); color: var(--yellow); border: 1px solid var(--yellow); }
+
+        /* Battle log */
+        #battleLog {
+            flex: 1;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-height: 80px;
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 11px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-line { color: var(--text); line-height: 1.3; }
+        .log-line.crit { color: var(--yellow); animation: glitch 0.3s; }
+        .log-line.effective { color: var(--green); }
+        .log-line.resisted { color: var(--text-dim); }
+        .log-line.system { color: var(--cyan-dim); }
+        .log-line.danger { color: var(--red); }
+
+        @keyframes glitch {
+            0% { transform: translateX(0); }
+            20% { transform: translateX(-3px); }
+            40% { transform: translateX(3px); }
+            60% { transform: translateX(-2px); }
+            80% { transform: translateX(2px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* Move buttons */
+        .battle-actions {
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .action-row { display: flex; gap: 8px; }
+
+        .move-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .move-btn {
+            background: #090e1a;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .move-btn:hover:not(:disabled) {
+            border-color: var(--cyan);
+            color: var(--cyan);
+            background: rgba(0,240,255,0.05);
+        }
+        .move-btn:disabled { opacity: 0.4; cursor: default; }
+
+        .move-name { font-weight: bold; font-size: 10px; }
+        .move-meta { font-size: 8px; color: var(--text-dim); display: flex; gap: 8px; }
+        .move-pp { font-size: 8px; color: var(--text-dim); }
+
+        .btn-swap {
+            background: #090e1a;
+            border: 1px solid var(--yellow);
+            color: var(--yellow);
+            padding: 8px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-swap:hover { background: rgba(240,192,64,0.1); box-shadow: 0 0 8px var(--yellow); }
+        .btn-swap:disabled { opacity: 0.3; cursor: default; }
+
+        /* Sidebar swap panel */
+        .swap-panel { display: flex; flex-direction: column; gap: 6px; }
+
+        .swap-slot {
+            background: #090e1a;
+            border: 1px solid var(--border);
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .swap-slot:hover { border-color: var(--cyan); }
+        .swap-slot.active { border-color: var(--green); opacity: 0.5; cursor: default; }
+        .swap-slot.fainted { opacity: 0.25; cursor: default; }
+        .swap-slot canvas { flex-shrink: 0; }
+        .swap-slot-info { flex: 1; }
+        .swap-slot-name { font-size: 10px; font-weight: bold; }
+        .swap-slot-hp { font-size: 8px; color: var(--text-dim); }
+
+        /* ─────────────── HEAL SCREEN ─────────────── */
+        #healScreen {
+            flex-direction: column;
+            gap: 24px;
+            padding: 20px;
+            align-items: center;
+        }
+
+        .heal-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 220px);
+            gap: 12px;
+        }
+
+        .heal-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .heal-status {
+            font-size: 9px;
+            letter-spacing: 1px;
+        }
+        .heal-status.ok { color: var(--green); }
+        .heal-status.hurt { color: var(--yellow); }
+        .heal-status.critical { color: var(--red); }
+        .heal-status.fainted { color: var(--text-dim); }
+
+        /* ─────────────── VICTORY SCREEN ─────────────── */
+        #victoryScreen {
+            flex-direction: column;
+            gap: 28px;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .victory-title {
+            font-size: 56px;
+            font-weight: 900;
+            letter-spacing: 6px;
+            color: var(--yellow);
+            text-shadow: 0 0 20px var(--yellow), 0 0 50px rgba(240,192,64,0.5);
+            animation: titlePulse 2s ease-in-out infinite;
+        }
+
+        .victory-sub {
+            font-size: 13px;
+            letter-spacing: 3px;
+            color: var(--cyan);
+        }
+
+        .badge-row {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .badge-icon {
+            width: 56px;
+            height: 56px;
+            border: 2px solid var(--yellow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            position: relative;
+            box-shadow: 0 0 20px rgba(240,192,64,0.4);
+        }
+
+        /* ─────────────── TYPE BADGE COLORS ─────────────── */
+        .type-Bug     { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid #4ade80; }
+        .type-Social  { background: rgba(192,132,252,0.15); color: var(--purple); border: 1px solid var(--purple); }
+        .type-Stealth { background: rgba(0,240,255,0.15); color: var(--cyan); border: 1px solid var(--cyan); }
+        .type-Network { background: rgba(240,192,64,0.15); color: var(--yellow); border: 1px solid var(--yellow); }
+        .type-Crypto  { background: rgba(255,51,102,0.15); color: var(--red); border: 1px solid var(--red); }
+        .type-Deception { background: rgba(251,146,60,0.15); color: var(--orange); border: 1px solid var(--orange); }
+
+        /* ─────────────── SHARED UTILS ─────────────── */
+        .flex-col { display: flex; flex-direction: column; gap: 8px; }
+
+        .battle-vs {
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: var(--red);
+            text-align: center;
+            padding: 4px 0;
+            text-shadow: 0 0 6px var(--red);
+        }
+
+        /* Flash overlay for damage/crit */
+        #flashOverlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 500;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+
+        /* Leader intro banner */
+        #leaderBanner {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        #leaderBanner.show { opacity: 1; pointer-events: all; }
+        .leader-intro-title {
+            font-size: 11px;
+            letter-spacing: 4px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+        .leader-intro-name {
+            font-size: 40px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: var(--red);
+            text-shadow: 0 0 20px var(--red);
+        }
+        .leader-intro-sub {
+            font-size: 12px;
+            color: var(--cyan);
+            margin-top: 8px;
+            letter-spacing: 2px;
+        }
+
+        /* Swap overlay (full-screen swap picker) */
+        #swapOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 300;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        #swapOverlay.show { opacity: 1; pointer-events: all; }
+        .swap-overlay-title {
+            font-size: 16px;
+            letter-spacing: 3px;
+            color: var(--cyan);
+        }
+        .swap-overlay-grid {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 700px;
+        }
+        .swap-overlay-card {
+            background: var(--panel);
+            border: 2px solid var(--border);
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 140px;
+        }
+        .swap-overlay-card:hover { border-color: var(--cyan); }
+        .swap-overlay-card.active { border-color: var(--green); cursor: default; }
+        .swap-overlay-card.fainted { opacity: 0.25; cursor: default; }
+        .swap-overlay-card canvas { display: block; }
+        .swap-overlay-name { font-size: 11px; font-weight: bold; }
+        .swap-overlay-hp { font-size: 9px; color: var(--text-dim); }
+    </style>
+</head>
+<body>
+    <a class="back-link" href="../index.html">[ BACK ]</a>
+
+    <div id="flashOverlay"></div>
+    <div id="leaderBanner">
+        <div class="leader-intro-title">GYM LEADER</div>
+        <div class="leader-intro-name" id="leaderIntroName"></div>
+        <div class="leader-intro-sub" id="leaderIntroSub"></div>
+    </div>
+    <div id="swapOverlay">
+        <div class="swap-overlay-title">[ SELECT CREATURE ]</div>
+        <div class="swap-overlay-grid" id="swapOverlayGrid"></div>
+        <button class="btn-secondary" id="swapCancelBtn">CANCEL</button>
+    </div>
+
+    <!-- ====== TITLE SCREEN ====== -->
+    <div class="screen" id="titleScreen">
+        <div class="title-logo">THREATDEX</div>
+        <div class="title-sub">SHIELD HOUSE CREATURE COMBAT</div>
+        <div class="title-tagline">ENCOUNTER . IDENTIFY . NEUTRALIZE</div>
+        <button class="btn-primary" id="titleStartBtn">INITIALIZE PROTOCOL</button>
+        <div style="font-size:9px; color: var(--text-dim); letter-spacing:2px; margin-top:-16px;">
+            v0.9.7 // BETA ACCESS
+        </div>
+    </div>
+
+    <!-- ====== STARTER SELECT ====== -->
+    <div class="screen hidden" id="starterScreen">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+            <div class="screen-title">SELECT YOUR CREATURE</div>
+            <div class="screen-sub">CHOOSE WISELY — YOUR THREAT VECTOR DEFINES YOUR STRATEGY</div>
+            <div class="starter-grid" id="starterGrid"></div>
+            <button class="btn-primary" id="confirmStarterBtn" disabled>CONFIRM SELECTION</button>
+        </div>
+    </div>
+
+    <!-- ====== OVERWORLD ====== -->
+    <div class="screen hidden" id="overworldScreen">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:900px;">
+            <div class="screen-title">THREATDEX ARENA</div>
+            <div class="overworld-layout">
+                <div class="ow-sidebar">
+                    <div>
+                        <div class="section-label">TEAM STATUS</div>
+                        <div class="team-grid" id="owTeamGrid"></div>
+                    </div>
+                    <div>
+                        <div class="section-label">ACTIONS</div>
+                        <div class="flex-col">
+                            <button class="btn-primary" id="healBtn">HEAL TEAM</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="section-label">PROGRESS</div>
+                        <div id="badgeDisplay" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                    </div>
+                </div>
+                <div class="ow-main">
+                    <div class="section-label">GYM CHALLENGES</div>
+                    <div class="gym-list" id="gymList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== BATTLE SCREEN ====== -->
+    <div class="screen hidden" id="battleScreen">
+        <div class="battle-layout">
+            <div class="battle-sidebar">
+                <div class="section-label">YOUR TEAM</div>
+                <div class="swap-panel" id="swapPanel"></div>
+                <div style="margin-top:auto;">
+                    <div class="section-label">TYPE CHART</div>
+                    <div id="typeChartMini" style="font-size:8px;color:var(--text-dim);line-height:1.8;"></div>
+                </div>
+            </div>
+            <div class="battle-main">
+                <div class="battle-hud">
+                    <div class="fighter-hud" id="enemyHud">
+                        <div class="fighter-name" id="enemyName">---</div>
+                        <div class="fighter-meta" id="enemyMeta">---</div>
+                        <div class="hp-bar-outer"><div class="hp-bar-inner" id="enemyHpBar" style="width:100%"></div></div>
+                        <div class="hp-text" id="enemyHpText">HP: --/--</div>
+                        <div id="enemyStatus"></div>
+                    </div>
+                    <div class="battle-vs">VS</div>
+                    <div class="fighter-hud" id="playerHud" style="text-align:right;">
+                        <div class="fighter-name" id="playerName">---</div>
+                        <div class="fighter-meta" id="playerMeta">---</div>
+                        <div class="hp-bar-outer"><div class="hp-bar-inner" id="playerHpBar" style="width:100%"></div></div>
+                        <div class="hp-text" id="playerHpText">HP: --/--</div>
+                        <div id="playerStatus"></div>
+                    </div>
+                </div>
+                <canvas id="battleCanvas" width="760" height="280"></canvas>
+                <div id="battleLog"></div>
+                <div class="battle-actions" id="battleActions">
+                    <div class="action-row">
+                        <div class="move-grid" id="moveGrid"></div>
+                        <button class="btn-swap" id="swapBtn">SWAP</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== HEAL SCREEN ====== -->
+    <div class="screen hidden" id="healScreen">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+            <div class="screen-title">RECOVERY STATION</div>
+            <div class="screen-sub">ALL CREATURES RESTORED TO FULL HP</div>
+            <div class="heal-grid" id="healGrid"></div>
+            <button class="btn-primary" id="healDoneBtn">RETURN TO ARENA</button>
+        </div>
+    </div>
+
+    <!-- ====== VICTORY SCREEN ====== -->
+    <div class="screen hidden" id="victoryScreen">
+        <div class="victory-title">SYSTEM SECURED</div>
+        <div class="victory-sub">ALL GYM LEADERS NEUTRALIZED</div>
+        <div class="badge-row" id="victoryBadges"></div>
+        <div style="max-width:480px;font-size:11px;color:var(--text-dim);line-height:1.8;text-align:center;letter-spacing:1px;">
+            You have demonstrated mastery over all known threat vectors. The network stands defended.
+            Your ThreatDex entry is now marked COMPLETE.
+        </div>
+        <button class="btn-primary" id="playAgainBtn">RESET PROTOCOL</button>
+    </div>
+
+<script>
+// ============================================================
+//  THREATDEX — Battle Engine
+//  Single-file Pokemon-style cybersecurity creature combat
+// ============================================================
+
+// ────────────────────────────────────────────────────────────
+//  TYPE SYSTEM
+//  Rock-paper-scissors web: each type is strong vs 2, weak vs 2
+//  Bug > Social, Deception
+//  Social > Stealth, Network
+//  Stealth > Crypto, Bug
+//  Network > Bug, Crypto
+//  Crypto > Social, Deception
+//  Deception > Stealth, Network
+// ────────────────────────────────────────────────────────────
+const TYPES = ['Bug', 'Social', 'Stealth', 'Network', 'Crypto', 'Deception'];
+
+const TYPE_CHART = {
+    // attacker: { defender: multiplier }
+    Bug:       { Bug: 1.0, Social: 2.0, Stealth: 0.5, Network: 0.5, Crypto: 1.0, Deception: 2.0 },
+    Social:    { Bug: 0.5, Social: 1.0, Stealth: 2.0, Network: 2.0, Crypto: 0.5, Deception: 1.0 },
+    Stealth:   { Bug: 2.0, Social: 0.5, Stealth: 1.0, Network: 1.0, Crypto: 2.0, Deception: 0.5 },
+    Network:   { Bug: 2.0, Social: 0.5, Stealth: 1.0, Network: 1.0, Crypto: 2.0, Deception: 0.5 },
+    Crypto:    { Bug: 1.0, Social: 2.0, Stealth: 0.5, Network: 0.5, Crypto: 1.0, Deception: 2.0 },
+    Deception: { Bug: 0.5, Social: 1.0, Stealth: 2.0, Network: 2.0, Crypto: 0.5, Deception: 1.0 },
+};
+
+const TYPE_COLORS = {
+    Bug: '#4ade80', Social: '#c084fc', Stealth: '#00f0ff',
+    Network: '#f0c040', Crypto: '#ff3366', Deception: '#fb923c'
+};
+
+// ────────────────────────────────────────────────────────────
+//  CREATURE DEFINITIONS
+//  Each creature has base stats + 4 moves
+//  Move categories: attack, special, buff, debuff
+// ────────────────────────────────────────────────────────────
+const CREATURE_DEFS = [
+    {
+        id: 'malware_moth',
+        name: 'Malware Moth',
+        type: 'Bug',
+        desc: 'Fast and fragile. Infects systems before defenses load.',
+        stats: { hp: 55, atk: 70, def: 40, spd: 95 },
+        moveIds: ['flutter_strike', 'spore_inject', 'signal_jam', 'harden_shell'],
+    },
+    {
+        id: 'phish_phantom',
+        name: 'Phish Phantom',
+        type: 'Social',
+        desc: 'Balanced manipulator. Exploits trust to gain access.',
+        stats: { hp: 75, atk: 65, def: 65, spd: 65 },
+        moveIds: ['lure_link', 'impersonate', 'social_shield', 'credential_drain'],
+    },
+    {
+        id: 'rootkit_rex',
+        name: 'Rootkit Rex',
+        type: 'Stealth',
+        desc: 'High attack stealth predator. Hides deep in system roots.',
+        stats: { hp: 65, atk: 90, def: 55, spd: 70 },
+        moveIds: ['shadow_claw', 'kernel_rend', 'ghost_mode', 'privilege_strip'],
+    },
+    {
+        id: 'ddos_drake',
+        name: 'DDoS Drake',
+        type: 'Network',
+        desc: 'Massive tanky beast. Overwhelms bandwidth with pure volume.',
+        stats: { hp: 100, atk: 60, def: 85, spd: 45 },
+        moveIds: ['packet_flood', 'syn_storm', 'firewall_scale', 'bandwidth_sap'],
+    },
+    {
+        id: 'ransomware_raven',
+        name: 'Ransomware Raven',
+        type: 'Crypto',
+        desc: 'Devastating but slow. Locks everything it touches.',
+        stats: { hp: 60, atk: 95, def: 60, spd: 40 },
+        moveIds: ['encrypt_slash', 'key_lock', 'ransom_note', 'decrypt_drain'],
+    },
+    {
+        id: 'trojan_tiger',
+        name: 'Trojan Tiger',
+        type: 'Deception',
+        desc: 'Trickster fighter. Appears harmless until it strikes.',
+        stats: { hp: 75, atk: 75, def: 70, spd: 60 },
+        moveIds: ['payload_pounce', 'backdoor_bite', 'decoy_stance', 'trust_break'],
+    },
+];
+
+// ────────────────────────────────────────────────────────────
+//  MOVE POOL
+//  PP = uses per battle. category: attack | special | buff | debuff
+// ────────────────────────────────────────────────────────────
+const MOVE_POOL = {
+    // ── Bug moves
+    flutter_strike:   { name: 'Flutter Strike', type: 'Bug', category: 'attack',  power: 40, pp: 30, accuracy: 1.00, desc: 'Quick wing strike.' },
+    spore_inject:     { name: 'Spore Inject',   type: 'Bug', category: 'special', power: 70, pp: 10, accuracy: 0.90, desc: 'Injects viral payload.' },
+    signal_jam:       { name: 'Signal Jam',     type: 'Bug', category: 'debuff',  power: 0,  pp: 15, accuracy: 0.95, desc: 'Reduces enemy SPD.' },
+    harden_shell:     { name: 'Harden Shell',   type: 'Bug', category: 'buff',    power: 0,  pp: 15, accuracy: 1.00, desc: 'Raises own DEF.' },
+
+    // ── Social moves
+    lure_link:        { name: 'Lure Link',       type: 'Social', category: 'attack',  power: 45, pp: 25, accuracy: 1.00, desc: 'Phishing lure attack.' },
+    impersonate:      { name: 'Impersonate',     type: 'Social', category: 'special', power: 80, pp: 8,  accuracy: 0.85, desc: 'Spoofs a trusted source.' },
+    social_shield:    { name: 'Social Shield',   type: 'Social', category: 'buff',    power: 0,  pp: 15, accuracy: 1.00, desc: 'Raises own DEF via pretense.' },
+    credential_drain: { name: 'Cred Drain',      type: 'Social', category: 'debuff',  power: 0,  pp: 15, accuracy: 0.90, desc: 'Drains enemy ATK.' },
+
+    // ── Stealth moves
+    shadow_claw:      { name: 'Shadow Claw',     type: 'Stealth', category: 'attack',  power: 50, pp: 20, accuracy: 0.95, desc: 'Strikes from the shadows.' },
+    kernel_rend:      { name: 'Kernel Rend',     type: 'Stealth', category: 'special', power: 90, pp: 8,  accuracy: 0.80, desc: 'Tears through kernel space.' },
+    ghost_mode:       { name: 'Ghost Mode',      type: 'Stealth', category: 'buff',    power: 0,  pp: 10, accuracy: 1.00, desc: 'Raises own ATK drastically.' },
+    privilege_strip:  { name: 'Priv Strip',      type: 'Stealth', category: 'debuff',  power: 0,  pp: 15, accuracy: 0.95, desc: 'Strips enemy DEF.' },
+
+    // ── Network moves
+    packet_flood:     { name: 'Packet Flood',    type: 'Network', category: 'attack',  power: 40, pp: 35, accuracy: 1.00, desc: 'Floods target with traffic.' },
+    syn_storm:        { name: 'SYN Storm',       type: 'Network', category: 'special', power: 75, pp: 10, accuracy: 0.90, desc: 'Half-open connection storm.' },
+    firewall_scale:   { name: 'Firewall Scale',  type: 'Network', category: 'buff',    power: 0,  pp: 15, accuracy: 1.00, desc: 'Raises own DEF substantially.' },
+    bandwidth_sap:    { name: 'Bandwidth Sap',   type: 'Network', category: 'debuff',  power: 0,  pp: 15, accuracy: 0.90, desc: 'Reduces enemy SPD and ATK.' },
+
+    // ── Crypto moves
+    encrypt_slash:    { name: 'Encrypt Slash',   type: 'Crypto', category: 'attack',  power: 55, pp: 20, accuracy: 0.95, desc: 'Encrypts target on impact.' },
+    key_lock:         { name: 'Key Lock',        type: 'Crypto', category: 'special', power: 95, pp: 6,  accuracy: 0.80, desc: 'Devastating key encryption.' },
+    ransom_note:      { name: 'Ransom Note',     type: 'Crypto', category: 'buff',    power: 0,  pp: 10, accuracy: 1.00, desc: 'Raises own ATK via threat.' },
+    decrypt_drain:    { name: 'Decrypt Drain',   type: 'Crypto', category: 'debuff',  power: 0,  pp: 15, accuracy: 0.90, desc: 'Drains enemy DEF.' },
+
+    // ── Deception moves
+    payload_pounce:   { name: 'Payload Pounce',  type: 'Deception', category: 'attack',  power: 50, pp: 20, accuracy: 0.95, desc: 'Hidden payload strike.' },
+    backdoor_bite:    { name: 'Backdoor Bite',   type: 'Deception', category: 'special', power: 80, pp: 8,  accuracy: 0.85, desc: 'Exploits a backdoor entry.' },
+    decoy_stance:     { name: 'Decoy Stance',    type: 'Deception', category: 'buff',    power: 0,  pp: 15, accuracy: 1.00, desc: 'Raises own DEF + SPD.' },
+    trust_break:      { name: 'Trust Break',     type: 'Deception', category: 'debuff',  power: 0,  pp: 15, accuracy: 0.90, desc: 'Shatters enemy DEF.' },
+
+    // ── Enemy-only moves
+    script_spray:     { name: 'Script Spray',    type: 'Bug',    category: 'attack',  power: 35, pp: 30, accuracy: 1.00, desc: 'Crude exploit spray.' },
+    kiddie_scan:      { name: 'Kiddie Scan',     type: 'Network',category: 'debuff',  power: 0,  pp: 20, accuracy: 0.90, desc: 'Basic port scanner.' },
+    darkweb_buy:      { name: 'Darkweb Buy',     type: 'Crypto', category: 'buff',    power: 0,  pp: 10, accuracy: 1.00, desc: 'Buys new exploits.' },
+    rat_infect:       { name: 'RAT Infect',      type: 'Stealth',category: 'attack',  power: 55, pp: 15, accuracy: 0.90, desc: 'Remote access trojan strike.' },
+    zero_day:         { name: 'Zero Day',        type: 'Crypto', category: 'special', power: 100, pp: 5, accuracy: 0.80, desc: 'Unpatched exploit unleashed.' },
+    lateral_move:     { name: 'Lateral Move',    type: 'Deception',category:'buff',   power: 0,  pp: 10, accuracy: 1.00, desc: 'Moves through the network.' },
+    apt_strike:       { name: 'APT Strike',      type: 'Stealth',category: 'special', power: 90, pp: 8,  accuracy: 0.85, desc: 'Coordinated advanced attack.' },
+    c2_beacon:        { name: 'C2 Beacon',       type: 'Network',category: 'debuff',  power: 0,  pp: 12, accuracy: 0.95, desc: 'C2 server command.' },
+    data_exfil:       { name: 'Data Exfil',      type: 'Stealth',category: 'attack',  power: 65, pp: 12, accuracy: 0.90, desc: 'Extracts critical data.' },
+};
+
+// ────────────────────────────────────────────────────────────
+//  GYM LEADERS
+// ────────────────────────────────────────────────────────────
+const GYM_LEADERS = [
+    {
+        id: 'kiddie',
+        name: 'SCRIPT KIDDIE',
+        title: 'Copy-Paste Menace',
+        badge: 'LAMER BADGE',
+        badgeColor: '#64748b',
+        team: [
+            { creatureId: 'malware_moth', level: 8,  moveIds: ['script_spray', 'flutter_strike', 'kiddie_scan', 'harden_shell'] },
+            { creatureId: 'ddos_drake',   level: 10, moveIds: ['packet_flood',  'syn_storm',      'kiddie_scan', 'firewall_scale'] },
+        ]
+    },
+    {
+        id: 'blackhat',
+        name: 'BLACK HAT',
+        title: 'Underground Operator',
+        badge: 'SHADOW BADGE',
+        badgeColor: '#7c3aed',
+        team: [
+            { creatureId: 'trojan_tiger',      level: 18, moveIds: ['payload_pounce', 'backdoor_bite',  'darkweb_buy',  'decoy_stance'] },
+            { creatureId: 'phish_phantom',     level: 20, moveIds: ['impersonate',    'credential_drain','social_shield','rat_infect'] },
+            { creatureId: 'ransomware_raven',  level: 22, moveIds: ['encrypt_slash',  'zero_day',        'ransom_note',  'decrypt_drain'] },
+        ]
+    },
+    {
+        id: 'apt',
+        name: 'APT COMMANDER',
+        title: 'Nation-State Operator',
+        badge: 'PHANTOM BADGE',
+        badgeColor: '#00f0ff',
+        team: [
+            { creatureId: 'rootkit_rex',      level: 35, moveIds: ['shadow_claw',    'kernel_rend',  'ghost_mode',   'apt_strike'] },
+            { creatureId: 'ransomware_raven', level: 38, moveIds: ['encrypt_slash',  'zero_day',     'ransom_note',  'data_exfil'] },
+            { creatureId: 'trojan_tiger',     level: 40, moveIds: ['backdoor_bite',  'payload_pounce','lateral_move', 'c2_beacon'] },
+        ]
+    }
+];
+
+// ────────────────────────────────────────────────────────────
+//  CANVAS SPRITE RENDERER
+//  Each creature has a unique procedural draw function
+// ────────────────────────────────────────────────────────────
+const Sprites = {
+    // Helper: draw pixel rect
+    px(ctx, x, y, w, h, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, w, h);
+    },
+
+    // Helper: draw glow circle
+    glow(ctx, x, y, r, color, alpha = 0.3) {
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, color.replace(')', `,${alpha})`).replace('rgb', 'rgba'));
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    },
+
+    malware_moth(ctx, cx, cy, scale = 1, mirror = false) {
+        const s = scale;
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (mirror) ctx.scale(-1, 1);
+        // Left wing
+        ctx.fillStyle = '#4ade80';
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath(); ctx.ellipse(-18*s, -8*s, 20*s, 10*s, -0.4, 0, Math.PI*2); ctx.fill();
+        // Right wing
+        ctx.beginPath(); ctx.ellipse(18*s, -8*s, 20*s, 10*s, 0.4, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#86efac';
+        ctx.beginPath(); ctx.ellipse(-14*s, -4*s, 10*s, 5*s, -0.4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(14*s, -4*s, 10*s, 5*s, 0.4, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Body
+        ctx.fillStyle = '#166534';
+        ctx.beginPath(); ctx.ellipse(0, 0, 6*s, 14*s, 0, 0, Math.PI*2); ctx.fill();
+        // Eyes
+        ctx.fillStyle = '#00f0ff';
+        ctx.fillRect(-3*s, -4*s, 2*s, 2*s);
+        ctx.fillRect(1*s, -4*s, 2*s, 2*s);
+        // Antennae
+        ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-2*s, -12*s); ctx.lineTo(-8*s, -22*s); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(2*s, -12*s); ctx.lineTo(8*s, -22*s); ctx.stroke();
+        ctx.fillStyle = '#4ade80';
+        ctx.beginPath(); ctx.arc(-8*s, -22*s, 2*s, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(8*s, -22*s, 2*s, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    },
+
+    phish_phantom(ctx, cx, cy, scale = 1, mirror = false) {
+        const s = scale;
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (mirror) ctx.scale(-1, 1);
+        // Ghost body
+        ctx.fillStyle = '#c084fc';
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.arc(0, -6*s, 16*s, Math.PI, 0, false);
+        ctx.lineTo(16*s, 14*s);
+        // Wavy bottom
+        ctx.bezierCurveTo(14*s, 18*s, 10*s, 10*s, 6*s, 16*s);
+        ctx.bezierCurveTo(2*s, 22*s, -2*s, 10*s, -6*s, 16*s);
+        ctx.bezierCurveTo(-10*s, 22*s, -14*s, 18*s, -16*s, 14*s);
+        ctx.closePath(); ctx.fill();
+        // Inner glow
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = '#e9d5ff';
+        ctx.beginPath(); ctx.arc(0, -2*s, 10*s, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Eyes (hollow)
+        ctx.fillStyle = '#0a0a0f';
+        ctx.beginPath(); ctx.arc(-6*s, -8*s, 4*s, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(6*s, -8*s, 4*s, 0, Math.PI*2); ctx.fill();
+        // Pupils (red)
+        ctx.fillStyle = '#ff3366';
+        ctx.beginPath(); ctx.arc(-6*s, -8*s, 2*s, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(6*s, -8*s, 2*s, 0, Math.PI*2); ctx.fill();
+        // Fishing hook
+        ctx.strokeStyle = '#f0c040'; ctx.lineWidth = 1.5*s;
+        ctx.beginPath(); ctx.moveTo(0, 8*s); ctx.lineTo(0, 22*s);
+        ctx.arc(4*s, 22*s, 4*s, Math.PI, Math.PI*1.5); ctx.stroke();
+        ctx.restore();
+    },
+
+    rootkit_rex(ctx, cx, cy, scale = 1, mirror = false) {
+        const s = scale;
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (mirror) ctx.scale(-1, 1);
+        // Body (dark armored)
+        ctx.fillStyle = '#0e7490';
+        ctx.beginPath();
+        ctx.moveTo(-14*s, 10*s); ctx.lineTo(-14*s, -8*s);
+        ctx.lineTo(-6*s, -18*s); ctx.lineTo(6*s, -18*s);
+        ctx.lineTo(14*s, -8*s); ctx.lineTo(14*s, 10*s);
+        ctx.closePath(); ctx.fill();
+        // Armor plates
+        ctx.fillStyle = '#00f0ff';
+        ctx.globalAlpha = 0.6;
+        ctx.fillRect(-12*s, -6*s, 6*s, 8*s);
+        ctx.fillRect(6*s, -6*s, 6*s, 8*s);
+        ctx.globalAlpha = 1;
+        // Claws
+        ctx.fillStyle = '#00f0ff';
+        ctx.beginPath(); ctx.moveTo(-14*s, 6*s); ctx.lineTo(-22*s, 2*s); ctx.lineTo(-18*s, 10*s); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(14*s, 6*s); ctx.lineTo(22*s, 2*s); ctx.lineTo(18*s, 10*s); ctx.closePath(); ctx.fill();
+        // Legs
+        ctx.fillStyle = '#0e7490';
+        ctx.fillRect(-10*s, 10*s, 6*s, 12*s);
+        ctx.fillRect(4*s, 10*s, 6*s, 12*s);
+        // Head
+        ctx.fillStyle = '#155e75';
+        ctx.beginPath(); ctx.arc(0, -16*s, 10*s, 0, Math.PI*2); ctx.fill();
+        // Eye visor
+        ctx.fillStyle = '#00f0ff';
+        ctx.fillRect(-8*s, -20*s, 16*s, 4*s);
+        // Tail
+        ctx.strokeStyle = '#0e7490'; ctx.lineWidth = 4*s;
+        ctx.beginPath(); ctx.moveTo(10*s, 8*s); ctx.bezierCurveTo(20*s, 4*s, 24*s, -4*s, 20*s, -12*s); ctx.stroke();
+        ctx.fillStyle = '#00f0ff';
+        ctx.beginPath(); ctx.moveTo(20*s, -12*s); ctx.lineTo(24*s, -18*s); ctx.lineTo(16*s, -16*s); ctx.closePath(); ctx.fill();
+        ctx.restore();
+    },
+
+    ddos_drake(ctx, cx, cy, scale = 1, mirror = false) {
+        const s = scale;
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (mirror) ctx.scale(-1, 1);
+        // Big body
+        ctx.fillStyle = '#854d0e';
+        ctx.beginPath(); ctx.ellipse(0, 4*s, 20*s, 18*s, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#a16207';
+        ctx.beginPath(); ctx.ellipse(0, 2*s, 16*s, 14*s, 0, 0, Math.PI*2); ctx.fill();
+        // Wings (overlapping network packets)
+        ctx.fillStyle = '#f0c040';
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.moveTo(-20*s, -4*s); ctx.lineTo(-38*s, -12*s); ctx.lineTo(-36*s, 4*s); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(20*s, -4*s); ctx.lineTo(38*s, -12*s); ctx.lineTo(36*s, 4*s); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath(); ctx.moveTo(-18*s, -2*s); ctx.lineTo(-34*s, -16*s); ctx.lineTo(-30*s, -2*s); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(18*s, -2*s); ctx.lineTo(34*s, -16*s); ctx.lineTo(30*s, -2*s); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Head
+        ctx.fillStyle = '#92400e';
+        ctx.beginPath(); ctx.ellipse(0, -14*s, 12*s, 10*s, 0, 0, Math.PI*2); ctx.fill();
+        // Horns
+        ctx.fillStyle = '#f0c040';
+        ctx.beginPath(); ctx.moveTo(-8*s, -22*s); ctx.lineTo(-12*s, -34*s); ctx.lineTo(-4*s, -26*s); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(8*s, -22*s); ctx.lineTo(12*s, -34*s); ctx.lineTo(4*s, -26*s); ctx.closePath(); ctx.fill();
+        // Eyes
+        ctx.fillStyle = '#f0c040';
+        ctx.beginPath(); ctx.arc(-5*s, -16*s, 4*s, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(5*s, -16*s, 4*s, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#0a0a0f';
+        ctx.beginPath(); ctx.arc(-5*s, -16*s, 2*s, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(5*s, -16*s, 2*s, 0, Math.PI*2); ctx.fill();
+        // Legs
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(-16*s, 18*s, 8*s, 10*s);
+        ctx.fillRect(8*s, 18*s, 8*s, 10*s);
+        // Tail
+        ctx.strokeStyle = '#92400e'; ctx.lineWidth = 6*s;
+        ctx.beginPath(); ctx.moveTo(-18*s, 8*s); ctx.bezierCurveTo(-32*s, 12*s, -38*s, 4*s, -32*s, -4*s); ctx.stroke();
+        ctx.restore();
+    },
+
+    ransomware_raven(ctx, cx, cy, scale = 1, mirror = false) {
+        const s = scale;
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (mirror) ctx.scale(-1, 1);
+        // Body (dark bird)
+        ctx.fillStyle = '#450a0a';
+        ctx.beginPath(); ctx.ellipse(0, 6*s, 10*s, 16*s, 0, 0, Math.PI*2); ctx.fill();
+        // Wings
+        ctx.fillStyle = '#7f1d1d';
+        ctx.beginPath(); ctx.moveTo(-10*s, 0); ctx.lineTo(-30*s, -10*s); ctx.lineTo(-28*s, 10*s); ctx.lineTo(-10*s, 14*s); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(10*s, 0); ctx.lineTo(30*s, -10*s); ctx.lineTo(28*s, 10*s); ctx.lineTo(10*s, 14*s); ctx.closePath(); ctx.fill();
+        // Red glow on wings
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#ff3366';
+        ctx.beginPath(); ctx.moveTo(-10*s, 2*s); ctx.lineTo(-26*s, -6*s); ctx.lineTo(-22*s, 8*s); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(10*s, 2*s); ctx.lineTo(26*s, -6*s); ctx.lineTo(22*s, 8*s); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Head
+        ctx.fillStyle = '#450a0a';
+        ctx.beginPath(); ctx.arc(0, -8*s, 10*s, 0, Math.PI*2); ctx.fill();
+        // Beak (key shape)
+        ctx.fillStyle = '#f0c040';
+        ctx.fillRect(-2*s, -8*s, 10*s, 3*s);
+        ctx.beginPath(); ctx.arc(10*s, -6.5*s, 2.5*s, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(6*s, -11*s, 3*s, 3*s);
+        // Eyes (glowing red)
+        ctx.fillStyle = '#ff3366';
+        ctx.shadowColor = '#ff3366'; ctx.shadowBlur = 6;
+        ctx.beginPath(); ctx.arc(-4*s, -10*s, 3*s, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+        // Padlock on chest
+        ctx.fillStyle = '#f0c040';
+        ctx.fillRect(-5*s, 2*s, 10*s, 8*s);
+        ctx.fillStyle = '#450a0a';
+        ctx.fillRect(-2*s, 4*s, 4*s, 4*s);
+        ctx.fillStyle = '#f0c040';
+        ctx.strokeStyle = '#f0c040'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(0, 3*s, 3*s, Math.PI, 0); ctx.stroke();
+        ctx.restore();
+    },
+
+    trojan_tiger(ctx, cx, cy, scale = 1, mirror = false) {
+        const s = scale;
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (mirror) ctx.scale(-1, 1);
+        // Body
+        ctx.fillStyle = '#7c2d12';
+        ctx.beginPath(); ctx.ellipse(0, 6*s, 14*s, 16*s, 0, 0, Math.PI*2); ctx.fill();
+        // Stripes (orange, deception)
+        ctx.fillStyle = '#fb923c';
+        ctx.fillRect(-12*s, -2*s, 24*s, 3*s);
+        ctx.fillRect(-10*s, 5*s, 20*s, 3*s);
+        ctx.fillRect(-12*s, 12*s, 24*s, 3*s);
+        // Head
+        ctx.fillStyle = '#9a3412';
+        ctx.beginPath(); ctx.arc(0, -10*s, 12*s, 0, Math.PI*2); ctx.fill();
+        // Ears
+        ctx.fillStyle = '#7c2d12';
+        ctx.beginPath(); ctx.moveTo(-10*s, -18*s); ctx.lineTo(-14*s, -28*s); ctx.lineTo(-4*s, -22*s); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(10*s, -18*s); ctx.lineTo(14*s, -28*s); ctx.lineTo(4*s, -22*s); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath(); ctx.moveTo(-9*s, -19*s); ctx.lineTo(-12*s, -26*s); ctx.lineTo(-5*s, -22*s); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(9*s, -19*s); ctx.lineTo(12*s, -26*s); ctx.lineTo(5*s, -22*s); ctx.closePath(); ctx.fill();
+        // Eyes (sly, one higher)
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath(); ctx.arc(-5*s, -12*s, 3*s, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(5*s, -11*s, 3*s, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#0a0a0f';
+        ctx.beginPath(); ctx.arc(-5*s, -12*s, 1.5*s, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(5*s, -11*s, 1.5*s, 0, Math.PI*2); ctx.fill();
+        // Paws with claws
+        ctx.fillStyle = '#7c2d12';
+        ctx.fillRect(-16*s, 14*s, 8*s, 10*s);
+        ctx.fillRect(8*s, 14*s, 8*s, 10*s);
+        ctx.fillStyle = '#fb923c';
+        for(let i = -2; i <= 2; i+=2) {
+            ctx.beginPath(); ctx.moveTo((-12+i)*s, 24*s); ctx.lineTo((-13+i)*s, 28*s); ctx.lineTo((-11+i)*s, 28*s); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo((12+i)*s, 24*s); ctx.lineTo((11+i)*s, 28*s); ctx.lineTo((13+i)*s, 28*s); ctx.closePath(); ctx.fill();
+        }
+        // Trojan horse gift box outline on chest
+        ctx.strokeStyle = '#fb923c'; ctx.lineWidth = 1.5;
+        ctx.strokeRect(-6*s, -2*s, 12*s, 10*s);
+        ctx.beginPath(); ctx.moveTo(-6*s, 2*s); ctx.lineTo(6*s, 2*s); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, -2*s, 4*s, Math.PI, 0); ctx.stroke();
+        ctx.restore();
+    }
+};
+
+// Map creature id to draw function
+const SPRITE_FN = {
+    malware_moth: Sprites.malware_moth.bind(Sprites),
+    phish_phantom: Sprites.phish_phantom.bind(Sprites),
+    rootkit_rex: Sprites.rootkit_rex.bind(Sprites),
+    ddos_drake: Sprites.ddos_drake.bind(Sprites),
+    ransomware_raven: Sprites.ransomware_raven.bind(Sprites),
+    trojan_tiger: Sprites.trojan_tiger.bind(Sprites),
+};
+
+// Draw a sprite on a canvas element (for UI cards)
+function drawSpriteOnCanvas(canvas, creatureId, size = 80, mirror = false) {
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+    const fn = SPRITE_FN[creatureId];
+    if (fn) fn(ctx, size / 2, size / 2, size / 80, mirror);
+}
+
+// ────────────────────────────────────────────────────────────
+//  GAME STATE
+// ────────────────────────────────────────────────────────────
+const State = {
+    screen: 'title',
+    playerTeam: [],        // array of live creature instances
+    selectedStarterIdx: -1,
+    gymProgress: 0,        // 0 = none beaten, 1 = kiddie, 2 = blackhat, 3 = apt
+    defeatedGyms: [],
+    battle: null,          // active battle state
+};
+
+// Create a live creature instance from a definition (with optional level scaling)
+function createCreature(defId, level = 1, moveIds = null) {
+    const def = CREATURE_DEFS.find(d => d.id === defId);
+    if (!def) return null;
+    const scale = 1 + (level - 1) * 0.04;
+    const moves = (moveIds || def.moveIds).map(mid => {
+        const m = MOVE_POOL[mid];
+        if (!m) return null;
+        return { ...m, id: mid, currentPP: m.pp };
+    }).filter(Boolean);
+
+    return {
+        defId,
+        name: def.name,
+        type: def.type,
+        level,
+        baseStats: { ...def.stats },
+        stats: {
+            hp:  Math.round(def.stats.hp  * scale),
+            atk: Math.round(def.stats.atk * scale),
+            def: Math.round(def.stats.def * scale),
+            spd: Math.round(def.stats.spd * scale),
+        },
+        currentHp: Math.round(def.stats.hp * scale),
+        moves,
+        // stat stage modifiers (-3 to +3)
+        stages: { atk: 0, def: 0, spd: 0 },
+        // status: null | 'burn' | 'slow'
+        status: null,
+    };
+}
+
+// Apply stat stage modifier to a stat value
+function getStat(creature, stat) {
+    const base = creature.stats[stat];
+    const stage = creature.stages[stat] || 0;
+    const mult = stage >= 0 ? (1 + stage * 0.5) : (1 / (1 + Math.abs(stage) * 0.5));
+    return Math.round(base * mult);
+}
+
+// ────────────────────────────────────────────────────────────
+//  DAMAGE FORMULA
+// ────────────────────────────────────────────────────────────
+function calcDamage(attacker, defender, move) {
+    const atk = getStat(attacker, 'atk');
+    const def = getStat(defender, 'def');
+    const typeMulti = TYPE_CHART[move.type][defender.type] || 1.0;
+    const roll = 0.85 + Math.random() * 0.30;
+    const raw = (atk * move.power / def) * typeMulti * roll;
+    return {
+        damage: Math.max(1, Math.round(raw)),
+        typeMulti,
+        isCrit: roll > 1.10,
+    };
+}
+
+// ────────────────────────────────────────────────────────────
+//  BATTLE STATE
+// ────────────────────────────────────────────────────────────
+function createBattleState(gymIdx) {
+    const gym = GYM_LEADERS[gymIdx];
+    const enemyTeam = gym.team.map(t => createCreature(t.creatureId, t.level, t.moveIds));
+    return {
+        gymIdx,
+        gym,
+        playerIdx: 0,      // index into State.playerTeam
+        enemyIdx: 0,       // index into enemyTeam
+        enemyTeam,
+        playerAlive: State.playerTeam.filter(c => c.currentHp > 0),
+        turn: 'player',    // 'player' | 'enemy' | 'animating'
+        awaitingSwap: false,    // forced swap after faint
+        playerHpAnim: 1,
+        enemyHpAnim: 1,
+    };
+}
+
+function getBattlePlayer() { return State.playerTeam[State.battle.playerIdx]; }
+function getBattleEnemy()  { return State.battle.enemyTeam[State.battle.enemyIdx]; }
+
+// ────────────────────────────────────────────────────────────
+//  SCREEN MANAGEMENT
+// ────────────────────────────────────────────────────────────
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById(id + 'Screen').classList.remove('hidden');
+    State.screen = id;
+}
+
+// ────────────────────────────────────────────────────────────
+//  OVERWORLD RENDER
+// ────────────────────────────────────────────────────────────
+function renderOverworld() {
+    // Team grid
+    const teamGrid = document.getElementById('owTeamGrid');
+    teamGrid.innerHTML = '';
+    State.playerTeam.forEach(c => {
+        const slot = document.createElement('div');
+        slot.className = 'team-slot';
+        const cnv = document.createElement('canvas');
+        drawSpriteOnCanvas(cnv, c.defId, 40);
+        const pct = c.currentHp / c.stats.hp;
+        const barClass = pct > 0.5 ? '' : pct > 0.25 ? 'yellow' : 'red';
+        slot.innerHTML = `
+            <div class="team-slot-info">
+                <div class="team-slot-name">${c.name}</div>
+                <div class="team-slot-type" style="color:${TYPE_COLORS[c.type]}">${c.type}</div>
+                <div class="hp-bar-wrap">
+                    <div class="hp-bar-fill ${barClass}" style="width:${Math.max(0,pct*100)}%"></div>
+                </div>
+                <div style="font-size:8px;color:var(--text-dim)">${c.currentHp}/${c.stats.hp}</div>
+            </div>
+        `;
+        slot.prepend(cnv);
+        teamGrid.appendChild(slot);
+    });
+
+    // Gym list
+    const gymList = document.getElementById('gymList');
+    gymList.innerHTML = '';
+    GYM_LEADERS.forEach((gym, i) => {
+        const beaten = State.defeatedGyms.includes(gym.id);
+        const isNext = i === State.gymProgress && !beaten;
+        const locked = i > State.gymProgress && !beaten;
+
+        const entry = document.createElement('div');
+        entry.className = `gym-entry ${beaten ? 'defeated' : isNext ? 'next' : locked ? 'locked' : ''}`;
+
+        const btn = document.createElement('button');
+        btn.className = 'btn-fight';
+        btn.textContent = beaten ? 'DEFEATED' : 'CHALLENGE';
+        btn.disabled = beaten || locked;
+        if (!beaten && !locked) {
+            btn.addEventListener('click', () => startBattle(i));
+        }
+
+        entry.innerHTML = `
+            <div class="gym-name" style="color:${beaten ? 'var(--green)' : isNext ? 'var(--yellow)' : 'var(--text)'}">${beaten ? '[V] ' : ''}${gym.name}</div>
+            <div class="gym-meta">${gym.title} // ${gym.team.length} creatures</div>
+            ${beaten ? `<div class="gym-badge">[BADGE] ${gym.badge}</div>` : ''}
+        `;
+        entry.appendChild(btn);
+        gymList.appendChild(entry);
+    });
+
+    // Badge display
+    const badgeDisplay = document.getElementById('badgeDisplay');
+    badgeDisplay.innerHTML = '';
+    State.defeatedGyms.forEach(gid => {
+        const gym = GYM_LEADERS.find(g => g.id === gid);
+        if (!gym) return;
+        const b = document.createElement('div');
+        b.style.cssText = `font-size:9px;padding:4px 8px;border:1px solid ${gym.badgeColor};color:${gym.badgeColor};letter-spacing:1px;`;
+        b.textContent = gym.badge;
+        badgeDisplay.appendChild(b);
+    });
+}
+
+// ────────────────────────────────────────────────────────────
+//  BATTLE CANVAS RENDERER
+// ────────────────────────────────────────────────────────────
+const battleCanvas = document.getElementById('battleCanvas');
+const battleCtx = battleCanvas.getContext('2d');
+
+let battleAnimFrame = null;
+let shakePlayer = 0;    // shake timer (frames)
+let shakeEnemy = 0;
+let playerFlash = 0;
+let enemyFlash = 0;
+
+function drawBattleScene() {
+    const W = battleCanvas.width;
+    const H = battleCanvas.height;
+    const ctx = battleCtx;
+    ctx.clearRect(0, 0, W, H);
+
+    // Background: dark gradient with ground plane
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#0a0a1a');
+    grad.addColorStop(0.6, '#0d1020');
+    grad.addColorStop(1, '#090e18');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Ground lines (perspective grid)
+    ctx.strokeStyle = 'rgba(0,240,255,0.06)';
+    ctx.lineWidth = 1;
+    const horizon = H * 0.55;
+    const vanishX = W / 2;
+    for (let x = 0; x <= W; x += 60) {
+        ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(vanishX + (x - vanishX) * 0.1, horizon); ctx.stroke();
+    }
+    for (let d = 0; d <= 1; d += 0.12) {
+        const y = horizon + (H - horizon) * d;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // Horizon glow
+    ctx.fillStyle = 'rgba(0,240,255,0.04)';
+    ctx.fillRect(0, horizon - 2, W, 4);
+
+    // Scan line overlay on canvas
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    for (let y = 0; y < H; y += 4) { ctx.fillRect(0, y, W, 2); }
+
+    const b = State.battle;
+    if (!b) return;
+
+    const player = getBattlePlayer();
+    const enemy  = getBattleEnemy();
+
+    // Enemy position (back, smaller)
+    const exBase = W * 0.68, eyBase = horizon - 10;
+    const exOff = shakeEnemy > 0 ? (Math.random() - 0.5) * 8 : 0;
+    const eyOff = shakeEnemy > 0 ? (Math.random() - 0.5) * 4 : 0;
+
+    // Player position (front, larger)
+    const pxBase = W * 0.28, pyBase = H * 0.72;
+    const pxOff = shakePlayer > 0 ? (Math.random() - 0.5) * 10 : 0;
+    const pyOff = shakePlayer > 0 ? (Math.random() - 0.5) * 5 : 0;
+
+    // Draw shadow ellipses
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.ellipse(exBase, eyBase + 30, 36, 10, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(pxBase, pyBase + 10, 44, 12, 0, 0, Math.PI*2); ctx.fill();
+
+    // Enemy creature
+    if (enemy.currentHp > 0) {
+        ctx.save();
+        if (enemyFlash > 0) { ctx.globalAlpha = 0.4 + (enemyFlash % 2) * 0.4; }
+        const fn = SPRITE_FN[enemy.defId];
+        if (fn) fn(ctx, exBase + exOff, eyBase + eyOff, 0.9, true);
+        ctx.restore();
+        if (shakeEnemy > 0) shakeEnemy--;
+        if (enemyFlash > 0) enemyFlash--;
+    } else {
+        // Faint animation: fall down
+        ctx.save(); ctx.globalAlpha = 0.3;
+        const fn = SPRITE_FN[enemy.defId];
+        if (fn) fn(ctx, exBase, eyBase + 30, 0.9, true);
+        ctx.restore();
+    }
+
+    // Player creature
+    if (player.currentHp > 0) {
+        ctx.save();
+        if (playerFlash > 0) { ctx.globalAlpha = 0.4 + (playerFlash % 2) * 0.4; }
+        const fn = SPRITE_FN[player.defId];
+        if (fn) fn(ctx, pxBase + pxOff, pyBase + pyOff, 1.2, false);
+        ctx.restore();
+        if (shakePlayer > 0) shakePlayer--;
+        if (playerFlash > 0) playerFlash--;
+    } else {
+        ctx.save(); ctx.globalAlpha = 0.25;
+        const fn = SPRITE_FN[player.defId];
+        if (fn) fn(ctx, pxBase, pyBase + 30, 1.2, false);
+        ctx.restore();
+    }
+
+    battleAnimFrame = requestAnimationFrame(drawBattleScene);
+}
+
+function stopBattleAnim() {
+    if (battleAnimFrame) { cancelAnimationFrame(battleAnimFrame); battleAnimFrame = null; }
+}
+
+// ────────────────────────────────────────────────────────────
+//  BATTLE HUD UPDATE
+// ────────────────────────────────────────────────────────────
+function updateBattleHud() {
+    const b = State.battle;
+    const player = getBattlePlayer();
+    const enemy  = getBattleEnemy();
+
+    // Player
+    document.getElementById('playerName').textContent = player.name;
+    document.getElementById('playerMeta').textContent =
+        `Lv.${player.level} // ${player.type} // ATK ${getStat(player,'atk')} DEF ${getStat(player,'def')} SPD ${getStat(player,'spd')}`;
+    const ppct = Math.max(0, player.currentHp / player.stats.hp);
+    const pBar = document.getElementById('playerHpBar');
+    pBar.style.width = (ppct * 100) + '%';
+    pBar.style.background = ppct > 0.5 ? 'var(--green)' : ppct > 0.25 ? 'var(--yellow)' : 'var(--red)';
+    document.getElementById('playerHpText').textContent = `HP: ${Math.max(0,player.currentHp)}/${player.stats.hp}`;
+
+    // Enemy
+    document.getElementById('enemyName').textContent = enemy.name;
+    document.getElementById('enemyMeta').textContent =
+        `Lv.${enemy.level} // ${enemy.type} // ATK ${getStat(enemy,'atk')} DEF ${getStat(enemy,'def')} SPD ${getStat(enemy,'spd')}`;
+    const epct = Math.max(0, enemy.currentHp / enemy.stats.hp);
+    const eBar = document.getElementById('enemyHpBar');
+    eBar.style.width = (epct * 100) + '%';
+    eBar.style.background = epct > 0.5 ? 'var(--green)' : epct > 0.25 ? 'var(--yellow)' : 'var(--red)';
+    document.getElementById('enemyHpText').textContent = `HP: ${Math.max(0,enemy.currentHp)}/${enemy.stats.hp}`;
+
+    // Status tags
+    renderStatusTag('playerStatus', player);
+    renderStatusTag('enemyStatus', enemy);
+
+    // Move buttons
+    renderMoveButtons();
+
+    // Swap panel (sidebar)
+    renderSwapPanel();
+}
+
+function renderStatusTag(elId, creature) {
+    const el = document.getElementById(elId);
+    el.innerHTML = '';
+    if (creature.status === 'burn') {
+        const t = document.createElement('span');
+        t.className = 'status-tag status-burn';
+        t.textContent = 'BURNING';
+        el.appendChild(t);
+    } else if (creature.status === 'slow') {
+        const t = document.createElement('span');
+        t.className = 'status-tag status-slow';
+        t.textContent = 'SLOWED';
+        el.appendChild(t);
+    }
+    if (creature.stages.atk > 0) {
+        const t = document.createElement('span');
+        t.className = 'status-tag status-boost';
+        t.textContent = `ATK+${creature.stages.atk}`;
+        el.appendChild(t);
+    }
+    if (creature.stages.def > 0) {
+        const t = document.createElement('span');
+        t.className = 'status-tag status-shield';
+        t.textContent = `DEF+${creature.stages.def}`;
+        el.appendChild(t);
+    }
+}
+
+function renderMoveButtons() {
+    const b = State.battle;
+    const player = getBattlePlayer();
+    const grid = document.getElementById('moveGrid');
+    grid.innerHTML = '';
+
+    player.moves.forEach((move, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'move-btn';
+        btn.disabled = move.currentPP <= 0 || b.turn !== 'player' || b.awaitingSwap;
+        const typeColor = TYPE_COLORS[move.type] || 'var(--text)';
+        const typeMulti = TYPE_CHART[move.type][getBattleEnemy().type] || 1;
+        const effectText = typeMulti > 1 ? ' [SUPER]' : typeMulti < 1 ? ' [RESISTED]' : '';
+        btn.innerHTML = `
+            <div class="move-name">${move.name}</div>
+            <div class="move-meta">
+                <span style="color:${typeColor}">${move.type}</span>
+                <span>${move.category.toUpperCase()}</span>
+                ${move.power > 0 ? `<span>PWR ${move.power}</span>` : ''}
+            </div>
+            <div class="move-pp">PP: ${move.currentPP}/${move.pp}${effectText}</div>
+        `;
+        btn.addEventListener('click', () => playerUseMove(idx));
+        grid.appendChild(btn);
+    });
+}
+
+function renderSwapPanel() {
+    const panel = document.getElementById('swapPanel');
+    panel.innerHTML = '';
+    State.playerTeam.forEach((c, i) => {
+        const slot = document.createElement('div');
+        const isActive = i === State.battle.playerIdx;
+        const isFainted = c.currentHp <= 0;
+        slot.className = `swap-slot ${isActive ? 'active' : ''} ${isFainted ? 'fainted' : ''}`;
+        const cnv = document.createElement('canvas');
+        drawSpriteOnCanvas(cnv, c.defId, 32);
+        const pct = Math.max(0, c.currentHp / c.stats.hp);
+        slot.innerHTML = `
+            <div class="swap-slot-info">
+                <div class="swap-slot-name">${c.name}${isActive ? ' [IN]' : ''}</div>
+                <div class="swap-slot-hp">${Math.max(0,c.currentHp)}/${c.stats.hp}</div>
+            </div>
+        `;
+        slot.prepend(cnv);
+        if (!isActive && !isFainted) {
+            slot.addEventListener('click', () => openSwapOverlay());
+        }
+        panel.appendChild(slot);
+    });
+}
+
+// ────────────────────────────────────────────────────────────
+//  BATTLE LOG
+// ────────────────────────────────────────────────────────────
+function addLog(text, cls = '') {
+    const log = document.getElementById('battleLog');
+    const line = document.createElement('div');
+    line.className = `log-line ${cls}`;
+    line.textContent = '> ' + text;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+    // Cap log at 40 lines
+    while (log.children.length > 40) log.removeChild(log.firstChild);
+}
+
+function clearLog() {
+    document.getElementById('battleLog').innerHTML = '';
+}
+
+// ────────────────────────────────────────────────────────────
+//  FLASH EFFECT
+// ────────────────────────────────────────────────────────────
+function flashScreen(color, duration = 150) {
+    const el = document.getElementById('flashOverlay');
+    el.style.background = color;
+    el.style.opacity = '0.3';
+    setTimeout(() => { el.style.opacity = '0'; }, duration);
+}
+
+// ────────────────────────────────────────────────────────────
+//  BATTLE FLOW
+// ────────────────────────────────────────────────────────────
+function startBattle(gymIdx) {
+    State.battle = createBattleState(gymIdx);
+    const gym = GYM_LEADERS[gymIdx];
+
+    // Show leader intro banner
+    document.getElementById('leaderIntroName').textContent = gym.name;
+    document.getElementById('leaderIntroSub').textContent = gym.title.toUpperCase();
+    const banner = document.getElementById('leaderBanner');
+    banner.classList.add('show');
+    setTimeout(() => {
+        banner.classList.remove('show');
+        showScreen('battle');
+        clearLog();
+        addLog(`GYM LEADER ${gym.name} wants to battle!`, 'system');
+        addLog(`${gym.name} deployed ${getBattleEnemy().name}!`, 'system');
+        addLog(`Go, ${getBattlePlayer().name}!`, 'system');
+        renderTypeChartMini();
+        drawBattleScene();
+        updateBattleHud();
+    }, 2200);
+}
+
+function renderTypeChartMini() {
+    const el = document.getElementById('typeChartMini');
+    const enemy = getBattleEnemy();
+    const lines = TYPES.map(t => {
+        const m = TYPE_CHART[t][enemy.type];
+        const col = m > 1 ? 'var(--green)' : m < 1 ? 'var(--red)' : 'var(--text-dim)';
+        const sym = m > 1 ? '++' : m < 1 ? '--' : '=';
+        return `<span style="color:${TYPE_COLORS[t]}">${t.substring(0,5)}</span> <span style="color:${col}">${sym}</span>`;
+    });
+    el.innerHTML = lines.join('<br>');
+}
+
+// ── Player picks a move ──
+function playerUseMove(moveIdx) {
+    const b = State.battle;
+    if (b.turn !== 'player' || b.awaitingSwap) return;
+
+    const player = getBattlePlayer();
+    const enemy  = getBattleEnemy();
+    const move   = player.moves[moveIdx];
+    if (!move || move.currentPP <= 0) return;
+
+    move.currentPP--;
+    b.turn = 'animating';
+
+    // Speed check: who goes first?
+    const playerSpd = getStat(player, 'spd');
+    const enemySpd  = getStat(enemy, 'spd');
+    const playerFirst = playerSpd >= enemySpd;
+
+    if (playerFirst) {
+        executePlayerMove(move, () => {
+            if (getBattleEnemy().currentHp > 0) {
+                setTimeout(() => executeEnemyTurn(), 600);
+            }
+        });
+    } else {
+        executeEnemyTurn(() => {
+            if (getBattlePlayer().currentHp > 0) {
+                setTimeout(() => executePlayerMove(move, () => {}), 600);
+            }
+        });
+    }
+}
+
+function executePlayerMove(move, callback) {
+    const player = getBattlePlayer();
+    const enemy  = getBattleEnemy();
+    addLog(`${player.name} used ${move.name}!`);
+
+    if (Math.random() > move.accuracy) {
+        addLog(`${player.name}'s attack missed!`, 'resisted');
+        setTimeout(() => { checkBattleEnd(callback); }, 400);
+        return;
+    }
+
+    applyMoveEffect(move, player, enemy, false, () => {
+        checkBattleEnd(callback);
+    });
+}
+
+function executeEnemyTurn(callback = null) {
+    const enemy  = getBattleEnemy();
+    const player = getBattlePlayer();
+    if (enemy.currentHp <= 0) { if(callback) callback(); return; }
+
+    // AI: pick move — prefer super-effective, then highest power, fallback to random
+    const validMoves = enemy.moves.filter(m => m.currentPP > 0);
+    if (validMoves.length === 0) {
+        addLog(`${enemy.name} has no moves left! It struggles.`, 'system');
+        player.currentHp = Math.max(0, player.currentHp - 5);
+        updateBattleHud();
+        checkBattleEnd(callback);
+        return;
+    }
+
+    // AI heuristic: score each move
+    const scored = validMoves.map(m => {
+        let score = m.power;
+        if (m.category === 'attack' || m.category === 'special') {
+            const multi = TYPE_CHART[m.type][player.type] || 1;
+            score = m.power * multi;
+        } else if (m.category === 'buff') {
+            // Use buff if own ATK or DEF is low
+            score = 20;
+        } else if (m.category === 'debuff') {
+            score = 25;
+        }
+        return { move: m, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    // Small randomness: sometimes pick 2nd best
+    const topIdx = Math.random() < 0.8 ? 0 : Math.min(1, scored.length - 1);
+    const chosen = scored[topIdx].move;
+
+    addLog(`${enemy.name} used ${chosen.name}!`);
+    chosen.currentPP--;
+
+    if (Math.random() > chosen.accuracy) {
+        addLog(`${enemy.name}'s attack missed!`, 'resisted');
+        setTimeout(() => { checkBattleEnd(callback); }, 400);
+        return;
+    }
+
+    applyMoveEffect(chosen, enemy, player, true, () => {
+        checkBattleEnd(callback);
+    });
+}
+
+// ── Apply a move's effect ──
+function applyMoveEffect(move, attacker, defender, targetIsPlayer, callback) {
+    const cat = move.category;
+
+    if (cat === 'attack' || cat === 'special') {
+        const result = calcDamage(attacker, defender, move);
+        const { damage, typeMulti, isCrit } = result;
+
+        if (typeMulti > 1) addLog(`Super effective!`, 'effective');
+        else if (typeMulti < 1) addLog(`Not very effective...`, 'resisted');
+        if (isCrit) {
+            addLog(`CRITICAL HIT!`, 'crit');
+            flashScreen('#ffcc00', 200);
+        }
+
+        // Animate hit
+        if (targetIsPlayer) {
+            shakePlayer = 8;
+            playerFlash = 6;
+            flashScreen('rgba(255,51,102,0.2)', 120);
+        } else {
+            shakeEnemy = 8;
+            enemyFlash = 6;
+            flashScreen('rgba(0,240,255,0.15)', 120);
+        }
+
+        defender.currentHp = Math.max(0, defender.currentHp - damage);
+        addLog(`Dealt ${damage} damage!`);
+
+    } else if (cat === 'buff') {
+        // Buff attacker
+        const statMap = {
+            harden_shell: { stat: 'def', amt: 1 },
+            social_shield: { stat: 'def', amt: 1 },
+            ghost_mode: { stat: 'atk', amt: 2 },
+            firewall_scale: { stat: 'def', amt: 2 },
+            ransom_note: { stat: 'atk', amt: 2 },
+            decoy_stance: { stat: 'def', amt: 1 },
+            darkweb_buy: { stat: 'atk', amt: 1 },
+            lateral_move: { stat: 'spd', amt: 1 },
+        };
+        const sm = statMap[move.id] || { stat: 'atk', amt: 1 };
+        attacker.stages[sm.stat] = Math.min(3, (attacker.stages[sm.stat] || 0) + sm.amt);
+        addLog(`${attacker.name}'s ${sm.stat.toUpperCase()} rose!`, 'effective');
+
+    } else if (cat === 'debuff') {
+        // Debuff defender
+        const statMap = {
+            signal_jam: { stat: 'spd', amt: 1 },
+            credential_drain: { stat: 'atk', amt: 1 },
+            privilege_strip: { stat: 'def', amt: 2 },
+            bandwidth_sap: { stat: 'spd', amt: 1 },
+            decrypt_drain: { stat: 'def', amt: 1 },
+            trust_break: { stat: 'def', amt: 2 },
+            kiddie_scan: { stat: 'spd', amt: 1 },
+            c2_beacon: { stat: 'atk', amt: 1 },
+        };
+        const sm = statMap[move.id] || { stat: 'def', amt: 1 };
+        defender.stages[sm.stat] = Math.max(-3, (defender.stages[sm.stat] || 0) - sm.amt);
+        addLog(`${defender.name}'s ${sm.stat.toUpperCase()} fell!`, 'danger');
+    }
+
+    updateBattleHud();
+    setTimeout(callback, 300);
+}
+
+// ── Check if the battle has ended after a move ──
+function checkBattleEnd(callback = null) {
+    const b = State.battle;
+    const player = getBattlePlayer();
+    const enemy  = getBattleEnemy();
+
+    updateBattleHud();
+
+    // Enemy fainted
+    if (enemy.currentHp <= 0) {
+        addLog(`${enemy.name} was neutralized!`, 'effective');
+        b.enemyIdx++;
+
+        if (b.enemyIdx < b.enemyTeam.length) {
+            const next = b.enemyTeam[b.enemyIdx];
+            setTimeout(() => {
+                addLog(`${b.gym.name} deployed ${next.name}!`, 'system');
+                renderTypeChartMini();
+                updateBattleHud();
+                b.turn = 'player';
+                if (callback) callback();
+            }, 800);
+        } else {
+            // All enemy creatures defeated
+            setTimeout(() => { handleVictoryBattle(); }, 600);
+        }
+        return;
+    }
+
+    // Player fainted
+    if (player.currentHp <= 0) {
+        addLog(`${player.name} was taken offline!`, 'danger');
+        const nextAlive = State.playerTeam.findIndex(
+            (c, i) => i !== b.playerIdx && c.currentHp > 0
+        );
+
+        if (nextAlive === -1) {
+            // All player creatures fainted — battle lost
+            setTimeout(() => { handleDefeatBattle(); }, 600);
+        } else {
+            addLog(`Choose your next creature!`, 'system');
+            b.turn = 'player';
+            b.awaitingSwap = true;
+            openSwapOverlay(true); // forced, can't cancel
+            updateBattleHud();
+        }
+        return;
+    }
+
+    b.turn = 'player';
+    if (callback) callback();
+}
+
+// ── Swap overlay ──
+function openSwapOverlay(forced = false) {
+    const overlay = document.getElementById('swapOverlay');
+    const grid    = document.getElementById('swapOverlayGrid');
+    grid.innerHTML = '';
+
+    document.getElementById('swapCancelBtn').style.display = forced ? 'none' : '';
+
+    State.playerTeam.forEach((c, i) => {
+        const card = document.createElement('div');
+        const isActive = i === State.battle.playerIdx;
+        const isFainted = c.currentHp <= 0;
+        card.className = `swap-overlay-card ${isActive ? 'active' : ''} ${isFainted ? 'fainted' : ''}`;
+
+        const cnv = document.createElement('canvas');
+        drawSpriteOnCanvas(cnv, c.defId, 64);
+
+        card.innerHTML = `
+            <div class="swap-overlay-name">${c.name}</div>
+            <div style="font-size:9px;color:${TYPE_COLORS[c.type]}">${c.type}</div>
+            <div class="swap-overlay-hp">${Math.max(0,c.currentHp)}/${c.stats.hp} HP</div>
+        `;
+        card.prepend(cnv);
+
+        if (!isActive && !isFainted) {
+            card.addEventListener('click', () => {
+                performSwap(i, forced);
+                overlay.classList.remove('show');
+            });
+        }
+
+        grid.appendChild(card);
+    });
+
+    overlay.classList.add('show');
+}
+
+function performSwap(newIdx, afterFaint = false) {
+    const b = State.battle;
+    const incoming = State.playerTeam[newIdx];
+    b.playerIdx = newIdx;
+    b.awaitingSwap = false;
+    addLog(`Go, ${incoming.name}!`, 'system');
+    // Reset stages on swap-in
+    incoming.stages = { atk: 0, def: 0, spd: 0 };
+    renderTypeChartMini();
+    updateBattleHud();
+    if (!afterFaint) {
+        // Swapping uses the turn: enemy gets to attack
+        b.turn = 'animating';
+        setTimeout(() => {
+            executeEnemyTurn(() => {
+                if (getBattlePlayer().currentHp <= 0) {
+                    checkBattleEnd();
+                } else {
+                    b.turn = 'player';
+                    updateBattleHud();
+                }
+            });
+        }, 400);
+    } else {
+        b.turn = 'player';
+    }
+}
+
+function handleVictoryBattle() {
+    stopBattleAnim();
+    const gym = State.battle.gym;
+    State.defeatedGyms.push(gym.id);
+    State.gymProgress = Math.max(State.gymProgress, GYM_LEADERS.findIndex(g => g.id === gym.id) + 1);
+
+    clearLog();
+    addLog(`You defeated ${gym.name}!`, 'effective');
+    addLog(`Obtained: ${gym.badge}!`, 'crit');
+
+    if (State.gymProgress >= GYM_LEADERS.length) {
+        setTimeout(() => { showVictory(); }, 1500);
+    } else {
+        // Back to overworld after short delay
+        setTimeout(() => {
+            State.battle = null;
+            renderOverworld();
+            showScreen('overworld');
+        }, 1800);
+    }
+}
+
+function handleDefeatBattle() {
+    stopBattleAnim();
+    clearLog();
+    addLog(`All creatures offline. Protocol failed.`, 'danger');
+    addLog(`Retreating to base...`, 'system');
+    // Heal player team to 25% on loss
+    State.playerTeam.forEach(c => {
+        c.currentHp = Math.max(1, Math.round(c.stats.hp * 0.25));
+        c.stages = { atk: 0, def: 0, spd: 0 };
+        c.status = null;
+    });
+    setTimeout(() => {
+        State.battle = null;
+        renderOverworld();
+        showScreen('overworld');
+    }, 2000);
+}
+
+// ────────────────────────────────────────────────────────────
+//  STARTER SELECTION SCREEN
+// ────────────────────────────────────────────────────────────
+function buildStarterScreen() {
+    const grid = document.getElementById('starterGrid');
+    grid.innerHTML = '';
+
+    CREATURE_DEFS.forEach((def, idx) => {
+        const card = document.createElement('div');
+        card.className = 'creature-card';
+        card.setAttribute('data-type', def.type);
+
+        const cnv = document.createElement('canvas');
+        drawSpriteOnCanvas(cnv, def.id, 96);
+
+        const typeBadge = document.createElement('div');
+        typeBadge.className = `type-badge type-${def.type}`;
+        typeBadge.textContent = def.type.toUpperCase();
+
+        card.innerHTML = `
+            <div class="creature-name">${def.name}</div>
+        `;
+        card.prepend(cnv);
+        card.appendChild(typeBadge);
+        card.innerHTML += `
+            <div class="stat-mini">
+                <div>HP: <span>${def.stats.hp}</span></div>
+                <div>ATK: <span>${def.stats.atk}</span></div>
+                <div>DEF: <span>${def.stats.def}</span></div>
+                <div>SPD: <span>${def.stats.spd}</span></div>
+            </div>
+            <div class="creature-desc">${def.desc}</div>
+        `;
+        // Re-insert canvas (innerHTML clobbers it)
+        card.insertBefore(cnv, card.firstChild);
+        card.insertBefore(typeBadge, card.children[1]);
+
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.creature-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            State.selectedStarterIdx = idx;
+            document.getElementById('confirmStarterBtn').disabled = false;
+        });
+
+        grid.appendChild(card);
+    });
+}
+
+// ────────────────────────────────────────────────────────────
+//  HEAL SCREEN
+// ────────────────────────────────────────────────────────────
+function showHealScreen() {
+    // Heal all creatures to full
+    State.playerTeam.forEach(c => {
+        c.currentHp = c.stats.hp;
+        c.stages = { atk: 0, def: 0, spd: 0 };
+        c.status = null;
+        c.moves.forEach(m => { m.currentPP = m.pp; });
+    });
+
+    const grid = document.getElementById('healGrid');
+    grid.innerHTML = '';
+    State.playerTeam.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'heal-card';
+        const cnv = document.createElement('canvas');
+        drawSpriteOnCanvas(cnv, c.defId, 72);
+        card.appendChild(cnv);
+        card.innerHTML += `
+            <div class="creature-name">${c.name}</div>
+            <div class="type-badge type-${c.type}">${c.type.toUpperCase()}</div>
+            <div class="heal-status ok">FULLY RESTORED</div>
+            <div style="font-size:9px;color:var(--text-dim)">${c.stats.hp}/${c.stats.hp} HP</div>
+        `;
+        card.insertBefore(cnv, card.firstChild);
+        grid.appendChild(card);
+    });
+
+    showScreen('heal');
+}
+
+// ────────────────────────────────────────────────────────────
+//  VICTORY SCREEN
+// ────────────────────────────────────────────────────────────
+function showVictory() {
+    const row = document.getElementById('victoryBadges');
+    row.innerHTML = '';
+    GYM_LEADERS.forEach(gym => {
+        const b = document.createElement('div');
+        b.className = 'badge-icon';
+        b.style.borderColor = gym.badgeColor;
+        b.style.boxShadow = `0 0 20px ${gym.badgeColor}66`;
+        b.innerHTML = `<span style="color:${gym.badgeColor};font-size:10px;letter-spacing:1px;text-align:center;">${gym.badge}</span>`;
+        row.appendChild(b);
+    });
+    showScreen('victory');
+
+    // Report completion to ModuleProgress if available
+    try {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield-threatdex');
+        }
+    } catch(e) {}
+}
+
+// ────────────────────────────────────────────────────────────
+//  EVENT WIRING
+// ────────────────────────────────────────────────────────────
+
+// Title → Starter
+document.getElementById('titleStartBtn').addEventListener('click', () => {
+    buildStarterScreen();
+    showScreen('starter');
+});
+
+// Starter confirm → Overworld
+document.getElementById('confirmStarterBtn').addEventListener('click', () => {
+    if (State.selectedStarterIdx < 0) return;
+    const def = CREATURE_DEFS[State.selectedStarterIdx];
+
+    // Build player team: chosen starter + one random different creature (for variety)
+    const starter = createCreature(def.id, 12);
+    State.playerTeam = [starter];
+
+    // Add two more random creatures at lower level as bench
+    const others = CREATURE_DEFS.filter(d => d.id !== def.id);
+    const shuffled = others.sort(() => Math.random() - 0.5).slice(0, 2);
+    shuffled.forEach(d => State.playerTeam.push(createCreature(d.id, 8)));
+
+    renderOverworld();
+    showScreen('overworld');
+});
+
+// Overworld heal
+document.getElementById('healBtn').addEventListener('click', () => {
+    showHealScreen();
+});
+
+// Heal done
+document.getElementById('healDoneBtn').addEventListener('click', () => {
+    renderOverworld();
+    showScreen('overworld');
+});
+
+// Swap button in battle
+document.getElementById('swapBtn').addEventListener('click', () => {
+    const b = State.battle;
+    if (!b || b.turn !== 'player') return;
+    openSwapOverlay(false);
+});
+
+// Swap overlay cancel
+document.getElementById('swapCancelBtn').addEventListener('click', () => {
+    document.getElementById('swapOverlay').classList.remove('show');
+});
+
+// Victory play again
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+    // Reset state
+    State.playerTeam = [];
+    State.selectedStarterIdx = -1;
+    State.gymProgress = 0;
+    State.defeatedGyms = [];
+    State.battle = null;
+    stopBattleAnim();
+    showScreen('title');
+});
+
+// Stop animation when leaving battle screen (prevents memory leaks)
+function leavesBattleScreen(id) {
+    if (id !== 'battle' && battleAnimFrame) {
+        stopBattleAnim();
+    }
+}
+
+// Patch showScreen to stop animation
+const _origShowScreen = showScreen;
+// Already patches correctly above via stopBattleAnim() in handlers
+
+// ────────────────────────────────────────────────────────────
+//  STARTUP
+// ────────────────────────────────────────────────────────────
+showScreen('title');
+</script>
+</body>
+</html>
