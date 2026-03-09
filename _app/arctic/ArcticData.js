@@ -98,22 +98,22 @@ const ArcticData = {
                 // CLH-001: Intro to Hacker CLI (lesson → lab → quiz)
                 { id: 'clh-001-intro',      title: 'CLH-001: Intro to Hacker CLI (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-001/script-intro.module.html' },
                 { id: 'clh-001-applet',     title: 'CLH-001: Intro to Hacker CLI', type: 'applet', href: '../../../houses/script/applets/linux/script-clh-001-intro-to-hacker-cli.applet.html' },
-                { id: 'clh-001-lab',        title: 'CLH-001: Hacker CLI Lab',     type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-001/script-lab.lab.html' },
+                { id: 'clh-001-lab',        title: 'CLH-001: Hacker CLI Lab',     type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-001/script-lab.lab.html', progressKey: 'script-clh-001-lab' },
                 { id: 'clh-001-quiz',       title: 'CLH-001: CLI Basics (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-001/script-quiz.quiz.html' },
                 // CLH-002
                 { id: 'clh-002-intro',      title: 'CLH-002: Navigation Recon (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-002/script-intro.module.html' },
                 { id: 'clh-002-applet',     title: 'CLH-002: Navigation Recon',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-002-navigation-recon.applet.html' },
-                { id: 'clh-002-lab',        title: 'CLH-002: Navigation Recon (Lab)',   type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-002/script-lab.lab.html' },
+                { id: 'clh-002-lab',        title: 'CLH-002: Navigation Recon (Lab)',   type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-002/script-lab.lab.html', progressKey: 'script-clh-002-lab' },
                 { id: 'clh-002-quiz',       title: 'CLH-002: Navigation Recon (Quiz)',  type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-002/script-quiz.quiz.html' },
                 // CLH-006
                 { id: 'clh-006-intro',      title: 'CLH-006: File Operations (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-006/script-intro.module.html' },
                 { id: 'clh-006-applet',     title: 'CLH-006: File Operations',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-006-file-operations.applet.html' },
-                { id: 'clh-006-lab',        title: 'CLH-006: File Operations (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-006/script-lab.lab.html' },
+                { id: 'clh-006-lab',        title: 'CLH-006: File Operations (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-006/script-lab.lab.html', progressKey: 'script-clh-006-lab' },
                 { id: 'clh-006-quiz',       title: 'CLH-006: File Operations (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-006/script-quiz.quiz.html' },
                 // CLH-007
                 { id: 'clh-007-intro',      title: 'CLH-007: Permissions (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-007/script-intro.module.html' },
                 { id: 'clh-007-applet',     title: 'CLH-007: Permissions',         type: 'applet', href: '../../../houses/script/applets/linux/script-clh-007-permissions.applet.html' },
-                { id: 'clh-007-lab',        title: 'CLH-007: Permissions (Lab)',       type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-007/script-lab.lab.html' },
+                { id: 'clh-007-lab',        title: 'CLH-007: Permissions (Lab)',       type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-007/script-lab.lab.html', progressKey: 'script-clh-007-lab' },
                 { id: 'clh-007-quiz',       title: 'CLH-007: Permissions (Quiz)',      type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-007/script-quiz.quiz.html' },
                 // Labs
                 { id: 'lab-nav-drill',      title: 'Navigation Drill',             type: 'lab', href: '../../../houses/script/labs/linux/script-linux-nav-drill.lab.html' },
@@ -161,7 +161,7 @@ const ArcticData = {
                 { id: 'lm-48-s7-practice',  title: 'Section 7 Practice',          type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html' },
                 { id: 'clh-008-intro',      title: 'CLH-008: Shell Scripting (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-008/script-intro.module.html' },
                 { id: 'clh-008-applet',     title: 'CLH-008: Shell Scripting',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-008-shell-scripting.applet.html' },
-                { id: 'clh-008-lab',        title: 'CLH-008: Shell Scripting (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-008/script-lab.lab.html' },
+                { id: 'clh-008-lab',        title: 'CLH-008: Shell Scripting (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-008/script-lab.lab.html', progressKey: 'script-clh-008-lab' },
                 { id: 'clh-008-quiz',       title: 'CLH-008: Shell Scripting (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-008/script-quiz.quiz.html' },
                 { id: 'lab-bash-basics',    title: 'Bash Basics Lab',              type: 'lab', href: '../../../houses/script/labs/linux/script-bash-basics.lab.html' },
                 { id: 'lab-bash-vars-drill',title: 'Variables Drill',              type: 'lab', href: '../../../houses/script/labs/linux/script-bash-variables-drill.lab.html' },
@@ -204,22 +204,22 @@ const ArcticData = {
                 // CLH-003
                 { id: 'clh-003-intro',      title: 'CLH-003: Pattern Hunting (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-003/script-intro.module.html' },
                 { id: 'clh-003-applet',     title: 'CLH-003: Pattern Hunting',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-003-pattern-hunting.applet.html' },
-                { id: 'clh-003-lab',        title: 'CLH-003: Pattern Hunting (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-003/script-lab.lab.html' },
+                { id: 'clh-003-lab',        title: 'CLH-003: Pattern Hunting (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-003/script-lab.lab.html', progressKey: 'script-clh-003-lab' },
                 { id: 'clh-003-quiz',       title: 'CLH-003: Pattern Hunting (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-003/script-quiz.quiz.html' },
                 // CLH-009
                 { id: 'clh-009-intro',      title: 'CLH-009: Text Processing (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-009/script-intro.module.html' },
                 { id: 'clh-009-applet',     title: 'CLH-009: Text Processing',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-009-text-processing.applet.html' },
-                { id: 'clh-009-lab',        title: 'CLH-009: Text Processing (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-009/script-lab.lab.html' },
+                { id: 'clh-009-lab',        title: 'CLH-009: Text Processing (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-009/script-lab.lab.html', progressKey: 'script-clh-009-lab' },
                 { id: 'clh-009-quiz',       title: 'CLH-009: Text Processing (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-009/script-quiz.quiz.html' },
                 // CLH-010
                 { id: 'clh-010-intro',      title: 'CLH-010: I/O Redirection (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-010/script-intro.module.html' },
                 { id: 'clh-010-applet',     title: 'CLH-010: I/O Redirection',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-010-io-redirection.applet.html' },
-                { id: 'clh-010-lab',        title: 'CLH-010: I/O Redirection (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-010/script-lab.lab.html' },
+                { id: 'clh-010-lab',        title: 'CLH-010: I/O Redirection (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-010/script-lab.lab.html', progressKey: 'script-clh-010-lab' },
                 { id: 'clh-010-quiz',       title: 'CLH-010: I/O Redirection (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-010/script-quiz.quiz.html' },
                 // CLH-011
                 { id: 'clh-011-intro',      title: 'CLH-011: Advanced Grep (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-011/script-intro.module.html' },
                 { id: 'clh-011-applet',     title: 'CLH-011: Advanced Grep',       type: 'applet', href: '../../../houses/script/applets/linux/script-clh-011-advanced-grep.applet.html' },
-                { id: 'clh-011-lab',        title: 'CLH-011: Advanced Grep (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-011/script-lab.lab.html' },
+                { id: 'clh-011-lab',        title: 'CLH-011: Advanced Grep (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-011/script-lab.lab.html', progressKey: 'script-clh-011-lab' },
                 { id: 'clh-011-quiz',       title: 'CLH-011: Advanced Grep (Quiz)',     type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-011/script-quiz.quiz.html' },
                 { id: 'lab-bash-pipes',     title: 'Pipes Lab',                    type: 'lab', href: '../../../houses/script/labs/linux/script-bash-pipes.lab.html' },
                 { id: 'lab-bash-io',        title: 'I/O Redirection Lab',          type: 'lab', href: '../../../houses/script/labs/linux/script-bash-io-redirect.lab.html' },
@@ -262,32 +262,32 @@ const ArcticData = {
                 // CLH-004
                 { id: 'clh-004-intro',      title: 'CLH-004: Process Investigation (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-004/script-intro.module.html' },
                 { id: 'clh-004-applet',     title: 'CLH-004: Process Investigation', type: 'applet', href: '../../../houses/script/applets/linux/script-clh-004-process-investigation.applet.html' },
-                { id: 'clh-004-lab',        title: 'CLH-004: Process Investigation (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-004/script-lab.lab.html' },
+                { id: 'clh-004-lab',        title: 'CLH-004: Process Investigation (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-004/script-lab.lab.html', progressKey: 'script-clh-004-lab' },
                 { id: 'clh-004-quiz',       title: 'CLH-004: Process Investigation (Quiz)', type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-004/script-quiz.quiz.html' },
                 // CLH-013 (primary district: sysadmin)
                 { id: 'clh-013-intro',      title: 'CLH-013: Environment (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-013/script-intro.module.html' },
                 { id: 'clh-013-applet',     title: 'CLH-013: Environment',         type: 'applet', href: '../../../houses/script/applets/linux/script-clh-013-environment.applet.html' },
-                { id: 'clh-013-lab',        title: 'CLH-013: Environment (Lab)',       type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-013/script-lab.lab.html' },
+                { id: 'clh-013-lab',        title: 'CLH-013: Environment (Lab)',       type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-013/script-lab.lab.html', progressKey: 'script-clh-013-lab' },
                 { id: 'clh-013-quiz',       title: 'CLH-013: Environment (Quiz)',      type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-013/script-quiz.quiz.html' },
                 // CLH-014
                 { id: 'clh-014-intro',      title: 'CLH-014: Process Control (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-014/script-intro.module.html' },
                 { id: 'clh-014-applet',     title: 'CLH-014: Process Control',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-014-process-control.applet.html' },
-                { id: 'clh-014-lab',        title: 'CLH-014: Process Control (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-014/script-lab.lab.html' },
+                { id: 'clh-014-lab',        title: 'CLH-014: Process Control (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-014/script-lab.lab.html', progressKey: 'script-clh-014-lab' },
                 { id: 'clh-014-quiz',       title: 'CLH-014: Process Control (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-014/script-quiz.quiz.html' },
                 // CLH-023
                 { id: 'clh-023-intro',      title: 'CLH-023: Services (Lesson)',   type: 'module', href: '../../../houses/script/courses/clh/modules/clh-023/script-intro.module.html' },
                 { id: 'clh-023-applet',     title: 'CLH-023: Services',           type: 'applet', href: '../../../houses/script/applets/linux/script-clh-023-services.applet.html' },
-                { id: 'clh-023-lab',        title: 'CLH-023: Services (Lab)',         type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-023/script-lab.lab.html' },
+                { id: 'clh-023-lab',        title: 'CLH-023: Services (Lab)',         type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-023/script-lab.lab.html', progressKey: 'script-clh-023-lab' },
                 { id: 'clh-023-quiz',       title: 'CLH-023: Services (Quiz)',        type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-023/script-quiz.quiz.html' },
                 // CLH-024
                 { id: 'clh-024-intro',      title: 'CLH-024: Cron (Lesson)',       type: 'module', href: '../../../houses/script/courses/clh/modules/clh-024/script-intro.module.html' },
                 { id: 'clh-024-applet',     title: 'CLH-024: Cron',               type: 'applet', href: '../../../houses/script/applets/linux/script-clh-024-cron.applet.html' },
-                { id: 'clh-024-lab',        title: 'CLH-024: Cron (Lab)',             type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-024/script-lab.lab.html' },
+                { id: 'clh-024-lab',        title: 'CLH-024: Cron (Lab)',             type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-024/script-lab.lab.html', progressKey: 'script-clh-024-lab' },
                 { id: 'clh-024-quiz',       title: 'CLH-024: Cron (Quiz)',            type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-024/script-quiz.quiz.html' },
                 // CLH-025
                 { id: 'clh-025-intro',      title: 'CLH-025: Packages (Lesson)',   type: 'module', href: '../../../houses/script/courses/clh/modules/clh-025/script-intro.module.html' },
                 { id: 'clh-025-applet',     title: 'CLH-025: Packages',           type: 'applet', href: '../../../houses/script/applets/linux/script-clh-025-packages.applet.html' },
-                { id: 'clh-025-lab',        title: 'CLH-025: Packages (Lab)',         type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-025/script-lab.lab.html' },
+                { id: 'clh-025-lab',        title: 'CLH-025: Packages (Lab)',         type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-025/script-lab.lab.html', progressKey: 'script-clh-025-lab' },
                 { id: 'clh-025-quiz',       title: 'CLH-025: Packages (Quiz)',        type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-025/script-quiz.quiz.html' },
                 { id: 'lab-process-drill',  title: 'Process Drill',               type: 'lab', href: '../../../houses/script/labs/linux/script-linux-process-drill.lab.html' },
                 { id: 'lab-process-lifecycle',title: 'Process Lifecycle Lab',     type: 'lab', href: '../../../houses/script/labs/linux/script-linux-process-lifecycle.lab.html' },
@@ -333,52 +333,52 @@ const ArcticData = {
                 // CLH-016
                 { id: 'clh-016-intro',      title: 'CLH-016: System Intelligence (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-016/script-intro.module.html' },
                 { id: 'clh-016-applet',     title: 'CLH-016: System Intelligence', type: 'applet', href: '../../../houses/script/applets/linux/script-clh-016-system-intel.applet.html' },
-                { id: 'clh-016-lab',        title: 'CLH-016: System Intelligence (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-016/script-lab.lab.html' },
+                { id: 'clh-016-lab',        title: 'CLH-016: System Intelligence (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-016/script-lab.lab.html', progressKey: 'script-clh-016-lab' },
                 { id: 'clh-016-quiz',       title: 'CLH-016: System Intelligence (Quiz)', type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-016/script-quiz.quiz.html' },
                 // CLH-017
                 { id: 'clh-017-intro',      title: 'CLH-017: Find & Locate (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-017/script-intro.module.html' },
                 { id: 'clh-017-applet',     title: 'CLH-017: Find & Locate',       type: 'applet', href: '../../../houses/script/applets/linux/script-clh-017-find-locate.applet.html' },
-                { id: 'clh-017-lab',        title: 'CLH-017: Find & Locate (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-017/script-lab.lab.html' },
+                { id: 'clh-017-lab',        title: 'CLH-017: Find & Locate (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-017/script-lab.lab.html', progressKey: 'script-clh-017-lab' },
                 { id: 'clh-017-quiz',       title: 'CLH-017: Find & Locate (Quiz)',     type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-017/script-quiz.quiz.html' },
                 // CLH-018
                 { id: 'clh-018-intro',      title: 'CLH-018: Archive Operations (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-018/script-intro.module.html' },
                 { id: 'clh-018-applet',     title: 'CLH-018: Archive Operations',  type: 'applet', href: '../../../houses/script/applets/linux/script-clh-018-archive-ops.applet.html' },
-                { id: 'clh-018-lab',        title: 'CLH-018: Archive Operations (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-018/script-lab.lab.html' },
+                { id: 'clh-018-lab',        title: 'CLH-018: Archive Operations (Lab)',  type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-018/script-lab.lab.html', progressKey: 'script-clh-018-lab' },
                 { id: 'clh-018-quiz',       title: 'CLH-018: Archive Operations (Quiz)', type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-018/script-quiz.quiz.html' },
                 // CLH-019
                 { id: 'clh-019-intro',      title: 'CLH-019: Disk Forensics (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-019/script-intro.module.html' },
                 { id: 'clh-019-applet',     title: 'CLH-019: Disk Forensics',      type: 'applet', href: '../../../houses/script/applets/linux/script-clh-019-disk-forensics.applet.html' },
-                { id: 'clh-019-lab',        title: 'CLH-019: Disk Forensics (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-019/script-lab.lab.html' },
+                { id: 'clh-019-lab',        title: 'CLH-019: Disk Forensics (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-019/script-lab.lab.html', progressKey: 'script-clh-019-lab' },
                 { id: 'clh-019-quiz',       title: 'CLH-019: Disk Forensics (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-019/script-quiz.quiz.html' },
                 // CLH-020
                 { id: 'clh-020-intro',      title: 'CLH-020: User Recon (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-020/script-intro.module.html' },
                 { id: 'clh-020-applet',     title: 'CLH-020: User Recon',          type: 'applet', href: '../../../houses/script/applets/linux/script-clh-020-user-recon.applet.html' },
-                { id: 'clh-020-lab',        title: 'CLH-020: User Recon (Lab)',        type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-020/script-lab.lab.html' },
+                { id: 'clh-020-lab',        title: 'CLH-020: User Recon (Lab)',        type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-020/script-lab.lab.html', progressKey: 'script-clh-020-lab' },
                 { id: 'clh-020-quiz',       title: 'CLH-020: User Recon (Quiz)',       type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-020/script-quiz.quiz.html' },
                 // CLH-026
                 { id: 'clh-026-intro',      title: 'CLH-026: Access Control (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-026/script-intro.module.html' },
                 { id: 'clh-026-applet',     title: 'CLH-026: Access Control',      type: 'applet', href: '../../../houses/script/applets/linux/script-clh-026-access.applet.html' },
-                { id: 'clh-026-lab',        title: 'CLH-026: Access Control (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-026/script-lab.lab.html' },
+                { id: 'clh-026-lab',        title: 'CLH-026: Access Control (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-026/script-lab.lab.html', progressKey: 'script-clh-026-lab' },
                 { id: 'clh-026-quiz',       title: 'CLH-026: Access Control (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-026/script-quiz.quiz.html' },
                 // CLH-027
                 { id: 'clh-027-intro',      title: 'CLH-027: Users (Advanced) (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-027/script-intro.module.html' },
                 { id: 'clh-027-applet',     title: 'CLH-027: Users (Advanced)',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-027-users.applet.html' },
-                { id: 'clh-027-lab',        title: 'CLH-027: Users (Advanced) (Lab)',   type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-027/script-lab.lab.html' },
+                { id: 'clh-027-lab',        title: 'CLH-027: Users (Advanced) (Lab)',   type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-027/script-lab.lab.html', progressKey: 'script-clh-027-lab' },
                 { id: 'clh-027-quiz',       title: 'CLH-027: Users (Advanced) (Quiz)',  type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-027/script-quiz.quiz.html' },
                 // CLH-028
                 { id: 'clh-028-intro',      title: 'CLH-028: Monitoring (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-028/script-intro.module.html' },
                 { id: 'clh-028-applet',     title: 'CLH-028: Monitoring',          type: 'applet', href: '../../../houses/script/applets/linux/script-clh-028-monitoring.applet.html' },
-                { id: 'clh-028-lab',        title: 'CLH-028: Monitoring (Lab)',        type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-028/script-lab.lab.html' },
+                { id: 'clh-028-lab',        title: 'CLH-028: Monitoring (Lab)',        type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-028/script-lab.lab.html', progressKey: 'script-clh-028-lab' },
                 { id: 'clh-028-quiz',       title: 'CLH-028: Monitoring (Quiz)',       type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-028/script-quiz.quiz.html' },
                 // CLH-029
                 { id: 'clh-029-intro',      title: 'CLH-029: Vim (Lesson)',        type: 'module', href: '../../../houses/script/courses/clh/modules/clh-029/script-intro.module.html' },
                 { id: 'clh-029-applet',     title: 'CLH-029: Vim',                 type: 'applet', href: '../../../houses/script/applets/linux/script-clh-029-vim.applet.html' },
-                { id: 'clh-029-lab',        title: 'CLH-029: Vim (Lab)',               type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-029/script-lab.lab.html' },
+                { id: 'clh-029-lab',        title: 'CLH-029: Vim (Lab)',               type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-029/script-lab.lab.html', progressKey: 'script-clh-029-lab' },
                 { id: 'clh-029-quiz',       title: 'CLH-029: Vim (Quiz)',              type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-029/script-quiz.quiz.html' },
                 // CLH-030
                 { id: 'clh-030-intro',      title: 'CLH-030: Chimera (Lesson)',    type: 'module', href: '../../../houses/script/courses/clh/modules/clh-030/script-intro.module.html' },
                 { id: 'clh-030-applet',     title: 'CLH-030: Chimera (Capstone)',  type: 'applet', href: '../../../houses/script/applets/linux/script-clh-030-chimera.applet.html' },
-                { id: 'clh-030-lab',        title: 'CLH-030: Chimera (Lab)',           type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-030/script-lab.lab.html' },
+                { id: 'clh-030-lab',        title: 'CLH-030: Chimera (Lab)',           type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-030/script-lab.lab.html', progressKey: 'script-clh-030-lab' },
                 { id: 'clh-030-quiz',       title: 'CLH-030: Chimera (Quiz)',          type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-030/script-quiz.quiz.html' },
                 // CLH-031: applet only in cert-prep (primary lab is in arena district)
                 { id: 'clh-031-applet',     title: 'CLH-031: Blackout (Final)',    type: 'applet', href: '../../../houses/script/applets/linux/script-clh-031-blackout.applet.html' },
@@ -542,7 +542,7 @@ const ArcticData = {
                 // CLH-005 (primary district: log-analysis)
                 { id: 'clh-005-intro',      title: 'CLH-005: Log Analysis (Lesson)',   type: 'module', href: '../../../houses/script/courses/clh/modules/clh-005/script-intro.module.html' },
                 { id: 'clh-005-applet',     title: 'CLH-005: Log Analysis',           type: 'applet', href: '../../../houses/script/applets/linux/script-clh-005-log-analysis.applet.html' },
-                { id: 'clh-005-lab',        title: 'CLH-005: Log Analysis (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-005/script-lab.lab.html' },
+                { id: 'clh-005-lab',        title: 'CLH-005: Log Analysis (Lab)',      type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-005/script-lab.lab.html', progressKey: 'script-clh-005-lab' },
                 { id: 'clh-005-quiz',       title: 'CLH-005: Log Analysis (Quiz)',     type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-005/script-quiz.quiz.html' },
                 // CLH-010 duplicate reference (primary is text-processing; no course modules here)
                 { id: 'clh-010-log-applet', title: 'CLH-010: I/O & Log Streams',      type: 'applet', href: '../../../houses/script/applets/linux/script-clh-010-io-redirection.applet.html' },
@@ -578,22 +578,22 @@ const ArcticData = {
                 { id: 'game-sudo-su',       title: 'sudo su (Game)',                 type: 'game', href: '../../../houses/script/games/script-sudo-su.html' },
                 { id: 'game-chmod777',      title: 'Chmod 777 Adventure (Game)',     type: 'game', href: '../../../houses/script/games/script-text-adventure-chmod777.html' },
                 // Shield defensive labs
-                { id: 'shield-firewall',       title: 'Firewall Lab',                   type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-firewall.lab.html' },
-                { id: 'shield-firewall-drill', title: 'Firewall Drill',                 type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-firewall-drill.lab.html' },
-                { id: 'shield-audit',          title: 'Audit Lab',                      type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-audit.lab.html' },
-                { id: 'shield-audit-drill',    title: 'Audit Drill',                    type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-audit-drill.lab.html' },
-                { id: 'shield-file-integrity', title: 'File Integrity Lab',             type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-file-integrity.lab.html' },
-                { id: 'shield-hardening',      title: 'Hardening Lab',                  type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-hardening.lab.html' },
-                { id: 'shield-password-policy',title: 'Password Policy Lab',            type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-password-policy.lab.html' },
-                { id: 'shield-perms-drill',    title: 'Permissions Drill',              type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-perms-drill.lab.html' },
-                { id: 'shield-selinux',        title: 'SELinux Lab',                    type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-selinux.lab.html' },
-                { id: 'shield-ssh-drill',      title: 'SSH Drill',                      type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-drill.lab.html' },
-                { id: 'shield-ssh-hard-prep',  title: 'SSH Hardening Prep',             type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-hardening-prep.lab.html' },
-                { id: 'shield-ssh-security',   title: 'SSH Security Lab',               type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-security.lab.html' },
-                { id: 'shield-sudo',           title: 'Sudo Lab',                       type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-sudo.lab.html' },
-                { id: 'shield-sudo-policy',    title: 'Sudo Policy Prep',               type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-sudo-policy-prep.lab.html' },
+                { id: 'shield-firewall',       title: 'Firewall Lab',                   type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-firewall.lab.html', progressHouse: 'shield' },
+                { id: 'shield-firewall-drill', title: 'Firewall Drill',                 type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-firewall-drill.lab.html', progressHouse: 'shield' },
+                { id: 'shield-audit',          title: 'Audit Lab',                      type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-audit.lab.html', progressHouse: 'shield' },
+                { id: 'shield-audit-drill',    title: 'Audit Drill',                    type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-audit-drill.lab.html', progressHouse: 'shield' },
+                { id: 'shield-file-integrity', title: 'File Integrity Lab',             type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-file-integrity.lab.html', progressHouse: 'shield' },
+                { id: 'shield-hardening',      title: 'Hardening Lab',                  type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-hardening.lab.html', progressHouse: 'shield' },
+                { id: 'shield-password-policy',title: 'Password Policy Lab',            type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-password-policy.lab.html', progressHouse: 'shield' },
+                { id: 'shield-perms-drill',    title: 'Permissions Drill',              type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-perms-drill.lab.html', progressHouse: 'shield' },
+                { id: 'shield-selinux',        title: 'SELinux Lab',                    type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-selinux.lab.html', progressHouse: 'shield' },
+                { id: 'shield-ssh-drill',      title: 'SSH Drill',                      type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-drill.lab.html', progressHouse: 'shield' },
+                { id: 'shield-ssh-hard-prep',  title: 'SSH Hardening Prep',             type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-hardening-prep.lab.html', progressHouse: 'shield' },
+                { id: 'shield-ssh-security',   title: 'SSH Security Lab',               type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-ssh-security.lab.html', progressHouse: 'shield' },
+                { id: 'shield-sudo',           title: 'Sudo Lab',                       type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-sudo.lab.html', progressHouse: 'shield' },
+                { id: 'shield-sudo-policy',    title: 'Sudo Policy Prep',               type: 'lab', href: '../../../houses/shield/labs/linux/shield-linux-sudo-policy-prep.lab.html', progressHouse: 'shield' },
                 // Shield firewall builder applet
-                { id: 'shield-fw-builder',     title: 'Firewall Builder',               type: 'applet', href: '../../../houses/shield/applets/network/shield-linux-firewall-builder.applet.html' }
+                { id: 'shield-fw-builder',     title: 'Firewall Builder',               type: 'applet', href: '../../../houses/shield/applets/network/shield-linux-firewall-builder.applet.html', progressHouse: 'shield' }
             ]
         },
 
@@ -616,7 +616,7 @@ const ArcticData = {
                 // CLH-015 (primary district: incident-response)
                 { id: 'clh-015-intro',      title: 'CLH-015: Capstone (Lesson)',         type: 'module', href: '../../../houses/script/courses/clh/modules/clh-015/script-intro.module.html' },
                 { id: 'clh-015-applet',     title: 'CLH-015: Capstone',                 type: 'applet', href: '../../../houses/script/applets/linux/script-clh-015-capstone.applet.html' },
-                { id: 'clh-015-lab',        title: 'CLH-015: Capstone (Lab)',            type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-015/script-lab.lab.html' },
+                { id: 'clh-015-lab',        title: 'CLH-015: Capstone (Lab)',            type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-015/script-lab.lab.html', progressKey: 'script-clh-015-lab' },
                 { id: 'clh-015-quiz',       title: 'CLH-015: Capstone (Quiz)',           type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-015/script-quiz.quiz.html' },
                 { id: 'clh-016-ir-applet',  title: 'CLH-016: System Intelligence',      type: 'applet', href: '../../../houses/script/applets/linux/script-clh-016-system-intel.applet.html' },
                 { id: 'clh-019-ir-applet',  title: 'CLH-019: Disk Forensics',           type: 'applet', href: '../../../houses/script/applets/linux/script-clh-019-disk-forensics.applet.html' },
@@ -654,19 +654,19 @@ const ArcticData = {
                 { id: 'game-shell-sprint',  title: 'Shell Sprint (Game)',            type: 'game', href: '../../../houses/script/games/script-shell-sprint.applet.html' },
                 { id: 'game-pipe-snake',    title: 'Pipe Snake (Game)',              type: 'game', href: '../../../houses/script/games/script-pipe-snake.applet.html' },
                 // Dark Arts offensive labs
-                { id: 'da-nmap-drill',      title: 'Nmap Drill',                     type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-nmap-drill.lab.html' },
-                { id: 'da-nmap-advanced',   title: 'Nmap Advanced',                  type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-nmap-advanced.lab.html' },
-                { id: 'da-hash-drill',      title: 'Hash Drill',                     type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hash-drill.lab.html' },
-                { id: 'da-hashcat',         title: 'Hashcat Lab',                    type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hashcat.lab.html' },
-                { id: 'da-recon-drill',     title: 'Recon Drill',                    type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-recon-drill.lab.html' },
-                { id: 'da-enumeration',     title: 'Enumeration Prep',               type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-enumeration-prep.lab.html' },
-                { id: 'da-enumscripts',     title: 'Enum Scripts Lab',               type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-enumscripts.lab.html' },
-                { id: 'da-exploitation',    title: 'Exploitation Prep',              type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-exploitation-prep.lab.html' },
-                { id: 'da-hydra',           title: 'Hydra Lab',                      type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hydra.lab.html' },
-                { id: 'da-metasploit',      title: 'Metasploit Lab',                 type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-metasploit.lab.html' },
-                { id: 'da-privesc',         title: 'Privilege Escalation Lab',       type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-privesc.lab.html' },
-                { id: 'da-reverse-shells',  title: 'Reverse Shells Lab',             type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-reverse-shells.lab.html' },
-                { id: 'da-post-exploit',    title: 'Post-Exploitation Lab',          type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html' }
+                { id: 'da-nmap-drill',      title: 'Nmap Drill',                     type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-nmap-drill.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-nmap-advanced',   title: 'Nmap Advanced',                  type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-nmap-advanced.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-hash-drill',      title: 'Hash Drill',                     type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hash-drill.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-hashcat',         title: 'Hashcat Lab',                    type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hashcat.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-recon-drill',     title: 'Recon Drill',                    type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-recon-drill.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-enumeration',     title: 'Enumeration Prep',               type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-enumeration-prep.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-enumscripts',     title: 'Enum Scripts Lab',               type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-enumscripts.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-exploitation',    title: 'Exploitation Prep',              type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-exploitation-prep.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-hydra',           title: 'Hydra Lab',                      type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-hydra.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-metasploit',      title: 'Metasploit Lab',                 type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-metasploit.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-privesc',         title: 'Privilege Escalation Lab',       type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-privesc.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-reverse-shells',  title: 'Reverse Shells Lab',             type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-reverse-shells.lab.html', progressHouse: 'dark-arts' },
+                { id: 'da-post-exploit',    title: 'Post-Exploitation Lab',          type: 'lab', href: '../../../dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html', progressHouse: 'dark-arts' }
             ]
         },
 
@@ -688,17 +688,17 @@ const ArcticData = {
                 // CLH-012
                 { id: 'clh-012-intro',      title: 'CLH-012: Network Basics (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-012/script-intro.module.html' },
                 { id: 'clh-012-applet',     title: 'CLH-012: Network Basics',        type: 'applet', href: '../../../houses/script/applets/linux/script-clh-012-network-basics.applet.html' },
-                { id: 'clh-012-lab',        title: 'CLH-012: Network Basics (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-012/script-lab.lab.html' },
+                { id: 'clh-012-lab',        title: 'CLH-012: Network Basics (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-012/script-lab.lab.html', progressKey: 'script-clh-012-lab' },
                 { id: 'clh-012-quiz',       title: 'CLH-012: Network Basics (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-012/script-quiz.quiz.html' },
                 // CLH-021
                 { id: 'clh-021-intro',      title: 'CLH-021: SSH Operations (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-021/script-intro.module.html' },
                 { id: 'clh-021-applet',     title: 'CLH-021: SSH Operations',        type: 'applet', href: '../../../houses/script/applets/linux/script-clh-021-ssh-ops.applet.html' },
-                { id: 'clh-021-lab',        title: 'CLH-021: SSH Operations (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-021/script-lab.lab.html' },
+                { id: 'clh-021-lab',        title: 'CLH-021: SSH Operations (Lab)',    type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-021/script-lab.lab.html', progressKey: 'script-clh-021-lab' },
                 { id: 'clh-021-quiz',       title: 'CLH-021: SSH Operations (Quiz)',   type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-021/script-quiz.quiz.html' },
                 // CLH-022
                 { id: 'clh-022-intro',      title: 'CLH-022: Network Recon (Lesson)', type: 'module', href: '../../../houses/script/courses/clh/modules/clh-022/script-intro.module.html' },
                 { id: 'clh-022-applet',     title: 'CLH-022: Network Recon',         type: 'applet', href: '../../../houses/script/applets/linux/script-clh-022-network-recon.applet.html' },
-                { id: 'clh-022-lab',        title: 'CLH-022: Network Recon (Lab)',     type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-022/script-lab.lab.html' },
+                { id: 'clh-022-lab',        title: 'CLH-022: Network Recon (Lab)',     type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-022/script-lab.lab.html', progressKey: 'script-clh-022-lab' },
                 { id: 'clh-022-quiz',       title: 'CLH-022: Network Recon (Quiz)',    type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-022/script-quiz.quiz.html' },
                 { id: 'lm-35-network-info', title: 'Network Information',            type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-35-network-info.module.html' },
                 { id: 'lm-36-connectivity', title: 'Connectivity Testing',           type: 'module', href: '../../../houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html' },
@@ -751,7 +751,7 @@ const ArcticData = {
                 { id: 'clh-031-arena',title: 'CLH-031: Blackout (Final Boss)',     type: 'applet', href: '../../../houses/script/applets/linux/script-clh-031-blackout.applet.html' },
                 // CLH-031 course content (intro briefing → lab → debrief quiz)
                 { id: 'clh-031-intro',title: 'CLH-031: Blackout (Briefing)',       type: 'module', href: '../../../houses/script/courses/clh/modules/clh-031/script-intro.module.html' },
-                { id: 'clh-031-lab',  title: 'CLH-031: Blackout (Lab)',            type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-031/script-lab.lab.html' },
+                { id: 'clh-031-lab',  title: 'CLH-031: Blackout (Lab)',            type: 'lab',    href: '../../../houses/script/courses/clh/modules/clh-031/script-lab.lab.html', progressKey: 'script-clh-031-lab' },
                 { id: 'clh-031-quiz', title: 'CLH-031: Blackout (Debrief)',        type: 'quiz',   href: '../../../houses/script/courses/clh/modules/clh-031/script-quiz.quiz.html' }
             ]
         }

@@ -91,24 +91,37 @@ const ArcticEngine = (() => {
         _saveProgress();
     }
 
+    /**
+     * Detect completions from hexworth_progress for a district's modules.
+     * Checks multiple houses (script, shield, dark-arts) and supports
+     * explicit progressKey overrides for modules with unreliable href fallback.
+     */
     function _autoDetectCompletions(district) {
         let changed = false;
         try {
             const hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const scriptProgress = hp.script || {};
             for (const mod of district.modules) {
                 if (_isComplete(mod.id)) continue;
-                // Check by Arctic module id first
-                if (scriptProgress[mod.id] && scriptProgress[mod.id].completed) {
+                const house = mod.progressHouse || 'script';
+                const houseProgress = hp[house] || {};
+
+                // 1. Explicit progressKey (overrides href-derived matching)
+                if (mod.progressKey && houseProgress[mod.progressKey]?.completed) {
                     _progress[mod.id] = new Date().toISOString();
                     changed = true;
                     continue;
                 }
-                // Derive progress key from href filename (strips path + extension)
-                // e.g. '../houses/script/.../script-lm-02-first-commands.module.html' → 'script-lm-02-first-commands'
+                // 2. Direct ID match
+                if (houseProgress[mod.id]?.completed) {
+                    _progress[mod.id] = new Date().toISOString();
+                    changed = true;
+                    continue;
+                }
+                // 3. Href-derived filename fallback
                 if (mod.href) {
-                    const fname = mod.href.split('/').pop().replace(/\.(module|lab|quiz|applet|tool|game|review)\.html$/, '');
-                    if (fname && scriptProgress[fname] && scriptProgress[fname].completed) {
+                    const fname = mod.href.split('/').pop()
+                        .replace(/\.(module|lab|quiz|applet|tool|game|review)\.html$/, '');
+                    if (fname && houseProgress[fname]?.completed) {
                         _progress[mod.id] = new Date().toISOString();
                         changed = true;
                     }
@@ -350,6 +363,12 @@ const ArcticEngine = (() => {
      */
     function renderHub() {
         _loadProgress();
+
+        // Run detection for ALL districts so the hub shows accurate progress
+        for (const district of ArcticData.districts) {
+            _autoDetectCompletions(district);
+        }
+
         document.title = 'The Arctic \u2014 Hexworth Prime';
         _injectStyles(_getBaseCSS() + _getHubCSS());
 
@@ -2125,6 +2144,14 @@ body {
     // =========================================================================
     // PUBLIC API
     // =========================================================================
+
+    // Cross-tab sync: reload when progress changes in another tab.
+    // The 'storage' event only fires in OTHER tabs, so no reload loops.
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'hexworth_progress' || e.key === PROGRESS_KEY) {
+            window.location.reload();
+        }
+    });
 
     return {
         renderHub,
