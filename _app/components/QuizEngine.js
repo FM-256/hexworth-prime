@@ -617,6 +617,7 @@ class QuizEngine {
      * Fallback to get next module if ProgressManager isn't available
      */
     getNextModuleFallback() {
+        if (this.config.nextModule) return this.config.nextModule;
         if (typeof LearningPaths === 'undefined') return null;
 
         const houseId = this.config.houseId || this.detectHouseFromUrl();
