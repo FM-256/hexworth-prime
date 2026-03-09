@@ -256,6 +256,13 @@ const FirestoreManager = (function() {
                 const local = localStorage.getItem(key);
                 if (local === null) {
                     // Key missing locally — restore from cloud
+                    // SAFETY: for progress keys, only restore if cloud has real data
+                    if (key === LOCALSTORAGE_KEYS.progress) {
+                        try {
+                            const cloudProg = JSON.parse(value);
+                            if (!cloudProg || Object.keys(cloudProg).length === 0) continue;
+                        } catch (e) { continue; }
+                    }
                     localStorage.setItem(key, value);
                     restored++;
                 } else if (local !== value) {
@@ -1072,54 +1079,36 @@ const FirestoreManager = (function() {
             }
 
             // Rebuild hexworth_progress in the nested object format that labs/dashboard expect
-            // Convert modulesCompleted array to nested house progress object
+            // SAFETY: always MERGE cloud completions into local — never overwrite or reduce
             const existingProgress = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
+            const mergeTarget = (!existingProgress || Array.isArray(existingProgress))
+                ? {} : existingProgress;
 
-            // Only rebuild if existing progress is empty or is an array (old format)
-            if (!existingProgress || Array.isArray(existingProgress) || Object.keys(existingProgress).length === 0) {
-                const rebuiltProgress = {};
-
-                // Convert modulesCompleted array to nested format
-                if (profile.modulesCompleted && Array.isArray(profile.modulesCompleted)) {
-                    profile.modulesCompleted.forEach(moduleId => {
-                        // Parse module ID to extract house (e.g., 'forge-admin-tools-lab' -> 'forge')
-                        const parts = moduleId.split('-');
-                        const house = parts[0];
-                        const moduleKey = parts.slice(1).join('-') || moduleId;
-
-                        if (!rebuiltProgress[house]) {
-                            rebuiltProgress[house] = {};
-                        }
-                        rebuiltProgress[house][moduleKey] = {
-                            completed: true,
-                            restoredFromCloud: true
-                        };
-                    });
+            let cloudAdded = 0;
+            const addCloudCompletion = (moduleId) => {
+                const parts = moduleId.split('-');
+                const house = parts[0];
+                const key = parts.slice(1).join('-') || moduleId;
+                if (!house || !key) return;
+                if (!mergeTarget[house] || typeof mergeTarget[house] !== 'object') mergeTarget[house] = {};
+                if (!mergeTarget[house][key] || !mergeTarget[house][key].completed) {
+                    mergeTarget[house][key] = { completed: true, restoredFromCloud: true };
+                    cloudAdded++;
                 }
+            };
 
-                // Also add labs to progress
-                if (profile.labsCompleted && Array.isArray(profile.labsCompleted)) {
-                    profile.labsCompleted.forEach(labId => {
-                        const parts = labId.split('-');
-                        const house = parts[0];
-                        const labKey = parts.slice(1).join('-') || labId;
+            if (Array.isArray(profile.modulesCompleted)) {
+                profile.modulesCompleted.forEach(addCloudCompletion);
+            }
+            if (Array.isArray(profile.labsCompleted)) {
+                profile.labsCompleted.forEach(addCloudCompletion);
+            }
 
-                        if (!rebuiltProgress[house]) {
-                            rebuiltProgress[house] = {};
-                        }
-                        rebuiltProgress[house][labKey] = {
-                            completed: true,
-                            restoredFromCloud: true
-                        };
-                    });
-                }
-
-                if (Object.keys(rebuiltProgress).length > 0) {
-                    localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(rebuiltProgress));
-                    console.log('[FirestoreManager] Rebuilt progress in nested format:', rebuiltProgress);
-                }
+            if (cloudAdded > 0) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(mergeTarget));
+                console.log(`[FirestoreManager] Merged ${cloudAdded} cloud completions into local progress`);
             } else {
-                console.log('[FirestoreManager] Existing progress found, not overwriting:', existingProgress);
+                console.log('[FirestoreManager] No new cloud completions to merge');
             }
 
             // Restore gate completion progress from subcollection
@@ -1314,6 +1303,27 @@ const FirestoreManager = (function() {
             });
 
             // 6. Write merged data to localStorage
+            // SAFETY: re-read localStorage to catch any completions added during async sync
+            // and merge them in so we never lose progress written by ModuleProgress.complete()
+            try {
+                const freshLocal = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
+                for (const [house, modules] of Object.entries(freshLocal)) {
+                    if (!modules || typeof modules !== 'object' || Array.isArray(modules)) continue;
+                    if (typeof localProgress[house] !== 'object') localProgress[house] = {};
+                    for (const [modId, modData] of Object.entries(modules)) {
+                        if (modData && modData.completed && (!localProgress[house][modId] || !localProgress[house][modId].completed)) {
+                            localProgress[house][modId] = modData;
+                        }
+                    }
+                }
+                // Preserve completedModules from fresh read too
+                if (Array.isArray(freshLocal.completedModules)) {
+                    if (!Array.isArray(localProgress.completedModules)) localProgress.completedModules = [];
+                    freshLocal.completedModules.forEach(id => {
+                        if (!localProgress.completedModules.includes(id)) localProgress.completedModules.push(id);
+                    });
+                }
+            } catch (e) { /* best-effort merge */ }
             localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(localProgress));
             localStorage.setItem(LOCALSTORAGE_KEYS.xp, mergedXP.toString());
             localStorage.setItem(LOCALSTORAGE_KEYS.streak, mergedStreak.toString());
