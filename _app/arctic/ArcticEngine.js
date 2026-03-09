@@ -97,9 +97,20 @@ const ArcticEngine = (() => {
             const scriptProgress = hp.script || {};
             for (const mod of district.modules) {
                 if (_isComplete(mod.id)) continue;
+                // Check by Arctic module id first
                 if (scriptProgress[mod.id] && scriptProgress[mod.id].completed) {
                     _progress[mod.id] = new Date().toISOString();
                     changed = true;
+                    continue;
+                }
+                // Derive progress key from href filename (strips path + extension)
+                // e.g. '../houses/script/.../script-lm-02-first-commands.module.html' → 'script-lm-02-first-commands'
+                if (mod.href) {
+                    const fname = mod.href.split('/').pop().replace(/\.(module|lab|quiz|applet|tool|game|review)\.html$/, '');
+                    if (fname && scriptProgress[fname] && scriptProgress[fname].completed) {
+                        _progress[mod.id] = new Date().toISOString();
+                        changed = true;
+                    }
                 }
             }
         } catch (e) { /* non-critical */ }
