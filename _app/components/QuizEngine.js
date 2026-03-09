@@ -492,6 +492,19 @@ class QuizEngine {
         const xpEarned = progressResult ? progressResult.xpEarned : 0;
         const nextModule = (progressResult && progressResult.nextModule) || this.getNextModuleFallback();
 
+        // Pre-compute next module URL for <a> tag (no JS needed to navigate)
+        let nextModuleHref = '';
+        if (nextModule && nextModule.href) {
+            const currentPath = window.location.pathname;
+            const houseMatch = currentPath.match(/\/houses\/\w+\//);
+            if (houseMatch) {
+                const houseBase = currentPath.substring(0, currentPath.indexOf(houseMatch[0]) + houseMatch[0].length);
+                nextModuleHref = houseBase + nextModule.href;
+            } else {
+                nextModuleHref = '../' + nextModule.href;
+            }
+        }
+
         this.container.innerHTML = `
             <div class="quiz-engine theme-${this.config.theme}" role="region" aria-label="Quiz results">
                 <div class="quiz-results ${gradeClass}" aria-live="polite">
@@ -542,9 +555,9 @@ class QuizEngine {
 
                     <div class="results-actions">
                         ${results.passed && nextModule ? `
-                            <button class="quiz-btn quiz-next-module-btn primary" onclick="window._quizNextModuleNav()">
+                            <a href="${nextModuleHref}" class="quiz-btn quiz-next-module-btn primary">
                                 Continue → ${nextModule.title || 'Next Module'}
-                            </button>
+                            </a>
                         ` : ''}
                         ${results.passed ? `
                             <button class="quiz-btn quiz-house-btn">
@@ -670,12 +683,17 @@ class QuizEngine {
                 padding: 14px 24px !important;
                 font-size: 1.05rem;
                 border: none;
+                border-radius: 8px;
                 box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
                 animation: pulseGlow 2s infinite;
                 cursor: pointer !important;
                 pointer-events: auto !important;
                 position: relative;
                 z-index: 100;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
             }
 
             .quiz-next-module-btn.primary:hover {

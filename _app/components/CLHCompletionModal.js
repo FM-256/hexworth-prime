@@ -45,12 +45,12 @@ class CLHCompletionModal {
                 position: fixed;
                 top: 0;
                 left: 0;
-                right: 0;
-                bottom: 0;
+                width: 100vw;
+                height: 100vh;
                 background: rgba(0, 0, 0, 0.95);
                 justify-content: center;
                 align-items: center;
-                z-index: 10000;
+                z-index: 2147483647;
                 overflow: hidden;
             }
 
@@ -229,7 +229,10 @@ class CLHCompletionModal {
                 border-radius: 8px;
                 font-family: 'Cascadia Code', 'Courier New', monospace;
                 font-size: 0.95em;
-                cursor: pointer;
+                cursor: pointer !important;
+                pointer-events: auto !important;
+                position: relative;
+                z-index: 2147483647;
                 transition: all 0.3s ease;
                 text-decoration: none;
                 display: inline-flex;
@@ -330,21 +333,21 @@ class CLHCompletionModal {
         modal.id = 'clhCompletionModal';
         modal.className = 'clh-completion-overlay';
 
-        // Determine next button
+        // Determine next button — use <a> tags for guaranteed navigation
         let nextButton;
         if (this.isLastModule) {
             nextButton = `
-                <a href="../../index.html" class="clh-action-btn graduation">
+                <a href="../../index.html" class="clh-action-btn graduation" id="clhNextBtn">
                     View Certificate
                     <span>→</span>
                 </a>
             `;
         } else {
             nextButton = `
-                <button class="clh-action-btn next-mission" onclick="CLHCompletionModal.goToNext()">
+                <a href="${this.nextIntroUrl}" class="clh-action-btn next-mission" id="clhNextBtn">
                     Next Mission
                     <span>→</span>
-                </button>
+                </a>
             `;
         }
 
@@ -376,7 +379,7 @@ class CLHCompletionModal {
                 </div>
 
                 <div class="clh-doc-actions">
-                    <button class="clh-action-btn explore" onclick="CLHCompletionModal.close()">
+                    <button class="clh-action-btn explore" id="clhCloseBtn">
                         Continue Exploring
                     </button>
                     ${nextButton}
@@ -388,9 +391,18 @@ class CLHCompletionModal {
 
         document.body.appendChild(modal);
 
-        // Store next URL for static method access
+        // Store references for static methods
         CLHCompletionModal._nextUrl = this.nextIntroUrl;
         CLHCompletionModal._instance = this;
+
+        // Bind event listeners directly (more reliable than inline onclick)
+        const closeBtn = modal.querySelector('#clhCloseBtn');
+        if (closeBtn) closeBtn.addEventListener('click', () => CLHCompletionModal.close());
+
+        const nextBtn = modal.querySelector('#clhNextBtn');
+        if (nextBtn && !this.isLastModule) {
+            nextBtn.addEventListener('click', () => CLHCompletionModal.goToNext());
+        }
     }
 
     show() {
@@ -428,8 +440,11 @@ class CLHCompletionModal {
     }
 
     static goToNext() {
+        console.log('[CLHCompletionModal] goToNext called, _nextUrl:', CLHCompletionModal._nextUrl);
         if (CLHCompletionModal._nextUrl) {
             window.location.href = CLHCompletionModal._nextUrl;
+        } else {
+            console.warn('[CLHCompletionModal] No _nextUrl set — cannot navigate');
         }
     }
 }

@@ -53,9 +53,9 @@ const ArcticEngine = (() => {
 
     // Faction accent colors (kept in sync with ArcticData.js faction colors)
     const FACTION_COLOR = {
-        penguin: { main: '#3ab8e0', dark: '#1a6a9a', dim: 'rgba(58,184,224,0.12)', border: 'rgba(58,184,224,0.22)' },
-        parrot:  { main: '#3ac8a0', dark: '#1a7a5a', dim: 'rgba(58,200,160,0.12)', border: 'rgba(58,200,160,0.22)' },
-        dragon:  { main: '#d05050', dark: '#8a2020', dim: 'rgba(208,80,80,0.12)',  border: 'rgba(208,80,80,0.22)'  }
+        lm:  { main: '#3ab8e0', dark: '#1a6a9a', dim: 'rgba(58,184,224,0.12)', border: 'rgba(58,184,224,0.22)' },
+        clh: { main: '#e0a030', dark: '#8a6010', dim: 'rgba(224,160,48,0.12)', border: 'rgba(224,160,48,0.22)' },
+        la:  { main: '#3ac8a0', dark: '#1a7a5a', dim: 'rgba(58,200,160,0.12)', border: 'rgba(58,200,160,0.22)' }
     };
 
     const DIFF_LABELS = ['', 'Beginner', 'Intermediate', 'Advanced', 'Expert', 'Elite', 'Master'];
@@ -331,7 +331,7 @@ const ArcticEngine = (() => {
     /** Build a faction-colored progress bar widget. */
     function _buildProgressBar(completed, total, faction) {
         const pct   = total > 0 ? Math.round((completed / total) * 100) : 0;
-        const fc    = FACTION_COLOR[faction] || FACTION_COLOR.penguin;
+        const fc    = FACTION_COLOR[faction] || FACTION_COLOR.lm;
         const wrap  = _el('div', 'ae-prog-bar-wrap');
 
         const row   = _el('div', 'ae-prog-bar-row');
@@ -396,7 +396,7 @@ const ArcticEngine = (() => {
         body.appendChild(main);
 
         // Activate the first faction tab by default
-        _activateFactionTab('penguin');
+        _activateFactionTab('lm');
     }
 
     // -------------------------------------------------------------------------
@@ -687,7 +687,7 @@ const ArcticEngine = (() => {
         });
 
         const note = _el('div', 'ae-prog-note');
-        note.textContent = "You can't harden what you can't administer. You can't break what you can't defend.";
+        note.textContent = "Master the fundamentals. Then choose your path: hack it or administer it.";
 
         wrap.appendChild(lbl);
         wrap.appendChild(flow);
@@ -719,7 +719,7 @@ const ArcticEngine = (() => {
         document.title = district.name + ' \u2014 The Arctic';
         _injectStyles(_getBaseCSS() + _getDistrictCSS());
 
-        const fc   = FACTION_COLOR[district.faction] || FACTION_COLOR.penguin;
+        const fc   = FACTION_COLOR[district.faction] || FACTION_COLOR.lm;
         const body = document.body;
         body.innerHTML = '';
         body.style.setProperty('--fc-main',   fc.main);
@@ -1288,20 +1288,20 @@ body {
     letter-spacing: 0.15em;
     text-transform: uppercase;
 }
-.ae-faction-badge--penguin {
+.ae-faction-badge--lm {
     background: rgba(0,180,230,0.10);
     border: 1px solid rgba(0,180,230,0.20);
     color: #5ab8e0;
 }
-.ae-faction-badge--parrot {
+.ae-faction-badge--clh {
+    background: rgba(224,160,48,0.10);
+    border: 1px solid rgba(224,160,48,0.20);
+    color: #e0a030;
+}
+.ae-faction-badge--la {
     background: rgba(0,160,120,0.10);
     border: 1px solid rgba(0,160,120,0.20);
     color: #3ab89a;
-}
-.ae-faction-badge--dragon {
-    background: rgba(180,40,40,0.10);
-    border: 1px solid rgba(180,40,40,0.20);
-    color: #c06060;
 }
 
 /* --- Footer --- */

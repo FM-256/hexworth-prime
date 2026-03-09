@@ -1448,9 +1448,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['linux', 'hacking', 'reconnaissance', 'whoami', 'pwd', 'hostname', 'cli'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-001/script-intro.module.html',
+                presentation: 'houses/script/clh/script-clh-001-intro.applet.html',
                 lab: 'houses/script/labs/script-lab.lab.html',
                 quiz: 'houses/script/quizzes/script-quiz.quiz.html'
             },
@@ -1472,11 +1472,11 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['linux', 'hacking', 'navigation', 'reconnaissance', 'cd', 'cat', 'ls'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-002/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-002/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-002/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-002-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-002.lab.html',
+                quiz: 'houses/script/clh/script-clh-002.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1496,11 +1496,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 30,
             topics: ['linux', 'hacking', 'grep', 'regex', 'pattern-matching', 'forensics'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-003/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-003/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-003/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-003-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-003.lab.html',
+                quiz: 'houses/script/clh/script-clh-003.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1520,11 +1520,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 30,
             topics: ['linux', 'hacking', 'processes', 'investigation', 'grep', 'malware'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-004/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-004/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-004/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-004-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-004.lab.html',
+                quiz: 'houses/script/clh/script-clh-004.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1544,11 +1544,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 35,
             topics: ['linux', 'hacking', 'logs', 'forensics', 'grep', 'head', 'tail'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-005/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-005/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-005/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-005-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-005.lab.html',
+                quiz: 'houses/script/clh/script-clh-005.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1569,11 +1569,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 30,
             topics: ['linux', 'hacking', 'files', 'mkdir', 'touch', 'cp', 'mv', 'rm'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-006/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-006/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-006/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-006-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-006.lab.html',
+                quiz: 'houses/script/clh/script-clh-006.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1593,11 +1593,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 35,
             topics: ['linux', 'hacking', 'permissions', 'chmod', 'security', 'access-control'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-007/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-007/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-007/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-007-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-007.lab.html',
+                quiz: 'houses/script/clh/script-clh-007.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1617,11 +1617,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 40,
             topics: ['linux', 'hacking', 'bash', 'scripting', 'automation'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-008/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-008/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-008/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-008-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-008.lab.html',
+                quiz: 'houses/script/clh/script-clh-008.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1641,11 +1641,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 40,
             topics: ['linux', 'hacking', 'text-processing', 'cut', 'sort', 'uniq', 'awk', 'sed'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-009/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-009/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-009/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-009-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-009.lab.html',
+                quiz: 'houses/script/clh/script-clh-009.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1665,11 +1665,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 35,
             topics: ['linux', 'hacking', 'io', 'redirection', 'pipes', 'tee'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-010/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-010/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-010/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-010-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-010.lab.html',
+                quiz: 'houses/script/clh/script-clh-010.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1689,11 +1689,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['linux', 'hacking', 'grep', 'regex', 'pattern-matching'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-011/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-011/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-011/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-011-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-011.lab.html',
+                quiz: 'houses/script/clh/script-clh-011.quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1712,11 +1712,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['linux', 'hacking', 'networking', 'ping', 'netstat', 'ss', 'ip'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-012/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-012/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-012/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-012-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-012.lab.html',
+                quiz: 'houses/script/clh/script-clh-012.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1731,11 +1731,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['linux', 'hacking', 'environment', 'env', 'export', 'PATH'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-013/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-013/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-013/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-013-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-013.lab.html',
+                quiz: 'houses/script/clh/script-clh-013.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1750,11 +1750,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['linux', 'hacking', 'processes', 'ps', 'kill', 'jobs', 'nohup'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-014/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-014/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-014/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-014-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-014.lab.html',
+                quiz: 'houses/script/clh/script-clh-014.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1769,11 +1769,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['linux', 'hacking', 'capstone', 'certification'],
-            paths: ['comptia-linux', 'linux-mastery'],
+            paths: ['comptia-linux', 'linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-015/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-015/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-015/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-015-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-015.lab.html',
+                quiz: 'houses/script/clh/script-clh-015.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1788,11 +1788,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['linux', 'hacking', 'reconnaissance', 'system-info', 'uname', 'uptime'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-016/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-016/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-016/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-016-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-016.lab.html',
+                quiz: 'houses/script/clh/script-clh-016.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1807,11 +1807,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['linux', 'hacking', 'find', 'locate', 'search', 'file-discovery'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-017/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-017/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-017/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-017-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-017.lab.html',
+                quiz: 'houses/script/clh/script-clh-017.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1826,11 +1826,11 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['linux', 'hacking', 'tar', 'gzip', 'archives', 'compression'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-018/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-018/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-018/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-018-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-018.lab.html',
+                quiz: 'houses/script/clh/script-clh-018.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1845,11 +1845,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'forensics', 'disk', 'df', 'du', 'mount'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-019/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-019/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-019/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-019-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-019.lab.html',
+                quiz: 'houses/script/clh/script-clh-019.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1864,11 +1864,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'users', 'whoami', 'id', 'passwd', 'enumeration'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-020/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-020/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-020/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-020-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-020.lab.html',
+                quiz: 'houses/script/clh/script-clh-020.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1883,11 +1883,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'ssh', 'tunnels', 'encryption', 'remote-access'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-021/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-021/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-021/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-021-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-021.lab.html',
+                quiz: 'houses/script/clh/script-clh-021.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1902,11 +1902,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'networking', 'recon', 'mapping', 'lateral-movement'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-022/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-022/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-022/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-022-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-022.lab.html',
+                quiz: 'houses/script/clh/script-clh-022.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1921,11 +1921,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'services', 'systemctl', 'daemons', 'audit'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-023/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-023/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-023/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-023-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-023.lab.html',
+                quiz: 'houses/script/clh/script-clh-023.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1940,11 +1940,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'cron', 'crontab', 'persistence', 'scheduled-tasks'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-024/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-024/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-024/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-024-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-024.lab.html',
+                quiz: 'houses/script/clh/script-clh-024.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1959,11 +1959,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'apt', 'dpkg', 'packages', 'supply-chain'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-025/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-025/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-025/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-025-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-025.lab.html',
+                quiz: 'houses/script/clh/script-clh-025.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1978,11 +1978,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'access-control', 'sudo', 'privilege-escalation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-026/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-026/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-026/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-026-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-026.lab.html',
+                quiz: 'houses/script/clh/script-clh-026.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -1997,11 +1997,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['linux', 'hacking', 'useradd', 'usermod', 'groups', 'identity'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-027/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-027/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-027/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-027-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-027.lab.html',
+                quiz: 'houses/script/clh/script-clh-027.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -2016,11 +2016,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 50,
             topics: ['linux', 'hacking', 'monitoring', 'top', 'htop', 'incident-response'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-028/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-028/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-028/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-028-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-028.lab.html',
+                quiz: 'houses/script/clh/script-clh-028.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -2035,11 +2035,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 50,
             topics: ['linux', 'hacking', 'vim', 'editor', 'modal-editing'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-029/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-029/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-029/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-029-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-029.lab.html',
+                quiz: 'houses/script/clh/script-clh-029.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -2054,11 +2054,11 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 60,
             topics: ['linux', 'hacking', 'capstone', 'operation', 'advanced'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                presentation: 'houses/script/courses/clh/modules/clh-030/script-intro.module.html',
-                lab: 'houses/script/courses/clh/modules/clh-030/script-lab.lab.html',
-                quiz: 'houses/script/courses/clh/modules/clh-030/script-quiz.quiz.html'
+                presentation: 'houses/script/clh/script-clh-030-intro.applet.html',
+                lab: 'houses/script/clh/script-clh-030.lab.html',
+                quiz: 'houses/script/clh/script-clh-030.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -2073,9 +2073,9 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 60,
             topics: ['linux', 'hacking', 'final', 'operation', 'advanced'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-031/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-031.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8021,7 +8021,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery', 'security-operations'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-002/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-002.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8037,7 +8037,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery', 'comptia-network'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-003/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-003.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8053,7 +8053,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-004/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-004.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8069,7 +8069,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-005/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-005.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8085,7 +8085,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-006/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-006.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8101,7 +8101,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-007/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-007.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8117,7 +8117,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-008/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-008.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8133,7 +8133,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-009/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-009.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8149,7 +8149,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-010/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-010.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8165,7 +8165,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-011/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-011.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8181,7 +8181,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting', 'networking'],
             paths: ['comptia-linux', 'linux-mastery', 'comptia-network'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-012/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-012.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8197,7 +8197,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-013/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-013.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8213,7 +8213,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-014/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-014.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8229,7 +8229,7 @@ const ContentRegistry = {
             topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'linux-mastery'],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-015/script-lab.lab.html'
+                lab: 'houses/script/clh/script-clh-015.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -13577,7 +13577,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-001', 'hacker', 'cli', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-001-intro-to-hacker-cli.applet.html'
             },
@@ -13593,7 +13593,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-002', 'navigation', 'reconnaissance', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-002-navigation-recon.applet.html'
             },
@@ -13609,7 +13609,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-003', 'pattern', 'hunting', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-003-pattern-hunting.applet.html'
             },
@@ -13625,7 +13625,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-004', 'process', 'investigation', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-004-process-investigation.applet.html'
             },
@@ -13641,7 +13641,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-005', 'log', 'analysis', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-005-log-analysis.applet.html'
             },
@@ -13657,7 +13657,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-006', 'file', 'operations', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-006-file-operations.applet.html'
             },
@@ -13673,7 +13673,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-007', 'permissions', 'access', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-007-permissions.applet.html'
             },
@@ -13689,7 +13689,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-008', 'shell', 'scripting', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-008-shell-scripting.applet.html'
             },
@@ -13705,7 +13705,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-009', 'text', 'processing', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-009-text-processing.applet.html'
             },
@@ -13721,7 +13721,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-010', 'redirection', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-010-io-redirection.applet.html'
             },
@@ -13737,7 +13737,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-011', 'grep', 'regex', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-011-advanced-grep.applet.html'
             },
@@ -13753,7 +13753,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-012', 'network', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-012-network-basics.applet.html'
             },
@@ -13769,7 +13769,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-013', 'environment', 'variables', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-013-environment.applet.html'
             },
@@ -13785,7 +13785,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-014', 'process', 'control', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-014-process-control.applet.html'
             },
@@ -13801,7 +13801,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-015', 'capstone', 'mission', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-015-capstone.applet.html'
             },
@@ -13817,7 +13817,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-016', 'system', 'intel', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-016-intro.applet.html'
             },
@@ -13833,7 +13833,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-016', 'system', 'intel', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-016-system-intel.applet.html'
             },
@@ -13849,7 +13849,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-017', 'find', 'locate', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-017-find-locate.applet.html'
             },
@@ -13865,7 +13865,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-017', 'find', 'locate', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-017-intro.applet.html'
             },
@@ -13881,7 +13881,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-018', 'archive', 'operations', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-018-archive-ops.applet.html'
             },
@@ -13897,7 +13897,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-018', 'archive', 'operations', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-018-intro.applet.html'
             },
@@ -13913,7 +13913,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-019', 'disk', 'forensics', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-019-disk-forensics.applet.html'
             },
@@ -13929,7 +13929,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-019', 'disk', 'forensics', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-019-intro.applet.html'
             },
@@ -13945,7 +13945,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-020', 'user', 'reconnaissance', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-020-intro.applet.html'
             },
@@ -13961,7 +13961,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-020', 'user', 'reconnaissance', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-020-user-recon.applet.html'
             },
@@ -13977,7 +13977,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-021', 'ssh', 'operations', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-021-intro.applet.html'
             },
@@ -13993,7 +13993,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-021', 'ssh', 'operations', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-021-ssh-ops.applet.html'
             },
@@ -14009,7 +14009,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-022', 'network', 'reconnaissance', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-022-intro.applet.html'
             },
@@ -14025,7 +14025,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-022', 'network', 'reconnaissance', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-022-network-recon.applet.html'
             },
@@ -14041,7 +14041,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-023', 'service', 'management', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-023-intro.applet.html'
             },
@@ -14057,7 +14057,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-023', 'service', 'management', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-023-services.applet.html'
             },
@@ -14073,7 +14073,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-024', 'scheduled', 'tasks', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-024-cron.applet.html'
             },
@@ -14089,7 +14089,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-024', 'scheduled', 'tasks', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-024-intro.applet.html'
             },
@@ -14105,7 +14105,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-025', 'package', 'management', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-025-intro.applet.html'
             },
@@ -14121,7 +14121,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-025', 'package', 'management', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-025-packages.applet.html'
             },
@@ -14137,7 +14137,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-026', 'access', 'control', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-026-access.applet.html'
             },
@@ -14153,7 +14153,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-026', 'access', 'control', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-026-intro.applet.html'
             },
@@ -14169,7 +14169,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-027', 'user', 'management', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-027-intro.applet.html'
             },
@@ -14185,7 +14185,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-027', 'user', 'management', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-027-users.applet.html'
             },
@@ -14201,7 +14201,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-028', 'system', 'monitoring', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-028-intro.applet.html'
             },
@@ -14217,7 +14217,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-028', 'system', 'monitoring', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-028-monitoring.applet.html'
             },
@@ -14233,7 +14233,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-029', 'vim', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-029-intro.applet.html'
             },
@@ -14249,7 +14249,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-029', 'vim', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-029-vim.applet.html'
             },
@@ -14265,7 +14265,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-030', 'operation', 'chimera', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-030-chimera.applet.html'
             },
@@ -14281,7 +14281,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-030', 'final', 'operation', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/clh/script-clh-030-intro.applet.html'
             },
@@ -14297,7 +14297,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-031', 'operation', 'blackout', 'linux', 'command-line'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-031-blackout.applet.html'
             },
@@ -21489,7 +21489,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh016', 'quiz', 'system', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-016.quiz.html'
             },
@@ -21505,7 +21505,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh017', 'quiz', 'find', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-017.quiz.html'
             },
@@ -21521,7 +21521,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh018', 'quiz', 'archive', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-018.quiz.html'
             },
@@ -21537,7 +21537,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh019', 'quiz', 'disk', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-019.quiz.html'
             },
@@ -21553,7 +21553,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh020', 'quiz', 'user', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-020.quiz.html'
             },
@@ -21569,7 +21569,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh021', 'quiz', 'operations', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-021.quiz.html'
             },
@@ -21585,7 +21585,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh022', 'quiz', 'network', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-022.quiz.html'
             },
@@ -21601,7 +21601,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh023', 'quiz', 'service', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-023.quiz.html'
             },
@@ -21617,7 +21617,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh024', 'quiz', 'scheduled', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-024.quiz.html'
             },
@@ -21633,7 +21633,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh025', 'quiz', 'package', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-025.quiz.html'
             },
@@ -21649,7 +21649,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh026', 'quiz', 'access', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-026.quiz.html'
             },
@@ -21665,7 +21665,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh027', 'quiz', 'user', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-027.quiz.html'
             },
@@ -21681,7 +21681,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh028', 'quiz', 'system', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-028.quiz.html'
             },
@@ -21697,7 +21697,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh029', 'quiz', 'essentials', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-029.quiz.html'
             },
@@ -21713,7 +21713,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh030', 'certification', 'shadow', 'scripting', 'automation'],
-            paths: ['linux-mastery'],
+            paths: ['linux-mastery', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/script-clh-030.quiz.html'
             },
