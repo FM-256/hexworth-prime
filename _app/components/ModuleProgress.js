@@ -360,9 +360,22 @@ const ModuleProgress = (function() {
         }
 
         // Return to destination — wait for Firestore sync first (max 8s timeout)
+        // Arctic path override: if user came from Arctic, go to next module in sequence
         if (returnToDashboard || returnUrl) {
-            const navigateFn = returnUrl
-                ? () => { window.location.href = returnUrl; }
+            let destination = returnUrl || null;
+            try {
+                const arcticNext = localStorage.getItem('hexworth_arctic_next');
+                if (arcticNext) {
+                    const parsed = JSON.parse(arcticNext);
+                    if (parsed.href) {
+                        destination = parsed.href;
+                    }
+                    localStorage.removeItem('hexworth_arctic_next');
+                }
+            } catch (e) { /* ignore */ }
+
+            const navigateFn = destination
+                ? () => { window.location.href = destination; }
                 : navigateToDashboard;
             if (silent) {
                 navigateFn();

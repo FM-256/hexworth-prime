@@ -28,6 +28,7 @@ const ArcticEngine = (() => {
     // =========================================================================
 
     const PROGRESS_KEY = 'hexworth_arctic_progress';
+    const ARCTIC_NEXT_KEY = 'hexworth_arctic_next';
     const FLAKE_COUNT  = 40;
 
     // Module types that are standalone challenge nodes (not grouped into sections)
@@ -226,6 +227,29 @@ const ArcticEngine = (() => {
      */
     function _findDistrictResume(district) {
         return district.modules.find(m => !_isComplete(m.id)) || null;
+    }
+
+    /**
+     * Store the next module's href so ModuleProgress.complete() can
+     * navigate there instead of returning to the course index page.
+     * Called when a user clicks a module link from the Arctic district view.
+     */
+    function _stashNextModule(district, currentModId) {
+        const mods = district.modules;
+        const idx = mods.findIndex(m => m.id === currentModId);
+        if (idx >= 0 && idx < mods.length - 1) {
+            const next = mods[idx + 1];
+            // Resolve href to absolute URL using current page as base (Arctic district page)
+            const resolved = new URL(next.href, window.location.href).href;
+            localStorage.setItem(ARCTIC_NEXT_KEY, JSON.stringify({
+                href: resolved,
+                title: next.title,
+                districtId: district.id
+            }));
+        } else {
+            // Last module in district — clear so completion returns to district page
+            localStorage.removeItem(ARCTIC_NEXT_KEY);
+        }
     }
 
     // =========================================================================
@@ -1006,6 +1030,7 @@ const ArcticEngine = (() => {
             link.target    = '_blank';
             link.rel       = 'noopener';
             link.textContent = mod.title;
+            link.addEventListener('click', () => _stashNextModule(district, mod.id));
             titleEl.appendChild(link);
         } else {
             titleEl.textContent = mod.title;
@@ -1054,6 +1079,7 @@ const ArcticEngine = (() => {
                         link.target      = '_blank';
                         link.rel         = 'noopener';
                         link.textContent = mod.title;
+                        link.addEventListener('click', () => _stashNextModule(district, mod.id));
                         titleEl.textContent = '';
                         titleEl.classList.remove('ae-node-title--fog');
                         titleEl.appendChild(link);
