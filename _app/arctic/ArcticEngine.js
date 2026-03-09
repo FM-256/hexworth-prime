@@ -182,22 +182,9 @@ const ArcticEngine = (() => {
      * Returns a Set of section indices that are unlocked.
      */
     function _computeUnlockedSections(sections) {
+        // All sections unlocked — fog of war disabled
         const unlocked = new Set();
-        let allPrevDone = true;
-
-        sections.forEach((sec, idx) => {
-            if (idx === 0) {
-                unlocked.add(0);
-            } else if (allPrevDone) {
-                unlocked.add(idx);
-            }
-
-            // Check if every module in this section is complete
-            const allMods = sec.head ? [sec.head, ...sec.branches] : [...sec.branches];
-            const sectionDone = allMods.every(m => _isComplete(m.id));
-            if (!sectionDone) allPrevDone = false;
-        });
-
+        sections.forEach((_, idx) => unlocked.add(idx));
         return unlocked;
     }
 
@@ -207,11 +194,9 @@ const ArcticEngine = (() => {
 
     /**
      * Find the next incomplete module id across all districts (hub resume).
-     * Respects faction unlock gates — only looks within unlocked factions.
      */
     function _findGlobalResume() {
         for (const district of ArcticData.districts) {
-            if (!ArcticData.isFactionUnlocked(district.faction, _progress)) continue;
             for (const mod of district.modules) {
                 if (!_isComplete(mod.id)) {
                     return { districtId: district.id, moduleId: mod.id, moduleHref: mod.href };
@@ -505,7 +490,6 @@ const ArcticEngine = (() => {
     }
 
     function _buildFactionTab(faction) {
-        const unlocked = ArcticData.isFactionUnlocked(faction.id, _progress);
         const pct      = Math.round(ArcticData.getFactionCompletion(faction.id, _progress) * 100);
         const fc       = FACTION_COLOR[faction.id];
 
@@ -513,10 +497,6 @@ const ArcticEngine = (() => {
         btn.id    = 'ae-tab-' + faction.id;
         btn.setAttribute('data-faction', faction.id);
         btn.setAttribute('aria-pressed', 'false');
-        if (!unlocked) {
-            btn.classList.add('ae-faction-tab--locked');
-            btn.title = _getLockReason(faction);
-        }
         btn.style.setProperty('--fc-main',   fc.main);
         btn.style.setProperty('--fc-dim',    fc.dim);
         btn.style.setProperty('--fc-border', fc.border);
@@ -525,7 +505,7 @@ const ArcticEngine = (() => {
         nameEl.textContent = faction.name;
 
         const pctEl = _el('span', 'ae-tab-pct');
-        pctEl.textContent = unlocked ? pct + '%' : '\u25A0 Locked';
+        pctEl.textContent = pct + '%';
 
         btn.appendChild(nameEl);
         btn.appendChild(pctEl);
@@ -541,7 +521,6 @@ const ArcticEngine = (() => {
     }
 
     function _buildFactionPanel(faction) {
-        const unlocked  = ArcticData.isFactionUnlocked(faction.id, _progress);
         const districts = ArcticData.getFactionDistricts(faction.id);
         const fc        = FACTION_COLOR[faction.id];
 
@@ -565,31 +544,12 @@ const ArcticEngine = (() => {
         hdr.appendChild(tl);
         hdr.appendChild(ds);
 
-        if (!unlocked) {
-            // Lock gate indicator
-            const parent    = ArcticData.getFaction(faction.unlockRequirement);
-            const parentPct = Math.round(ArcticData.getFactionCompletion(faction.unlockRequirement, _progress) * 100);
-            const gate = _el('div', 'ae-lock-gate');
-            const gateMsg = _el('div', 'ae-lock-gate-msg');
-            gateMsg.textContent = `\u25A0 Locked \u2014 Complete ${Math.round(faction.unlockThreshold * 100)}% of ${parent ? parent.name : 'previous faction'} to unlock (${parentPct}% complete)`;
-
-            const gateTrack = _el('div', 'ae-lock-track');
-            const gateFill  = _el('div', 'ae-lock-fill');
-            gateFill.style.width = parentPct + '%';
-            gateFill.style.background = parent ? `linear-gradient(90deg, ${FACTION_COLOR[parent.id].dark}, ${FACTION_COLOR[parent.id].main})` : '';
-            gateTrack.appendChild(gateFill);
-            gate.appendChild(gateMsg);
-            gate.appendChild(gateTrack);
-            hdr.appendChild(gate);
-            hdr.classList.add('ae-panel-hdr--locked');
-        }
-
         panel.appendChild(hdr);
 
-        // District grid — ALL districts always visible, locked factions are fogged
+        // District grid — all districts always accessible (fog disabled)
         const grid = _el('div', 'ae-district-grid');
         districts.forEach(district => {
-            grid.appendChild(_buildDistrictCard(district, unlocked));
+            grid.appendChild(_buildDistrictCard(district, true));
         });
         panel.appendChild(grid);
 
@@ -616,12 +576,8 @@ const ArcticEngine = (() => {
         card.style.setProperty('--fc-dark',   fc.dark);
         card.style.setProperty('--fc-border', fc.border);
 
-        if (!factionUnlocked) {
-            card.classList.add('ae-district-card--fogged');
-            card.href = '#';
-            card.addEventListener('click', e => e.preventDefault());
-            card.title = 'Unlock this faction to access this district';
-        }
+        // Fog of war disabled — all districts accessible
+        // if (!factionUnlocked) { ... }
 
         // Top row: icon + badge
         const topRow  = _el('div', 'ae-card-top');
