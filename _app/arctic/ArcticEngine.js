@@ -117,8 +117,8 @@ const ArcticEngine = (() => {
                     changed = true;
                     continue;
                 }
-                // 3. Href-derived filename fallback
-                if (mod.href) {
+                // 3. Href-derived filename fallback (skip if progressKey set — avoids collision)
+                if (!mod.progressKey && mod.href) {
                     const fname = mod.href.split('/').pop()
                         .replace(/\.(module|lab|quiz|applet|tool|game|review)\.html$/, '');
                     if (fname && houseProgress[fname]?.completed) {
