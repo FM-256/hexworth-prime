@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WORKSTATION Simulation - Hexworth Prime</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sim-header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f59e0b;
+            flex-shrink: 0;
+        }
+        .sim-title { display: flex; align-items: center; gap: 15px; }
+        .sim-title h1 { color: #f59e0b; font-size: 1.3rem; letter-spacing: 3px; }
+        .phase-indicator {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        .header-controls { display: flex; align-items: center; gap: 20px; }
+        .progress-tracker { display: flex; align-items: center; gap: 10px; }
+        .progress-text { color: #9ca3af; font-size: 0.85rem; }
+        .progress-bar-mini {
+            width: 120px; height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px; overflow: hidden;
+        }
+        .progress-fill-mini {
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #22c55e);
+            transition: width 0.5s;
+        }
+        .header-btn {
+            padding: 6px 14px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px; color: #e0e0e0;
+            cursor: pointer; font-size: 0.8rem;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .header-btn:hover { background: rgba(245,158,11,0.2); border-color: #f59e0b; }
+
+        .sim-container { display: flex; flex: 1; overflow: hidden; }
+
+        .objectives-sidebar {
+            width: 280px;
+            background: rgba(0,0,0,0.5);
+            border-right: 1px solid rgba(245,158,11,0.2);
+            overflow-y: auto; padding: 10px; flex-shrink: 0;
+        }
+        .phase-section { margin-bottom: 15px; }
+        .phase-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 10px;
+            background: rgba(245,158,11,0.1);
+            border-radius: 6px; margin-bottom: 8px; cursor: pointer;
+        }
+        .phase-header h4 { color: #fbbf24; font-size: 0.85rem; }
+        .phase-header .status { font-size: 0.75rem; color: #9ca3af; }
+        .phase-header .status.complete { color: #22c55e; }
+        .objective-item {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: 8px 10px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 5px; margin-bottom: 4px;
+            font-size: 0.8rem;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .objective-item.completed {
+            background: rgba(34,197,94,0.1);
+            border-left-color: #22c55e;
+        }
+        .obj-check {
+            width: 16px; height: 16px;
+            border: 2px solid #4b5563;
+            border-radius: 3px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-size: 0.65rem; margin-top: 1px;
+        }
+        .objective-item.completed .obj-check {
+            border-color: #22c55e; background: #22c55e; color: #000;
+        }
+
+        .workspace { flex: 1 1 0; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .workspace-tabs {
+            display: flex; background: #1a1a1a;
+            border-bottom: 1px solid #333; flex-shrink: 0;
+        }
+        .workspace-tab {
+            padding: 10px 20px; background: transparent; border: none;
+            color: #b0b8c4; cursor: pointer; font-size: 0.85rem;
+            border-bottom: 2px solid transparent; transition: all 0.2s;
+        }
+        .workspace-tab:hover { color: #ccc; }
+        .workspace-tab.active { color: #f59e0b; border-bottom-color: #f59e0b; background: rgba(245,158,11,0.05); }
+        .workspace-content { flex: 1 1 0; overflow: hidden; display: none; height: 100%; }
+        .workspace-content.active { display: flex; }
+
+        .gui-workspace { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; }
+        .gui-toolbar {
+            background: #2d2d30; padding: 8px 12px;
+            display: flex; gap: 8px;
+            border-bottom: 1px solid #3c3c3c; flex-wrap: wrap; flex-shrink: 0;
+        }
+        .gui-btn {
+            padding: 6px 12px;
+            background: rgba(96,165,250,0.1);
+            border: 1px solid rgba(96,165,250,0.3);
+            border-radius: 5px; color: #60a5fa;
+            cursor: pointer; font-size: 0.8rem; transition: all 0.2s;
+        }
+        .gui-btn:hover { background: rgba(96,165,250,0.2); border-color: #60a5fa; }
+        .gui-btn.active { background: #60a5fa; color: #000; }
+        .gui-panel { flex: 1; overflow: auto; padding: 15px; }
+
+        .panel-section {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #3c3c3c;
+            border-radius: 8px; padding: 15px; margin-bottom: 15px;
+        }
+        .panel-section h4 { color: #fbbf24; font-size: 0.9rem; margin-bottom: 12px; }
+
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .data-table th {
+            text-align: left; padding: 8px; color: #9ca3af;
+            border-bottom: 1px solid #3c3c3c; font-weight: 500;
+        }
+        .data-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; color: #9ca3af; font-size: 0.8rem; margin-bottom: 4px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 8px 12px;
+            background: #1a1a1a; border: 1px solid #3c3c3c;
+            border-radius: 5px; color: #e0e0e0; font-size: 0.85rem;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none; border-color: #60a5fa;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            background: rgba(96,165,250,0.1);
+            border: 1px solid rgba(96,165,250,0.3);
+            border-radius: 5px; color: #60a5fa;
+            cursor: pointer; font-size: 0.85rem; transition: all 0.2s;
+        }
+        .action-btn:hover { background: rgba(96,165,250,0.2); }
+        .action-btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .action-btn.primary:hover { background: #1d4ed8; }
+        .action-btn.danger { background: rgba(239,68,68,0.2); color: #f87171; border-color: rgba(239,68,68,0.3); }
+        .small-btn {
+            padding: 3px 8px; background: rgba(96,165,250,0.1);
+            border: 1px solid rgba(96,165,250,0.2); border-radius: 4px;
+            color: #60a5fa; cursor: pointer; font-size: 0.75rem;
+        }
+        .small-btn:hover { background: rgba(96,165,250,0.2); }
+
+        .inline-actions { display: flex; gap: 8px; }
+        .status-badge {
+            padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;
+        }
+        .status-badge.online { background: rgba(34,197,94,0.2); color: #22c55e; }
+        .status-badge.offline { background: rgba(239,68,68,0.2); color: #f87171; }
+
+        .toggle-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 0.85rem; }
+        .toggle-label small { display: block; color: #6b7280; font-size: 0.75rem; margin-top: 2px; }
+        .toggle-switch {
+            width: 44px; height: 24px; border-radius: 12px;
+            background: #3c3c3c; cursor: pointer; position: relative; transition: 0.2s;
+            border: none;
+        }
+        .toggle-switch.on { background: #22c55e; }
+        .toggle-switch::after {
+            content: ''; position: absolute;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #fff; top: 3px; left: 3px; transition: 0.2s;
+        }
+        .toggle-switch.on::after { left: 23px; }
+
+        /* Terminal */
+        .terminal-sim {
+            flex: 1; display: flex; flex-direction: column;
+            background: #0c0c0c; font-family: 'Cascadia Code', 'Consolas', monospace;
+        }
+        .terminal-output { flex: 1; overflow-y: auto; padding: 10px; font-size: 0.85rem; line-height: 1.6; }
+        .terminal-input-area {
+            display: flex; align-items: center;
+            padding: 8px 10px; background: #1a1a1a;
+            border-top: 1px solid #333;
+        }
+        .terminal-input-area span { color: #60a5fa; font-size: 0.85rem; white-space: nowrap; }
+        .terminal-input {
+            flex: 1; background: transparent; border: none;
+            color: #e0e0e0; font-family: inherit; font-size: 0.85rem;
+            outline: none; margin-left: 5px;
+        }
+        .terminal-line { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; }
+        .terminal-line.prompt { color: #60a5fa; }
+        .terminal-line.output { color: #cccccc; }
+        .terminal-line.error { color: #f87171; }
+        .terminal-line.success { color: #22c55e; }
+        .terminal-line.info { color: #fbbf24; }
+        .terminal-line.warning { color: #f59e0b; }
+        .terminal-line.dim { color: #6b7280; }
+        .terminal-line.heading { color: #60a5fa; font-weight: bold; }
+
+        /* Docs */
+        .docs-panel { flex: 1; display: flex; flex-direction: column; padding: 15px; background: #1e1e1e; }
+        .docs-panel h3 { color: #f59e0b; margin-bottom: 15px; }
+        .docs-panel textarea {
+            flex: 1; background: #0c0c0c; border: 1px solid #3c3c3c;
+            border-radius: 5px; color: #e0e0e0; padding: 15px;
+            font-family: 'Cascadia Code', monospace; font-size: 0.85rem;
+            resize: none;
+        }
+        .docs-actions { display: flex; gap: 10px; margin-top: 10px; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            border-radius: 12px; padding: 25px;
+            max-width: 500px; width: 90%;
+            max-height: 80vh; overflow-y: auto;
+        }
+        .modal h3 { color: #f59e0b; margin-bottom: 20px; font-size: 1.1rem; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+        /* Completion */
+        .completion-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none; align-items: center; justify-content: center;
+            z-index: 2000;
+        }
+        .completion-overlay.show { display: flex; }
+        .completion-card {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 2px solid #f59e0b;
+            border-radius: 16px; padding: 40px;
+            text-align: center; max-width: 500px;
+        }
+        .completion-card h2 { color: #f59e0b; font-size: 2rem; letter-spacing: 4px; margin-bottom: 20px; }
+        .completion-card .score {
+            font-size: 4rem; color: #22c55e; font-weight: bold; margin: 20px 0;
+        }
+        .completion-card p { color: #9ca3af; margin-bottom: 25px; }
+        .completion-card a {
+            display: inline-block; padding: 12px 24px;
+            background: #f59e0b; color: #000; border-radius: 8px;
+            text-decoration: none; font-weight: 600; margin: 5px;
+        }
+
+        /* Toast */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 3000; pointer-events: none; }
+        .toast {
+            background: #22c55e; color: #fff;
+            padding: 10px 18px; border-radius: 8px;
+            font-size: 0.85rem; margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+            pointer-events: auto;
+        }
+        .toast.error { background: #ef4444; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4c4c4c; }
+
+        .empty-state { text-align: center; padding: 40px; color: #6b7280; }
+        .empty-state p { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="sim-header">
+        <div class="sim-title">
+            <h1>WORKSTATION</h1>
+            <span class="phase-indicator" id="phaseIndicator">Phase 1: Deployment</span>
+        </div>
+        <div class="header-controls">
+            <div class="progress-tracker">
+                <span class="progress-text"><span id="completedCount">0</span>/25 Objectives</span>
+                <div class="progress-bar-mini">
+                    <div class="progress-fill-mini" id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+            <button class="header-btn" onclick="resetSimulation()">Reset</button>
+            <a href="../index.html" class="header-btn">Exit</a>
+        </div>
+    </div>
+
+    <div class="sim-container">
+        <div class="objectives-sidebar" id="objectivesSidebar"></div>
+
+        <div class="workspace">
+            <div class="workspace-tabs">
+                <button class="workspace-tab active" onclick="switchTab('gui')">GUI Console</button>
+                <button class="workspace-tab" onclick="switchTab('terminal')">PowerShell</button>
+                <button class="workspace-tab" onclick="switchTab('docs')">Documentation</button>
+            </div>
+
+            <div class="workspace-content active" id="gui-content">
+                <div class="gui-workspace">
+                    <div class="gui-toolbar">
+                        <button class="gui-btn active" data-tool="dashboard" onclick="openTool('dashboard')">Dashboard</button>
+                        <button class="gui-btn" data-tool="settings" onclick="openTool('settings')">Settings</button>
+                        <button class="gui-btn" data-tool="users" onclick="openTool('users')">User Accounts</button>
+                        <button class="gui-btn" data-tool="network" onclick="openTool('network')">Network Config</button>
+                        <button class="gui-btn" data-tool="disk" onclick="openTool('disk')">Disk Management</button>
+                        <button class="gui-btn" data-tool="files" onclick="openTool('files')">File Explorer</button>
+                    </div>
+                    <div class="gui-panel" id="guiPanel"></div>
+                </div>
+            </div>
+
+            <div class="workspace-content" id="terminal-content">
+                <div class="terminal-sim">
+                    <div class="terminal-output" id="terminalOutput"></div>
+                    <div class="terminal-input-area">
+                        <span>PS C:\&gt; </span>
+                        <input type="text" class="terminal-input" id="terminalInput" autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-content" id="docs-content">
+                <div class="docs-panel">
+                    <h3>Project Documentation</h3>
+                    <textarea id="docsEditor" placeholder="Document your configuration decisions and notes here..."></textarea>
+                    <div class="docs-actions">
+                        <button class="action-btn primary" onclick="saveDocs()">Save Documentation</button>
+                        <button class="action-btn" onclick="loadReferenceDoc()">Load Reference</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modalContent"></div>
+    </div>
+
+    <div class="completion-overlay" id="completionOverlay">
+        <div class="completion-card">
+            <h2>MISSION COMPLETE</h2>
+            <div class="score">100%</div>
+            <p>Outstanding work, technician! You've successfully configured the Windows workstation for the Hexworth branch office.</p>
+            <a href="../index.html">Back to MD-100 Course</a>
+        </div>
+    </div>
+
+    <!-- Cross-device sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../utils/SyncUtils.js"></script>
+    <script src="../../../../components/FirestoreManager.js"></script>
+    <script src="../../../../components/ProgressRestore.js"></script>
+    <script src="../../../../components/StateFederation.js"></script>
+    <script>
+    // ============================================
+    // STATE MANAGEMENT
+    // ============================================
+    const STORAGE_KEY = 'md100-midterm-simulation-state';
+
+    const defaultState = {
+        system: {
+            name: 'DESKTOP-HEX001',
+            edition: null,
+            tpm: false,
+            secureBoot: false,
+            domain: null,
+            uacLevel: 'default',
+            usmtCaptured: false
+        },
+        display: {
+            resolution: '1024x768',
+            scaling: 100,
+            nightLight: false
+        },
+        power: {
+            plan: 'balanced',
+            sleepMinutes: 30
+        },
+        registry: {
+            lockScreenAds: true
+        },
+        users: [],
+        groups: [
+            { name: 'Administrators', members: ['Administrator'] },
+            { name: 'Users', members: [] },
+            { name: 'Remote Desktop Users', members: [] },
+            { name: 'Backup Operators', members: [] },
+            { name: 'Power Users', members: [] }
+        ],
+        network: {
+            ip: null,
+            subnet: '255.255.255.0',
+            gateway: null,
+            dns: [],
+            dhcp: true,
+            rdpEnabled: false
+        },
+        storage: {
+            disks: [
+                { id: 0, size: 256, status: 'Online', partitionStyle: 'GPT', volumes: [{ letter: 'C', label: 'Windows', size: 255, fs: 'NTFS' }] },
+                { id: 1, size: 500, status: 'Offline', partitionStyle: null, volumes: [] },
+                { id: 2, size: 500, status: 'Offline', partitionStyle: null, volumes: [] }
+            ],
+            storageSpaces: { pools: [] },
+            chkdskRun: false
+        },
+        fileSystem: {
+            folders: [
+                { path: 'C:\\Data\\Reports', permissions: [] },
+                { path: 'C:\\Data\\Confidential', permissions: [], encrypted: false }
+            ],
+            shares: [],
+            auditEnabled: false
+        }
+    };
+
+    let state = JSON.parse(JSON.stringify(defaultState));
+
+    const _fed = StateFederation.register({
+        storageKey: STORAGE_KEY,
+        syncKey: 'md100-midterm-sync',
+        courseProgressKey: 'midterm',
+        courseProgressProvider: 'md100',
+        courseProgressComponent: 'guiLab',
+        extract: () => ({ timestamp: Date.now() }),
+        merge: null,
+        fromSync: null,
+        fromCompletion: (data) => data,
+        resumeText: null
+    });
+
+    function loadState() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                state = JSON.parse(JSON.stringify(defaultState));
+                for (const key of Object.keys(parsed)) {
+                    if (typeof parsed[key] === 'object' && parsed[key] !== null && !Array.isArray(parsed[key]) && state[key]) {
+                        Object.assign(state[key], parsed[key]);
+                    } else {
+                        state[key] = parsed[key];
+                    }
+                }
+                if (!state.fileSystem.folders) state.fileSystem.folders = defaultState.fileSystem.folders;
+                state.groups.forEach(g => { if (!g.members) g.members = []; });
+            }
+        } catch (e) { console.error('Error loading state:', e); }
+    }
+
+    let _renderPending = false;
+    function saveState() {
+        _fed.save(state);
+        if (!_renderPending) {
+            _renderPending = true;
+            requestAnimationFrame(() => {
+                _renderPending = false;
+                checkObjectives();
+                renderCurrentTool();
+            });
+        }
+    }
+
+    function resetSimulation() {
+        if (confirm('Reset all simulation progress? This cannot be undone.')) {
+            state = JSON.parse(JSON.stringify(defaultState));
+            _fed.reset();
+            localStorage.removeItem('md100-midterm-docs');
+            location.reload();
+        }
+    }
+
+    // ============================================
+    // OBJECTIVES SYSTEM
+    // ============================================
+    const objectives = [
+        // Phase 1: Deployment
+        { id: 'd1', phase: 'Deployment', text: 'Rename computer to HEX-WS01', check: () => state.system.name === 'HEX-WS01' },
+        { id: 'd2', phase: 'Deployment', text: 'Select Windows 11 Pro edition', check: () => state.system.edition === 'Windows 11 Pro' },
+        { id: 'd3', phase: 'Deployment', text: 'Verify TPM 2.0 and Secure Boot enabled', check: () => state.system.tpm && state.system.secureBoot },
+        { id: 'd4', phase: 'Deployment', text: 'Capture user profile with USMT ScanState', check: () => state.system.usmtCaptured },
+
+        // Phase 2: Identity
+        { id: 'a1', phase: 'Identity', text: 'Create local user account "jsmith"', check: () => state.users.some(u => u.username.toLowerCase() === 'jsmith') },
+        { id: 'a2', phase: 'Identity', text: 'Add jsmith to Remote Desktop Users', check: () => state.groups.some(g => g.name === 'Remote Desktop Users' && g.members.some(m => m.toLowerCase() === 'jsmith')) },
+        { id: 'a3', phase: 'Identity', text: 'Set UAC to "Always Notify"', check: () => state.system.uacLevel === 'always' },
+        { id: 'a4', phase: 'Identity', text: 'Join hexworth.local domain', check: () => state.system.domain === 'hexworth.local' },
+
+        // Phase 3: Configuration
+        { id: 'c1', phase: 'Configuration', text: 'Set display to 1920x1080 at 125% scaling', check: () => state.display.resolution === '1920x1080' && state.display.scaling === 125 },
+        { id: 'c2', phase: 'Configuration', text: 'Enable Night Light', check: () => state.display.nightLight },
+        { id: 'c3', phase: 'Configuration', text: 'Switch to High Performance power plan', check: () => state.power.plan === 'high-performance' },
+        { id: 'c4', phase: 'Configuration', text: 'Set sleep timer to 10 minutes', check: () => state.power.sleepMinutes === 10 },
+        { id: 'c5', phase: 'Configuration', text: 'Disable Lock Screen ads via Registry', check: () => !state.registry.lockScreenAds },
+
+        // Phase 4: Networking
+        { id: 'n1', phase: 'Networking', text: 'Configure static IP: 192.168.1.100', check: () => state.network.ip === '192.168.1.100' },
+        { id: 'n2', phase: 'Networking', text: 'Set DNS servers (8.8.8.8, 8.8.4.4)', check: () => state.network.dns.includes('8.8.8.8') && state.network.dns.includes('8.8.4.4') },
+        { id: 'n3', phase: 'Networking', text: 'Set default gateway to 192.168.1.1', check: () => state.network.gateway === '192.168.1.1' },
+        { id: 'n4', phase: 'Networking', text: 'Enable Remote Desktop', check: () => state.network.rdpEnabled },
+
+        // Phase 5: Storage
+        { id: 's1', phase: 'Storage', text: 'Initialize Disk 1 as GPT', check: () => state.storage.disks[1]?.status === 'Online' && state.storage.disks[1]?.partitionStyle === 'GPT' },
+        { id: 's2', phase: 'Storage', text: 'Create 500GB NTFS volume on Disk 1', check: () => state.storage.disks[1]?.volumes?.length > 0 },
+        { id: 's3', phase: 'Storage', text: 'Create Storage Spaces pool with Mirror', check: () => state.storage.storageSpaces.pools.some(p => p.resiliency === 'Mirror') },
+        { id: 's4', phase: 'Storage', text: 'Run CHKDSK on data volume', check: () => state.storage.chkdskRun },
+
+        // Phase 6: Data Access
+        { id: 'da1', phase: 'Data Access', text: 'Grant Sales group Modify on Reports', check: () => state.fileSystem.folders.some(f => f.path.includes('Reports') && f.permissions.some(p => p.group === 'Sales' && p.level === 'Modify')) },
+        { id: 'da2', phase: 'Data Access', text: 'Create \\\\HEX-WS01\\SharedData share', check: () => state.fileSystem.shares.some(s => s.name.toLowerCase() === 'shareddata') },
+        { id: 'da3', phase: 'Data Access', text: 'Encrypt Confidential folder with EFS', check: () => state.fileSystem.folders.some(f => f.path.includes('Confidential') && f.encrypted) },
+        { id: 'da4', phase: 'Data Access', text: 'Enable file access auditing', check: () => state.fileSystem.auditEnabled }
+    ];
+
+    function checkObjectives() {
+        let completed = 0;
+        const phases = {};
+        objectives.forEach(obj => {
+            try { obj.completed = obj.check(); } catch(e) { obj.completed = false; }
+            if (obj.completed) completed++;
+            if (!phases[obj.phase]) phases[obj.phase] = { total: 0, completed: 0 };
+            phases[obj.phase].total++;
+            if (obj.completed) phases[obj.phase].completed++;
+        });
+
+        document.getElementById('completedCount').textContent = completed;
+        document.getElementById('progressFill').style.width = ((completed / objectives.length) * 100) + '%';
+
+        const phaseOrder = ['Deployment', 'Identity', 'Configuration', 'Networking', 'Storage', 'Data Access'];
+        let currentPhase = 'Deployment';
+        for (const phase of phaseOrder) {
+            if (phases[phase] && phases[phase].completed < phases[phase].total) { currentPhase = phase; break; }
+            if (phases[phase]?.completed === phases[phase]?.total) {
+                currentPhase = phaseOrder[phaseOrder.indexOf(phase) + 1] || phase;
+            }
+        }
+        document.getElementById('phaseIndicator').textContent = `Phase ${phaseOrder.indexOf(currentPhase) + 1}: ${currentPhase}`;
+        renderObjectivesSidebar();
+
+        if (completed === objectives.length) {
+            setTimeout(() => {
+                document.getElementById('completionOverlay').classList.add('show');
+            }, 500);
+        }
+    }
+
+    function renderObjectivesSidebar() {
+        const sidebar = document.getElementById('objectivesSidebar');
+        const phases = {};
+        objectives.forEach(obj => {
+            if (!phases[obj.phase]) phases[obj.phase] = [];
+            phases[obj.phase].push(obj);
+        });
+        let html = '';
+        let phaseNum = 1;
+        for (const [phaseName, objs] of Object.entries(phases)) {
+            const completed = objs.filter(o => o.completed).length;
+            const isComplete = completed === objs.length;
+            html += `<div class="phase-section">
+                <div class="phase-header">
+                    <h4>Phase ${phaseNum}: ${phaseName}</h4>
+                    <span class="status ${isComplete ? 'complete' : ''}">${isComplete ? '&#10003; Complete' : `${completed}/${objs.length}`}</span>
+                </div>
+                ${objs.map(obj => `
+                    <div class="objective-item ${obj.completed ? 'completed' : ''}">
+                        <div class="obj-check">${obj.completed ? '&#10003;' : ''}</div>
+                        <span>${obj.text}</span>
+                    </div>
+                `).join('')}
+            </div>`;
+            phaseNum++;
+        }
+        sidebar.innerHTML = html;
+    }
+
+    // ============================================
+    // TAB SWITCHING
+    // ============================================
+    function switchTab(tab) {
+        document.querySelectorAll('.workspace-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.workspace-content').forEach(c => c.classList.remove('active'));
+        document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+        document.getElementById(`${tab}-content`).classList.add('active');
+        if (tab === 'terminal') document.getElementById('terminalInput').focus();
+    }
+
+    // ============================================
+    // GUI TOOLS
+    // ============================================
+    let currentTool = 'dashboard';
+
+    function openTool(tool) {
+        currentTool = tool;
+        document.querySelectorAll('.gui-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`[data-tool="${tool}"]`)?.classList.add('active');
+        renderCurrentTool();
+    }
+
+    function renderCurrentTool() {
+        const panel = document.getElementById('guiPanel');
+        switch (currentTool) {
+            case 'dashboard': panel.innerHTML = renderDashboard(); break;
+            case 'settings': panel.innerHTML = renderSettings(); break;
+            case 'users': panel.innerHTML = renderUserAccounts(); break;
+            case 'network': panel.innerHTML = renderNetworkConfig(); break;
+            case 'disk': panel.innerHTML = renderDiskManagement(); break;
+            case 'files': panel.innerHTML = renderFileExplorer(); break;
+            default: panel.innerHTML = renderDashboard();
+        }
+    }
+
+    // Dashboard
+    function renderDashboard() {
+        return `
+            <div class="tool-header"><h3>System Dashboard - ${state.system.name}</h3></div>
+            <div class="panel-section">
+                <h4>System Status</h4>
+                <table class="data-table">
+                    <tr><td style="width:160px">Computer Name</td><td><strong>${state.system.name}</strong></td></tr>
+                    <tr><td>Edition</td><td>${state.system.edition || '<span style="color:#f59e0b">Not selected</span>'}</td></tr>
+                    <tr><td>IP Address</td><td>${state.network.ip || '<span style="color:#f59e0b">DHCP (auto)</span>'}</td></tr>
+                    <tr><td>Domain</td><td>${state.system.domain || '<span style="color:#888">WORKGROUP</span>'}</td></tr>
+                    <tr><td>TPM 2.0</td><td>${state.system.tpm ? '<span style="color:#22c55e">Enabled</span>' : '<span style="color:#888">Disabled</span>'}</td></tr>
+                    <tr><td>Secure Boot</td><td>${state.system.secureBoot ? '<span style="color:#22c55e">Enabled</span>' : '<span style="color:#888">Disabled</span>'}</td></tr>
+                    <tr><td>UAC Level</td><td>${state.system.uacLevel}</td></tr>
+                </table>
+            </div>
+            <div class="panel-section">
+                <h4>Quick Actions</h4>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    <button class="action-btn" onclick="showModal('renameComputer')">Rename Computer</button>
+                    <button class="action-btn" onclick="showModal('selectEdition')">Select Edition</button>
+                    <button class="action-btn" onclick="showModal('securityHardware')">TPM / Secure Boot</button>
+                    <button class="action-btn" onclick="showModal('joinDomain')">Join Domain</button>
+                    <button class="action-btn" onclick="showModal('runUSMT')">Run USMT</button>
+                </div>
+            </div>
+            <div class="panel-section">
+                <h4>Mission Progress</h4>
+                <div style="background:#1a1a1a;border-radius:8px;height:20px;overflow:hidden">
+                    <div style="background:linear-gradient(90deg,#f59e0b,#22c55e);height:100%;width:${(objectives.filter(o=>o.completed).length/objectives.length)*100}%;transition:width 0.5s"></div>
+                </div>
+                <p style="color:#fbbf24;font-size:0.9rem;margin-top:8px;text-align:center">${objectives.filter(o=>o.completed).length} / ${objectives.length} Objectives Complete</p>
+            </div>
+        `;
+    }
+
+    // Settings
+    function renderSettings() {
+        return `
+            <div class="tool-header"><h3>Windows Settings</h3></div>
+            <div class="panel-section">
+                <h4>Display</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Resolution</label>
+                        <select id="setResolution" onchange="applyDisplaySettings()">
+                            <option ${state.display.resolution === '1024x768' ? 'selected' : ''}>1024x768</option>
+                            <option ${state.display.resolution === '1280x720' ? 'selected' : ''}>1280x720</option>
+                            <option ${state.display.resolution === '1366x768' ? 'selected' : ''}>1366x768</option>
+                            <option ${state.display.resolution === '1920x1080' ? 'selected' : ''}>1920x1080</option>
+                            <option ${state.display.resolution === '2560x1440' ? 'selected' : ''}>2560x1440</option>
+                            <option ${state.display.resolution === '3840x2160' ? 'selected' : ''}>3840x2160</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Scaling (%)</label>
+                        <select id="setScaling" onchange="applyDisplaySettings()">
+                            <option value="100" ${state.display.scaling === 100 ? 'selected' : ''}>100%</option>
+                            <option value="125" ${state.display.scaling === 125 ? 'selected' : ''}>125%</option>
+                            <option value="150" ${state.display.scaling === 150 ? 'selected' : ''}>150%</option>
+                            <option value="175" ${state.display.scaling === 175 ? 'selected' : ''}>175%</option>
+                            <option value="200" ${state.display.scaling === 200 ? 'selected' : ''}>200%</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-label">Night Light<small>Reduces blue light to help you sleep</small></div>
+                    <button class="toggle-switch ${state.display.nightLight ? 'on' : ''}" onclick="toggleNightLight()"></button>
+                </div>
+            </div>
+            <div class="panel-section">
+                <h4>Power &amp; Sleep</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Power Plan</label>
+                        <select id="setPowerPlan" onchange="applyPowerSettings()">
+                            <option value="balanced" ${state.power.plan === 'balanced' ? 'selected' : ''}>Balanced</option>
+                            <option value="power-saver" ${state.power.plan === 'power-saver' ? 'selected' : ''}>Power Saver</option>
+                            <option value="high-performance" ${state.power.plan === 'high-performance' ? 'selected' : ''}>High Performance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Sleep after (minutes)</label>
+                        <select id="setSleep" onchange="applyPowerSettings()">
+                            <option value="5" ${state.power.sleepMinutes === 5 ? 'selected' : ''}>5</option>
+                            <option value="10" ${state.power.sleepMinutes === 10 ? 'selected' : ''}>10</option>
+                            <option value="15" ${state.power.sleepMinutes === 15 ? 'selected' : ''}>15</option>
+                            <option value="30" ${state.power.sleepMinutes === 30 ? 'selected' : ''}>30</option>
+                            <option value="60" ${state.power.sleepMinutes === 60 ? 'selected' : ''}>60</option>
+                            <option value="0" ${state.power.sleepMinutes === 0 ? 'selected' : ''}>Never</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-section">
+                <h4>Registry Tweaks</h4>
+                <div class="toggle-row">
+                    <div class="toggle-label">Lock Screen Ads<small>HKCU\\SOFTWARE\\Microsoft\\Windows\\ContentDeliveryManager\\RotatingLockScreenEnabled</small></div>
+                    <button class="toggle-switch ${state.registry.lockScreenAds ? 'on' : ''}" onclick="toggleLockScreenAds()"></button>
+                </div>
+            </div>
+        `;
+    }
+
+    function applyDisplaySettings() {
+        state.display.resolution = document.getElementById('setResolution').value;
+        state.display.scaling = parseInt(document.getElementById('setScaling').value);
+        saveState();
+        showNotification('Display settings applied!');
+    }
+
+    function toggleNightLight() {
+        state.display.nightLight = !state.display.nightLight;
+        saveState();
+        showNotification(`Night Light ${state.display.nightLight ? 'enabled' : 'disabled'}`);
+    }
+
+    function applyPowerSettings() {
+        state.power.plan = document.getElementById('setPowerPlan').value;
+        state.power.sleepMinutes = parseInt(document.getElementById('setSleep').value);
+        saveState();
+        showNotification('Power settings applied!');
+    }
+
+    function toggleLockScreenAds() {
+        state.registry.lockScreenAds = !state.registry.lockScreenAds;
+        saveState();
+        showNotification(`Lock Screen ads ${state.registry.lockScreenAds ? 'enabled' : 'disabled'}`);
+    }
+
+    // User Accounts
+    function renderUserAccounts() {
+        return `
+            <div class="tool-header">
+                <h3>User Accounts</h3>
+                <button class="action-btn" onclick="showModal('createUser')">Add User</button>
+            </div>
+            <div class="panel-section">
+                <h4>Local Users (${state.users.length})</h4>
+                ${state.users.length === 0 ? '<p style="color:#666;font-size:0.85rem">No user accounts created yet</p>' : `
+                    <table class="data-table">
+                        <tr><th>Name</th><th>Username</th><th>Type</th><th>Actions</th></tr>
+                        ${state.users.map(u => `<tr>
+                            <td>${u.fullName}</td><td>${u.username}</td><td>${u.type || 'Standard'}</td>
+                            <td><button class="small-btn" onclick="deleteUser('${u.username}')">Delete</button></td>
+                        </tr>`).join('')}
+                    </table>
+                `}
+            </div>
+            <div class="panel-section">
+                <h4>Local Groups</h4>
+                <table class="data-table">
+                    <tr><th>Group</th><th>Members</th><th>Actions</th></tr>
+                    ${state.groups.map(g => `<tr>
+                        <td>${g.name}</td>
+                        <td>${g.members.length > 0 ? g.members.join(', ') : '<span style="color:#666">empty</span>'}</td>
+                        <td><button class="small-btn" onclick="showModal('manageMembers', '${g.name}')">Manage</button></td>
+                    </tr>`).join('')}
+                </table>
+            </div>
+            <div class="panel-section">
+                <h4>User Account Control (UAC)</h4>
+                <div class="form-group">
+                    <label>UAC Notification Level</label>
+                    <select id="uacLevel" onchange="setUACLevel()">
+                        <option value="always" ${state.system.uacLevel === 'always' ? 'selected' : ''}>Always notify (highest security)</option>
+                        <option value="default" ${state.system.uacLevel === 'default' ? 'selected' : ''}>Notify only when apps try to make changes (default)</option>
+                        <option value="no-dimming" ${state.system.uacLevel === 'no-dimming' ? 'selected' : ''}>Notify without dimming desktop</option>
+                        <option value="never" ${state.system.uacLevel === 'never' ? 'selected' : ''}>Never notify (not recommended)</option>
+                    </select>
+                </div>
+                <p style="color:#9ca3af;font-size:0.8rem">Current: <strong>${state.system.uacLevel}</strong></p>
+            </div>
+        `;
+    }
+
+    function setUACLevel() {
+        state.system.uacLevel = document.getElementById('uacLevel').value;
+        saveState();
+        showNotification(`UAC set to "${state.system.uacLevel}"`);
+    }
+
+    function deleteUser(username) {
+        state.users = state.users.filter(u => u.username !== username);
+        state.groups.forEach(g => { g.members = g.members.filter(m => m !== username); });
+        saveState();
+        showNotification(`User "${username}" deleted`);
+    }
+
+    // Network Config
+    function renderNetworkConfig() {
+        return `
+            <div class="tool-header"><h3>Network Configuration</h3></div>
+            <div class="panel-section">
+                <h4>Ethernet Adapter</h4>
+                <div class="toggle-row" style="margin-bottom:12px">
+                    <div class="toggle-label">DHCP (Automatic IP)<small>Disable to configure static IP</small></div>
+                    <button class="toggle-switch ${state.network.dhcp ? 'on' : ''}" onclick="toggleDHCP()"></button>
+                </div>
+                ${!state.network.dhcp ? `
+                <div class="form-row">
+                    <div class="form-group"><label>IP Address</label><input type="text" id="netIP" value="${state.network.ip || ''}" placeholder="192.168.1.100"></div>
+                    <div class="form-group"><label>Subnet Mask</label><input type="text" id="netSubnet" value="${state.network.subnet}" placeholder="255.255.255.0"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Default Gateway</label><input type="text" id="netGateway" value="${state.network.gateway || ''}" placeholder="192.168.1.1"></div>
+                    <div class="form-group"><label>Primary DNS</label><input type="text" id="netDNS1" value="${state.network.dns[0] || ''}" placeholder="8.8.8.8"></div>
+                </div>
+                <div class="form-group"><label>Secondary DNS</label><input type="text" id="netDNS2" value="${state.network.dns[1] || ''}" placeholder="8.8.4.4"></div>
+                <button class="action-btn primary" onclick="applyNetworkConfig()">Apply</button>
+                ` : '<p style="color:#9ca3af;font-size:0.85rem">IP assigned automatically via DHCP. Disable DHCP to configure a static IP.</p>'}
+            </div>
+            <div class="panel-section">
+                <h4>Remote Access</h4>
+                <div class="toggle-row">
+                    <div class="toggle-label">Remote Desktop<small>Allow remote connections to this computer (Pro edition required)</small></div>
+                    <button class="toggle-switch ${state.network.rdpEnabled ? 'on' : ''}" onclick="toggleRDP()"></button>
+                </div>
+            </div>
+            <div class="panel-section">
+                <h4>Tip</h4>
+                <p style="color:#9ca3af;font-size:0.85rem">For the Hexworth branch, use:<br>
+                IP: <strong>192.168.1.100</strong> | Gateway: <strong>192.168.1.1</strong><br>
+                DNS: <strong>8.8.8.8</strong>, <strong>8.8.4.4</strong></p>
+            </div>
+        `;
+    }
+
+    function toggleDHCP() {
+        state.network.dhcp = !state.network.dhcp;
+        if (state.network.dhcp) { state.network.ip = null; state.network.gateway = null; state.network.dns = []; }
+        saveState();
+    }
+
+    function applyNetworkConfig() {
+        state.network.ip = document.getElementById('netIP').value.trim();
+        state.network.subnet = document.getElementById('netSubnet').value.trim();
+        state.network.gateway = document.getElementById('netGateway').value.trim();
+        const dns = [];
+        const d1 = document.getElementById('netDNS1').value.trim();
+        const d2 = document.getElementById('netDNS2').value.trim();
+        if (d1) dns.push(d1);
+        if (d2) dns.push(d2);
+        state.network.dns = dns;
+        saveState();
+        showNotification('Network configuration applied!');
+    }
+
+    function toggleRDP() {
+        if (!state.system.edition || !state.system.edition.includes('Pro')) {
+            showNotification('Remote Desktop requires Windows Pro edition', true);
+            return;
+        }
+        state.network.rdpEnabled = !state.network.rdpEnabled;
+        saveState();
+        showNotification(`Remote Desktop ${state.network.rdpEnabled ? 'enabled' : 'disabled'}`);
+    }
+
+    // Disk Management
+    function renderDiskManagement() {
+        return `
+            <div class="tool-header"><h3>Disk Management</h3></div>
+            <div class="panel-section">
+                <h4>Physical Disks</h4>
+                <table class="data-table">
+                    <tr><th>Disk</th><th>Size</th><th>Status</th><th>Style</th><th>Actions</th></tr>
+                    ${state.storage.disks.map(d => `<tr>
+                        <td>Disk ${d.id}</td><td>${d.size} GB</td>
+                        <td><span class="status-badge ${d.status.toLowerCase()}">${d.status}</span></td>
+                        <td>${d.partitionStyle || 'Not initialized'}</td>
+                        <td>${d.status === 'Offline' ? `<button class="small-btn" onclick="initDisk(${d.id})">Initialize</button>` :
+                            (d.id > 0 && d.volumes.length === 0 ? `<button class="small-btn" onclick="showModal('createVolume', ${d.id})">New Volume</button>` : '')}
+                        </td>
+                    </tr>`).join('')}
+                </table>
+            </div>
+            <div class="panel-section">
+                <h4>Volumes</h4>
+                <table class="data-table">
+                    <tr><th>Drive</th><th>Label</th><th>Size</th><th>FS</th><th>Disk</th></tr>
+                    ${state.storage.disks.flatMap(d => d.volumes.map(v => `<tr>
+                        <td>${v.letter}:</td><td>${v.label}</td><td>${v.size} GB</td><td>${v.fs}</td><td>Disk ${d.id}</td>
+                    </tr>`)).join('')}
+                </table>
+            </div>
+            <div class="panel-section">
+                <h4>Storage Spaces</h4>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <span style="color:#9ca3af;font-size:0.85rem">${state.storage.storageSpaces.pools.length} pool(s)</span>
+                    <button class="action-btn" onclick="showModal('createPool')">Create Pool</button>
+                </div>
+                ${state.storage.storageSpaces.pools.length > 0 ? `
+                    <table class="data-table">
+                        <tr><th>Name</th><th>Resiliency</th><th>Disks</th><th>Size</th></tr>
+                        ${state.storage.storageSpaces.pools.map(p => `<tr>
+                            <td>${p.name}</td><td>${p.resiliency}</td><td>${p.disks} disks</td><td>${p.size} GB</td>
+                        </tr>`).join('')}
+                    </table>
+                ` : ''}
+            </div>
+            <div class="panel-section">
+                <h4>Disk Health</h4>
+                <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:10px">Run CHKDSK to scan for errors and repair the file system.</p>
+                <div style="display:flex;align-items:center;gap:15px">
+                    <span>CHKDSK: ${state.storage.chkdskRun ? '<span style="color:#22c55e">Completed</span>' : '<span style="color:#888">Not run</span>'}</span>
+                    <button class="action-btn ${state.storage.chkdskRun ? '' : 'primary'}" onclick="runChkdsk()">
+                        ${state.storage.chkdskRun ? 'Run Again' : 'Run CHKDSK'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function initDisk(id) {
+        const d = state.storage.disks.find(x => x.id === id);
+        if (d) { d.status = 'Online'; d.partitionStyle = 'GPT'; saveState(); showNotification(`Disk ${id} initialized as GPT`); }
+    }
+
+    function runChkdsk() {
+        state.storage.chkdskRun = true;
+        saveState();
+        showNotification('CHKDSK completed - no errors found');
+    }
+
+    // File Explorer
+    function renderFileExplorer() {
+        return `
+            <div class="tool-header"><h3>File Explorer</h3></div>
+            <div class="panel-section">
+                <h4>Folders &amp; NTFS Permissions</h4>
+                ${state.fileSystem.folders.map(f => `
+                    <div style="background:rgba(0,0,0,0.2);border:1px solid #333;border-radius:6px;padding:12px;margin-bottom:10px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <strong style="color:#60a5fa;font-size:0.9rem">${f.path}</strong>
+                            <button class="small-btn" onclick="showModal('addPermission', '${f.path}')">Add Permission</button>
+                        </div>
+                        ${f.encrypted ? '<span style="color:#22c55e;font-size:0.75rem">EFS Encrypted</span>' : ''}
+                        ${f.permissions.length > 0 ? `
+                            <table class="data-table" style="margin-top:6px">
+                                <tr><th>Group/User</th><th>Permission</th></tr>
+                                ${f.permissions.map(p => `<tr><td>${p.group}</td><td>${p.level}</td></tr>`).join('')}
+                            </table>
+                        ` : '<p style="color:#666;font-size:0.8rem">No explicit permissions set</p>'}
+                    </div>
+                `).join('')}
+            </div>
+            <div class="panel-section">
+                <h4>Network Shares</h4>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <span style="color:#9ca3af;font-size:0.85rem">${state.fileSystem.shares.length} share(s)</span>
+                    <button class="action-btn" onclick="showModal('createShare')">New Share</button>
+                </div>
+                ${state.fileSystem.shares.length > 0 ? `
+                    <table class="data-table">
+                        <tr><th>Name</th><th>Path</th><th>Permission</th></tr>
+                        ${state.fileSystem.shares.map(s => `<tr><td>\\\\${state.system.name}\\${s.name}</td><td>${s.path}</td><td>${s.permission || 'Read'}</td></tr>`).join('')}
+                    </table>
+                ` : ''}
+            </div>
+            <div class="panel-section">
+                <h4>Security</h4>
+                <div class="toggle-row">
+                    <div class="toggle-label">EFS Encryption (Confidential folder)<small>Encrypts C:\\Data\\Confidential with Encrypting File System</small></div>
+                    <button class="toggle-switch ${state.fileSystem.folders.find(f => f.path.includes('Confidential'))?.encrypted ? 'on' : ''}" onclick="toggleEFS()"></button>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-label">File Access Auditing<small>Log access attempts in Event Viewer</small></div>
+                    <button class="toggle-switch ${state.fileSystem.auditEnabled ? 'on' : ''}" onclick="toggleAudit()"></button>
+                </div>
+            </div>
+        `;
+    }
+
+    function toggleEFS() {
+        const f = state.fileSystem.folders.find(x => x.path.includes('Confidential'));
+        if (f) { f.encrypted = !f.encrypted; saveState(); showNotification(`EFS ${f.encrypted ? 'enabled' : 'disabled'} on Confidential`); }
+    }
+
+    function toggleAudit() {
+        state.fileSystem.auditEnabled = !state.fileSystem.auditEnabled;
+        saveState();
+        showNotification(`File access auditing ${state.fileSystem.auditEnabled ? 'enabled' : 'disabled'}`);
+    }
+
+    // ============================================
+    // MODAL SYSTEM
+    // ============================================
+    function showModal(type, param) {
+        const overlay = document.getElementById('modalOverlay');
+        const content = document.getElementById('modalContent');
+        let html = '';
+
+        switch (type) {
+            case 'renameComputer':
+                html = `<h3>Rename Computer</h3>
+                    <div class="form-group"><label>New Computer Name</label><input type="text" id="newName" value="${state.system.name}" placeholder="HEX-WS01"></div>
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="renameComputer()">Rename</button></div>`;
+                break;
+
+            case 'selectEdition':
+                html = `<h3>Select Windows Edition</h3>
+                    <div class="form-group"><label>Edition</label>
+                        <select id="editionSelect">
+                            <option value="">-- Select --</option>
+                            <option ${state.system.edition === 'Windows 11 Home' ? 'selected' : ''}>Windows 11 Home</option>
+                            <option ${state.system.edition === 'Windows 11 Pro' ? 'selected' : ''}>Windows 11 Pro</option>
+                            <option ${state.system.edition === 'Windows 11 Enterprise' ? 'selected' : ''}>Windows 11 Enterprise</option>
+                            <option ${state.system.edition === 'Windows 11 Education' ? 'selected' : ''}>Windows 11 Education</option>
+                        </select>
+                    </div>
+                    <p style="color:#9ca3af;font-size:0.8rem">Pro or Enterprise required for: BitLocker, Remote Desktop, Group Policy, domain join.</p>
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="selectEdition()">Apply</button></div>`;
+                break;
+
+            case 'securityHardware':
+                html = `<h3>Security Hardware</h3>
+                    <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:15px">Windows 11 requires TPM 2.0 and Secure Boot for installation.</p>
+                    <div class="form-group"><label><input type="checkbox" id="tpmCheck" ${state.system.tpm ? 'checked' : ''}> TPM 2.0 Enabled</label></div>
+                    <div class="form-group"><label><input type="checkbox" id="sbCheck" ${state.system.secureBoot ? 'checked' : ''}> Secure Boot Enabled</label></div>
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="applySecurityHW()">Apply</button></div>`;
+                break;
+
+            case 'joinDomain':
+                html = `<h3>Join Domain</h3>
+                    <div class="form-group"><label>Domain Name</label><input type="text" id="domainName" value="hexworth.local"></div>
+                    <div class="form-group"><label>Username</label><input type="text" id="domainUser" value="Administrator"></div>
+                    <div class="form-group"><label>Password</label><input type="password" value="P@ssw0rd"></div>
+                    ${!state.system.edition?.includes('Pro') && !state.system.edition?.includes('Enterprise') ? '<p style="color:#f87171;font-size:0.85rem">Warning: Domain join requires Pro or Enterprise edition.</p>' : ''}
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="joinDomain()">Join</button></div>`;
+                break;
+
+            case 'runUSMT':
+                html = `<h3>User State Migration Tool (USMT)</h3>
+                    <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:15px">ScanState captures user profiles, settings, and data for migration to a new OS or machine.</p>
+                    <div class="form-group"><label>Save Location</label><input type="text" value="C:\\Migration" disabled></div>
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="runUSMT()">Run ScanState</button></div>`;
+                break;
+
+            case 'createUser':
+                html = `<h3>Create Local User</h3>
+                    <div class="form-group"><label>Full Name</label><input type="text" id="userFullName" placeholder="John Smith"></div>
+                    <div class="form-group"><label>Username</label><input type="text" id="userName" placeholder="jsmith"></div>
+                    <div class="form-group"><label>Account Type</label>
+                        <select id="userType"><option value="Standard">Standard User</option><option value="Administrator">Administrator</option></select>
+                    </div>
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="createUser()">Create</button></div>`;
+                break;
+
+            case 'manageMembers':
+                const group = state.groups.find(g => g.name === param);
+                const members = group?.members || [];
+                const available = state.users.filter(u => !members.includes(u.username));
+                html = `<h3>Members: ${param}</h3>
+                    <div class="panel-section" style="margin:0 0 15px 0">
+                        <h4>Current Members (${members.length})</h4>
+                        ${members.length === 0 ? '<p style="color:#666;font-size:0.85rem">No members</p>' : `
+                            <table class="data-table"><tr><th>User</th><th>Action</th></tr>
+                            ${members.map(m => `<tr><td>${m}</td><td><button class="small-btn" onclick="removeFromGroup('${param}','${m}')">Remove</button></td></tr>`).join('')}
+                            </table>`}
+                    </div>
+                    ${available.length > 0 ? `<div class="form-group"><label>Add User</label>
+                        <div style="display:flex;gap:8px"><select id="addMemberSelect" style="flex:1">${available.map(u => `<option value="${u.username}">${u.fullName} (${u.username})</option>`).join('')}</select>
+                        <button class="action-btn primary" onclick="addToGroup('${param}',document.getElementById('addMemberSelect').value)">Add</button></div></div>` : ''}
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Done</button></div>`;
+                break;
+
+            case 'createVolume':
+                html = `<h3>Create Volume</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Drive Letter</label><select id="volLetter">${['D','E','F','G','H'].map(l => `<option>${l}</option>`).join('')}</select></div>
+                        <div class="form-group"><label>File System</label><select id="volFS"><option>NTFS</option><option>exFAT</option><option>ReFS</option></select></div>
+                    </div>
+                    <div class="form-group"><label>Volume Label</label><input type="text" id="volLabel" placeholder="Data"></div>
+                    <input type="hidden" id="volDiskId" value="${param}">
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="createVolume()">Create</button></div>`;
+                break;
+
+            case 'createPool':
+                const offlineDisks = state.storage.disks.filter(d => d.id > 0 && d.status === 'Online' && d.volumes.length === 0);
+                html = `<h3>Create Storage Pool</h3>
+                    <div class="form-group"><label>Pool Name</label><input type="text" id="poolName" placeholder="DataPool"></div>
+                    <div class="form-group"><label>Resiliency</label>
+                        <select id="poolResiliency"><option>Simple</option><option>Mirror</option><option>Parity</option></select>
+                    </div>
+                    <p style="color:#9ca3af;font-size:0.8rem;margin-bottom:12px">Available disks: ${offlineDisks.length > 0 ? offlineDisks.map(d => `Disk ${d.id} (${d.size}GB)`).join(', ') : 'None (initialize disks first)'}</p>
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="createPool()">Create</button></div>`;
+                break;
+
+            case 'createShare':
+                html = `<h3>Create Network Share</h3>
+                    <div class="form-group"><label>Share Name</label><input type="text" id="shareName" placeholder="SharedData"></div>
+                    <div class="form-group"><label>Path</label><input type="text" id="sharePath" placeholder="C:\\Data\\SharedData"></div>
+                    <div class="form-group"><label>Share Permission</label>
+                        <select id="sharePerm"><option>Read</option><option>Change</option><option>Full Control</option></select>
+                    </div>
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="createShare()">Create</button></div>`;
+                break;
+
+            case 'addPermission':
+                html = `<h3>Add NTFS Permission</h3>
+                    <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:15px">Folder: <strong>${param}</strong></p>
+                    <div class="form-group"><label>Group or User</label><input type="text" id="permGroup" placeholder="Sales"></div>
+                    <div class="form-group"><label>Permission Level</label>
+                        <select id="permLevel"><option>Read</option><option>Read & Execute</option><option>Write</option><option>Modify</option><option>Full Control</option></select>
+                    </div>
+                    <input type="hidden" id="permPath" value="${param}">
+                    <div class="modal-actions"><button class="action-btn" onclick="hideModal()">Cancel</button><button class="action-btn primary" onclick="addPermission()">Apply</button></div>`;
+                break;
+        }
+
+        content.innerHTML = html;
+        overlay.classList.add('show');
+    }
+
+    function hideModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+    // Modal action handlers
+    function renameComputer() {
+        const n = document.getElementById('newName').value.trim();
+        if (n) { state.system.name = n; saveState(); hideModal(); showNotification(`Computer renamed to ${n}`); }
+    }
+
+    function selectEdition() {
+        const e = document.getElementById('editionSelect').value;
+        if (e) { state.system.edition = e; saveState(); hideModal(); showNotification(`Edition set to ${e}`); }
+    }
+
+    function applySecurityHW() {
+        state.system.tpm = document.getElementById('tpmCheck').checked;
+        state.system.secureBoot = document.getElementById('sbCheck').checked;
+        saveState(); hideModal();
+        showNotification('Security hardware settings applied');
+    }
+
+    function joinDomain() {
+        const d = document.getElementById('domainName').value.trim();
+        if (d) { state.system.domain = d; saveState(); hideModal(); showNotification(`Joined domain ${d}`); }
+    }
+
+    function runUSMT() {
+        state.system.usmtCaptured = true;
+        saveState(); hideModal();
+        showNotification('USMT ScanState completed - profile captured to C:\\Migration');
+    }
+
+    function createUser() {
+        const fullName = document.getElementById('userFullName').value.trim();
+        const username = document.getElementById('userName').value.trim();
+        const type = document.getElementById('userType').value;
+        if (fullName && username) {
+            state.users.push({ fullName, username, type });
+            saveState(); hideModal();
+            showNotification(`User "${username}" created`);
+        }
+    }
+
+    function addToGroup(groupName, username) {
+        const g = state.groups.find(x => x.name === groupName);
+        if (g && username && !g.members.includes(username)) {
+            g.members.push(username);
+            saveState();
+            showNotification(`Added ${username} to ${groupName}`);
+            showModal('manageMembers', groupName);
+        }
+    }
+
+    function removeFromGroup(groupName, username) {
+        const g = state.groups.find(x => x.name === groupName);
+        if (g) { g.members = g.members.filter(m => m !== username); saveState(); showModal('manageMembers', groupName); }
+    }
+
+    function createVolume() {
+        const diskId = parseInt(document.getElementById('volDiskId').value);
+        const letter = document.getElementById('volLetter').value;
+        const label = document.getElementById('volLabel').value.trim() || 'New Volume';
+        const fs = document.getElementById('volFS').value;
+        const disk = state.storage.disks.find(d => d.id === diskId);
+        if (disk) { disk.volumes.push({ letter, label, size: disk.size - 1, fs }); saveState(); hideModal(); showNotification(`Volume ${letter}: created`); }
+    }
+
+    function createPool() {
+        const name = document.getElementById('poolName').value.trim();
+        const resiliency = document.getElementById('poolResiliency').value;
+        const available = state.storage.disks.filter(d => d.id > 0 && d.status === 'Online' && d.volumes.length === 0);
+        if (!name) return;
+        if (resiliency === 'Mirror' && available.length < 2) { showNotification('Mirror requires at least 2 available disks', true); return; }
+        if (resiliency === 'Parity' && available.length < 3) { showNotification('Parity requires at least 3 available disks', true); return; }
+        const totalSize = available.reduce((s, d) => s + d.size, 0);
+        state.storage.storageSpaces.pools.push({ name, resiliency, disks: available.length, size: totalSize });
+        saveState(); hideModal();
+        showNotification(`Storage pool "${name}" created with ${resiliency} resiliency`);
+    }
+
+    function createShare() {
+        const name = document.getElementById('shareName').value.trim();
+        const path = document.getElementById('sharePath').value.trim();
+        const permission = document.getElementById('sharePerm').value;
+        if (name && path) { state.fileSystem.shares.push({ name, path, permission }); saveState(); hideModal(); showNotification(`Share "${name}" created`); }
+    }
+
+    function addPermission() {
+        const path = document.getElementById('permPath').value;
+        const group = document.getElementById('permGroup').value.trim();
+        const level = document.getElementById('permLevel').value;
+        const folder = state.fileSystem.folders.find(f => f.path === path);
+        if (folder && group) {
+            const existing = folder.permissions.findIndex(p => p.group === group);
+            if (existing >= 0) folder.permissions[existing].level = level;
+            else folder.permissions.push({ group, level });
+            saveState(); hideModal();
+            showNotification(`${group}: ${level} on ${path.split('\\').pop()}`);
+        }
+    }
+
+    // ============================================
+    // NOTIFICATIONS
+    // ============================================
+    function showNotification(msg, isError) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast' + (isError ? ' error' : '');
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // ============================================
+    // DOCUMENTATION
+    // ============================================
+    function saveDocs() {
+        localStorage.setItem('md100-midterm-docs', document.getElementById('docsEditor').value);
+        showNotification('Documentation saved');
+    }
+
+    function loadReferenceDoc() {
+        document.getElementById('docsEditor').value = `# MD-100 WORKSTATION Midterm - Command Reference
+# ================================================
+
+## Phase 1: Deployment
+Rename-Computer -NewName "HEX-WS01" -Force
+Get-TPM
+Confirm-SecureBootUEFI
+scanstate C:\\Migration /o
+
+## Phase 2: Identity
+net user jsmith P@ssw0rd123 /add
+net localgroup "Remote Desktop Users" jsmith /add
+# UAC: Set-ItemProperty via registry
+Add-Computer -DomainName hexworth.local -Credential (Get-Credential)
+
+## Phase 3: Configuration
+# Resolution/scaling: Settings > Display
+powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+powercfg /change standby-timeout-ac 10
+Set-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager" -Name "RotatingLockScreenEnabled" -Value 0
+
+## Phase 4: Networking
+New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 192.168.1.100 -PrefixLength 24 -DefaultGateway 192.168.1.1
+Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 8.8.8.8,8.8.4.4
+Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' -Name fDenyTSConnections -Value 0
+
+## Phase 5: Storage
+Initialize-Disk -Number 1 -PartitionStyle GPT
+New-Partition -DiskNumber 1 -UseMaximumSize -DriveLetter D | Format-Volume -FileSystem NTFS -NewFileSystemLabel "Data"
+New-StoragePool -FriendlyName "DataPool" -StorageSubsystemFriendlyName * -PhysicalDisks (Get-PhysicalDisk -CanPool $true)
+New-VirtualDisk -StoragePoolFriendlyName "DataPool" -ResiliencySetting Mirror -Size 500GB
+Repair-Volume -DriveLetter D -Scan
+
+## Phase 6: Data Access
+icacls "C:\\Data\\Reports" /grant Sales:(M)
+New-SmbShare -Name "SharedData" -Path "C:\\Data\\SharedData" -ReadAccess "Everyone"
+cipher /e "C:\\Data\\Confidential"
+auditpol /set /subcategory:"File System" /success:enable /failure:enable
+`;
+        showNotification('Reference document loaded');
+    }
+
+    // ============================================
+    // TERMINAL
+    // ============================================
+    let commandHistory = [];
+    let historyIndex = -1;
+    let currentDir = 'C:\\';
+
+    function addLine(text, cls = 'output') {
+        const out = document.getElementById('terminalOutput');
+        const line = document.createElement('div');
+        line.className = `terminal-line ${cls}`;
+        line.textContent = text;
+        out.appendChild(line);
+        // Cap at 500 lines
+        while (out.children.length > 500) out.removeChild(out.firstChild);
+        out.scrollTop = out.scrollHeight;
+    }
+
+    function extractParam(cmd, param) {
+        const regex = new RegExp(param + '\\s+["\']?([^"\'\\s-][^"\']*?)["\']?(?=\\s+-|\\s*$)', 'i');
+        const m = cmd.match(regex);
+        return m ? m[1].trim() : null;
+    }
+
+    function initTerminal() {
+        const input = document.getElementById('terminalInput');
+        addLine('Windows PowerShell', 'heading');
+        addLine('Copyright (C) Microsoft Corporation. All rights reserved.', 'dim');
+        addLine('Type "help" for available commands. Type "status" to check objectives.', 'info');
+        addLine('', 'output');
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = input.value.trim();
+                if (cmd) {
+                    addLine(`PS ${currentDir}> ${cmd}`, 'prompt');
+                    commandHistory.push(cmd);
+                    historyIndex = commandHistory.length;
+                    processCommand(cmd);
+                }
+                input.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) { historyIndex--; input.value = commandHistory[historyIndex]; }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) { historyIndex++; input.value = commandHistory[historyIndex]; }
+                else { historyIndex = commandHistory.length; input.value = ''; }
+            }
+        });
+    }
+
+    function processCommand(cmd) {
+        const lower = cmd.toLowerCase().trim();
+        const parts = cmd.trim().split(/\s+/);
+        const cmdName = parts[0].toLowerCase();
+
+        // System info
+        if (lower === 'hostname') { addLine(state.system.name); return; }
+        if (lower === 'whoami') { addLine(`${state.system.domain || state.system.name}\\Administrator`); return; }
+        if (lower === 'cls' || lower === 'clear') { document.getElementById('terminalOutput').innerHTML = ''; return; }
+        if (lower === 'help') {
+            addLine('Available Commands:', 'heading');
+            addLine('  hostname, whoami, systeminfo, cls/clear, status, help', 'info');
+            addLine('  Rename-Computer, Get-TPM, Confirm-SecureBootUEFI, scanstate', 'info');
+            addLine('  net user, net localgroup, New-LocalUser, Add-LocalGroupMember', 'info');
+            addLine('  powercfg, Set-ItemProperty, Add-Computer', 'info');
+            addLine('  ipconfig, ping, nslookup, New-NetIPAddress, Set-DnsClientServerAddress', 'info');
+            addLine('  Get-Disk, Initialize-Disk, New-Partition, Format-Volume', 'info');
+            addLine('  New-StoragePool, New-VirtualDisk, Repair-Volume', 'info');
+            addLine('  icacls, New-SmbShare, cipher, auditpol', 'info');
+            addLine('  cd, dir/ls, pwd', 'info');
+            return;
+        }
+        if (lower === 'status') {
+            addLine('=== Objective Status ===', 'heading');
+            objectives.forEach(o => {
+                addLine(`  [${o.completed ? 'X' : ' '}] ${o.text}`, o.completed ? 'success' : 'output');
+            });
+            const done = objectives.filter(o => o.completed).length;
+            addLine(`\n  ${done}/${objectives.length} complete`, done === objectives.length ? 'success' : 'info');
+            return;
+        }
+
+        if (lower === 'systeminfo') {
+            addLine(`Host Name:          ${state.system.name}`);
+            addLine(`OS Name:            ${state.system.edition || 'Not configured'}`);
+            addLine(`Domain:             ${state.system.domain || 'WORKGROUP'}`);
+            addLine(`TPM:                ${state.system.tpm ? 'Present' : 'Not detected'}`);
+            addLine(`Secure Boot:        ${state.system.secureBoot ? 'Enabled' : 'Disabled'}`);
+            addLine(`UAC Level:          ${state.system.uacLevel}`);
+            addLine(`Network:            ${state.network.ip || 'DHCP'}`);
+            return;
+        }
+
+        // Rename-Computer
+        if (cmdName === 'rename-computer') {
+            const name = extractParam(cmd, '-NewName') || parts[1];
+            if (name) {
+                state.system.name = name.replace(/['"]/g, '');
+                saveState();
+                addLine(`WARNING: Changes will take effect after restart. Computer renamed to ${state.system.name}`, 'success');
+            } else { addLine('Usage: Rename-Computer -NewName "HEX-WS01"', 'error'); }
+            return;
+        }
+
+        // Get-TPM
+        if (lower === 'get-tpm') {
+            addLine(`TpmPresent      : ${state.system.tpm ? 'True' : 'False'}`);
+            addLine(`TpmReady        : ${state.system.tpm ? 'True' : 'False'}`);
+            addLine(`ManufacturerVersion : 2.0`);
+            if (!state.system.tpm) addLine('TPM is not enabled. Enable in UEFI/BIOS settings.', 'warning');
+            return;
+        }
+
+        // Confirm-SecureBootUEFI
+        if (lower === 'confirm-securebootuefi') {
+            addLine(state.system.secureBoot ? 'True' : 'False');
+            return;
+        }
+
+        // scanstate
+        if (lower.startsWith('scanstate')) {
+            state.system.usmtCaptured = true;
+            saveState();
+            addLine('USMT ScanState Progress...', 'info');
+            addLine('  Collecting user settings...', 'output');
+            addLine('  Collecting documents...', 'output');
+            addLine('  Collecting application data...', 'output');
+            addLine('ScanState completed successfully.', 'success');
+            addLine('Data saved to C:\\Migration\\USMT\\', 'success');
+            return;
+        }
+
+        // net user
+        if (lower.startsWith('net user ') && !lower.includes('/delete')) {
+            const userParts = cmd.match(/net\s+user\s+(\S+)\s+(\S+)\s+\/add/i);
+            if (userParts) {
+                const username = userParts[1];
+                if (!state.users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+                    state.users.push({ fullName: username, username, type: 'Standard' });
+                    saveState();
+                    addLine(`The command completed successfully.`, 'success');
+                } else { addLine(`The account already exists.`, 'error'); }
+                return;
+            }
+            if (parts.length === 3 && !parts[2].startsWith('/')) {
+                // net user <name> <pass> without /add
+                addLine('Did you mean: net user USERNAME PASSWORD /add', 'warning');
+                return;
+            }
+            // net user (list)
+            addLine('User accounts for \\\\' + state.system.name, 'heading');
+            addLine('---------------------------------------');
+            addLine('Administrator');
+            state.users.forEach(u => addLine(u.username));
+            return;
+        }
+
+        // net localgroup
+        if (lower.startsWith('net localgroup')) {
+            const groupMatch = cmd.match(/net\s+localgroup\s+"?([^"]+?)"?\s+(\S+)\s+\/add/i);
+            if (groupMatch) {
+                const gName = groupMatch[1];
+                const uName = groupMatch[2];
+                const group = state.groups.find(g => g.name.toLowerCase() === gName.toLowerCase());
+                if (group) {
+                    if (!group.members.includes(uName)) { group.members.push(uName); saveState(); }
+                    addLine('The command completed successfully.', 'success');
+                } else { addLine(`The specified local group does not exist.`, 'error'); }
+                return;
+            }
+            // List groups
+            addLine('Aliases for \\\\' + state.system.name, 'heading');
+            state.groups.forEach(g => addLine(`  *${g.name}`));
+            return;
+        }
+
+        // New-LocalUser
+        if (cmdName === 'new-localuser') {
+            const name = extractParam(cmd, '-Name') || parts[1];
+            if (name) {
+                const clean = name.replace(/['"]/g, '');
+                if (!state.users.some(u => u.username.toLowerCase() === clean.toLowerCase())) {
+                    state.users.push({ fullName: clean, username: clean, type: 'Standard' });
+                    saveState();
+                    addLine(`Name    Enabled  Description`, 'dim');
+                    addLine(`----    -------  -----------`);
+                    addLine(`${clean}  True`);
+                } else { addLine(`User ${clean} already exists`, 'error'); }
+            } else { addLine('Usage: New-LocalUser -Name "jsmith" -NoPassword', 'error'); }
+            return;
+        }
+
+        // Add-LocalGroupMember
+        if (cmdName === 'add-localgroupmember') {
+            const gName = extractParam(cmd, '-Group');
+            const mName = extractParam(cmd, '-Member');
+            if (gName && mName) {
+                const g = state.groups.find(x => x.name.toLowerCase() === gName.replace(/['"]/g, '').toLowerCase());
+                const cleanM = mName.replace(/['"]/g, '');
+                if (g) {
+                    if (!g.members.includes(cleanM)) { g.members.push(cleanM); saveState(); }
+                    addLine(`Added ${cleanM} to ${g.name}`, 'success');
+                } else { addLine(`Group "${gName}" not found`, 'error'); }
+            } else { addLine('Usage: Add-LocalGroupMember -Group "Remote Desktop Users" -Member "jsmith"', 'error'); }
+            return;
+        }
+
+        // Add-Computer (join domain)
+        if (cmdName === 'add-computer') {
+            const domain = extractParam(cmd, '-DomainName');
+            if (domain) {
+                state.system.domain = domain.replace(/['"]/g, '');
+                saveState();
+                addLine(`Successfully joined domain ${state.system.domain}. Restart required.`, 'success');
+            } else { addLine('Usage: Add-Computer -DomainName "hexworth.local"', 'error'); }
+            return;
+        }
+
+        // powercfg
+        if (cmdName === 'powercfg') {
+            if (lower.includes('/list') || lower.includes('-list')) {
+                addLine('Existing Power Schemes (* = Active)', 'heading');
+                addLine(`  ${state.power.plan === 'balanced' ? '* ' : '  '}381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)`);
+                addLine(`  ${state.power.plan === 'power-saver' ? '* ' : '  '}a1841308-3541-4fab-bc81-f71556f20b4a  (Power saver)`);
+                addLine(`  ${state.power.plan === 'high-performance' ? '* ' : '  '}8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)`);
+                return;
+            }
+            if (lower.includes('/setactive') || lower.includes('-setactive')) {
+                if (lower.includes('8c5e7fda')) { state.power.plan = 'high-performance'; }
+                else if (lower.includes('a1841308')) { state.power.plan = 'power-saver'; }
+                else { state.power.plan = 'balanced'; }
+                saveState();
+                addLine(`Active power scheme set to: ${state.power.plan}`, 'success');
+                return;
+            }
+            if (lower.includes('/change') || lower.includes('-change')) {
+                const match = cmd.match(/standby-timeout-ac\s+(\d+)/i);
+                if (match) { state.power.sleepMinutes = parseInt(match[1]); saveState(); addLine('Power setting updated.', 'success'); }
+                return;
+            }
+            addLine('Usage: powercfg /list | /setactive GUID | /change standby-timeout-ac MINUTES', 'error');
+            return;
+        }
+
+        // Set-ItemProperty (registry and RDP)
+        if (cmdName === 'set-itemproperty') {
+            if (lower.includes('rotatinglockscreen') || lower.includes('contentdeliverymanager')) {
+                const val = cmd.match(/-Value\s+(\d)/i);
+                state.registry.lockScreenAds = val ? val[1] !== '0' : false;
+                saveState();
+                addLine('Registry value updated.', 'success');
+                return;
+            }
+            if (lower.includes('fdenytsconnections')) {
+                const val = cmd.match(/-Value\s+(\d)/i);
+                state.network.rdpEnabled = val ? val[1] === '0' : true;
+                saveState();
+                addLine(`Remote Desktop ${state.network.rdpEnabled ? 'enabled' : 'disabled'}.`, 'success');
+                return;
+            }
+            if (lower.includes('enablelua') || lower.includes('consentpromptbehavior')) {
+                state.system.uacLevel = 'always';
+                saveState();
+                addLine('UAC registry value updated.', 'success');
+                return;
+            }
+            addLine('Set-ItemProperty: Path and Name are required.', 'error');
+            return;
+        }
+
+        // ipconfig
+        if (lower === 'ipconfig' || lower === 'ipconfig /all') {
+            addLine('Windows IP Configuration', 'heading');
+            addLine('');
+            addLine('Ethernet adapter Ethernet:');
+            addLine(`   DHCP Enabled. . . . . . . : ${state.network.dhcp ? 'Yes' : 'No'}`);
+            addLine(`   IPv4 Address. . . . . . . : ${state.network.ip || '169.254.47.12 (APIPA)'}`);
+            addLine(`   Subnet Mask . . . . . . . : ${state.network.subnet}`);
+            addLine(`   Default Gateway . . . . . : ${state.network.gateway || ''}`);
+            addLine(`   DNS Servers . . . . . . . : ${state.network.dns.join(', ') || 'None configured'}`);
+            return;
+        }
+        if (lower === 'ipconfig /flushdns') { addLine('Successfully flushed the DNS Resolver Cache.', 'success'); return; }
+        if (lower === 'ipconfig /release') { state.network.ip = null; saveState(); addLine('IP address released.', 'info'); return; }
+        if (lower === 'ipconfig /renew') {
+            if (state.network.dhcp) { state.network.ip = '169.254.47.12'; saveState(); addLine('DHCP renewal... assigned APIPA address (no DHCP server found)', 'warning'); }
+            else { addLine('DHCP is disabled. Cannot renew.', 'error'); }
+            return;
+        }
+
+        // ping
+        if (cmdName === 'ping') {
+            const target = parts[1] || '127.0.0.1';
+            addLine(`Pinging ${target} with 32 bytes of data:`);
+            for (let i = 0; i < 4; i++) addLine(`Reply from ${target}: bytes=32 time=${Math.floor(Math.random()*10)+1}ms TTL=128`);
+            addLine(`\nPing statistics for ${target}: Sent = 4, Received = 4, Lost = 0`);
+            return;
+        }
+
+        // nslookup
+        if (cmdName === 'nslookup') {
+            const target = parts[1] || '';
+            addLine(`Server:  dns.google`);
+            addLine(`Address:  ${state.network.dns[0] || '8.8.8.8'}`);
+            addLine(`\nName:    ${target || 'localhost'}`);
+            addLine(`Address:  ${target ? '93.184.216.34' : '127.0.0.1'}`);
+            return;
+        }
+
+        // New-NetIPAddress
+        if (cmdName === 'new-netipaddress') {
+            const ip = extractParam(cmd, '-IPAddress');
+            const gw = extractParam(cmd, '-DefaultGateway');
+            const pl = extractParam(cmd, '-PrefixLength');
+            if (ip) {
+                state.network.ip = ip; state.network.dhcp = false;
+                if (gw) state.network.gateway = gw;
+                if (pl) {
+                    const prefix = parseInt(pl);
+                    if (prefix === 24) state.network.subnet = '255.255.255.0';
+                    else if (prefix === 16) state.network.subnet = '255.255.0.0';
+                }
+                saveState();
+                addLine(`IPAddress: ${ip}`, 'success');
+                if (gw) addLine(`DefaultGateway: ${gw}`, 'success');
+            } else { addLine('Usage: New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 192.168.1.100 -PrefixLength 24 -DefaultGateway 192.168.1.1', 'error'); }
+            return;
+        }
+
+        // Set-DnsClientServerAddress
+        if (cmdName === 'set-dnsclientserveraddress') {
+            const servers = extractParam(cmd, '-ServerAddresses');
+            if (servers) {
+                state.network.dns = servers.replace(/['"]/g, '').split(',').map(s => s.trim());
+                saveState();
+                addLine(`DNS servers set to: ${state.network.dns.join(', ')}`, 'success');
+            } else { addLine('Usage: Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 8.8.8.8,8.8.4.4', 'error'); }
+            return;
+        }
+
+        // Get-Disk
+        if (lower === 'get-disk') {
+            addLine('Number  FriendlyName   Size    PartitionStyle  OperationalStatus', 'dim');
+            addLine('------  ------------   ----    --------------  -----------------');
+            state.storage.disks.forEach(d => {
+                addLine(`${d.id}       Virtual Disk    ${d.size} GB  ${(d.partitionStyle || 'RAW').padEnd(14)}  ${d.status}`);
+            });
+            return;
+        }
+
+        // Initialize-Disk
+        if (cmdName === 'initialize-disk') {
+            const num = extractParam(cmd, '-Number');
+            const style = extractParam(cmd, '-PartitionStyle') || 'GPT';
+            if (num !== null) {
+                const disk = state.storage.disks.find(d => d.id === parseInt(num));
+                if (disk) { disk.status = 'Online'; disk.partitionStyle = style; saveState(); addLine(`Disk ${num} initialized as ${style}`, 'success'); }
+                else { addLine(`Disk ${num} not found`, 'error'); }
+            } else { addLine('Usage: Initialize-Disk -Number 1 -PartitionStyle GPT', 'error'); }
+            return;
+        }
+
+        // New-Partition
+        if (cmdName === 'new-partition') {
+            const num = extractParam(cmd, '-DiskNumber');
+            const letter = extractParam(cmd, '-DriveLetter');
+            if (num !== null) {
+                const disk = state.storage.disks.find(d => d.id === parseInt(num));
+                if (disk && disk.status === 'Online') {
+                    const dl = letter || 'D';
+                    disk.volumes.push({ letter: dl, label: 'New Volume', size: disk.size - 1, fs: 'RAW' });
+                    saveState();
+                    addLine(`DriveLetter: ${dl}`, 'success');
+                    addLine(`Size: ${disk.size - 1} GB`);
+                } else { addLine('Disk not found or not initialized', 'error'); }
+            }
+            return;
+        }
+
+        // Format-Volume
+        if (cmdName === 'format-volume') {
+            const letter = extractParam(cmd, '-DriveLetter');
+            const fs = extractParam(cmd, '-FileSystem') || 'NTFS';
+            const label = extractParam(cmd, '-NewFileSystemLabel');
+            if (letter) {
+                for (const d of state.storage.disks) {
+                    const v = d.volumes.find(v => v.letter === letter);
+                    if (v) { v.fs = fs; if (label) v.label = label.replace(/['"]/g, ''); break; }
+                }
+                saveState();
+                addLine(`Volume ${letter}: formatted as ${fs}`, 'success');
+            }
+            return;
+        }
+
+        // New-StoragePool
+        if (cmdName === 'new-storagepool') {
+            const name = extractParam(cmd, '-FriendlyName');
+            if (name) {
+                const available = state.storage.disks.filter(d => d.id > 0 && d.status === 'Online' && d.volumes.length === 0);
+                const totalSize = available.reduce((s, d) => s + d.size, 0);
+                state.storage.storageSpaces.pools.push({ name: name.replace(/['"]/g, ''), resiliency: 'Simple', disks: available.length, size: totalSize });
+                saveState();
+                addLine(`Storage pool "${name}" created with ${available.length} disk(s)`, 'success');
+            }
+            return;
+        }
+
+        // New-VirtualDisk
+        if (cmdName === 'new-virtualdisk') {
+            const resiliency = extractParam(cmd, '-ResiliencySetting') || 'Simple';
+            const poolName = extractParam(cmd, '-StoragePoolFriendlyName');
+            if (poolName) {
+                const pool = state.storage.storageSpaces.pools.find(p => p.name.toLowerCase() === poolName.replace(/['"]/g, '').toLowerCase());
+                if (pool) { pool.resiliency = resiliency; saveState(); addLine(`Virtual disk created with ${resiliency} resiliency`, 'success'); }
+                else { addLine('Storage pool not found', 'error'); }
+            }
+            return;
+        }
+
+        // Repair-Volume (chkdsk)
+        if (cmdName === 'repair-volume' || cmdName === 'chkdsk') {
+            state.storage.chkdskRun = true;
+            saveState();
+            addLine('Stage 1: Examining basic file system structure...', 'output');
+            addLine('Stage 2: Examining file name linkage...', 'output');
+            addLine('Stage 3: Examining security descriptors...', 'output');
+            addLine('No errors found.', 'success');
+            return;
+        }
+
+        // icacls
+        if (cmdName === 'icacls') {
+            const path = parts[1]?.replace(/['"]/g, '');
+            const grantMatch = cmd.match(/\/grant\s+(\w+):\((\w+)\)/i);
+            if (path && grantMatch) {
+                const group = grantMatch[1];
+                const permMap = { 'M': 'Modify', 'R': 'Read', 'F': 'Full Control', 'W': 'Write', 'RX': 'Read & Execute' };
+                const level = permMap[grantMatch[2].toUpperCase()] || grantMatch[2];
+                const folder = state.fileSystem.folders.find(f => f.path.toLowerCase() === path.toLowerCase() || path.toLowerCase().includes(f.path.toLowerCase().split('\\').pop().toLowerCase()));
+                if (folder) {
+                    const existing = folder.permissions.findIndex(p => p.group === group);
+                    if (existing >= 0) folder.permissions[existing].level = level;
+                    else folder.permissions.push({ group, level });
+                    saveState();
+                    addLine(`processed file: ${path}`, 'success');
+                    addLine(`Successfully processed 1 files; Failed processing 0 files`);
+                } else { addLine(`${path}: Access is denied or path not found`, 'error'); }
+            } else if (path) {
+                const folder = state.fileSystem.folders.find(f => path.toLowerCase().includes(f.path.toLowerCase().split('\\').pop().toLowerCase()));
+                if (folder) {
+                    addLine(`${folder.path}:`);
+                    folder.permissions.forEach(p => addLine(`  ${p.group}:(${p.level})`));
+                    if (folder.permissions.length === 0) addLine('  No explicit permissions set', 'dim');
+                }
+            } else { addLine('Usage: icacls "C:\\Data\\Reports" /grant Sales:(M)', 'error'); }
+            return;
+        }
+
+        // New-SmbShare
+        if (cmdName === 'new-smbshare') {
+            const name = extractParam(cmd, '-Name');
+            const path = extractParam(cmd, '-Path');
+            if (name && path) {
+                state.fileSystem.shares.push({ name: name.replace(/['"]/g, ''), path: path.replace(/['"]/g, ''), permission: 'Read' });
+                saveState();
+                addLine(`Name: ${name}`, 'success');
+                addLine(`Path: ${path}`);
+                addLine('Share created successfully.');
+            } else { addLine('Usage: New-SmbShare -Name "SharedData" -Path "C:\\Data\\SharedData"', 'error'); }
+            return;
+        }
+
+        // cipher
+        if (cmdName === 'cipher') {
+            if (lower.includes('/e')) {
+                const path = parts.find(p => p.includes('\\'));
+                if (path && path.toLowerCase().includes('confidential')) {
+                    const f = state.fileSystem.folders.find(x => x.path.includes('Confidential'));
+                    if (f) { f.encrypted = true; saveState(); addLine(`Encrypting files in ${path}`, 'success'); addLine('1 file(s) encrypted.'); }
+                } else { addLine('Specify path: cipher /e "C:\\Data\\Confidential"', 'error'); }
+            } else { addLine('Usage: cipher /e "C:\\Data\\Confidential"', 'error'); }
+            return;
+        }
+
+        // auditpol
+        if (cmdName === 'auditpol') {
+            if (lower.includes('/set')) {
+                state.fileSystem.auditEnabled = true;
+                saveState();
+                addLine('The command was successfully executed.', 'success');
+            } else { addLine('Usage: auditpol /set /subcategory:"File System" /success:enable /failure:enable', 'error'); }
+            return;
+        }
+
+        // Get-LocalUser
+        if (lower === 'get-localuser') {
+            addLine('Name            Enabled  Description', 'dim');
+            addLine('----            -------  -----------');
+            addLine('Administrator   True     Built-in administrator');
+            state.users.forEach(u => addLine(`${u.username.padEnd(15)} True`));
+            return;
+        }
+
+        // Get-LocalGroup
+        if (lower === 'get-localgroup') {
+            addLine('Name                        Description', 'dim');
+            addLine('----                        -----------');
+            state.groups.forEach(g => addLine(`${g.name.padEnd(27)} ${g.members.length} member(s)`));
+            return;
+        }
+
+        // Navigation
+        if (cmdName === 'cd' || cmdName === 'set-location') {
+            if (parts[1]) currentDir = parts[1].replace(/['"]/g, '');
+            document.querySelector('.terminal-input-area span').textContent = `PS ${currentDir}> `;
+            return;
+        }
+        if (lower === 'pwd' || lower === 'get-location') { addLine(currentDir); return; }
+        if (cmdName === 'dir' || cmdName === 'ls' || cmdName === 'get-childitem') {
+            addLine(`    Directory: ${currentDir}`, 'heading');
+            addLine('Mode    LastWriteTime         Length  Name', 'dim');
+            addLine('----    -------------         ------  ----');
+            addLine('d----   3/9/2026  10:00 AM           Data');
+            addLine('d----   3/9/2026  10:00 AM           Users');
+            addLine('d----   3/9/2026  10:00 AM           Windows');
+            addLine('d----   3/9/2026  10:00 AM           Program Files');
+            return;
+        }
+
+        // Enable-NetFirewallRule
+        if (cmdName === 'enable-netfirewallrule') {
+            if (lower.includes('remote desktop')) {
+                addLine('Firewall rule enabled for Remote Desktop.', 'success');
+            }
+            return;
+        }
+
+        // Fallback
+        addLine(`'${parts[0]}' is not recognized as a cmdlet, function, or operable program.`, 'error');
+        addLine('Type "help" for available commands.', 'dim');
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    loadState();
+    checkObjectives();
+    renderCurrentTool();
+    initTerminal();
+
+    // Load saved docs
+    const savedDocs = localStorage.getItem('md100-midterm-docs');
+    if (savedDocs) document.getElementById('docsEditor').value = savedDocs;
+    </script>
+</body>
+</html>
