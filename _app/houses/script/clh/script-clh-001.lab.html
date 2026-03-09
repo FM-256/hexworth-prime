@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: requires 'sorted' clearance level -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-001: Hacker CLI Lab - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #00ff41;
+        }
+
+        /* ── Layout ─────────────────────────────────────────────── */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Left pane: terminal + mission strip ─────────────────── */
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #00ff41;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Top header bar ──────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            padding: 10px 20px;
+            border-bottom: 2px solid #00ff41;
+            flex-shrink: 0;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .lab-badge {
+            background: rgba(0, 255, 65, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            color: #00ff41;
+            border: 1px solid #00ff41;
+            white-space: nowrap;
+            font-family: 'Cascadia Code', monospace;
+        }
+
+        .header h1 {
+            color: #00ff41;
+            font-size: 1.1em;
+            margin: 0;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .back-link {
+            color: #00ff41;
+            text-decoration: none;
+            padding: 6px 12px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-size: 0.85em;
+        }
+
+        .back-link:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        /* ── Terminal viewport ───────────────────────────────────── */
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: #0d1117;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        /* macOS-style traffic-light dots */
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot-red    { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green  { background: #27ca3f; }
+
+        .terminal-title {
+            color: #00ff41;
+            font-size: 0.9em;
+            margin-left: 10px;
+            font-family: 'Cascadia Code', monospace;
+        }
+
+        /* Scrollable output area */
+        .terminal {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+            font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .terminal-line {
+            margin-bottom: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Text color classes for different output types */
+        .prompt    { color: #00ff41; font-weight: bold; }
+        .command   { color: #00ff41; }
+        .output    { color: #8b949e; }
+        .error     { color: #f85149; }
+        .success   { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .dir       { color: #58a6ff; font-weight: bold; }
+        .exec      { color: #3fb950; }
+        .warning   { color: #d29922; }
+        .hidden    { color: #a78bfa; }  /* purple for hidden/dot files */
+
+        /* Input line at the bottom */
+        .input-line {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: #0d1117;
+            border-top: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        .input-prompt {
+            color: #00ff41;
+            font-weight: bold;
+            font-family: 'Cascadia Code', 'Courier New', monospace;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+
+        #commandInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Cascadia Code', 'Courier New', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #commandInput::placeholder { color: #484f58; }
+
+        /* ── Mission objective strip (bottom of left pane) ───────── */
+        .mission-panel {
+            background: rgba(13, 17, 23, 0.95);
+            border-top: 2px solid #00ff41;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+
+        .mission-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .mission-header h3 {
+            color: #00ff41;
+            font-size: 1.1em;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Animated chevron before the mission heading */
+        .mission-header h3::before {
+            content: '>';
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+
+        /* Numbered step dots */
+        .step-indicators {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .step-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 2px solid #30363d;
+            background: transparent;
+            color: #484f58;
+        }
+
+        .step-dot.active {
+            border-color: #ffa657;
+            background: rgba(255, 166, 87, 0.2);
+            color: #ffa657;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(255, 166, 87, 0.3);
+        }
+
+        .step-dot.completed {
+            border-color: #3fb950;
+            background: #3fb950;
+            color: #0d1117;
+        }
+
+        /* Line between step dots */
+        .step-connector {
+            width: 20px;
+            height: 2px;
+            background: #30363d;
+            transition: background 0.3s;
+        }
+
+        .step-connector.completed { background: #3fb950; }
+
+        /* Active mission card */
+        .current-mission {
+            padding: 15px;
+            background: rgba(255, 166, 87, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #ffa657;
+            animation: missionSlideIn 0.3s ease;
+        }
+
+        @keyframes missionSlideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .current-mission h4 {
+            color: #ffa657;
+            font-size: 1em;
+            margin-bottom: 8px;
+            font-family: 'Cascadia Code', monospace;
+        }
+
+        .current-mission p {
+            color: #8b949e;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .current-mission .hint {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            font-family: 'Cascadia Code', monospace;
+            color: #00ff41;
+            font-size: 0.85em;
+            border: 1px solid #30363d;
+        }
+
+        /* All-objectives-done state */
+        .all-complete {
+            text-align: center;
+            padding: 20px;
+            color: #3fb950;
+        }
+
+        .all-complete .checkmark {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(63, 185, 80, 0.5);
+        }
+
+        /* ── Right pane: intel / briefing ────────────────────────── */
+        .intel-panel {
+            background: rgba(13, 17, 23, 0.95);
+            padding: 25px;
+            overflow-y: auto;
+            height: 100vh;
+            border-left: 1px solid #30363d;
+        }
+
+        .intel-panel h2 {
+            color: #00ff41;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #00ff41;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Decorative bracket wrappers */
+        .intel-panel h2::before { content: '['; color: #ffa657; }
+        .intel-panel h2::after  { content: ']'; color: #ffa657; }
+
+        .intel-section {
+            margin-bottom: 25px;
+        }
+
+        .intel-section h3 {
+            color: #58a6ff;
+            font-size: 1.05em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .intel-section p {
+            color: #8b949e;
+            font-size: 0.9em;
+            line-height: 1.7;
+            margin-bottom: 10px;
+        }
+
+        /* Code sample blocks in the briefing panel */
+        .code-box {
+            background: #0a0a0a;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin: 10px 0;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.85em;
+        }
+
+        .code-box .cmd    { color: #00ff41; }
+        .code-box .out    { color: #8b949e; margin-top: 5px; }
+
+        .warning-box {
+            background: rgba(210, 153, 34, 0.1);
+            border-left: 3px solid #d29922;
+            padding: 12px 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .warning-box strong { color: #d29922; }
+        .warning-box p { color: #c9d1d9; margin: 0; }
+
+        .tip-box {
+            background: rgba(0, 255, 65, 0.1);
+            border-left: 3px solid #00ff41;
+            padding: 12px 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .tip-box strong { color: #00ff41; }
+        .tip-box p { color: #c9d1d9; margin: 0; }
+
+        /* Icon headings inside intel panel */
+        .section-icon {
+            width: 1em;
+            height: 1em;
+            vertical-align: middle;
+            display: inline-block;
+        }
+
+        /* ── Completion modal ────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 2px solid #00ff41;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 450px;
+            animation: modalPop 0.3s ease;
+            box-shadow: 0 0 40px rgba(0, 255, 65, 0.3);
+        }
+
+        @keyframes modalPop {
+            from { transform: scale(0.8); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+
+        .modal-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 15px;
+            display: block;
+        }
+
+        .modal h2 {
+            color: #00ff41;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            text-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+        }
+
+        .modal p {
+            color: #8b949e;
+            margin-bottom: 25px;
+        }
+
+        .modal .xp-earned {
+            color: #ffa657;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Cascadia Code', monospace;
+        }
+
+        .modal-btn.primary {
+            background: #00ff41;
+            color: #0d1117;
+        }
+
+        .modal-btn.primary:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+        }
+
+        .modal-btn.secondary {
+            background: transparent;
+            color: #00ff41;
+            border: 2px solid #00ff41;
+        }
+
+        .modal-btn.secondary:hover {
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        /* ── Scrollbar styling ───────────────────────────────────── */
+        ::-webkit-scrollbar       { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00ff41; }
+
+        /* ── Responsive collapse for small screens ───────────────── */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .intel-panel {
+                border-top: 2px solid #00ff41;
+                border-left: none;
+                height: auto;
+                max-height: 50vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- ═══════════════════════════════════════════════════════
+             LEFT PANE: Terminal emulator + mission strip
+             ═══════════════════════════════════════════════════════ -->
+        <div class="main-panel">
+
+            <!-- Header bar -->
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-001</span>
+                        <h1>Introduction to the Hacker CLI</h1>
+                    </div>
+                    <a href="../index.html" class="back-link">&lt; Script House</a>
+                </div>
+            </div>
+
+            <!-- Terminal viewport -->
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">analyst@shadow:~</span>
+                </div>
+
+                <!-- Output area -->
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line output">[SYSTEM] Terminal v4.7 — CLI Training Environment Activated</div>
+                    <div class="terminal-line output">[INTEL] You have been assigned to a live shadow system.</div>
+                    <div class="terminal-line" style="margin-top:10px; color:#ffa657;">&gt; MISSION: Identify yourself, locate your position, and find the hidden file.</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> to list available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+
+                <!-- Input line -->
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">analyst@shadow:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus
+                           placeholder="Enter command...">
+                </div>
+            </div>
+
+            <!-- Mission objective strip -->
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector"  id="conn-1"></div>
+                        <div class="step-dot"         id="step-2">2</div>
+                        <div class="step-connector"  id="conn-2"></div>
+                        <div class="step-dot"         id="step-3">3</div>
+                        <div class="step-connector"  id="conn-3"></div>
+                        <div class="step-dot"         id="step-4">4</div>
+                        <div class="step-connector"  id="conn-4"></div>
+                        <div class="step-dot"         id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4 id="missionTitle">RECON: Identify Yourself</h4>
+                        <p id="missionDescription">You just gained access to this system. The first rule of operations: know who you are running as.</p>
+                        <div class="hint" id="missionHint">$ whoami</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             RIGHT PANE: Mission briefing / intel panel
+             ═══════════════════════════════════════════════════════ -->
+        <div class="intel-panel">
+            <h2>INTEL BRIEFING</h2>
+
+            <div class="intel-section">
+                <h3>
+                    <img src="/assets/images/icons/icon-laptop.webp" alt=""
+                         class="section-icon">
+                    Welcome to the Terminal
+                </h3>
+                <p>The command line interface (CLI) is the primary weapon of every security professional. While GUIs are convenient, the terminal gives you raw, unfiltered control over any system you access.</p>
+                <p>This lab covers four essential commands every operative runs the moment they land on a new machine.</p>
+            </div>
+
+            <div class="intel-section">
+                <h3>Command: whoami</h3>
+                <p>Reveals the username of the currently running process. Always run this first — you need to know your privilege level before you do anything else.</p>
+                <div class="code-box">
+                    <div class="cmd">$ whoami</div>
+                    <div class="out">analyst</div>
+                </div>
+            </div>
+
+            <div class="intel-section">
+                <h3>Command: pwd</h3>
+                <p><strong style="color:#00ff41;">Print Working Directory.</strong> Shows your exact absolute path in the filesystem. Never assume where you are — always confirm.</p>
+                <div class="code-box">
+                    <div class="cmd">$ pwd</div>
+                    <div class="out">/home/analyst</div>
+                </div>
+            </div>
+
+            <div class="intel-section">
+                <h3>Command: ls -la</h3>
+                <p>The <code style="color:#00ff41;">-l</code> flag shows the long format (permissions, owner, size, timestamp). The <code style="color:#00ff41;">-a</code> flag reveals hidden files — files that begin with a dot (<code>.</code>). Attackers and defenders both hide things in plain sight.</p>
+                <div class="code-box">
+                    <div class="cmd">$ ls -la</div>
+                    <div class="out">drwxr-xr-x  analyst  .
+drwxr-xr-x  root     ..
+-rw-r--r--  analyst  readme.txt
+-rw-------  analyst  .secret_note</div>
+                </div>
+            </div>
+
+            <div class="intel-section">
+                <h3>Command: id</h3>
+                <p>Displays your user ID (uid), primary group ID (gid), and all supplementary groups. Groups determine what you can access. Membership in <code style="color:#a78bfa;">sudo</code> or <code style="color:#a78bfa;">docker</code> is a privilege escalation path.</p>
+                <div class="code-box">
+                    <div class="cmd">$ id</div>
+                    <div class="out">uid=1001(analyst) gid=1001(analyst) groups=1001(analyst),27(sudo),999(docker)</div>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <strong>OPSEC NOTE:</strong>
+                <p>On a real engagement, running these commands generates log entries. Identification commands are low-noise, but nothing is invisible.</p>
+            </div>
+
+            <div class="intel-section">
+                <h3>
+                    <img src="/assets/images/icons/icon-target.webp" alt=""
+                         class="section-icon">
+                    Objective 5: Hidden File
+                </h3>
+                <p>After running <code style="color:#00ff41;">ls -la</code> you will see a file named <code style="color:#a78bfa;">.secret_note</code>. Use <code style="color:#00ff41;">cat</code> to read its contents.</p>
+                <div class="code-box">
+                    <div class="cmd">$ cat .secret_note</div>
+                    <div class="out">[classified contents]</div>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>PRO TIP:</strong>
+                <p>Combine flags: <code style="color:#00ff41;">ls -lah</code> adds human-readable file sizes. Tab-completion speeds up every command — never type the full path if you can avoid it.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Completion modal (shown when all 5 objectives pass) ───── -->
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <img src="/assets/images/icons/icon-star.webp" alt="" class="modal-icon">
+            <h2>MISSION COMPLETE</h2>
+            <p>Reconnaissance successful. You've identified your operator profile and located the hidden asset.</p>
+            <div class="xp-earned">+75 XP</div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal()">Stay in Lab</button>
+                <button class="modal-btn primary"   onclick="completeLab()">Complete Lab</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ═══════════════════════════════════════════════════════════════════
+    // CLH-001: Introduction to the Hacker CLI — Terminal Engine
+    // Self-contained; objectives are tracked here, not via CLHTerminal,
+    // so the exact spec objectives (whoami/pwd/ls -la/id/cat .secret_note)
+    // are enforced independently of CLHConfig's objective order.
+    // ═══════════════════════════════════════════════════════════════════
+
+    // ── Simulated filesystem ─────────────────────────────────────────
+    // Mirrors CLHConfig CLH-001 filesystem but exposed here for cat/ls.
+    const FS = {
+        '/home/analyst': {
+            type: 'dir',
+            children: ['reports', 'tools', 'readme.txt', '.bashrc', '.bash_history', '.secret_note']
+        },
+        '/home/analyst/reports': {
+            type: 'dir',
+            children: ['incident-001.txt', 'network-scan.txt']
+        },
+        '/home/analyst/reports/incident-001.txt': {
+            type: 'file',
+            content: `INCIDENT REPORT - IR-2025-001
+==============================
+Date  : 2025-11-14
+Type  : Unauthorized Access
+Status: OPEN
+
+Details: Suspicious login from 185.220.101.47 at 03:12 UTC.
+Account: svc_backup
+Action : Credentials revoked. Investigation ongoing.
+`
+        },
+        '/home/analyst/reports/network-scan.txt': {
+            type: 'file',
+            content: `# Network Scan — 10.0.0.0/24
+# Generated: 2025-11-14 04:00 UTC
+
+10.0.0.1   gateway   22/open  80/open
+10.0.0.42  shadow    22/open  3306/open
+10.0.0.99  monitor   22/open  9200/open  5601/open
+`
+        },
+        '/home/analyst/tools': {
+            type: 'dir',
+            children: ['enum.sh']
+        },
+        '/home/analyst/tools/enum.sh': {
+            type: 'file',
+            content: `#!/bin/bash
+# ENUM.SH — Basic host enumeration
+echo "[*] Running as: $(whoami)"
+echo "[*] Working dir: $(pwd)"
+echo "[*] Identity: $(id)"
+echo "[*] Hostname: $(hostname)"
+`
+        },
+        '/home/analyst/readme.txt': {
+            type: 'file',
+            content: `SYSTEM: shadow  |  ACCESS LEVEL: ANALYST
+=========================================
+
+Welcome, operative. You have been granted analyst-level access
+to this training environment.
+
+Complete the mission objectives listed in the terminal panel.
+All actions are logged. Tread carefully.
+
+Handler: GHOSTWRITER
+`
+        },
+        '/home/analyst/.bashrc': {
+            type: 'file',
+            content: `# Analyst shell configuration
+export PS1="\\u@\\h:\\w\\$ "
+alias ll='ls -la'
+alias cls='clear'
+# "Know your environment before you act."
+`
+        },
+        '/home/analyst/.bash_history': {
+            type: 'file',
+            content: `whoami
+pwd
+ls -la
+id
+cat readme.txt
+`
+        },
+        '/home/analyst/.secret_note': {
+            type: 'file',
+            content: `>> ENCRYPTED ASSET — CLEARANCE LEVEL: ANALYST <<
+
+Handler message received 2025-11-14 02:47 UTC:
+
+  "GHOST — your cover is intact. Proceed to phase two.
+   The extraction window opens at 0300.
+   Asset codename: HOLLOW POINT.
+   Do not trust anyone on site."
+
+  — GHOSTWRITER
+
+[MESSAGE WILL AUTO-DELETE IN 60 SECONDS]
+`
+        }
+    };
+
+    // ── State ────────────────────────────────────────────────────────
+    const STATE = {
+        cwd: '/home/analyst',
+        history: [],
+        historyIndex: -1,
+        // Track which of the 5 spec objectives have been completed
+        objectives: {
+            whoami:      false,
+            pwd:         false,
+            lsla:        false,
+            id:          false,
+            secretNote:  false
+        },
+        completedCount: 0,
+        labComplete: false
+    };
+
+    // ── Objective definitions (ordered 1-5) ──────────────────────────
+    const OBJECTIVES = [
+        {
+            id: 1,
+            key: 'whoami',
+            task: 'RECON: Identify Yourself',
+            description: 'You just gained access to this system. The first rule of operations: know who you are running as.',
+            hint: '$ whoami'
+        },
+        {
+            id: 2,
+            key: 'pwd',
+            task: 'RECON: Locate Your Position',
+            description: 'Know exactly where you are in the filesystem before you explore further.',
+            hint: '$ pwd'
+        },
+        {
+            id: 3,
+            key: 'lsla',
+            task: 'SURVEY: Reveal Hidden Files',
+            description: 'Scan the current directory with full detail flags. Hidden files start with a dot.',
+            hint: '$ ls -la'
+        },
+        {
+            id: 4,
+            key: 'id',
+            task: 'RECON: Check Your Groups',
+            description: 'Determine your uid, gid, and group memberships. Groups define privilege paths.',
+            hint: '$ id'
+        },
+        {
+            id: 5,
+            key: 'secretNote',
+            task: 'EXTRACT: Read the Hidden Asset',
+            description: 'You spotted .secret_note in the directory listing. Read it before it expires.',
+            hint: '$ cat .secret_note'
+        }
+    ];
+
+    // ── DOM helpers ──────────────────────────────────────────────────
+    const termEl    = document.getElementById('terminal');
+    const inputEl   = document.getElementById('commandInput');
+    const promptEl  = document.getElementById('promptDisplay');
+    const titleEl   = document.getElementById('terminalTitle');
+
+    /** Append a line of HTML to the terminal output */
+    function printLine(html, cssClass) {
+        const div = document.createElement('div');
+        div.className = 'terminal-line' + (cssClass ? ' ' + cssClass : '');
+        div.innerHTML = html;
+        termEl.appendChild(div);
+        termEl.scrollTop = termEl.scrollHeight;
+    }
+
+    /** Print blank spacer line */
+    function printBlank() { printLine(''); }
+
+    /** Reflect the prompt in both the input label and the terminal title bar */
+    function updatePrompt() {
+        const rel = STATE.cwd.replace('/home/analyst', '~');
+        const p   = `analyst@shadow:${rel}$`;
+        promptEl.textContent = p + ' ';
+        titleEl.textContent  = `analyst@shadow:${rel}`;
+    }
+
+    // ── ls output builder ────────────────────────────────────────────
+
+    /**
+     * Build ls-style output for a given directory.
+     * @param {string} dir     - Absolute path
+     * @param {boolean} long   - -l flag: show permissions, owner, size, date
+     * @param {boolean} all    - -a flag: include dotfiles
+     */
+    function buildLsOutput(dir, long, all) {
+        const entry = FS[dir];
+        if (!entry || entry.type !== 'dir') {
+            return `<span class="error">ls: cannot access '${dir}': No such file or directory</span>`;
+        }
+
+        const children = entry.children || [];
+        const toShow   = all ? ['.', '..', ...children] : children.filter(c => !c.startsWith('.'));
+
+        if (!long) {
+            // Short format: space-separated names
+            return toShow.map(name => {
+                const fullPath = dir + '/' + name;
+                const child    = FS[fullPath];
+                if (name === '.' || name === '..') return `<span class="dir">${name}</span>`;
+                if (child && child.type === 'dir') return `<span class="dir">${name}/</span>`;
+                if (name.endsWith('.sh'))           return `<span class="exec">${name}</span>`;
+                if (name.startsWith('.'))           return `<span class="hidden">${name}</span>`;
+                return `<span class="output">${name}</span>`;
+            }).join('  ');
+        }
+
+        // Long format lines
+        const now   = new Date();
+        const month = now.toLocaleString('en-US', { month: 'short' });
+        const day   = String(now.getDate()).padStart(2, ' ');
+
+        const lines = [];
+        if (all) {
+            // total line
+            lines.push(`<span class="output">total ${toShow.length * 4}</span>`);
+        }
+
+        toShow.forEach(name => {
+            const fullPath = dir + '/' + name;
+            const child    = FS[fullPath];
+            const isDot    = (name === '.' || name === '..');
+
+            let perms, size, color;
+
+            if (isDot || (child && child.type === 'dir')) {
+                perms = 'drwxr-xr-x';
+                size  = '4096';
+                color = 'dir';
+            } else if (child && child.type === 'file') {
+                // Estimate byte size from content length
+                const len  = (child.content || '').length;
+                size  = String(len).padStart(6, ' ');
+                if (name.endsWith('.sh')) {
+                    perms = '-rwxr-xr-x';
+                    color = 'exec';
+                } else if (name.startsWith('.')) {
+                    perms = '-rw-------';
+                    color = 'hidden';
+                } else {
+                    perms = '-rw-r--r--';
+                    color = 'output';
+                }
+            } else {
+                perms = '-rw-r--r--';
+                size  = '    0';
+                color = 'output';
+            }
+
+            lines.push(
+                `<span class="output">${perms}  1 analyst analyst ${size.padStart(6)} ${month} ${day} </span>` +
+                `<span class="${color}">${name}${(!isDot && child && child.type === 'dir') ? '/' : ''}</span>`
+            );
+        });
+
+        return lines.join('\n');
+    }
+
+    // ── Command handlers ─────────────────────────────────────────────
+
+    /**
+     * Route a raw command string to the appropriate handler.
+     * Returns the output HTML string (may be multi-line with \n).
+     */
+    function executeCommand(raw) {
+        const trimmed = raw.trim();
+        if (!trimmed) return '';
+
+        const parts   = trimmed.split(/\s+/);
+        const cmd     = parts[0].toLowerCase();
+        const args    = parts.slice(1);
+
+        switch (cmd) {
+
+            case 'whoami':
+                checkObjective('whoami', trimmed);
+                return `<span class="success">analyst</span>`;
+
+            case 'pwd':
+                checkObjective('pwd', trimmed);
+                return `<span class="output">${STATE.cwd}</span>`;
+
+            case 'ls': {
+                const flagStr = args.filter(a => a.startsWith('-')).join('');
+                const long    = flagStr.includes('l');
+                const all     = flagStr.includes('a');
+                // Target dir: last non-flag arg, or cwd
+                const target  = args.find(a => !a.startsWith('-')) || STATE.cwd;
+                const absPath = target.startsWith('/') ? target : STATE.cwd + '/' + target;
+                const output  = buildLsOutput(absPath, long, all);
+                // Objective: ls -la (must have both -l and -a)
+                if (long && all) checkObjective('lsla', trimmed);
+                return output;
+            }
+
+            case 'id':
+                checkObjective('id', trimmed);
+                return `<span class="output">uid=1001(<span class="success">analyst</span>) gid=1001(<span class="success">analyst</span>) groups=1001(analyst),27(<span class="highlight">sudo</span>),999(<span class="highlight">docker</span>)</span>`;
+
+            case 'cat': {
+                const target = args[0];
+                if (!target) {
+                    return `<span class="error">cat: missing operand</span>`;
+                }
+                const absPath = target.startsWith('/')
+                    ? target
+                    : STATE.cwd + '/' + target;
+                const entry = FS[absPath];
+                if (!entry) {
+                    return `<span class="error">cat: ${target}: No such file or directory</span>`;
+                }
+                if (entry.type === 'dir') {
+                    return `<span class="error">cat: ${target}: Is a directory</span>`;
+                }
+                // Objective: read .secret_note
+                if (target === '.secret_note' || absPath === '/home/analyst/.secret_note') {
+                    checkObjective('secretNote', trimmed);
+                }
+                // Escape HTML in file content to prevent injection
+                const safe = (entry.content || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                return `<span class="output">${safe}</span>`;
+            }
+
+            case 'cd': {
+                const dest = args[0] || '/home/analyst';
+                let target;
+                if (dest === '~' || dest === '') {
+                    target = '/home/analyst';
+                } else if (dest === '..') {
+                    const parts2 = STATE.cwd.split('/');
+                    parts2.pop();
+                    target = parts2.join('/') || '/';
+                } else if (dest.startsWith('/')) {
+                    target = dest;
+                } else {
+                    target = STATE.cwd + '/' + dest;
+                }
+                // Normalise double slashes
+                target = target.replace(/\/+/g, '/');
+                if (FS[target] && FS[target].type === 'dir') {
+                    STATE.cwd = target;
+                    updatePrompt();
+                    return '';
+                }
+                return `<span class="error">cd: ${dest}: No such file or directory</span>`;
+            }
+
+            case 'hostname':
+                return `<span class="output">shadow</span>`;
+
+            case 'uname':
+                if (args.includes('-a')) {
+                    return `<span class="output">Linux shadow 5.15.0-91-generic #101-Ubuntu SMP x86_64 GNU/Linux</span>`;
+                }
+                return `<span class="output">Linux</span>`;
+
+            case 'echo':
+                return `<span class="output">${args.join(' ')}</span>`;
+
+            case 'clear':
+                // Empty the terminal output safely
+                while (termEl.firstChild) termEl.removeChild(termEl.firstChild);
+                return '';
+
+            case 'help':
+                return [
+                    `<span class="highlight">Available Commands:</span>`,
+                    `<span class="output">  whoami        Print current username</span>`,
+                    `<span class="output">  pwd           Print working directory</span>`,
+                    `<span class="output">  ls            List directory contents</span>`,
+                    `<span class="output">  ls -la        Long listing including hidden files</span>`,
+                    `<span class="output">  id            Show user/group identities</span>`,
+                    `<span class="output">  cat &lt;file&gt;   Display file contents</span>`,
+                    `<span class="output">  cd &lt;dir&gt;    Change directory</span>`,
+                    `<span class="output">  hostname      Show system hostname</span>`,
+                    `<span class="output">  uname -a      Show kernel info</span>`,
+                    `<span class="output">  clear         Clear terminal</span>`,
+                    `<span class="output">  help          Show this message</span>`,
+                    `<span class="output" style="margin-top:8px; display:block; color:#a78bfa;">Hint: Run ls -la to reveal hidden files (dot-files)</span>`
+                ].join('\n');
+
+            default:
+                return `<span class="error">-bash: ${cmd}: command not found</span>`;
+        }
+    }
+
+    // ── Objective tracking ───────────────────────────────────────────
+
+    /**
+     * Mark an objective complete if not already done, then update the UI.
+     * @param {string} key - Key from STATE.objectives
+     */
+    function checkObjective(key, _cmd) {
+        if (STATE.objectives[key]) return;  // Already completed
+
+        STATE.objectives[key] = true;
+        STATE.completedCount++;
+
+        // Find the 1-based index of this objective
+        const objDef = OBJECTIVES.find(o => o.key === key);
+        if (objDef) updateMissionUI(objDef.id);
+
+        // All 5 done → trigger completion
+        if (STATE.completedCount === 5 && !STATE.labComplete) {
+            STATE.labComplete = true;
+            setTimeout(showCompletionModal, 900);
+        }
+    }
+
+    /**
+     * Advance the step indicator UI after completing objective `completedId`.
+     */
+    function updateMissionUI(completedId) {
+        // Mark the completed dot
+        const dot = document.getElementById(`step-${completedId}`);
+        if (dot) {
+            dot.classList.remove('active');
+            dot.classList.add('completed');
+            dot.innerHTML = '\u2713';  // Checkmark (no emoji, Unicode symbol)
+        }
+
+        // Colour the connector leading out of this step
+        const conn = document.getElementById(`conn-${completedId}`);
+        if (conn) conn.classList.add('completed');
+
+        // Find the next incomplete objective to highlight
+        const nextObj = OBJECTIVES.find(o => !STATE.objectives[o.key]);
+        if (nextObj) {
+            const nextDot = document.getElementById(`step-${nextObj.id}`);
+            if (nextDot) nextDot.classList.add('active');
+            renderMissionCard(nextObj);
+        } else {
+            renderAllComplete();
+        }
+    }
+
+    /** Render the active mission card for a given objective definition */
+    function renderMissionCard(obj) {
+        document.getElementById('currentMissionDisplay').innerHTML = `
+            <div class="current-mission">
+                <h4>${obj.task}</h4>
+                <p>${obj.description}</p>
+                <div class="hint">${obj.hint}</div>
+            </div>
+        `;
+    }
+
+    /** Render the all-complete state in the mission strip */
+    function renderAllComplete() {
+        document.getElementById('currentMissionDisplay').innerHTML = `
+            <div class="all-complete">
+                <div class="checkmark">\u2713</div>
+                <h4>ALL OBJECTIVES COMPLETE</h4>
+                <p>Intel secured. Awaiting lab completion.</p>
+            </div>
+        `;
+    }
+
+    // ── Command input handler ────────────────────────────────────────
+
+    inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const raw = inputEl.value;
+            inputEl.value = '';
+
+            // Echo the command with prompt
+            const relPath = STATE.cwd.replace('/home/analyst', '~');
+            printLine(
+                `<span class="prompt">analyst@shadow:${relPath}$</span> ` +
+                `<span class="command">${escapeHtml(raw)}</span>`
+            );
+
+            if (raw.trim()) {
+                // Push to history (newest first)
+                STATE.history.unshift(raw);
+                STATE.historyIndex = -1;
+
+                const output = executeCommand(raw);
+                if (output) {
+                    // Multi-line output: split on \n and print each as its own div
+                    output.split('\n').forEach(line => {
+                        if (line !== '') printLine(line);
+                    });
+                }
+                printBlank();
+            }
+        }
+
+        // Arrow-Up: walk back through history
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (STATE.historyIndex < STATE.history.length - 1) {
+                STATE.historyIndex++;
+                inputEl.value = STATE.history[STATE.historyIndex];
+            }
+        }
+
+        // Arrow-Down: walk forward through history
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (STATE.historyIndex > 0) {
+                STATE.historyIndex--;
+                inputEl.value = STATE.history[STATE.historyIndex];
+            } else {
+                STATE.historyIndex = -1;
+                inputEl.value = '';
+            }
+        }
+    });
+
+    /** Escape user-supplied text before inserting into innerHTML */
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // ── Completion modal ─────────────────────────────────────────────
+
+    function showCompletionModal() {
+        document.getElementById('completionModal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('completionModal').classList.remove('show');
+    }
+
+    /** Called by the primary modal button — writes progress and navigates */
+    function completeLab() {
+        ModuleProgress.complete('script', 'script-clh-001-lab', {
+            returnUrl: 'script-clh-001.quiz.html'
+        });
+    }
+
+    // ── Keep terminal focused after any click in the terminal area ───
+    document.getElementById('terminal').addEventListener('click', () => inputEl.focus());
+
+    // ── Initialise prompt display ────────────────────────────────────
+    updatePrompt();
+    </script>
+
+    <!-- Flux Capacitor — House navigation / breadcrumb integration -->
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

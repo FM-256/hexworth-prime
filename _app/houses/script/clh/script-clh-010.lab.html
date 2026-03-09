@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-010: I/O Redirection - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #00ff41;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #00ff41;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            padding: 10px 20px;
+            border-bottom: 2px solid #00ff41;
+            flex-shrink: 0;
+        }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge {
+            background: rgba(189, 147, 249, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            color: #bd93f9;
+            border: 1px solid #bd93f9;
+            font-family: 'Cascadia Code', monospace;
+        }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; font-weight: 600; text-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
+        .back-link {
+            color: #00ff41;
+            text-decoration: none;
+            padding: 6px 12px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-size: 0.85em;
+        }
+        .back-link:hover { background: rgba(0, 255, 65, 0.2); }
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .terminal-header {
+            background: #0d1117;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: 'Cascadia Code', monospace; }
+        .terminal {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+            font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .input-line {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: #0d1117;
+            border-top: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: 'Cascadia Code', monospace; margin-right: 8px; }
+        #commandInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+        #commandInput::placeholder { color: #484f58; }
+        .mission-panel {
+            background: rgba(13, 17, 23, 0.95);
+            border-top: 2px solid #00ff41;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; display: flex; align-items: center; gap: 8px; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8em; font-weight: bold;
+            border: 2px solid #30363d;
+            background: transparent;
+            color: #484f58;
+            transition: all 0.3s;
+        }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; transform: scale(1.1); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission {
+            padding: 15px;
+            background: rgba(255, 166, 87, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #ffa657;
+        }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; line-height: 1.5; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .all-complete { text-align: center; padding: 20px; color: #3fb950; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; }
+        /* Insight Phase Styles */
+        .insight-phase {
+            padding: 20px;
+            background: rgba(189, 147, 249, 0.1);
+            border-radius: 8px;
+            border: 2px solid #bd93f9;
+            animation: insightFadeIn 0.5s ease;
+        }
+        @keyframes insightFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .insight-phase .phase-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 15px;
+            color: #bd93f9; font-family: 'Cascadia Code', monospace; font-size: 0.9em;
+        }
+        .insight-phase .phase-header::before { content:'';display:inline-block;width:1.1em;height:1.1em;background:url(/assets/images/icons/icon-play.webp) center/contain no-repeat;vertical-align:middle; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .insight-phase .question { color: #c9d1d9; font-size: 1.05em; margin-bottom: 15px; line-height: 1.5; }
+        .insight-input-row { display: flex; gap: 10px; }
+        .insight-input {
+            flex: 1; background: #0d1117; border: 2px solid #30363d; border-radius: 6px;
+            padding: 12px 15px; color: #00ff41; font-family: 'Cascadia Code', monospace;
+            font-size: 1em; outline: none; transition: border-color 0.3s;
+        }
+        .insight-input:focus { border-color: #bd93f9; }
+        .insight-input::placeholder { color: #484f58; }
+        .insight-submit {
+            background: #bd93f9; color: #0d1117; border: none; border-radius: 6px;
+            padding: 12px 20px; font-family: 'Cascadia Code', monospace; font-weight: bold;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .insight-submit:hover { box-shadow: 0 0 15px rgba(189, 147, 249, 0.5); transform: translateY(-1px); }
+        .insight-feedback { margin-top: 12px; padding: 10px 15px; border-radius: 6px; font-size: 0.9em; display: none; }
+        .insight-feedback.wrong { display: block; background: rgba(248, 81, 73, 0.1); border: 1px solid #f85149; color: #f85149; }
+        .insight-feedback.hint { display: block; background: rgba(88, 166, 255, 0.1); border: 1px solid #58a6ff; color: #58a6ff; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+        .intel-panel {
+            background: rgba(13, 17, 23, 0.95);
+            padding: 25px;
+            overflow-y: auto;
+            height: 100vh;
+            border-left: 1px solid #30363d;
+        }
+        .intel-panel h2 {
+            color: #bd93f9;
+            font-size: 0.9em;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #30363d;
+        }
+        .intel-section { margin-bottom: 20px; }
+        .intel-section h3 { color: #00ff41; font-size: 0.9em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .intel-section p { color: #8b949e; font-size: 0.85em; line-height: 1.6; margin-bottom: 10px; }
+        .code-box {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin: 8px 0;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.85em;
+        }
+        .code-box .cmd { color: #00ff41; margin-bottom: 5px; }
+        .code-box .output { color: #8b949e; font-size: 0.9em; }
+        .warning-box {
+            background: rgba(189, 147, 249, 0.1);
+            border: 1px solid #bd93f9;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .warning-box strong { color: #bd93f9; display: block; margin-bottom: 5px; font-size: 0.85em; }
+        .warning-box p { color: #8b949e; font-size: 0.8em; margin: 0; }
+        .tip-box {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .tip-box strong { color: #00ff41; display: block; margin-bottom: 5px; font-size: 0.85em; }
+        .tip-box p { color: #8b949e; font-size: 0.8em; margin: 0; }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            border: 2px solid #bd93f9;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.show .modal { transform: scale(1); }
+        .modal h2 { color: #bd93f9; margin-bottom: 15px; font-size: 1.3em; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .xp-earned {
+            background: rgba(189, 147, 249, 0.2);
+            color: #bd93f9;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+        .modal-btn {
+            padding: 10px 25px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .modal-btn.primary { background: #bd93f9; color: #0d1117; }
+        .modal-btn.primary:hover { background: #caa8fb; }
+        .modal-btn.secondary { background: transparent; border: 1px solid #30363d; color: #8b949e; }
+        .modal-btn.secondary:hover { border-color: #bd93f9; color: #bd93f9; }
+        @media (max-width: 1200px) {
+            .container { grid-template-columns: 1fr; }
+            .intel-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-010</span>
+                        <h1>I/O REDIRECTION</h1>
+                    </div>
+                    <a href="../index.html" class="back-link">< Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@shadow:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line output">[SYSTEM] I/O redirection module loaded</div>
+                    <div class="terminal-line output">[MISSION] Control data streams and create operational reports</div>
+                    <div class="terminal-line output" style="margin-top: 10px; color: #bd93f9;">> Mission: Master >, >>, |, and tee</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@shadow:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4 id="missionTitle">CAPTURE: Redirect Output to File</h4>
+                        <p id="missionDescription">List the intel directory contents and save to reports/filelist.txt using output redirection.</p>
+                        <div class="hint" id="missionHint">$ ls intel > reports/filelist.txt</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>STREAM CONTROL</h2>
+            <div class="intel-section">
+                <h3>The Mission</h3>
+                <p>Data streams are your communication channels. Control where data flows - to files, to other commands, or to multiple destinations at once.</p>
+                <p>Master I/O redirection to build powerful command pipelines.</p>
+            </div>
+            <div class="intel-section">
+                <h3>> Output Redirect (Overwrite)</h3>
+                <div class="code-box">
+                    <div class="cmd">$ ls > filelist.txt</div>
+                    <div class="output">Writes output to file (overwrites existing)</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>>> Append Output</h3>
+                <div class="code-box">
+                    <div class="cmd">$ echo "new line" >> log.txt</div>
+                    <div class="output">Adds output to end of file</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>| Pipe</h3>
+                <div class="code-box">
+                    <div class="cmd">$ cat file.txt | grep "error"</div>
+                    <div class="output">Send output of one command to input of another</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ ls | wc -l</div>
+                    <div class="output">Count number of files</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>tee - Split Output</h3>
+                <div class="code-box">
+                    <div class="cmd">$ ls | tee filelist.txt</div>
+                    <div class="output">Write to file AND display on screen</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ cmd | tee -a log.txt</div>
+                    <div class="output">Append mode with -a flag</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>2> Error Redirect</h3>
+                <div class="code-box">
+                    <div class="cmd">$ cmd 2> errors.txt</div>
+                    <div class="output">Redirect only error messages</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ cmd > out.txt 2>&1</div>
+                    <div class="output">Redirect both stdout and stderr</div>
+                </div>
+            </div>
+            <div class="tip-box">
+                <strong>PIPELINE POWER:</strong>
+                <p>Chain multiple pipes: <code style="color:#00ff41;">cat log | grep ERROR | sort | uniq -c</code></p>
+            </div>
+            <div class="warning-box">
+                <strong>CAUTION:</strong>
+                <p>> overwrites files! Use >> to append safely.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../components/CLHConfig.js"></script>
+    <script src="../../../components/CLHTerminal.js"></script>
+    <script src="../../../components/CLHCompletionModal.js"></script>
+    <script>
+        const MODULE_ID = 'CLH-010';
+        const config = CLHConfig.getModule(MODULE_ID);
+        let currentObjective = 1;
+        const totalObjectives = config.objectives.length;
+        let insightAttempts = 0;
+
+        const terminal = new CLHTerminal({
+            moduleId: MODULE_ID,
+            container: '#terminal',
+            inputElement: '#commandInput',
+            onObjectiveComplete: (objectiveId, totalCompleted, total) => {
+                completeObjective(objectiveId);
+            },
+            onModuleComplete: () => {
+                showInsightPhase();
+            },
+            onCommand: (cmdLine, output) => {
+                updatePromptDisplay();
+            }
+        });
+
+        function updatePromptDisplay() {
+            const cwd = terminal.getCwd();
+            const displayPath = cwd === '/home/operator' ? '~' : cwd.replace('/home/operator', '~');
+            document.getElementById('promptDisplay').textContent = `operator@shadow:${displayPath}$`;
+            document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
+        }
+
+        function completeObjective(objId) {
+            const stepDot = document.getElementById(`step-${objId}`);
+            if (stepDot) {
+                stepDot.classList.remove('active');
+                stepDot.classList.add('completed');
+                stepDot.innerHTML = '✓';
+            }
+            if (objId < totalObjectives) {
+                const connector = document.getElementById(`conn-${objId}`);
+                if (connector) connector.classList.add('completed');
+                currentObjective = objId + 1;
+                const nextDot = document.getElementById(`step-${currentObjective}`);
+                if (nextDot) nextDot.classList.add('active');
+                showObjective(currentObjective);
+            }
+        }
+
+        function showObjective(objNum) {
+            const obj = config.objectives.find(o => o.id === objNum);
+            if (!obj) return;
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="current-mission">
+                    <h4>${obj.task}</h4>
+                    <p>${obj.hint}</p>
+                    <div class="hint">$ ${obj.hint.split(':').pop().trim()}</div>
+                </div>`;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INSIGHT PHASE - Analysis conclusion
+        // ═══════════════════════════════════════════════════════════════
+
+        function showInsightPhase() {
+            const insightConfig = config.insightPhase;
+            if (!insightConfig || !insightConfig.enabled) {
+                showCompletionModal();
+                return;
+            }
+
+            document.querySelector('.mission-header h3').textContent = 'ANALYSIS REQUIRED';
+
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="insight-phase">
+                    <div class="phase-header">PHASE 2: ANALYSIS</div>
+                    <div class="question">${insightConfig.question}</div>
+                    <div class="insight-input-row">
+                        <input type="text" id="insightAnswer" class="insight-input" placeholder="Enter your analysis..." autocomplete="off">
+                        <button class="insight-submit" onclick="submitInsightAnswer()">SUBMIT</button>
+                    </div>
+                    <div id="insightFeedback" class="insight-feedback"></div>
+                </div>
+            `;
+
+            const input = document.getElementById('insightAnswer');
+            input.focus();
+            input.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitInsightAnswer(); });
+
+            terminal.print(`[SYSTEM] All objectives complete. Analysis required.`, 'highlight');
+            terminal.print(`[PROMPT] ${insightConfig.question}`, 'output');
+        }
+
+        function submitInsightAnswer() {
+            const insightConfig = config.insightPhase;
+            const input = document.getElementById('insightAnswer');
+            const feedback = document.getElementById('insightFeedback');
+            const userAnswer = input.value.trim().toLowerCase();
+
+            if (!userAnswer) {
+                feedback.className = 'insight-feedback wrong';
+                feedback.textContent = 'Please enter your analysis.';
+                return;
+            }
+
+            insightAttempts++;
+
+            const isCorrect = insightConfig.acceptedAnswers.some(accepted =>
+                userAnswer.includes(accepted.toLowerCase())
+            );
+
+            if (isCorrect) {
+                feedback.className = 'insight-feedback';
+                feedback.style.display = 'block';
+                feedback.style.background = 'rgba(63, 185, 80, 0.1)';
+                feedback.style.border = '1px solid #3fb950';
+                feedback.style.color = '#3fb950';
+                feedback.textContent = insightConfig.correctAnswerMessage;
+
+                terminal.print(`[CONFIRMED] ${insightConfig.correctAnswerMessage}`, 'success');
+
+                input.disabled = true;
+                document.querySelector('.insight-submit').disabled = true;
+                document.querySelector('.insight-submit').style.opacity = '0.5';
+
+                setTimeout(() => { showCompletionModal(); }, 1500);
+            } else {
+                terminal.print(`[REJECTED] Intelligence not confirmed.`, 'error');
+
+                if (insightAttempts >= insightConfig.hintAfterAttempts && insightConfig.hint) {
+                    feedback.className = 'insight-feedback hint';
+                    feedback.textContent = `Hint: ${insightConfig.hint}`;
+                } else {
+                    feedback.className = 'insight-feedback wrong';
+                    feedback.textContent = insightConfig.wrongAnswerMessage;
+                }
+
+                input.style.animation = 'none';
+                input.offsetHeight;
+                input.style.animation = 'shake 0.3s';
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        // Initialize the new completion modal
+        const nextInfo = CLHConfig.getNextIntroUrl(MODULE_ID);
+        const completionModal = new CLHCompletionModal({
+            moduleId: MODULE_ID,
+            moduleName: config.title,
+            xpEarned: 120,
+            nextIntroUrl: 'script-clh-010.quiz.html',
+            successMessage: 'Data flow under control. I/O redirection skills acquired.',
+            isLastModule: nextInfo.isLast
+        });
+
+        function showCompletionModal() {
+            setTimeout(() => {
+                saveProgress();
+                completionModal.show();
+            }, 800);
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-010'] = { completed: true, completedAt: new Date().toISOString(), xpEarned: 120 };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+            const clhProgress = JSON.parse(localStorage.getItem('clh_progress') || '{}');
+            clhProgress.completedLabs = (clhProgress.completedLabs || 0) + 1;
+            localStorage.setItem('clh_progress', JSON.stringify(clhProgress));
+        }
+    </script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
