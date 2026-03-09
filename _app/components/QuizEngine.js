@@ -489,7 +489,7 @@ class QuizEngine {
         // Get progress info for display
         const progressResult = this.progressResult || results.progressResult;
         const xpEarned = progressResult ? progressResult.xpEarned : 0;
-        const nextModule = progressResult ? progressResult.nextModule : this.getNextModuleFallback();
+        const nextModule = (progressResult && progressResult.nextModule) || this.getNextModuleFallback();
 
         this.container.innerHTML = `
             <div class="quiz-engine theme-${this.config.theme}" role="region" aria-label="Quiz results">
