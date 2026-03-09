@@ -542,7 +542,7 @@ class QuizEngine {
 
                     <div class="results-actions">
                         ${results.passed && nextModule ? `
-                            <button class="quiz-btn quiz-next-module-btn primary">
+                            <button class="quiz-btn quiz-next-module-btn primary" onclick="window._quizNextModuleNav()">
                                 Continue → ${nextModule.title || 'Next Module'}
                             </button>
                         ` : ''}
@@ -578,22 +578,18 @@ class QuizEngine {
         const nextBtn = this.container.querySelector('.quiz-next-module-btn');
 
         if (nextBtn && nextModule) {
-            nextBtn.addEventListener('click', () => {
-                // Calculate correct path - hrefs in LearningPaths are relative to house root
-                // If we're in a subfolder (quizzes/, applets/, etc.), need to go up first
+            const navFn = () => {
                 const currentPath = window.location.pathname;
                 const houseMatch = currentPath.match(/\/houses\/\w+\//);
                 if (houseMatch) {
-                    // Navigate relative to house root
                     const houseBase = currentPath.substring(0, currentPath.indexOf(houseMatch[0]) + houseMatch[0].length);
-                    const targetUrl = houseBase + nextModule.href;
-                    window.location.href = targetUrl;
+                    window.location.href = houseBase + nextModule.href;
                 } else {
-                    // Fallback: go up one level and try
-                    const targetUrl = '../' + nextModule.href;
-                    window.location.href = targetUrl;
+                    window.location.href = '../' + nextModule.href;
                 }
-            });
+            };
+            nextBtn.addEventListener('click', navFn);
+            window._quizNextModuleNav = navFn;
         } else if (nextBtn) {
             console.warn('[QuizEngine] Could not attach next button handler — no next module data');
         }
@@ -676,6 +672,10 @@ class QuizEngine {
                 border: none;
                 box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
                 animation: pulseGlow 2s infinite;
+                cursor: pointer !important;
+                pointer-events: auto !important;
+                position: relative;
+                z-index: 100;
             }
 
             .quiz-next-module-btn.primary:hover {
