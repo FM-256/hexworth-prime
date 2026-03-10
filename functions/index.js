@@ -662,6 +662,108 @@ exports.updateStreak = onCall(cfOptions, async (request) => {
     return { streak: newStreak, alreadyUpdated: false };
 });
 
+// ─── Server-Side XP Derivation ──────────────────────────────────
+// Ported from migrate-xp.js. Recalculates XP from merged completion
+// data so the CF never trusts the client's XP number. Covers
+// presentations, labs, quizzes, gates, and streak (~90%+ of XP).
+// Game XP and badge XP are client-only and handled by XPCalculator.
+
+const XP_RATES = {
+    PRESENTATION_VIEW: 100,
+    TOOL_EXPLORE: 100,
+    QUIZ_PASS: 100,      // 70–89%
+    QUIZ_PERFECT: 200,   // 90%+
+    LAB_COMPLETE: 500,
+    GATE_CLEARED: 500,
+    DAILY_LOGIN: 25      // capped at 365 days
+};
+
+function calculateLevel(xp) {
+    if (!xp || xp <= 0) return 1;
+    return Math.max(1, Math.floor((1 + Math.sqrt(1 + xp / 12.5)) / 2));
+}
+
+/**
+ * Classify a module ID by type using quiz/lab sets + ID suffix heuristic.
+ */
+function resolveModuleType(id, quizIds, labIds) {
+    if (quizIds.has(id)) return 'quiz';
+    if (labIds.has(id)) return 'lab';
+    const lower = id.toLowerCase();
+    if (lower.endsWith('-quiz') || lower.includes('-quiz-')) return 'quiz';
+    if (lower.endsWith('-lab') || lower.includes('-lab-')) return 'lab';
+    if (lower.endsWith('-tool') || lower.endsWith('-applet')) return 'tool';
+    return 'presentation';
+}
+
+/**
+ * Recalculate XP from merged completion arrays.
+ * Returns { xp, level }. Intentionally skips game XP and badge XP
+ * (localStorage-only — XPCalculator picks those up client-side).
+ */
+function deriveXP(modules, labs, quizzes, achievements, streak) {
+    const quizIds = new Set(Object.keys(quizzes || {}));
+    const labIds = new Set(labs);
+    const seen = new Set();
+    let xp = 0;
+
+    // Score each unique module
+    for (const id of modules) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const type = resolveModuleType(id, quizIds, labIds);
+        switch (type) {
+            case 'quiz': {
+                const score = (quizzes[id] && quizzes[id].score) || 0;
+                xp += score >= 90 ? XP_RATES.QUIZ_PERFECT : XP_RATES.QUIZ_PASS;
+                break;
+            }
+            case 'lab':
+                xp += XP_RATES.LAB_COMPLETE;
+                break;
+            case 'tool':
+                xp += XP_RATES.TOOL_EXPLORE;
+                break;
+            default:
+                xp += XP_RATES.PRESENTATION_VIEW;
+        }
+    }
+
+    // Quizzes not in modulesCompleted (passed but not tracked as module)
+    for (const [qid, qdata] of Object.entries(quizzes || {})) {
+        if (seen.has(qid)) continue;
+        seen.add(qid);
+        const score = (qdata && qdata.score) || 0;
+        if (score >= 90) {
+            xp += XP_RATES.QUIZ_PERFECT;
+        } else if (score >= 70) {
+            xp += XP_RATES.QUIZ_PASS;
+        }
+    }
+
+    // Labs not in modulesCompleted
+    for (const labId of labs) {
+        if (seen.has(labId)) continue;
+        seen.add(labId);
+        xp += XP_RATES.LAB_COMPLETE;
+    }
+
+    // Gate XP: count gate_N and dark_arts_gateN in achievements
+    const gatePattern = /^(gate_\d+|dark_arts_gate\d+)$/;
+    for (const ach of (achievements || [])) {
+        const achId = typeof ach === 'string' ? ach : ((ach && ach.id) || '');
+        if (gatePattern.test(achId)) {
+            xp += XP_RATES.GATE_CLEARED;
+        }
+    }
+
+    // Streak XP (25/day, capped at 365)
+    const cappedStreak = Math.min(streak || 0, 365);
+    xp += cappedStreak * XP_RATES.DAILY_LOGIN;
+
+    return { xp, level: calculateLevel(xp) };
+}
+
 /**
  * syncProgress — Server-side bidirectional sync.
  * Client sends its local progress data; server merges with cloud and writes back.
@@ -725,7 +827,8 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const localLabs = sanitizeStringArray(localData.labsCompleted).filter(_isValidModuleId);
     const localAchievements = sanitizeStringArray(localData.achievements);
     const localQuizzes = sanitizeQuizzes(localData.quizzes);
-    const localXP = Math.max(0, Math.min(1000000, parseInt(localData.xp) || 0));
+    // localXP intentionally not read — XP is derived server-side from
+    // merged completion arrays to prevent stale cache re-inflation.
     const localStreak = Math.max(0, Math.min(10000, parseInt(localData.streak) || 0));
     const localFavorites = sanitizeFavorites(localData.favorites);
 
@@ -738,7 +841,6 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const mergedModules = [...new Set([...(cloudData.modulesCompleted || []).filter(_isValidModuleId), ...localModules])];
     const mergedLabs = [...new Set([...(cloudData.labsCompleted || []).filter(_isValidModuleId), ...localLabs])];
     const mergedAchievements = [...new Set([...(cloudData.achievements || []), ...localAchievements])];
-    const mergedXP = localXP;
     const mergedStreak = Math.max(cloudData.streak || 0, localStreak);
 
     // Merge quizzes (keep highest scores)
@@ -759,6 +861,13 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
             mergedFavorites.push(fav);
         }
     }
+
+    // Server-side XP derivation — never trust the client's XP number.
+    // Recalculates from the merged completion arrays to prevent stale
+    // localStorage from re-inflating XP after manual corrections.
+    const { xp: mergedXP, level: mergedLevel } = deriveXP(
+        mergedModules, mergedLabs, mergedQuizzes, mergedAchievements, mergedStreak
+    );
 
     // Detect cheating: if client sent > 5 garbage module IDs, flag the account.
     // The integrity field is server-only — NOT in firestore.rules client whitelist,
@@ -783,6 +892,7 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         quizzes: mergedQuizzes,
         favorites: mergedFavorites,
         xp: mergedXP,
+        level: mergedLevel,
         streak: mergedStreak,
         updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
@@ -791,6 +901,7 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         success: true,
         modulesCount: mergedModules.length,
         xp: mergedXP,
+        level: mergedLevel,
         streak: mergedStreak
     };
 });
