@@ -32,6 +32,10 @@
  * ===============================================================================
  */
 
+// IIFE singleton — NOT a class. Only one terminal can exist per page because
+// filesystem, cwd, command history, and DOM refs are shared mutable state.
+// Calling `new LinuxTerminal()` would create duplicate state and break event
+// handlers. Instead, call LinuxTerminal.init() once per page.
 const LinuxTerminal = (function() {
     'use strict';
 

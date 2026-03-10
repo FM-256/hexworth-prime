@@ -119,7 +119,7 @@ class FlowValidator {
 
                 results.issues.push({
                     code: 'FLOW-001',
-                    severity: 'medium',
+                    severity: 'low',  // Informational — content works, just not in a structured path
                     category: 'flow',
                     message: `Unchained content: '${file.path}' is not part of any learning progression`,
                     file: file.path,
@@ -164,6 +164,12 @@ class FlowValidator {
 
         // === Source 3: Course directory paths (added during check, not here) ===
         // Course directory membership is checked at query time in _isChained()
+
+        // === Source 4: ArcticData.js module hrefs ===
+        // Arctic Linux districts (LM, CLH, LA) use ArcticData.js for their
+        // learning progression instead of LearningPaths.js. Without this,
+        // all 359 Arctic modules appear as FLOW-001 false positives.
+        this._addArcticDataHrefs(chained);
 
         return chained;
     }
@@ -246,6 +252,42 @@ class FlowValidator {
 
         if (this.verbose) {
             console.log(`[FLOW] Added ${count} component paths from registry-via-LP entries`);
+        }
+    }
+
+    /**
+     * Parse ArcticData.js and add all module hrefs to the chained set.
+     * ArcticData.js contains 16 districts with ~359 modules, each with
+     * relative hrefs like '../../../houses/script/linux/...'
+     */
+    _addArcticDataHrefs(chained) {
+        const arcticFile = path.resolve(this.rootPath, 'arctic/ArcticData.js');
+        if (!fs.existsSync(arcticFile)) {
+            if (this.verbose) console.log('[FLOW] ArcticData.js not found');
+            return;
+        }
+
+        const content = fs.readFileSync(arcticFile, 'utf8');
+
+        // Extract all href values from ArcticData module definitions
+        const hrefPattern = /href:\s*['"]([^'"]+\.html)['"]/g;
+        let match;
+        let count = 0;
+
+        while ((match = hrefPattern.exec(content)) !== null) {
+            let href = match[1];
+            // ArcticData hrefs are relative to district pages: ../../../houses/...
+            // Strip leading ../ segments to get the houses/... canonical form
+            href = href.replace(/^(?:\.\.\/)+/, '');
+            const normalized = this._normalizePath(href);
+            if (normalized) {
+                chained.add(normalized);
+                count++;
+            }
+        }
+
+        if (this.verbose) {
+            console.log(`[FLOW] Added ${count} hrefs from ArcticData.js`);
         }
     }
 

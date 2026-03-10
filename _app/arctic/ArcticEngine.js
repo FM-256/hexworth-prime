@@ -51,7 +51,11 @@ const ArcticEngine = (() => {
         review:  { label: 'Review',      icon: '[R]', colorVar: '--ae-type-review'  }
     };
 
-    // Faction accent colors (kept in sync with ArcticData.js faction colors)
+    // Faction accent colors — each faction is a learning path with its own
+    // visual identity. lm (Linux Mastery) is the always-unlocked beginner path.
+    // clh (Command Line Hacker) and la (Linux Admin) unlock at 40% LM completion.
+    // Colors are duplicated from ArcticData.js because ArcticEngine injects all
+    // CSS via JS (no external stylesheets) for zero-dependency district pages.
     const FACTION_COLOR = {
         lm:  { main: '#3ab8e0', dark: '#1a6a9a', dim: 'rgba(58,184,224,0.12)', border: 'rgba(58,184,224,0.22)' },
         clh: { main: '#e0a030', dark: '#8a6010', dim: 'rgba(224,160,48,0.12)', border: 'rgba(224,160,48,0.22)' },
@@ -2026,9 +2030,18 @@ body {
 }
 
 .ae-node-stamp {
-    font-size: 0.46rem;
-    color: #3ac880;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.52rem;
+    font-weight: 700;
     letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #3ac880;
+    background: rgba(58,200,128,0.10);
+    border: 1px solid rgba(58,200,128,0.25);
+    border-radius: 3px;
+    padding: 2px 8px;
 }
 
 .ae-node-toggle {

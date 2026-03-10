@@ -87,6 +87,14 @@
 
     /**
      * Cascading load with 4-tier fallback.
+     *
+     * Why 4 tiers: A user may arrive on a new device where only the lightweight
+     * sync key exists (restored by Firestore blob sync), or on a device where
+     * they completed a course module but never opened this specific tool.
+     * The cascade ensures we always recover the best available starting state.
+     * Tier 1 also merges sync data into local state because another device may
+     * have completed items that this device's full state doesn't reflect.
+     *
      * @returns {{ data: *, source: 'local'|'sync'|'completion'|null }}
      */
     FederatedHandle.prototype.load = function() {

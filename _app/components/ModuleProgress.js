@@ -279,9 +279,17 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Complete a module
-     * @param {string} houseId - The house ID (forge, shield, web, etc.)
-     * @param {string} moduleId - The module ID
+     * Complete a module.
+     *
+     * IMPORTANT — Argument order convention: (houseId, moduleId, ...).
+     * This matches the Firestore compound ID format "{house}-{module}" and is
+     * consistent across ModuleProgress, FirestoreManager, and ProgressManager.
+     * The `moduleId` here is the SHORT key (e.g. "security-quiz"), NOT the
+     * compound ID (e.g. "shield-security-quiz"). The house prefix is added
+     * internally when writing to Firestore.
+     *
+     * @param {string} houseId - The house ID (forge, shield, web, script, etc.)
+     * @param {string} moduleId - The SHORT module key (no house prefix)
      * @param {object} options - Additional options
      * @param {boolean} options.silent - Don't show notification
      * @param {boolean} options.returnToDashboard - Navigate to dashboard after
@@ -389,9 +397,11 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Complete a quiz with score
+     * Complete a quiz with score.
+     * Same (houseId, moduleId) convention as complete() — see note there.
+     *
      * @param {string} houseId - The house ID
-     * @param {string} quizId - The quiz ID
+     * @param {string} quizId - The SHORT quiz key (no house prefix)
      * @param {number} score - Score percentage (0-100)
      * @param {object} options - Additional options
      */

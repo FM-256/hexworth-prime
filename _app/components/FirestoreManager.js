@@ -1217,6 +1217,23 @@ const FirestoreManager = (function() {
      * Called on every auth state change (dashboard load, sign-in, etc.)
      * Ensures progress from all devices is merged and consistent.
      *
+     * Flow (9 steps, order matters):
+     *   1. Fetch cloud profile
+     *   2. Read local progress
+     *   3. Cloud → Local: restore completions missing from this device
+     *   4. Local → Cloud: union arrays (filter garbage IDs to prevent re-inflation)
+     *   5. Merge scalars — XPCalculator is sole XP authority (never trust stored XP)
+     *   6. Write merged state to localStorage (re-read first to catch race conditions)
+     *   6a. Update AchievementRegistry v2 format from merged achievements
+     *   6b. Restore gate completion progress from Firestore subcollection
+     *   7. Push merged arrays to syncProgress CF (server derives XP, ignores client XP)
+     *   8. Restore bulk sync blob from other devices + re-clean garbage after merge
+     *   9. Final XPCalculator.recalculate() to ensure localStorage XP matches reality
+     *
+     * Why this order: Cloud data must be merged into local BEFORE local→cloud push,
+     * otherwise we'd overwrite cloud with stale local data. Step 9 runs AFTER blob
+     * restore because the blob may add completions that change the XP total.
+     *
      * @param {string} uid - Firebase UID
      * @returns {object} - { synced, modulesCount, added }
      */
@@ -1442,7 +1459,10 @@ const FirestoreManager = (function() {
             const gateResult = await _restoreGateProgress(uid);
             if (gateResult.gatesRestored > 0) addedToLocal += gateResult.gatesRestored;
 
-            // 7. Write merged data to Firestore via Cloud Function (server authority)
+            // 7. Push merged arrays to syncProgress Cloud Function.
+            // The CF derives XP server-side from completion arrays — it ignores the
+            // client's xp field. This prevents stale localStorage XP from overwriting
+            // corrected Firestore values (the bug that caused VORYX's XP re-inflation).
             if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
                 try {
                     await FirebaseAuth.callFunction('syncProgress', {
@@ -1461,11 +1481,15 @@ const FirestoreManager = (function() {
                 // XP is written to Firestore in step 9 after all sync operations complete
             }
 
-            // 8. Restore bulk sync blob from other devices, THEN write updated state
+            // 8. Restore bulk sync blob — a device-specific snapshot of ALL hexworth_*
+            // localStorage keys. This catches data that doesn't fit the structured
+            // fields above (e.g. WSA course progress, StateFederation handles).
             const blobRestored = await _restoreSyncBlob(uid);
             addedToLocal += blobRestored;
 
-            // 8a. Re-clean progress arrays after sync blob merge (blob may contain old garbage)
+            // 8a. Re-clean progress arrays after blob merge — older blobs may contain
+            // garbage module IDs that were cleaned from this device but persisted in
+            // another device's snapshot. Without this, garbage would re-infect arrays.
             try {
                 const hp = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
                 let blobCleaned = false;
@@ -1484,7 +1508,10 @@ const FirestoreManager = (function() {
 
             await _writeSyncBlob(uid);
 
-            // 9. Final XP write — XPCalculator is sole authority
+            // 9. Final XP recalculation — must happen AFTER blob restore (step 8)
+            // because the blob may have added completions that change the XP total.
+            // XPCalculator.recalculate() is a pure function that derives XP from
+            // the current localStorage state — it never reads cached/stale values.
             if (typeof XPCalculator !== 'undefined') {
                 const finalCalc = XPCalculator.recalculate();
                 const finalXP = finalCalc.xp;
@@ -1500,10 +1527,8 @@ const FirestoreManager = (function() {
                         localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(hp));
                     }
                 } catch (e) { /* best-effort */ }
-                // Write deterministic XP to Firestore user doc
-                try {
-                    await setUserProfile(uid, { xp: finalXP, level: finalLevel });
-                } catch (e) { /* best-effort */ }
+                // XP + level are derived server-side by syncProgress CF.
+                // No client-side Firestore write needed — server ignores client XP.
             }
 
             console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);

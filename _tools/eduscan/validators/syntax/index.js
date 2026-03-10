@@ -3,6 +3,22 @@
  *
  * Coordinates syntax validation across HTML, JS, engines, and paths.
  * Designed to catch "blank screen" failures before students see them.
+ *
+ * Execution model:
+ *   - GLOBAL validators run once across the whole project (LearningPaths,
+ *     AssignmentLinks, ContentCatalog, Emoji global, CSP, Palette, XP Audit,
+ *     Sandbox global). These check cross-file consistency or project-level rules.
+ *   - PER-FILE validators run once per HTML file (HTML, JS, Engine, Path, Naming,
+ *     Heuristics, DependencyCheck, Navigation, Emoji, ContentBlob, Semantic, UX,
+ *     Turtle, FlexOverflow, Sandbox, LinuxTerminal, ProgressKeys, XP Audit).
+ *   - Global validators run FIRST so their summaries (e.g. sandboxMap) are
+ *     available when per-file validators need cross-reference data.
+ *
+ * Adding a new validator:
+ *   1. Create validators/syntax/{name}.js with validate(file) → issues[]
+ *   2. Require it here, instantiate in constructor, wire into validate() loop
+ *   3. Add issue codes to expectations.js for regression testing
+ *   4. Add severity to the Nexus gate config if it should block deploys
  */
 
 const fs = require('fs');

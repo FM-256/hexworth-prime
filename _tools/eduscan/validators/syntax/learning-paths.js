@@ -418,7 +418,7 @@ class LearningPathsValidator {
                     stats.missingFromCatalog++;
                     issues.push({
                         code: 'LP-006',
-                        severity: 'medium',
+                        severity: 'low',  // Informational: module works fine, just not in ContentCatalog
                         category: 'learning-paths',
                         message: `LearningPaths module '${moduleId}' has no matching entry in ContentCatalog`,
                         file: this.learningPathsFile,

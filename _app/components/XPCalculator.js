@@ -26,6 +26,12 @@ const XPCalculator = (function () {
     /**
      * Validate a module ID: must be {knownHouse}-{key} or dark-arts-{key}.
      * Rejects garbage like "module_XXXXXX", numeric keys, or house-only strings.
+     *
+     * WHY: Early Firestore sync bugs allowed garbage entries into completedModules
+     * arrays (e.g. flat-format reconstruction created "forge-forge-..." double-prefixed
+     * IDs). Without this filter, 942+ garbage entries inflated XP by 10-30K per user.
+     * The migration script (migrate-xp.js) cleaned existing data; this filter prevents
+     * re-introduction from stale sync blobs or cached localStorage on other devices.
      */
     function _isValidId(id) {
         if (!id || typeof id !== 'string') return false;

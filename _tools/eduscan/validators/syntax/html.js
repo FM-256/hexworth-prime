@@ -55,14 +55,22 @@ class HTMLValidator {
      * @returns {Array} Issues found
      */
     validate(file) {
-        const issues = [];
         let content = file.content;
+
+        // Extract ignore directives BEFORE stripping comments (they live in comments)
+        const ignoredCodes = new Set();
+        const ignoreAll = /<!--\s*eduscan-ignore-all/i.test(content);
+        const codePattern = /<!--\s*eduscan-ignore:\s*([A-Z]+-\d+)/gi;
+        let m;
+        while ((m = codePattern.exec(content)) !== null) ignoredCodes.add(m[1]);
 
         // Strip template placeholders before validation
         content = this.stripTemplates(content);
 
         // Strip HTML comments to avoid false positives from commented-out code
         content = this.stripComments(content);
+
+        const issues = [];
 
         // CI mode: only critical checks
         if (this.profile === 'ci') {
@@ -76,6 +84,9 @@ class HTMLValidator {
             issues.push(...this.checkRequiredElements(file, content));
         }
 
+        // Filter out ignored codes
+        if (ignoreAll) return [];
+        if (ignoredCodes.size > 0) return issues.filter(i => !ignoredCodes.has(i.code));
         return issues;
     }
 

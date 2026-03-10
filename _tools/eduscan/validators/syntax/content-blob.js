@@ -80,7 +80,7 @@ class ContentBlobValidator {
 
                 issues.push({
                     code: 'BLOB-001',
-                    severity: 'medium',
+                    severity: 'low',  // Self-contained CSS is intentional for independent page loading
                     category: 'blob',
                     message: `Inline <style> block is ${lineCount} lines (threshold: ${this.styleLineThreshold}) — consider externalizing to a CSS file`,
                     file: file.path,

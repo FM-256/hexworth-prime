@@ -255,7 +255,7 @@ class NamingValidator {
 
             return {
                 code: 'NAME-003',
-                severity: 'medium',
+                severity: 'low',  // Naming convention, doesn't affect functionality
                 category: 'naming',
                 message: `File missing house prefix: '${filename}' (should start with '${house}-')`,
                 file: filePath,
