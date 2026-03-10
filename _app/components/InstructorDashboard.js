@@ -1251,12 +1251,13 @@ const InstructorDashboard = (function() {
             chartInstances.completion = null;
         }
 
-        // Collect all completedAt timestamps
+        // Collect all completedAt timestamps — only for assigned module IDs
+        const validIds = getAssignedModuleIds();
         const allCompletions = [];
         for (const student of classProgressData) {
             if (!student.completions) continue;
-            for (const data of Object.values(student.completions)) {
-                if (data.completed && data.completedAt) {
+            for (const [id, data] of Object.entries(student.completions)) {
+                if (data.completed && data.completedAt && validIds.has(id)) {
                     const date = data.completedAt?.toDate ? data.completedAt.toDate() : new Date(data.completedAt);
                     if (!isNaN(date.getTime())) allCompletions.push(date);
                 }
@@ -1285,7 +1286,7 @@ const InstructorDashboard = (function() {
             weeks.push({ start: weekStart, end: weekEnd });
         }
 
-        const totalPossible = rosterMembers.length * classAssignments.length;
+        const totalPossible = rosterMembers.length * getTotalModuleCount();
         const labels = weeks.map(w => {
             const m = w.start.getMonth() + 1;
             const d = w.start.getDate();
@@ -1416,11 +1417,20 @@ const InstructorDashboard = (function() {
         const enrolled = rosterMembers.length;
 
         // Per-assignment completion count
+        // For path assignments, a student "completed" the assignment when all path modules are done
         const items = classAssignments.map(a => {
             let completedCount = 0;
+            const pathModules = (a.assignmentType === 'path' && typeof ContentRegistry !== 'undefined')
+                ? ContentRegistry.paths?.[a.contentId]?.modules : null;
+
             for (const student of classProgressData) {
-                if (student.completions?.[a.contentId]?.completed) {
-                    completedCount++;
+                if (pathModules) {
+                    // Path: check if all modules in the path are completed
+                    const allDone = pathModules.every(m => student.completions?.[m]?.completed);
+                    if (allDone) completedCount++;
+                } else {
+                    // Single content item
+                    if (student.completions?.[a.contentId]?.completed) completedCount++;
                 }
             }
             const rate = Math.round((completedCount / enrolled) * 100);
@@ -2292,16 +2302,42 @@ const InstructorDashboard = (function() {
         let assignmentRows = '';
         if (classAssignments.length > 0) {
             assignmentRows = classAssignments.map(a => {
-                const comp = studentData?.completions?.[a.contentId];
-                const completed = comp?.completed;
-                const statusIcon = completed ? '<span style="color:#4ade80;">&#10003;</span>' : '<span style="color:#555;">—</span>';
-                const score = comp?.score != null ? `${comp.score}%` : '—';
-                const time = comp?.duration != null ? formatDuration(comp.duration) : '—';
-                let completedAt = '—';
-                if (comp?.completedAt) {
-                    const d = comp.completedAt?.toDate ? comp.completedAt.toDate() : new Date(comp.completedAt);
-                    if (!isNaN(d.getTime())) completedAt = formatDate(d);
+                const pathModules = (a.assignmentType === 'path' && typeof ContentRegistry !== 'undefined')
+                    ? ContentRegistry.paths?.[a.contentId]?.modules : null;
+
+                let completed, score, time, completedAt;
+
+                if (pathModules && studentData?.completions) {
+                    // Path assignment: aggregate module-level completions
+                    const done = pathModules.filter(m => studentData.completions[m]?.completed).length;
+                    completed = done === pathModules.length;
+                    score = `${done}/${pathModules.length}`;
+                    time = '—';
+                    // Last completion date among completed modules
+                    let lastDate = null;
+                    for (const m of pathModules) {
+                        const mc = studentData.completions[m];
+                        if (mc?.completed && mc.completedAt) {
+                            const d = mc.completedAt?.toDate ? mc.completedAt.toDate() : new Date(mc.completedAt);
+                            if (!isNaN(d.getTime()) && (!lastDate || d > lastDate)) lastDate = d;
+                        }
+                    }
+                    completedAt = lastDate ? formatDate(lastDate) : '—';
+                } else {
+                    // Single content item
+                    const comp = studentData?.completions?.[a.contentId];
+                    completed = comp?.completed;
+                    score = comp?.score != null ? `${comp.score}%` : '—';
+                    time = comp?.duration != null ? formatDuration(comp.duration) : '—';
+                    completedAt = '—';
+                    if (comp?.completedAt) {
+                        const d = comp.completedAt?.toDate ? comp.completedAt.toDate() : new Date(comp.completedAt);
+                        if (!isNaN(d.getTime())) completedAt = formatDate(d);
+                    }
                 }
+
+                const statusIcon = completed ? '<span style="color:#4ade80;">&#10003;</span>' : '<span style="color:#555;">—</span>';
+
                 return `
                     <tr>
                         <td>${escapeHtml(a.title)}</td>
