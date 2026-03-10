@@ -11,3 +11,4 @@ Platform feature man pages. Each document describes a feature, its purpose, tech
 | [CTF Arena](CTF_ARENA.md) | BoxEngine, arena/index, ctf-leaderboard | Offensive security CTF boxes with flag capture, scoring, and Firestore stats sync |
 | [XP Pipeline](XP_PIPELINE.md) | XPCalculator, FirestoreManager, Cloud Functions | Deterministic XP derivation, cross-device sync, dual-authority reconciliation |
 | [Skulpt Integration](SKULPT_INTEGRATION.md) | TurtleCanvas, SkulptRunner, vendor/skulpt | Three-stage lazy Python interpreter for advanced turtle graphics (def, if, recursion) |
+| [Class Progress Tracking](CLASS_PROGRESS_TRACKING.md) | handler-dashboard, ProgressManager, AssignmentManager | Post-mortem: three-layer fix for 100% completion bug (fuzzy matching, sync pollution) |
