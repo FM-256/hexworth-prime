@@ -556,12 +556,24 @@ Type <span class="lt-cmd">help</span> for available commands.
         }
         if (current) parts.push(current);
 
+        // Expand variables, then expand braces (e.g. {a,b,c})
         const expanded = parts.map(p => _expandVars(p));
+        const braceExpanded = expanded.flatMap(p => _expandBraces(p));
 
         return {
-            cmd: expanded[0] || '',
-            args: expanded.slice(1)
+            cmd: braceExpanded[0] || '',
+            args: braceExpanded.slice(1)
         };
+    }
+
+    // Expand simple brace patterns: path/{a,b,c} → [path/a, path/b, path/c]
+    function _expandBraces(str) {
+        const match = str.match(/^(.*)\{([^{}]+)\}(.*)$/);
+        if (!match) return [str];
+        const [, prefix, inner, suffix] = match;
+        const items = inner.split(',');
+        // Recursively expand in case of nested braces
+        return items.flatMap(item => _expandBraces(prefix + item + suffix));
     }
 
     function _expandVars(str) {
@@ -1291,6 +1303,9 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
             else if (!arg.startsWith('-')) dirs.push(arg);
         }
 
+        // Collect errors instead of returning early — process ALL dirs like real mkdir
+        const errors = [];
+
         for (const dir of dirs) {
             const path = _resolvePath(dir);
 
@@ -1317,7 +1332,8 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
                 }
             } else {
                 if (state.fs[path]) {
-                    return `<span class="lt-error">mkdir: cannot create directory '${dir}': File exists</span>`;
+                    errors.push(`<span class="lt-error">mkdir: cannot create directory '${dir}': File exists</span>`);
+                    continue;
                 }
 
                 const parentPath = path.split('/').slice(0, -1).join('/') || '/';
@@ -1325,7 +1341,8 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
                 const parent = state.fs[parentPath];
 
                 if (!parent) {
-                    return `<span class="lt-error">mkdir: cannot create directory '${dir}': No such file or directory</span>`;
+                    errors.push(`<span class="lt-error">mkdir: cannot create directory '${dir}': No such file or directory</span>`);
+                    continue;
                 }
 
                 if (parent.type === 'dir') {
@@ -1342,7 +1359,7 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
                 }
             }
         }
-        return null;
+        return errors.length ? errors.join('\n') : null;
     }
 
     function _rm(args) {
