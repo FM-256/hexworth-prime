@@ -979,6 +979,7 @@ const InstructorDashboard = (function() {
 
         // Only count completions that match assigned module IDs
         const validIds = getAssignedModuleIds();
+        const allKeys = Object.keys(studentData.completions);
         const completed = Object.entries(studentData.completions)
             .filter(([id, c]) => c.completed && validIds.has(id)).length;
 
