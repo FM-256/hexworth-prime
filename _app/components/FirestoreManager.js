@@ -825,6 +825,84 @@ const FirestoreManager = (function() {
     }
 
     /**
+     * Get users flagged by the integrity system (status === 'violated').
+     * Used by the Shame Corner on the dashboard.
+     */
+    async function getFlaggedUsers(limit = 20) {
+        if (!initialized) await init();
+        if (!db) return [];
+
+        try {
+            const { collection, query, where, limit: limitFn, getDocs } = window.firebaseFirestore;
+            const usersRef = collection(db, COLLECTIONS.USERS);
+            // Single-field where — no composite index needed
+            const q = query(usersRef, where('integrity.status', '==', 'violated'), limitFn(limit));
+            const snapshot = await getDocs(q);
+
+            const flagged = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                flagged.push({
+                    id: doc.id,
+                    callsign: data.callsign || 'Unknown',
+                    photoURL: data.photoURL || null,
+                    house: data.house || 'web',
+                    integrity: data.integrity || {}
+                });
+            });
+
+            return flagged;
+        } catch (error) {
+            console.error('[FirestoreManager] Failed to get flagged users:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Search users by callsign prefix.
+     * Uses Firestore range query on callsignLower (already indexed).
+     */
+    async function searchUsers(prefix, limit = 10) {
+        if (!initialized) await init();
+        if (!db) return [];
+        if (!prefix || prefix.length < 2) return [];
+
+        try {
+            const { collection, query, where, limit: limitFn, getDocs } = window.firebaseFirestore;
+            const usersRef = collection(db, COLLECTIONS.USERS);
+            // Firestore prefix range pattern: >= prefix, <= prefix + high Unicode char
+            const q = query(
+                usersRef,
+                where('callsignLower', '>=', prefix),
+                where('callsignLower', '<=', prefix + '\uf8ff'),
+                limitFn(limit)
+            );
+            const snapshot = await getDocs(q);
+
+            const results = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.callsign) {
+                    results.push({
+                        id: doc.id,
+                        callsign: data.callsign,
+                        displayName: data.displayName || data.callsign,
+                        photoURL: data.photoURL || null,
+                        house: data.house || 'web',
+                        xp: data.xp || 0,
+                        integrity: data.integrity || null
+                    });
+                }
+            });
+
+            return results;
+        } catch (error) {
+            console.error('[FirestoreManager] Failed to search users:', error);
+            return [];
+        }
+    }
+
+    /**
      * Get house-specific leaderboard
      */
     async function getHouseLeaderboard(house, limit = 25) {
@@ -1654,6 +1732,10 @@ const FirestoreManager = (function() {
         getHouseLeaderboard,
         getUserRank,
         calculateLevel,
+
+        // Community
+        getFlaggedUsers,
+        searchUsers,
 
         // Game Scoreboards
         submitGameScore,

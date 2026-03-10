@@ -2887,6 +2887,152 @@
             min-height: 250px;
         }
 
+        /* ── User Search ── */
+        .community-search-wrap {
+            position: relative;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0 12px;
+        }
+        .cs-icon {
+            width: 20px;
+            height: 20px;
+            opacity: 0.5;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .cs-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ccc;
+            font-size: 0.9rem;
+            padding: 12px 0;
+            font-family: inherit;
+        }
+        .cs-input::placeholder { color: #555; }
+        .cs-results {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .cs-results.active { display: block; }
+        .cs-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .cs-row:hover { background: rgba(255, 255, 255, 0.06); }
+        .cs-row-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #333;
+        }
+        .cs-row-name {
+            flex: 1;
+            color: #ccc;
+            font-size: 0.85rem;
+        }
+        .cs-row-house {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .cs-flagged-pill {
+            font-size: 0.65rem;
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        .cs-no-results {
+            padding: 14px;
+            text-align: center;
+            color: #555;
+            font-size: 0.85rem;
+        }
+
+        /* ── Shame Corner ── */
+        .shame-corner {
+            margin-top: 24px;
+            background: rgba(239, 68, 68, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .shame-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .shame-header-icon {
+            width: 22px;
+            height: 22px;
+        }
+        .shame-header-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #ef4444;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .shame-entry {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .shame-entry:hover { background: rgba(239, 68, 68, 0.08); }
+        .shame-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(239, 68, 68, 0.4);
+            background: #333;
+        }
+        .shame-callsign {
+            color: #ef4444;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .shame-msg {
+            flex: 1;
+            color: #888;
+            font-size: 0.75rem;
+        }
+        .shame-elapsed {
+            color: #666;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+
         /* House Members Component Styles */
         .house-members-list,
         .house-activity-feed,
@@ -3433,10 +3579,21 @@
             <!-- House Community Section -->
             <section class="house-community-section">
                 <h2 class="section-title">Your House Community</h2>
+
+                <!-- User Search -->
+                <div class="community-search-wrap">
+                    <img src="/assets/images/icons/icon-detective.webp" class="cs-icon" alt="">
+                    <input type="text" id="userSearchInput" class="cs-input" placeholder="Search operatives by callsign..." autocomplete="off">
+                    <div id="userSearchResults" class="cs-results"></div>
+                </div>
+
                 <div class="community-grid">
                     <div id="houseLeaderboard" class="community-panel"></div>
                     <div id="houseActivity" class="community-panel"></div>
                 </div>
+
+                <!-- Shame Corner (hidden until flagged users found) -->
+                <div id="shameCorner" class="shame-corner" style="display:none"></div>
             </section>
         </main>
 
@@ -8715,13 +8872,132 @@
             if (e.detail.user) {
                 // User signed in - switch to Firestore leaderboard
                 setTimeout(() => initLeaderboard(true), 500);
+                // Also init community features that require auth
+                setTimeout(initShameCorner, 800);
+                setTimeout(initUserSearch, 800);
             }
         });
 
         // Call after components are ready
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(initLeaderboard, 1000);
+            setTimeout(initShameCorner, 1200);
+            setTimeout(initUserSearch, 1200);
         });
+
+        // ═══════════════════════════════════════════════════════════════
+        // SHAME CORNER (flagged integrity violators)
+        // ═══════════════════════════════════════════════════════════════
+
+        async function initShameCorner() {
+            if (!FirebaseAuth.isSignedIn()) return;
+            const container = document.getElementById('shameCorner');
+            if (!container) return;
+
+            try {
+                const flagged = await FirestoreManager.getFlaggedUsers(10);
+                if (!flagged.length) {
+                    container.style.display = 'none';
+                    return;
+                }
+
+                const entries = flagged.map(user => {
+                    const shame = _getShameMessage(user.integrity);
+                    const elapsed = _formatElapsed(user.integrity.detectedAt);
+                    const avatar = user.photoURL || '/assets/images/icons/icon-detective.webp';
+                    return `<div class="shame-entry" onclick="if(typeof viewUserProfile==='function')viewUserProfile('${user.id}')">
+                        <img class="shame-avatar" src="${avatar}" alt="" onerror="this.src='/assets/images/icons/icon-detective.webp'">
+                        <span class="shame-callsign">${_escHtml(user.callsign)}</span>
+                        <span class="shame-msg">${shame.text}</span>
+                        <span class="shame-elapsed">${elapsed}</span>
+                    </div>`;
+                }).join('');
+
+                container.innerHTML = `
+                    <div class="shame-header">
+                        <img class="shame-header-icon" src="/assets/images/icons/icon-siren.webp" alt="">
+                        <span class="shame-header-title">Wall of Shame</span>
+                    </div>
+                    ${entries}
+                `;
+                container.style.display = 'block';
+            } catch (err) {
+                console.error('[Dashboard] Shame corner error:', err);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // USER SEARCH (callsign prefix search)
+        // ═══════════════════════════════════════════════════════════════
+
+        function initUserSearch() {
+            const input = document.getElementById('userSearchInput');
+            const results = document.getElementById('userSearchResults');
+            if (!input || !results) return;
+
+            // Only enable for signed-in users
+            if (!FirebaseAuth.isSignedIn()) {
+                input.disabled = true;
+                input.placeholder = 'Sign in to search operatives...';
+                return;
+            }
+
+            let debounceTimer = null;
+
+            input.addEventListener('keyup', function(e) {
+                if (e.key === 'Escape') {
+                    results.classList.remove('active');
+                    return;
+                }
+
+                clearTimeout(debounceTimer);
+                const val = input.value.trim();
+
+                if (val.length < 2) {
+                    results.classList.remove('active');
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const users = await FirestoreManager.searchUsers(val.toLowerCase(), 8);
+                        if (!users.length) {
+                            results.innerHTML = '<div class="cs-no-results">No operatives found</div>';
+                            results.classList.add('active');
+                            return;
+                        }
+
+                        results.innerHTML = users.map(u => {
+                            const avatar = u.photoURL || '/assets/images/icons/icon-detective.webp';
+                            const flagged = u.integrity && u.integrity.status === 'violated';
+                            return `<div class="cs-row" onclick="if(typeof viewUserProfile==='function')viewUserProfile('${u.id}')">
+                                <img class="cs-row-avatar" src="${avatar}" alt="" onerror="this.src='/assets/images/icons/icon-detective.webp'">
+                                <span class="cs-row-name">${_escHtml(u.callsign)}</span>
+                                <span class="cs-row-house">${_escHtml(u.house)}</span>
+                                ${flagged ? '<span class="cs-flagged-pill">FLAGGED</span>' : ''}
+                            </div>`;
+                        }).join('');
+                        results.classList.add('active');
+                    } catch (err) {
+                        console.error('[Dashboard] User search error:', err);
+                    }
+                }, 300);
+            });
+
+            // Close dropdown on outside click
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.community-search-wrap')) {
+                    results.classList.remove('active');
+                }
+            });
+        }
+
+        /** HTML-escape to prevent XSS in user-generated callsigns */
+        function _escHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str || '';
+            return d.innerHTML;
+        }
     </script>
     <!-- Digital Life ambient init handled by initDigitalLife() above -->
     <script src="components/SecretFeatures.js"></script>
