@@ -408,9 +408,16 @@ class ProgressManager {
                             // Direct content match
                             if (a.contentId === moduleId) return true;
                             // Path assignment — check if module is in the path's module list
-                            if (a.assignmentType === 'path' && typeof ContentRegistry !== 'undefined') {
-                                const path = ContentRegistry.paths?.[a.contentId];
-                                if (path?.modules?.includes(moduleId)) return true;
+                            if (a.assignmentType === 'path') {
+                                if (typeof ContentRegistry !== 'undefined') {
+                                    const path = ContentRegistry.paths?.[a.contentId];
+                                    if (path?.modules?.includes(moduleId)) return true;
+                                } else {
+                                    // ContentRegistry not loaded (module pages don't have it) —
+                                    // use prefix heuristic: 'forge-md100-m01' belongs to path 'md-100'
+                                    const norm = a.contentId.replace(/-/g, '').toLowerCase();
+                                    if (moduleId.replace(/-/g, '').toLowerCase().includes(norm)) return true;
+                                }
                             }
                             return false;
                         });
