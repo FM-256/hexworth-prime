@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-03-05 11:16:11 PM
+                    Scanned: 2026-03-09 7:28:31 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,20 +10,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 2024 |
-| Directories | 564 |
-| Content Files | 2024 |
-| Scan Duration | 219ms |
+| Files Scanned | 2292 |
+| Directories | 577 |
+| Content Files | 2292 |
+| Scan Duration | 270ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 837 |
-| html | 570 |
-| lab | 341 |
-| quiz | 238 |
-| applet | 38 |
+| presentation | 985 |
+| html | 624 |
+| lab | 390 |
+| quiz | 241 |
+| applet | 52 |
 
 ### ContentCatalog Validation
 
@@ -32,7 +32,7 @@
 | Total Modules | 1678 |
 | Available | 1666 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 9 |
+| Undeclared Files (CAT-002) | 79 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -40,19 +40,19 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 0 |
-| Suspect | 63 |
-| Warning | 224 |
-| Info | 295 |
-| **Total** | **6796** |
+| Critical | 1 |
+| Suspect | 66 |
+| Warning | 450 |
+| Info | 307 |
+| **Total** | **7670** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1450 |
+| Ready | 1664 |
 | Not Ready | 4 |
-| Unknown | 570 |
+| Unknown | 624 |
 
 
 ## FILE HIERARCHY
@@ -66,11 +66,19 @@
 │   └── 📁 scripts
 ├── 📁 arctic
 │   ├── 📁 districts
+│   │   ├── 📁 advanced-topics
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 arena
 │   │   │   └── 📍 index.html
-│   │   ├── 📁 cert-prep
+│   │   ├── 📁 clh-advanced
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 clh-fundamentals
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 clh-intermediate
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 cli-fundamentals
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 databases
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 hardening
 │   │   │   └── 📍 index.html
@@ -80,7 +88,7 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 log-analysis
 │   │   │   └── 📍 index.html
-│   │   ├── 📁 network-ops
+│   │   ├── 📁 networking
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 offensive-tools
 │   │   │   └── 📍 index.html
@@ -294,19 +302,29 @@
 │       ├── 🔬 jwt-attack-lab.html
 │       ├── 📁 labs [labs]
 │       │   └── 📁 linux [labs]
+│       │       ├── 🔬 da-linux-alias-hijacking.lab.html
+│       │       ├── 🔬 da-linux-bashrc-poisoning.lab.html
+│       │       ├── 🔬 da-linux-compromised-server.lab.html
+│       │       ├── 🔬 da-linux-cred-harvester.lab.html
 │       │       ├── 🔬 da-linux-enumeration-prep.lab.html
 │       │       ├── 🔬 da-linux-enumscripts.lab.html
 │       │       ├── 🔬 da-linux-exploitation-prep.lab.html
 │       │       ├── 🔬 da-linux-hash-drill.lab.html
 │       │       ├── 🔬 da-linux-hashcat.lab.html
+│       │       ├── 🔬 da-linux-hidden-files.lab.html
 │       │       ├── 🔬 da-linux-hydra.lab.html
+│       │       ├── 🔬 da-linux-invisible-process.lab.html
+│       │       ├── 🔬 da-linux-log-analysis.lab.html
 │       │       ├── 🔬 da-linux-metasploit.lab.html
 │       │       ├── 🔬 da-linux-nmap-advanced.lab.html
 │       │       ├── 🔬 da-linux-nmap-drill.lab.html
+│       │       ├── 🔬 da-linux-path-hijacking.lab.html
+│       │       ├── 🔬 da-linux-permission-analysis.lab.html
 │       │       ├── 🔬 da-linux-post-exploitation.lab.html
 │       │       ├── 🔬 da-linux-privesc.lab.html
 │       │       ├── 🔬 da-linux-recon-drill.lab.html
 │       │       ├── 🔬 da-linux-reverse-shells.lab.html
+│       │       ├── 🔬 da-linux-shell-resolution.lab.html
 │       │       └── 📍 index.html
 │       ├── 🔬 malware-analysis-lab.html
 │       ├── 🔬 mobile-security-lab.html
@@ -724,30 +742,130 @@
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📁 sections
 │   │   │       ├── 📁 ansible
+│   │   │       │   ├── 📄 do-82-ansible-fundamentals.html
+│   │   │       │   ├── 📄 do-83-automation-landscape.html
+│   │   │       │   ├── 📄 do-88-ansible-inventory.html
+│   │   │       │   ├── 📄 do-89-ansible-playbooks.html
+│   │   │       │   ├── 📄 do-90-ansible-modules.html
+│   │   │       │   ├── 📄 do-91-ansible-roles.html
+│   │   │       │   ├── 📄 do-92-ansible-variables.html
+│   │   │       │   ├── 📄 do-93-ansible-templates.html
+│   │   │       │   ├── 📄 do-94-ansible-vault.html
+│   │   │       │   ├── 📄 do-95-awx-platform.html
+│   │   │       │   ├── 📄 do-96-ansible-cloud.html
+│   │   │       │   ├── 📄 do-97-ansible-testing.html
+│   │   │       │   ├── 🔬 do-98-ansible-lab.html
+│   │   │       │   ├── 📄 do-99-ansible-tips.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 assessments
+│   │   │       │   ├── ❓ do-26-fundamentals-quiz.html
+│   │   │       │   ├── ❓ do-27-cicd-iac-quiz.html
+│   │   │       │   ├── 📄 do-28-devops-jeopardy.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 certprep
+│   │   │       │   ├── 📄 do-29-cert-alignment.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 cicd
+│   │   │       │   ├── 📄 do-21-github-actions.html
+│   │   │       │   ├── 🔬 do-22-cicd-lab.html
+│   │   │       │   ├── 📄 do-70-cicd-fundamentals.html
+│   │   │       │   ├── 📄 do-71-pipeline-architecture.html
+│   │   │       │   ├── 📄 do-72-testing-pipelines.html
+│   │   │       │   ├── 📄 do-73-build-artifacts.html
+│   │   │       │   ├── 📄 do-74-deployment-strategies.html
+│   │   │       │   ├── 📄 do-75-secrets-environments.html
+│   │   │       │   ├── 📄 do-76-cicd-platforms.html
+│   │   │       │   ├── 📄 do-77-pipeline-monitoring.html
+│   │   │       │   ├── 📄 do-78-cicd-tips.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 culture
+│   │   │       │   ├── 📄 do-25-devops-culture.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 docker
+│   │   │       │   ├── 📄 do-17-docker-fundamentals.html
+│   │   │       │   ├── 🔬 do-18-docker-lab.html
+│   │   │       │   ├── 📄 do-48-dockerfile.html
+│   │   │       │   ├── 📄 do-49-docker-cli.html
+│   │   │       │   ├── 📄 do-50-images-registries.html
+│   │   │       │   ├── 📄 do-51-docker-compose.html
+│   │   │       │   ├── 📄 do-52-docker-networking.html
+│   │   │       │   ├── 📄 do-53-docker-volumes.html
+│   │   │       │   ├── 📄 do-54-docker-security.html
+│   │   │       │   ├── 📄 do-55-docker-patterns.html
+│   │   │       │   ├── 📄 do-56-docker-tips.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 foundation
+│   │   │       │   ├── 📄 do-1-what-is-devops.html
+│   │   │       │   ├── 🔬 do-100-foundation-lab.html
+│   │   │       │   ├── 📄 do-2-devops-toolchain.html
+│   │   │       │   ├── 📄 do-3-real-world-pipelines.html
+│   │   │       │   ├── 📄 do-68-data-formats.html
+│   │   │       │   ├── 📄 do-69-config-formats.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 git
+│   │   │       │   ├── 📄 do-10-branching-strategies.html
+│   │   │       │   ├── 📄 do-11-merge-conflicts.html
+│   │   │       │   ├── 📄 do-12-rebasing.html
+│   │   │       │   ├── 📄 do-13-stashing-tagging.html
+│   │   │       │   ├── 📄 do-14-git-hooks.html
+│   │   │       │   ├── 📄 do-15-git-internals.html
+│   │   │       │   ├── 🔬 do-16-git-lab.html
+│   │   │       │   ├── 📄 do-36-repo-anatomy.html
+│   │   │       │   ├── 📄 do-37-forks-upstream.html
+│   │   │       │   ├── 📄 do-38-github-features.html
+│   │   │       │   ├── 📄 do-39-gitignore-readme.html
+│   │   │       │   ├── 📄 do-40-diff-comparing.html
+│   │   │       │   ├── 📄 do-41-undoing-things.html
+│   │   │       │   ├── 📄 do-42-git-tips-tricks.html
 │   │   │       │   ├── 📄 do-7-git-fundamentals.html
 │   │   │       │   ├── 📄 do-8-branches.html
+│   │   │       │   ├── 📄 do-9-remote-repos.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 iac
+│   │   │       │   ├── 📄 do-23-terraform.html
+│   │   │       │   ├── 🔬 do-24-iac-lab.html
+│   │   │       │   ├── 📄 do-79-iac-fundamentals.html
+│   │   │       │   ├── 📄 do-80-terraform-state.html
+│   │   │       │   ├── 📄 do-81-terraform-modules.html
+│   │   │       │   ├── 📄 do-84-iac-platforms.html
+│   │   │       │   ├── 📄 do-85-iac-testing.html
+│   │   │       │   ├── 📄 do-86-gitops-infrastructure.html
+│   │   │       │   ├── 📄 do-87-iac-tips.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 ide
+│   │   │       │   ├── 🔬 do-102-ide-lab.html
+│   │   │       │   ├── 📄 do-4-vscode-interface.html
+│   │   │       │   ├── 📄 do-43-file-management.html
+│   │   │       │   ├── 📄 do-44-file-types.html
+│   │   │       │   ├── 📄 do-45-remote-dev.html
+│   │   │       │   ├── 📄 do-46-devops-extensions.html
+│   │   │       │   ├── 📄 do-47-vscode-tips.html
+│   │   │       │   ├── 📄 do-5-vscode-git.html
+│   │   │       │   ├── 📄 do-6-vscode-debugging.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 kubernetes
+│   │   │       │   ├── 📄 do-19-k8s-fundamentals.html
+│   │   │       │   ├── 🔬 do-20-k8s-lab.html
+│   │   │       │   ├── 📄 do-57-pods-deployments.html
+│   │   │       │   ├── 📄 do-58-kubectl.html
+│   │   │       │   ├── 📄 do-59-services-networking.html
+│   │   │       │   ├── 📄 do-60-configmaps-secrets.html
+│   │   │       │   ├── 📄 do-61-scaling.html
+│   │   │       │   ├── 📄 do-62-storage.html
+│   │   │       │   ├── 📄 do-63-rbac-security.html
+│   │   │       │   ├── 📄 do-64-helm.html
+│   │   │       │   ├── 📄 do-65-monitoring.html
+│   │   │       │   ├── 📄 do-66-k8s-patterns.html
+│   │   │       │   ├── 📄 do-67-k8s-tips.html
 │   │   │       │   └── 📍 index.html
 │   │   │       └── 📁 workbench
+│   │   │           ├── 🔬 do-101-workbench-lab.html
+│   │   │           ├── 📄 do-30-os-shell-setup.html
+│   │   │           ├── 📄 do-31-ssh-gpg-dotfiles.html
+│   │   │           ├── 📄 do-32-runtime-management.html
+│   │   │           ├── 📄 do-33-env-vars-secrets.html
+│   │   │           ├── 📄 do-34-dev-containers.html
+│   │   │           ├── 📄 do-35-networking-basics.html
 │   │   │           └── 📍 index.html
 │   │   ├── 📁 docs
 │   │   ├── 📁 games
@@ -1236,7 +1354,6 @@
 │   │   │   │   │   │   ├── 🔬 forge-vm-setup.lab.html
 │   │   │   │   │   │   └── 🔬 forge-wireless-security.lab.html
 │   │   │   │   │   └── 📁 quizzes [quizzes]
-│   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-1.quiz.html
 │   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-2.quiz.html
 │   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-3.quiz.html
 │   │   │   │   │       └── ❓ forge-aplus-core1-prep-round-4.quiz.html
@@ -1420,7 +1537,8 @@
 │   │   │   │   ├── 🔬 forge-md100-m10-sim.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m10-troubleshoot.lab.html
 │   │   │   │   ├── 🔬 forge-md100-m11-hardware.lab.html
-│   │   │   │   └── 🔬 forge-md100-m11-sim.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m11-sim.lab.html
+│   │   │   │   └── 🔬 forge-md100-midterm-sim.lab.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 forge-md100-m01-install-windows.presentation.html
 │   │   │   │   ├── 📊 forge-md100-m02-auth-authorization.presentation.html
@@ -1642,65 +1760,98 @@
 │   │   ├── 📁 clh
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 script-clh-001-intro.applet.html
+│   │   │   ├── 🔬 script-clh-001.lab.html
 │   │   │   ├── ❓ script-clh-001.quiz.html
 │   │   │   ├── 📄 script-clh-002-intro.applet.html
+│   │   │   ├── 🔬 script-clh-002.lab.html
 │   │   │   ├── ❓ script-clh-002.quiz.html
 │   │   │   ├── 📄 script-clh-003-intro.applet.html
+│   │   │   ├── 🔬 script-clh-003.lab.html
 │   │   │   ├── ❓ script-clh-003.quiz.html
 │   │   │   ├── 📄 script-clh-004-intro.applet.html
+│   │   │   ├── 🔬 script-clh-004.lab.html
 │   │   │   ├── ❓ script-clh-004.quiz.html
 │   │   │   ├── 📄 script-clh-005-intro.applet.html
+│   │   │   ├── 🔬 script-clh-005.lab.html
 │   │   │   ├── ❓ script-clh-005.quiz.html
 │   │   │   ├── 📄 script-clh-006-intro.applet.html
+│   │   │   ├── 🔬 script-clh-006.lab.html
 │   │   │   ├── ❓ script-clh-006.quiz.html
 │   │   │   ├── 📄 script-clh-007-intro.applet.html
+│   │   │   ├── 🔬 script-clh-007.lab.html
 │   │   │   ├── ❓ script-clh-007.quiz.html
 │   │   │   ├── 📄 script-clh-008-intro.applet.html
+│   │   │   ├── 🔬 script-clh-008.lab.html
 │   │   │   ├── ❓ script-clh-008.quiz.html
 │   │   │   ├── 📄 script-clh-009-intro.applet.html
+│   │   │   ├── 🔬 script-clh-009.lab.html
 │   │   │   ├── ❓ script-clh-009.quiz.html
 │   │   │   ├── 📄 script-clh-010-intro.applet.html
+│   │   │   ├── 🔬 script-clh-010.lab.html
 │   │   │   ├── ❓ script-clh-010.quiz.html
 │   │   │   ├── 📄 script-clh-011-intro.applet.html
+│   │   │   ├── 🔬 script-clh-011.lab.html
 │   │   │   ├── ❓ script-clh-011.quiz.html
 │   │   │   ├── 📄 script-clh-012-intro.applet.html
+│   │   │   ├── 🔬 script-clh-012.lab.html
 │   │   │   ├── ❓ script-clh-012.quiz.html
 │   │   │   ├── 📄 script-clh-013-intro.applet.html
+│   │   │   ├── 🔬 script-clh-013.lab.html
 │   │   │   ├── ❓ script-clh-013.quiz.html
 │   │   │   ├── 📄 script-clh-014-intro.applet.html
+│   │   │   ├── 🔬 script-clh-014.lab.html
 │   │   │   ├── ❓ script-clh-014.quiz.html
 │   │   │   ├── 📄 script-clh-015-intro.applet.html
+│   │   │   ├── 🔬 script-clh-015.lab.html
 │   │   │   ├── ❓ script-clh-015.quiz.html
 │   │   │   ├── 📄 script-clh-016-intro.applet.html
+│   │   │   ├── 🔬 script-clh-016.lab.html
 │   │   │   ├── ❓ script-clh-016.quiz.html
 │   │   │   ├── 📄 script-clh-017-intro.applet.html
+│   │   │   ├── 🔬 script-clh-017.lab.html
 │   │   │   ├── ❓ script-clh-017.quiz.html
 │   │   │   ├── 📄 script-clh-018-intro.applet.html
+│   │   │   ├── 🔬 script-clh-018.lab.html
 │   │   │   ├── ❓ script-clh-018.quiz.html
 │   │   │   ├── 📄 script-clh-019-intro.applet.html
+│   │   │   ├── 🔬 script-clh-019.lab.html
 │   │   │   ├── ❓ script-clh-019.quiz.html
 │   │   │   ├── 📄 script-clh-020-intro.applet.html
+│   │   │   ├── 🔬 script-clh-020.lab.html
 │   │   │   ├── ❓ script-clh-020.quiz.html
 │   │   │   ├── 📄 script-clh-021-intro.applet.html
+│   │   │   ├── 🔬 script-clh-021.lab.html
 │   │   │   ├── ❓ script-clh-021.quiz.html
 │   │   │   ├── 📄 script-clh-022-intro.applet.html
+│   │   │   ├── 🔬 script-clh-022.lab.html
 │   │   │   ├── ❓ script-clh-022.quiz.html
 │   │   │   ├── 📄 script-clh-023-intro.applet.html
+│   │   │   ├── 🔬 script-clh-023.lab.html
 │   │   │   ├── ❓ script-clh-023.quiz.html
 │   │   │   ├── 📄 script-clh-024-intro.applet.html
+│   │   │   ├── 🔬 script-clh-024.lab.html
 │   │   │   ├── ❓ script-clh-024.quiz.html
 │   │   │   ├── 📄 script-clh-025-intro.applet.html
+│   │   │   ├── 🔬 script-clh-025.lab.html
 │   │   │   ├── ❓ script-clh-025.quiz.html
 │   │   │   ├── 📄 script-clh-026-intro.applet.html
+│   │   │   ├── 🔬 script-clh-026.lab.html
 │   │   │   ├── ❓ script-clh-026.quiz.html
 │   │   │   ├── 📄 script-clh-027-intro.applet.html
+│   │   │   ├── 🔬 script-clh-027.lab.html
 │   │   │   ├── ❓ script-clh-027.quiz.html
 │   │   │   ├── 📄 script-clh-028-intro.applet.html
+│   │   │   ├── 🔬 script-clh-028.lab.html
 │   │   │   ├── ❓ script-clh-028.quiz.html
 │   │   │   ├── 📄 script-clh-029-intro.applet.html
+│   │   │   ├── 🔬 script-clh-029.lab.html
 │   │   │   ├── ❓ script-clh-029.quiz.html
 │   │   │   ├── 📄 script-clh-030-intro.applet.html
-│   │   │   └── ❓ script-clh-030.quiz.html
+│   │   │   ├── 🔬 script-clh-030.lab.html
+│   │   │   ├── ❓ script-clh-030.quiz.html
+│   │   │   ├── 📄 script-clh-031-intro.applet.html
+│   │   │   ├── 🔬 script-clh-031.lab.html
+│   │   │   └── ❓ script-clh-031.quiz.html
 │   │   ├── 📁 courses [courses]
 │   │   │   ├── 📁 clh [courses]
 │   │   │   │   ├── 📍 index.html
@@ -1973,6 +2124,42 @@
 │   │   │       ├── 📄 script-process.tool.html
 │   │   │       └── 📄 script-service.tool.html
 │   │   ├── 📁 modules [modules]
+│   │   │   ├── 📁 databases [modules]
+│   │   │   │   ├── 📄 script-db-01-intro.module.html
+│   │   │   │   ├── 📄 script-db-02-select.module.html
+│   │   │   │   ├── 📄 script-db-03-where.module.html
+│   │   │   │   ├── 📄 script-db-04-sorting.module.html
+│   │   │   │   ├── 🔬 script-db-05-foundations.lab.html
+│   │   │   │   ├── 📄 script-db-06-crud.module.html
+│   │   │   │   ├── 📄 script-db-07-nulls.module.html
+│   │   │   │   ├── 📄 script-db-08-strings.module.html
+│   │   │   │   ├── 📄 script-db-09-numbers.module.html
+│   │   │   │   ├── 📄 script-db-10-dates.module.html
+│   │   │   │   ├── 🔬 script-db-11-data.lab.html
+│   │   │   │   ├── 📄 script-db-12-inner-join.module.html
+│   │   │   │   ├── 📄 script-db-13-outer-joins.module.html
+│   │   │   │   ├── 📄 script-db-14-advanced-joins.module.html
+│   │   │   │   ├── 📄 script-db-15-subqueries.module.html
+│   │   │   │   ├── 📄 script-db-16-ctes.module.html
+│   │   │   │   ├── 🔬 script-db-17-joins.lab.html
+│   │   │   │   ├── 📄 script-db-18-aggregates.module.html
+│   │   │   │   ├── 📄 script-db-19-group-by.module.html
+│   │   │   │   ├── 📄 script-db-20-window-funcs.module.html
+│   │   │   │   ├── 📄 script-db-21-pivoting.module.html
+│   │   │   │   ├── 🔬 script-db-22-analytics.lab.html
+│   │   │   │   ├── 📄 script-db-23-data-types.module.html
+│   │   │   │   ├── 📄 script-db-24-constraints.module.html
+│   │   │   │   ├── 📄 script-db-25-indexes.module.html
+│   │   │   │   ├── 📄 script-db-26-metadata.module.html
+│   │   │   │   ├── 🔬 script-db-27-admin.lab.html
+│   │   │   │   ├── 📄 script-db-28-ingestion.module.html
+│   │   │   │   ├── 📄 script-db-29-errors.module.html
+│   │   │   │   ├── 📄 script-db-30-quality.module.html
+│   │   │   │   ├── 📄 script-db-31-pipelines.module.html
+│   │   │   │   ├── 🔬 script-db-32-engineering.lab.html
+│   │   │   │   ├── ❓ script-db-33-sql.quiz.html
+│   │   │   │   ├── ❓ script-db-34-advanced.quiz.html
+│   │   │   │   └── 🔬 script-db-35-capstone.lab.html
 │   │   │   ├── 📁 linux-mastery [modules]
 │   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 📄 script-lm-01-welcome.module.html
@@ -2373,6 +2560,7 @@
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-eh-exam-1-a.exam.html
 │   │   ├── 📁 games
+│   │   │   ├── 📄 shield-contra.applet.html
 │   │   │   ├── 📄 shield-debugger.applet.html
 │   │   │   ├── 📄 shield-dont-get-phished.html
 │   │   │   ├── 📄 shield-dr-malware.applet.html
@@ -2384,6 +2572,7 @@
 │   │   │   ├── 📄 shield-text-adventure-hydra.html
 │   │   │   ├── 📄 shield-threat-runner.applet.html
 │   │   │   ├── 📄 shield-threat-swarm.applet.html
+│   │   │   ├── 📄 shield-threatdex.applet.html
 │   │   │   ├── 📄 shield-tor-darkweb.html
 │   │   │   └── 🔬 shield-web-security-headers-lab.applet.html
 │   │   ├── 📍 index.html
@@ -2609,14 +2798,106 @@
 ├── 📁 operator
 │   ├── 📍 index.html
 │   └── 📁 missions
-│       └── 📄 recon-01.mission.html
+│       ├── 📄 crypto-01.mission.html
+│       ├── 📄 crypto-02.mission.html
+│       ├── 📄 firewall-01.mission.html
+│       ├── 📄 firewall-02.mission.html
+│       ├── 📄 forensics-01.mission.html
+│       ├── 📄 forensics-02.mission.html
+│       ├── 📄 incident-response-01.mission.html
+│       ├── 📄 incident-response-02.mission.html
+│       ├── 📄 linux-fs-01.mission.html
+│       ├── 📄 linux-fs-02.mission.html
+│       ├── 📄 log-analysis-01.mission.html
+│       ├── 📄 log-analysis-02.mission.html
+│       ├── 📄 python-01.mission.html
+│       ├── 📄 python-02.mission.html
+│       ├── 📄 python-03.mission.html
+│       ├── 📄 python-04.mission.html
+│       ├── 📄 recon-01.mission.html
+│       ├── 📄 recon-02.mission.html
+│       ├── 📄 windows-cmd-01.mission.html
+│       └── 📄 windows-cmd-02.mission.html
 ├── 📄 path-view.html
 ├── 📄 privacy.html
 ├── 📄 product-info.html
 ├── 📁 projects
-│   └── 📍 index.html
+│   ├── 📄 ai-network-anomaly.html
+│   ├── 📄 ai-threat-classifier.html
+│   ├── 📄 cloud-container-checker.html
+│   ├── 🔬 cloud-pi-homelab.html
+│   ├── 📄 code-arduino-pipeline.html
+│   ├── 📄 code-cli-task-manager.html
+│   ├── 📄 code-serial-console.html
+│   ├── 📄 darkarts-port-scanner.html
+│   ├── 📄 darkarts-wifi-scanner.html
+│   ├── 📄 divergent-field-terminal.html
+│   ├── 📄 divergent-multi-tool.html
+│   ├── 📄 eye-motion-surveillance.html
+│   ├── 📄 eye-osint-dashboard.html
+│   ├── 📄 forge-env-monitor.html
+│   ├── 📄 forge-flashcard-engine.html
+│   ├── 📄 forge-sensor-dashboard.html
+│   ├── 📍 index.html
+│   ├── 📄 key-password-vault.html
+│   ├── 📄 key-rfid-access.html
+│   ├── 📄 matrix-packet-visualizer.html
+│   ├── 📄 matrix-traffic-dashboard.html
+│   ├── 📄 script-data-logger.html
+│   ├── 📄 script-pi-automation.html
+│   ├── 📄 script-system-monitor.html
+│   ├── 📄 shield-log-analyzer.html
+│   ├── 📄 shield-perimeter-alarm.html
+│   ├── 📄 shield-pi-ids.html
+│   ├── 📄 web-pi-network-probe.html
+│   └── 📄 web-topology-visualizer.html
 ├── 📄 quickstart.html
 ├── 📁 scripts
+├── 📁 signal
+│   ├── 📍 index.html
+│   └── 📁 sections
+│       ├── 📁 arcade-ops
+│       │   ├── 📍 index.html
+│       │   ├── 📄 sg-26-esp32-pong.html
+│       │   ├── 📄 sg-27-handheld-gameboy.html
+│       │   ├── 📄 sg-28-retropie-station.html
+│       │   ├── 📄 sg-29-arcade-controller.html
+│       │   └── 📄 sg-30-mini-arcade.html
+│       ├── 📁 firmware-ops
+│       │   ├── 📍 index.html
+│       │   ├── 📄 sg-21-custom-firmware.html
+│       │   ├── 📄 sg-22-badge-hacking.html
+│       │   ├── 📄 sg-23-field-terminal.html
+│       │   ├── 📄 sg-24-anomaly-monitor.html
+│       │   └── 📄 sg-25-network-ids.html
+│       ├── 📁 foundations
+│       │   ├── 📍 index.html
+│       │   ├── 📄 sg-01-blink-breadboard.html
+│       │   ├── 📄 sg-02-sensor-io.html
+│       │   ├── 📄 sg-03-serial-bridge.html
+│       │   ├── 📄 sg-04-lcd-dashboard.html
+│       │   └── 📄 sg-05-data-logger.html
+│       ├── 📁 network-recon
+│       │   ├── 📍 index.html
+│       │   ├── 📄 sg-06-wifi-recon.html
+│       │   ├── 📄 sg-07-bluetooth-scanner.html
+│       │   ├── 📄 sg-08-packet-dashboard.html
+│       │   ├── 📄 sg-09-network-probe.html
+│       │   └── 📄 sg-10-deauth-detector.html
+│       ├── 📁 privacy-builds
+│       │   ├── 📍 index.html
+│       │   ├── 📄 sg-16-encrypted-dead-drop.html
+│       │   ├── 📄 sg-17-faraday-test.html
+│       │   ├── 📄 sg-18-air-gap-station.html
+│       │   ├── 📄 sg-19-tor-router.html
+│       │   └── 📄 sg-20-jammer-detector.html
+│       └── 📁 security-tools
+│           ├── 📍 index.html
+│           ├── 📄 sg-11-rfid-controller.html
+│           ├── 📄 sg-12-keylogger-detector.html
+│           ├── 🔬 sg-13-bad-usb-lab.html
+│           ├── 📄 sg-14-motion-surveillance.html
+│           └── 📄 sg-15-perimeter-alarm.html
 ├── 📄 sorting.html
 ├── 📁 styles
 ├── 🔬 syllabus-template.html
@@ -2854,8 +3135,108 @@
 |---------|------|------|--------|
 | code-docker-playground.applet | presentation | ✓ | 0 |
 | code-kubernetes-cluster-sim.applet | presentation | ✓ | 0 |
+| do-82-ansible-fundamentals | presentation | ✓ | 0 |
+| do-83-automation-landscape | presentation | ✓ | 0 |
+| do-88-ansible-inventory | presentation | ✓ | 0 |
+| do-89-ansible-playbooks | presentation | ✓ | 0 |
+| do-90-ansible-modules | presentation | ✓ | 0 |
+| do-91-ansible-roles | presentation | ✓ | 0 |
+| do-92-ansible-variables | presentation | ✓ | 0 |
+| do-93-ansible-templates | presentation | ✓ | 0 |
+| do-94-ansible-vault | presentation | ✓ | 0 |
+| do-95-awx-platform | presentation | ✓ | 0 |
+| do-96-ansible-cloud | presentation | ✓ | 0 |
+| do-97-ansible-testing | presentation | ✓ | 0 |
+| do-98-ansible-lab | presentation | ✓ | 0 |
+| do-99-ansible-tips | presentation | ✓ | 0 |
+| do-26-fundamentals-quiz | quiz | ✓ | 0 |
+| do-27-cicd-iac-quiz | presentation | ✓ | 0 |
+| do-28-devops-jeopardy | presentation | ✓ | 0 |
+| do-29-cert-alignment | presentation | ✓ | 0 |
+| do-21-github-actions | presentation | ✓ | 0 |
+| do-22-cicd-lab | presentation | ✓ | 0 |
+| do-70-cicd-fundamentals | presentation | ✓ | 0 |
+| do-71-pipeline-architecture | presentation | ✓ | 0 |
+| do-72-testing-pipelines | presentation | ✓ | 0 |
+| do-73-build-artifacts | presentation | ✓ | 0 |
+| do-74-deployment-strategies | presentation | ✓ | 0 |
+| do-75-secrets-environments | presentation | ✓ | 0 |
+| do-76-cicd-platforms | presentation | ✓ | 0 |
+| do-77-pipeline-monitoring | presentation | ✓ | 0 |
+| do-78-cicd-tips | presentation | ✓ | 0 |
+| do-25-devops-culture | presentation | ✓ | 0 |
+| do-17-docker-fundamentals | presentation | ✓ | 0 |
+| do-18-docker-lab | presentation | ✓ | 0 |
+| do-48-dockerfile | presentation | ✓ | 0 |
+| do-49-docker-cli | presentation | ✓ | 0 |
+| do-50-images-registries | presentation | ✓ | 0 |
+| do-51-docker-compose | presentation | ✓ | 0 |
+| do-52-docker-networking | presentation | ✓ | 0 |
+| do-53-docker-volumes | presentation | ✓ | 0 |
+| do-54-docker-security | presentation | ✓ | 0 |
+| do-55-docker-patterns | presentation | ✓ | 0 |
+| do-56-docker-tips | presentation | ✓ | 0 |
+| do-1-what-is-devops | presentation | ✓ | 0 |
+| do-100-foundation-lab | presentation | ✓ | 0 |
+| do-2-devops-toolchain | presentation | ✓ | 0 |
+| do-3-real-world-pipelines | presentation | ✓ | 0 |
+| do-68-data-formats | presentation | ✓ | 0 |
+| do-69-config-formats | presentation | ✓ | 0 |
+| do-10-branching-strategies | presentation | ✓ | 0 |
+| do-11-merge-conflicts | presentation | ✓ | 0 |
+| do-12-rebasing | presentation | ✓ | 0 |
+| do-13-stashing-tagging | presentation | ✓ | 0 |
+| do-14-git-hooks | presentation | ✓ | 0 |
+| do-15-git-internals | presentation | ✓ | 0 |
+| do-16-git-lab | presentation | ✓ | 0 |
+| do-36-repo-anatomy | presentation | ✓ | 0 |
+| do-37-forks-upstream | presentation | ✓ | 0 |
+| do-38-github-features | presentation | ✓ | 0 |
+| do-39-gitignore-readme | presentation | ✓ | 0 |
+| do-40-diff-comparing | presentation | ✓ | 0 |
+| do-41-undoing-things | presentation | ✓ | 0 |
+| do-42-git-tips-tricks | presentation | ✓ | 0 |
 | do-7-git-fundamentals | presentation | ✓ | 0 |
 | do-8-branches | presentation | ✓ | 0 |
+| do-9-remote-repos | presentation | ✓ | 0 |
+| do-23-terraform | presentation | ✓ | 0 |
+| do-24-iac-lab | presentation | ✓ | 0 |
+| do-79-iac-fundamentals | presentation | ✓ | 0 |
+| do-80-terraform-state | presentation | ✓ | 0 |
+| do-81-terraform-modules | presentation | ✓ | 0 |
+| do-84-iac-platforms | presentation | ✓ | 0 |
+| do-85-iac-testing | presentation | ✓ | 0 |
+| do-86-gitops-infrastructure | presentation | ✓ | 0 |
+| do-87-iac-tips | presentation | ✓ | 0 |
+| do-102-ide-lab | presentation | ✓ | 0 |
+| do-4-vscode-interface | presentation | ✓ | 0 |
+| do-43-file-management | presentation | ✓ | 0 |
+| do-44-file-types | presentation | ✓ | 0 |
+| do-45-remote-dev | presentation | ✓ | 0 |
+| do-46-devops-extensions | presentation | ✓ | 0 |
+| do-47-vscode-tips | presentation | ✓ | 0 |
+| do-5-vscode-git | presentation | ✓ | 0 |
+| do-6-vscode-debugging | presentation | ✓ | 0 |
+| do-19-k8s-fundamentals | presentation | ✓ | 0 |
+| do-20-k8s-lab | presentation | ✓ | 0 |
+| do-57-pods-deployments | presentation | ✓ | 0 |
+| do-58-kubectl | presentation | ✓ | 0 |
+| do-59-services-networking | presentation | ✓ | 0 |
+| do-60-configmaps-secrets | presentation | ✓ | 0 |
+| do-61-scaling | presentation | ✓ | 0 |
+| do-62-storage | presentation | ✓ | 0 |
+| do-63-rbac-security | presentation | ✓ | 0 |
+| do-64-helm | presentation | ✓ | 0 |
+| do-65-monitoring | presentation | ✓ | 0 |
+| do-66-k8s-patterns | presentation | ✓ | 0 |
+| do-67-k8s-tips | presentation | ✓ | 0 |
+| do-101-workbench-lab | presentation | ✓ | 0 |
+| do-30-os-shell-setup | presentation | ✓ | 0 |
+| do-31-ssh-gpg-dotfiles | presentation | ✓ | 0 |
+| do-32-runtime-management | presentation | ✓ | 0 |
+| do-33-env-vars-secrets | presentation | ✓ | 0 |
+| do-34-dev-containers | presentation | ✓ | 0 |
+| do-35-networking-basics | presentation | ✓ | 0 |
 | code-build-breaker.applet | applet | ✓ | 1 |
 | code-git-blame | presentation | ✓ | 0 |
 | code-kill-nine.applet | presentation | ✓ | 0 |
@@ -3126,7 +3507,6 @@
 | forge-troubleshooting-scenarios.lab | presentation | ✓ | 0 |
 | forge-vm-setup.lab | presentation | ✓ | 0 |
 | forge-wireless-security.lab | presentation | ✓ | 0 |
-| aplus-core1-prep-r1 | quiz | ✓ | 0 |
 | forge-aplus-core1-prep-round-2.quiz | quiz | ✓ | 1 |
 | forge-aplus-core1-prep-round-3.quiz | quiz | ✓ | 1 |
 | forge-aplus-core1-prep-round-4.quiz | quiz | ✓ | 1 |
@@ -3230,6 +3610,7 @@
 | forge-md100-m10-troubleshoot.lab | lab | ✓ | 0 |
 | forge-md100-m11-hardware.lab | lab | ✓ | 0 |
 | forge-md100-m11-sim.lab | lab | ✓ | 0 |
+| forge-md100-midterm-sim.lab | lab | ✓ | 0 |
 | forge-md100-m01-install-windows.presentation | presentation | ✓ | 0 |
 | forge-md100-m02-auth-authorization.presentation | presentation | ✓ | 0 |
 | forge-md100-m03-post-install-config.presentation | presentation | ✓ | 0 |
@@ -3417,51 +3798,84 @@
 | script-pwsh-scripting.applet | presentation | ✓ | 0 |
 | script-reporting-automation.applet | presentation | ✓ | 0 |
 | script-clh-001-intro.applet | presentation | ✓ | 0 |
+| script-clh-001.lab | lab | ✓ | 0 |
 | clh-001 | quiz | ✓ | 0 |
 | script-clh-002-intro.applet | presentation | ✓ | 0 |
+| script-clh-002.lab | lab | ✓ | 0 |
 | clh-002 | quiz | ✓ | 0 |
 | script-clh-003-intro.applet | presentation | ✓ | 0 |
+| script-clh-003.lab | lab | ✓ | 0 |
 | clh-003 | quiz | ✓ | 0 |
 | script-clh-004-intro.applet | presentation | ✓ | 0 |
+| script-clh-004.lab | lab | ✓ | 0 |
 | clh-004 | quiz | ✓ | 0 |
 | script-clh-005-intro.applet | presentation | ✓ | 0 |
+| script-clh-005.lab | lab | ✓ | 0 |
 | clh-005 | quiz | ✓ | 0 |
 | script-clh-006-intro.applet | presentation | ✓ | 0 |
+| script-clh-006.lab | lab | ✓ | 0 |
 | clh-006 | quiz | ✓ | 0 |
 | script-clh-007-intro.applet | presentation | ✓ | 0 |
+| script-clh-007.lab | lab | ✓ | 0 |
 | clh-007 | quiz | ✓ | 0 |
 | script-clh-008-intro.applet | presentation | ✓ | 0 |
+| script-clh-008.lab | lab | ✓ | 0 |
 | clh-008 | quiz | ✓ | 0 |
 | script-clh-009-intro.applet | presentation | ✓ | 0 |
+| script-clh-009.lab | lab | ✓ | 0 |
 | clh-009 | quiz | ✓ | 0 |
 | script-clh-010-intro.applet | presentation | ✓ | 0 |
+| script-clh-010.lab | lab | ✓ | 0 |
 | clh-010 | quiz | ✓ | 0 |
 | script-clh-011-intro.applet | presentation | ✓ | 0 |
+| script-clh-011.lab | lab | ✓ | 0 |
 | clh-011 | quiz | ✓ | 0 |
 | script-clh-012-intro.applet | presentation | ✓ | 0 |
+| script-clh-012.lab | lab | ✓ | 0 |
 | clh-012 | quiz | ✓ | 0 |
 | script-clh-013-intro.applet | presentation | ✓ | 0 |
+| script-clh-013.lab | lab | ✓ | 0 |
 | clh-013 | quiz | ✓ | 0 |
 | script-clh-014-intro.applet | presentation | ✓ | 0 |
+| script-clh-014.lab | lab | ✓ | 0 |
 | clh-014 | quiz | ✓ | 0 |
 | script-clh-015-intro.applet | presentation | ✓ | 0 |
+| script-clh-015.lab | lab | ✓ | 0 |
 | clh-015 | quiz | ✓ | 0 |
+| script-clh-016.lab | lab | ✓ | 0 |
 | clh-016 | quiz | ✓ | 0 |
+| script-clh-017.lab | lab | ✓ | 0 |
 | clh-017 | quiz | ✓ | 0 |
+| script-clh-018.lab | lab | ✓ | 0 |
 | clh-018 | quiz | ✓ | 0 |
+| script-clh-019.lab | lab | ✓ | 0 |
 | clh-019 | quiz | ✓ | 0 |
+| script-clh-020.lab | lab | ✓ | 0 |
 | clh-020 | quiz | ✓ | 0 |
+| script-clh-021.lab | lab | ✓ | 0 |
 | clh-021 | quiz | ✓ | 0 |
 | script-clh-022-intro.applet | presentation | ✓ | 0 |
+| script-clh-022.lab | lab | ✓ | 0 |
 | clh-022 | quiz | ✓ | 0 |
+| script-clh-023.lab | lab | ✓ | 0 |
 | clh-023 | quiz | ✓ | 0 |
+| script-clh-024.lab | lab | ✓ | 0 |
 | clh-024 | quiz | ✓ | 0 |
+| script-clh-025.lab | lab | ✓ | 0 |
 | clh-025 | quiz | ✓ | 0 |
+| script-clh-026.lab | lab | ✓ | 0 |
 | clh-026 | quiz | ✓ | 0 |
+| script-clh-027.lab | lab | ✓ | 0 |
 | clh-027 | quiz | ✓ | 0 |
+| script-clh-028.lab | lab | ✓ | 0 |
 | clh-028 | quiz | ✓ | 0 |
+| script-clh-029.lab | lab | ✓ | 0 |
 | clh-029 | quiz | ✓ | 0 |
+| script-clh-030.lab | lab | ✓ | 0 |
 | clh-030 | quiz | ✓ | 0 |
+| script-clh-031-intro.applet | presentation | ✓ | 0 |
+| script-clh-031.lab | lab | ✓ | 0 |
+| clh-031 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-001 | quiz | ✓ | 0 |
@@ -3507,35 +3921,49 @@
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-015 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-016 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-017 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-018 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-019 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-020 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-021 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-022 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-023 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-024 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-025 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-026 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-027 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-028 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-029 | quiz | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-030 | quiz | ✓ | 0 |
 | script-intro.module | presentation | ✓ | 0 |
@@ -3652,6 +4080,41 @@
 | script-directory.tool | presentation | ✓ | 0 |
 | script-permission.tool | presentation | ✓ | 0 |
 | script-service.tool | presentation | ✓ | 0 |
+| script-db-01-intro.module | presentation | ✓ | 0 |
+| script-db-02-select.module | presentation | ✓ | 0 |
+| script-db-03-where.module | presentation | ✓ | 0 |
+| script-db-04-sorting.module | presentation | ✓ | 0 |
+| script-db-05-foundations.lab | lab | ✓ | 0 |
+| script-db-06-crud.module | presentation | ✓ | 0 |
+| script-db-07-nulls.module | presentation | ✓ | 0 |
+| script-db-08-strings.module | presentation | ✓ | 0 |
+| script-db-09-numbers.module | presentation | ✓ | 0 |
+| script-db-10-dates.module | presentation | ✓ | 0 |
+| script-db-11-data.lab | lab | ✓ | 0 |
+| script-db-12-inner-join.module | presentation | ✓ | 0 |
+| script-db-13-outer-joins.module | presentation | ✓ | 0 |
+| script-db-14-advanced-joins.module | presentation | ✓ | 0 |
+| script-db-15-subqueries.module | presentation | ✓ | 0 |
+| script-db-16-ctes.module | presentation | ✓ | 0 |
+| script-db-17-joins.lab | lab | ✓ | 0 |
+| script-db-18-aggregates.module | presentation | ✓ | 0 |
+| script-db-19-group-by.module | presentation | ✓ | 0 |
+| script-db-20-window-funcs.module | presentation | ✓ | 0 |
+| script-db-21-pivoting.module | presentation | ✓ | 0 |
+| script-db-22-analytics.lab | lab | ✓ | 0 |
+| script-db-23-data-types.module | presentation | ✓ | 0 |
+| script-db-24-constraints.module | presentation | ✓ | 0 |
+| script-db-25-indexes.module | presentation | ✓ | 0 |
+| script-db-26-metadata.module | presentation | ✓ | 0 |
+| script-db-27-admin.lab | lab | ✓ | 0 |
+| script-db-28-ingestion.module | presentation | ✓ | 0 |
+| script-db-29-errors.module | presentation | ✓ | 0 |
+| script-db-30-quality.module | presentation | ✓ | 0 |
+| script-db-31-pipelines.module | presentation | ✓ | 0 |
+| script-db-32-engineering.lab | lab | ✓ | 0 |
+| db-33-sql-quiz | quiz | ✓ | 0 |
+| db-34-advanced-quiz | quiz | ✓ | 0 |
+| script-db-35-capstone.lab | lab | ✓ | 0 |
 | script-lm-01-welcome.module | presentation | ✓ | 0 |
 | script-lm-02-first-commands.module | presentation | ✓ | 0 |
 | script-lm-03-getting-help.module | presentation | ✓ | 0 |
@@ -3668,6 +4131,9 @@
 | script-lm-14-regular-expressions.module | presentation | ✓ | 0 |
 | script-lm-15-sed-editor.module | presentation | ✓ | 0 |
 | script-lm-16-awk-processing.module | presentation | ✓ | 0 |
+| script-lm-17-sort-uniq.module | presentation | ✓ | 0 |
+| script-lm-18-cut-paste.module | presentation | ✓ | 0 |
+| script-lm-19-text-pipelines.module | presentation | ✓ | 0 |
 | script-lm-20-section3-practice.module | presentation | ✓ | 0 |
 | script-lm-21-users-groups.module | presentation | ✓ | 0 |
 | script-lm-22-file-permissions.module | presentation | ✓ | 0 |
@@ -3787,11 +4253,13 @@
 | shield-cf-mm08 | quiz | ✓ | 0 |
 | shield-cf-comprehensive-review | presentation | ✓ | 0 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
+| shield-contra.applet | presentation | ✓ | 0 |
 | shield-debugger.applet | applet | ✓ | 1 |
 | shield-dr-malware.applet | applet | ✓ | 1 |
 | shield-malware-zoo.lab | lab | ✓ | 0 |
 | shield-threat-runner.applet | presentation | ✓ | 0 |
 | shield-threat-swarm.applet | applet | ✓ | 1 |
+| shield-threatdex.applet | presentation | ✓ | 0 |
 | shield-web-security-headers-lab.applet | applet | ✓ | 1 |
 | shield-linux-audit-drill.lab | lab | ✓ | 0 |
 | shield-linux-audit.lab | lab | ✓ | 0 |
@@ -3963,19 +4431,29 @@
 | index | presentation | ✓ | 0 |
 | iot-security-lab | presentation | ✓ | 0 |
 | jwt-attack-lab | presentation | ✓ | 0 |
+| da-linux-alias-hijacking.lab | lab | ✓ | 0 |
+| da-linux-bashrc-poisoning.lab | lab | ✓ | 0 |
+| da-linux-compromised-server.lab | lab | ✓ | 0 |
+| da-linux-cred-harvester.lab | lab | ✓ | 0 |
 | da-linux-enumeration-prep.lab | lab | ✓ | 0 |
 | da-linux-enumscripts.lab | lab | ✓ | 0 |
 | da-linux-exploitation-prep.lab | lab | ✓ | 0 |
 | da-linux-hash-drill.lab | lab | ✓ | 0 |
 | da-linux-hashcat.lab | lab | ✓ | 0 |
+| da-linux-hidden-files.lab | lab | ✓ | 0 |
 | da-linux-hydra.lab | lab | ✓ | 0 |
+| da-linux-invisible-process.lab | lab | ✓ | 0 |
+| da-linux-log-analysis.lab | lab | ✓ | 0 |
 | da-linux-metasploit.lab | lab | ✓ | 0 |
 | da-linux-nmap-advanced.lab | lab | ✓ | 0 |
 | da-linux-nmap-drill.lab | lab | ✓ | 0 |
+| da-linux-path-hijacking.lab | lab | ✓ | 0 |
+| da-linux-permission-analysis.lab | lab | ✓ | 0 |
 | da-linux-post-exploitation.lab | lab | ✓ | 0 |
 | da-linux-privesc.lab | lab | ✓ | 0 |
 | da-linux-recon-drill.lab | lab | ✓ | 0 |
 | da-linux-reverse-shells.lab | lab | ✓ | 0 |
+| da-linux-shell-resolution.lab | lab | ✓ | 0 |
 | malware-analysis-lab | presentation | ✓ | 0 |
 | mobile-security-lab | lab | ✓ | 0 |
 | behavioral-analysis.module | presentation | ✓ | 0 |
@@ -4073,7 +4551,24 @@
 | dark-arts-sample.tool | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | da-ad-attack-lab.lab | lab | ✓ | 0 |
+| forensics-01.mission | applet | ✓ | 1 |
+| incident-response-01.mission | presentation | ✓ | 0 |
+| linux-fs-01.mission | presentation | ✓ | 0 |
+| windows-cmd-01.mission | presentation | ✓ | 0 |
 | product-info | applet | ✓ | 1 |
+| ai-network-anomaly | applet | ✓ | 1 |
+| cloud-container-checker | applet | ✓ | 1 |
+| code-serial-console | applet | ✓ | 1 |
+| darkarts-wifi-scanner | applet | ✓ | 1 |
+| forge-flashcard-engine | applet | ✓ | 1 |
+| forge-sensor-dashboard | applet | ✓ | 1 |
+| key-password-vault | applet | ✓ | 1 |
+| matrix-packet-visualizer | applet | ✓ | 1 |
+| matrix-traffic-dashboard | applet | ✓ | 1 |
+| script-data-logger | applet | ✓ | 1 |
+| shield-log-analyzer | applet | ✓ | 1 |
+| web-pi-network-probe | applet | ✓ | 1 |
+| web-topology-visualizer | applet | ✓ | 1 |
 | current | applet | ✓ | 1 |
 
 ### WEB (Networking)
@@ -4171,7 +4666,13 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (63) — heuristic, needs review
+### CRITICAL (1)
+
+**[XP-004]** setUserProfile() writes xp: without Math.max guard — can overwrite higher XP values
+  File: `components/FirestoreManager.js`
+  Fix: Wrap xp value with Math.max(currentXP, newXP) before writing
+
+### SUSPECT (66) — heuristic, needs review
 
 **[HEUR-006]** Hardcoded relative href in shared renderer: ../../dashboard.html — resolves differently depending on consumer page depth
   File: `components/CertPathRenderer.js`
@@ -4401,6 +4902,10 @@
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-xss.html`
   Fix: Consider extracting inline scripts to external .js files
 
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `houses/code/devops/sections/assessments/do-26-fundamentals-quiz.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
+
 **[HEUR-005]** Duplicate script include: "../../../../components/AchievementManager.js" loaded 2 times (lines 9, 1061)
   File: `houses/code/modules/python-hub/index.html`
   Fix: Remove duplicate <script src="../../../../components/AchievementManager.js"> tag
@@ -4422,10 +4927,18 @@
   Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
 **[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/shield/games/shield-threatdex.applet.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
   File: `houses/web/games/web-packet-sniffer.applet.html`
   Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
-### WARNING (224)
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `operator/missions/windows-cmd-01.mission.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
+
+### WARNING (450)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
@@ -4621,6 +5134,46 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/tools/bh-tool-reference.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-alias-hijacking.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-bashrc-poisoning.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-compromised-server.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-cred-harvester.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-hidden-files.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-invisible-process.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-log-analysis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-path-hijacking.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-permission-analysis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-shell-resolution.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4868,11 +5421,411 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-82-ansible-fundamentals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-83-automation-landscape.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-88-ansible-inventory.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-89-ansible-playbooks.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-90-ansible-modules.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-91-ansible-roles.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-92-ansible-variables.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-93-ansible-templates.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-94-ansible-vault.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-95-awx-platform.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-96-ansible-cloud.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-97-ansible-testing.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-98-ansible-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ansible/do-99-ansible-tips.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/assessments/do-26-fundamentals-quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/assessments/do-27-cicd-iac-quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/assessments/do-28-devops-jeopardy.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/certprep/do-29-cert-alignment.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-21-github-actions.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-22-cicd-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-70-cicd-fundamentals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-71-pipeline-architecture.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-72-testing-pipelines.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-73-build-artifacts.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-74-deployment-strategies.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-75-secrets-environments.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-76-cicd-platforms.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-77-pipeline-monitoring.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/cicd/do-78-cicd-tips.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/culture/do-25-devops-culture.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-17-docker-fundamentals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-18-docker-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-48-dockerfile.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-49-docker-cli.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-50-images-registries.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-51-docker-compose.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-52-docker-networking.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-53-docker-volumes.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-54-docker-security.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-55-docker-patterns.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/docker/do-56-docker-tips.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/foundation/do-1-what-is-devops.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/foundation/do-100-foundation-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/foundation/do-2-devops-toolchain.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/foundation/do-3-real-world-pipelines.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/foundation/do-68-data-formats.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/foundation/do-69-config-formats.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-10-branching-strategies.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-11-merge-conflicts.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-12-rebasing.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-13-stashing-tagging.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-14-git-hooks.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-15-git-internals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-16-git-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-36-repo-anatomy.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-37-forks-upstream.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-38-github-features.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-39-gitignore-readme.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-40-diff-comparing.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-41-undoing-things.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-42-git-tips-tricks.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/devops/sections/git/do-7-git-fundamentals.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/devops/sections/git/do-8-branches.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/git/do-9-remote-repos.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-23-terraform.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-24-iac-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-79-iac-fundamentals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-80-terraform-state.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-81-terraform-modules.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-84-iac-platforms.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-85-iac-testing.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-86-gitops-infrastructure.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/iac/do-87-iac-tips.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-102-ide-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-4-vscode-interface.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-43-file-management.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-44-file-types.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-45-remote-dev.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-46-devops-extensions.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-47-vscode-tips.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-5-vscode-git.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/ide/do-6-vscode-debugging.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-19-k8s-fundamentals.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-20-k8s-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-57-pods-deployments.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-58-kubectl.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-59-services-networking.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-60-configmaps-secrets.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-61-scaling.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-62-storage.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-63-rbac-security.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-64-helm.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-65-monitoring.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-66-k8s-patterns.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/kubernetes/do-67-k8s-tips.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/workbench/do-101-workbench-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/workbench/do-30-os-shell-setup.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/workbench/do-31-ssh-gpg-dotfiles.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/workbench/do-32-runtime-management.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/workbench/do-33-env-vars-secrets.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/workbench/do-34-dev-containers.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/devops/sections/workbench/do-35-networking-basics.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5112,10 +6065,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-1.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html`
   Fix: Add entry to content-registry.js
 
@@ -5169,6 +6118,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-100/labs/forge-md100-m11-sim.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/md-100/labs/forge-md100-midterm-sim.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5292,7 +6245,251 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-001.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-031-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-001/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-001/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-002/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-002/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-003/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-003/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-004/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-004/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-005/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-005/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-006/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-006/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-007/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-007/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-008/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-008/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-009/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-009/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-010/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-010/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-011/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-011/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-012/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-013/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-013/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-014/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-014/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-015/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-015/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-016/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-016/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-017/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-017/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-018/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-018/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-019/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-019/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-020/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-020/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-021/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-021/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-022/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-022/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-023/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-023/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-024/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-024/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-025/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-025/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-026/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-026/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-027/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-027/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-028/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-028/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-029/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-029/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-030/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-030/script-lab.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5300,7 +6497,159 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-031/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-02-select.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-03-where.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-04-sorting.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-05-foundations.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-06-crud.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-07-nulls.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-08-strings.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-09-numbers.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-10-dates.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-11-data.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-12-inner-join.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-13-outer-joins.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-14-advanced-joins.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-15-subqueries.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-16-ctes.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-17-joins.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-18-aggregates.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-19-group-by.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-20-window-funcs.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-21-pivoting.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-22-analytics.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-23-data-types.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-24-constraints.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-25-indexes.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-26-metadata.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-27-admin.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-28-ingestion.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-29-errors.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-30-quality.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-31-pipelines.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-32-engineering.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-33-sql.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-34-advanced.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/databases/script-db-35-capstone.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/shield-contra.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/games/shield-debugger.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/shield-threatdex.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5315,6 +6664,74 @@
   File: `houses/web/games/web-subnet-siege.applet.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `operator/missions/forensics-01.mission.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `operator/missions/incident-response-01.mission.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `operator/missions/linux-fs-01.mission.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `operator/missions/windows-cmd-01.mission.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/ai-network-anomaly.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/cloud-container-checker.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/code-serial-console.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/darkarts-wifi-scanner.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/forge-flashcard-engine.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/forge-sensor-dashboard.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/key-password-vault.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/matrix-packet-visualizer.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/matrix-traffic-dashboard.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/script-data-logger.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/shield-log-analyzer.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/web-pi-network-probe.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/web-topology-visualizer.html`
+  Fix: Add entry to content-registry.js
+
 **[CAT-004]** Module 'key-hashing' (status: coming-soon) href 'applets/hashing-lab.html' does not exist on disk
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
@@ -5323,7 +6740,7 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-### INFO (295)
+### INFO (307)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -5498,7 +6915,63 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `operator/missions/forensics-01.mission.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `product-info.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/ai-network-anomaly.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/cloud-container-checker.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/code-serial-console.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/darkarts-wifi-scanner.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/forge-flashcard-engine.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/forge-sensor-dashboard.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/key-password-vault.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-packet-visualizer.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-traffic-dashboard.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/script-data-logger.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/shield-log-analyzer.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/web-pi-network-probe.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/web-topology-visualizer.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5528,6 +7001,9 @@
 
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
+
+**[SANDBOX-001]** Lab ID "db-sql" defined in LAB_INFO but not used on any page
+  File: `components/SandboxLauncher.js`
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-report.html`
@@ -5671,14 +7147,6 @@
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `dark-arts/vault/ehe/labs/ehe-lab-pentest-report.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html`
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
@@ -6382,10 +7850,6 @@
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/script/modules/linux-mastery/script-lm-24-chown.module.html`
   Fix: Manual review required - path is constructed dynamically
 
@@ -6501,7 +7965,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (219)
+### Unregistered Content (445)
 
 | Path | Type | House |
 |------|------|-------|
@@ -6554,6 +8018,16 @@
 | dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-mobile.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-reference.html | presentation | - |
+| dark-arts/vault/labs/linux/da-linux-alias-hijacking.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-bashrc-poisoning.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-compromised-server.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-cred-harvester.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-hidden-files.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-invisible-process.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-log-analysis.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-path-hijacking.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-permission-analysis.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-shell-resolution.lab.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-00.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-01.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-02.html | lab | - |
@@ -6615,8 +8089,108 @@
 | houses/ai/tools/ai-prompt-tester.tool.html | presentation | ai |
 | houses/ai/tools/ai-tokenizer.tool.html | applet | ai |
 | houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
+| houses/code/devops/sections/ansible/do-82-ansible-fundamentals.html | presentation | code |
+| houses/code/devops/sections/ansible/do-83-automation-landscape.html | presentation | code |
+| houses/code/devops/sections/ansible/do-88-ansible-inventory.html | presentation | code |
+| houses/code/devops/sections/ansible/do-89-ansible-playbooks.html | presentation | code |
+| houses/code/devops/sections/ansible/do-90-ansible-modules.html | presentation | code |
+| houses/code/devops/sections/ansible/do-91-ansible-roles.html | presentation | code |
+| houses/code/devops/sections/ansible/do-92-ansible-variables.html | presentation | code |
+| houses/code/devops/sections/ansible/do-93-ansible-templates.html | presentation | code |
+| houses/code/devops/sections/ansible/do-94-ansible-vault.html | presentation | code |
+| houses/code/devops/sections/ansible/do-95-awx-platform.html | presentation | code |
+| houses/code/devops/sections/ansible/do-96-ansible-cloud.html | presentation | code |
+| houses/code/devops/sections/ansible/do-97-ansible-testing.html | presentation | code |
+| houses/code/devops/sections/ansible/do-98-ansible-lab.html | presentation | code |
+| houses/code/devops/sections/ansible/do-99-ansible-tips.html | presentation | code |
+| houses/code/devops/sections/assessments/do-26-fundamentals-quiz.html | quiz | code |
+| houses/code/devops/sections/assessments/do-27-cicd-iac-quiz.html | presentation | code |
+| houses/code/devops/sections/assessments/do-28-devops-jeopardy.html | presentation | code |
+| houses/code/devops/sections/certprep/do-29-cert-alignment.html | presentation | code |
+| houses/code/devops/sections/cicd/do-21-github-actions.html | presentation | code |
+| houses/code/devops/sections/cicd/do-22-cicd-lab.html | presentation | code |
+| houses/code/devops/sections/cicd/do-70-cicd-fundamentals.html | presentation | code |
+| houses/code/devops/sections/cicd/do-71-pipeline-architecture.html | presentation | code |
+| houses/code/devops/sections/cicd/do-72-testing-pipelines.html | presentation | code |
+| houses/code/devops/sections/cicd/do-73-build-artifacts.html | presentation | code |
+| houses/code/devops/sections/cicd/do-74-deployment-strategies.html | presentation | code |
+| houses/code/devops/sections/cicd/do-75-secrets-environments.html | presentation | code |
+| houses/code/devops/sections/cicd/do-76-cicd-platforms.html | presentation | code |
+| houses/code/devops/sections/cicd/do-77-pipeline-monitoring.html | presentation | code |
+| houses/code/devops/sections/cicd/do-78-cicd-tips.html | presentation | code |
+| houses/code/devops/sections/culture/do-25-devops-culture.html | presentation | code |
+| houses/code/devops/sections/docker/do-17-docker-fundamentals.html | presentation | code |
+| houses/code/devops/sections/docker/do-18-docker-lab.html | presentation | code |
+| houses/code/devops/sections/docker/do-48-dockerfile.html | presentation | code |
+| houses/code/devops/sections/docker/do-49-docker-cli.html | presentation | code |
+| houses/code/devops/sections/docker/do-50-images-registries.html | presentation | code |
+| houses/code/devops/sections/docker/do-51-docker-compose.html | presentation | code |
+| houses/code/devops/sections/docker/do-52-docker-networking.html | presentation | code |
+| houses/code/devops/sections/docker/do-53-docker-volumes.html | presentation | code |
+| houses/code/devops/sections/docker/do-54-docker-security.html | presentation | code |
+| houses/code/devops/sections/docker/do-55-docker-patterns.html | presentation | code |
+| houses/code/devops/sections/docker/do-56-docker-tips.html | presentation | code |
+| houses/code/devops/sections/foundation/do-1-what-is-devops.html | presentation | code |
+| houses/code/devops/sections/foundation/do-100-foundation-lab.html | presentation | code |
+| houses/code/devops/sections/foundation/do-2-devops-toolchain.html | presentation | code |
+| houses/code/devops/sections/foundation/do-3-real-world-pipelines.html | presentation | code |
+| houses/code/devops/sections/foundation/do-68-data-formats.html | presentation | code |
+| houses/code/devops/sections/foundation/do-69-config-formats.html | presentation | code |
+| houses/code/devops/sections/git/do-10-branching-strategies.html | presentation | code |
+| houses/code/devops/sections/git/do-11-merge-conflicts.html | presentation | code |
+| houses/code/devops/sections/git/do-12-rebasing.html | presentation | code |
+| houses/code/devops/sections/git/do-13-stashing-tagging.html | presentation | code |
+| houses/code/devops/sections/git/do-14-git-hooks.html | presentation | code |
+| houses/code/devops/sections/git/do-15-git-internals.html | presentation | code |
+| houses/code/devops/sections/git/do-16-git-lab.html | presentation | code |
+| houses/code/devops/sections/git/do-36-repo-anatomy.html | presentation | code |
+| houses/code/devops/sections/git/do-37-forks-upstream.html | presentation | code |
+| houses/code/devops/sections/git/do-38-github-features.html | presentation | code |
+| houses/code/devops/sections/git/do-39-gitignore-readme.html | presentation | code |
+| houses/code/devops/sections/git/do-40-diff-comparing.html | presentation | code |
+| houses/code/devops/sections/git/do-41-undoing-things.html | presentation | code |
+| houses/code/devops/sections/git/do-42-git-tips-tricks.html | presentation | code |
 | houses/code/devops/sections/git/do-7-git-fundamentals.html | presentation | code |
 | houses/code/devops/sections/git/do-8-branches.html | presentation | code |
+| houses/code/devops/sections/git/do-9-remote-repos.html | presentation | code |
+| houses/code/devops/sections/iac/do-23-terraform.html | presentation | code |
+| houses/code/devops/sections/iac/do-24-iac-lab.html | presentation | code |
+| houses/code/devops/sections/iac/do-79-iac-fundamentals.html | presentation | code |
+| houses/code/devops/sections/iac/do-80-terraform-state.html | presentation | code |
+| houses/code/devops/sections/iac/do-81-terraform-modules.html | presentation | code |
+| houses/code/devops/sections/iac/do-84-iac-platforms.html | presentation | code |
+| houses/code/devops/sections/iac/do-85-iac-testing.html | presentation | code |
+| houses/code/devops/sections/iac/do-86-gitops-infrastructure.html | presentation | code |
+| houses/code/devops/sections/iac/do-87-iac-tips.html | presentation | code |
+| houses/code/devops/sections/ide/do-102-ide-lab.html | presentation | code |
+| houses/code/devops/sections/ide/do-4-vscode-interface.html | presentation | code |
+| houses/code/devops/sections/ide/do-43-file-management.html | presentation | code |
+| houses/code/devops/sections/ide/do-44-file-types.html | presentation | code |
+| houses/code/devops/sections/ide/do-45-remote-dev.html | presentation | code |
+| houses/code/devops/sections/ide/do-46-devops-extensions.html | presentation | code |
+| houses/code/devops/sections/ide/do-47-vscode-tips.html | presentation | code |
+| houses/code/devops/sections/ide/do-5-vscode-git.html | presentation | code |
+| houses/code/devops/sections/ide/do-6-vscode-debugging.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-19-k8s-fundamentals.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-20-k8s-lab.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-57-pods-deployments.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-58-kubectl.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-59-services-networking.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-60-configmaps-secrets.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-61-scaling.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-62-storage.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-63-rbac-security.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-64-helm.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-65-monitoring.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-66-k8s-patterns.html | presentation | code |
+| houses/code/devops/sections/kubernetes/do-67-k8s-tips.html | presentation | code |
+| houses/code/devops/sections/workbench/do-101-workbench-lab.html | presentation | code |
+| houses/code/devops/sections/workbench/do-30-os-shell-setup.html | presentation | code |
+| houses/code/devops/sections/workbench/do-31-ssh-gpg-dotfiles.html | presentation | code |
+| houses/code/devops/sections/workbench/do-32-runtime-management.html | presentation | code |
+| houses/code/devops/sections/workbench/do-33-env-vars-secrets.html | presentation | code |
+| houses/code/devops/sections/workbench/do-34-dev-containers.html | presentation | code |
+| houses/code/devops/sections/workbench/do-35-networking-basics.html | presentation | code |
 | houses/code/modules/python-engineering/code-pye-chapter01.module.html | applet | code |
 | houses/code/modules/python-hub/labs/pyh-lab-graphics-01.html | lab | code |
 | houses/code/modules/python-hub/labs/pyh-lab-graphics-02.html | lab | code |
@@ -6673,7 +8247,6 @@
 | houses/eye/games/eye-log-analysis-lab.applet.html | applet | eye |
 | houses/eye/games/eye-security-onion-soc.applet.html | applet | eye |
 | houses/eye/games/eye-threat-hunting-lab.applet.html | applet | eye |
-| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-1.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html | quiz | forge |
@@ -6688,6 +8261,7 @@
 | houses/forge/md-100/labs/forge-md100-m09-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m10-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m11-sim.lab.html | lab | forge |
+| houses/forge/md-100/labs/forge-md100-midterm-sim.lab.html | lab | forge |
 | houses/forge/md-101/labs/forge-md101-m01-modern-management.lab.html | lab | forge |
 | houses/forge/md-101/labs/forge-md101-m02-device-enrollment.lab.html | lab | forge |
 | houses/forge/md-101/labs/forge-md101-m03-configuring-profiles.lab.html | lab | forge |
@@ -6718,12 +8292,128 @@
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
+| houses/script/clh/script-clh-001.lab.html | lab | script |
+| houses/script/clh/script-clh-031-intro.applet.html | presentation | script |
+| houses/script/courses/clh/modules/clh-001/script-intro.module.html | presentation | script |
 | houses/script/courses/clh/modules/clh-001/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-002/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-002/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-003/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-003/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-004/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-004/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-005/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-005/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-006/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-006/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-007/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-007/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-008/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-008/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-009/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-009/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-010/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-010/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-011/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-011/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-012/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-012/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-013/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-013/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-014/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-014/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-015/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-015/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-016/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-016/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-017/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-017/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-018/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-018/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-019/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-019/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-020/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-020/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-021/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-021/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-022/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-022/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-023/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-023/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-024/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-024/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-025/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-025/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-026/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-026/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-027/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-027/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-028/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-028/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-029/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-029/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-030/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-030/script-lab.lab.html | lab | script |
 | houses/script/courses/clh/modules/clh-031/script-intro.module.html | presentation | script |
+| houses/script/courses/clh/modules/clh-031/script-lab.lab.html | lab | script |
+| houses/script/modules/databases/script-db-01-intro.module.html | presentation | script |
+| houses/script/modules/databases/script-db-02-select.module.html | presentation | script |
+| houses/script/modules/databases/script-db-03-where.module.html | presentation | script |
+| houses/script/modules/databases/script-db-04-sorting.module.html | presentation | script |
+| houses/script/modules/databases/script-db-05-foundations.lab.html | lab | script |
+| houses/script/modules/databases/script-db-06-crud.module.html | presentation | script |
+| houses/script/modules/databases/script-db-07-nulls.module.html | presentation | script |
+| houses/script/modules/databases/script-db-08-strings.module.html | presentation | script |
+| houses/script/modules/databases/script-db-09-numbers.module.html | presentation | script |
+| houses/script/modules/databases/script-db-10-dates.module.html | presentation | script |
+| houses/script/modules/databases/script-db-11-data.lab.html | lab | script |
+| houses/script/modules/databases/script-db-12-inner-join.module.html | presentation | script |
+| houses/script/modules/databases/script-db-13-outer-joins.module.html | presentation | script |
+| houses/script/modules/databases/script-db-14-advanced-joins.module.html | presentation | script |
+| houses/script/modules/databases/script-db-15-subqueries.module.html | presentation | script |
+| houses/script/modules/databases/script-db-16-ctes.module.html | presentation | script |
+| houses/script/modules/databases/script-db-17-joins.lab.html | lab | script |
+| houses/script/modules/databases/script-db-18-aggregates.module.html | presentation | script |
+| houses/script/modules/databases/script-db-19-group-by.module.html | presentation | script |
+| houses/script/modules/databases/script-db-20-window-funcs.module.html | presentation | script |
+| houses/script/modules/databases/script-db-21-pivoting.module.html | presentation | script |
+| houses/script/modules/databases/script-db-22-analytics.lab.html | lab | script |
+| houses/script/modules/databases/script-db-23-data-types.module.html | presentation | script |
+| houses/script/modules/databases/script-db-24-constraints.module.html | presentation | script |
+| houses/script/modules/databases/script-db-25-indexes.module.html | presentation | script |
+| houses/script/modules/databases/script-db-26-metadata.module.html | presentation | script |
+| houses/script/modules/databases/script-db-27-admin.lab.html | lab | script |
+| houses/script/modules/databases/script-db-28-ingestion.module.html | presentation | script |
+| houses/script/modules/databases/script-db-29-errors.module.html | presentation | script |
+| houses/script/modules/databases/script-db-30-quality.module.html | presentation | script |
+| houses/script/modules/databases/script-db-31-pipelines.module.html | presentation | script |
+| houses/script/modules/databases/script-db-32-engineering.lab.html | lab | script |
+| houses/script/modules/databases/script-db-33-sql.quiz.html | quiz | script |
+| houses/script/modules/databases/script-db-34-advanced.quiz.html | quiz | script |
+| houses/script/modules/databases/script-db-35-capstone.lab.html | lab | script |
+| houses/shield/games/shield-contra.applet.html | presentation | shield |
 | houses/shield/games/shield-debugger.applet.html | applet | shield |
+| houses/shield/games/shield-threatdex.applet.html | presentation | shield |
 | houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
 | houses/web/games/web-dns-resolver-race.applet.html | presentation | web |
 | houses/web/games/web-subnet-siege.applet.html | presentation | web |
+| operator/missions/forensics-01.mission.html | applet | - |
+| operator/missions/incident-response-01.mission.html | presentation | - |
+| operator/missions/linux-fs-01.mission.html | presentation | - |
+| operator/missions/windows-cmd-01.mission.html | presentation | - |
+| projects/ai-network-anomaly.html | applet | - |
+| projects/cloud-container-checker.html | applet | - |
+| projects/code-serial-console.html | applet | - |
+| projects/darkarts-wifi-scanner.html | applet | - |
+| projects/forge-flashcard-engine.html | applet | - |
+| projects/forge-sensor-dashboard.html | applet | - |
+| projects/key-password-vault.html | applet | - |
+| projects/matrix-packet-visualizer.html | applet | - |
+| projects/matrix-traffic-dashboard.html | applet | - |
+| projects/script-data-logger.html | applet | - |
+| projects/shield-log-analyzer.html | applet | - |
+| projects/web-pi-network-probe.html | applet | - |
+| projects/web-topology-visualizer.html | applet | - |
 
 ### Orphaned Registry Entries (0)
 

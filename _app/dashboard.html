@@ -30,6 +30,7 @@
         .house-eye { --house-primary: #c084fc; --house-secondary: #a855f7; --house-glow: rgba(192, 132, 252, 0.3); }
         .house-dark-arts { --house-primary: #6b21a8; --house-secondary: #581c87; --house-glow: rgba(107, 33, 168, 0.3); }
         .house-divergent { --house-primary: #ff00ff; --house-secondary: #00ffff; --house-glow: rgba(255, 0, 255, 0.4); }
+        .house-explorer { --house-primary: #00d4ff; --house-secondary: #0891b2; --house-glow: rgba(0,212,255,0.3); }
 
         /* ═══════════════════════════════════════════════════════════════
            DIVERGENT / FACTIONLESS - GLITCH THEME
@@ -3835,7 +3836,7 @@
         // Get user's house
         const userHouse = localStorage.getItem('hexworth_house') || 'web';
         // Handle Divergent house (not in ContentRegistry)
-        const house = userHouse === 'divergent' ? null : ContentRegistry.houses[userHouse];
+        const house = (userHouse === 'divergent' || userHouse === 'explorer') ? null : ContentRegistry.houses[userHouse];
 
         // House-specific Digital Life colors - Aligned with content-registry.js
         const houseFireflyColors = {
@@ -3848,7 +3849,8 @@
             key: { primary: [244, 114, 182], secondary: [236, 72, 153] },       // #f472b6 / #ec4899
             eye: { primary: [192, 132, 252], secondary: [168, 85, 247] },       // #c084fc / #a855f7
             'dark-arts': { primary: [107, 33, 168], secondary: [88, 28, 135] }, // #6b21a8 / #581c87
-            divergent: { primary: [255, 0, 255], secondary: [0, 255, 255] }     // #ff00ff / #00ffff (magenta/cyan glitch)
+            divergent: { primary: [255, 0, 255], secondary: [0, 255, 255] },    // #ff00ff / #00ffff (magenta/cyan glitch)
+            explorer: { primary: [0, 212, 255], secondary: [8, 145, 178] }      // #00d4ff / #0891b2 (neutral cyan)
         };
 
         // Check if user is Divergent (house hopper)
@@ -3867,6 +3869,19 @@
             description: 'You cannot be contained.',
             color: '#ff00ff'
         };
+
+        // Explorer mode — user skipped sorting and is browsing freely
+        const explorerHouse = {
+            id: 'explorer', name: 'Explorer', shortName: 'EXPLORER',
+            icon: '<img src="/assets/images/icons/icon-compass.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            emblem: '/assets/images/icons/icon-compass.webp',
+            domain: 'All Domains',
+            description: 'Exploring freely. Take the sorting quiz anytime to find your house.',
+            color: '#00d4ff'
+        };
+
+        const isExplorer = (userHouse === 'explorer');
+        const isUnhousedFreeRoam = isDivergent || userHouse === 'divergent' || isExplorer;
 
         // Path ID → category icon mapping for image rendering
         const PATH_ICON_MAP = {
@@ -3908,7 +3923,7 @@
 
         // Current explore house (for "Explore All" tab)
         // Divergent users default to 'web' since they have no house-specific content
-        let currentExploreHouse = (userHouse === 'divergent') ? 'web' : userHouse;
+        let currentExploreHouse = isUnhousedFreeRoam ? 'web' : userHouse;
 
         document.addEventListener('DOMContentLoaded', async function() {
             // Check if user has been sorted
@@ -3968,9 +3983,10 @@
             // Show/hide tier tabs based on account type
             updateTierTabVisibility();
 
-            // Get the effective house data (divergent uses special definition)
-            // Check both isDivergent flag AND if userHouse is 'divergent' (handles edge cases)
-            const effectiveHouse = (isDivergent || userHouse === 'divergent') ? divergentHouse : house;
+            // Get the effective house data (divergent/explorer use special definitions)
+            const effectiveHouse = isUnhousedFreeRoam
+                ? (isExplorer ? explorerHouse : divergentHouse)
+                : house;
 
             // Populate house info
             // House badge with mascot/emblem image
@@ -4008,8 +4024,22 @@
                 TitleManager.updateDashboardDisplay();
             }
 
-            // Log Divergent status for debugging
-            if (isDivergent || userHouse === 'divergent') {
+            // Log free-roam status for debugging
+            if (isUnhousedFreeRoam) {
+            }
+
+            // Show "Take the Sorting Quiz" link for Explorer users
+            if (isExplorer) {
+                const domainEl = document.getElementById('houseDomain');
+                if (domainEl) {
+                    const sortLink = document.createElement('a');
+                    sortLink.href = 'sorting.html';
+                    sortLink.textContent = 'Take the Sorting Quiz';
+                    sortLink.style.cssText = 'display:block;margin-top:8px;font-size:0.75rem;color:#00d4ff;letter-spacing:0.1em;text-decoration:none;opacity:0.7;transition:opacity 0.3s;';
+                    sortLink.onmouseenter = () => sortLink.style.opacity = '1';
+                    sortLink.onmouseleave = () => sortLink.style.opacity = '0.7';
+                    domainEl.parentNode.insertBefore(sortLink, domainEl.nextSibling);
+                }
             }
 
             // Populate all tabs
@@ -4617,11 +4647,11 @@
             const level = parseInt(localStorage.getItem('hexworth_level') || '1') || 1;
             const streak = parseInt(localStorage.getItem('hexworth_streak') || '0') || 0;
             const userName = localStorage.getItem('hexworth_callsign') || 'Operative';
-            const houseName = house ? house.name : 'The Factionless';
-            const houseIcon = house ? house.icon : '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
-            const houseEmblem = house && house.emblem ? house.emblem : (isDivergent ? '/assets/images/emblems/divergent.webp' : null);
+            const houseName = house ? house.name : (isExplorer ? 'Explorer' : 'The Factionless');
+            const houseIcon = house ? house.icon : (isExplorer ? explorerHouse.icon : '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">');
+            const houseEmblem = house && house.emblem ? house.emblem : (isUnhousedFreeRoam && !isExplorer ? '/assets/images/emblems/divergent.webp' : null);
             // Mascot badge for profile display
-            const houseId = house ? house.id : (isDivergent ? 'divergent' : null);
+            const houseId = house ? house.id : (isUnhousedFreeRoam ? (isExplorer ? 'explorer' : 'divergent') : null);
             const houseMascot = houseId ? `/assets/images/mascots/${houseId}-badge.webp` : null;
 
             // First-visit tracking
@@ -5055,8 +5085,8 @@
             const grid = document.getElementById('houseModulesGrid');
             const title = document.getElementById('houseContentTitle');
 
-            // Divergent users don't have a single house - show Factionless Skill Tree
-            if (isDivergent || !house) {
+            // Divergent/Explorer users don't have a single house - show Factionless Skill Tree
+            if (isUnhousedFreeRoam || !house) {
                 title.textContent = 'Factionless Skill Tree';
                 grid.innerHTML = '<div style="grid-column: 1/-1;" id="factionlessTreeMount"></div>';
                 if (typeof FactionlessTree !== 'undefined') {
@@ -5099,7 +5129,7 @@
             // ═══════════════════════════════════════════════════════════════
             // DIVERGENT: Use FileTreeExplorer instead of house cards
             // ═══════════════════════════════════════════════════════════════
-            if (isDivergent || userHouse === 'divergent') {
+            if (isUnhousedFreeRoam) {
                 // Update title
                 const title = exploreTab.querySelector('.section-title');
                 if (title) title.textContent = 'Skill Tree Explorer';
@@ -8551,7 +8581,7 @@
             if ((isSignedIn || forceFirestore) && typeof FirestoreLeaderboard !== 'undefined') {
                 try {
                     // Divergent users see global leaderboard (not tied to a specific house)
-                    const leaderboardMode = (userHouse === 'divergent' || !userHouse) ? 'global' : userHouse;
+                    const leaderboardMode = (userHouse === 'divergent' || userHouse === 'explorer' || !userHouse) ? 'global' : userHouse;
                     firestoreLeaderboard = FirestoreLeaderboard.init(container, {
                         mode: leaderboardMode,
                         autoRefresh: true
