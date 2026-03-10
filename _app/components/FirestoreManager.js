@@ -1309,6 +1309,7 @@ const FirestoreManager = (function() {
                 const freshLocal = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
                 for (const [house, modules] of Object.entries(freshLocal)) {
                     if (!modules || typeof modules !== 'object' || Array.isArray(modules)) continue;
+                    if (!_validHouses.includes(house) && house !== 'dark-arts') continue;  // skip numeric/garbage keys
                     if (typeof localProgress[house] !== 'object') localProgress[house] = {};
                     for (const [modId, modData] of Object.entries(modules)) {
                         if (modData && modData.completed && (!localProgress[house][modId] || !localProgress[house][modId].completed)) {
@@ -1316,10 +1317,10 @@ const FirestoreManager = (function() {
                         }
                     }
                 }
-                // Preserve completedModules from fresh read too
+                // Preserve completedModules from fresh read too (filter garbage to prevent re-introduction)
                 if (Array.isArray(freshLocal.completedModules)) {
                     if (!Array.isArray(localProgress.completedModules)) localProgress.completedModules = [];
-                    freshLocal.completedModules.forEach(id => {
+                    freshLocal.completedModules.filter(_isValidId).forEach(id => {
                         if (!localProgress.completedModules.includes(id)) localProgress.completedModules.push(id);
                     });
                 }

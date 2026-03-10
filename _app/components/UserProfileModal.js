@@ -67,6 +67,20 @@
         return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
     }
 
+    // Elapsed time formatter for integrity shame timer
+    function _formatElapsed(isoDate) {
+        if (!isoDate) return '???';
+        // Handle Firestore Timestamp objects
+        const d = isoDate.toDate ? isoDate.toDate() : new Date(isoDate);
+        const ms = Date.now() - d.getTime();
+        const mins = Math.floor(ms / 60000);
+        const hrs = Math.floor(mins / 60);
+        const days = Math.floor(hrs / 24);
+        if (days > 0) return days + 'd ' + (hrs % 24) + 'h';
+        if (hrs > 0) return hrs + 'h ' + (mins % 60) + 'm';
+        return mins + 'm';
+    }
+
     function formatDate(ts) {
         if (!ts) return 'Unknown';
         const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -240,8 +254,28 @@
                     <span class="upm-tier-label" style="color:${tier.color}">${esc(tier.label)}</span>
                 </div>
 
-                <!-- Level + XP Bar -->
-                <div class="upm-level-section">
+                <!-- Level + XP Bar (or integrity shame) -->
+                ${p.integrity && p.integrity.status === 'violated' ? (() => {
+                    const gc = p.integrity.peakGarbage || p.integrity.garbageCount || 0;
+                    const elapsed = _formatElapsed(p.integrity.detectedAt);
+                    let shameText;
+                    if (gc >= 50) shameText = 'I tried to cheat for ' + elapsed;
+                    else if (gc >= 20) shameText = 'Nice try, Script Kiddie';
+                    else shameText = 'INTEGRITY CHECK FAILED';
+                    return `<div class="upm-level-section">
+                        <div class="upm-level-header">
+                            <span class="upm-level-badge" style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.7rem">FLAGGED</span>
+                            <span class="upm-xp-text" style="color:#ef4444;font-style:italic">${esc(shameText)}</span>
+                        </div>
+                        <div class="upm-xp-track">
+                            <div class="upm-xp-fill" style="width:100%;background:linear-gradient(90deg,#ef4444,#dc2626)"></div>
+                        </div>
+                        <div class="upm-xp-labels">
+                            <span style="color:#ef4444">${gc} garbage entries</span>
+                            <span style="color:#ef4444">Admin review required</span>
+                        </div>
+                    </div>`;
+                })() : `<div class="upm-level-section">
                     <div class="upm-level-header">
                         <span class="upm-level-badge">LVL ${level}</span>
                         <span class="upm-xp-text">${formatNumber(rawXP)} XP</span>
@@ -255,7 +289,7 @@
                         <span>${formatNumber(currentLevelXP)}</span>
                         <span>${formatNumber(nextLevelXP)}</span>
                     </div>
-                </div>
+                </div>`}
 
                 <!-- Stats Grid -->
                 <div class="upm-stats">

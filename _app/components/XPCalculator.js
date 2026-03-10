@@ -20,6 +20,68 @@
 const XPCalculator = (function () {
     'use strict';
 
+    // Known house prefixes for module ID validation
+    const _KNOWN_HOUSES = ['web','shield','forge','script','cloud','code','key','eye','ai','linux','arena'];
+
+    /**
+     * Validate a module ID: must be {knownHouse}-{key} or dark-arts-{key}.
+     * Rejects garbage like "module_XXXXXX", numeric keys, or house-only strings.
+     */
+    function _isValidId(id) {
+        if (!id || typeof id !== 'string') return false;
+        if (id.startsWith('dark-arts-') && id.length > 10) return true;
+        const dash = id.indexOf('-');
+        if (dash < 1) return false;
+        const house = id.slice(0, dash);
+        const key = id.slice(dash + 1);
+        if (!key || !_KNOWN_HOUSES.includes(house)) return false;
+        if (key.startsWith(house + '-')) return false;  // double-prefixed
+        if (_KNOWN_HOUSES.includes(key)) return false;  // house-house pair
+        return true;
+    }
+
+    /**
+     * Detect cheating: count garbage entries in completedModules and house_completions.
+     * If > 5 garbage entries, stores hexworth_integrity in localStorage.
+     * Returns integrity object if violated, null otherwise.
+     */
+    function _checkIntegrity(progress) {
+        let garbageCount = 0;
+
+        // Check completedModules for invalid IDs
+        const completed = Array.isArray(progress.completedModules) ? progress.completedModules : [];
+        const garbage = completed.filter(id => !_isValidId(id));
+        garbageCount += garbage.length;
+
+        // Check hexworth_house_completions for non-house keys
+        try {
+            const raw = localStorage.getItem('hexworth_house_completions');
+            if (raw) {
+                const completions = JSON.parse(raw);
+                const badKeys = Object.keys(completions).filter(k => !_KNOWN_HOUSES.includes(k) && k !== 'dark-arts');
+                garbageCount += badKeys.length;
+            }
+        } catch (e) { /* ignore */ }
+
+        // Threshold: > 5 garbage entries = cheating
+        const THRESHOLD = 5;
+        if (garbageCount > THRESHOLD) {
+            const existing = JSON.parse(localStorage.getItem('hexworth_integrity') || 'null');
+            const integrity = {
+                status: 'violated',
+                detectedAt: existing?.detectedAt || new Date().toISOString(),
+                garbageCount,
+                peakGarbage: Math.max(garbageCount, existing?.peakGarbage || 0)
+            };
+            localStorage.setItem('hexworth_integrity', JSON.stringify(integrity));
+            return integrity;
+        } else if (garbageCount === 0) {
+            // Clean — but don't clear if Firestore has integrity (let server be authoritative)
+            localStorage.removeItem('hexworth_integrity');
+        }
+        return null;
+    }
+
     // Canonical XP rates — single source of truth
     const XP_RATES = {
         PRESENTATION_VIEW: 100,
@@ -75,6 +137,7 @@ const XPCalculator = (function () {
      */
     function recalculate() {
         const progress = _getProgress();
+        const integrity = _checkIntegrity(progress);
         const breakdown = {
             presentations: 0,
             tools: 0,
@@ -134,7 +197,7 @@ const XPCalculator = (function () {
         const level = calculateLevel(xp);
         const tier = getLevelTier(level);
 
-        return { xp, level, tier, breakdown };
+        return { xp, level, tier, breakdown, integrity };
     }
 
     /**
@@ -174,7 +237,7 @@ const XPCalculator = (function () {
      */
     function _categorizeCompletions(progress, breakdown) {
         const completed = Array.isArray(progress.completedModules)
-            ? progress.completedModules : [];
+            ? progress.completedModules.filter(_isValidId) : [];
         const quizHistory = Array.isArray(progress.quizHistory)
             ? progress.quizHistory : [];
         const labsCompleted = Array.isArray(progress.labsCompleted)
@@ -418,7 +481,8 @@ const XPCalculator = (function () {
             const raw = localStorage.getItem('hexworth_house_completions');
             if (raw) {
                 const completions = JSON.parse(raw);
-                courseCount = Object.keys(completions).length;
+                const validKeys = Object.keys(completions).filter(k => _KNOWN_HOUSES.includes(k) || k === 'dark-arts');
+                courseCount = validKeys.length;
             }
         } catch (e) { /* ignore */ }
 
@@ -487,7 +551,8 @@ const XPCalculator = (function () {
         XP_RATES,
         recalculate,
         calculateLevel,
-        getLevelTier
+        getLevelTier,
+        isValidModuleId: _isValidId
     };
 
 })();

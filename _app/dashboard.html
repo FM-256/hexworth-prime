@@ -766,6 +766,18 @@
             color: #555;
         }
 
+        /* ── Integrity violation (anti-cheat shame) ── */
+        .integrity-violated .profile-xp-tier { color: #ef4444 !important; }
+        .integrity-violated .profile-xp-nums { color: #ef4444 !important; font-style: italic; }
+        .integrity-violated .profile-xp-bar-fill { background: linear-gradient(90deg, #ef4444, #dc2626) !important; }
+        .integrity-violated .profile-xp-footer { color: #ef4444; }
+        .integrity-warn .profile-xp-tier { color: #eab308 !important; }
+        .integrity-warn .profile-xp-nums { color: #eab308 !important; font-style: italic; }
+        .integrity-warn .profile-xp-bar-fill { background: linear-gradient(90deg, #eab308, #ca8a04) !important; }
+        .integrity-warn .profile-xp-footer { color: #eab308; }
+        .integrity-pulse .profile-xp-nums { animation: integrityPulse 2s ease-in-out infinite; }
+        @keyframes integrityPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
         /* ── Stats cards ── */
         .profile-stats-grid {
             display: grid;
@@ -4630,6 +4642,49 @@
         }
 
         /**
+         * Shame message for integrity violations (anti-cheat display).
+         * Returns { text, level, color, pulse } based on garbage count tier.
+         */
+        function _getShameMessage(integrity) {
+            const gc = integrity.garbageCount || 0;
+            const elapsed = _formatElapsed(integrity.detectedAt);
+
+            if (gc >= 50) {
+                return {
+                    text: `I tried to cheat for ${elapsed}`,
+                    level: 'Script Kiddie',
+                    color: '#ef4444',
+                    pulse: true
+                };
+            } else if (gc >= 20) {
+                return {
+                    text: 'Nice try, Script Kiddie',
+                    level: 'Script Kiddie',
+                    color: '#ef4444',
+                    pulse: false
+                };
+            } else {
+                return {
+                    text: 'INTEGRITY CHECK FAILED',
+                    level: 'Flagged',
+                    color: '#eab308',
+                    pulse: false
+                };
+            }
+        }
+
+        function _formatElapsed(isoDate) {
+            if (!isoDate) return '???';
+            const ms = Date.now() - new Date(isoDate).getTime();
+            const mins = Math.floor(ms / 60000);
+            const hrs = Math.floor(mins / 60);
+            const days = Math.floor(hrs / 24);
+            if (days > 0) return days + 'd ' + (hrs % 24) + 'h';
+            if (hrs > 0) return hrs + 'h ' + (mins % 60) + 'm';
+            return mins + 'm';
+        }
+
+        /**
          * loadProfileTab()
          * Main entry point — assembles all profile sections and injects into #profileContent.
          */
@@ -4673,6 +4728,7 @@
             }
             const pmLevel = Number(profile ? profile.level : level) || 1;
             const pmXP = Number(profile ? profile.xp : xp) || 0;
+            const integrityViolation = profile ? profile.integrity : null;
             const tier = (profile ? profile.tier : null) || { name: 'Initiate', color: '#6b7280' };
             // Ensure tier has required fields (getLevelTier returns {min, max, name, color})
             const tierName = (tier && typeof tier.name === 'string') ? tier.name : 'Initiate';
@@ -4784,7 +4840,28 @@
                     </div>
 
                     <!-- ── XP / Level bar ── -->
-                    <div class="profile-xp-bar-wrap">
+                    ${integrityViolation ? (() => {
+                        const shame = _getShameMessage(integrityViolation);
+                        const wrapClass = shame.color === '#eab308' ? 'integrity-warn' : 'integrity-violated';
+                        return `<div class="profile-xp-bar-wrap ${wrapClass} ${shame.pulse ? 'integrity-pulse' : ''}">
+                        <div class="profile-xp-header">
+                            <div class="profile-xp-tier" style="color:${shame.color};">
+                                ${escapeHtml(shame.level)}
+                            </div>
+                            <div class="profile-xp-nums" style="color:${shame.color};">
+                                ${shame.text}
+                            </div>
+                        </div>
+                        <div class="profile-xp-bar-track">
+                            <div class="profile-xp-bar-fill"
+                                style="width:100%;background:linear-gradient(90deg,${shame.color},${shame.color}cc);"></div>
+                        </div>
+                        <div class="profile-xp-footer">
+                            <span style="color:${shame.color}">Actual XP: ${pmXP.toLocaleString()}</span>
+                            <span style="color:${shame.color}">${integrityViolation.garbageCount} garbage entries detected</span>
+                        </div>
+                    </div>`;
+                    })() : `<div class="profile-xp-bar-wrap">
                         <div class="profile-xp-header">
                             <div class="profile-xp-tier" style="color:${tierColor};">
                                 Level ${pmLevel} &mdash; ${escapeHtml(tierName)}
@@ -4803,7 +4880,7 @@
                             <span>${pmXP.toLocaleString()} / ${maxXP.toLocaleString()} total XP (${xpPercent}%)</span>
                             <span>${formatDailyAvgXP(pmXP, firstVisit)} avg</span>
                         </div>
-                    </div>
+                    </div>`}
 
                     <!-- ── Stats cards (3-column) ── -->
                     <div class="profile-stats-grid">
@@ -4918,6 +4995,17 @@
             // Wire up heatmap tooltip after DOM insertion
             const heatmapWrap = document.getElementById('profileHeatmapWrap');
             if (heatmapWrap) attachHeatmapTooltip(heatmapWrap);
+
+            // Live shame timer: for 50+ garbage tier, tick the elapsed time every 30s
+            if (integrityViolation && (integrityViolation.garbageCount || 0) >= 50) {
+                const shameNums = container.querySelector('.integrity-pulse .profile-xp-nums, .integrity-violated .profile-xp-nums');
+                if (shameNums && integrityViolation.detectedAt) {
+                    const _shameTimerId = setInterval(() => {
+                        if (!document.contains(shameNums)) { clearInterval(_shameTimerId); return; }
+                        shameNums.textContent = 'I tried to cheat for ' + _formatElapsed(integrityViolation.detectedAt);
+                    }, 30000);
+                }
+            }
         }
 
         /**

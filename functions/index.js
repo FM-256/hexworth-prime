@@ -717,7 +717,11 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         return clean;
     };
 
-    const localModules = sanitizeStringArray(localData.modulesCompleted).filter(_isValidModuleId);
+    // Sanitize then filter — keep raw count to detect garbage injection
+    const rawModules = sanitizeStringArray(localData.modulesCompleted);
+    const localModules = rawModules.filter(_isValidModuleId);
+    const garbageModules = rawModules.length - localModules.length;
+
     const localLabs = sanitizeStringArray(localData.labsCompleted).filter(_isValidModuleId);
     const localAchievements = sanitizeStringArray(localData.achievements);
     const localQuizzes = sanitizeQuizzes(localData.quizzes);
@@ -754,6 +758,22 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
             favIdSet.add(fav.id);
             mergedFavorites.push(fav);
         }
+    }
+
+    // Detect cheating: if client sent > 5 garbage module IDs, flag the account.
+    // The integrity field is server-only — NOT in firestore.rules client whitelist,
+    // so the cheater cannot delete or modify it from the browser.
+    if (garbageModules > 5) {
+        const existingIntegrity = cloudData.integrity || {};
+        await userRef.set({
+            integrity: {
+                status: 'violated',
+                detectedAt: existingIntegrity.detectedAt || FieldValue.serverTimestamp(),
+                garbageCount: garbageModules,
+                peakGarbage: Math.max(garbageModules, existingIntegrity.peakGarbage || 0),
+                lastDetected: FieldValue.serverTimestamp()
+            }
+        }, { merge: true });
     }
 
     await userRef.set({

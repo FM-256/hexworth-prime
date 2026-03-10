@@ -830,11 +830,12 @@ class ProgressManager {
             ? AchievementSystem.getUnlockedAchievements() : [];
 
         // Deterministic XP — always recompute from completion state when XPCalculator is loaded
-        let xp, level;
+        let xp, level, integrity = null;
         if (typeof XPCalculator !== 'undefined') {
             const calc = XPCalculator.recalculate();
             xp = calc.xp;
             level = calc.level;
+            integrity = calc.integrity || null;
         } else {
             // Fallback for pages without XPCalculator: keep existing reconciliation
             const progressXP = (typeof progress.xp === 'number' && isFinite(progress.xp)) ? progress.xp : 0;
@@ -925,7 +926,8 @@ class ProgressManager {
             houseProgress,
             divergentBranches: progress.divergentBranches,
             memberSince: progress.createdAt,
-            milestones: this.getJourneyMilestones()
+            milestones: this.getJourneyMilestones(),
+            integrity
         };
     }
 
@@ -1035,6 +1037,10 @@ class ProgressManager {
     static HOUSE_MASTERY_XP = 10000; // XP_REWARDS.COURSE_COMPLETE
 
     static awardHouseMastery(houseId) {
+        // Reject garbage house IDs to prevent inflated course completions
+        const VALID_HOUSES = ['web','shield','forge','script','cloud','code','key','eye','ai','linux','arena','dark-arts'];
+        if (!VALID_HOUSES.includes(houseId)) return;
+
         const COMPLETION_KEY = 'hexworth_house_completions';
         try {
             const completions = JSON.parse(localStorage.getItem(COMPLETION_KEY) || '{}');
