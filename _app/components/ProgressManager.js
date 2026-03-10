@@ -397,9 +397,29 @@ class ProgressManager {
                 eventType = 'presentation_viewed';
             }
 
-            // Sync to each enrolled class
+            // Sync to each enrolled class — but only if the module belongs to that class's curriculum.
+            // Without this check, completing an A+ module would write to the MD-100 class progress doc.
             const syncPromises = enrolledClasses.map(async (cls) => {
                 try {
+                    // Check if this module is part of the class's assigned content
+                    if (typeof AssignmentManager !== 'undefined' && AssignmentManager.getClassAssignments) {
+                        const assignments = await AssignmentManager.getClassAssignments(cls.id);
+                        const isRelevant = assignments.some(a => {
+                            // Direct content match
+                            if (a.contentId === moduleId) return true;
+                            // Path assignment — check if module is in the path's module list
+                            if (a.assignmentType === 'path' && typeof ContentRegistry !== 'undefined') {
+                                const path = ContentRegistry.paths?.[a.contentId];
+                                if (path?.modules?.includes(moduleId)) return true;
+                            }
+                            return false;
+                        });
+                        if (!isRelevant) {
+                            console.log(`[ProgressManager] Skipping class ${cls.name} — ${moduleId} not in curriculum`);
+                            return;
+                        }
+                    }
+
                     // Submit progress update
                     await AssignmentManager.submitProgress(cls.id, moduleId, {
                         completed: true,

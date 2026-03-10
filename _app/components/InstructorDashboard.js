@@ -950,17 +950,38 @@ const InstructorDashboard = (function() {
         return classAssignments.reduce((sum, a) => sum + getAssignmentModuleCount(a), 0);
     }
 
+    /**
+     * Build the set of valid module IDs for this class based on assigned paths/content.
+     * Only completions matching these IDs should count toward class progress.
+     */
+    function getAssignedModuleIds() {
+        const ids = new Set();
+        for (const a of classAssignments) {
+            if (a.assignmentType === 'path' && typeof ContentRegistry !== 'undefined') {
+                const path = ContentRegistry.paths?.[a.contentId];
+                if (path?.modules?.length) {
+                    path.modules.forEach(m => ids.add(m));
+                    continue;
+                }
+            }
+            // Single content item or unknown path — use contentId directly
+            ids.add(a.contentId);
+        }
+        return ids;
+    }
+
     function calculateStudentProgress(uid) {
         const studentData = classProgressData.find(p => p.uid === uid);
         if (!studentData || !studentData.completions) return 0;
 
-        const completions = Object.values(studentData.completions);
-        if (completions.length === 0) return 0;
-
         const totalModules = getTotalModuleCount();
         if (totalModules === 0) return 0;
 
-        const completed = completions.filter(c => c.completed).length;
+        // Only count completions that match assigned module IDs
+        const validIds = getAssignedModuleIds();
+        const completed = Object.entries(studentData.completions)
+            .filter(([id, c]) => c.completed && validIds.has(id)).length;
+
         return Math.round((completed / totalModules) * 100) || 0;
     }
 
@@ -1134,10 +1155,13 @@ const InstructorDashboard = (function() {
         let totalCompletions = 0;
         let atRiskCount = 0;
         const totalModules = getTotalModuleCount();
+        const validIds = getAssignedModuleIds();
 
         for (const student of classProgressData) {
-            const completions = student.completions ? Object.values(student.completions) : [];
-            const completed = completions.filter(c => c.completed).length;
+            // Only count completions matching assigned module IDs
+            const completed = student.completions
+                ? Object.entries(student.completions).filter(([id, c]) => c.completed && validIds.has(id)).length
+                : 0;
             totalCompletions += completed;
 
             const percent = totalModules > 0 ? (completed / totalModules) * 100 : 0;
