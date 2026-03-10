@@ -411,6 +411,11 @@ const AccessGuard = (function() {
         return localStorage.getItem(config.storageKeys.houseHopper) === 'true';
     }
 
+    // Check if user skipped sorting and is browsing as Explorer
+    function isExplorer() {
+        return localStorage.getItem(config.storageKeys.house) === 'explorer';
+    }
+
     // Check if user has passed a specific Dark Arts gate
     function hasPassedGate(gateNumber) {
         // Master Key grants temporary access to all gates
@@ -827,6 +832,7 @@ const AccessGuard = (function() {
         isSorted,
         getUserHouse,
         isDivergent,
+        isExplorer,
         isHouseHopper,
         hasPassedGate,
         hasPassedGatesUpTo,
