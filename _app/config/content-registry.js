@@ -23270,6 +23270,64 @@ const ContentRegistry = {
             ]
         },
 
+        'md-100': {
+            id: 'md-100',
+            title: 'MD-100: Windows Client',
+            description: 'Microsoft MD-100 exam prep — install, configure, manage, and troubleshoot Windows clients',
+            icon: '<img src="/assets/images/icons/icon-window.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            certification: 'Microsoft MD-100',
+            difficulty: 'intermediate',
+            estimatedHours: 60,
+            color: '#0078d4',
+            modules: [
+                // Shared prerequisites
+                'script-powershell-basics',
+                'script-windows-cli',
+                'script-windows-registry',
+                'script-windows-troubleshooting',
+                // M01-M11 Presentations
+                'forge-md100-m01',
+                'forge-md100-m02',
+                'forge-md100-m03',
+                'forge-md100-m04',
+                'forge-md100-m05',
+                'forge-md100-m06',
+                'forge-md100-m07',
+                'forge-md100-m08',
+                'forge-md100-m09',
+                'forge-md100-m10',
+                'forge-md100-m11',
+                // M01-M11 Labs
+                'forge-md100-m01-lab',
+                'forge-md100-m02-lab',
+                'forge-md100-m03-lab',
+                'forge-md100-m04-lab',
+                'forge-md100-m05-lab',
+                'forge-md100-m06-lab',
+                'forge-md100-m07-lab',
+                'forge-md100-m08-lab',
+                'forge-md100-m09-lab',
+                'forge-md100-m10-lab',
+                'forge-md100-m11-lab',
+                // M01-M11 Quizzes
+                'forge-md100-m01-quiz',
+                'forge-md100-m02-quiz',
+                'forge-md100-m03-quiz',
+                'forge-md100-m04-quiz',
+                'forge-md100-m05-quiz',
+                'forge-md100-m06-quiz',
+                'forge-md100-m07-quiz',
+                'forge-md100-m08-quiz',
+                'forge-md100-m09-quiz',
+                'forge-md100-m10-quiz',
+                'forge-md100-m11-quiz',
+                // Reviews
+                'forge-md100-midterm-review',
+                'forge-md100-final-review',
+                'forge-md100-comprehensive-review'
+            ]
+        },
+
         'windows-admin': {
             id: 'windows-admin',
             title: 'Windows Administration',

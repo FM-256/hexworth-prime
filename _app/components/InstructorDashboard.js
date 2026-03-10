@@ -932,6 +932,24 @@ const InstructorDashboard = (function() {
         `;
     }
 
+    /**
+     * Get effective module count for an assignment.
+     * Path assignments contain multiple modules (e.g., MD-100 has 40 modules).
+     * Falls back to ContentRegistry lookup for assignments created before moduleCount was tracked.
+     */
+    function getAssignmentModuleCount(assignment) {
+        if (assignment.moduleCount && assignment.moduleCount > 1) return assignment.moduleCount;
+        if (assignment.assignmentType === 'path' && typeof ContentRegistry !== 'undefined') {
+            const path = ContentRegistry.paths?.[assignment.contentId];
+            if (path?.modules?.length) return path.modules.length;
+        }
+        return assignment.moduleCount || 1;
+    }
+
+    function getTotalModuleCount() {
+        return classAssignments.reduce((sum, a) => sum + getAssignmentModuleCount(a), 0);
+    }
+
     function calculateStudentProgress(uid) {
         const studentData = classProgressData.find(p => p.uid === uid);
         if (!studentData || !studentData.completions) return 0;
@@ -939,8 +957,11 @@ const InstructorDashboard = (function() {
         const completions = Object.values(studentData.completions);
         if (completions.length === 0) return 0;
 
+        const totalModules = getTotalModuleCount();
+        if (totalModules === 0) return 0;
+
         const completed = completions.filter(c => c.completed).length;
-        return Math.round((completed / classAssignments.length) * 100) || 0;
+        return Math.round((completed / totalModules) * 100) || 0;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1057,11 +1078,13 @@ const InstructorDashboard = (function() {
 
     async function assignContent(type, contentId, title) {
         try {
-            await AssignmentManager.createAssignment(selectedClassId, {
-                assignmentType: type,
-                contentId: contentId,
-                title: title
-            });
+            const params = { assignmentType: type, contentId, title };
+            // For learning paths, include the actual module count so progress % is accurate
+            if (type === 'path' && typeof ContentRegistry !== 'undefined') {
+                const path = ContentRegistry.paths?.[contentId];
+                if (path?.modules?.length) params.moduleCount = path.modules.length;
+            }
+            await AssignmentManager.createAssignment(selectedClassId, params);
 
             closeModal('idContentBrowser');
             await loadAssignments(selectedClassId);
@@ -1110,17 +1133,18 @@ const InstructorDashboard = (function() {
 
         let totalCompletions = 0;
         let atRiskCount = 0;
+        const totalModules = getTotalModuleCount();
 
         for (const student of classProgressData) {
             const completions = student.completions ? Object.values(student.completions) : [];
             const completed = completions.filter(c => c.completed).length;
             totalCompletions += completed;
 
-            const percent = (completed / classAssignments.length) * 100;
+            const percent = totalModules > 0 ? (completed / totalModules) * 100 : 0;
             if (percent < 40) atRiskCount++;
         }
 
-        const avgCompletion = Math.round((totalCompletions / (enrolled * classAssignments.length)) * 100);
+        const avgCompletion = totalModules > 0 ? Math.round((totalCompletions / (enrolled * totalModules)) * 100) : 0;
 
         const compEl = container.querySelector('#idStatCompletion');
         const labsEl = container.querySelector('#idStatLabs');
