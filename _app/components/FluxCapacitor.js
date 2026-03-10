@@ -464,8 +464,9 @@
         }
 
         init() {
+            this.hasTerminal = !!document.querySelector('.terminal-panel, .terminal-container, #terminal');
             this.injectStyles();
-            this.createButton();
+            if (!this.hasTerminal) this.createButton();
             this.createModal();
             this.createWarpEffect();
             this.bindEvents();
@@ -631,7 +632,7 @@
 
         bindEvents() {
             // Button click
-            this.button.addEventListener('click', () => this.toggle());
+            if (this.button) this.button.addEventListener('click', () => this.toggle());
 
             // Overlay click (close on background)
             this.overlay.addEventListener('click', (e) => {
