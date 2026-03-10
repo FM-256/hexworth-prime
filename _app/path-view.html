@@ -352,20 +352,26 @@
                 if (progressData) {
                     const progress = JSON.parse(progressData);
                     if (progress.completedModules && Array.isArray(progress.completedModules)) {
-                        progress.completedModules.forEach(id => completed.add(id));
+                        progress.completedModules.forEach(id => {
+                            completed.add(id);
+                            // Strip house prefix to get LearningPaths short ID
+                            // e.g. 'script-lm-01-welcome' → 'lm-01-welcome'
+                            const dashIdx = id.indexOf('-');
+                            if (dashIdx > 0) completed.add(id.substring(dashIdx + 1));
+                        });
                     }
 
-                    // Also extract short IDs from house-level progress.
-                    // LearningPaths modules use short IDs (e.g. 'lm-01-welcome')
-                    // but completedModules stores compound IDs ('script-lm-01-welcome').
-                    // Check progress[house][key].completed and add the short key too,
-                    // so getPathOverview() matching works for both ID formats.
+                    // Also extract from house-level progress.
+                    // Keys here are compound (e.g. 'script-lm-01-welcome'), so add
+                    // both the raw key and the stripped short form for LearningPaths matching.
                     for (const [house, modules] of Object.entries(progress)) {
                         if (!modules || typeof modules !== 'object' || Array.isArray(modules)) continue;
                         for (const [key, data] of Object.entries(modules)) {
                             if (data && data.completed) {
-                                completed.add(key);                   // short key: 'lm-01-welcome'
-                                completed.add(house + '-' + key);     // compound: 'script-lm-01-welcome'
+                                completed.add(key);
+                                // Strip house prefix: 'script-lm-01-welcome' → 'lm-01-welcome'
+                                const dashIdx = key.indexOf('-');
+                                if (dashIdx > 0) completed.add(key.substring(dashIdx + 1));
                             }
                         }
                     }
@@ -380,11 +386,24 @@
                     }
                 }
 
-                // Check Arctic progress too (Arctic modules use IDs like 'lm-01-welcome')
+                // Check Arctic progress — Arctic uses abbreviated IDs (e.g. 'lm-02-first-cmds')
+                // that differ from LearningPaths long IDs ('lm-02-first-commands').
+                // Bridge by matching numeric prefix ('lm-02') to find the LP equivalent.
                 try {
                     const arctic = JSON.parse(localStorage.getItem('hexworth_arctic_progress') || '{}');
+                    const lpPath = (typeof LearningPaths !== 'undefined') ? LearningPaths.PATHS[lookupId] : null;
                     for (const id of Object.keys(arctic)) {
-                        if (arctic[id]) completed.add(id);
+                        if (!arctic[id]) continue;
+                        completed.add(id);
+                        // Bridge Arctic→LearningPaths: 'lm-02-first-cmds' → 'lm-02-first-commands'
+                        if (lpPath) {
+                            const numMatch = id.match(/^([a-z]+-\d+)/);
+                            if (numMatch) {
+                                const prefix = numMatch[1] + '-';
+                                const lpMod = lpPath.modules.find(m => m.id.startsWith(prefix));
+                                if (lpMod) completed.add(lpMod.id);
+                            }
+                        }
                     }
                 } catch(e) {}
             } catch (e) {
