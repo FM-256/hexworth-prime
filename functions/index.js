@@ -1097,6 +1097,8 @@ exports.validateChallenge = onCall(cfOptions, async (request) => {
     switch (challengeId) {
         case 'shopbot':
             return evaluateShopbot(levelId, userInput, conversation || []);
+        case 'clh-insight':
+            return evaluateClhInsight(levelId, userInput);
         default:
             throw new HttpsError('not-found', `Unknown challenge: ${challengeId}`);
     }
@@ -1224,6 +1226,35 @@ function checkShopbotSuccess(level, msg, conversation) {
     }
 
     return false;
+}
+
+/**
+ * Evaluate a CLH insight phase answer.
+ * Reads accepted answers from Firestore, does case-insensitive comparison.
+ */
+async function evaluateClhInsight(moduleId, userInput) {
+    if (!moduleId || typeof moduleId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Invalid CLH module ID.');
+    }
+
+    const insightDoc = await db.doc(`challenge_registry/clh/insights/${moduleId}`).get();
+    if (!insightDoc.exists) {
+        throw new HttpsError('not-found', 'Module insight not found in challenge registry.');
+    }
+
+    const insight = insightDoc.data();
+    const normalized = userInput.trim().toLowerCase();
+    const isCorrect = (insight.acceptedAnswers || []).some(
+        a => a.toLowerCase() === normalized
+    );
+
+    return {
+        blocked: false,
+        success: isCorrect,
+        feedback: isCorrect ? insight.correctMessage : insight.wrongMessage,
+        points: isCorrect ? 100 : 0,
+        explanation: null
+    };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
