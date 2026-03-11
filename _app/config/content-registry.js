@@ -21932,6 +21932,231 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: ['Review all DevOps topics', 'Test knowledge across 6 categories']
         },
+        // ─── CODE HOUSE — GitHub Actions Sequence (14 modules) ───
+        'do-100-workflow-fundamentals': {
+            id: 'do-100-workflow-fundamentals',
+            title: 'Workflow Fundamentals',
+            description: 'GitHub Actions triggers, jobs, steps, and workflow structure',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['github-actions', 'workflows', 'cicd', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-100-workflow-fundamentals.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-101-workflow-syntax': {
+            id: 'do-101-workflow-syntax',
+            title: 'Workflow Syntax',
+            description: 'YAML deep dive for GitHub Actions workflow definitions',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['github-actions', 'yaml', 'syntax', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-101-workflow-syntax.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-102-variables-secrets': {
+            id: 'do-102-variables-secrets',
+            title: 'Variables & Secrets',
+            description: 'Managing variables, secrets, and environment configuration in GitHub Actions',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['github-actions', 'variables', 'secrets', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-102-variables-secrets.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-103-custom-actions': {
+            id: 'do-103-custom-actions',
+            title: 'Custom Actions',
+            description: 'Build your own GitHub Actions — JavaScript, Docker, and composite actions',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['github-actions', 'custom-actions', 'javascript', 'docker', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-103-custom-actions.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-104-runners': {
+            id: 'do-104-runners',
+            title: 'Runners',
+            description: 'Self-hosted and GitHub-hosted runners — configuration, scaling, and management',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['github-actions', 'runners', 'self-hosted', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-104-runners.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-105-security-hardening': {
+            id: 'do-105-security-hardening',
+            title: 'Security Hardening',
+            description: 'Hardening GitHub Actions workflows — permissions, OIDC, supply chain security',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 40,
+            topics: ['github-actions', 'security', 'hardening', 'oidc', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-105-security-hardening.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-106-deployment-pipelines': {
+            id: 'do-106-deployment-pipelines',
+            title: 'Deployment Pipelines',
+            description: 'Environments, approvals, and deployment strategies with GitHub Actions',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['github-actions', 'deployment', 'environments', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-106-deployment-pipelines.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-107-advanced-patterns': {
+            id: 'do-107-advanced-patterns',
+            title: 'Advanced Patterns',
+            description: 'Matrix builds, reusable workflows, and composite actions',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 40,
+            topics: ['github-actions', 'matrix', 'reusable-workflows', 'composite', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-107-advanced-patterns.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-108-language-pipelines': {
+            id: 'do-108-language-pipelines',
+            title: 'Language-Specific Pipelines',
+            description: 'CI/CD pipelines tailored for Python, Node.js, Java, Go, and more',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['github-actions', 'python', 'nodejs', 'java', 'go', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-108-language-pipelines.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-109-publishing-artifacts': {
+            id: 'do-109-publishing-artifacts',
+            title: 'Publishing & Artifacts',
+            description: 'Artifact management, package publishing, and release automation',
+            house: 'code',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['github-actions', 'artifacts', 'publishing', 'releases', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/devops/sections/cicd/do-109-publishing-artifacts.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-110-workflow-builder': {
+            id: 'do-110-workflow-builder',
+            title: 'Workflow Builder Lab',
+            description: 'Hands-on lab building GitHub Actions workflows from scratch',
+            house: 'code',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['github-actions', 'lab', 'workflow', 'hands-on', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                lab: 'houses/code/devops/sections/cicd/do-110-workflow-builder.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-111-pipeline-debugger': {
+            id: 'do-111-pipeline-debugger',
+            title: 'Pipeline Debugger Lab',
+            description: 'Debug failing CI/CD pipelines — fix broken workflows and diagnose issues',
+            house: 'code',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['github-actions', 'debugging', 'troubleshooting', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                lab: 'houses/code/devops/sections/cicd/do-111-pipeline-debugger.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-112-cicd-pipeline-lab': {
+            id: 'do-112-cicd-pipeline-lab',
+            title: 'CI/CD Pipeline Lab',
+            description: 'End-to-end CI/CD pipeline implementation with GitHub Actions',
+            house: 'code',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['github-actions', 'cicd', 'pipeline', 'hands-on', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                lab: 'houses/code/devops/sections/cicd/do-112-cicd-pipeline-lab.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'do-113-security-audit': {
+            id: 'do-113-security-audit',
+            title: 'Security Audit Lab',
+            description: 'Audit GitHub Actions workflows for security vulnerabilities and misconfigurations',
+            house: 'code',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 50,
+            topics: ['github-actions', 'security', 'audit', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                lab: 'houses/code/devops/sections/cicd/do-113-security-audit.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         // ─── GENERAL / NON-HOUSE (remaining REG-001 fixes) ───
         'general-audit-tool': {
             id: 'general-audit-tool',

@@ -11,7 +11,7 @@
 
 const ForgeData = {
 
-    version: '1.0.0',
+    version: '2.0.0',
 
     // -------------------------------------------------------------------------
     // Track definitions — logical groupings shown as tabs on the hub page.
@@ -61,9 +61,27 @@ const ForgeData = {
     ],
 
     // -------------------------------------------------------------------------
+    // Recommended learning path — the order students should follow across
+    // all sections when studying end-to-end. Sections not listed here
+    // (culture, assessments, certprep) are available at any time.
+    // -------------------------------------------------------------------------
+    learningPath: [
+        'foundation',   // 1. What is DevOps, toolchains, data formats
+        'workbench',    // 2. OS, shell, SSH, runtimes, networking
+        'ide',          // 3. VS Code mastery, extensions, remote dev
+        'git',          // 4. Version control end-to-end
+        'docker',       // 5. Containers, Compose, registries
+        'kubernetes',   // 6. Orchestration, Helm, production
+        'cicd',         // 7. Pipelines, GitHub Actions, deployment
+        'iac',          // 8. Terraform, CloudFormation, GitOps
+        'ansible'       // 9. Configuration management at scale
+    ],
+
+    // -------------------------------------------------------------------------
     // Section definitions — each section is a navigable page with modules.
     // type: 'module' | 'lab' | 'quiz' | 'presentation' | 'game' | 'review' | 'applet'
     // status: 'ready' | 'coming-soon'
+    // prerequisites: section ids that should be completed first (advisory)
     // -------------------------------------------------------------------------
     sections: [
 
@@ -77,6 +95,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-books.webp',
             description: 'What is DevOps, the culture shift, and the toolchain landscape.',
             color: '#10b981',
+            prerequisites: [],
             modules: [
                 { id: 'do-1', title: 'What is DevOps?', type: 'module', status: 'ready', sprint: 'DO-1', href: 'do-1-what-is-devops.html' },
                 { id: 'do-2', title: 'The DevOps Toolchain', type: 'module', status: 'ready', sprint: 'DO-2', href: 'do-2-devops-toolchain.html' },
@@ -97,6 +116,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-wrench.webp',
             description: 'Set up your environment like a professional — OS, shell, SSH, runtimes, secrets, containers, networking.',
             color: '#10b981',
+            prerequisites: ['foundation'],
             modules: [
                 { id: 'do-30', title: 'OS & Shell Setup', type: 'module', status: 'ready', sprint: 'DO-30', href: 'do-30-os-shell-setup.html' },
                 { id: 'do-31', title: 'SSH, GPG & Dotfiles', type: 'module', status: 'ready', sprint: 'DO-31', href: 'do-31-ssh-gpg-dotfiles.html' },
@@ -118,6 +138,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-terminal.webp',
             description: 'Master your editor — VS Code deep dive, extensions, remote development, and terminal integration.',
             color: '#10b981',
+            prerequisites: ['foundation'],
             modules: [
                 { id: 'do-4', title: 'VS Code — Interface & Core Features', type: 'module', status: 'ready', sprint: 'DO-4', href: 'do-4-vscode-interface.html' },
                 { id: 'do-5', title: 'VS Code — Git Integration', type: 'module', status: 'ready', sprint: 'DO-5', href: 'do-5-vscode-git.html' },
@@ -141,6 +162,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-branch.webp',
             description: 'Version control mastery — from first commit to advanced workflows, rebasing, and internals.',
             color: '#10b981',
+            prerequisites: ['ide'],
             modules: [
                 { id: 'do-7', title: 'Git Fundamentals — Init, Add, Commit', type: 'module', status: 'ready', sprint: 'DO-7', href: 'do-7-git-fundamentals.html' },
                 { id: 'do-8', title: 'Branches — Create, Switch, Merge', type: 'module', status: 'ready', sprint: 'DO-8', href: 'do-8-branches.html' },
@@ -172,6 +194,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-docker.webp',
             description: 'Containerization from first pull to production — images, Compose, networking, volumes, and security.',
             color: '#3b82f6',
+            prerequisites: ['workbench', 'git'],
             modules: [
                 { id: 'do-17', title: 'Docker Fundamentals — Containers & Images', type: 'module', status: 'ready', sprint: 'DO-17', href: 'do-17-docker-fundamentals.html' },
                 { id: 'do-48', title: 'Dockerfile Deep Dive', type: 'module', status: 'ready', sprint: 'DO-48', href: 'do-48-dockerfile.html' },
@@ -197,6 +220,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-kubernetes.webp',
             description: 'Container orchestration — pods, deployments, services, scaling, Helm, and production operations.',
             color: '#3b82f6',
+            prerequisites: ['docker'],
             modules: [
                 { id: 'do-19', title: 'Why Kubernetes? — Orchestration Fundamentals', type: 'module', status: 'ready', sprint: 'DO-19', href: 'do-19-k8s-fundamentals.html' },
                 { id: 'do-57', title: 'Pods & Deployments', type: 'module', status: 'ready', sprint: 'DO-57', href: 'do-57-pods-deployments.html' },
@@ -224,6 +248,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-controls.webp',
             description: 'Continuous Integration and Deployment — GitHub Actions, testing, deployment strategies, and monitoring.',
             color: '#3b82f6',
+            prerequisites: ['git'],
             modules: [
                 { id: 'do-70', title: 'CI/CD Fundamentals — Why Automate Everything', type: 'module', status: 'ready', sprint: 'DO-70', href: 'do-70-cicd-fundamentals.html' },
                 { id: 'do-71', title: 'Pipeline Architecture — Stages, Jobs & Dependencies', type: 'module', status: 'ready', sprint: 'DO-71', href: 'do-71-pipeline-architecture.html' },
@@ -233,6 +258,20 @@ const ForgeData = {
                 { id: 'do-75', title: 'Secrets & Environment Management', type: 'module', status: 'ready', sprint: 'DO-75', href: 'do-75-secrets-environments.html' },
                 { id: 'do-76', title: 'CI/CD Platforms — GitLab CI, Jenkins & Beyond', type: 'module', status: 'ready', sprint: 'DO-76', href: 'do-76-cicd-platforms.html' },
                 { id: 'do-21', title: 'GitHub Actions Deep Dive', type: 'module', status: 'ready', sprint: 'DO-21', href: 'do-21-github-actions.html' },
+                { id: 'do-100', title: 'Workflow Fundamentals — Triggers, Jobs & Steps', type: 'presentation', status: 'ready', sprint: 'DO-100', href: 'do-100-workflow-fundamentals.presentation.html' },
+                { id: 'do-101', title: 'Workflow Syntax — YAML Deep Dive', type: 'presentation', status: 'ready', sprint: 'DO-101', href: 'do-101-workflow-syntax.presentation.html' },
+                { id: 'do-102', title: 'Variables & Secrets Management', type: 'presentation', status: 'ready', sprint: 'DO-102', href: 'do-102-variables-secrets.presentation.html' },
+                { id: 'do-103', title: 'Custom Actions — Build Your Own', type: 'presentation', status: 'ready', sprint: 'DO-103', href: 'do-103-custom-actions.presentation.html' },
+                { id: 'do-104', title: 'Runners — Self-Hosted & GitHub-Hosted', type: 'presentation', status: 'ready', sprint: 'DO-104', href: 'do-104-runners.presentation.html' },
+                { id: 'do-105', title: 'Security Hardening for Workflows', type: 'presentation', status: 'ready', sprint: 'DO-105', href: 'do-105-security-hardening.presentation.html' },
+                { id: 'do-106', title: 'Deployment Pipelines — Environments & Approvals', type: 'presentation', status: 'ready', sprint: 'DO-106', href: 'do-106-deployment-pipelines.presentation.html' },
+                { id: 'do-107', title: 'Advanced Patterns — Matrix, Reusable & Composite', type: 'presentation', status: 'ready', sprint: 'DO-107', href: 'do-107-advanced-patterns.presentation.html' },
+                { id: 'do-108', title: 'Language-Specific Pipelines', type: 'presentation', status: 'ready', sprint: 'DO-108', href: 'do-108-language-pipelines.presentation.html' },
+                { id: 'do-109', title: 'Publishing & Artifact Management', type: 'presentation', status: 'ready', sprint: 'DO-109', href: 'do-109-publishing-artifacts.presentation.html' },
+                { id: 'do-110', title: 'Workflow Builder Lab', type: 'lab', status: 'ready', sprint: 'DO-110', href: 'do-110-workflow-builder.lab.html' },
+                { id: 'do-111', title: 'Pipeline Debugger Lab', type: 'lab', status: 'ready', sprint: 'DO-111', href: 'do-111-pipeline-debugger.lab.html' },
+                { id: 'do-112', title: 'CI/CD Pipeline Lab', type: 'lab', status: 'ready', sprint: 'DO-112', href: 'do-112-cicd-pipeline-lab.lab.html' },
+                { id: 'do-113', title: 'Security Audit Lab', type: 'lab', status: 'ready', sprint: 'DO-113', href: 'do-113-security-audit.lab.html' },
                 { id: 'do-22', title: 'CI/CD Capstone Lab', type: 'lab', status: 'ready', sprint: 'DO-22', href: 'do-22-cicd-lab.html' },
                 { id: 'do-77', title: 'Pipeline Monitoring & Observability', type: 'module', status: 'ready', sprint: 'DO-77', href: 'do-77-pipeline-monitoring.html' },
                 { id: 'do-78', title: 'CI/CD Tips, Tricks & Battle Scars', type: 'module', status: 'ready', sprint: 'DO-78', href: 'do-78-cicd-tips.html' }
@@ -249,6 +288,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-construction.webp',
             description: 'Terraform, Ansible provisioning, state management, modules, testing, and GitOps workflows.',
             color: '#3b82f6',
+            prerequisites: ['cicd'],
             modules: [
                 { id: 'do-79', title: 'IaC Fundamentals — Why Code Your Cloud', type: 'module', status: 'ready', sprint: 'DO-79', href: 'do-79-iac-fundamentals.html' },
                 { id: 'do-23', title: 'Terraform Deep Dive — HCL & Resources', type: 'module', status: 'ready', sprint: 'DO-23', href: 'do-23-terraform.html' },
@@ -272,6 +312,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-robot.webp',
             description: 'Agentless automation mastery — inventory, playbooks, roles, vault, AWX, and real-world patterns.',
             color: '#f59e0b',
+            prerequisites: ['workbench'],
             modules: [
                 { id: 'do-83', title: 'Automation Landscape — Ansible, Chef, Puppet & Salt', type: 'module', status: 'ready', sprint: 'DO-83', href: 'do-83-automation-landscape.html' },
                 { id: 'do-82', title: 'Ansible Fundamentals — Agentless Automation', type: 'module', status: 'ready', sprint: 'DO-82', href: 'do-82-ansible-fundamentals.html' },
@@ -300,6 +341,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-users.webp',
             description: 'The human side of DevOps — collaboration, post-mortems, SRE, and organizational transformation.',
             color: '#8b5cf6',
+            prerequisites: [],
             modules: [
                 { id: 'do-25', title: 'DevOps Culture — Teams, Communication & Blameless Post-Mortems', type: 'module', status: 'ready', sprint: 'DO-25', href: 'do-25-devops-culture.html' }
             ]
@@ -315,6 +357,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-clipboard.webp',
             description: 'Quizzes, review games, and knowledge checks across all DevOps domains.',
             color: '#8b5cf6',
+            prerequisites: [],
             modules: [
                 { id: 'do-26', title: 'DevOps Fundamentals Quiz', type: 'quiz', status: 'ready', sprint: 'DO-26', href: 'do-26-fundamentals-quiz.html' },
                 { id: 'do-27', title: 'CI/CD & IaC Quiz', type: 'quiz', status: 'ready', sprint: 'DO-27', href: 'do-27-cicd-iac-quiz.html' },
@@ -332,6 +375,7 @@ const ForgeData = {
             icon: '../../../assets/images/icons/icon-graduation.webp',
             description: 'Certification alignment — map your progress to industry certifications.',
             color: '#8b5cf6',
+            prerequisites: [],
             modules: [
                 { id: 'do-29', title: 'Cert Alignment — AWS, Azure, CKA, Terraform', type: 'module', status: 'ready', sprint: 'DO-29', href: 'do-29-cert-alignment.html' }
             ]
@@ -371,6 +415,27 @@ const ForgeData = {
         const total = section.modules.length;
         const completed = section.modules.filter(m => progress[m.id]).length;
         return { total, completed, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
+    },
+
+    /** Get section prerequisites (section objects). */
+    getPrerequisites(sectionId) {
+        const section = this.getSection(sectionId);
+        if (!section || !section.prerequisites) return [];
+        return section.prerequisites.map(id => this.getSection(id)).filter(Boolean);
+    },
+
+    /** Check if all prerequisites for a section are complete. */
+    arePrereqsMet(sectionId, progress) {
+        const prereqs = this.getPrerequisites(sectionId);
+        return prereqs.every(sec => {
+            const stats = this.getSectionStats(sec.id, progress);
+            return stats.pct === 100;
+        });
+    },
+
+    /** Get the ordered learning path as section objects. */
+    getLearningPath() {
+        return this.learningPath.map(id => this.getSection(id)).filter(Boolean);
     },
 
     /** Get track completion stats. */
