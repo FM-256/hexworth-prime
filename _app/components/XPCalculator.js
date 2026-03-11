@@ -203,6 +203,9 @@ const XPCalculator = (function () {
         const level = calculateLevel(xp);
         const tier = getLevelTier(level);
 
+        // Push to Firestore if XP changed (throttled, non-blocking)
+        _syncToFirestore(xp);
+
         return { xp, level, tier, breakdown, integrity };
     }
 
@@ -550,6 +553,43 @@ const XPCalculator = (function () {
         loginDays = Math.min(loginDays, MAX_LOGIN_DAYS);
         breakdown.dailyLogins = loginDays * XP_RATES.DAILY_LOGIN;
         breakdown._counts.dailyLogins = loginDays;
+    }
+
+    // ─── Throttled Firestore XP sync ───────────────────────────
+    // After recalculate(), push xp+level to Firestore if the value changed.
+    // Throttled: max once per 10 seconds to avoid write storms.
+    let _lastSyncedXP = null;
+    let _syncThrottleTimer = null;
+    const _SYNC_THROTTLE_MS = 10000; // 10 seconds
+
+    /**
+     * Push current XP to Firestore if it changed since the last push.
+     * Called internally after recalculate(). Uses FirestoreManager.recalculateXP()
+     * which routes through the syncProgress Cloud Function.
+     */
+    function _syncToFirestore(xp) {
+        // Skip if XP hasn't changed since last successful sync
+        if (xp === _lastSyncedXP) return;
+
+        // Skip if no auth or no FirestoreManager
+        if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn ||
+            !FirebaseAuth.isSignedIn()) return;
+        if (typeof FirestoreManager === 'undefined' || !FirestoreManager.recalculateXP) return;
+
+        // Throttle: clear any pending sync and schedule a new one
+        if (_syncThrottleTimer) clearTimeout(_syncThrottleTimer);
+
+        _syncThrottleTimer = setTimeout(function () {
+            _syncThrottleTimer = null;
+            const user = FirebaseAuth.getUser();
+            if (!user) return;
+
+            FirestoreManager.recalculateXP(user.uid).then(function () {
+                _lastSyncedXP = xp;
+            }).catch(function (err) {
+                console.warn('[XPCalculator] Firestore XP sync failed:', err.message);
+            });
+        }, _SYNC_THROTTLE_MS);
     }
 
     // Public API

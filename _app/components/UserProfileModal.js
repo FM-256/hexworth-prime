@@ -196,8 +196,18 @@
         const hInfo = houseData[house] || houseData.divergent;
         const tier = tierBadges[p.tier] || tierBadges.free;
 
-        const rawXP = p.totalXP || p.xp || 0;
-        const level = p.level || computeLevel(rawXP);
+        // For current user, use fresh XPCalculator result instead of stale Firestore XP
+        const currentUser = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser();
+        const isSelfProfile = currentUser && currentUser.uid === p.uid;
+        let rawXP, level;
+        if (isSelfProfile && typeof XPCalculator !== 'undefined') {
+            const freshCalc = XPCalculator.recalculate();
+            rawXP = freshCalc.xp;
+            level = freshCalc.level;
+        } else {
+            rawXP = p.totalXP || p.xp || 0;
+            level = p.level || computeLevel(rawXP);
+        }
         const currentLevelXP = xpForLevel(level);
         const nextLevelXP = xpForLevel(level + 1);
         const xpRange = nextLevelXP - currentLevelXP;
@@ -214,8 +224,7 @@
         const gamesPlayed = p.gamesPlayed || 0;
         const callsign = esc(p.callsign || p.displayName || 'Anonymous');
 
-        const currentUser = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser();
-        const isSelf = currentUser && currentUser.uid === p.uid;
+        const isSelf = isSelfProfile;
 
         const mascotSrc = `/assets/images/mascots/${house}-hero.webp`;
         const emblemSrc = `/assets/images/emblems/${house}.webp`;

@@ -174,6 +174,24 @@ const FirestoreLeaderboard = (function() {
         const allEntries = data.entries || [];
         const userRank = data.userRank;
 
+        // For the current user, override stale Firestore XP with fresh local calculation
+        if (currentUser && typeof XPCalculator !== 'undefined') {
+            const freshCalc = XPCalculator.recalculate();
+            // Patch matching entry in the entries list
+            for (let i = 0; i < allEntries.length; i++) {
+                if (allEntries[i].id === currentUser.uid) {
+                    allEntries[i].totalXP = freshCalc.xp;
+                    allEntries[i].level = freshCalc.level;
+                    break;
+                }
+            }
+            // Patch userRank if present
+            if (userRank) {
+                userRank.totalXP = freshCalc.xp;
+                userRank.level = freshCalc.level;
+            }
+        }
+
         // Show only displayCount entries (top 5 or top 10)
         const entries = allEntries.slice(0, displayCount);
         const hasMore = allEntries.length > displayCount;
